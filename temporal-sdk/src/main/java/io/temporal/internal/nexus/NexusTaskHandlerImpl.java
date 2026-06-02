@@ -303,7 +303,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               }
               // Convert each inbound nexus.v1.Link to common.v1.Link, dispatching on the link's
               // type field (WorkflowEvent, NexusOperation, etc.). LinkConverter logs the warn for
-              // any unknown type and returns null.
+              // any unknown type and returns null. We don't throw as we know the URI is valid
+              // (If it wasn't, then nexusProtoLinkToLink would have already thrown)
+              // so this might just be a new link type and we don't want to
+              // break forward compatibility.
               io.temporal.api.common.v1.Link commonLink = LinkConverter.nexusLinkToCommonLink(link);
               if (commonLink != null) {
                 inboundCommonLinks.add(commonLink);
@@ -317,51 +320,57 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     StartOperationResponse.Builder startResponseBuilder = StartOperationResponse.newBuilder();
     OperationContext context = ctx.build();
     try {
-      OperationStartResult<HandlerResultContent> result =
-          startOperation(context, operationStartDetails.build(), input.build());
-      // If signal or signalWithStart RPCs the handler issued returned backlinks, propagate them
-      // to the caller so the caller workflow's history event links to each event on the callee.
-      // Same set of backlinks applies to both sync and async response variants.
-      List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
-      for (io.temporal.api.common.v1.Link backlink :
-          CurrentNexusOperationContext.get().getBacklinks()) {
-        io.temporal.api.nexus.v1.Link converted = LinkConverter.commonLinkToNexusLink(backlink);
-        if (converted != null) {
-          backlinks.add(converted);
-        } else {
-          // The SDK stashed this backlink itself in RootWorkflowClientInvoker; failing to re-encode
-          // it now means a LinkConverter regression or a malformed link from the server. Either is
-          // an SDK invariant violation worth shouting about (warn is too quiet — the caller's
-          // history event will be missing a link with no other diagnostic).
-          log.error(
-              "SDK-stashed backlink failed to re-encode as nexus.v1.Link; caller history will be"
-                  + " missing a link. backlink={}",
-              backlink);
+      try {
+        OperationStartResult<HandlerResultContent> result =
+            startOperation(context, operationStartDetails.build(), input.build());
+        // If signal or signalWithStart RPCs the handler issued returned backlinks, propagate them
+        // to the caller so the caller workflow's history event links to each event on the callee.
+        // Same set of backlinks applies to both sync and async response variants.
+        List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
+        for (io.temporal.api.common.v1.Link backlink :
+            CurrentNexusOperationContext.get().getBacklinks()) {
+          io.temporal.api.nexus.v1.Link converted = LinkConverter.commonLinkToNexusLink(backlink);
+          if (converted != null) {
+            backlinks.add(converted);
+          } else {
+            // The SDK stashed this backlink itself in RootWorkflowClientInvoker; failing to
+            // re-encode it now means a LinkConverter regression or a malformed link from the
+            // server. Either is an SDK invariant violation worth shouting about (warn is too
+            // quiet — the caller's history event will be missing a link with no other diagnostic).
+            log.error(
+                "SDK-stashed backlink failed to re-encode as nexus.v1.Link; caller history will be"
+                    + " missing a link. backlink={}",
+                backlink);
+          }
         }
-      }
 
-      if (result.isSync()) {
-        startResponseBuilder.setSyncSuccess(
-            StartOperationResponse.Sync.newBuilder()
-                .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
-                .addAllLinks(backlinks)
-                .build());
-      } else {
-        startResponseBuilder.setAsyncSuccess(
-            StartOperationResponse.Async.newBuilder()
-                .setOperationId(result.getAsyncOperationToken())
-                .setOperationToken(result.getAsyncOperationToken())
-                .addAllLinks(
-                    context.getLinks().stream()
-                        .map(
-                            link ->
-                                io.temporal.api.nexus.v1.Link.newBuilder()
-                                    .setType(link.getType())
-                                    .setUrl(link.getUri().toString())
-                                    .build())
-                        .collect(Collectors.toList()))
-                .addAllLinks(backlinks)
-                .build());
+        if (result.isSync()) {
+          startResponseBuilder.setSyncSuccess(
+              StartOperationResponse.Sync.newBuilder()
+                  .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                  .addAllLinks(backlinks)
+                  .build());
+        } else {
+          startResponseBuilder.setAsyncSuccess(
+              StartOperationResponse.Async.newBuilder()
+                  .setOperationId(result.getAsyncOperationToken())
+                  .setOperationToken(result.getAsyncOperationToken())
+                  .addAllLinks(
+                      context.getLinks().stream()
+                          .map(
+                              link ->
+                                  io.temporal.api.nexus.v1.Link.newBuilder()
+                                      .setType(link.getType())
+                                      .setUrl(link.getUri().toString())
+                                      .build())
+                          .collect(Collectors.toList()))
+                  .addAllLinks(backlinks)
+                  .build());
+        }
+      } catch (OperationException e) {
+        throw e;
+      } catch (Throwable failure) {
+        convertKnownFailures(failure);
       }
     } catch (OperationException e) {
       TemporalFailure temporalFailure;
