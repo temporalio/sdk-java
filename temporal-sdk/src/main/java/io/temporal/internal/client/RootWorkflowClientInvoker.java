@@ -103,7 +103,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         }
       }
       if (CurrentNexusOperationContext.isNexusContext()) {
-        CurrentNexusOperationContext.get().setStartWorkflowResponseLink(response.getLink());
+        // Auto-capture the start-workflow backlink so the task handler drains it onto the
+        // StartOperationResponse, the same path used for signal/signalWithStart responses.
+        CurrentNexusOperationContext.get().addBacklink(response.getLink());
       }
       return new WorkflowStartOutput(execution);
     }
@@ -125,12 +127,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
     if (inNexusContext) {
       request.addAllLinks(CurrentNexusOperationContext.get().getNexusOperationLinks());
-    } else {
-      // Most signal calls (from a regular client or workflow) won't be in a Nexus context — this
-      // is normal. The log helps a debugger when a Nexus operation handler "mysteriously" lacks
-      // link propagation because it spawned a thread to issue the signal (the thread-local
-      // CurrentNexusOperationContext is invisible from that thread).
-      log.debug("signal RPC issued outside a Nexus operation context; no link propagation");
     }
 
     DataConverter dataConverterWitSignalContext =
