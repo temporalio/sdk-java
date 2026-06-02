@@ -1,5 +1,7 @@
 package io.temporal.client.nexus;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.api.enums.v1.NexusOperationExecutionStatus;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
@@ -11,9 +13,9 @@ import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
-import io.temporal.workflow.shared.StandaloneNexusTestPrerequisites;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -38,8 +40,12 @@ public class NexusOperationHandleTest {
           .build();
 
   @BeforeClass
-  public static void requireServerWithStandaloneNexusSupport() {
-    StandaloneNexusTestPrerequisites.requireServerSupport();
+  public static void requireExternalService() {
+    // Standalone Nexus operation RPCs are not implemented by the time-skipping in-memory test
+    // server; these tests must run against a real Temporal server.
+    assumeTrue(
+        "standalone Nexus operations require a real server",
+        SDKTestWorkflowRule.useExternalService);
   }
 
   @Test
@@ -288,33 +294,24 @@ public class NexusOperationHandleTest {
           "expected outer message to reference the operation ID, got: " + e.getMessage(),
           e.getMessage() != null && e.getMessage().contains(operationId));
 
-      // The full cause chain: dataConverter.failureToException(...) translates the proto Failure
-      // into a Java exception. Walk every link and verify the handler's reason surfaces somewhere.
-      boolean foundHandlerFailure = false;
-      for (Throwable c = e.getCause(); c != null; c = c.getCause()) {
-        if (c.getMessage() != null && c.getMessage().contains("intentional failure")) {
-          foundHandlerFailure = true;
-          break;
-        }
-        if (c.getCause() == c) {
-          break;
-        }
-      }
+      // Cause: ApplicationFailure produced by NexusTaskHandlerImpl when it converts the
+      // handler-thrown OperationException.failed(...) into a TemporalFailure
+      // (ApplicationFailure.newFailureWithCause(message, "OperationError", null)). Lock down the
+      // exact shape so any drift in that conversion surfaces here.
+      Throwable cause = e.getCause();
+      Assert.assertNotNull("expected NexusOperationFailedException to wrap a cause", cause);
       Assert.assertTrue(
-          "expected cause chain to include the handler's failure message, got: "
-              + collectMessages(e),
-          foundHandlerFailure);
+          "expected cause to be ApplicationFailure, got " + cause.getClass().getSimpleName(),
+          cause instanceof ApplicationFailure);
+      ApplicationFailure appFailure = (ApplicationFailure) cause;
+      Assert.assertEquals("OperationError", appFailure.getType());
+      Assert.assertEquals("intentional failure: FAIL:boom", appFailure.getOriginalMessage());
+      Assert.assertFalse(
+          "OperationException.failed(...) currently translates to a retryable ApplicationFailure",
+          appFailure.isNonRetryable());
+      Assert.assertNull(
+          "expected no further nested cause for a bare OperationException.failed(msg)",
+          appFailure.getCause());
     }
-  }
-
-  private static String collectMessages(Throwable t) {
-    StringBuilder sb = new StringBuilder();
-    for (Throwable c = t; c != null; c = c.getCause()) {
-      sb.append(c.getClass().getSimpleName()).append(":").append(c.getMessage()).append(" | ");
-      if (c.getCause() == c) {
-        break;
-      }
-    }
-    return sb.toString();
   }
 }

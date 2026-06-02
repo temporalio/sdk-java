@@ -34,7 +34,7 @@ public interface UntypedNexusServiceClient {
    * @param options per-call options controlling timeouts, search attributes, etc.
    * @param arg the operation input; may be {@code null}
    * @return the deserialized operation result
-   * @throws RuntimeException if the operation failed, timed out, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled
    */
   <R> R execute(
       String operation,
@@ -53,7 +53,7 @@ public interface UntypedNexusServiceClient {
    * @param options per-call options controlling timeouts, search attributes, etc.
    * @param arg the operation input; may be {@code null}
    * @return the deserialized operation result
-   * @throws RuntimeException if the operation failed, timed out, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled
    */
   <R> R execute(
       String operation,

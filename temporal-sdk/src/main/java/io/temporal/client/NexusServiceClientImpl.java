@@ -13,6 +13,7 @@ import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Typed Nexus service client. Extracts the operation name from a {@link BiFunction} that targets a
@@ -68,6 +69,47 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
     Method method =
         MethodExtractor.extract(serviceInterface, (Functions.Func2<T, U, R>) operation::apply);
+    return startResolved(method, input, options);
+  }
+
+  @Override
+  public <U, R> R execute(
+      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
+    return this.<U, R>start(operation, input, options).getResult();
+  }
+
+  @Override
+  public <U, R> CompletableFuture<R> executeAsync(
+      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
+    return this.<U, R>start(operation, input, options).getResultAsync();
+  }
+
+  @Override
+  public <R> NexusOperationHandle<R> start(
+      Function<T, R> operation, StartNexusOperationOptions options) {
+    Method method =
+        MethodExtractor.extract(serviceInterface, (Functions.Func1<T, R>) operation::apply);
+    return startResolved(method, /* input= */ null, options);
+  }
+
+  @Override
+  public <R> R execute(Function<T, R> operation, StartNexusOperationOptions options) {
+    return this.<R>start(operation, options).getResult();
+  }
+
+  @Override
+  public <R> CompletableFuture<R> executeAsync(
+      Function<T, R> operation, StartNexusOperationOptions options) {
+    return this.<R>start(operation, options).getResultAsync();
+  }
+
+  /**
+   * Shared back-end for the typed start variants: resolves the method to its Nexus {@code
+   * OperationDefinition}, issues the start RPC, and wraps the resulting untyped handle in a typed
+   * one. {@code input} may be {@code null} for no-input operations.
+   */
+  private <R> NexusOperationHandle<R> startResolved(
+      Method method, @javax.annotation.Nullable Object input, StartNexusOperationOptions options) {
     OperationDefinition opDef =
         serviceDef.getOperations().values().stream()
             .filter(o -> method.getName().equals(o.getMethodName()))
@@ -83,17 +125,5 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
     Class<R> resultClass = (Class<R>) method.getReturnType();
     UntypedNexusOperationHandle untyped = start(opDef.getName(), options, input);
     return NexusOperationHandle.fromUntyped(untyped, resultClass, method.getGenericReturnType());
-  }
-
-  @Override
-  public <U, R> R execute(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return start(operation, input, options).getResult();
-  }
-
-  @Override
-  public <U, R> CompletableFuture<R> executeAsync(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return start(operation, input, options).getResultAsync();
   }
 }

@@ -4,14 +4,56 @@ import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 /**
  * Typed client for invoking standalone Nexus operations on a specific service interface {@code T}.
  *
- * <p>Operations are dispatched via method references (or {@link BiFunction} lambdas) that target
- * methods on {@code T}; the client extracts the operation name from the invocation and delegates to
- * {@link NexusClient}. For visibility queries (list/count) across operations, use {@link
- * NexusClient} directly.
+ * <p>Operations are dispatched via method references on {@code T} (or equivalent {@link BiFunction}
+ * / {@link Function} lambdas); the client extracts the operation name from the invocation and
+ * delegates to {@link NexusClient}. For visibility queries (list/count) across operations, use
+ * {@link NexusClient} directly.
+ *
+ * <h2>Usage</h2>
+ *
+ * <p>Given a Nexus service interface:
+ *
+ * <pre>{@code
+ * @Service
+ * public interface GreeterService {
+ *   @Operation String greet(String name);     // input + output
+ *   @Operation String now();                  // no input, output
+ *   @Operation Void log(String message);      // input, no output
+ * }
+ * }</pre>
+ *
+ * <p>Build a client and dispatch by method reference:
+ *
+ * <pre>{@code
+ * NexusServiceClient<GreeterService> client = NexusServiceClient.newInstance(
+ *     GreeterService.class, "greeter-endpoint", workflowServiceStubs);
+ *
+ * StartNexusOperationOptions options = StartNexusOperationOptions.newBuilder()
+ *     .setId(UUID.randomUUID().toString())
+ *     .build();
+ *
+ * // Operation that takes an input (BiFunction overload):
+ * String hi = client.execute(GreeterService::greet, "Ada", options);
+ *
+ * // Operation with no input (Function overload):
+ * String t = client.execute(GreeterService::now, options);
+ *
+ * // Operation that returns Void: the same overloads work, R is just Void.
+ * client.execute(GreeterService::log, "hello", options);
+ *
+ * // Get a handle instead of blocking:
+ * NexusOperationHandle<String> handle = client.start(GreeterService::greet, "Ada", options);
+ * String result = handle.getResult();
+ *
+ * // Run asynchronously:
+ * CompletableFuture<String> future =
+ *     client.executeAsync(GreeterService::greet, "Ada", options);
+ * }</pre>
  *
  * @param <T> the Nexus service interface this client is bound to
  * @see NexusClient
@@ -56,7 +98,7 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
    * @param input the operation input
    * @param options per-call options controlling timeouts, search attributes, etc.
    * @return the operation result
-   * @throws RuntimeException if the operation failed, timed out, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled
    */
   <U, R> R execute(BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options);
 
@@ -82,4 +124,35 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
    */
   <U, R> CompletableFuture<R> executeAsync(
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options);
+
+  /**
+   * Executes a no-input operation synchronously with per-call options. Use this overload for Nexus
+   * operations declared without an input parameter on {@code T} (e.g. {@code R operation()}).
+   *
+   * @param operation a method reference on {@code T} identifying the no-input operation
+   * @param options per-call options controlling timeouts, search attributes, etc.
+   * @return the operation result
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled
+   */
+  <R> R execute(Function<T, R> operation, StartNexusOperationOptions options);
+
+  /**
+   * Starts a no-input operation with per-call options and returns a typed handle. Use this overload
+   * for Nexus operations declared without an input parameter on {@code T}.
+   *
+   * @param operation a method reference on {@code T} identifying the no-input operation
+   * @param options per-call options controlling timeouts, search attributes, etc.
+   * @return a typed handle bound to the started operation
+   */
+  <R> NexusOperationHandle<R> start(Function<T, R> operation, StartNexusOperationOptions options);
+
+  /**
+   * Async variant of {@link #execute(Function, StartNexusOperationOptions)} for no-input
+   * operations.
+   *
+   * @param operation a method reference on {@code T} identifying the no-input operation
+   * @param options per-call options controlling timeouts, search attributes, etc.
+   */
+  <R> CompletableFuture<R> executeAsync(
+      Function<T, R> operation, StartNexusOperationOptions options);
 }

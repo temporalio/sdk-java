@@ -1,18 +1,19 @@
 package io.temporal.client.nexus;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
-import io.temporal.client.NexusOperationException;
 import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.NexusServiceClient;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
-import io.temporal.workflow.shared.StandaloneNexusTestPrerequisites;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -42,8 +43,12 @@ public class NexusAsyncApiTest {
           .build();
 
   @BeforeClass
-  public static void requireServerWithStandaloneNexusSupport() {
-    StandaloneNexusTestPrerequisites.requireServerSupport();
+  public static void requireExternalService() {
+    // Standalone Nexus operation RPCs are not implemented by the time-skipping in-memory test
+    // server; these tests must run against a real Temporal server.
+    assumeTrue(
+        "standalone Nexus operations require a real server",
+        SDKTestWorkflowRule.useExternalService);
   }
 
   // --- NexusServiceClient.executeAsync ---
@@ -154,28 +159,40 @@ public class NexusAsyncApiTest {
       future.get();
       Assert.fail("expected future to complete exceptionally");
     } catch (ExecutionException e) {
+      // The JDK wraps the underlying exception in ExecutionException — that's expected. The SDK
+      // MUST NOT introduce any further layer between this wrapper and the
+      // NexusOperationFailedException; the chain below ExecutionException must be identical to the
+      // synchronous getResult() path so CompletableFuture handling doesn't smuggle extra wrappers.
       Throwable cause = e.getCause();
+      Assert.assertNotNull("expected ExecutionException to wrap a cause", cause);
       Assert.assertTrue(
-          "expected NexusOperationException, got "
-              + (cause == null ? "null" : cause.getClass().getSimpleName()),
-          cause instanceof NexusOperationException);
-      Assert.assertTrue(
-          "expected NexusOperationFailedException, got " + cause.getClass().getSimpleName(),
+          "expected NexusOperationFailedException directly under ExecutionException, got "
+              + cause.getClass().getSimpleName(),
           cause instanceof NexusOperationFailedException);
-
-      // Walk the cause chain and verify the handler's failure message surfaces somewhere.
-      boolean foundHandlerFailure = false;
-      for (Throwable c = cause.getCause(); c != null; c = c.getCause()) {
-        if (c.getMessage() != null && c.getMessage().contains("intentional failure")) {
-          foundHandlerFailure = true;
-          break;
-        }
-        if (c.getCause() == c) {
-          break;
-        }
-      }
+      NexusOperationFailedException nexusFailure = (NexusOperationFailedException) cause;
+      Assert.assertNotNull(nexusFailure.getOperationId());
       Assert.assertTrue(
-          "expected cause chain to include the handler's failure message", foundHandlerFailure);
+          "expected outer message to reference the operation ID, got: " + nexusFailure.getMessage(),
+          nexusFailure.getMessage() != null
+              && nexusFailure.getMessage().contains(nexusFailure.getOperationId()));
+
+      // Inner cause: ApplicationFailure with the handler's exact failure text and type
+      // "OperationError" — same shape as the sync getResult() path. The async path must not
+      // alter the cause chain.
+      Throwable inner = nexusFailure.getCause();
+      Assert.assertNotNull("expected NexusOperationFailedException to wrap an inner cause", inner);
+      Assert.assertTrue(
+          "expected inner cause to be ApplicationFailure, got " + inner.getClass().getSimpleName(),
+          inner instanceof ApplicationFailure);
+      ApplicationFailure appFailure = (ApplicationFailure) inner;
+      Assert.assertEquals("OperationError", appFailure.getType());
+      Assert.assertEquals("intentional failure: FAIL:boom", appFailure.getOriginalMessage());
+      Assert.assertFalse(
+          "OperationException.failed(...) currently translates to a retryable ApplicationFailure",
+          appFailure.isNonRetryable());
+      Assert.assertNull(
+          "expected no further nested cause for a bare OperationException.failed(msg)",
+          appFailure.getCause());
     }
   }
 

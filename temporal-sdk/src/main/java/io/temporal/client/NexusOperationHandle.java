@@ -53,7 +53,7 @@ public interface NexusOperationHandle<R> extends UntypedNexusOperationHandle {
   /**
    * Blocks until the Nexus operation completes and returns the typed result.
    *
-   * @throws RuntimeException if the operation failed, timed out, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled
    */
   R getResult();
 
@@ -63,7 +63,8 @@ public interface NexusOperationHandle<R> extends UntypedNexusOperationHandle {
    *
    * @param timeout maximum time to wait
    * @param unit unit of {@code timeout}
-   * @throws RuntimeException if the operation failed, timed out on the server, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out on the server, or was
+   *     cancelled
    * @throws TimeoutException if {@code timeout} expires before the operation completes
    */
   R getResult(long timeout, TimeUnit unit) throws TimeoutException;

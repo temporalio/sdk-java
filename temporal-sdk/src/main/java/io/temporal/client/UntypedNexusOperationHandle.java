@@ -37,8 +37,8 @@ public interface UntypedNexusOperationHandle {
    * server via long-polling.
    *
    * @param resultClass the class to deserialize the result into
-   * @throws RuntimeException if the operation failed, timed out, or was cancelled; the specific
-   *     exception type reflects the underlying failure
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled; the
+   *     concrete subtype reflects the underlying failure
    */
   <R> R getResult(Class<R> resultClass);
 
@@ -48,8 +48,8 @@ public interface UntypedNexusOperationHandle {
    *
    * @param resultClass the class to deserialize the result into
    * @param resultType the generic type to use for deserialization; may be {@code null}
-   * @throws RuntimeException if the operation failed, timed out, or was cancelled; the specific
-   *     exception type reflects the underlying failure
+   * @throws NexusOperationException if the operation failed, timed out, or was cancelled; the
+   *     concrete subtype reflects the underlying failure
    */
   <R> R getResult(Class<R> resultClass, @Nullable Type resultType);
 
@@ -60,7 +60,8 @@ public interface UntypedNexusOperationHandle {
    * @param timeout maximum time to wait
    * @param unit unit of {@code timeout}
    * @param resultClass the class to deserialize the result into
-   * @throws RuntimeException if the operation failed, timed out on the server, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out on the server, or was
+   *     cancelled
    * @throws TimeoutException if the client-side {@code timeout} expires before the operation
    *     completes
    */
@@ -75,7 +76,8 @@ public interface UntypedNexusOperationHandle {
    * @param unit unit of {@code timeout}
    * @param resultClass the class to deserialize the result into
    * @param resultType the generic type to use for deserialization; may be {@code null}
-   * @throws RuntimeException if the operation failed, timed out on the server, or was cancelled
+   * @throws NexusOperationException if the operation failed, timed out on the server, or was
+   *     cancelled
    * @throws TimeoutException if the client-side {@code timeout} expires before the operation
    *     completes
    */

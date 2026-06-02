@@ -1,5 +1,10 @@
 package io.temporal.client.nexus;
 
+import static org.junit.Assume.assumeTrue;
+
+import io.nexusrpc.handler.OperationHandler;
+import io.nexusrpc.handler.OperationImpl;
+import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationExecutionDescription;
@@ -9,7 +14,6 @@ import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
-import io.temporal.workflow.shared.StandaloneNexusTestPrerequisites;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -29,12 +33,20 @@ public class NexusServiceClientTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
-          .setNexusServiceImplementation(new EchoNexusServiceImpl())
+          .setNexusServiceImplementation(
+              new EchoNexusServiceImpl(),
+              new VoidInputServiceImpl(),
+              new VoidReturnServiceImpl(),
+              new VoidServiceImpl())
           .build();
 
   @BeforeClass
-  public static void requireServerWithStandaloneNexusSupport() {
-    StandaloneNexusTestPrerequisites.requireServerSupport();
+  public static void requireExternalService() {
+    // Standalone Nexus operation RPCs are not implemented by the time-skipping in-memory test
+    // server; these tests must run against a real Temporal server.
+    assumeTrue(
+        "standalone Nexus operations require a real server",
+        SDKTestWorkflowRule.useExternalService);
   }
 
   @Test
@@ -120,6 +132,49 @@ public class NexusServiceClientTest {
     Assert.assertEquals("per-call-summary", description.getStaticSummary());
   }
 
+  // ── No-input / void-return shape coverage ────────────────────────────────────────────────
+
+  @Test
+  public void executeWithNoInputReturnsResult() {
+    // Exercises the Function<T, R> overload — Nexus operations declared as `R operation()` with
+    // no input parameter.
+    NexusServiceClient<TestNexusServices.TestNexusServiceVoidInput> client =
+        buildServiceClientFor(TestNexusServices.TestNexusServiceVoidInput.class);
+
+    String result =
+        client.execute(TestNexusServices.TestNexusServiceVoidInput::operation, newOptionsWithId());
+
+    Assert.assertEquals("void-input-result", result);
+  }
+
+  @Test
+  public void executeWithVoidReturnCompletes() {
+    // Exercises the existing BiFunction<T, U, Void> path — Nexus operations declared as
+    // `Void operation(input)`. No new overload needed; the SDK already handles Void as a result
+    // type. This test pins that contract.
+    NexusServiceClient<TestNexusServices.TestNexusServiceVoidReturn> client =
+        buildServiceClientFor(TestNexusServices.TestNexusServiceVoidReturn.class);
+
+    Void result =
+        client.execute(
+            TestNexusServices.TestNexusServiceVoidReturn::operation, "ignored", newOptionsWithId());
+
+    Assert.assertNull(result);
+  }
+
+  @Test
+  public void executeWithNoInputAndVoidReturnCompletes() {
+    // Exercises the Function<T, Void> overload — Nexus operations declared as `Void operation()`
+    // with neither input nor a useful return value.
+    NexusServiceClient<TestNexusServices.TestNexusServiceVoid> client =
+        buildServiceClientFor(TestNexusServices.TestNexusServiceVoid.class);
+
+    Void result =
+        client.execute(TestNexusServices.TestNexusServiceVoid::operation, newOptionsWithId());
+
+    Assert.assertNull(result);
+  }
+
   // A search-attribute round-trip via describe() would naturally belong here, but the rule's
   // `registerSearchAttribute(...)` is asynchronous on the server side and races the test —
   // calling `start(...)` immediately afterwards fails with "no mapping defined for search
@@ -133,9 +188,14 @@ public class NexusServiceClientTest {
 
   private NexusServiceClient<TestNexusServices.TestNexusService1> buildServiceClient(
       Endpoint endpoint) {
+    return buildServiceClientFor(TestNexusServices.TestNexusService1.class);
+  }
+
+  /** Builds a typed client for an arbitrary Nexus service interface against the rule's endpoint. */
+  private <S> NexusServiceClient<S> buildServiceClientFor(Class<S> serviceClass) {
     return NexusServiceClient.newInstance(
-        TestNexusServices.TestNexusService1.class,
-        endpoint.getSpec().getName(),
+        serviceClass,
+        testWorkflowRule.getNexusEndpoint().getSpec().getName(),
         testWorkflowRule.getWorkflowServiceStubs(),
         NexusClientOptions.newBuilder()
             .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
@@ -146,6 +206,33 @@ public class NexusServiceClientTest {
     @Override
     public String execute(String input) {
       return input;
+    }
+  }
+
+  /** Handler for the no-input, has-output service {@code TestNexusServiceVoidInput}. */
+  @ServiceImpl(service = TestNexusServices.TestNexusServiceVoidInput.class)
+  public static class VoidInputServiceImpl {
+    @OperationImpl
+    public OperationHandler<Void, String> operation() {
+      return OperationHandler.sync((ctx, details, input) -> "void-input-result");
+    }
+  }
+
+  /** Handler for the has-input, void-return service {@code TestNexusServiceVoidReturn}. */
+  @ServiceImpl(service = TestNexusServices.TestNexusServiceVoidReturn.class)
+  public static class VoidReturnServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, Void> operation() {
+      return OperationHandler.sync((ctx, details, input) -> null);
+    }
+  }
+
+  /** Handler for the no-input, void-return service {@code TestNexusServiceVoid}. */
+  @ServiceImpl(service = TestNexusServices.TestNexusServiceVoid.class)
+  public static class VoidServiceImpl {
+    @OperationImpl
+    public OperationHandler<Void, Void> operation() {
+      return OperationHandler.sync((ctx, details, input) -> null);
     }
   }
 }
