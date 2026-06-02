@@ -9,6 +9,8 @@ project(':temporal-opentracing').projectDir = file('contrib/temporal-opentracing
 include 'temporal-kotlin'
 include 'temporal-spring-ai'
 project(':temporal-spring-ai').projectDir = file('contrib/temporal-spring-ai')
+include 'temporal-aws-lambda'
+project(':temporal-aws-lambda').projectDir = file('contrib/temporal-aws-lambda')
 include 'temporal-spring-boot-autoconfigure'
 include 'temporal-spring-boot-starter'
 include 'temporal-remote-data-encoder'

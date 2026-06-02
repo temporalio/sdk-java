@@ -1,0 +1,384 @@
+package io.temporal.aws.lambda;
+
+import static org.junit.Assert.*;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.Functions;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+public class LambdaWorkerLifecycleTest {
+  private static final WorkerDeploymentVersion VERSION =
+      new WorkerDeploymentVersion("deployment", "build");
+
+  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+  @Test
+  public void invocationLifecycleRunsInOrder() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options ->
+                options
+                    .setTaskQueue("task-queue")
+                    .registerWorkflowImplementationTypes(TestWorkflowImpl.class)
+                    .registerActivitiesImplementations(new Object())
+                    .registerNexusServiceImplementation(new Object())
+                    .addShutdownHook(() -> runtime.events.add("hook-1"))
+                    .addShutdownHook(() -> runtime.events.add("hook-2")),
+            runtime,
+            duration -> runtime.events.add("sleep:" + duration.toMillis()));
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals(
+        events(
+            "create",
+            "registerWorkflowTypes:1",
+            "registerActivities:1",
+            "registerNexus:1",
+            "start",
+            "sleep:13000",
+            "shutdown",
+            "await:5000",
+            "hook-1",
+            "hook-2",
+            "close:2000"),
+        runtime.events);
+  }
+
+  @Test
+  public void configureRunsOnceAndRuntimeIsCreatedOncePerInvocation() {
+    AtomicInteger configureCount = new AtomicInteger();
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {
+              configureCount.incrementAndGet();
+              options.setTaskQueue("task-queue");
+            },
+            runtime);
+
+    assertEquals(1, configureCount.get());
+
+    handler.handleRequest(null, context(20_000, "request-1", "function-arn-1"));
+    assertEquals("request-1@function-arn-1", runtime.clientOptions.getIdentity());
+    assertEquals("request-1@function-arn-1", runtime.workerOptions.getIdentity());
+
+    handler.handleRequest(null, context(20_000, "request-2", "function-arn-2"));
+    assertEquals("request-2@function-arn-2", runtime.clientOptions.getIdentity());
+    assertEquals("request-2@function-arn-2", runtime.workerOptions.getIdentity());
+
+    assertEquals(1, configureCount.get());
+    assertEquals(2, runtime.createCount);
+  }
+
+  @Test
+  public void missingTaskQueueFailsDuringHandlerConstruction() {
+    FakeRuntime runtime = new FakeRuntime();
+
+    assertThrows(IllegalStateException.class, () -> handler(options -> {}, runtime));
+
+    assertEquals(0, runtime.createCount);
+  }
+
+  @Test
+  public void envconfigValuesAreVisibleToConfigureBeforeInvocation() throws IOException {
+    File config = temporaryFolder.newFile("temporal.toml");
+    Files.write(
+        config.toPath(),
+        "[profile.default]\nnamespace = \"configured\"\n".getBytes(StandardCharsets.UTF_8));
+    Map<String, String> env = new HashMap<>();
+    env.put(LambdaWorkerOptions.TEMPORAL_CONFIG_FILE, config.getAbsolutePath());
+    AtomicReference<String> namespaceInConfigure = new AtomicReference<>();
+    FakeRuntime runtime = new FakeRuntime();
+
+    RequestHandler<Object, Void> handler =
+        handler(
+            env,
+            options -> {
+              namespaceInConfigure.set(
+                  options.getWorkflowClientOptionsBuilder().build().getNamespace());
+              options.setTaskQueue("task-queue");
+            },
+            runtime,
+            duration -> {});
+
+    assertEquals("configured", namespaceInConfigure.get());
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals("configured", runtime.clientOptions.getNamespace());
+  }
+
+  @Test
+  public void identityUsesAwsRequestIdAndFunctionArn() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(options -> options.setTaskQueue("task-queue"), runtime);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals("request-id@function-arn", runtime.clientOptions.getIdentity());
+    assertEquals("request-id@function-arn", runtime.workerOptions.getIdentity());
+  }
+
+  @Test
+  public void userProvidedClientIdentityIsPreserved() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {
+              options.setTaskQueue("task-queue");
+              options.getWorkflowClientOptionsBuilder().setIdentity("custom-client");
+            },
+            runtime);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals("custom-client", runtime.clientOptions.getIdentity());
+    assertEquals("custom-client", runtime.workerOptions.getIdentity());
+  }
+
+  @Test
+  public void userProvidedWorkerIdentityIsPreserved() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {
+              options.setTaskQueue("task-queue");
+              options.getWorkerOptionsBuilder().setIdentity("custom-worker");
+            },
+            runtime);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals("custom-worker", runtime.workerOptions.getIdentity());
+    assertEquals("custom-worker", runtime.clientOptions.getIdentity());
+  }
+
+  @Test
+  public void insufficientRemainingTimeThrowsBeforeRuntimeCreation() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(options -> options.setTaskQueue("task-queue"), runtime);
+
+    assertThrows(IllegalStateException.class, () -> handler.handleRequest(null, context(8_000)));
+
+    assertEquals(0, runtime.createCount);
+  }
+
+  @Test
+  public void lowRemainingTimeStillStartsAndSleepsUntilShutdownBuffer() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> options.setTaskQueue("task-queue"),
+            runtime,
+            duration -> runtime.events.add("sleep:" + duration.toMillis()));
+
+    handler.handleRequest(null, context(10_500));
+
+    assertTrue(runtime.events.contains("start"));
+    assertTrue(runtime.events.contains("sleep:3500"));
+  }
+
+  @Test
+  public void shutdownHookErrorsDoNotSkipLaterHooks() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options ->
+                options
+                    .setTaskQueue("task-queue")
+                    .addShutdownHook(
+                        () -> {
+                          runtime.events.add("hook-1");
+                          throw new RuntimeException("hook failed");
+                        })
+                    .addShutdownHook(() -> runtime.events.add("hook-2")),
+            runtime);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertTrue(runtime.events.contains("hook-1"));
+    assertTrue(runtime.events.contains("hook-2"));
+    assertEquals("close:2000", runtime.events.get(runtime.events.size() - 1));
+  }
+
+  private RequestHandler<Object, Void> handler(
+      java.util.function.Consumer<LambdaWorkerOptions> configure, FakeRuntime runtime) {
+    return handler(configure, runtime, duration -> {});
+  }
+
+  private RequestHandler<Object, Void> handler(
+      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper) {
+    return handler(baseEnv(), configure, runtime, sleeper);
+  }
+
+  private RequestHandler<Object, Void> handler(
+      Map<String, String> env,
+      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper) {
+    try {
+      LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(env);
+      configure.accept(options);
+      return LambdaWorker.newHandler(VERSION, options, runtime, sleeper);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private Context context(int remainingTimeMillis) {
+    return new TestLambdaContext(remainingTimeMillis);
+  }
+
+  private Context context(int remainingTimeMillis, String awsRequestId, String invokedFunctionArn) {
+    return new TestLambdaContext(remainingTimeMillis, awsRequestId, invokedFunctionArn);
+  }
+
+  private Map<String, String> baseEnv() {
+    Map<String, String> env = new HashMap<>();
+    env.put(LambdaWorkerOptions.TEMPORAL_CONFIG_FILE, "/nonexistent/temporal.toml");
+    return env;
+  }
+
+  private List<String> events(String... events) {
+    List<String> result = new ArrayList<>();
+    for (String event : events) {
+      result.add(event);
+    }
+    return result;
+  }
+
+  private static final class FakeRuntime implements LambdaWorkerRuntime {
+    private final List<String> events = new ArrayList<>();
+    private int createCount;
+    private WorkflowClientOptions clientOptions;
+    private WorkerOptions workerOptions;
+
+    @Override
+    public Invocation create(
+        WorkflowServiceStubsOptions serviceStubsOptions,
+        WorkflowClientOptions clientOptions,
+        WorkerFactoryOptions workerFactoryOptions,
+        String taskQueue,
+        WorkerOptions workerOptions) {
+      createCount++;
+      events.add("create");
+      this.clientOptions = clientOptions;
+      this.workerOptions = workerOptions;
+      return new FakeInvocation(events);
+    }
+  }
+
+  private static final class FakeInvocation implements LambdaWorkerRuntime.Invocation {
+    private final List<String> events;
+    private final WorkerRegistrar registrar;
+
+    private FakeInvocation(List<String> events) {
+      this.events = events;
+      this.registrar = new FakeWorkerRegistrar(events);
+    }
+
+    @Override
+    public WorkerRegistrar getWorkerRegistrar() {
+      return registrar;
+    }
+
+    @Override
+    public void start() {
+      events.add("start");
+    }
+
+    @Override
+    public void shutdown() {
+      events.add("shutdown");
+    }
+
+    @Override
+    public void awaitTermination(Duration timeout) {
+      events.add("await:" + timeout.toMillis());
+    }
+
+    @Override
+    public void closeStubs(Duration timeout) {
+      events.add("close:" + timeout.toMillis());
+    }
+  }
+
+  private static final class FakeWorkerRegistrar implements WorkerRegistrar {
+    private final List<String> events;
+
+    private FakeWorkerRegistrar(List<String> events) {
+      this.events = events;
+    }
+
+    @Override
+    public void registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
+      events.add("registerWorkflowTypes:" + workflowImplementationClasses.length);
+    }
+
+    @Override
+    public void registerWorkflowImplementationTypes(
+        WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
+      events.add("registerWorkflowTypesWithOptions:" + workflowImplementationClasses.length);
+    }
+
+    @Override
+    public <R> void registerWorkflowImplementationFactory(
+        Class<R> workflowInterface, Functions.Func<R> factory) {
+      events.add("registerWorkflowFactory");
+    }
+
+    @Override
+    public <R> void registerWorkflowImplementationFactory(
+        Class<R> workflowInterface,
+        Functions.Func1<io.temporal.common.converter.EncodedValues, R> factory,
+        WorkflowImplementationOptions options) {
+      events.add("registerWorkflowFactoryWithArgs");
+    }
+
+    @Override
+    public <R> void registerWorkflowImplementationFactory(
+        Class<R> workflowInterface,
+        Functions.Func<R> factory,
+        WorkflowImplementationOptions options) {
+      events.add("registerWorkflowFactoryWithOptions");
+    }
+
+    @Override
+    public void registerActivitiesImplementations(Object... activityImplementations) {
+      events.add("registerActivities:" + activityImplementations.length);
+    }
+
+    @Override
+    public void registerNexusServiceImplementation(Object... nexusServiceImplementations) {
+      events.add("registerNexus:" + nexusServiceImplementations.length);
+    }
+  }
+
+  private static final class TestWorkflowImpl {}
+}
