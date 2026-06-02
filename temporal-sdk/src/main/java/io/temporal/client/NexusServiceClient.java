@@ -50,9 +50,7 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
   }
 
   /**
-   * Executes an operation synchronously with per-call options. The supplied {@link
-   * StartNexusOperationOptions} must have its {@code id} set; the SDK does not generate operation
-   * IDs on the caller's behalf.
+   * Executes an operation synchronously with per-call options.
    *
    * @param operation a method reference on {@code T} identifying the operation
    * @param input the operation input
@@ -60,14 +58,10 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
    * @return the operation result
    * @throws RuntimeException if the operation failed, timed out, or was cancelled
    */
-  default <U, R> R execute(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return start(operation, input, options).getResult();
-  }
+  <U, R> R execute(BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options);
 
   /**
-   * Starts an operation with per-call options and returns a typed handle. The supplied {@link
-   * StartNexusOperationOptions} must have its {@code id} set.
+   * Starts an operation with per-call options and returns a typed handle.
    *
    * @param operation a method reference on {@code T} identifying the operation
    * @param input the operation input
@@ -86,8 +80,6 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
    * @param input the operation input
    * @param options per-call options controlling timeouts, search attributes, etc.
    */
-  default <U, R> CompletableFuture<R> executeAsync(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return start(operation, input, options).getResultAsync();
-  }
+  <U, R> CompletableFuture<R> executeAsync(
+      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options);
 }

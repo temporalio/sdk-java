@@ -11,6 +11,7 @@ import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 
 /**
@@ -82,5 +83,17 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
     Class<R> resultClass = (Class<R>) method.getReturnType();
     UntypedNexusOperationHandle untyped = start(opDef.getName(), options, input);
     return NexusOperationHandle.fromUntyped(untyped, resultClass, method.getGenericReturnType());
+  }
+
+  @Override
+  public <U, R> R execute(
+      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
+    return start(operation, input, options).getResult();
+  }
+
+  @Override
+  public <U, R> CompletableFuture<R> executeAsync(
+      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
+    return start(operation, input, options).getResultAsync();
   }
 }

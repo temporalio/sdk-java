@@ -34,8 +34,6 @@ import org.junit.Test;
  */
 public class NexusAsyncApiTest {
 
-  private static final Duration FUTURE_GET_TIMEOUT = Duration.ofSeconds(30);
-
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -56,7 +54,7 @@ public class NexusAsyncApiTest {
         buildServiceClient()
             .executeAsync(
                 TestNexusServices.TestNexusService1::operation, "hello", newOptionsWithId())
-            .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+            .get();
 
     Assert.assertEquals("echo:hello", result);
   }
@@ -72,7 +70,7 @@ public class NexusAsyncApiTest {
     String result =
         buildServiceClient()
             .executeAsync(TestNexusServices.TestNexusService1::operation, "world", options)
-            .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+            .get();
 
     Assert.assertEquals("echo:world", result);
   }
@@ -85,7 +83,7 @@ public class NexusAsyncApiTest {
         buildServiceClient()
             .start(TestNexusServices.TestNexusService1::operation, "typed", newOptionsWithId());
 
-    String result = handle.getResultAsync().get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    String result = handle.getResultAsync().get();
 
     Assert.assertEquals("echo:typed", result);
   }
@@ -96,10 +94,9 @@ public class NexusAsyncApiTest {
         buildServiceClient()
             .start(TestNexusServices.TestNexusService1::operation, "typed-tm", newOptionsWithId());
 
-    String result =
-        handle
-            .getResultAsync(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS)
-            .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    // The 60s argument here exists to satisfy the API signature being exercised; the test rule's
+    // global timeout will fail the test long before this value matters.
+    String result = handle.getResultAsync(60, TimeUnit.SECONDS).get();
 
     Assert.assertEquals("echo:typed-tm", result);
   }
@@ -110,8 +107,7 @@ public class NexusAsyncApiTest {
   public void untypedHandleGetResultAsyncByClassReturnsResult() throws Exception {
     UntypedNexusOperationHandle handle = startUntyped("untyped");
 
-    String result =
-        handle.getResultAsync(String.class).get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    String result = handle.getResultAsync(String.class).get();
 
     Assert.assertEquals("echo:untyped", result);
   }
@@ -120,10 +116,7 @@ public class NexusAsyncApiTest {
   public void untypedHandleGetResultAsyncByClassAndTypeReturnsResult() throws Exception {
     UntypedNexusOperationHandle handle = startUntyped("untyped-gen");
 
-    String result =
-        handle
-            .getResultAsync(String.class, String.class)
-            .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    String result = handle.getResultAsync(String.class, String.class).get();
 
     Assert.assertEquals("echo:untyped-gen", result);
   }
@@ -132,10 +125,7 @@ public class NexusAsyncApiTest {
   public void untypedHandleGetResultAsyncWithTimeoutByClassReturnsResult() throws Exception {
     UntypedNexusOperationHandle handle = startUntyped("untyped-tm");
 
-    String result =
-        handle
-            .getResultAsync(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS, String.class)
-            .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    String result = handle.getResultAsync(60, TimeUnit.SECONDS, String.class).get();
 
     Assert.assertEquals("echo:untyped-tm", result);
   }
@@ -144,11 +134,7 @@ public class NexusAsyncApiTest {
   public void untypedHandleGetResultAsyncWithTimeoutByClassAndTypeReturnsResult() throws Exception {
     UntypedNexusOperationHandle handle = startUntyped("untyped-tm-gen");
 
-    String result =
-        handle
-            .getResultAsync(
-                FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS, String.class, String.class)
-            .get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+    String result = handle.getResultAsync(60, TimeUnit.SECONDS, String.class, String.class).get();
 
     Assert.assertEquals("echo:untyped-tm-gen", result);
   }
@@ -165,7 +151,7 @@ public class NexusAsyncApiTest {
                 newOptionsWithId());
 
     try {
-      future.get(FUTURE_GET_TIMEOUT.getSeconds(), TimeUnit.SECONDS);
+      future.get();
       Assert.fail("expected future to complete exceptionally");
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
