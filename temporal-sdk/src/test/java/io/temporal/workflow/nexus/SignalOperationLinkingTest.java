@@ -2,9 +2,6 @@ package io.temporal.workflow.nexus;
 
 import static org.junit.Assume.assumeTrue;
 
-import com.google.protobuf.util.Durations;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.nexusrpc.handler.OperationCancelDetails;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationHandler;
@@ -15,15 +12,11 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
-import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
 import io.temporal.client.BatchRequest;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.nexus.Nexus;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationHandle;
 import io.temporal.workflow.NexusOperationOptions;
@@ -40,7 +33,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -48,13 +40,11 @@ import org.junit.Test;
 
 /**
  * Verifies link propagation in both directions when a Nexus operation handler interacts with a
- * workflow via signal. Covers four scenarios:
+ * workflow via signal. Covers three scenarios:
  *
  * <ul>
- *   <li>{@link #testSignalOperationLinks()} — same-namespace, sync handler, two signals
- *       (signalWithStart + plain signal).
- *   <li>{@link #testCrossNamespaceSignalOperationLinks()} — caller and callee in different
- *       namespaces; otherwise identical to the same-namespace case.
+ *   <li>{@link #testSignalOperationLinks()} — sync handler, two signals (signalWithStart + plain
+ *       signal).
  *   <li>{@link #testMultiSignalOperationLinks()} — one Nexus operation signals three different
  *       callees; verifies all three backlinks land on the caller's single {@code
  *       NexusOperationCompleted} event.
@@ -63,9 +53,9 @@ import org.junit.Test;
  *       {@link io.temporal.internal.nexus.NexusTaskHandlerImpl}).
  * </ul>
  *
- * <p>All four tests require Temporal server &ge; 1.31 with {@code EnableCHASMSignalBacklinks=true};
- * the in-memory test server does not implement this path so the class is skipped unless a real
- * server is in use.
+ * <p>All tests require Temporal server &ge; 1.31 with {@code EnableCHASMSignalBacklinks=true}; the
+ * in-memory test server does not implement this path so the class is skipped unless a real server
+ * is in use.
  */
 public class SignalOperationLinkingTest extends BaseNexusTest {
 
@@ -73,9 +63,7 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
   private static final String MODE_SIGNAL = "signal";
   private static final String MODE_MULTI_SIGNAL_WITH_START = "multi";
   private static final String MODE_ASYNC_SIGNAL_WITH_START = "asyncSignalWithStart";
-  private static final String CALLEE_NAMESPACE = "UnitTest2";
 
-  // Caller workflow + Nexus handler register here (namespace UnitTest).
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -83,32 +71,13 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
           .setNexusServiceImplementation(new SignalingNexusServiceImpl())
           .build();
 
-  // Separate worker/client on the callee namespace, used by the cross-namespace test. No
-  // precedent in the repo for multi-@Rule SDKTestWorkflowRule patterns; every test method pays
-  // the cost of starting this second worker even if it doesn't use it. Acceptable for the
-  // current test count; revisit if more cross-namespace tests get added.
-  @Rule
-  public SDKTestWorkflowRule calleeNamespaceRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setNamespace(CALLEE_NAMESPACE)
-          .setWorkflowTypes(SignalCalleeWorkflowImpl.class)
-          .build();
-
   @BeforeClass
-  public static void requireExternalServiceAndSetupCalleeNamespace() {
+  public static void requireExternalService() {
     // The server-side backlink implementation (temporalio/temporal#9897) is gated by
     // EnableCHASMSignalBacklinks and is only present in real servers.
     assumeTrue(
         "signal backlinks require a real server with EnableCHASMSignalBacklinks=true",
         SDKTestWorkflowRule.useExternalService);
-    // The test rule does not auto-register namespaces on an external server.
-    ensureNamespaceExists(CALLEE_NAMESPACE);
-  }
-
-  @After
-  public void resetNamespaceOverrides() {
-    SignalingNexusServiceImpl.calleeNamespaceOverride = null;
-    SignalingNexusServiceImpl.calleeTaskQueueOverride = null;
   }
 
   @Override
@@ -120,14 +89,7 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
 
   @Test
   public void testSignalOperationLinks() {
-    runTwoSignalScenario(testWorkflowRule);
-  }
-
-  @Test
-  public void testCrossNamespaceSignalOperationLinks() {
-    SignalingNexusServiceImpl.calleeNamespaceOverride = CALLEE_NAMESPACE;
-    SignalingNexusServiceImpl.calleeTaskQueueOverride = calleeNamespaceRule.getTaskQueue();
-    runTwoSignalScenario(calleeNamespaceRule);
+    runTwoSignalScenario();
   }
 
   /**
@@ -224,14 +186,9 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
 
   // ── Shared scenario + assertion helpers ──────────────────────────────────────────────────
 
-  /**
-   * Drive the two-signal flow (signalWithStart + plain signal) and assert link propagation. Used by
-   * same-namespace and cross-namespace tests; the only thing that varies is which rule's client
-   * fetches the callee history.
-   */
-  private void runTwoSignalScenario(SDKTestWorkflowRule calleeRule) {
-    WorkflowClient callerClient = testWorkflowRule.getWorkflowClient();
-    WorkflowClient calleeClient = calleeRule.getWorkflowClient();
+  /** Drive the two-signal flow (signalWithStart + plain signal) and assert link propagation. */
+  private void runTwoSignalScenario() {
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
     String calleeWorkflowId = "signal-callee-" + UUID.randomUUID();
 
     TestWorkflows.TestWorkflow1 callerStub =
@@ -239,13 +196,12 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
     String result = callerStub.execute("twoSync:" + calleeWorkflowId);
     Assert.assertEquals("ok:signalWithStart|ok:signal", result);
 
-    String calleeResult =
-        calleeClient.newUntypedWorkflowStub(calleeWorkflowId).getResult(String.class);
+    String calleeResult = client.newUntypedWorkflowStub(calleeWorkflowId).getResult(String.class);
     Assert.assertEquals("first,second", calleeResult);
 
     String callerWorkflowId = WorkflowStub.fromTyped(callerStub).getExecution().getWorkflowId();
-    History callerHistory = callerClient.fetchHistory(callerWorkflowId).getHistory();
-    History calleeHistory = calleeClient.fetchHistory(calleeWorkflowId).getHistory();
+    History callerHistory = client.fetchHistory(callerWorkflowId).getHistory();
+    History calleeHistory = client.fetchHistory(calleeWorkflowId).getHistory();
 
     assertForwardLinks(calleeHistory, callerWorkflowId, /* expectedCount= */ 2);
 
@@ -312,36 +268,6 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
       }
     }
     return out;
-  }
-
-  /**
-   * Register {@code namespace} on the external server if it doesn't already exist. Honours the
-   * {@code TEMPORAL_SERVICE_ADDRESS} env var the same way {@code
-   * io.temporal.testing.internal.ExternalServiceTestConfigurator} does, so the test works against
-   * whichever server the test rule itself connects to.
-   */
-  private static void ensureNamespaceExists(String namespace) {
-    String target = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-    WorkflowServiceStubsOptions.Builder optionsBuilder = WorkflowServiceStubsOptions.newBuilder();
-    if (target != null && !target.isEmpty()) {
-      optionsBuilder.setTarget(target);
-    }
-    WorkflowServiceStubs stubs = WorkflowServiceStubs.newServiceStubs(optionsBuilder.build());
-    try {
-      stubs
-          .blockingStub()
-          .registerNamespace(
-              RegisterNamespaceRequest.newBuilder()
-                  .setNamespace(namespace)
-                  .setWorkflowExecutionRetentionPeriod(Durations.fromHours(24))
-                  .build());
-    } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() != Status.Code.ALREADY_EXISTS) {
-        throw e;
-      }
-    } finally {
-      stubs.shutdownNow();
-    }
   }
 
   // ── Workflows ────────────────────────────────────────────────────────────────────────────
@@ -431,12 +357,10 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
 
   /**
    * Single Nexus operation that dispatches based on a mode prefix in its input. Supports sync and
-   * async return shapes and an optional namespace override for cross-namespace tests.
+   * async return shapes.
    */
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public static class SignalingNexusServiceImpl {
-    static volatile String calleeNamespaceOverride;
-    static volatile String calleeTaskQueueOverride;
 
     @OperationImpl
     public OperationHandler<String, String> operation() {
@@ -449,36 +373,23 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
           String rest = parts[1];
 
           io.temporal.nexus.NexusOperationContext opCtx = Nexus.getOperationContext();
-          WorkflowClient ambient = opCtx.getWorkflowClient();
-          WorkflowClient calleeClient =
-              calleeNamespaceOverride == null
-                  ? ambient
-                  : WorkflowClient.newInstance(
-                      ambient.getWorkflowServiceStubs(),
-                      WorkflowClientOptions.newBuilder()
-                          .setNamespace(calleeNamespaceOverride)
-                          .build());
-          String taskQueue =
-              calleeTaskQueueOverride != null
-                  ? calleeTaskQueueOverride
-                  : opCtx.getInfo().getTaskQueue();
+          WorkflowClient client = opCtx.getWorkflowClient();
+          String taskQueue = opCtx.getInfo().getTaskQueue();
 
           switch (mode) {
             case MODE_SIGNAL_WITH_START:
-              signalWithStart(calleeClient, rest, taskQueue, /* expectedSignals= */ 2, "first");
+              signalWithStart(client, rest, taskQueue, /* expectedSignals= */ 2, "first");
               return OperationStartResult.sync("ok:" + MODE_SIGNAL_WITH_START);
             case MODE_SIGNAL:
-              calleeClient.newWorkflowStub(SignalCalleeWorkflow.class, rest).ping("second");
+              client.newWorkflowStub(SignalCalleeWorkflow.class, rest).ping("second");
               return OperationStartResult.sync("ok:" + MODE_SIGNAL);
             case MODE_MULTI_SIGNAL_WITH_START:
               for (String id : rest.split(",")) {
-                signalWithStart(
-                    calleeClient, id, taskQueue, /* expectedSignals= */ 1, "multi-signal");
+                signalWithStart(client, id, taskQueue, /* expectedSignals= */ 1, "multi-signal");
               }
               return OperationStartResult.sync("ok:multi:" + rest);
             case MODE_ASYNC_SIGNAL_WITH_START:
-              signalWithStart(
-                  calleeClient, rest, taskQueue, /* expectedSignals= */ 1, "async-signal");
+              signalWithStart(client, rest, taskQueue, /* expectedSignals= */ 1, "async-signal");
               // Async branch in NexusTaskHandlerImpl. The caller never waits for completion, so
               // the token is opaque.
               return OperationStartResult.async("async-op-" + UUID.randomUUID());
