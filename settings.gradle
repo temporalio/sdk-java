@@ -1,4 +1,5 @@
 rootProject.name='temporal-java-sdk'
+includeBuild('../nexus/nexus-sdk-java')
 include 'temporal-bom'
 include 'temporal-serviceclient'
 include 'temporal-sdk'
