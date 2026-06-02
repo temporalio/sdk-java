@@ -10,21 +10,22 @@ import java.lang.reflect.Type;
  * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
  * Temporal from within a Nexus operation handler.
  *
- * <p>Obtained via the {@link TemporalOperationHandler.StartHandler} parameter.
+ * <p>Passed to {@link TemporalOperation}-annotated methods (and {@link
+ * TemporalOperationHandler.StartHandler} implementations) alongside the start context and input.
  *
- * <p>Example usage to start a workflow from an operation handler:
+ * <p>Example usage to start a workflow from an operation:
  *
  * <pre>{@code
- * @OperationImpl
- * public OperationHandler<TransferInput, TransferResult> startTransfer() {
- *   return TemporalOperationHandler.create((context, client, input) -> {
- *     return client.startWorkflow(
- *         TransferWorkflow.class,
- *         TransferWorkflow::transfer, input.getFromAccount(), input.getToAccount(),
- *         WorkflowOptions.newBuilder()
- *             .setWorkflowId("transfer-" + input.getTransferId())
- *             .build());
- *   });
+ * @TemporalOperation
+ * public TemporalOperationResult<TransferResult> startTransfer(
+ *     TemporalOperationStartContext ctx, TemporalNexusClient client, TransferInput input) {
+ *   return client.startWorkflow(
+ *       TransferWorkflow.class,
+ *       TransferWorkflow::transfer,
+ *       input,
+ *       WorkflowOptions.newBuilder()
+ *           .setWorkflowId("transfer-" + input.getTransferId())
+ *           .build());
  * }
  * }</pre>
  *
@@ -32,14 +33,13 @@ import java.lang.reflect.Type;
  * TemporalOperationResult#sync} result. For example, to send a signal:
  *
  * <pre>{@code
- * @OperationImpl
- * public OperationHandler<CancelOrderInput, Void> cancelOrder() {
- *   return TemporalOperationHandler.create((context, client, input) -> {
- *     client.getWorkflowClient()
- *         .newUntypedWorkflowStub("order-" + input.getOrderId())
- *         .signal("requestCancellation", input);
- *     return TemporalOperationResult.sync(null);
- *   });
+ * @TemporalOperation
+ * public TemporalOperationResult<Void> cancelOrder(
+ *     TemporalOperationStartContext ctx, TemporalNexusClient client, CancelOrderInput input) {
+ *   client.getWorkflowClient()
+ *       .newUntypedWorkflowStub("order-" + input.getOrderId())
+ *       .signal("requestCancellation", input);
+ *   return TemporalOperationResult.sync(null);
  * }
  * }</pre>
  */
