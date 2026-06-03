@@ -146,6 +146,7 @@ public class WorkerVersioningTest {
     DescribeWorkerDeploymentResponse describeResp1 = waitUntilWorkerDeploymentVisible(v1);
 
     setCurrentVersion(v1, describeResp1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
 
     // Start workflow 1 which will use the 1.0 worker on auto-upgrade
     TestWorkflows.QueryableWorkflow wf1 =
@@ -160,6 +161,7 @@ public class WorkerVersioningTest {
         new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
     DescribeWorkerDeploymentResponse describeResp2 = waitUntilWorkerDeploymentVisible(v2);
     setCurrentVersion(v2, describeResp2.getConflictToken());
+    waitForRoutingConfigPropagation(v2);
 
     TestWorkflows.QueryableWorkflow wf2 =
         testWorkflowRule.newWorkflowStubTimeoutOptions(
@@ -173,6 +175,7 @@ public class WorkerVersioningTest {
 
     // Set current version to 3.0
     setCurrentVersion(v3, describeResp3.getConflictToken());
+    waitForRoutingConfigPropagation(v3);
 
     TestWorkflows.QueryableWorkflow wf3 =
         testWorkflowRule.newWorkflowStubTimeoutOptions(
@@ -224,8 +227,10 @@ public class WorkerVersioningTest {
     // Set cur ver to 1 & ramp 100% to 2
     SetWorkerDeploymentCurrentVersionResponse setCurR =
         setCurrentVersion(v1, describeResp1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
     SetWorkerDeploymentRampingVersionResponse rampResp =
         setRampingVersion(v2, 100, setCurR.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
     // Run workflows and verify they've both started & run on v2
     for (int i = 0; i < 3; i++) {
       String res = runWorkflow("versioning-ramp-100");
@@ -234,12 +239,14 @@ public class WorkerVersioningTest {
     // Set ramp to 0, and see them start on v1
     SetWorkerDeploymentRampingVersionResponse rampResp2 =
         setRampingVersion(v2, 0, rampResp.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
     for (int i = 0; i < 3; i++) {
       String res = runWorkflow("versioning-ramp-0");
       Assert.assertEquals("version-v1", res);
     }
     // Set to 50% and see we eventually will have one run on v1 and one on v2
     setRampingVersion(v2, 50, rampResp2.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
     HashSet<String> seenRanOn = new HashSet<>();
     Eventually.assertEventually(
         Duration.ofSeconds(30),
