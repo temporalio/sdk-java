@@ -7,6 +7,7 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -56,6 +57,56 @@ public class TypedSearchAttributesTest {
           .setWorkflowTypes(TestWorkflowImpl.class, TestParentWorkflow.class, TestChild.class)
           .registerSearchAttribute(TEST_NEW_KEY)
           .build();
+
+  @Test
+  public void keywordListNullSetValueRejected() {
+    assertThrows(RuntimeException.class, () -> TEST_NEW_KEY.valueSet(null));
+  }
+
+  @Test
+  public void keywordListNullElementRejected() {
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            SearchAttributesUtil.encodeTypedUpdates(
+                TEST_NEW_KEY.valueSet(Arrays.asList("foo", null))));
+  }
+
+  @Test
+  public void keywordListUnsetSerializesWithoutTypeMetadata() {
+    SearchAttributes encoded = SearchAttributesUtil.encodeTypedUpdates(TEST_NEW_KEY.valueUnset());
+    Payload payload = encoded.getIndexedFieldsOrThrow(TEST_NEW_KEY.getName());
+
+    assertFalse(payload.containsMetadata("type"));
+  }
+
+  @Test
+  public void keywordListNullPayloadDecodesAsAbsent() {
+    Payload nullWithoutType =
+        Payload.newBuilder()
+            .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
+            .setData(ByteString.copyFromUtf8("null"))
+            .build();
+    Payload binaryNullWithType =
+        Payload.newBuilder()
+            .putMetadata("encoding", ByteString.copyFromUtf8("binary/null"))
+            .putMetadata("type", ByteString.copyFromUtf8("KeywordList"))
+            .build();
+    Payload jsonNullWithType =
+        Payload.newBuilder()
+            .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
+            .putMetadata("type", ByteString.copyFromUtf8("KeywordList"))
+            .setData(ByteString.copyFromUtf8("null"))
+            .build();
+
+    for (Payload payload : Arrays.asList(nullWithoutType, binaryNullWithType, jsonNullWithType)) {
+      SearchAttributes apiAttributes =
+          SearchAttributes.newBuilder().putIndexedFields(TEST_NEW_KEY.getName(), payload).build();
+      assertEquals(
+          io.temporal.common.SearchAttributes.EMPTY,
+          SearchAttributesUtil.decodeTyped(apiAttributes));
+    }
+  }
 
   @Test
   public void defaultTestSearchAttributes() {
