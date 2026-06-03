@@ -6,7 +6,6 @@ import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -21,8 +20,6 @@ public class LinkConverter {
   private static final Logger log = LoggerFactory.getLogger(LinkConverter.class);
 
   private static final String linkPathFormat = "temporal:///namespaces/%s/workflows/%s/%s/history";
-  private static final String linkPathNexusOperationFormat =
-      "temporal:///namespaces/%s/nexus-operations/%s/%s/details";
   private static final String linkReferenceTypeKey = "referenceType";
   private static final String linkEventIDKey = "eventID";
   private static final String linkEventTypeKey = "eventType";
@@ -32,12 +29,6 @@ public class LinkConverter {
       Link.WorkflowEvent.EventReference.getDescriptor().getName();
   private static final String requestIDReferenceType =
       Link.WorkflowEvent.RequestIdReference.getDescriptor().getName();
-
-  // Fully-qualified proto descriptor names used as the `type` field on nexus.v1.Link. Match the
-  // server's Nexus link converter so links round-trip cleanly across SDKs.
-  private static final String workflowEventType = Link.WorkflowEvent.getDescriptor().getFullName();
-  private static final String nexusOperationType =
-      Link.NexusOperation.getDescriptor().getFullName();
 
   public static io.temporal.api.nexus.v1.Link workflowEventToNexusLink(Link.WorkflowEvent we) {
     try {
@@ -167,142 +158,6 @@ public class LinkConverter {
       return null;
     }
     return link.build();
-  }
-
-  /**
-   * Encode a {@link Link.NexusOperation} (a link to a standalone Nexus operation) into the (url,
-   * type) form used on the Nexus wire. URL format matches the canonical server implementation:
-   * {@code temporal:///namespaces/{ns}/nexus-operations/{op_id}/{run_id}/details}.
-   */
-  public static io.temporal.api.nexus.v1.Link nexusOperationToNexusLink(Link.NexusOperation no) {
-    try {
-      String url =
-          String.format(
-              linkPathNexusOperationFormat,
-              URLEncoder.encode(no.getNamespace(), StandardCharsets.UTF_8.toString()),
-              URLEncoder.encode(no.getOperationId(), StandardCharsets.UTF_8.toString())
-                  .replace("+", "%20"),
-              URLEncoder.encode(no.getRunId(), StandardCharsets.UTF_8.toString()));
-      return io.temporal.api.nexus.v1.Link.newBuilder()
-          .setUrl(url)
-          .setType(nexusOperationType)
-          .build();
-    } catch (UnsupportedEncodingException e) {
-      log.error("Failed to encode NexusOperation Nexus link URL", e);
-    }
-    return null;
-  }
-
-  /**
-   * Decode a {@code nexus.v1.Link} whose {@code type} is {@code Link.NexusOperation} into a {@code
-   * common.v1.Link} carrying a {@link Link.NexusOperation} variant. The URL must match the format
-   * produced by {@link #nexusOperationToNexusLink}.
-   */
-  public static Link nexusLinkToNexusOperation(io.temporal.api.nexus.v1.Link nexusLink) {
-    try {
-
-      // Lots of if statements, but this way we double-check the validity of the link
-      // passed in.
-      URI uri = new URI(nexusLink.getUrl());
-      if (!"temporal".equals(uri.getScheme())) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid scheme: {}", uri.getScheme());
-        return null;
-      }
-
-      StringTokenizer st = new StringTokenizer(uri.getRawPath(), "/");
-      if (!st.hasMoreTokens() || !"namespaces".equals(st.nextToken())) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
-        return null;
-      }
-      if (!st.hasMoreTokens()) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
-        return null;
-      }
-      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      if (!st.hasMoreTokens() || !"nexus-operations".equals(st.nextToken())) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
-        return null;
-      }
-      if (!st.hasMoreTokens()) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
-        return null;
-      }
-      String operationId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      if (!st.hasMoreTokens()) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
-        return null;
-      }
-      String runId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      if (!st.hasMoreTokens() || !"details".equals(st.nextToken())) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: invalid path: {}", uri.getRawPath());
-        return null;
-      }
-      if (st.hasMoreTokens()) {
-        log.error(
-            "Failed to parse NexusOperation Nexus link URL: extra tokens after 'details': {}",
-            uri.getRawPath());
-        return null;
-      }
-
-      return Link.newBuilder()
-          .setNexusOperation(
-              Link.NexusOperation.newBuilder()
-                  .setNamespace(namespace)
-                  .setOperationId(operationId)
-                  .setRunId(runId))
-          .build();
-    } catch (URISyntaxException | UnsupportedEncodingException e) {
-      log.error("Failed to parse NexusOperation Nexus link URL", e);
-      return null;
-    }
-  }
-
-  /**
-   * Encode a {@code common.v1.Link} into the Nexus-wire {@code nexus.v1.Link} (url, type) form,
-   * dispatching on the link's variant. Returns {@code null} (with a warn log) for variants the SDK
-   * does not yet know how to encode ({@code Activity}, {@code BatchJob}, unset) — match the
-   * server's link-converter behavior so we stay in lockstep.
-   */
-  public static io.temporal.api.nexus.v1.Link commonLinkToNexusLink(Link commonLink) {
-    switch (commonLink.getVariantCase()) {
-      case WORKFLOW_EVENT:
-        return workflowEventToNexusLink(commonLink.getWorkflowEvent());
-      case NEXUS_OPERATION:
-        return nexusOperationToNexusLink(commonLink.getNexusOperation());
-      default:
-        log.warn(
-            "Cannot encode common.v1.Link variant {} as nexus.v1.Link: no encoder implemented",
-            commonLink.getVariantCase());
-        return null;
-    }
-  }
-
-  /**
-   * Decode a Nexus-wire {@code nexus.v1.Link} (url, type) into a {@code common.v1.Link},
-   * dispatching on the link's {@code type} field. Returns {@code null} (with a warn log) for types
-   * the SDK does not yet know how to decode.
-   */
-  public static Link nexusLinkToCommonLink(io.temporal.api.nexus.v1.Link nexusLink) {
-    String type = nexusLink.getType();
-    if (workflowEventType.equals(type)) {
-      return nexusLinkToWorkflowEvent(nexusLink);
-    }
-    if (nexusOperationType.equals(type)) {
-      return nexusLinkToNexusOperation(nexusLink);
-    }
-    log.warn(
-        "Cannot decode nexus.v1.Link of type '{}' to common.v1.Link:"
-            + " no decoder implemented (url='{}')",
-        type,
-        nexusLink.getUrl());
-    return null;
   }
 
   private static Map<String, String> parseQueryParams(URI uri) throws UnsupportedEncodingException {

@@ -301,15 +301,20 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
-              // Convert each inbound nexus.v1.Link to common.v1.Link, dispatching on the link's
-              // type field (WorkflowEvent, NexusOperation, etc.). LinkConverter logs the warn for
-              // any unknown type and returns null. We don't throw as we know the URI is valid
-              // (If it wasn't, then nexusProtoLinkToLink would have already thrown)
-              // so this might just be a new link type and we don't want to
-              // break forward compatibility.
-              io.temporal.api.common.v1.Link commonLink = LinkConverter.nexusLinkToCommonLink(link);
+              // LinkConverter only returns a WorkflowEvent-shaped common.v1.Link; nexus links of
+              // other shapes (e.g. non-temporal URLs) come back null and are intentionally not
+              // forwarded onto SignalWorkflowExecutionRequest.links, which requires the
+              // WorkflowEvent variant. Log so a debugging session can see what was dropped.
+              io.temporal.api.common.v1.Link commonLink =
+                  LinkConverter.nexusLinkToWorkflowEvent(link);
               if (commonLink != null) {
                 inboundCommonLinks.add(commonLink);
+              } else {
+                log.warn(
+                    "Dropping inbound Nexus link from outbound signal propagation: type='{}',"
+                        + " url='{}' (not a parseable temporal WorkflowEvent link)",
+                    link.getType(),
+                    link.getUrl());
               }
             });
     CurrentNexusOperationContext.get().setNexusOperationLinks(inboundCommonLinks);
@@ -329,18 +334,13 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
         for (io.temporal.api.common.v1.Link backlink :
             CurrentNexusOperationContext.get().getBacklinks()) {
-          io.temporal.api.nexus.v1.Link converted = LinkConverter.commonLinkToNexusLink(backlink);
+          if (!backlink.hasWorkflowEvent()) {
+            continue;
+          }
+          io.temporal.api.nexus.v1.Link converted =
+              LinkConverter.workflowEventToNexusLink(backlink.getWorkflowEvent());
           if (converted != null) {
             backlinks.add(converted);
-          } else {
-            // The SDK stashed this backlink itself in RootWorkflowClientInvoker; failing to
-            // re-encode it now means a LinkConverter regression or a malformed link from the
-            // server. Either is an SDK invariant violation worth shouting about (warn is too
-            // quiet — the caller's history event will be missing a link with no other diagnostic).
-            log.error(
-                "SDK-stashed backlink failed to re-encode as nexus.v1.Link; caller history will be"
-                    + " missing a link. backlink={}",
-                backlink);
           }
         }
 
