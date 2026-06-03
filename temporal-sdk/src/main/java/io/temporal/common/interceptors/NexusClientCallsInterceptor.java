@@ -2,19 +2,20 @@ package io.temporal.common.interceptors;
 
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.Payload;
-import io.temporal.api.enums.v1.NexusOperationWaitStage;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
+import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -51,26 +52,39 @@ public interface NexusClientCallsInterceptor {
       DescribeNexusOperationExecutionInput input);
 
   /**
-   * Synchronously long-polls the server until the Nexus operation reaches a terminal stage, then
-   * returns the outcome. Blocks the calling thread for the duration.
+   * Synchronously waits for a standalone Nexus operation to complete and returns the deserialized
+   * result. Implementations own the poll loop, deadline enforcement, and {@link Payload} → {@code
+   * R} deserialization. Blocks the calling thread for the duration.
    *
-   * @param input operation ID, optional run ID, and the deadline bounding the poll
-   * @return output containing the run ID, wait stage reached, operation token, and either the
-   *     result payload or failure (when the operation has reached a terminal stage)
+   * <p>If you implement this method, {@link #getNexusOperationResultAsync} most likely needs to be
+   * implemented too.
+   *
+   * @param input operation ID, optional run ID, deadline, and the expected result class and type
+   * @param <R> the expected result type
+   * @return output wrapping the deserialized result
+   * @throws NexusOperationFailedException if the operation completed with a failure
+   * @throws TimeoutException if the deadline expires before the operation completes
+   * @see #getNexusOperationResultAsync
    */
-  PollNexusOperationExecutionOutput pollNexusOperationExecution(
-      PollNexusOperationExecutionInput input);
+  <R> GetNexusOperationResultOutput<R> getNexusOperationResult(
+      GetNexusOperationResultInput<R> input) throws TimeoutException;
 
   /**
-   * Asynchronous variant of {@link #pollNexusOperationExecution} that returns a future without
-   * blocking the calling thread.
+   * Asynchronous variant of {@link #getNexusOperationResult} that returns a future without blocking
+   * the calling thread.
    *
-   * @param input operation ID, optional run ID, and the deadline bounding the poll
-   * @return a future that completes with the poll output, or completes exceptionally if the poll
-   *     fails or the deadline expires
+   * <p>If you implement this method, {@link #getNexusOperationResult} most likely needs to be
+   * implemented too.
+   *
+   * @param input operation ID, optional run ID, deadline, and the expected result class and type
+   * @param <R> the expected result type
+   * @return a future that completes with the deserialized result, or completes exceptionally with
+   *     {@link NexusOperationFailedException} on failure or {@link TimeoutException} on deadline
+   *     expiry
+   * @see #getNexusOperationResult
    */
-  CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
-      PollNexusOperationExecutionInput input);
+  <R> CompletableFuture<GetNexusOperationResultOutput<R>> getNexusOperationResultAsync(
+      GetNexusOperationResultInput<R> input);
 
   /**
    * Lists standalone Nexus operation executions matching a Visibility query. Pagination is handled
@@ -222,16 +236,24 @@ public interface NexusClientCallsInterceptor {
     }
   }
 
-  final class PollNexusOperationExecutionInput {
+  final class GetNexusOperationResultInput<R> {
     private final String operationId;
     private final @Nullable String runId;
     private final @Nonnull Deadline deadline;
+    private final Class<R> resultClass;
+    private final @Nullable Type resultType;
 
-    public PollNexusOperationExecutionInput(
-        String operationId, @Nullable String runId, @Nonnull Deadline deadline) {
+    public GetNexusOperationResultInput(
+        String operationId,
+        @Nullable String runId,
+        @Nonnull Deadline deadline,
+        Class<R> resultClass,
+        @Nullable Type resultType) {
       this.operationId = operationId;
       this.runId = runId;
       this.deadline = deadline;
+      this.resultClass = resultClass;
+      this.resultType = resultType;
     }
 
     public String getOperationId() {
@@ -242,49 +264,30 @@ public interface NexusClientCallsInterceptor {
       return Optional.ofNullable(runId);
     }
 
+    @Nonnull
     public Deadline getDeadline() {
       return deadline;
     }
+
+    public Class<R> getResultClass() {
+      return resultClass;
+    }
+
+    @Nullable
+    public Type getResultType() {
+      return resultType;
+    }
   }
 
-  final class PollNexusOperationExecutionOutput {
-    private final String runId;
-    private final NexusOperationWaitStage waitStage;
-    private final String operationToken;
-    private final @Nullable Payload result;
-    private final @Nullable Failure failure;
+  final class GetNexusOperationResultOutput<R> {
+    private final R result;
 
-    public PollNexusOperationExecutionOutput(
-        String runId,
-        NexusOperationWaitStage waitStage,
-        String operationToken,
-        @Nullable Payload result,
-        @Nullable Failure failure) {
-      this.runId = runId;
-      this.waitStage = waitStage;
-      this.operationToken = operationToken;
+    public GetNexusOperationResultOutput(R result) {
       this.result = result;
-      this.failure = failure;
     }
 
-    public String getRunId() {
-      return runId;
-    }
-
-    public NexusOperationWaitStage getWaitStage() {
-      return waitStage;
-    }
-
-    public String getOperationToken() {
-      return operationToken;
-    }
-
-    public Optional<Payload> getResult() {
-      return Optional.ofNullable(result);
-    }
-
-    public Optional<Failure> getFailure() {
-      return Optional.ofNullable(failure);
+    public R getResult() {
+      return result;
     }
   }
 

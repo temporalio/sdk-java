@@ -51,8 +51,8 @@ public final class StartNexusOperationOptions {
     }
 
     /**
-     * Required. Unique identifier for this operation within its namespace.
-     * {@link #build()} throws {@link IllegalStateException} if {@code setId} was never called.
+     * Required. Unique identifier for this operation within its namespace. {@link #build()} throws
+     * {@link IllegalStateException} if {@code setId} was never called.
      */
     public Builder setId(@Nonnull String id) {
       Objects.requireNonNull(id, "id");

@@ -2,8 +2,10 @@ package io.temporal.internal.client;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.errordetails.v1.NexusOperationExecutionAlreadyStartedFailure;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsRequest;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsResponse;
@@ -21,6 +23,7 @@ import io.temporal.api.workflowservice.v1.TerminateNexusOperationExecutionReques
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationAlreadyStartedException;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
@@ -33,6 +36,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
@@ -152,21 +156,40 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   }
 
   @Override
-  public PollNexusOperationExecutionOutput pollNexusOperationExecution(
-      PollNexusOperationExecutionInput input) {
-    PollNexusOperationExecutionResponse response;
-    try {
-      response =
-          genericClient.pollNexusOperationExecution(buildPollRequest(input), input.getDeadline());
-    } catch (StatusRuntimeException e) {
-      throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
+  public <R> GetNexusOperationResultOutput<R> getNexusOperationResult(
+      GetNexusOperationResultInput<R> input) throws TimeoutException {
+    String operationId = input.getOperationId();
+    String runId = input.getRunId().orElse(null);
+    while (true) {
+      PollNexusOperationExecutionResponse response;
+      try {
+        response =
+            genericClient.pollNexusOperationExecution(buildPollRequest(input), input.getDeadline());
+      } catch (StatusRuntimeException e) {
+        if (input.getDeadline().isExpired()
+            && Status.Code.DEADLINE_EXCEEDED.equals(e.getStatus().getCode())) {
+          throw new TimeoutException("getResult timed out before the operation completed");
+        }
+        throw mapNotFound(operationId, runId, e);
+      }
+      if (response.getWaitStage() == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
+        return extractResult(operationId, runId, response, input);
+      }
     }
-    return toPollOutput(response);
   }
 
   @Override
-  public CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
-      PollNexusOperationExecutionInput input) {
+  public <R> CompletableFuture<GetNexusOperationResultOutput<R>> getNexusOperationResultAsync(
+      GetNexusOperationResultInput<R> input) {
+    return pollAsyncUntilClosed(input)
+        .thenApply(
+            response ->
+                extractResult(
+                    input.getOperationId(), input.getRunId().orElse(null), response, input));
+  }
+
+  private CompletableFuture<PollNexusOperationExecutionResponse> pollAsyncUntilClosed(
+      GetNexusOperationResultInput<?> input) {
     String operationId = input.getOperationId();
     String runId = input.getRunId().orElse(null);
     return genericClient
@@ -174,12 +197,22 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
         .handle(
             (response, err) -> {
               if (err == null) {
-                return CompletableFuture.completedFuture(toPollOutput(response));
+                if (response.getWaitStage()
+                    == NexusOperationWaitStage.NEXUS_OPERATION_WAIT_STAGE_CLOSED) {
+                  return CompletableFuture.completedFuture(response);
+                }
+                return pollAsyncUntilClosed(input);
               }
-              Throwable cause = err instanceof CompletionException ? err.getCause() : err;
-              CompletableFuture<PollNexusOperationExecutionOutput> failed =
+              CompletableFuture<PollNexusOperationExecutionResponse> failed =
                   new CompletableFuture<>();
-              if (cause instanceof StatusRuntimeException) {
+              Throwable cause = err instanceof CompletionException ? err.getCause() : err;
+              if (input.getDeadline().isExpired()
+                  && cause instanceof StatusRuntimeException
+                  && Status.Code.DEADLINE_EXCEEDED.equals(
+                      ((StatusRuntimeException) cause).getStatus().getCode())) {
+                failed.completeExceptionally(
+                    new TimeoutException("getResult timed out before the operation completed"));
+              } else if (cause instanceof StatusRuntimeException) {
                 failed.completeExceptionally(
                     mapNotFound(operationId, runId, (StatusRuntimeException) cause));
               } else {
@@ -191,7 +224,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   }
 
   private PollNexusOperationExecutionRequest buildPollRequest(
-      PollNexusOperationExecutionInput input) {
+      GetNexusOperationResultInput<?> input) {
     PollNexusOperationExecutionRequest.Builder request =
         PollNexusOperationExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
@@ -203,14 +236,31 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     return request.build();
   }
 
-  private PollNexusOperationExecutionOutput toPollOutput(
-      PollNexusOperationExecutionResponse response) {
-    return new PollNexusOperationExecutionOutput(
-        response.getRunId(),
-        response.getWaitStage(),
-        response.getOperationToken(),
-        response.hasResult() ? response.getResult() : null,
-        response.hasFailure() ? response.getFailure() : null);
+  private <R> GetNexusOperationResultOutput<R> extractResult(
+      String operationId,
+      @Nullable String runId,
+      PollNexusOperationExecutionResponse response,
+      GetNexusOperationResultInput<R> input) {
+    if (response.hasFailure()) {
+      Failure failure = response.getFailure();
+      throw new NexusOperationFailedException(
+          "Nexus operation failed: operationId='" + operationId + "'",
+          operationId,
+          runId,
+          clientOptions.getDataConverter().failureToException(failure));
+    }
+    if (!response.hasResult()) {
+      return new GetNexusOperationResultOutput<>(null);
+    }
+    Payload payload = response.getResult();
+    R deserialized =
+        clientOptions
+            .getDataConverter()
+            .fromPayload(
+                payload,
+                input.getResultClass(),
+                input.getResultType() != null ? input.getResultType() : input.getResultClass());
+    return new GetNexusOperationResultOutput<>(deserialized);
   }
 
   /** Page size used when looping over list pages internally. */

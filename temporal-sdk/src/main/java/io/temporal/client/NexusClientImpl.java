@@ -92,8 +92,7 @@ public class NexusClientImpl implements NexusClient {
 
   @Override
   public UntypedNexusOperationHandle getHandle(String operationId, @Nullable String runId) {
-    return new NexusOperationHandleImpl(
-        operationId, runId, nexusClientCallsInvoker, options.getDataConverter());
+    return new NexusOperationHandleImpl(operationId, runId, nexusClientCallsInvoker);
   }
 
   @Override

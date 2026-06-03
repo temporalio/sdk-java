@@ -2,6 +2,7 @@ package io.temporal.common.interceptors;
 
 import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Convenience base class for {@link NexusClientCallsInterceptor} implementations that need to
@@ -29,15 +30,15 @@ public class NexusClientCallsInterceptorBase implements NexusClientCallsIntercep
   }
 
   @Override
-  public PollNexusOperationExecutionOutput pollNexusOperationExecution(
-      PollNexusOperationExecutionInput input) {
-    return next.pollNexusOperationExecution(input);
+  public <R> GetNexusOperationResultOutput<R> getNexusOperationResult(
+      GetNexusOperationResultInput<R> input) throws TimeoutException {
+    return next.getNexusOperationResult(input);
   }
 
   @Override
-  public CompletableFuture<PollNexusOperationExecutionOutput> pollNexusOperationExecutionAsync(
-      PollNexusOperationExecutionInput input) {
-    return next.pollNexusOperationExecutionAsync(input);
+  public <R> CompletableFuture<GetNexusOperationResultOutput<R>> getNexusOperationResultAsync(
+      GetNexusOperationResultInput<R> input) {
+    return next.getNexusOperationResultAsync(input);
   }
 
   @Override
