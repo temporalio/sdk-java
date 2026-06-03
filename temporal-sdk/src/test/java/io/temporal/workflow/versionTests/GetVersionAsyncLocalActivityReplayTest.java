@@ -1,7 +1,6 @@
 package io.temporal.workflow.versionTests;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityInterface;
@@ -63,7 +62,7 @@ public class GetVersionAsyncLocalActivityReplayTest {
 
     assertTrue(hasReplayed);
     assertTrue(hasVersionMarker(history, CHANGE_ID));
-    assertFalse(hasSdkFlag(history, SdkFlag.SKIP_YIELD_ON_VERSION));
+    assertTrue(hasSdkFlag(history, SdkFlag.SKIP_YIELD_ON_VERSION));
 
     WorkflowReplayer.replayWorkflowExecution(history, AsyncLocalActivityWorkflowImpl.class);
   }
