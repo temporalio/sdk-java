@@ -9,7 +9,7 @@ export MUSL_HOME="$PWD/musl-toolchain"
 curl --fail --location --retry 5 --retry-all-errors --output "musl-${MUSL_VERSION}.tar.gz" \
   "https://musl.libc.org/releases/musl-${MUSL_VERSION}.tar.gz"
 curl --fail --location --retry 5 --retry-all-errors --output "zlib-${ZLIB_VERSION}.tar.gz" \
-  "https://zlib.net/fossils/zlib-${ZLIB_VERSION}.tar.gz"
+  "https://github.com/madler/zlib/releases/download/v${ZLIB_VERSION}/zlib-${ZLIB_VERSION}.tar.gz"
 
 # Build musl from source.
 tar -xzf "musl-${MUSL_VERSION}.tar.gz"
