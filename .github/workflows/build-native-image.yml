@@ -87,7 +87,9 @@ jobs:
       - name: Build native test server (Docker non-musl)
         if: matrix.os_family == 'linux' && matrix.musl == false
         run: |
-          IMAGE_ID=$(docker build -q ./docker/native-image)
+          IMAGE_ID_FILE="$(mktemp)"
+          docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image
+          IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
@@ -96,7 +98,9 @@ jobs:
       - name: Build native test server (Docker musl)
         if: matrix.os_family == 'linux' && matrix.musl == true
         run: |
-          IMAGE_ID=$(docker build -q ./docker/native-image-musl)
+          IMAGE_ID_FILE="$(mktemp)"
+          docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image-musl
+          IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
