@@ -1174,7 +1174,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
      * Previously the SDK would yield on the getVersion call to the scheduler. This is not ideal because it can lead to non-deterministic
      * scheduling if the getVersion call was removed.
      * */
-    if (replayContext.checkSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
+    if (replayContext.tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)) {
       // This can happen if we are replaying a workflow and encounter a getVersion call that did not
       // exist on the original execution and the range does not include the default version.
       if (versionToUse == null) {
