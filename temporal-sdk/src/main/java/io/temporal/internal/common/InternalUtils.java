@@ -22,11 +22,14 @@ import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.OperationTokenUtil;
 import java.util.*;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
   public static String TEMPORAL_RESERVED_PREFIX = "__temporal_";
 
+  private static final Logger log = LoggerFactory.getLogger(InternalUtils.class);
   private static String QUERY_TYPE_STACK_TRACE = "__stack_trace";
   private static String ENHANCED_QUERY_TYPE_STACK_TRACE = "__enhanced_stack_trace";
 
@@ -91,12 +94,19 @@ public final class InternalUtils {
             : request.getLinks().stream()
                 .map(
                     (link) -> {
-                      io.temporal.api.nexus.v1.Link nexusLink =
-                          io.temporal.api.nexus.v1.Link.newBuilder()
-                              .setType(link.getType())
-                              .setUrl(link.getUri().toString())
-                              .build();
-                      return LinkConverter.nexusLinkToCommonLink(nexusLink);
+                      if (io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor()
+                          .getFullName()
+                          .equals(link.getType())) {
+                        io.temporal.api.nexus.v1.Link nexusLink =
+                            io.temporal.api.nexus.v1.Link.newBuilder()
+                                .setType(link.getType())
+                                .setUrl(link.getUri().toString())
+                                .build();
+                        return LinkConverter.nexusLinkToWorkflowEvent(nexusLink);
+                      } else {
+                        log.warn("ignoring unsupported link data type: {}", link.getType());
+                        return null;
+                      }
                     })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
