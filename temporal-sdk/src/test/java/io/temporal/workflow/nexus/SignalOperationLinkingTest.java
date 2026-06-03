@@ -57,7 +57,7 @@ import org.junit.Test;
  * in-memory test server does not implement this path so the class is skipped unless a real server
  * is in use.
  */
-public class SignalOperationLinkingTest extends BaseNexusTest {
+public class SignalOperationLinkingTest {
 
   private static final String MODE_SIGNAL_WITH_START = "signalWithStart";
   private static final String MODE_SIGNAL = "signal";
@@ -78,11 +78,6 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
     assumeTrue(
         "signal backlinks require a real server with EnableCHASMSignalBacklinks=true",
         SDKTestWorkflowRule.useExternalService);
-  }
-
-  @Override
-  protected SDKTestWorkflowRule getTestWorkflowRule() {
-    return testWorkflowRule;
   }
 
   // ── Tests ────────────────────────────────────────────────────────────────────────────────
@@ -296,7 +291,6 @@ public class SignalOperationLinkingTest extends BaseNexusTest {
           Workflow.newNexusServiceStub(
               TestNexusServices.TestNexusService1.class,
               NexusServiceOptions.newBuilder()
-                  .setEndpoint(getEndpointName())
                   .setOperationOptions(
                       NexusOperationOptions.newBuilder()
                           .setScheduleToCloseTimeout(Duration.ofSeconds(30))
