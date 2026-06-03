@@ -148,7 +148,8 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
 
   /**
    * Async variant of {@link #execute(Function, StartNexusOperationOptions)} for no-input
-   * operations.
+   * operations. Returns a {@link CompletableFuture} that completes with the typed result, or
+   * completes exceptionally if the operation fails.
    *
    * @param operation a method reference on {@code T} identifying the no-input operation
    * @param options per-call options controlling timeouts, search attributes, etc.

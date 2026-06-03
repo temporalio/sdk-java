@@ -50,11 +50,14 @@ public final class StartNexusOperationOptions {
       this.idConflictPolicy = options.idConflictPolicy;
     }
 
-    /** Required. Unique identifier for this operation within its namespace. */
+    /**
+     * Required. Unique identifier for this operation within its namespace.
+     * {@link #build()} throws {@link IllegalStateException} if {@code setId} was never called.
+     */
     public Builder setId(@Nonnull String id) {
       Objects.requireNonNull(id, "id");
-      if (id.isEmpty()) {
-        throw new IllegalArgumentException("id must not be empty");
+      if (id.trim().isEmpty()) {
+        throw new IllegalArgumentException("id must not be blank");
       }
       this.id = id;
       return this;
@@ -103,9 +106,9 @@ public final class StartNexusOperationOptions {
     }
 
     public StartNexusOperationOptions build() {
-      if (id == null || id.isEmpty()) {
+      if (id == null || id.trim().isEmpty()) {
         throw new IllegalStateException(
-            "StartNexusOperationOptions.Builder.setId(...) must be called with a non-empty id "
+            "StartNexusOperationOptions.Builder.setId(...) must be called with a non-blank id "
                 + "before build(); the SDK does not generate operation IDs.");
       }
       return new StartNexusOperationOptions(this);
@@ -136,6 +139,10 @@ public final class StartNexusOperationOptions {
     return new Builder(this);
   }
 
+  /**
+   * The required operation ID. Guaranteed non-null and non-blank — {@link Builder#build} rejects
+   * any options where {@link Builder#setId} was not called or was passed a blank value.
+   */
   @Nonnull
   public String getId() {
     return id;

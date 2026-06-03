@@ -14,6 +14,7 @@ import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 
 /**
  * Typed Nexus service client. Extracts the operation name from a {@link BiFunction} that targets a
@@ -75,13 +76,13 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
   @Override
   public <U, R> R execute(
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return this.<U, R>start(operation, input, options).getResult();
+    return start(operation, input, options).getResult();
   }
 
   @Override
   public <U, R> CompletableFuture<R> executeAsync(
       BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return this.<U, R>start(operation, input, options).getResultAsync();
+    return start(operation, input, options).getResultAsync();
   }
 
   @Override
@@ -94,13 +95,13 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
 
   @Override
   public <R> R execute(Function<T, R> operation, StartNexusOperationOptions options) {
-    return this.<R>start(operation, options).getResult();
+    return start(operation, options).getResult();
   }
 
   @Override
   public <R> CompletableFuture<R> executeAsync(
       Function<T, R> operation, StartNexusOperationOptions options) {
-    return this.<R>start(operation, options).getResultAsync();
+    return start(operation, options).getResultAsync();
   }
 
   /**
@@ -109,7 +110,7 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
    * one. {@code input} may be {@code null} for no-input operations.
    */
   private <R> NexusOperationHandle<R> startResolved(
-      Method method, @javax.annotation.Nullable Object input, StartNexusOperationOptions options) {
+      Method method, @Nullable Object input, StartNexusOperationOptions options) {
     OperationDefinition opDef =
         serviceDef.getOperations().values().stream()
             .filter(o -> method.getName().equals(o.getMethodName()))

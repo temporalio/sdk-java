@@ -152,14 +152,23 @@ public class NexusServiceClientTest {
     // Exercises the existing BiFunction<T, U, Void> path — Nexus operations declared as
     // `Void operation(input)`. No new overload needed; the SDK already handles Void as a result
     // type. This test pins that contract.
+    //
+    // Because the result is `null`, asserting only that the return value is null is too weak —
+    // an operation that never ran would also produce null. The handler bumps a counter so we
+    // know it actually executed.
     NexusServiceClient<TestNexusServices.TestNexusServiceVoidReturn> client =
         buildServiceClientFor(TestNexusServices.TestNexusServiceVoidReturn.class);
+    int before = VoidReturnServiceImpl.invocations.get();
 
     Void result =
         client.execute(
             TestNexusServices.TestNexusServiceVoidReturn::operation, "ignored", newOptionsWithId());
 
     Assert.assertNull(result);
+    Assert.assertEquals(
+        "expected the void-return handler to be invoked exactly once",
+        before + 1,
+        VoidReturnServiceImpl.invocations.get());
   }
 
   @Test
@@ -218,12 +227,24 @@ public class NexusServiceClientTest {
     }
   }
 
-  /** Handler for the has-input, void-return service {@code TestNexusServiceVoidReturn}. */
+  /**
+   * Handler for the has-input, void-return service {@code TestNexusServiceVoidReturn}. Counts
+   * invocations so {@link #executeWithVoidReturnCompletes} can prove the handler actually ran (a
+   * null return value alone is ambiguous between "handler ran and returned Void" and "handler never
+   * ran").
+   */
   @ServiceImpl(service = TestNexusServices.TestNexusServiceVoidReturn.class)
   public static class VoidReturnServiceImpl {
+    static final java.util.concurrent.atomic.AtomicInteger invocations =
+        new java.util.concurrent.atomic.AtomicInteger();
+
     @OperationImpl
     public OperationHandler<String, Void> operation() {
-      return OperationHandler.sync((ctx, details, input) -> null);
+      return OperationHandler.sync(
+          (ctx, details, input) -> {
+            invocations.incrementAndGet();
+            return null;
+          });
     }
   }
 

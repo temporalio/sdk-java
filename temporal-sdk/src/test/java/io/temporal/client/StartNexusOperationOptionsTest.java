@@ -5,7 +5,7 @@ import org.junit.Test;
 
 /**
  * Pure unit tests for {@link StartNexusOperationOptions.Builder} input validation. ID is required —
- * callers must supply a non-empty value via {@link StartNexusOperationOptions.Builder#setId} and
+ * callers must supply a non-blank value via {@link StartNexusOperationOptions.Builder#setId} and
  * the SDK does not invent one on their behalf.
  */
 public class StartNexusOperationOptionsTest {
@@ -39,8 +39,21 @@ public class StartNexusOperationOptionsTest {
       Assert.fail("expected IllegalArgumentException when setId is called with an empty string");
     } catch (IllegalArgumentException expected) {
       Assert.assertTrue(
-          "error message should mention empty, got: " + expected.getMessage(),
-          expected.getMessage() != null && expected.getMessage().contains("empty"));
+          "error message should mention blank, got: " + expected.getMessage(),
+          expected.getMessage() != null && expected.getMessage().contains("blank"));
+    }
+  }
+
+  @Test
+  public void setIdRejectsWhitespaceOnly() {
+    try {
+      StartNexusOperationOptions.newBuilder().setId("   \t  ");
+      Assert.fail(
+          "expected IllegalArgumentException when setId is called with a whitespace-only id");
+    } catch (IllegalArgumentException expected) {
+      Assert.assertTrue(
+          "error message should mention blank, got: " + expected.getMessage(),
+          expected.getMessage() != null && expected.getMessage().contains("blank"));
     }
   }
 

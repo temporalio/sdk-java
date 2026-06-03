@@ -136,10 +136,52 @@ public class NexusOperationHandleTest {
     assertCancelDelivered(before);
   }
 
+  @Test
+  public void getResultWithTimeoutFiresWhenOperationStaysPending() {
+    // Start an async-pending operation that never completes on its own; the client-side
+    // getResult(timeout, unit) overload must surface TimeoutException once the local budget
+    // expires.
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    try {
+      handle.getResult(1, java.util.concurrent.TimeUnit.SECONDS, String.class);
+      Assert.fail("expected TimeoutException when getResult's client-side budget expires");
+    } catch (java.util.concurrent.TimeoutException expected) {
+      // expected — terminate the operation so it doesn't outlive the test
+      handle.terminate("cleanup-after-timeout-test");
+    }
+  }
+
+  @Test
+  public void getResultAsyncWithTimeoutFiresWhenOperationStaysPending() {
+    // Mirror of the sync test for the CompletableFuture surface: the returned future must
+    // complete exceptionally with TimeoutException once the supplied timeout expires.
+    UntypedNexusOperationHandle handle = startPendingOperation();
+    java.util.concurrent.CompletableFuture<String> future =
+        handle.getResultAsync(1, java.util.concurrent.TimeUnit.SECONDS, String.class);
+    try {
+      future.get();
+      Assert.fail("expected getResultAsync future to complete exceptionally with TimeoutException");
+    } catch (java.util.concurrent.ExecutionException e) {
+      Assert.assertTrue(
+          "expected TimeoutException, got "
+              + (e.getCause() == null ? "null" : e.getCause().getClass().getSimpleName()),
+          e.getCause() instanceof java.util.concurrent.TimeoutException);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } finally {
+      handle.terminate("cleanup-after-timeout-test");
+    }
+  }
+
   /**
    * Polls the handler's invocation counter to confirm the cancel RPC reached the worker and the
    * handler's {@code cancel(...)} callback ran (the dispatch is asynchronous — server schedules a
    * cancel task, worker polls it, then the callback fires).
+   *
+   * <p>The 8-second budget sits just under the rule's default {@code DEFAULT_TEST_TIMEOUT_SECONDS =
+   * 10}, so a missed delivery fails with the descriptive message below rather than the rule's
+   * generic JUnit timeout.
    */
   private static void assertCancelDelivered(int countBeforeCancel) {
     long deadlineNanos = System.nanoTime() + Duration.ofSeconds(8).toNanos();
@@ -203,16 +245,15 @@ public class NexusOperationHandleTest {
   /**
    * Terminate is forceful and immediate per the proto contract; the server transitions the
    * operation to TERMINATED regardless of handler state, so {@code getResult} promptly throws
-   * {@link NexusOperationFailedException}.
+   * {@link NexusOperationFailedException}. Uses the no-timeout {@code getResult(Class)} overload;
+   * the rule's global test timeout caps how long we wait.
    */
   private static void assertTerminalFailure(UntypedNexusOperationHandle handle) {
     try {
-      handle.getResult(15, java.util.concurrent.TimeUnit.SECONDS, String.class);
+      handle.getResult(String.class);
       Assert.fail("expected getResult to throw after the operation was terminated");
     } catch (NexusOperationFailedException expected) {
       // The TerminatedFailure shows up either on this exception's message or via getCause().
-    } catch (java.util.concurrent.TimeoutException e) {
-      Assert.fail("getResult timed out — terminate should have produced a terminal outcome");
     }
   }
 
