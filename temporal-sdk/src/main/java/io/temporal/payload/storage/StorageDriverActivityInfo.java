@@ -5,6 +5,11 @@ import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/**
+ * Identity of the activity a payload is being stored on behalf of. Provided to a {@link
+ * StorageDriver} via {@link StorageDriverStoreContext#getTarget()}. All fields except {@code
+ * namespace} are best-effort and may be {@code null} when not available at store time.
+ */
 @Experimental
 public final class StorageDriverActivityInfo implements StorageDriverTargetInfo {
   private final @Nonnull String namespace;
