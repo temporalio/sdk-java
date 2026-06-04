@@ -1,10 +1,3 @@
-# Changelog
-
-Release notes for versions released before this file was introduced are archived
-under [`releases/`](releases/).
-
-## [Unreleased]
-
 <!--
 High-level release notes.
 Loosely based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
@@ -21,3 +14,10 @@ to docs, or any other relevant information.
 ### Fixed            — notable bug fixes
 ### Security         — notable security fixes
 -->
+
+# Changelog
+
+Release notes for versions released before this file was introduced are archived
+under [`releases/`](releases/).
+
+## [Unreleased]
