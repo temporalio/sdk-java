@@ -4,12 +4,15 @@ import static org.junit.Assert.*;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import io.temporal.activity.DynamicActivity;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import java.io.File;
 import java.io.IOException;
@@ -62,6 +65,36 @@ public class LambdaWorkerLifecycleTest {
             "await:5000",
             "hook-1",
             "hook-2",
+            "close:2000"),
+        runtime.events);
+  }
+
+  @Test
+  public void dynamicRegistrationsReplayBeforeWorkerStart() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options ->
+                options
+                    .setTaskQueue("task-queue")
+                    .registerDynamicWorkflowImplementationType(TestDynamicWorkflow.class)
+                    .registerDynamicWorkflowImplementationType(
+                        WorkflowImplementationOptions.getDefaultInstance(),
+                        TestDynamicWorkflowWithOptions.class)
+                    .registerDynamicActivityImplementation(new TestDynamicActivity()),
+            runtime);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals(
+        events(
+            "create",
+            "registerWorkflowTypes:1",
+            "registerWorkflowTypesWithOptions:1",
+            "registerActivities:1",
+            "start",
+            "shutdown",
+            "await:5000",
             "close:2000"),
         runtime.events);
   }
@@ -381,4 +414,25 @@ public class LambdaWorkerLifecycleTest {
   }
 
   private static final class TestWorkflowImpl {}
+
+  private static final class TestDynamicWorkflow implements DynamicWorkflow {
+    @Override
+    public Object execute(EncodedValues args) {
+      return null;
+    }
+  }
+
+  private static final class TestDynamicWorkflowWithOptions implements DynamicWorkflow {
+    @Override
+    public Object execute(EncodedValues args) {
+      return null;
+    }
+  }
+
+  private static final class TestDynamicActivity implements DynamicActivity {
+    @Override
+    public Object execute(EncodedValues args) {
+      return null;
+    }
+  }
 }
