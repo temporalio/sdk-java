@@ -44,9 +44,6 @@ public class NexusAsyncApiTest {
 
   @Before
   public void requireStandaloneNexusSupport() {
-    // Standalone Nexus operation RPCs aren't implemented by the in-memory test server, and some
-    // external servers (e.g. the CI CLI server) don't have the feature enabled. Skip unless the
-    // server advertises the capability
     assumeTrue(
         "server does not support standalone Nexus operations",
         testWorkflowRule.supportsStandaloneNexusOperations());

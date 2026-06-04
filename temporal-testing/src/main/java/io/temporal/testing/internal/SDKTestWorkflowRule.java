@@ -13,7 +13,6 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.nexus.v1.Endpoint;
-import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
@@ -404,27 +403,13 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /**
-   * True if the configured server advertises support for standalone Nexus operations via the
-   * namespace {@link
-   * io.temporal.api.namespace.v1.NamespaceInfo.Capabilities#getStandaloneNexusOperation()
-   * capabilities}. Always false against the in-memory test server, which does not implement the
-   * standalone Nexus RPCs. Use from a test's {@code @Before} so suites skip cleanly on external
-   * servers (e.g. the CI CLI server) that don't have the feature compiled in or enabled, rather
-   * than failing mid-test with {@code UNIMPLEMENTED}.
+   * True if the test is running against an external server, which is the prerequisite for
+   * exercising standalone Nexus operations. The in-memory test server does not implement the
+   * standalone Nexus RPCs, so suites gate on this from a test's {@code @Before} and skip cleanly
+   * there.
    */
   public boolean supportsStandaloneNexusOperations() {
-    if (!useExternalService) {
-      return false;
-    }
-    return getWorkflowServiceStubs()
-        .blockingStub()
-        .describeNamespace(
-            DescribeNamespaceRequest.newBuilder()
-                .setNamespace(getWorkflowClient().getOptions().getNamespace())
-                .build())
-        .getNamespaceInfo()
-        .getCapabilities()
-        .getStandaloneNexusOperation();
+    return useExternalService;
   }
 
   public TestWorkflowEnvironment getTestEnvironment() {
