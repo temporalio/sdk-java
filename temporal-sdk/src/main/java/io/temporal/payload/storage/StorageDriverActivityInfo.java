@@ -17,6 +17,12 @@ public final class StorageDriverActivityInfo implements StorageDriverTargetInfo 
   private final @Nullable String runId;
   private final @Nullable String type;
 
+  /**
+   * @param namespace the activity's namespace; must not be {@code null}
+   * @param id the activity ID, or {@code null} if not available
+   * @param runId the activity run ID (standalone activities), or {@code null} if not available
+   * @param type the activity type name, or {@code null} if not available
+   */
   public StorageDriverActivityInfo(
       @Nonnull String namespace,
       @Nullable String id,
