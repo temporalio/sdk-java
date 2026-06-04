@@ -9,6 +9,7 @@ import io.temporal.nexus.NexusOperationInfo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 public class InternalNexusOperationContext {
   private final String namespace;
@@ -18,22 +19,19 @@ public class InternalNexusOperationContext {
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
   // Links extracted from the inbound Nexus task. Stored once at the task-handler boundary so the
-  // workflow client (signal, signalWithStart) can attach them to outgoing requests via
-  // SignalWorkflowExecutionRequest.links.
+  // workflow client can attach them to the outgoing requests it issues (e.g. signal,
+  // signalWithStart) via the request's links field.
   private List<Link> nexusOperationLinks = Collections.emptyList();
-  // Backlinks returned by outbound RPCs the operation handler issues (currently
-  // SignalWorkflowExecutionResponse.link and SignalWithStartWorkflowExecutionResponse.signal_link).
-  // One entry per outbound RPC that returned a link. Drained by the task handler when building
-  // StartOperationResponse so each RPC the handler issued gets a corresponding link on the caller
-  // workflow's history event.
+  // Backlinks returned by outbound RPCs the operation handler issues (such as
+  // SignalWorkflowExecutionResponse.link or SignalWithStartWorkflowExecutionResponse.signal_link).
+  // One entry per outbound RPC that returned a link. Drained
+  // by the task handler when building StartOperationResponse so each RPC the handler issued gets a
+  // corresponding link on the caller workflow's history event.
   //
   // This context is only safe for use from the single thread that runs the operation handler (the
-  // Nexus task executor's thread). The mutators below assert this contract; a stray cross-thread
-  // call fails fast rather than silently corrupting the ArrayList.
+  // Nexus task executor's thread); the backing ArrayList is not synchronized. Handlers must not
+  // mutate it from other threads.
   private final List<Link> responseBacklinks = new ArrayList<>();
-  // Captured at construction (on the Nexus task executor's thread) and used to fail fast on any
-  // cross-thread mutation. See note on responseBacklinks.
-  private final Thread ownerThread;
 
   public InternalNexusOperationContext(
       String namespace,
@@ -46,7 +44,6 @@ public class InternalNexusOperationContext {
     this.endpoint = endpoint;
     this.metricScope = metricScope;
     this.client = client;
-    this.ownerThread = Thread.currentThread();
   }
 
   public Scope getMetricsScope() {
@@ -88,15 +85,15 @@ public class InternalNexusOperationContext {
     this.nexusOperationLinks = links == null ? Collections.emptyList() : links;
   }
 
-  /** Links from the inbound Nexus task; empty if none. Never null. */
-  public List<Link> getNexusOperationLinks() {
-    return nexusOperationLinks;
+  /** Links from the inbound Nexus task; empty if none. */
+  public @Nonnull List<Link> getNexusOperationLinks() {
+    return Collections.unmodifiableList(nexusOperationLinks);
   }
 
   /**
-   * Append a backlink returned by an outbound RPC the operation handler issued (signal or
-   * signalWithStart). The task handler drains the list when building the operation's
-   * StartOperationResponse.
+   * Append a backlink returned by an outbound RPC the operation handler issued (e.g. signal,
+   * signalWithStart, etc). The task handler drains the list when building the
+   * operation's StartOperationResponse.
    */
   public void addBacklink(Link link) {
     if (link != null) {
@@ -105,10 +102,13 @@ public class InternalNexusOperationContext {
   }
 
   /**
-   * Backlinks from every outbound RPC the handler issued. Never null; may be empty. Returned as an
-   * unmodifiable view; callers must not attempt to mutate.
+   * Backlinks from every outbound RPC the handler issued. Returned as an unmodifiable view; callers
+   * must not attempt to mutate. Entries are accumulated while the operation handler runs (the call
+   * that flows through {@link
+   * io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor#startOperation}) and are
+   * drained afterward by the task handler when building the StartOperationResponse.
    */
-  public List<Link> getBacklinks() {
+  public @Nonnull List<Link> getBacklinks() {
     return Collections.unmodifiableList(responseBacklinks);
   }
 

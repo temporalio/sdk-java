@@ -285,9 +285,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             .setCallbackUrl(task.getCallback())
             .setRequestId(task.getRequestId());
     task.getCallbackHeaderMap().forEach(operationStartDetails::putCallbackHeader);
-    // Stash the inbound links in common.v1.Link form on the operation context so that signal
-    // RPCs issued by the handler (e.g. SignalWithStartWorkflow on the callee) can attach them
-    // to SignalWorkflowExecutionRequest.links.
+    // Stash the inbound links in common.v1.Link form on the operation context so the RPCs the
+    // handler issues (e.g. signal, signalWithStart, etc) can attach them to their
+    // request's links field.
     List<io.temporal.api.common.v1.Link> inboundCommonLinks = new ArrayList<>();
     task.getLinksList()
         .forEach(
@@ -303,15 +303,15 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               }
               // LinkConverter only returns a WorkflowEvent-shaped common.v1.Link; nexus links of
               // other shapes (e.g. non-temporal URLs) come back null and are intentionally not
-              // forwarded onto SignalWorkflowExecutionRequest.links, which requires the
-              // WorkflowEvent variant. Log so a debugging session can see what was dropped.
+              // forwarded onto the RPCs the handler issues, which require the WorkflowEvent
+              // variant. Log so a debugging session can see what was dropped.
               io.temporal.api.common.v1.Link commonLink =
                   LinkConverter.nexusLinkToWorkflowEvent(link);
               if (commonLink != null) {
                 inboundCommonLinks.add(commonLink);
               } else {
                 log.warn(
-                    "Dropping inbound Nexus link from outbound signal propagation: type='{}',"
+                    "Dropping inbound Nexus link from outbound link propagation: type='{}',"
                         + " url='{}' (not a parseable temporal WorkflowEvent link)",
                     link.getType(),
                     link.getUrl());
@@ -328,9 +328,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       try {
         OperationStartResult<HandlerResultContent> result =
             startOperation(context, operationStartDetails.build(), input.build());
-        // If signal or signalWithStart RPCs the handler issued returned backlinks, propagate them
-        // to the caller so the caller workflow's history event links to each event on the callee.
-        // Same set of backlinks applies to both sync and async response variants.
+        // If any RPCs the handler issued (e.g. signal, signalWithStart, etc) returned
+        // backlinks, propagate them to the caller so the caller workflow's history event links to
+        // each event on the callee. Same set of backlinks applies to both sync and async response
+        // variants.
         List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
         for (io.temporal.api.common.v1.Link backlink :
             CurrentNexusOperationContext.get().getBacklinks()) {
@@ -388,8 +389,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             new RuntimeException("Unknown operation state: " + e.getState()));
       }
       startResponseBuilder.setFailure(dataConverter.exceptionToFailure(temporalFailure));
-    } catch (Throwable failure) {
-      convertKnownFailures(failure);
     }
     return startResponseBuilder.build();
   }
