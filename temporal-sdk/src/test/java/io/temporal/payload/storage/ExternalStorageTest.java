@@ -21,6 +21,11 @@ public class ExternalStorageTest {
       }
 
       @Override
+      public String getType() {
+        return "test";
+      }
+
+      @Override
       public CompletableFuture<List<StorageDriverClaim>> store(
           StorageDriverStoreContext context, List<Payload> payloads) {
         throw new UnsupportedOperationException();

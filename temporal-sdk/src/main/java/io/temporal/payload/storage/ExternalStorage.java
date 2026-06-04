@@ -64,6 +64,7 @@ public final class ExternalStorage {
       return this;
     }
 
+    /** Required when more than one driver is registered; with a single driver it is optional. */
     public Builder setDriverSelector(@Nullable StorageDriverSelector driverSelector) {
       this.driverSelector = driverSelector;
       return this;

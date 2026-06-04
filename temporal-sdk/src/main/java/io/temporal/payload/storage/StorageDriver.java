@@ -20,12 +20,11 @@ public interface StorageDriver {
   /**
    * Stable, implementation-level identifier for this driver, the same across all instances of the
    * driver class and ideally across SDKs (e.g. {@code "aws.s3driver"}). Used for metrics and worker
-   * heartbeat reporting.
+   * heartbeat reporting, so it must not be derived from anything that changes between versions or
+   * refactors.
    */
   @Nonnull
-  default String getType() {
-    return getClass().getName();
-  }
+  String getType();
 
   /**
    * Stores {@code payloads} and returns one {@link StorageDriverClaim} per payload, in the same
