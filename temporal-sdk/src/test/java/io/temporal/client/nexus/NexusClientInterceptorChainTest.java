@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -31,13 +31,14 @@ public class NexusClientInterceptorChainTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(PlaceholderWorkflowImpl.class).build();
 
-  @BeforeClass
-  public static void requireExternalService() {
-    // Standalone Nexus operation RPCs are not implemented by the time-skipping in-memory test
-    // server; these tests must run against a real Temporal server.
+  @Before
+  public void requireStandaloneNexusSupport() {
+    // Standalone Nexus operation RPCs aren't implemented by the in-memory test server, and some
+    // external servers (e.g. the CI CLI server) don't have the feature enabled. Skip unless the
+    // server advertises the capability
     assumeTrue(
-        "standalone Nexus operations require a real server",
-        SDKTestWorkflowRule.useExternalService);
+        "server does not support standalone Nexus operations",
+        testWorkflowRule.supportsStandaloneNexusOperations());
   }
 
   @Test

@@ -22,7 +22,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -42,13 +42,14 @@ public class NexusAsyncApiTest {
           .setNexusServiceImplementation(new EchoNexusServiceImpl())
           .build();
 
-  @BeforeClass
-  public static void requireExternalService() {
-    // Standalone Nexus operation RPCs are not implemented by the time-skipping in-memory test
-    // server; these tests must run against a real Temporal server.
+  @Before
+  public void requireStandaloneNexusSupport() {
+    // Standalone Nexus operation RPCs aren't implemented by the in-memory test server, and some
+    // external servers (e.g. the CI CLI server) don't have the feature enabled. Skip unless the
+    // server advertises the capability
     assumeTrue(
-        "standalone Nexus operations require a real server",
-        SDKTestWorkflowRule.useExternalService);
+        "server does not support standalone Nexus operations",
+        testWorkflowRule.supportsStandaloneNexusOperations());
   }
 
   // --- NexusServiceClient.executeAsync ---

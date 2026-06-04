@@ -26,7 +26,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -48,15 +47,14 @@ public class StandaloneNexusClientCancelTest {
           .setNexusServiceImplementation(new CancelTargetNexusServiceImpl())
           .build();
 
-  @BeforeClass
-  public static void requireExternalService() {
-    assumeTrue(
-        "standalone Nexus operations require a real server",
-        SDKTestWorkflowRule.useExternalService);
-  }
-
   @Before
-  public void resetCaptured() {
+  public void requireStandaloneNexusSupportAndReset() {
+    // Standalone Nexus operation RPCs aren't implemented by the in-memory test server, and some
+    // external servers (e.g. the CI CLI server) don't have the feature enabled. Skip unless the
+    // server advertises the capability
+    assumeTrue(
+        "server does not support standalone Nexus operations",
+        testWorkflowRule.supportsStandaloneNexusOperations());
     capturedWorkflowId.set(null);
   }
 
