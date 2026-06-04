@@ -25,4 +25,20 @@ public final class StorageDriverClaim {
   public Map<String, String> getClaimData() {
     return claimData;
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof StorageDriverClaim)) {
+      return false;
+    }
+    return claimData.equals(((StorageDriverClaim) o).claimData);
+  }
+
+  @Override
+  public int hashCode() {
+    return claimData.hashCode();
+  }
 }
