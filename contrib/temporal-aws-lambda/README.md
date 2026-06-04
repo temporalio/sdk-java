@@ -29,6 +29,8 @@ Connection options are loaded with `temporal-envconfig` when the handler is cons
 
 If you need to assemble options outside the `run` callback, call `LambdaWorkerOptions.fromEnvironment()`, mutate the returned options, and pass them to `LambdaWorker.newHandler(...)`.
 
+Dynamic workflow and activity implementations can be registered with `registerDynamicWorkflowImplementationType(...)` and `registerDynamicActivityImplementation(...)`. Java SDK worker rules still apply: only one dynamic workflow implementation type and one dynamic activity implementation can be registered per worker.
+
 The handler creates one worker per invocation, starts the worker, shuts it down before the Lambda deadline, runs shutdown hooks in order, and closes service stubs. Worker deployment versioning is always enabled for the supplied `WorkerDeploymentVersion`. If neither client nor worker identity is set by the user, each invocation uses `<awsRequestId>@<invokedFunctionArn>` as the Temporal identity.
 
 `shutdownDeadlineBuffer` is the full shutdown window reserved at the end of the Lambda invocation. The default is 7 seconds: 5 seconds for `gracefulShutdownTimeout` and 2 seconds for hooks and service stubs. The worker runs until `remainingTime - shutdownDeadlineBuffer`, then stops and awaits termination for `gracefulShutdownTimeout`. If you change `gracefulShutdownTimeout` without explicitly setting `shutdownDeadlineBuffer`, the buffer is recomputed as `gracefulShutdownTimeout + 2s`.

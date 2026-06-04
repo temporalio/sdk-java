@@ -2,12 +2,16 @@ package io.temporal.aws.lambda;
 
 import static org.junit.Assert.*;
 
+import io.temporal.activity.DynamicActivity;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.DynamicWorkflow;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -228,6 +232,27 @@ public class LambdaWorkerOptionsTest {
         () -> LambdaWorkerOptions.validateVersion(new WorkerDeploymentVersion("deployment", "")));
   }
 
+  @Test
+  public void dynamicRegistrationMethodsRejectNullInputs() throws IOException {
+    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            options.registerDynamicWorkflowImplementationType(
+                (Class<? extends DynamicWorkflow>) null));
+    assertThrows(
+        NullPointerException.class,
+        () -> options.registerDynamicWorkflowImplementationType(null, TestDynamicWorkflow.class));
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            options.registerDynamicWorkflowImplementationType(
+                WorkflowImplementationOptions.getDefaultInstance(), null));
+    assertThrows(
+        NullPointerException.class, () -> options.registerDynamicActivityImplementation(null));
+  }
+
   private Map<String, String> baseEnv() {
     Map<String, String> env = new HashMap<>();
     env.put(LambdaWorkerOptions.TEMPORAL_CONFIG_FILE, "/nonexistent/temporal.toml");
@@ -239,5 +264,19 @@ public class LambdaWorkerOptionsTest {
         new File(directory, "temporal.toml").toPath(),
         ("[profile.default]\nnamespace = \"" + namespace + "\"\n")
             .getBytes(StandardCharsets.UTF_8));
+  }
+
+  private static final class TestDynamicWorkflow implements DynamicWorkflow {
+    @Override
+    public Object execute(EncodedValues args) {
+      return null;
+    }
+  }
+
+  private static final class TestDynamicActivity implements DynamicActivity {
+    @Override
+    public Object execute(EncodedValues args) {
+      return null;
+    }
   }
 }
