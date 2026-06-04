@@ -96,6 +96,13 @@ public class StandaloneActivityTest {
     void alwaysFail();
   }
 
+  @ActivityInterface
+  public interface RetryThenSucceedActivity {
+    /** Fails on attempt 1, returns the server-side attempt number on attempt >= 2. */
+    @ActivityMethod(name = "RetryThenSucceed")
+    int run();
+  }
+
   /** Snapshot of {@link ActivityInfo} fields captured inside an activity body. */
   public static class ActivityInfoSnapshot {
     public String activityId;
@@ -200,6 +207,17 @@ public class StandaloneActivityTest {
     }
   }
 
+  public static class RetryThenSucceedActivityImpl implements RetryThenSucceedActivity {
+    @Override
+    public int run() {
+      int attempt = Activity.getExecutionContext().getInfo().getAttempt();
+      if (attempt == 1) {
+        throw ApplicationFailure.newFailure("fail on attempt 1", "test-type");
+      }
+      return attempt;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Test rule
   // ---------------------------------------------------------------------------
@@ -215,7 +233,8 @@ public class StandaloneActivityTest {
               new InspectInfoActivityImpl(),
               new EchoVoidActivityImpl(),
               new ConcatActivityImpl(),
-              new AlwaysFailActivityImpl())
+              new AlwaysFailActivityImpl(),
+              new RetryThenSucceedActivityImpl())
           .build();
 
   // ---------------------------------------------------------------------------
@@ -984,6 +1003,173 @@ public class StandaloneActivityTest {
     assertEquals(
         "echo:x",
         newActivityClient().execute(SimpleActivity.class, SimpleActivity::execute, opts, "x"));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Start delay
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testStartDelayDelaysFirstDispatch() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    Duration delay = Duration.ofSeconds(2);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartDelay(delay)
+            .build();
+
+    ActivityHandle<String> handle =
+        newActivityClient().start(SimpleActivity.class, SimpleActivity::execute, opts, "hello");
+    assertEquals("echo:hello", handle.getResult());
+
+    ActivityExecutionDescription desc = handle.describe();
+    Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
+    assertTrue(
+        "lastStartedTime - scheduledTime should be >= startDelay - 500ms, was " + between,
+        between.compareTo(delay.minusMillis(500)) >= 0);
+  }
+
+  @Test
+  public void testStartDelayPreservesScheduleToStartTimeout() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setStartToCloseTimeout(Duration.ofMinutes(5))
+            .setScheduleToStartTimeout(Duration.ofSeconds(1))
+            .setStartDelay(Duration.ofSeconds(2))
+            .build();
+    String result =
+        newActivityClient().execute(SimpleActivity.class, SimpleActivity::execute, opts, "x");
+    assertEquals("echo:x", result);
+  }
+
+  @Test
+  public void testStartDelayPreservesScheduleToCloseTimeout() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofSeconds(3))
+            .setStartDelay(Duration.ofSeconds(2))
+            .build();
+    String result =
+        newActivityClient().execute(SimpleActivity.class, SimpleActivity::execute, opts, "x");
+    assertEquals("echo:x", result);
+  }
+
+  @Test
+  public void testStartDelayNotReappliedOnRetry() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartDelay(Duration.ofSeconds(2))
+            .setRetryOptions(
+                RetryOptions.newBuilder()
+                    .setInitialInterval(Duration.ofMillis(100))
+                    .setMaximumAttempts(5)
+                    .build())
+            .build();
+    long startMs = System.currentTimeMillis();
+    int finalAttempt =
+        newActivityClient()
+            .execute(RetryThenSucceedActivity.class, RetryThenSucceedActivity::run, opts);
+    long elapsedMs = System.currentTimeMillis() - startMs;
+
+    // Bug-trap: confirm the activity actually retried rather than succeeding silently on attempt 1.
+    assertTrue(
+        "activity should have retried at least once (final attempt was " + finalAttempt + ")",
+        finalAttempt >= 2);
+
+    // If start delay were re-applied to retries, elapsed would be ~2 * startDelay (~4000ms).
+    // Without re-application: ~2000ms delay + ~100ms retry interval + worker overhead.
+    assertTrue(
+        "retry should not re-apply startDelay; elapsed was " + elapsedMs + "ms", elapsedMs < 3500);
+  }
+
+  @Test
+  public void testCancelDuringStartDelay() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartDelay(Duration.ofSeconds(30))
+            .build();
+    long startMs = System.currentTimeMillis();
+    ActivityHandle<String> handle =
+        newActivityClient().start(SimpleActivity.class, SimpleActivity::execute, opts, "x");
+    handle.cancel("test cancel during start delay");
+
+    assertEventually(
+        Duration.ofSeconds(10),
+        () ->
+            assertEquals(
+                ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_CANCELED,
+                handle.describe().getStatus()));
+
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    assertTrue(
+        "Cancel during start delay must not wait out the 30s delay; elapsed " + elapsedMs + "ms",
+        elapsedMs < 15_000);
+  }
+
+  @Test
+  public void testTerminateDuringStartDelay() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartDelay(Duration.ofSeconds(30))
+            .build();
+    long startMs = System.currentTimeMillis();
+    ActivityHandle<String> handle =
+        newActivityClient().start(SimpleActivity.class, SimpleActivity::execute, opts, "x");
+    handle.terminate("test terminate during start delay");
+
+    assertEventually(
+        Duration.ofSeconds(10),
+        () ->
+            assertEquals(
+                ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_TERMINATED,
+                handle.describe().getStatus()));
+
+    long elapsedMs = System.currentTimeMillis() - startMs;
+    assertTrue(
+        "Terminate during start delay must not wait out the 30s delay; elapsed " + elapsedMs + "ms",
+        elapsedMs < 15_000);
+  }
+
+  @Test
+  public void testZeroStartDelayBehavesAsUnset() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+            .setStartDelay(Duration.ZERO)
+            .build();
+    ActivityHandle<String> handle =
+        newActivityClient().start(SimpleActivity.class, SimpleActivity::execute, opts, "x");
+    assertEquals("echo:x", handle.getResult());
+
+    ActivityExecutionDescription desc = handle.describe();
+    Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
+    assertTrue(
+        "Duration.ZERO should not introduce dispatch latency, was " + between,
+        between.compareTo(Duration.ofSeconds(3)) < 0);
   }
 
   // ---------------------------------------------------------------------------
