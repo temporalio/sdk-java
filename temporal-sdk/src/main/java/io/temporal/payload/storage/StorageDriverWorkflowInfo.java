@@ -17,6 +17,12 @@ public final class StorageDriverWorkflowInfo implements StorageDriverTargetInfo 
   private final @Nullable String runId;
   private final @Nullable String type;
 
+  /**
+   * @param namespace the workflow's namespace; must not be {@code null}
+   * @param id the workflow ID, or {@code null} if not available
+   * @param runId the workflow run ID, or {@code null} if not available
+   * @param type the workflow type name, or {@code null} if not available
+   */
   public StorageDriverWorkflowInfo(
       @Nonnull String namespace,
       @Nullable String id,
