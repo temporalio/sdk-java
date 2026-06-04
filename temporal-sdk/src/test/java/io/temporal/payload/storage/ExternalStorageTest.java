@@ -42,8 +42,7 @@ public class ExternalStorageTest {
   @Test
   public void singleDriverNoSelectorSynthesizesSelector() {
     StorageDriver a = driver("a");
-    ExternalStorage storage =
-        ExternalStorage.newBuilder().setDrivers(Collections.singletonList(a)).build();
+    ExternalStorage storage = ExternalStorage.newBuilder().setDriver(a).build();
     assertEquals(1, storage.getDrivers().size());
     StorageDriverSelector selector = storage.getDriverSelector();
     assertNotNull(selector);
