@@ -47,4 +47,24 @@ public final class StorageDriverActivityInfo implements StorageDriverTargetInfo 
   public String getType() {
     return type;
   }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof StorageDriverActivityInfo)) {
+      return false;
+    }
+    StorageDriverActivityInfo that = (StorageDriverActivityInfo) o;
+    return namespace.equals(that.namespace)
+        && Objects.equals(id, that.id)
+        && Objects.equals(runId, that.runId)
+        && Objects.equals(type, that.type);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(namespace, id, runId, type);
+  }
 }
