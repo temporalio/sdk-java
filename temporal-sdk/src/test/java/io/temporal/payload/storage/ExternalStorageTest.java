@@ -3,6 +3,7 @@ package io.temporal.payload.storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 
 import io.temporal.api.common.v1.Payload;
 import java.util.Arrays;
@@ -35,11 +36,16 @@ public class ExternalStorageTest {
   }
 
   @Test
-  public void singleDriverNoSelectorIsValid() {
+  public void singleDriverNoSelectorSynthesizesSelector() {
+    StorageDriver a = driver("a");
     ExternalStorage storage =
-        ExternalStorage.newBuilder().setDrivers(Collections.singletonList(driver("a"))).build();
+        ExternalStorage.newBuilder().setDrivers(Collections.singletonList(a)).build();
     assertEquals(1, storage.getDrivers().size());
-    assertNull(storage.getDriverSelector());
+    StorageDriverSelector selector = storage.getDriverSelector();
+    assertNotNull(selector);
+    assertSame(
+        a,
+        selector.selectDriver(new StorageDriverStoreContext(null), Payload.getDefaultInstance()));
   }
 
   @Test

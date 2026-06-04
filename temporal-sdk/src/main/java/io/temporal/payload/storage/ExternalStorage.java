@@ -21,12 +21,12 @@ public final class ExternalStorage {
   }
 
   private final @Nonnull List<StorageDriver> drivers;
-  private final @Nullable StorageDriverSelector driverSelector;
+  private final @Nonnull StorageDriverSelector driverSelector;
   private final @Nullable Integer payloadSizeThreshold;
 
   private ExternalStorage(
       @Nonnull List<StorageDriver> drivers,
-      @Nullable StorageDriverSelector driverSelector,
+      @Nonnull StorageDriverSelector driverSelector,
       @Nullable Integer payloadSizeThreshold) {
     this.drivers = Collections.unmodifiableList(new ArrayList<>(drivers));
     this.driverSelector = driverSelector;
@@ -38,13 +38,14 @@ public final class ExternalStorage {
     return drivers;
   }
 
-  @Nullable
+  @Nonnull
   public StorageDriverSelector getDriverSelector() {
     return driverSelector;
   }
 
   /**
-   * Minimum payload size in bytes before external storage is considered; {@code null} stores all.
+   * Minimum payload size in bytes before external storage is considered.
+   * {@code null} stores all. Defaults to 256 KiB.
    */
   @Nullable
   public Integer getPayloadSizeThreshold() {
@@ -69,7 +70,7 @@ public final class ExternalStorage {
       return this;
     }
 
-    /** Defaults to 256 KiB. Set to {@code null} to store all payloads. */
+    /** Set to {@code null} to store all payloads. Defaults to 256 KiB. */
     public Builder setPayloadSizeThreshold(@Nullable Integer payloadSizeThreshold) {
       this.payloadSizeThreshold = payloadSizeThreshold;
       return this;
@@ -89,7 +90,12 @@ public final class ExternalStorage {
       Preconditions.checkArgument(
           drivers.size() == 1 || driverSelector != null,
           "driverSelector must be specified when more than one driver is registered");
-      return new ExternalStorage(drivers, driverSelector, payloadSizeThreshold);
+      StorageDriverSelector selector = driverSelector;
+      if (selector == null) {
+        StorageDriver driver = drivers.get(0);
+        selector = (context, payload) -> driver;
+      }
+      return new ExternalStorage(drivers, selector, payloadSizeThreshold);
     }
   }
 }
