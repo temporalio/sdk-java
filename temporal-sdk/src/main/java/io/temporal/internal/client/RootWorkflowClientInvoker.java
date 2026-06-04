@@ -10,6 +10,7 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
@@ -105,7 +106,26 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       if (CurrentNexusOperationContext.isNexusContext()) {
         // Auto-capture the start-workflow backlink so the task handler drains it onto the
         // StartOperationResponse, the same path used for signal/signalWithStart responses.
-        CurrentNexusOperationContext.get().addBacklink(response.getLink());
+        if (response.hasLink()) {
+          CurrentNexusOperationContext.get().addBacklink(response.getLink());
+        } else {
+          // Older servers (pre-1.31) don't return a link on the start response. Fabricate one
+          // pointing at the started workflow's WorkflowExecutionStarted event so the caller still
+          // gets a backlink.
+          CurrentNexusOperationContext.get()
+              .addBacklink(
+                  Link.newBuilder()
+                      .setWorkflowEvent(
+                          Link.WorkflowEvent.newBuilder()
+                              .setNamespace(clientOptions.getNamespace())
+                              .setWorkflowId(execution.getWorkflowId())
+                              .setRunId(execution.getRunId())
+                              .setEventRef(
+                                  Link.WorkflowEvent.EventReference.newBuilder()
+                                      .setEventType(
+                                          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)))
+                      .build());
+        }
       }
       return new WorkflowStartOutput(execution);
     }
@@ -171,9 +191,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
     if (inNexusContext) {
       requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getNexusOperationLinks());
-    } else {
-      log.debug(
-          "signalWithStart RPC issued outside a Nexus operation context; no link propagation");
     }
     SignalWithStartWorkflowExecutionRequest request = requestBuilder.build();
     SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);

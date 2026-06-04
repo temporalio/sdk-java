@@ -92,8 +92,8 @@ public class InternalNexusOperationContext {
 
   /**
    * Append a backlink returned by an outbound RPC the operation handler issued (e.g. signal,
-   * signalWithStart, etc). The task handler drains the list when building the
-   * operation's StartOperationResponse.
+   * signalWithStart, etc). The task handler drains the list when building the operation's
+   * StartOperationResponse.
    */
   public void addBacklink(Link link) {
     if (link != null) {

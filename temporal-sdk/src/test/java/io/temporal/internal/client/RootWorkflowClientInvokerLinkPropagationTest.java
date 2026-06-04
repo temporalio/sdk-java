@@ -13,6 +13,8 @@ import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionReques
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionResponse;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
@@ -232,6 +234,51 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
         nexusCtx.getBacklinks());
   }
 
+  /**
+   * Flag-enabled server: the start response carries a backlink; the SDK captures it verbatim onto
+   * the operation context (used by the WorkflowRunOperation async path).
+   */
+  @Test
+  public void startUsesServerStartLinkWhenPresent() {
+    Link serverLink =
+        workflowEventLink(
+            WORKFLOW_ID, "target-run", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
+    when(genericClient.start(any(StartWorkflowExecutionRequest.class)))
+        .thenReturn(
+            StartWorkflowExecutionResponse.newBuilder()
+                .setRunId("target-run")
+                .setLink(serverLink)
+                .build());
+
+    invoker.start(newStartInput());
+
+    List<Link> captured = nexusCtx.getBacklinks();
+    Assert.assertEquals("expected the server-provided start link", 1, captured.size());
+    Assert.assertEquals(serverLink, captured.get(0));
+  }
+
+  /**
+   * Older server (pre-1.31): the start response has no link. The SDK must fabricate a backlink
+   * pointing at the started workflow's WorkflowExecutionStarted event so the caller still links to
+   * the callee.
+   */
+  @Test
+  public void startFabricatesStartLinkWhenServerOmitsIt() {
+    when(genericClient.start(any(StartWorkflowExecutionRequest.class)))
+        .thenReturn(StartWorkflowExecutionResponse.newBuilder().setRunId("target-run").build());
+
+    invoker.start(newStartInput());
+
+    List<Link> captured = nexusCtx.getBacklinks();
+    Assert.assertEquals("expected one fabricated backlink", 1, captured.size());
+    Link.WorkflowEvent we = captured.get(0).getWorkflowEvent();
+    Assert.assertEquals(NAMESPACE, we.getNamespace());
+    Assert.assertEquals(WORKFLOW_ID, we.getWorkflowId());
+    Assert.assertEquals("target-run", we.getRunId());
+    Assert.assertEquals(
+        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED, we.getEventRef().getEventType());
+  }
+
   // ── helpers ──────────────────────────────────────────────────────────────────────────────
 
   private static WorkflowSignalInput newSignalInput() {
@@ -249,6 +296,14 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
             WORKFLOW_ID, "TestWorkflow", Header.empty(), new Object[] {}, options);
     return new WorkflowSignalWithStartInput(
         startInput, "test-signal", new Object[] {"signal-payload"});
+  }
+
+  private static WorkflowStartInput newStartInput() {
+    // Disable eager execution so start() takes the plain RPC path (no local worker dispatch).
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder().setTaskQueue("tq").setDisableEagerExecution(true).build();
+    return new WorkflowStartInput(
+        WORKFLOW_ID, "TestWorkflow", Header.empty(), new Object[] {}, options);
   }
 
   private static Link workflowEventLink(String workflowId, String runId, EventType eventType) {
