@@ -30,7 +30,7 @@ public class GenericHandlerTypedStartWorkflowTest {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
-    Assert.assertEquals("funcinputinput2input23input234input2345", result);
+    Assert.assertEquals("funcinputinput2input23input234input2345input23456", result);
   }
 
   public static class TestNexus implements TestWorkflows.TestWorkflow1 {
@@ -46,7 +46,7 @@ public class GenericHandlerTypedStartWorkflowTest {
       TestNexusServiceGeneric serviceStub =
           Workflow.newNexusServiceStub(TestNexusServiceGeneric.class, serviceOptions);
       StringBuilder result = new StringBuilder();
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 7; i++) {
         result.append(serviceStub.operation(i));
       }
       return result.toString();
@@ -114,6 +114,17 @@ public class GenericHandlerTypedStartWorkflowTest {
                     3,
                     4,
                     5,
+                    options);
+              case 6:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc.class,
+                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc::func6,
+                    "input",
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
                     options);
               default:
                 throw new IllegalArgumentException("unexpected input: " + input);

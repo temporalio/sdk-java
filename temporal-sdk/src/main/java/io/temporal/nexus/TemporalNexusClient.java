@@ -4,6 +4,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Type;
 
 /**
  * Nexus-aware client wrapping {@link WorkflowClient}. Provides methods for interacting with
@@ -218,6 +219,45 @@ public interface TemporalNexusClient {
       WorkflowOptions options);
 
   /**
+   * Starts a six-argument workflow that returns a value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::run, arg1, arg2, arg3, arg4, arg5, arg6, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param arg5 fifth workflow argument
+   * @param arg6 sixth workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <A4> the type of the fourth workflow argument
+   * @param <A5> the type of the fifth workflow argument
+   * @param <A6> the type of the sixth workflow argument
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      WorkflowOptions options);
+
+  /**
    * Starts a zero-argument workflow with no return value.
    *
    * <p>Example:
@@ -381,6 +421,44 @@ public interface TemporalNexusClient {
       WorkflowOptions options);
 
   /**
+   * Starts a six-argument workflow with no return value.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(MyWorkflow.class, MyWorkflow::execute, arg1, arg2, arg3, arg4, arg5, arg6, options)
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowMethod unbound method reference to the workflow method
+   * @param arg1 first workflow argument
+   * @param arg2 second workflow argument
+   * @param arg3 third workflow argument
+   * @param arg4 fourth workflow argument
+   * @param arg5 fifth workflow argument
+   * @param arg6 sixth workflow argument
+   * @param options workflow start options (must include workflowId)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first workflow argument
+   * @param <A2> the type of the second workflow argument
+   * @param <A3> the type of the third workflow argument
+   * @param <A4> the type of the fourth workflow argument
+   * @param <A5> the type of the fifth workflow argument
+   * @param <A6> the type of the sixth workflow argument
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <T, A1, A2, A3, A4, A5, A6> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc7<T, A1, A2, A3, A4, A5, A6> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      WorkflowOptions options);
+
+  /**
    * Starts a workflow using an untyped workflow type name.
    *
    * <p>Example:
@@ -398,4 +476,35 @@ public interface TemporalNexusClient {
    */
   <R> TemporalOperationResult<R> startWorkflow(
       String workflowType, Class<R> resultClass, WorkflowOptions options, Object... args);
+
+  /**
+   * Starts a workflow using an untyped workflow type name, with both a result class and a generic
+   * {@link Type}. Use this overload when the workflow returns a generic type (e.g. {@code
+   * List<String>}) so the result can be deserialized correctly.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflow(
+   *     "MyWorkflow",
+   *     List.class,
+   *     new TypeToken<List<String>>() {}.getType(),
+   *     options,
+   *     input)
+   * }</pre>
+   *
+   * @param workflowType the workflow type name string
+   * @param resultClass the expected result class
+   * @param resultType the expected result {@link Type} (carries generic parameters)
+   * @param options workflow start options (must include workflowId)
+   * @param args workflow arguments
+   * @param <R> the workflow return type
+   * @return an async {@link TemporalOperationResult} with the workflow-run operation token
+   */
+  <R> TemporalOperationResult<R> startWorkflow(
+      String workflowType,
+      Class<R> resultClass,
+      Type resultType,
+      WorkflowOptions options,
+      Object... args);
 }

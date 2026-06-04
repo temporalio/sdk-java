@@ -10,6 +10,7 @@ import io.temporal.common.Experimental;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -112,6 +113,23 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
             () -> workflowMethod.apply(stub, arg1, arg2, arg3, arg4, arg5)));
   }
 
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      WorkflowOptions options) {
+    T stub = client.newWorkflowStub(workflowClass, options);
+    return invokeAndReturn(
+        WorkflowHandle.fromWorkflowMethod(
+            () -> workflowMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6)));
+  }
+
   // ---------- Void (Proc) overloads ----------
 
   @Override
@@ -188,11 +206,38 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
             () -> workflowMethod.apply(stub, arg1, arg2, arg3, arg4, arg5)));
   }
 
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6> TemporalOperationResult<Void> startWorkflow(
+      Class<T> workflowClass,
+      Functions.Proc7<T, A1, A2, A3, A4, A5, A6> workflowMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      WorkflowOptions options) {
+    T stub = client.newWorkflowStub(workflowClass, options);
+    return invokeAndReturn(
+        WorkflowHandle.fromWorkflowMethod(
+            () -> workflowMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6)));
+  }
+
   // ---------- Untyped ----------
 
   @Override
   public <R> TemporalOperationResult<R> startWorkflow(
       String workflowType, Class<R> resultClass, WorkflowOptions options, Object... args) {
+    return startWorkflow(workflowType, resultClass, null, options, args);
+  }
+
+  @Override
+  public <R> TemporalOperationResult<R> startWorkflow(
+      String workflowType,
+      Class<R> resultClass,
+      Type resultType,
+      WorkflowOptions options,
+      Object... args) {
     WorkflowStub stub = client.newUntypedWorkflowStub(workflowType, options);
     WorkflowHandle<R> handle = WorkflowHandle.fromWorkflowStub(stub, resultClass, args);
     return invokeAndReturn(handle);

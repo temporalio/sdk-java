@@ -1,7 +1,6 @@
 package io.temporal.nexus;
 
 import io.nexusrpc.handler.*;
-import io.nexusrpc.handler.OperationHandler;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;

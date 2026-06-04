@@ -45,7 +45,7 @@ public class GenericHandlerTypedProcTest {
 
       TestNexusServiceProc serviceStub =
           Workflow.newNexusServiceStub(TestNexusServiceProc.class, serviceOptions);
-      for (int i = 0; i < 6; i++) {
+      for (int i = 0; i < 7; i++) {
         serviceStub.operation(i);
       }
       return "done";
@@ -113,6 +113,17 @@ public class GenericHandlerTypedProcTest {
                     3,
                     4,
                     5,
+                    options);
+              case 6:
+                return client.startWorkflow(
+                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc.class,
+                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc::proc6,
+                    "input",
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
                     options);
               default:
                 throw new IllegalArgumentException("unexpected input: " + input);

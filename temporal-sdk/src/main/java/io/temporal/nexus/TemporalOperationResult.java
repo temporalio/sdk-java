@@ -61,22 +61,31 @@ public final class TemporalOperationResult<R> {
   }
 
   /**
-   * Returns the synchronous result value, or null if this is an async result.
+   * Returns the synchronous result value.
    *
-   * @return the sync result value, or null
+   * @return the sync result value (may be null if the operation produced a null sync value)
+   * @throws IllegalStateException if this is an async result; check {@link #isSync()} first
    */
   @Nullable
   public R getSyncResult() {
+    if (!isSync) {
+      throw new IllegalStateException(
+          "getSyncResult() called on async result; use getAsyncOperationToken() instead");
+    }
     return syncResult;
   }
 
   /**
-   * Returns the async operation token, or null if this is a sync result.
+   * Returns the async operation token.
    *
-   * @return the operation token, or null
+   * @return the operation token
+   * @throws IllegalStateException if this is a sync result; check {@link #isAsync()} first
    */
-  @Nullable
   public String getAsyncOperationToken() {
+    if (isSync) {
+      throw new IllegalStateException(
+          "getAsyncOperationToken() called on sync result; use getSyncResult() instead");
+    }
     return asyncOperationToken;
   }
 }
