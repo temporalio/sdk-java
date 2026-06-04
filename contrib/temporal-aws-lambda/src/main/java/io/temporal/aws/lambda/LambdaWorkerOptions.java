@@ -1,5 +1,6 @@
 package io.temporal.aws.lambda;
 
+import io.temporal.activity.DynamicActivity;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
@@ -11,6 +12,7 @@ import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
+import io.temporal.workflow.DynamicWorkflow;
 import io.temporal.workflow.Functions;
 import java.io.File;
 import java.io.IOException;
@@ -195,6 +197,36 @@ public final class LambdaWorkerOptions {
     return this;
   }
 
+  /**
+   * Registers a dynamic workflow implementation type.
+   *
+   * <p>Only one dynamic workflow implementation type can be registered per worker.
+   */
+  public LambdaWorkerOptions registerDynamicWorkflowImplementationType(
+      Class<? extends DynamicWorkflow> workflowImplementationClass) {
+    final Class<? extends DynamicWorkflow> implementationClass =
+        Objects.requireNonNull(workflowImplementationClass, "workflowImplementationClass");
+    registrations.add(
+        registrar -> registrar.registerWorkflowImplementationTypes(implementationClass));
+    return this;
+  }
+
+  /**
+   * Registers a dynamic workflow implementation type with custom workflow implementation options.
+   *
+   * <p>Only one dynamic workflow implementation type can be registered per worker.
+   */
+  public LambdaWorkerOptions registerDynamicWorkflowImplementationType(
+      WorkflowImplementationOptions options,
+      Class<? extends DynamicWorkflow> workflowImplementationClass) {
+    Objects.requireNonNull(options, "options");
+    final Class<? extends DynamicWorkflow> implementationClass =
+        Objects.requireNonNull(workflowImplementationClass, "workflowImplementationClass");
+    registrations.add(
+        registrar -> registrar.registerWorkflowImplementationTypes(options, implementationClass));
+    return this;
+  }
+
   public <R> LambdaWorkerOptions registerWorkflowImplementationFactory(
       Class<R> workflowInterface, Functions.Func<R> factory) {
     Objects.requireNonNull(workflowInterface, "workflowInterface");
@@ -234,6 +266,19 @@ public final class LambdaWorkerOptions {
     final Object[] implementations =
         copyObjects(activityImplementations, "activityImplementations");
     registrations.add(registrar -> registrar.registerActivitiesImplementations(implementations));
+    return this;
+  }
+
+  /**
+   * Registers a dynamic activity implementation.
+   *
+   * <p>Only one dynamic activity implementation can be registered per worker.
+   */
+  public LambdaWorkerOptions registerDynamicActivityImplementation(
+      DynamicActivity activityImplementation) {
+    final DynamicActivity implementation =
+        Objects.requireNonNull(activityImplementation, "activityImplementation");
+    registrations.add(registrar -> registrar.registerActivitiesImplementations(implementation));
     return this;
   }
 
