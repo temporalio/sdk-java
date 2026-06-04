@@ -69,22 +69,22 @@ public class ExternalStorageTest {
     assertEquals(0, storage.getPayloadSizeThreshold());
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = IllegalStateException.class)
   public void noDriversRejected() {
     ExternalStorage.newBuilder().build();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = IllegalStateException.class)
   public void duplicateDriverNamesRejected() {
     ExternalStorage.newBuilder().setDrivers(Arrays.asList(driver("dup"), driver("dup"))).build();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = IllegalStateException.class)
   public void multipleDriversRequireSelector() {
     ExternalStorage.newBuilder().setDrivers(Arrays.asList(driver("a"), driver("b"))).build();
   }
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = IllegalStateException.class)
   public void negativeThresholdRejected() {
     ExternalStorage.newBuilder()
         .setDrivers(Collections.singletonList(driver("a")))

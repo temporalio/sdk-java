@@ -76,16 +76,16 @@ public final class ExternalStorage {
     }
 
     public ExternalStorage build() {
-      Preconditions.checkArgument(!drivers.isEmpty(), "At least one driver must be provided");
-      Preconditions.checkArgument(
+      Preconditions.checkState(!drivers.isEmpty(), "At least one driver must be provided");
+      Preconditions.checkState(
           payloadSizeThreshold >= 0, "payloadSizeThreshold must be greater than or equal to zero");
       Set<String> names = new HashSet<>();
       for (StorageDriver driver : drivers) {
         String name = driver.getName();
-        Preconditions.checkArgument(
+        Preconditions.checkState(
             names.add(name), "Multiple drivers registered with name '%s'", name);
       }
-      Preconditions.checkArgument(
+      Preconditions.checkState(
           drivers.size() == 1 || driverSelector != null,
           "driverSelector must be specified when more than one driver is registered");
       StorageDriverSelector selector = driverSelector;
