@@ -117,6 +117,7 @@ jobs:
               --dynamic-config-value activity.startDelayEnabled=true \
               --dynamic-config-value nexusoperation.enableStandalone=true \
               --dynamic-config-value history.enableChasm=true \
+              --dynamic-config-value history.enableCHASMSignalBacklinks=true \
               --dynamic-config-value history.enableTransitionHistory=true &
           sleep 10s
 
