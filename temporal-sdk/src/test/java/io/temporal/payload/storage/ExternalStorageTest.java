@@ -2,7 +2,6 @@ package io.temporal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 
 import io.temporal.api.common.v1.Payload;
@@ -61,13 +60,13 @@ public class ExternalStorageTest {
   }
 
   @Test
-  public void nullThresholdStoresAll() {
+  public void zeroThresholdStoresAll() {
     ExternalStorage storage =
         ExternalStorage.newBuilder()
             .setDrivers(Collections.singletonList(driver("a")))
-            .setPayloadSizeThreshold(null)
+            .setPayloadSizeThreshold(0)
             .build();
-    assertNull(storage.getPayloadSizeThreshold());
+    assertEquals(0, storage.getPayloadSizeThreshold());
   }
 
   @Test(expected = IllegalArgumentException.class)

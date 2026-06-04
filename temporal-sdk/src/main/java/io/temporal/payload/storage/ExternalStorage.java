@@ -22,12 +22,12 @@ public final class ExternalStorage {
 
   private final @Nonnull List<StorageDriver> drivers;
   private final @Nonnull StorageDriverSelector driverSelector;
-  private final @Nullable Integer payloadSizeThreshold;
+  private final int payloadSizeThreshold;
 
   private ExternalStorage(
       @Nonnull List<StorageDriver> drivers,
       @Nonnull StorageDriverSelector driverSelector,
-      @Nullable Integer payloadSizeThreshold) {
+      int payloadSizeThreshold) {
     this.drivers = Collections.unmodifiableList(new ArrayList<>(drivers));
     this.driverSelector = driverSelector;
     this.payloadSizeThreshold = payloadSizeThreshold;
@@ -44,18 +44,17 @@ public final class ExternalStorage {
   }
 
   /**
-   * Minimum payload size in bytes before external storage is considered.
-   * {@code null} stores all. Defaults to 256 KiB.
+   * Minimum payload size in bytes before external storage is considered. {@code 0} stores all
+   * payloads. Defaults to 256 KiB.
    */
-  @Nullable
-  public Integer getPayloadSizeThreshold() {
+  public int getPayloadSizeThreshold() {
     return payloadSizeThreshold;
   }
 
   public static final class Builder {
     private List<StorageDriver> drivers = Collections.emptyList();
     private StorageDriverSelector driverSelector;
-    private Integer payloadSizeThreshold = DEFAULT_PAYLOAD_SIZE_THRESHOLD;
+    private int payloadSizeThreshold = DEFAULT_PAYLOAD_SIZE_THRESHOLD;
 
     private Builder() {}
 
@@ -70,8 +69,8 @@ public final class ExternalStorage {
       return this;
     }
 
-    /** Set to {@code null} to store all payloads. Defaults to 256 KiB. */
-    public Builder setPayloadSizeThreshold(@Nullable Integer payloadSizeThreshold) {
+    /** Set to {@code 0} to store all payloads. Defaults to 256 KiB. */
+    public Builder setPayloadSizeThreshold(int payloadSizeThreshold) {
       this.payloadSizeThreshold = payloadSizeThreshold;
       return this;
     }
@@ -79,8 +78,7 @@ public final class ExternalStorage {
     public ExternalStorage build() {
       Preconditions.checkArgument(!drivers.isEmpty(), "At least one driver must be provided");
       Preconditions.checkArgument(
-          payloadSizeThreshold == null || payloadSizeThreshold >= 0,
-          "payloadSizeThreshold must be greater than or equal to zero");
+          payloadSizeThreshold >= 0, "payloadSizeThreshold must be greater than or equal to zero");
       Set<String> names = new HashSet<>();
       for (StorageDriver driver : drivers) {
         String name = driver.getName();
