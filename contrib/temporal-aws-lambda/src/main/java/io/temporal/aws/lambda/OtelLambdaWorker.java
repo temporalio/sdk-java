@@ -5,6 +5,8 @@ import com.uber.m3.tally.Scope;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.contrib.awsxray.AwsXrayIdGenerator;
 import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
 import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
@@ -282,6 +284,7 @@ public final class OtelLambdaWorker {
       return OpenTelemetrySdk.builder()
           .setMeterProvider(meterProvider)
           .setTracerProvider(tracerProvider)
+          .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
           .build();
     }
   }

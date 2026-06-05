@@ -13,11 +13,25 @@ import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerProvider;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.CompletableResultCode;
+import io.opentelemetry.sdk.metrics.Aggregation;
+import io.opentelemetry.sdk.metrics.InstrumentType;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.export.CollectionRegistration;
+import io.opentelemetry.sdk.metrics.export.DefaultAggregationSelector;
+import io.opentelemetry.sdk.metrics.export.MetricReader;
+import io.opentelemetry.sdk.trace.ReadWriteSpan;
+import io.opentelemetry.sdk.trace.ReadableSpan;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.SpanProcessor;
 import io.temporal.common.WorkerDeploymentVersion;
 import java.io.Closeable;
 import java.time.Duration;
@@ -60,6 +74,32 @@ public class OtelLambdaWorkerTest {
     OpenTelemetrySdk sdk = (OpenTelemetrySdk) openTelemetry;
     assertNotNull(sdk.getSdkTracerProvider());
     assertNotNull(sdk.getSdkMeterProvider());
+    sdk.shutdown().join(1, TimeUnit.SECONDS);
+  }
+
+  @Test
+  public void defaultFactoryConfiguresTraceContextPropagator() {
+    OpenTelemetry openTelemetry =
+        OtelLambdaWorker.newBuilder(new HashMap<>()).createOpenTelemetry();
+
+    assertTrue(openTelemetry instanceof OpenTelemetrySdk);
+
+    OpenTelemetrySdk sdk = (OpenTelemetrySdk) openTelemetry;
+    String traceId = "00000000000000000000000000000001";
+    String spanId = "0000000000000002";
+    Map<String, String> carrier = new HashMap<>();
+    sdk.getPropagators()
+        .getTextMapPropagator()
+        .inject(
+            io.opentelemetry.context.Context.root()
+                .with(
+                    Span.wrap(
+                        SpanContext.create(
+                            traceId, spanId, TraceFlags.getSampled(), TraceState.getDefault()))),
+            carrier,
+            (map, key, value) -> map.put(key, value));
+
+    assertEquals("00-" + traceId + "-" + spanId + "-01", carrier.get("traceparent"));
     sdk.shutdown().join(1, TimeUnit.SECONDS);
   }
 
@@ -216,19 +256,56 @@ public class OtelLambdaWorkerTest {
 
   @Test
   public void flushHookUsesSmallerConfiguredAndLambdaTimeout() {
+    FakeNanoClock clock = new FakeNanoClock();
     TimeoutRecordingOpenTelemetry openTelemetry = new TimeoutRecordingOpenTelemetry();
 
-    new OpenTelemetryFlushHook(openTelemetry, Duration.ofMillis(250)).run(Duration.ofSeconds(2));
+    new OpenTelemetryFlushHook(openTelemetry, Duration.ofMillis(250), clock)
+        .run(Duration.ofSeconds(2));
 
     assertEquals(250, openTelemetry.tracerProvider.joinTimeoutMillis.get());
     assertEquals(250, openTelemetry.meterProvider.joinTimeoutMillis.get());
 
+    clock = new FakeNanoClock();
     openTelemetry = new TimeoutRecordingOpenTelemetry();
 
-    new OpenTelemetryFlushHook(openTelemetry, Duration.ofSeconds(2)).run(Duration.ofMillis(125));
+    new OpenTelemetryFlushHook(openTelemetry, Duration.ofSeconds(2), clock)
+        .run(Duration.ofMillis(125));
 
     assertEquals(125, openTelemetry.tracerProvider.joinTimeoutMillis.get());
     assertEquals(125, openTelemetry.meterProvider.joinTimeoutMillis.get());
+  }
+
+  @Test
+  public void flushHookSpendsTimeoutOnceAcrossProviders() {
+    FakeNanoClock clock = new FakeNanoClock();
+    TimeoutRecordingOpenTelemetry openTelemetry =
+        new TimeoutRecordingOpenTelemetry(clock, Duration.ofMillis(150));
+
+    new OpenTelemetryFlushHook(openTelemetry, Duration.ofMillis(250), clock)
+        .run(Duration.ofSeconds(2));
+
+    assertEquals(250, openTelemetry.tracerProvider.joinTimeoutMillis.get());
+    assertEquals(100, openTelemetry.meterProvider.joinTimeoutMillis.get());
+  }
+
+  @Test
+  public void flushHookUnwrapsSdkProviders() {
+    RecordingSpanProcessor spanProcessor = new RecordingSpanProcessor();
+    RecordingMetricReader metricReader = new RecordingMetricReader();
+    OpenTelemetrySdk sdk =
+        OpenTelemetrySdk.builder()
+            .setTracerProvider(SdkTracerProvider.builder().addSpanProcessor(spanProcessor).build())
+            .setMeterProvider(SdkMeterProvider.builder().registerMetricReader(metricReader).build())
+            .build();
+    try {
+      new OpenTelemetryFlushHook(sdk, Duration.ofSeconds(1), new FakeNanoClock())
+          .run(Duration.ofSeconds(1));
+
+      assertEquals(1, spanProcessor.flushes.get());
+      assertEquals(1, metricReader.flushes.get());
+    } finally {
+      sdk.shutdown().join(1, TimeUnit.SECONDS);
+    }
   }
 
   @Test
@@ -389,6 +466,69 @@ public class OtelLambdaWorkerTest {
     }
   }
 
+  private static final class RecordingSpanProcessor implements SpanProcessor {
+    private final AtomicInteger flushes = new AtomicInteger();
+    private final AtomicInteger shutdowns = new AtomicInteger();
+
+    @Override
+    public void onStart(io.opentelemetry.context.Context parentContext, ReadWriteSpan span) {}
+
+    @Override
+    public boolean isStartRequired() {
+      return false;
+    }
+
+    @Override
+    public void onEnd(ReadableSpan span) {}
+
+    @Override
+    public boolean isEndRequired() {
+      return false;
+    }
+
+    @Override
+    public CompletableResultCode forceFlush() {
+      flushes.incrementAndGet();
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode shutdown() {
+      shutdowns.incrementAndGet();
+      return CompletableResultCode.ofSuccess();
+    }
+  }
+
+  private static final class RecordingMetricReader implements MetricReader {
+    private final AtomicInteger flushes = new AtomicInteger();
+    private final AtomicInteger shutdowns = new AtomicInteger();
+
+    @Override
+    public void register(CollectionRegistration registration) {}
+
+    @Override
+    public CompletableResultCode forceFlush() {
+      flushes.incrementAndGet();
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public CompletableResultCode shutdown() {
+      shutdowns.incrementAndGet();
+      return CompletableResultCode.ofSuccess();
+    }
+
+    @Override
+    public AggregationTemporality getAggregationTemporality(InstrumentType instrumentType) {
+      return AggregationTemporality.CUMULATIVE;
+    }
+
+    @Override
+    public Aggregation getDefaultAggregation(InstrumentType instrumentType) {
+      return DefaultAggregationSelector.getDefault().getDefaultAggregation(instrumentType);
+    }
+  }
+
   private static final class CountingOpenTelemetry implements OpenTelemetry {
     private final CountingTracerProvider tracerProvider = new CountingTracerProvider();
     private final CountingMeterProvider meterProvider = new CountingMeterProvider();
@@ -410,9 +550,17 @@ public class OtelLambdaWorkerTest {
   }
 
   private static final class TimeoutRecordingOpenTelemetry implements OpenTelemetry {
-    private final TimeoutRecordingTracerProvider tracerProvider =
-        new TimeoutRecordingTracerProvider();
-    private final TimeoutRecordingMeterProvider meterProvider = new TimeoutRecordingMeterProvider();
+    private final TimeoutRecordingTracerProvider tracerProvider;
+    private final TimeoutRecordingMeterProvider meterProvider;
+
+    private TimeoutRecordingOpenTelemetry() {
+      this(null, Duration.ZERO);
+    }
+
+    private TimeoutRecordingOpenTelemetry(FakeNanoClock clock, Duration joinDuration) {
+      this.tracerProvider = new TimeoutRecordingTracerProvider(clock, joinDuration);
+      this.meterProvider = new TimeoutRecordingMeterProvider(clock, joinDuration);
+    }
 
     @Override
     public TracerProvider getTracerProvider() {
@@ -432,6 +580,13 @@ public class OtelLambdaWorkerTest {
 
   public static final class TimeoutRecordingTracerProvider implements TracerProvider {
     private final AtomicLong joinTimeoutMillis = new AtomicLong(-1);
+    private final FakeNanoClock clock;
+    private final Duration joinDuration;
+
+    private TimeoutRecordingTracerProvider(FakeNanoClock clock, Duration joinDuration) {
+      this.clock = clock;
+      this.joinDuration = joinDuration;
+    }
 
     @Override
     public Tracer get(String instrumentationName) {
@@ -444,12 +599,19 @@ public class OtelLambdaWorkerTest {
     }
 
     public TimeoutRecordingResult forceFlush() {
-      return new TimeoutRecordingResult(joinTimeoutMillis);
+      return new TimeoutRecordingResult(joinTimeoutMillis, clock, joinDuration);
     }
   }
 
   public static final class TimeoutRecordingMeterProvider implements MeterProvider {
     private final AtomicLong joinTimeoutMillis = new AtomicLong(-1);
+    private final FakeNanoClock clock;
+    private final Duration joinDuration;
+
+    private TimeoutRecordingMeterProvider(FakeNanoClock clock, Duration joinDuration) {
+      this.clock = clock;
+      this.joinDuration = joinDuration;
+    }
 
     @Override
     public MeterBuilder meterBuilder(String instrumentationName) {
@@ -457,20 +619,41 @@ public class OtelLambdaWorkerTest {
     }
 
     public TimeoutRecordingResult forceFlush() {
-      return new TimeoutRecordingResult(joinTimeoutMillis);
+      return new TimeoutRecordingResult(joinTimeoutMillis, clock, joinDuration);
     }
   }
 
   public static final class TimeoutRecordingResult {
     private final AtomicLong joinTimeoutMillis;
+    private final FakeNanoClock clock;
+    private final Duration joinDuration;
 
-    private TimeoutRecordingResult(AtomicLong joinTimeoutMillis) {
+    private TimeoutRecordingResult(
+        AtomicLong joinTimeoutMillis, FakeNanoClock clock, Duration joinDuration) {
       this.joinTimeoutMillis = joinTimeoutMillis;
+      this.clock = clock;
+      this.joinDuration = joinDuration;
     }
 
     public TimeoutRecordingResult join(long timeout, TimeUnit unit) {
       joinTimeoutMillis.set(unit.toMillis(timeout));
+      if (clock != null) {
+        clock.advance(joinDuration);
+      }
       return this;
+    }
+  }
+
+  private static final class FakeNanoClock implements LambdaWorker.NanoClock {
+    private long nowNanos;
+
+    @Override
+    public long nanoTime() {
+      return nowNanos;
+    }
+
+    private void advance(Duration duration) {
+      nowNanos += duration.toNanos();
     }
   }
 
@@ -540,7 +723,15 @@ public class OtelLambdaWorkerTest {
         public void shutdown() {}
 
         @Override
+        public void shutdownNow() {}
+
+        @Override
         public void awaitTermination(java.time.Duration timeout) {}
+
+        @Override
+        public boolean isTerminated() {
+          return true;
+        }
 
         @Override
         public void closeStubs(java.time.Duration timeout) {}

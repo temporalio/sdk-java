@@ -155,15 +155,11 @@ public final class LambdaWorker {
         Context context,
         LambdaWorkerRuntime.Invocation invocation,
         LambdaWorkerOptions.Materialized options) {
+      Long cleanupDeadlineNanos = null;
       if (invocation != null) {
         try {
           invocation.shutdown();
           invocation.awaitTermination(options.gracefulShutdownTimeout);
-          log.info(
-              "Temporal Lambda worker stopped awsRequestId={} invokedFunctionArn={} taskQueue={}",
-              context.getAwsRequestId(),
-              context.getInvokedFunctionArn(),
-              options.taskQueue);
         } catch (RuntimeException e) {
           log.error(
               "Temporal Lambda worker shutdown failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
@@ -172,14 +168,29 @@ public final class LambdaWorker {
               options.taskQueue,
               e);
         }
+
+        cleanupDeadlineNanos = cleanupDeadlineNanos(context, options);
+        boolean terminated = isTerminated(context, invocation, options);
+        if (!terminated) {
+          terminated = forceShutdownInvocation(context, invocation, options, cleanupDeadlineNanos);
+        }
+        if (terminated) {
+          log.info(
+              "Temporal Lambda worker stopped awsRequestId={} invokedFunctionArn={} taskQueue={}",
+              context.getAwsRequestId(),
+              context.getInvokedFunctionArn(),
+              options.taskQueue);
+        }
       }
 
-      long cleanupDeadlineNanos = cleanupDeadlineNanos(context, options);
-      runShutdownHooks(context, options, cleanupDeadlineNanos);
+      if (cleanupDeadlineNanos == null) {
+        cleanupDeadlineNanos = cleanupDeadlineNanos(context, options);
+      }
+      runShutdownHooks(context, options, cleanupDeadlineNanos.longValue());
 
       if (invocation != null) {
         try {
-          invocation.closeStubs(remainingCleanupTime(cleanupDeadlineNanos));
+          invocation.closeStubs(remainingCleanupTime(cleanupDeadlineNanos.longValue()));
         } catch (RuntimeException e) {
           log.error(
               "Temporal Lambda worker service stubs close failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
@@ -188,6 +199,66 @@ public final class LambdaWorker {
               options.taskQueue,
               e);
         }
+      }
+    }
+
+    private boolean forceShutdownInvocation(
+        Context context,
+        LambdaWorkerRuntime.Invocation invocation,
+        LambdaWorkerOptions.Materialized options,
+        long cleanupDeadlineNanos) {
+      log.warn(
+          "Temporal Lambda worker did not stop before graceful shutdown timeout; forcing stop awsRequestId={} invokedFunctionArn={} taskQueue={}",
+          context.getAwsRequestId(),
+          context.getInvokedFunctionArn(),
+          options.taskQueue);
+      try {
+        invocation.shutdownNow();
+      } catch (RuntimeException e) {
+        log.error(
+            "Temporal Lambda worker forced shutdown failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
+            context.getAwsRequestId(),
+            context.getInvokedFunctionArn(),
+            options.taskQueue,
+            e);
+      }
+
+      try {
+        invocation.awaitTermination(remainingCleanupTime(cleanupDeadlineNanos));
+      } catch (RuntimeException e) {
+        log.error(
+            "Temporal Lambda worker forced shutdown wait failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
+            context.getAwsRequestId(),
+            context.getInvokedFunctionArn(),
+            options.taskQueue,
+            e);
+      }
+
+      boolean terminated = isTerminated(context, invocation, options);
+      if (!terminated) {
+        log.warn(
+            "Temporal Lambda worker did not terminate after forced shutdown awsRequestId={} invokedFunctionArn={} taskQueue={}",
+            context.getAwsRequestId(),
+            context.getInvokedFunctionArn(),
+            options.taskQueue);
+      }
+      return terminated;
+    }
+
+    private boolean isTerminated(
+        Context context,
+        LambdaWorkerRuntime.Invocation invocation,
+        LambdaWorkerOptions.Materialized options) {
+      try {
+        return invocation.isTerminated();
+      } catch (RuntimeException e) {
+        log.error(
+            "Temporal Lambda worker termination check failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
+            context.getAwsRequestId(),
+            context.getInvokedFunctionArn(),
+            options.taskQueue,
+            e);
+        return false;
       }
     }
 

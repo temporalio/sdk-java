@@ -23,13 +23,25 @@ final class DefaultLambdaWorkerRuntime implements LambdaWorkerRuntime {
       String taskQueue,
       WorkerOptions workerOptions) {
     WorkflowServiceStubs stubs = WorkflowServiceStubs.newServiceStubs(serviceStubsOptions);
+    WorkerFactory factory = null;
     try {
       WorkflowClient client = WorkflowClient.newInstance(stubs, clientOptions);
-      WorkerFactory factory = WorkerFactory.newInstance(client, workerFactoryOptions);
+      factory = WorkerFactory.newInstance(client, workerFactoryOptions);
       Worker worker = factory.newWorker(taskQueue, workerOptions);
       return new DefaultInvocation(stubs, factory, worker);
     } catch (RuntimeException e) {
-      stubs.shutdownNow();
+      if (factory != null) {
+        try {
+          factory.shutdownNow();
+        } catch (RuntimeException shutdownException) {
+          e.addSuppressed(shutdownException);
+        }
+      }
+      try {
+        stubs.shutdownNow();
+      } catch (RuntimeException shutdownException) {
+        e.addSuppressed(shutdownException);
+      }
       throw e;
     }
   }
@@ -61,8 +73,18 @@ final class DefaultLambdaWorkerRuntime implements LambdaWorkerRuntime {
     }
 
     @Override
+    public void shutdownNow() {
+      factory.shutdownNow();
+    }
+
+    @Override
     public void awaitTermination(Duration timeout) {
       factory.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return factory.isTerminated();
     }
 
     @Override

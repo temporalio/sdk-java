@@ -6,9 +6,11 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.SimplePlugin;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -25,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -291,6 +294,77 @@ public class LambdaWorkerLifecycleTest {
     assertEquals("close:500", runtime.events.get(runtime.events.size() - 1));
   }
 
+  @Test
+  public void workerShutdownEscalatesAfterGracefulTimeoutAndSharesCleanupDeadline() {
+    FakeNanoClock clock = new FakeNanoClock();
+    FakeRuntime runtime = new FakeRuntime(false, true, clock, Duration.ofMillis(1500));
+    RequestHandler<Object, Void> handler =
+        handler(options -> options.setTaskQueue("task-queue"), runtime, duration -> {}, clock);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals(
+        events(
+            "create", "start", "shutdown", "await:5000", "shutdownNow", "await:2000", "close:500"),
+        runtime.events);
+  }
+
+  @Test
+  public void workerShutdownEscalatesWhenGracefulAwaitThrows() {
+    FakeNanoClock clock = new FakeNanoClock();
+    FakeRuntime runtime = new FakeRuntime(false, true, clock, Duration.ZERO, true);
+    RequestHandler<Object, Void> handler =
+        handler(options -> options.setTaskQueue("task-queue"), runtime, duration -> {}, clock);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals(
+        events(
+            "create", "start", "shutdown", "await:5000", "shutdownNow", "await:2000", "close:2000"),
+        runtime.events);
+  }
+
+  @Test
+  public void defaultRuntimeShutsDownFactoryWhenWorkerCreationFails() {
+    AtomicInteger factoryShutdowns = new AtomicInteger();
+    DefaultLambdaWorkerRuntime runtime = new DefaultLambdaWorkerRuntime();
+
+    WorkerFactoryOptions factoryOptions =
+        WorkerFactoryOptions.newBuilder()
+            .setPlugins(
+                new SimplePlugin("failing-worker-initializer") {
+                  @Override
+                  public void configureWorker(String taskQueue, WorkerOptions.Builder builder) {
+                    throw new RuntimeException("worker configuration failed");
+                  }
+
+                  @Override
+                  public void shutdownWorkerFactory(
+                      WorkerFactory factory, Consumer<WorkerFactory> next) {
+                    factoryShutdowns.incrementAndGet();
+                    next.accept(factory);
+                  }
+                })
+            .build();
+
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                runtime.create(
+                    WorkflowServiceStubsOptions.newBuilder()
+                        .setRpcTimeout(Duration.ofMillis(10))
+                        .setSystemInfoTimeout(Duration.ofMillis(10))
+                        .build(),
+                    WorkflowClientOptions.newBuilder().build(),
+                    factoryOptions,
+                    "task-queue",
+                    WorkerOptions.newBuilder().build()));
+
+    assertEquals("worker configuration failed", e.getMessage());
+    assertEquals(1, factoryShutdowns.get());
+  }
+
   private RequestHandler<Object, Void> handler(
       java.util.function.Consumer<LambdaWorkerOptions> configure, FakeRuntime runtime) {
     return handler(configure, runtime, duration -> {});
@@ -371,9 +445,39 @@ public class LambdaWorkerLifecycleTest {
 
   private static final class FakeRuntime implements LambdaWorkerRuntime {
     private final List<String> events = new ArrayList<>();
+    private final boolean gracefulTerminates;
+    private final boolean forcedTerminates;
+    private final FakeNanoClock clock;
+    private final Duration forcedAwaitDuration;
+    private final boolean gracefulAwaitThrows;
     private int createCount;
     private WorkflowClientOptions clientOptions;
     private WorkerOptions workerOptions;
+
+    private FakeRuntime() {
+      this(true, true, null, Duration.ZERO, false);
+    }
+
+    private FakeRuntime(
+        boolean gracefulTerminates,
+        boolean forcedTerminates,
+        FakeNanoClock clock,
+        Duration forcedAwaitDuration) {
+      this(gracefulTerminates, forcedTerminates, clock, forcedAwaitDuration, false);
+    }
+
+    private FakeRuntime(
+        boolean gracefulTerminates,
+        boolean forcedTerminates,
+        FakeNanoClock clock,
+        Duration forcedAwaitDuration,
+        boolean gracefulAwaitThrows) {
+      this.gracefulTerminates = gracefulTerminates;
+      this.forcedTerminates = forcedTerminates;
+      this.clock = clock;
+      this.forcedAwaitDuration = forcedAwaitDuration;
+      this.gracefulAwaitThrows = gracefulAwaitThrows;
+    }
 
     @Override
     public Invocation create(
@@ -386,17 +490,41 @@ public class LambdaWorkerLifecycleTest {
       events.add("create");
       this.clientOptions = clientOptions;
       this.workerOptions = workerOptions;
-      return new FakeInvocation(events);
+      return new FakeInvocation(
+          events,
+          gracefulTerminates,
+          forcedTerminates,
+          clock,
+          forcedAwaitDuration,
+          gracefulAwaitThrows);
     }
   }
 
   private static final class FakeInvocation implements LambdaWorkerRuntime.Invocation {
     private final List<String> events;
     private final WorkerRegistrar registrar;
+    private final boolean gracefulTerminates;
+    private final boolean forcedTerminates;
+    private final FakeNanoClock clock;
+    private final Duration forcedAwaitDuration;
+    private final boolean gracefulAwaitThrows;
+    private boolean terminated;
+    private int awaitCount;
 
-    private FakeInvocation(List<String> events) {
+    private FakeInvocation(
+        List<String> events,
+        boolean gracefulTerminates,
+        boolean forcedTerminates,
+        FakeNanoClock clock,
+        Duration forcedAwaitDuration,
+        boolean gracefulAwaitThrows) {
       this.events = events;
       this.registrar = new FakeWorkerRegistrar(events);
+      this.gracefulTerminates = gracefulTerminates;
+      this.forcedTerminates = forcedTerminates;
+      this.clock = clock;
+      this.forcedAwaitDuration = forcedAwaitDuration;
+      this.gracefulAwaitThrows = gracefulAwaitThrows;
     }
 
     @Override
@@ -412,11 +540,34 @@ public class LambdaWorkerLifecycleTest {
     @Override
     public void shutdown() {
       events.add("shutdown");
+      terminated = false;
+    }
+
+    @Override
+    public void shutdownNow() {
+      events.add("shutdownNow");
     }
 
     @Override
     public void awaitTermination(Duration timeout) {
       events.add("await:" + timeout.toMillis());
+      awaitCount++;
+      if (awaitCount == 1 && gracefulAwaitThrows) {
+        throw new RuntimeException("await failed");
+      }
+      if (awaitCount == 1 && gracefulTerminates) {
+        terminated = true;
+      } else if (awaitCount > 1) {
+        if (clock != null) {
+          clock.advance(forcedAwaitDuration);
+        }
+        terminated = forcedTerminates;
+      }
+    }
+
+    @Override
+    public boolean isTerminated() {
+      return terminated;
     }
 
     @Override
