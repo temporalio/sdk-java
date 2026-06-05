@@ -21,7 +21,11 @@ interface LambdaWorkerRuntime {
 
     void shutdown();
 
+    void shutdownNow();
+
     void awaitTermination(Duration timeout);
+
+    boolean isTerminated();
 
     void closeStubs(Duration timeout);
   }

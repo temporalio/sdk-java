@@ -173,7 +173,8 @@ public final class LambdaWorkerOptions {
    *
    * <p>The worker stops when remaining invocation time reaches this buffer. The default is 7
    * seconds, made up of the 5 second graceful shutdown timeout and a 2 second hook and service
-   * stubs margin.
+   * stubs margin. This buffer must be greater than or equal to {@link
+   * #getGracefulShutdownTimeout()}.
    */
   public LambdaWorkerOptions setShutdownDeadlineBuffer(Duration shutdownDeadlineBuffer) {
     this.shutdownDeadlineBuffer =
@@ -306,6 +307,7 @@ public final class LambdaWorkerOptions {
       throw new IllegalStateException(
           "Task queue must be set with LambdaWorkerOptions#setTaskQueue or TEMPORAL_TASK_QUEUE");
     }
+    validateShutdownConfiguration();
 
     WorkflowClientOptions rawClientOptions = workflowClientOptionsBuilder.build();
     WorkerOptions rawWorkerOptions = workerOptionsBuilder.build();
@@ -336,6 +338,13 @@ public final class LambdaWorkerOptions {
         shutdownDeadlineBuffer,
         new ArrayList<>(registrations),
         new ArrayList<>(shutdownHooks));
+  }
+
+  private void validateShutdownConfiguration() {
+    if (shutdownDeadlineBuffer.compareTo(gracefulShutdownTimeout) < 0) {
+      throw new IllegalStateException(
+          "shutdownDeadlineBuffer must be greater than or equal to gracefulShutdownTimeout");
+    }
   }
 
   private static void applyLambdaWorkerDefaults(
