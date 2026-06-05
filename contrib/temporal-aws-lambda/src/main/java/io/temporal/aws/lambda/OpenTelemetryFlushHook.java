@@ -1,6 +1,7 @@
 package io.temporal.aws.lambda;
 
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.time.Duration;
@@ -14,10 +15,17 @@ final class OpenTelemetryFlushHook implements TimedShutdownHook {
 
   private final OpenTelemetry openTelemetry;
   private final Duration timeout;
+  private final LambdaWorker.NanoClock clock;
 
   OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout) {
+    this(openTelemetry, timeout, System::nanoTime);
+  }
+
+  OpenTelemetryFlushHook(
+      OpenTelemetry openTelemetry, Duration timeout, LambdaWorker.NanoClock clock) {
     this.openTelemetry = Objects.requireNonNull(openTelemetry, "openTelemetry");
     this.timeout = Objects.requireNonNull(timeout, "timeout");
+    this.clock = Objects.requireNonNull(clock, "clock");
   }
 
   @Override
@@ -27,12 +35,26 @@ final class OpenTelemetryFlushHook implements TimedShutdownHook {
 
   @Override
   public void run(Duration timeout) {
-    Duration boundedTimeout = min(timeout, this.timeout);
-    forceFlush(openTelemetry.getTracerProvider(), boundedTimeout);
-    forceFlush(openTelemetry.getMeterProvider(), boundedTimeout);
+    long deadlineNanos = clock.nanoTime() + min(timeout, this.timeout).toNanos();
+    forceFlush(tracerProvider(), deadlineNanos);
+    forceFlush(meterProvider(), deadlineNanos);
   }
 
-  private void forceFlush(Object provider, Duration timeout) {
+  private Object tracerProvider() {
+    if (openTelemetry instanceof OpenTelemetrySdk) {
+      return ((OpenTelemetrySdk) openTelemetry).getSdkTracerProvider();
+    }
+    return openTelemetry.getTracerProvider();
+  }
+
+  private Object meterProvider() {
+    if (openTelemetry instanceof OpenTelemetrySdk) {
+      return ((OpenTelemetrySdk) openTelemetry).getSdkMeterProvider();
+    }
+    return openTelemetry.getMeterProvider();
+  }
+
+  private void forceFlush(Object provider, long deadlineNanos) {
     if (provider == null) {
       return;
     }
@@ -40,7 +62,7 @@ final class OpenTelemetryFlushHook implements TimedShutdownHook {
     try {
       Method forceFlush = provider.getClass().getMethod("forceFlush");
       Object result = forceFlush.invoke(provider);
-      join(result, timeout);
+      join(result, remainingFlushTime(deadlineNanos));
     } catch (NoSuchMethodException e) {
       // The OpenTelemetry API no-op providers do not expose forceFlush.
     } catch (IllegalAccessException | InvocationTargetException | RuntimeException e) {
@@ -77,6 +99,10 @@ final class OpenTelemetryFlushHook implements TimedShutdownHook {
   private static Duration requireNonNegative(Duration timeout) {
     Objects.requireNonNull(timeout, "timeout");
     return timeout.isNegative() ? Duration.ZERO : timeout;
+  }
+
+  private Duration remainingFlushTime(long deadlineNanos) {
+    return requireNonNegative(Duration.ofNanos(deadlineNanos - clock.nanoTime()));
   }
 
   private static Duration min(Duration first, Duration second) {

@@ -148,6 +148,19 @@ public class LambdaWorkerOptionsTest {
   }
 
   @Test
+  public void shutdownDeadlineBufferMustCoverGracefulShutdownTimeout() throws IOException {
+    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    options.setTaskQueue("task-queue");
+    options.setShutdownDeadlineBuffer(Duration.ofSeconds(2));
+
+    IllegalStateException e =
+        assertThrows(
+            IllegalStateException.class, () -> options.materialize(VERSION, "request@arn"));
+
+    assertTrue(e.getMessage().contains("shutdownDeadlineBuffer"));
+  }
+
+  @Test
   public void temporalConfigFileTakesPrecedenceOverLambdaTaskRoot() throws IOException {
     File explicitConfig = temporaryFolder.newFile("explicit.toml");
     Files.write(

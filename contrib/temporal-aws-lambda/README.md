@@ -7,12 +7,13 @@ This module provides a direct AWS Lambda Java handler for running a Temporal wor
 Add `temporal-aws-lambda` next to your Temporal SDK dependency, then expose the returned handler from your Lambda class:
 
 ```java
+import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import io.temporal.aws.lambda.LambdaWorker;
 import io.temporal.common.WorkerDeploymentVersion;
 
-public final class Handler {
-  public static final RequestHandler<Object, Void> HANDLER =
+public final class Handler implements RequestHandler<Object, Void> {
+  private static final RequestHandler<Object, Void> WORKER =
       LambdaWorker.run(
           new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
           options ->
@@ -20,6 +21,11 @@ public final class Handler {
                   .setTaskQueue("orders")
                   .registerWorkflowImplementationTypes(OrderWorkflowImpl.class)
                   .registerActivitiesImplementations(new OrderActivitiesImpl()));
+
+  @Override
+  public Void handleRequest(Object input, Context context) {
+    return WORKER.handleRequest(input, context);
+  }
 }
 ```
 
@@ -34,13 +40,14 @@ Dynamic workflow and activity implementations can be registered with `registerDy
 The handler creates one worker per invocation, starts the worker, shuts it down before the Lambda deadline, runs shutdown hooks in order, and closes service stubs. Worker deployment versioning is always enabled for the supplied `WorkerDeploymentVersion`. If neither client nor worker identity is set by the user, each invocation uses `<awsRequestId>@<invokedFunctionArn>` as the Temporal identity.
 
 `shutdownDeadlineBuffer` is the full shutdown window reserved at the end of the Lambda invocation. The default is 7 seconds: 5 seconds for `gracefulShutdownTimeout` and 2 seconds for hooks and service stubs. The worker runs until `remainingTime - shutdownDeadlineBuffer`, then stops and awaits termination for `gracefulShutdownTimeout`. If you change `gracefulShutdownTimeout` without explicitly setting `shutdownDeadlineBuffer`, the buffer is recomputed as `gracefulShutdownTimeout + 2s`.
+If you explicitly set `shutdownDeadlineBuffer`, it must be greater than or equal to `gracefulShutdownTimeout`.
 
 ## OpenTelemetry
 
-`OtelLambdaWorker.configure(options)` creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters.
+`OtelLambdaWorker.configure(options)` creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters. To enable it, call the helper from the handler initializer:
 
 ```java
-public static final RequestHandler<Object, Void> HANDLER =
+private static final RequestHandler<Object, Void> WORKER =
     LambdaWorker.run(
         new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
         options -> {
