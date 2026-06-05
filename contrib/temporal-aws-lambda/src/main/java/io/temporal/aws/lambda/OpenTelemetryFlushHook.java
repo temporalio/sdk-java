@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class OpenTelemetryFlushHook implements Runnable {
+final class OpenTelemetryFlushHook implements TimedShutdownHook {
   private static final Logger log = LoggerFactory.getLogger(OpenTelemetryFlushHook.class);
 
   private final OpenTelemetry openTelemetry;
@@ -22,11 +22,17 @@ final class OpenTelemetryFlushHook implements Runnable {
 
   @Override
   public void run() {
-    forceFlush(openTelemetry.getTracerProvider());
-    forceFlush(openTelemetry.getMeterProvider());
+    run(timeout);
   }
 
-  private void forceFlush(Object provider) {
+  @Override
+  public void run(Duration timeout) {
+    Duration boundedTimeout = min(timeout, this.timeout);
+    forceFlush(openTelemetry.getTracerProvider(), boundedTimeout);
+    forceFlush(openTelemetry.getMeterProvider(), boundedTimeout);
+  }
+
+  private void forceFlush(Object provider, Duration timeout) {
     if (provider == null) {
       return;
     }
@@ -34,7 +40,7 @@ final class OpenTelemetryFlushHook implements Runnable {
     try {
       Method forceFlush = provider.getClass().getMethod("forceFlush");
       Object result = forceFlush.invoke(provider);
-      join(result);
+      join(result, timeout);
     } catch (NoSuchMethodException e) {
       // The OpenTelemetry API no-op providers do not expose forceFlush.
     } catch (IllegalAccessException | InvocationTargetException | RuntimeException e) {
@@ -42,7 +48,7 @@ final class OpenTelemetryFlushHook implements Runnable {
     }
   }
 
-  private void join(Object result) {
+  private void join(Object result, Duration timeout) {
     if (result == null) {
       return;
     }
@@ -51,13 +57,13 @@ final class OpenTelemetryFlushHook implements Runnable {
       Method join = result.getClass().getMethod("join", long.class, TimeUnit.class);
       join.invoke(result, timeout.toMillis(), TimeUnit.MILLISECONDS);
     } catch (NoSuchMethodException e) {
-      tryJoinMillis(result);
+      tryJoinMillis(result, timeout);
     } catch (IllegalAccessException | InvocationTargetException | RuntimeException e) {
       log.warn("OpenTelemetry forceFlush join failed result={}", result.getClass().getName(), e);
     }
   }
 
-  private void tryJoinMillis(Object result) {
+  private void tryJoinMillis(Object result, Duration timeout) {
     try {
       Method join = result.getClass().getMethod("join", long.class);
       join.invoke(result, timeout.toMillis());
@@ -66,5 +72,18 @@ final class OpenTelemetryFlushHook implements Runnable {
     } catch (IllegalAccessException | InvocationTargetException | RuntimeException e) {
       log.warn("OpenTelemetry forceFlush join failed result={}", result.getClass().getName(), e);
     }
+  }
+
+  private static Duration requireNonNegative(Duration timeout) {
+    Objects.requireNonNull(timeout, "timeout");
+    return timeout.isNegative() ? Duration.ZERO : timeout;
+  }
+
+  private static Duration min(Duration first, Duration second) {
+    Duration nonNegativeFirst = requireNonNegative(first);
+    Duration nonNegativeSecond = requireNonNegative(second);
+    return nonNegativeFirst.compareTo(nonNegativeSecond) <= 0
+        ? nonNegativeFirst
+        : nonNegativeSecond;
   }
 }

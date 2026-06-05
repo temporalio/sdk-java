@@ -258,6 +258,39 @@ public class LambdaWorkerLifecycleTest {
     assertEquals("close:2000", runtime.events.get(runtime.events.size() - 1));
   }
 
+  @Test
+  public void shutdownHooksAndStubsShareCleanupDeadline() {
+    FakeRuntime runtime = new FakeRuntime();
+    FakeNanoClock clock = new FakeNanoClock();
+    AtomicReference<Duration> hookTimeout = new AtomicReference<>();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options ->
+                options
+                    .setTaskQueue("task-queue")
+                    .addShutdownHook(
+                        new TimedShutdownHook() {
+                          @Override
+                          public void run() {
+                            run(Duration.ZERO);
+                          }
+
+                          @Override
+                          public void run(Duration timeout) {
+                            hookTimeout.set(timeout);
+                            clock.advance(Duration.ofMillis(1500));
+                          }
+                        }),
+            runtime,
+            duration -> {},
+            clock);
+
+    handler.handleRequest(null, context(20_000));
+
+    assertEquals(Duration.ofSeconds(2), hookTimeout.get());
+    assertEquals("close:500", runtime.events.get(runtime.events.size() - 1));
+  }
+
   private RequestHandler<Object, Void> handler(
       java.util.function.Consumer<LambdaWorkerOptions> configure, FakeRuntime runtime) {
     return handler(configure, runtime, duration -> {});
@@ -267,7 +300,15 @@ public class LambdaWorkerLifecycleTest {
       java.util.function.Consumer<LambdaWorkerOptions> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
-    return handler(baseEnv(), configure, runtime, sleeper);
+    return handler(baseEnv(), configure, runtime, sleeper, new FakeNanoClock());
+  }
+
+  private RequestHandler<Object, Void> handler(
+      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper,
+      LambdaWorker.NanoClock clock) {
+    return handler(baseEnv(), configure, runtime, sleeper, clock);
   }
 
   private RequestHandler<Object, Void> handler(
@@ -275,10 +316,19 @@ public class LambdaWorkerLifecycleTest {
       java.util.function.Consumer<LambdaWorkerOptions> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
+    return handler(env, configure, runtime, sleeper, new FakeNanoClock());
+  }
+
+  private RequestHandler<Object, Void> handler(
+      Map<String, String> env,
+      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper,
+      LambdaWorker.NanoClock clock) {
     try {
       LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(env);
       configure.accept(options);
-      return LambdaWorker.newHandler(VERSION, options, runtime, sleeper);
+      return LambdaWorker.newHandler(VERSION, options, runtime, sleeper, clock);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -304,6 +354,19 @@ public class LambdaWorkerLifecycleTest {
       result.add(event);
     }
     return result;
+  }
+
+  private static final class FakeNanoClock implements LambdaWorker.NanoClock {
+    private long nowNanos;
+
+    @Override
+    public long nanoTime() {
+      return nowNanos;
+    }
+
+    private void advance(Duration duration) {
+      nowNanos += duration.toNanos();
+    }
   }
 
   private static final class FakeRuntime implements LambdaWorkerRuntime {

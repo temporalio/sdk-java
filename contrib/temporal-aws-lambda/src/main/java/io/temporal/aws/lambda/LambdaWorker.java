@@ -42,7 +42,8 @@ public final class LambdaWorker {
   /** Returns an AWS Lambda Java handler using already-configured Lambda worker options. */
   public static RequestHandler<Object, Void> newHandler(
       WorkerDeploymentVersion version, LambdaWorkerOptions options) {
-    return newHandler(version, options, new DefaultLambdaWorkerRuntime(), sleep());
+    return newHandler(
+        version, options, new DefaultLambdaWorkerRuntime(), sleep(), systemNanoClock());
   }
 
   static RequestHandler<Object, Void> newHandler(
@@ -50,10 +51,20 @@ public final class LambdaWorker {
       LambdaWorkerOptions options,
       LambdaWorkerRuntime runtime,
       Sleeper sleeper) {
+    return newHandler(version, options, runtime, sleeper, systemNanoClock());
+  }
+
+  static RequestHandler<Object, Void> newHandler(
+      WorkerDeploymentVersion version,
+      LambdaWorkerOptions options,
+      LambdaWorkerRuntime runtime,
+      Sleeper sleeper,
+      NanoClock clock) {
     return new Handler(
         Objects.requireNonNull(options, "options").prepare(version),
         Objects.requireNonNull(runtime, "runtime"),
-        Objects.requireNonNull(sleeper, "sleeper"));
+        Objects.requireNonNull(sleeper, "sleeper"),
+        Objects.requireNonNull(clock, "clock"));
   }
 
   private static Sleeper sleep() {
@@ -64,18 +75,29 @@ public final class LambdaWorker {
     void sleep(Duration duration) throws InterruptedException;
   }
 
+  interface NanoClock {
+    long nanoTime();
+  }
+
+  private static NanoClock systemNanoClock() {
+    return System::nanoTime;
+  }
+
   private static final class Handler implements RequestHandler<Object, Void> {
     private final LambdaWorkerOptions.Prepared preparedOptions;
     private final LambdaWorkerRuntime runtime;
     private final Sleeper sleeper;
+    private final NanoClock clock;
 
     private Handler(
         LambdaWorkerOptions.Prepared preparedOptions,
         LambdaWorkerRuntime runtime,
-        Sleeper sleeper) {
+        Sleeper sleeper,
+        NanoClock clock) {
       this.preparedOptions = Objects.requireNonNull(preparedOptions, "preparedOptions");
       this.runtime = runtime;
       this.sleeper = sleeper;
+      this.clock = clock;
     }
 
     @Override
@@ -152,11 +174,12 @@ public final class LambdaWorker {
         }
       }
 
-      runShutdownHooks(context, options);
+      long cleanupDeadlineNanos = cleanupDeadlineNanos(context, options);
+      runShutdownHooks(context, options, cleanupDeadlineNanos);
 
       if (invocation != null) {
         try {
-          invocation.closeStubs(stubsCloseTimeout(options));
+          invocation.closeStubs(remainingCleanupTime(cleanupDeadlineNanos));
         } catch (RuntimeException e) {
           log.error(
               "Temporal Lambda worker service stubs close failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
@@ -168,10 +191,15 @@ public final class LambdaWorker {
       }
     }
 
-    private void runShutdownHooks(Context context, LambdaWorkerOptions.Materialized options) {
+    private void runShutdownHooks(
+        Context context, LambdaWorkerOptions.Materialized options, long cleanupDeadlineNanos) {
       for (Runnable hook : options.shutdownHooks) {
         try {
-          hook.run();
+          if (hook instanceof TimedShutdownHook) {
+            ((TimedShutdownHook) hook).run(remainingCleanupTime(cleanupDeadlineNanos));
+          } else {
+            hook.run();
+          }
         } catch (RuntimeException e) {
           log.error(
               "Temporal Lambda worker shutdown hook failed awsRequestId={} invokedFunctionArn={} taskQueue={}",
@@ -187,11 +215,6 @@ public final class LambdaWorker {
         Context context, LambdaWorkerOptions.Materialized options) {
       return Duration.ofMillis(context.getRemainingTimeInMillis())
           .minus(options.shutdownDeadlineBuffer);
-    }
-
-    private Duration stubsCloseTimeout(LambdaWorkerOptions.Materialized options) {
-      Duration timeout = options.shutdownDeadlineBuffer.minus(options.gracefulShutdownTimeout);
-      return timeout.isNegative() ? Duration.ZERO : timeout;
     }
 
     private void validateRemainingTime(Context context, Duration shutdownDeadlineBuffer) {
@@ -211,6 +234,29 @@ public final class LambdaWorker {
             available.toMillis(),
             shutdownDeadlineBuffer.toMillis());
       }
+    }
+
+    private long cleanupDeadlineNanos(Context context, LambdaWorkerOptions.Materialized options) {
+      return clock.nanoTime() + cleanupWindow(context, options).toNanos();
+    }
+
+    private Duration cleanupWindow(Context context, LambdaWorkerOptions.Materialized options) {
+      Duration configuredWindow =
+          nonNegative(options.shutdownDeadlineBuffer.minus(options.gracefulShutdownTimeout));
+      Duration remaining = remainingInvocationTime(context);
+      return configuredWindow.compareTo(remaining) <= 0 ? configuredWindow : remaining;
+    }
+
+    private Duration remainingCleanupTime(long cleanupDeadlineNanos) {
+      return nonNegative(Duration.ofNanos(cleanupDeadlineNanos - clock.nanoTime()));
+    }
+
+    private Duration remainingInvocationTime(Context context) {
+      return nonNegative(Duration.ofMillis(context.getRemainingTimeInMillis()));
+    }
+
+    private static Duration nonNegative(Duration duration) {
+      return duration.isNegative() ? Duration.ZERO : duration;
     }
 
     private static String identityFor(Context context) {
