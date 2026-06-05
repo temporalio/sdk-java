@@ -4,6 +4,11 @@ import static org.junit.Assert.*;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.uber.m3.tally.Capabilities;
+import com.uber.m3.tally.CapableOf;
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
+import com.uber.m3.tally.StatsReporter;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
@@ -17,9 +22,11 @@ import io.temporal.common.WorkerDeploymentVersion;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
 
 public class OtelLambdaWorkerTest {
@@ -130,6 +137,19 @@ public class OtelLambdaWorkerTest {
   }
 
   @Test
+  public void configureRegistersTallyFlushBeforeOpenTelemetryFlush() throws Exception {
+    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+
+    OtelLambdaWorker.configure(options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()));
+    options.setTaskQueue("task-queue");
+
+    List<Runnable> hooks = options.prepare(VERSION).materialize("identity").shutdownHooks;
+    assertEquals(2, hooks.size());
+    assertTrue(hooks.get(0) instanceof TallyScopeFlushHook);
+    assertTrue(hooks.get(1) instanceof OpenTelemetryFlushHook);
+  }
+
+  @Test
   public void metricsOnlyInstallsScopeWithoutTracingInterceptors() throws Exception {
     LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
 
@@ -138,6 +158,24 @@ public class OtelLambdaWorkerTest {
     assertNotNull(options.getWorkflowServiceStubsOptionsBuilder().build().getMetricsScope());
     assertEquals(0, clientInterceptorCount(options));
     assertEquals(0, workerInterceptorCount(options));
+  }
+
+  @Test
+  public void tallyScopeFlushHookReportsBufferedMetricsWithoutClosingScope() throws Exception {
+    RecordingStatsReporter reporter = new RecordingStatsReporter();
+    Scope scope =
+        new RootScopeBuilder().reporter(reporter).reportEvery(com.uber.m3.util.Duration.ofHours(1));
+    try {
+      scope.counter("buffered-counter").inc(1);
+
+      new TallyScopeFlushHook(scope).run();
+
+      assertTrue(reporter.counterReports.get() >= 1);
+      assertTrue(reporter.flushes.get() >= 1);
+      assertEquals(0, reporter.closes.get());
+    } finally {
+      scope.close();
+    }
   }
 
   @Test
@@ -174,6 +212,23 @@ public class OtelLambdaWorkerTest {
     assertEquals(2, openTelemetry.meterProvider.flushes.get());
     assertEquals(0, openTelemetry.tracerProvider.closes.get());
     assertEquals(0, openTelemetry.meterProvider.closes.get());
+  }
+
+  @Test
+  public void flushHookUsesSmallerConfiguredAndLambdaTimeout() {
+    TimeoutRecordingOpenTelemetry openTelemetry = new TimeoutRecordingOpenTelemetry();
+
+    new OpenTelemetryFlushHook(openTelemetry, Duration.ofMillis(250)).run(Duration.ofSeconds(2));
+
+    assertEquals(250, openTelemetry.tracerProvider.joinTimeoutMillis.get());
+    assertEquals(250, openTelemetry.meterProvider.joinTimeoutMillis.get());
+
+    openTelemetry = new TimeoutRecordingOpenTelemetry();
+
+    new OpenTelemetryFlushHook(openTelemetry, Duration.ofSeconds(2)).run(Duration.ofMillis(125));
+
+    assertEquals(125, openTelemetry.tracerProvider.joinTimeoutMillis.get());
+    assertEquals(125, openTelemetry.meterProvider.joinTimeoutMillis.get());
   }
 
   @Test
@@ -271,6 +326,69 @@ public class OtelLambdaWorkerTest {
     }
   }
 
+  @SuppressWarnings("deprecation")
+  private static final class RecordingStatsReporter implements StatsReporter {
+    private final AtomicInteger counterReports = new AtomicInteger();
+    private final AtomicInteger gaugeReports = new AtomicInteger();
+    private final AtomicInteger timerReports = new AtomicInteger();
+    private final AtomicInteger histogramReports = new AtomicInteger();
+    private final AtomicInteger flushes = new AtomicInteger();
+    private final AtomicInteger closes = new AtomicInteger();
+
+    @Override
+    public void reportCounter(String name, Map<String, String> tags, long value) {
+      counterReports.incrementAndGet();
+    }
+
+    @Override
+    public void reportGauge(String name, Map<String, String> tags, double value) {
+      gaugeReports.incrementAndGet();
+    }
+
+    @Override
+    public void reportTimer(
+        String name, Map<String, String> tags, com.uber.m3.util.Duration interval) {
+      timerReports.incrementAndGet();
+    }
+
+    @Override
+    public void reportHistogramValueSamples(
+        String name,
+        Map<String, String> tags,
+        com.uber.m3.tally.Buckets buckets,
+        double bucketLowerBound,
+        double bucketUpperBound,
+        long samples) {
+      histogramReports.incrementAndGet();
+    }
+
+    @Override
+    public void reportHistogramDurationSamples(
+        String name,
+        Map<String, String> tags,
+        com.uber.m3.tally.Buckets buckets,
+        com.uber.m3.util.Duration bucketLowerBound,
+        com.uber.m3.util.Duration bucketUpperBound,
+        long samples) {
+      histogramReports.incrementAndGet();
+    }
+
+    @Override
+    public Capabilities capabilities() {
+      return CapableOf.REPORTING_TAGGING;
+    }
+
+    @Override
+    public void flush() {
+      flushes.incrementAndGet();
+    }
+
+    @Override
+    public void close() {
+      closes.incrementAndGet();
+    }
+  }
+
   private static final class CountingOpenTelemetry implements OpenTelemetry {
     private final CountingTracerProvider tracerProvider = new CountingTracerProvider();
     private final CountingMeterProvider meterProvider = new CountingMeterProvider();
@@ -288,6 +406,71 @@ public class OtelLambdaWorkerTest {
     @Override
     public ContextPropagators getPropagators() {
       return ContextPropagators.noop();
+    }
+  }
+
+  private static final class TimeoutRecordingOpenTelemetry implements OpenTelemetry {
+    private final TimeoutRecordingTracerProvider tracerProvider =
+        new TimeoutRecordingTracerProvider();
+    private final TimeoutRecordingMeterProvider meterProvider = new TimeoutRecordingMeterProvider();
+
+    @Override
+    public TracerProvider getTracerProvider() {
+      return tracerProvider;
+    }
+
+    @Override
+    public MeterProvider getMeterProvider() {
+      return meterProvider;
+    }
+
+    @Override
+    public ContextPropagators getPropagators() {
+      return ContextPropagators.noop();
+    }
+  }
+
+  public static final class TimeoutRecordingTracerProvider implements TracerProvider {
+    private final AtomicLong joinTimeoutMillis = new AtomicLong(-1);
+
+    @Override
+    public Tracer get(String instrumentationName) {
+      return TracerProvider.noop().get(instrumentationName);
+    }
+
+    @Override
+    public Tracer get(String instrumentationName, String instrumentationVersion) {
+      return TracerProvider.noop().get(instrumentationName, instrumentationVersion);
+    }
+
+    public TimeoutRecordingResult forceFlush() {
+      return new TimeoutRecordingResult(joinTimeoutMillis);
+    }
+  }
+
+  public static final class TimeoutRecordingMeterProvider implements MeterProvider {
+    private final AtomicLong joinTimeoutMillis = new AtomicLong(-1);
+
+    @Override
+    public MeterBuilder meterBuilder(String instrumentationName) {
+      return MeterProvider.noop().meterBuilder(instrumentationName);
+    }
+
+    public TimeoutRecordingResult forceFlush() {
+      return new TimeoutRecordingResult(joinTimeoutMillis);
+    }
+  }
+
+  public static final class TimeoutRecordingResult {
+    private final AtomicLong joinTimeoutMillis;
+
+    private TimeoutRecordingResult(AtomicLong joinTimeoutMillis) {
+      this.joinTimeoutMillis = joinTimeoutMillis;
+    }
+
+    public TimeoutRecordingResult join(long timeout, TimeUnit unit) {
+      joinTimeoutMillis.set(unit.toMillis(timeout));
+      return this;
     }
   }
 

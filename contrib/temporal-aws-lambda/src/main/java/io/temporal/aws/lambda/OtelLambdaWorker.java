@@ -80,8 +80,9 @@ public final class OtelLambdaWorker {
   /**
    * Configures Temporal metrics with the default service name and reporting interval.
    *
-   * <p>This helper only installs the metrics scope. It does not configure tracing interceptors or
-   * register a flush hook.
+   * <p>This helper installs the metrics scope and registers a hook that reports buffered Tally
+   * metrics before provider flushing. It does not configure tracing interceptors or an
+   * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(LambdaWorkerOptions options, OpenTelemetry openTelemetry) {
     configureMetrics(options, openTelemetry, getDefaultServiceName(), Duration.ofSeconds(1));
@@ -90,8 +91,9 @@ public final class OtelLambdaWorker {
   /**
    * Configures Temporal metrics with an application-owned OpenTelemetry provider.
    *
-   * <p>This helper only installs the metrics scope. It does not configure tracing interceptors or
-   * register a flush hook.
+   * <p>This helper installs the metrics scope and registers a hook that reports buffered Tally
+   * metrics before provider flushing. It does not configure tracing interceptors or an
+   * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(
       LambdaWorkerOptions options,
@@ -110,6 +112,7 @@ public final class OtelLambdaWorker {
                 com.uber.m3.util.Duration.ofMillis(
                     requirePositive(reportInterval, "reportInterval").toMillis()));
     options.getWorkflowServiceStubsOptionsBuilder().setMetricsScope(scope);
+    options.addShutdownHook(new TallyScopeFlushHook(scope));
   }
 
   /**

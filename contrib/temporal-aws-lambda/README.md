@@ -37,7 +37,7 @@ The handler creates one worker per invocation, starts the worker, shuts it down 
 
 ## OpenTelemetry
 
-`OtelLambdaWorker.configure(options)` creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers a per-invocation flush hook.
+`OtelLambdaWorker.configure(options)` creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters.
 
 ```java
 public static final RequestHandler<Object, Void> HANDLER =

@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.ClientContext;
 import com.amazonaws.services.lambda.runtime.CognitoIdentity;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.LambdaLogger;
+import java.util.function.IntSupplier;
 
 final class TestLambdaContext implements Context {
   private static final LambdaLogger NOOP_LOGGER =
@@ -15,7 +16,7 @@ final class TestLambdaContext implements Context {
         public void log(byte[] message) {}
       };
 
-  private final int remainingTimeMillis;
+  private final IntSupplier remainingTimeMillis;
   private final String awsRequestId;
   private final String invokedFunctionArn;
 
@@ -24,6 +25,15 @@ final class TestLambdaContext implements Context {
   }
 
   TestLambdaContext(int remainingTimeMillis, String awsRequestId, String invokedFunctionArn) {
+    this(() -> remainingTimeMillis, awsRequestId, invokedFunctionArn);
+  }
+
+  TestLambdaContext(IntSupplier remainingTimeMillis) {
+    this(remainingTimeMillis, "request-id", "function-arn");
+  }
+
+  TestLambdaContext(
+      IntSupplier remainingTimeMillis, String awsRequestId, String invokedFunctionArn) {
     this.remainingTimeMillis = remainingTimeMillis;
     this.awsRequestId = awsRequestId;
     this.invokedFunctionArn = invokedFunctionArn;
@@ -71,7 +81,7 @@ final class TestLambdaContext implements Context {
 
   @Override
   public int getRemainingTimeInMillis() {
-    return remainingTimeMillis;
+    return remainingTimeMillis.getAsInt();
   }
 
   @Override
