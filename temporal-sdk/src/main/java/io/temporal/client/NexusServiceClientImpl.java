@@ -8,14 +8,12 @@ import io.temporal.internal.util.MethodExtractor;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
- * Typed Nexus service client. Extracts the operation name from a {@link BiFunction} that targets a
- * method on the service interface (via a {@link Proxy} of {@code T}) and delegates the start RPC to
- * the interceptor chain inherited from the underlying {@link NexusClient}.
+ * Typed Nexus service client. Extracts the operation name from a {@link Functions.Func2} that
+ * targets a method on the service interface (via a {@link Proxy} of {@code T}) and delegates the
+ * start RPC to the interceptor chain inherited from the underlying {@link NexusClient}.
  */
 @Experimental
 class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
@@ -50,40 +48,38 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
 
   @Override
   public <U, R> NexusOperationHandle<R> start(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    Method method =
-        MethodExtractor.extract(serviceInterface, (Functions.Func2<T, U, R>) operation::apply);
+      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options) {
+    Method method = MethodExtractor.extract(serviceInterface, operation);
     return startResolved(method, input, options);
   }
 
   @Override
   public <U, R> R execute(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
+      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options) {
     return start(operation, input, options).getResult();
   }
 
   @Override
   public <U, R> CompletableFuture<R> executeAsync(
-      BiFunction<T, U, R> operation, U input, StartNexusOperationOptions options) {
+      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options) {
     return start(operation, input, options).getResultAsync();
   }
 
   @Override
   public <R> NexusOperationHandle<R> start(
-      Function<T, R> operation, StartNexusOperationOptions options) {
-    Method method =
-        MethodExtractor.extract(serviceInterface, (Functions.Func1<T, R>) operation::apply);
+      Functions.Func1<T, R> operation, StartNexusOperationOptions options) {
+    Method method = MethodExtractor.extract(serviceInterface, operation);
     return startResolved(method, null, options);
   }
 
   @Override
-  public <R> R execute(Function<T, R> operation, StartNexusOperationOptions options) {
+  public <R> R execute(Functions.Func1<T, R> operation, StartNexusOperationOptions options) {
     return start(operation, options).getResult();
   }
 
   @Override
   public <R> CompletableFuture<R> executeAsync(
-      Function<T, R> operation, StartNexusOperationOptions options) {
+      Functions.Func1<T, R> operation, StartNexusOperationOptions options) {
     return start(operation, options).getResultAsync();
   }
 

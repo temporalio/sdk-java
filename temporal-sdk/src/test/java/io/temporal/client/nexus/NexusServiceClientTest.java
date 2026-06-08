@@ -26,7 +26,7 @@ import org.junit.Test;
 
 /**
  * End-to-end tests for {@link NexusServiceClient}: typed start/execute via {@link
- * java.util.function.BiFunction} method references.
+ * io.temporal.workflow.Functions.Func2} method references.
  */
 public class NexusServiceClientTest {
 
@@ -135,7 +135,7 @@ public class NexusServiceClientTest {
 
   @Test
   public void executeWithNoInputReturnsResult() {
-    // Exercises the Function<T, R> overload — Nexus operations declared as `R operation()` with
+    // Exercises the Func1<T, R> overload — Nexus operations declared as `R operation()` with
     // no input parameter.
     NexusServiceClient<TestNexusServices.TestNexusServiceVoidInput> client =
         buildServiceClientFor(TestNexusServices.TestNexusServiceVoidInput.class);
@@ -148,7 +148,7 @@ public class NexusServiceClientTest {
 
   @Test
   public void executeWithVoidReturnCompletes() {
-    // Exercises the existing BiFunction<T, U, Void> path — Nexus operations declared as
+    // Exercises the existing Func2<T, U, Void> path — Nexus operations declared as
     // `Void operation(input)`. No new overload needed; the SDK already handles Void as a result
     // type. This test pins that contract.
     //
@@ -172,7 +172,7 @@ public class NexusServiceClientTest {
 
   @Test
   public void executeWithNoInputAndVoidReturnCompletes() {
-    // Exercises the Function<T, Void> overload — Nexus operations declared as `Void operation()`
+    // Exercises the Func1<T, Void> overload — Nexus operations declared as `Void operation()`
     // with neither input nor a useful return value.
     NexusServiceClient<TestNexusServices.TestNexusServiceVoid> client =
         buildServiceClientFor(TestNexusServices.TestNexusServiceVoid.class);
