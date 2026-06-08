@@ -64,6 +64,19 @@ public class ExternalStorageTest {
   }
 
   @Test
+  public void lastSetDriversWins() {
+    StorageDriver a = driver("a");
+    StorageDriver b = driver("b");
+    StorageDriver c = driver("c");
+    ExternalStorage storage =
+        ExternalStorage.newBuilder()
+            .setDrivers(Arrays.asList(a, b))
+            .setDrivers(Collections.singletonList(c))
+            .build();
+    assertEquals(Collections.singletonList(c), storage.getDrivers());
+  }
+
+  @Test
   public void zeroThresholdStoresAll() {
     ExternalStorage storage =
         ExternalStorage.newBuilder()

@@ -58,7 +58,10 @@ public final class ExternalStorage {
 
     private Builder() {}
 
-    /** At least one driver is required. When more than one is set, a selector is also required. */
+    /**
+     * At least one driver is required. When more than one is set, a selector is also required. If
+     * this is called multiple times, the last one wins and previous drivers are overwritten.
+     */
     public Builder setDrivers(@Nonnull List<StorageDriver> drivers) {
       this.drivers = Objects.requireNonNull(drivers, "drivers");
       return this;
