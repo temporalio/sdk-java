@@ -29,7 +29,7 @@ public enum SdkFlag {
    * Changes replay behavior of GetVersion to wait for the matching marker event before executing
    * the callback.
    *
-   * Introduced: 1.34.0
+   * Introduced: 1.36.0
    *
    * Enabled: (pending)
    *
