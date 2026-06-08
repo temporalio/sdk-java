@@ -13,6 +13,15 @@ import org.junit.Test;
 
 public class ExternalStorageTest {
 
+  private static StorageDriverStoreContext storeContext(StorageDriverTargetInfo target) {
+    return new StorageDriverStoreContext() {
+      @Override
+      public StorageDriverTargetInfo getTarget() {
+        return target;
+      }
+    };
+  }
+
   private static StorageDriver driver(String name) {
     return new StorageDriver() {
       @Override
@@ -46,9 +55,7 @@ public class ExternalStorageTest {
     assertEquals(1, storage.getDrivers().size());
     StorageDriverSelector selector = storage.getDriverSelector();
     assertNotNull(selector);
-    assertSame(
-        a,
-        selector.selectDriver(new StorageDriverStoreContext(null), Payload.getDefaultInstance()));
+    assertSame(a, selector.selectDriver(storeContext(null), Payload.getDefaultInstance()));
   }
 
   @Test
