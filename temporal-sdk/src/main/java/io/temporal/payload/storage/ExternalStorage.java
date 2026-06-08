@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
 /** Configuration for offloading large payloads to external storage. */
 @Experimental
 public final class ExternalStorage {
-  private static final int DEFAULT_PAYLOAD_SIZE_THRESHOLD = 256 * 1024;
+  static final int DEFAULT_PAYLOAD_SIZE_THRESHOLD = 256 * 1024;
 
   public static Builder newBuilder() {
     return new Builder();
@@ -54,7 +54,7 @@ public final class ExternalStorage {
   public static final class Builder {
     private List<StorageDriver> drivers = Collections.emptyList();
     private StorageDriverSelector driverSelector;
-    private int payloadSizeThreshold = DEFAULT_PAYLOAD_SIZE_THRESHOLD;
+    private int payloadSizeThreshold = ExternalStorage.DEFAULT_PAYLOAD_SIZE_THRESHOLD;
 
     private Builder() {}
 
