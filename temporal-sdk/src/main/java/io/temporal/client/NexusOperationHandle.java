@@ -12,8 +12,8 @@ import javax.annotation.Nullable;
  * UntypedNexusOperationHandle} with typed result methods bound to a known result type.
  *
  * <p>Obtain an instance via {@link NexusServiceClient} or by wrapping an {@link
- * UntypedNexusOperationHandle} (returned by {@link NexusClient#getHandle(String)}) with {@link
- * #fromUntyped(UntypedNexusOperationHandle, Class)}.
+ * UntypedNexusOperationHandle} (returned by {@link NexusClient#getHandle(String, String)}) with
+ * {@link #fromUntyped(UntypedNexusOperationHandle, Class)}.
  *
  * @param <R> the result type of the Nexus operation
  * @see UntypedNexusOperationHandle

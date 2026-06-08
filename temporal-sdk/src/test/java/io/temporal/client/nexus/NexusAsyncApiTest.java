@@ -198,13 +198,14 @@ public class NexusAsyncApiTest {
 
   private NexusServiceClient<TestNexusServices.TestNexusService1> buildServiceClient() {
     Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
-    return NexusServiceClient.newInstance(
-        TestNexusServices.TestNexusService1.class,
-        endpoint.getSpec().getName(),
-        testWorkflowRule.getWorkflowServiceStubs(),
-        NexusClientOptions.newBuilder()
-            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-            .build());
+    NexusClient nexusClient =
+        NexusClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            NexusClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .build());
+    return nexusClient.newNexusServiceClient(
+        TestNexusServices.TestNexusService1.class, endpoint.getSpec().getName());
   }
 
   private UntypedNexusOperationHandle startUntyped(String input) {

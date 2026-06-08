@@ -27,8 +27,8 @@ import org.junit.Test;
 
 /**
  * Tests for {@link UntypedNexusOperationHandle} per-execution lifecycle methods returned by {@link
- * NexusClient#getHandle(String)}: {@code describe()}, {@code cancel()}/{@code cancel(reason)}, and
- * {@code terminate()}/{@code terminate(reason)}.
+ * NexusClient#getHandle(String, String)}: {@code describe()}, {@code cancel()}/{@code
+ * cancel(reason)}, and {@code terminate()}/{@code terminate(reason)}.
  */
 public class NexusOperationHandleTest {
 
@@ -86,7 +86,7 @@ public class NexusOperationHandleTest {
     // NOT_FOUND-mapped exception rather than a raw gRPC status.
     String bogusOperationId = "does-not-exist-" + UUID.randomUUID();
     UntypedNexusOperationHandle handle =
-        testWorkflowRule.getNexusClient().getHandle(bogusOperationId);
+        testWorkflowRule.getNexusClient().getHandle(bogusOperationId, null);
 
     try {
       handle.describe();
@@ -101,7 +101,7 @@ public class NexusOperationHandleTest {
     UntypedNexusOperationHandle started = startOperation();
     // Re-bind a handle with no pinned run ID — server should resolve to the latest run.
     UntypedNexusOperationHandle handle =
-        testWorkflowRule.getNexusClient().getHandle(started.getNexusOperationId());
+        testWorkflowRule.getNexusClient().getHandle(started.getNexusOperationId(), null);
 
     NexusOperationExecutionDescription description = handle.describe();
 

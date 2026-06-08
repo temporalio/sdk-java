@@ -1,7 +1,6 @@
 package io.temporal.client;
 
 import io.temporal.common.Experimental;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -30,8 +29,9 @@ import java.util.function.Function;
  * <p>Build a client and dispatch by method reference:
  *
  * <pre>{@code
- * NexusServiceClient<GreeterService> client = NexusServiceClient.newInstance(
- *     GreeterService.class, "greeter-endpoint", workflowServiceStubs);
+ * NexusClient nexusClient = NexusClient.newInstance(workflowServiceStubs);
+ * NexusServiceClient<GreeterService> client =
+ *     nexusClient.newNexusServiceClient(GreeterService.class, "greeter-endpoint");
  *
  * StartNexusOperationOptions options = StartNexusOperationOptions.newBuilder()
  *     .setId(UUID.randomUUID().toString())
@@ -61,35 +61,6 @@ import java.util.function.Function;
  */
 @Experimental
 public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
-
-  /**
-   * Creates a client bound to {@code service} that dispatches calls via {@code endpoint} using
-   * default client options.
-   *
-   * @param service the Nexus service interface class
-   * @param endpoint the Nexus endpoint name as configured on the server
-   * @param stubs gRPC stubs for talking to the Temporal service
-   * @return a new typed client
-   */
-  static <T> NexusServiceClient<T> newInstance(
-      Class<T> service, String endpoint, WorkflowServiceStubs stubs) {
-    return newInstance(service, endpoint, stubs, NexusClientOptions.getDefaultInstance());
-  }
-
-  /**
-   * Creates a client bound to {@code service} that dispatches calls via {@code endpoint} using the
-   * supplied client options.
-   *
-   * @param service the Nexus service interface class
-   * @param endpoint the Nexus endpoint name as configured on the server
-   * @param stubs gRPC stubs for talking to the Temporal service
-   * @param options client-wide options (namespace, identity, interceptors, etc.)
-   * @return a new typed client
-   */
-  static <T> NexusServiceClient<T> newInstance(
-      Class<T> service, String endpoint, WorkflowServiceStubs stubs, NexusClientOptions options) {
-    return NexusServiceClientImpl.newInstance(service, endpoint, stubs, options);
-  }
 
   /**
    * Executes an operation synchronously with per-call options.

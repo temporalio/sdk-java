@@ -11,8 +11,8 @@ import javax.annotation.Nullable;
  * An untyped handle to a standalone Nexus operation execution. Use this to get the result,
  * describe, cancel, or terminate the operation when the result type is not known at compile time.
  *
- * <p>Obtain an instance via {@link NexusClient#getHandle(String)} or as the untyped projection of a
- * handle returned by {@link NexusServiceClient}.
+ * <p>Obtain an instance via {@link NexusClient#getHandle(String, String)} or as the untyped
+ * projection of a handle returned by {@link NexusServiceClient}.
  *
  * @see NexusOperationHandle
  * @see NexusClient
@@ -26,8 +26,7 @@ public interface UntypedNexusOperationHandle {
   /**
    * The server-assigned run ID for this operation execution. Present when the handle was returned
    * by {@code start} or when {@link NexusClient#getHandle(String, String)} was called with an
-   * explicit run ID. May be {@code null} when obtained via {@link NexusClient#getHandle(String)}
-   * without a run ID — call {@link #describe()} to retrieve the current run ID.
+   * explicit run ID.
    */
   @Nullable
   String getNexusOperationRunId();

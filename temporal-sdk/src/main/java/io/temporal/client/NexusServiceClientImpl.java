@@ -1,14 +1,10 @@
 package io.temporal.client;
 
-import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
-
 import io.nexusrpc.OperationDefinition;
 import io.nexusrpc.ServiceDefinition;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
-import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.util.MethodExtractor;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
 import java.util.concurrent.CompletableFuture;
@@ -27,19 +23,6 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
 
   private final Class<T> serviceInterface;
   private final ServiceDefinition serviceDef;
-
-  static <T> NexusServiceClient<T> newInstance(
-      Class<T> service, String endpoint, WorkflowServiceStubs stubs, NexusClientOptions options) {
-    enforceNonWorkflowThread();
-    // Build the underlying NexusClient impl directly (bypassing the wrapped factory) so we can
-    // hand its interceptor chain to the service client. The outer service-client proxy below
-    // still enforces the non-workflow-thread check at every call.
-    NexusClientImpl rawClient = new NexusClientImpl(stubs, options);
-    return WorkflowThreadMarker.protectFromWorkflowThread(
-        new NexusServiceClientImpl<>(
-            rawClient.getNexusClientCallsInvoker(), service, endpoint, options),
-        NexusServiceClient.class);
-  }
 
   NexusServiceClientImpl(
       NexusClientCallsInterceptor invoker,

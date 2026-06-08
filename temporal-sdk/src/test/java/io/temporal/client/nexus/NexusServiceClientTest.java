@@ -6,6 +6,7 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationHandle;
@@ -125,7 +126,7 @@ public class NexusServiceClientTest {
     // persisted on the server-side record rather than just forwarded through the local interceptor
     // chain.
     UntypedNexusOperationHandle untyped =
-        testWorkflowRule.getNexusClient().getHandle(handle.getNexusOperationId());
+        testWorkflowRule.getNexusClient().getHandle(handle.getNexusOperationId(), null);
     NexusOperationExecutionDescription description = untyped.describe();
     Assert.assertEquals("per-call-summary", description.getStaticSummary());
   }
@@ -200,13 +201,14 @@ public class NexusServiceClientTest {
 
   /** Builds a typed client for an arbitrary Nexus service interface against the rule's endpoint. */
   private <S> NexusServiceClient<S> buildServiceClientFor(Class<S> serviceClass) {
-    return NexusServiceClient.newInstance(
-        serviceClass,
-        testWorkflowRule.getNexusEndpoint().getSpec().getName(),
-        testWorkflowRule.getWorkflowServiceStubs(),
-        NexusClientOptions.newBuilder()
-            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-            .build());
+    NexusClient nexusClient =
+        NexusClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            NexusClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .build());
+    return nexusClient.newNexusServiceClient(
+        serviceClass, testWorkflowRule.getNexusEndpoint().getSpec().getName());
   }
 
   public static class PlaceholderWorkflowImpl implements TestWorkflows.TestWorkflow1 {

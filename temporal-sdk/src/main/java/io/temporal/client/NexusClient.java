@@ -23,7 +23,7 @@ import javax.annotation.Nullable;
  *
  * // Typed: bind to an @ServiceInterface and invoke a method reference.
  * NexusServiceClient<MyService> svc =
- *     NexusServiceClient.newInstance(MyService.class, "my-endpoint", stubs, options);
+ *     client.newNexusServiceClient(MyService.class, "my-endpoint");
  * String result = svc.execute(MyService::greet, "world");
  *
  * // Untyped: dispatch by operation name string.
@@ -75,15 +75,6 @@ public interface NexusClient {
   WorkflowServiceStubs getWorkflowServiceStubs();
 
   /**
-   * Returns an untyped handle to an existing operation execution, targeting the latest run. To bind
-   * a result type, wrap the handle with {@link NexusOperationHandle#fromUntyped}.
-   *
-   * @param operationId the user-assigned operation ID
-   * @return an untyped handle
-   */
-  UntypedNexusOperationHandle getHandle(String operationId);
-
-  /**
    * Returns an untyped handle to an existing operation execution, optionally pinned to a specific
    * run.
    *
@@ -117,6 +108,17 @@ public interface NexusClient {
    */
   <R> NexusOperationHandle<R> getHandle(
       String operationId, @Nullable String runId, Class<R> resultClass, @Nullable Type resultType);
+
+  /**
+   * Builds a typed service-bound client targeting the given endpoint, dispatching operations by
+   * method reference on the {@code @ServiceInterface}-annotated {@code service}. Reuses this
+   * client's stubs, options, and interceptor chain.
+   *
+   * @param service the {@code @ServiceInterface}-annotated service type
+   * @param endpoint Nexus endpoint name registered on the Temporal Service
+   * @param <T> the service interface type
+   */
+  <T> NexusServiceClient<T> newNexusServiceClient(Class<T> service, String endpoint);
 
   /**
    * Builds an untyped service-bound client targeting the given endpoint and service. Use this to

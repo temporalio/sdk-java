@@ -86,11 +86,6 @@ public class NexusClientImpl implements NexusClient {
   }
 
   @Override
-  public UntypedNexusOperationHandle getHandle(String operationId) {
-    return getHandle(operationId, null);
-  }
-
-  @Override
   public UntypedNexusOperationHandle getHandle(String operationId, @Nullable String runId) {
     return new NexusOperationHandleImpl(operationId, runId, nexusClientCallsInvoker);
   }
@@ -108,6 +103,14 @@ public class NexusClientImpl implements NexusClient {
       Class<R> resultClass,
       @Nullable java.lang.reflect.Type resultType) {
     return NexusOperationHandle.fromUntyped(getHandle(operationId, runId), resultClass, resultType);
+  }
+
+  @Override
+  public <T> NexusServiceClient<T> newNexusServiceClient(Class<T> service, String endpoint) {
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new NexusServiceClientImpl<>(nexusClientCallsInvoker, service, endpoint, options),
+        NexusServiceClient.class);
   }
 
   @Override
