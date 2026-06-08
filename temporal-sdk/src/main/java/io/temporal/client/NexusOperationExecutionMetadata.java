@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.NexusOperationExecutionStatus;
 import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
 import io.temporal.common.Experimental;
@@ -59,18 +60,14 @@ public class NexusOperationExecutionMetadata {
     this.executionDuration = executionDuration;
   }
 
-  static @Nullable String nullIfEmpty(String s) {
-    return s == null || s.isEmpty() ? null : s;
-  }
-
   public static NexusOperationExecutionMetadata fromListInfo(NexusOperationExecutionListInfo info) {
     return new NexusOperationExecutionMetadata(
         info,
         info.getOperationId(),
-        nullIfEmpty(info.getRunId()),
-        nullIfEmpty(info.getEndpoint()),
-        nullIfEmpty(info.getService()),
-        nullIfEmpty(info.getOperation()),
+        Strings.emptyToNull(info.getRunId()),
+        Strings.emptyToNull(info.getEndpoint()),
+        Strings.emptyToNull(info.getService()),
+        Strings.emptyToNull(info.getOperation()),
         info.hasScheduleTime() ? ProtobufTimeUtils.toJavaInstant(info.getScheduleTime()) : null,
         info.hasCloseTime() ? ProtobufTimeUtils.toJavaInstant(info.getCloseTime()) : null,
         info.getStatus(),

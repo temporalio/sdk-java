@@ -73,7 +73,7 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       Function<T, R> operation, StartNexusOperationOptions options) {
     Method method =
         MethodExtractor.extract(serviceInterface, (Functions.Func1<T, R>) operation::apply);
-    return startResolved(method, /* input= */ null, options);
+    return startResolved(method, null, options);
   }
 
   @Override

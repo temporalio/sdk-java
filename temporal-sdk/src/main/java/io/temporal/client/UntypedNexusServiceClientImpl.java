@@ -56,7 +56,7 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
       Class<R> resultClass,
       StartNexusOperationOptions options,
       @Nullable Object arg) {
-    return execute(operation, resultClass, /* resultType= */ null, options, arg);
+    return execute(operation, resultClass, null, options, arg);
   }
 
   @Override

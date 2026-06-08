@@ -1,5 +1,6 @@
 package io.temporal.internal.client;
 
+import com.google.common.base.Strings;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payload;
@@ -100,7 +101,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     if (options.getSummary() != null) {
       UserMetadata metadata =
           WorkflowExecutionUtils.makeUserMetaData(
-              options.getSummary(), /* details= */ null, clientOptions.getDataConverter());
+              options.getSummary(), null, clientOptions.getDataConverter());
       if (metadata != null) {
         request.setUserMetadata(metadata);
       }
@@ -114,7 +115,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
         NexusOperationExecutionAlreadyStartedFailure detail =
             StatusUtils.getFailure(e, NexusOperationExecutionAlreadyStartedFailure.class);
         if (detail != null) {
-          String runId = detail.getRunId().isEmpty() ? null : detail.getRunId();
+          String runId = Strings.emptyToNull(detail.getRunId());
           throw new NexusOperationAlreadyStartedException(
               operationId, input.getOperation(), runId, e);
         }

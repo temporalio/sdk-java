@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.PendingNexusOperationState;
 import io.temporal.api.nexus.v1.NexusOperationExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeNexusOperationExecutionResponse;
@@ -30,12 +31,12 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
       DataConverter dataConverter,
       String namespace) {
     super(
-        /* rawListInfo= */ null,
+        null,
         response.getInfo().getOperationId(),
-        nullIfEmpty(response.getInfo().getRunId()),
-        nullIfEmpty(response.getInfo().getEndpoint()),
-        nullIfEmpty(response.getInfo().getService()),
-        nullIfEmpty(response.getInfo().getOperation()),
+        Strings.emptyToNull(response.getInfo().getRunId()),
+        Strings.emptyToNull(response.getInfo().getEndpoint()),
+        Strings.emptyToNull(response.getInfo().getService()),
+        Strings.emptyToNull(response.getInfo().getOperation()),
         response.getInfo().hasScheduleTime()
             ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getScheduleTime())
             : null,
@@ -149,8 +150,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
    */
   @Nullable
   public String getBlockedReason() {
-    String r = info.getBlockedReason();
-    return r.isEmpty() ? null : r;
+    return Strings.emptyToNull(info.getBlockedReason());
   }
 
   /**
@@ -159,22 +159,19 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
    */
   @Nullable
   public String getHandlerRequestId() {
-    String r = info.getRequestId();
-    return r.isEmpty() ? null : r;
+    return Strings.emptyToNull(info.getRequestId());
   }
 
   /** Operation token returned by the handler; set only for asynchronous operations after start. */
   @Nullable
   public String getOperationToken() {
-    String t = info.getOperationToken();
-    return t.isEmpty() ? null : t;
+    return Strings.emptyToNull(info.getOperationToken());
   }
 
   /** Identity of the client that started this operation. */
   @Nullable
   public String getIdentity() {
-    String i = info.getIdentity();
-    return i.isEmpty() ? null : i;
+    return Strings.emptyToNull(info.getIdentity());
   }
 
   /**

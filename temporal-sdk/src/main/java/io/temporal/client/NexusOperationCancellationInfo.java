@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.NexusOperationCancellationState;
 import io.temporal.api.nexus.v1.NexusOperationExecutionCancellationInfo;
 import io.temporal.common.Experimental;
@@ -83,14 +84,12 @@ public final class NexusOperationCancellationInfo {
    */
   @Nullable
   public String getBlockedReason() {
-    String r = info.getBlockedReason();
-    return r.isEmpty() ? null : r;
+    return Strings.emptyToNull(info.getBlockedReason());
   }
 
   /** The human-readable reason supplied with the original cancel request, if any. */
   @Nullable
   public String getReason() {
-    String r = info.getReason();
-    return r.isEmpty() ? null : r;
+    return Strings.emptyToNull(info.getReason());
   }
 }
