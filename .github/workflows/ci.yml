@@ -1,6 +1,5 @@
 name: Continuous Integration
 permissions:
-  checks: write
   contents: read
 on:
   pull_request:
