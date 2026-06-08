@@ -51,6 +51,7 @@ public final class LambdaWorker {
       LambdaWorkerOptions options,
       LambdaWorkerRuntime runtime,
       Sleeper sleeper) {
+    // This overload exists to let tests inject a fake runtime and sleeper.
     return newHandler(version, options, runtime, sleeper, systemNanoClock());
   }
 
@@ -60,6 +61,7 @@ public final class LambdaWorker {
       LambdaWorkerRuntime runtime,
       Sleeper sleeper,
       NanoClock clock) {
+    // This overload exists to let tests inject a deterministic clock.
     return new Handler(
         Objects.requireNonNull(options, "options").prepare(version),
         Objects.requireNonNull(runtime, "runtime"),
