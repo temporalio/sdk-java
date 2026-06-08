@@ -16,8 +16,8 @@ import java.util.List;
  * {@link StartNexusOperationOptions}.
  *
  * <p>Obtain a builder via {@link #newBuilder()} or copy an existing instance via {@link
- * #newBuilder(NexusClientOptions)}. The default instance ({@link #getDefaultInstance()}) is
- * suitable when only the namespace is required and the {@link GlobalDataConverter} is appropriate.
+ * #newBuilder(NexusClientOptions)}. The default instance ({@link #getDefaultInstance()}) targets
+ * the {@code "default"} namespace and uses the {@link GlobalDataConverter}.
  *
  * <pre>{@code
  * NexusClientOptions options =
@@ -29,6 +29,8 @@ import java.util.List;
  */
 @Experimental
 public class NexusClientOptions {
+
+  private static final String DEFAULT_NAMESPACE = "default";
 
   private final String namespace;
   private final List<NexusClientInterceptor> interceptors;
@@ -82,8 +84,8 @@ public class NexusClientOptions {
   private static final NexusClientOptions DEFAULT_INSTANCE;
 
   /**
-   * Returns an options instance with all defaults. Note this leaves namespace unset; callers
-   * usually need to specify a namespace.
+   * Returns an options instance with all defaults. The namespace defaults to {@code "default"}; set
+   * it explicitly via {@link Builder#setNamespace(String)} to target a different namespace.
    */
   public static NexusClientOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
@@ -149,7 +151,11 @@ public class NexusClientOptions {
     public NexusClientOptions build() {
       String resolvedIdentity =
           identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
-      return new NexusClientOptions(namespace, interceptors, dataConverter, resolvedIdentity);
+      return new NexusClientOptions(
+          namespace == null ? DEFAULT_NAMESPACE : namespace,
+          interceptors,
+          dataConverter,
+          resolvedIdentity);
     }
   }
 }
