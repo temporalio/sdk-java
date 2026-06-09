@@ -35,7 +35,7 @@ public class NexusClientInterceptorChainTest {
   public void requireStandaloneNexusSupport() {
     assumeTrue(
         "server does not support standalone Nexus operations",
-        testWorkflowRule.supportsStandaloneNexusOperations());
+        testWorkflowRule.isUseExternalService());
   }
 
   @Test

@@ -402,16 +402,6 @@ public class SDKTestWorkflowRule implements TestRule {
     return useExternalService;
   }
 
-  /**
-   * True if the test is running against an external server, which is the prerequisite for
-   * exercising standalone Nexus operations. The in-memory test server does not implement the
-   * standalone Nexus RPCs, so suites gate on this from a test's {@code @Before} and skip cleanly
-   * there.
-   */
-  public boolean supportsStandaloneNexusOperations() {
-    return useExternalService;
-  }
-
   public TestWorkflowEnvironment getTestEnvironment() {
     return testWorkflowRule.getTestEnvironment();
   }

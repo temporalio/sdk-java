@@ -51,7 +51,7 @@ public class StandaloneNexusClientCancelTest {
   public void requireStandaloneNexusSupportAndReset() {
     assumeTrue(
         "server does not support standalone Nexus operations",
-        testWorkflowRule.supportsStandaloneNexusOperations());
+        testWorkflowRule.isUseExternalService());
     capturedWorkflowId.set(null);
   }
 

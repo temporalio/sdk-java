@@ -267,9 +267,6 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     return new GetNexusOperationResultOutput<>(deserialized);
   }
 
-  /** Page size used when looping over list pages internally. */
-  private static final int LIST_PAGE_SIZE = 1000;
-
   @Override
   public ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input) {
@@ -282,8 +279,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     while (true) {
       ListNexusOperationExecutionsRequest.Builder request =
           ListNexusOperationExecutionsRequest.newBuilder()
-              .setNamespace(clientOptions.getNamespace())
-              .setPageSize(LIST_PAGE_SIZE);
+              .setNamespace(clientOptions.getNamespace());
       input.getQuery().ifPresent(request::setQuery);
       if (!token.isEmpty()) {
         request.setNextPageToken(token);
