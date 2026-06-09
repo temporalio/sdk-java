@@ -54,18 +54,20 @@ public class NexusClientCallsInterceptorBase implements NexusClientCallsIntercep
   }
 
   @Override
-  public void requestCancelNexusOperationExecution(
+  public RequestCancelNexusOperationExecutionOutput requestCancelNexusOperationExecution(
       RequestCancelNexusOperationExecutionInput input) {
-    next.requestCancelNexusOperationExecution(input);
+    return next.requestCancelNexusOperationExecution(input);
   }
 
   @Override
-  public void terminateNexusOperationExecution(TerminateNexusOperationExecutionInput input) {
-    next.terminateNexusOperationExecution(input);
+  public TerminateNexusOperationExecutionOutput terminateNexusOperationExecution(
+      TerminateNexusOperationExecutionInput input) {
+    return next.terminateNexusOperationExecution(input);
   }
 
   @Override
-  public void deleteNexusOperationExecution(DeleteNexusOperationExecutionInput input) {
-    next.deleteNexusOperationExecution(input);
+  public DeleteNexusOperationExecutionOutput deleteNexusOperationExecution(
+      DeleteNexusOperationExecutionInput input) {
+    return next.deleteNexusOperationExecution(input);
   }
 }

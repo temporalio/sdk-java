@@ -2,20 +2,21 @@ package io.temporal.common.interceptors;
 
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.Payload;
-import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
 import io.temporal.client.NexusClient;
+import io.temporal.client.NexusOperationExecutionCount;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationExecutionMetadata;
 import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -87,11 +88,12 @@ public interface NexusClientCallsInterceptor {
       GetNexusOperationResultInput<R> input);
 
   /**
-   * Lists standalone Nexus operation executions matching a Visibility query. Pagination is handled
-   * internally by the SDK; the returned output contains the full materialized result set.
+   * Lists standalone Nexus operation executions matching a Visibility query. The returned output
+   * contains a lazy {@link Stream} of deserialized {@link NexusOperationExecutionMetadata} objects;
+   * pages are fetched on demand as the stream is consumed.
    *
    * @param input Visibility query string
-   * @return output wrapping the matching operations
+   * @return output wrapping a lazy stream of matching operations
    */
   ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input);
@@ -111,24 +113,30 @@ public interface NexusClientCallsInterceptor {
    * request to the operation handler, which may honour or ignore it.
    *
    * @param input operation ID, optional run ID, and optional human-readable cancellation reason
+   * @return an empty output that exists so the call can carry fields in the future
    */
-  void requestCancelNexusOperationExecution(RequestCancelNexusOperationExecutionInput input);
+  RequestCancelNexusOperationExecutionOutput requestCancelNexusOperationExecution(
+      RequestCancelNexusOperationExecutionInput input);
 
   /**
    * Forcefully terminates a standalone Nexus operation. Unlike cancellation, termination is
    * immediate and cannot be intercepted by the operation handler.
    *
    * @param input operation ID, optional run ID, and optional human-readable termination reason
+   * @return an empty output that exists so the call can carry fields in the future
    */
-  void terminateNexusOperationExecution(TerminateNexusOperationExecutionInput input);
+  TerminateNexusOperationExecutionOutput terminateNexusOperationExecution(
+      TerminateNexusOperationExecutionInput input);
 
   /**
    * Deletes a closed standalone Nexus operation execution from the server's visibility store. The
    * operation must already be in a terminal state.
    *
    * @param input operation ID and optional run ID
+   * @return an empty output that exists so the call can carry fields in the future
    */
-  void deleteNexusOperationExecution(DeleteNexusOperationExecutionInput input);
+  DeleteNexusOperationExecutionOutput deleteNexusOperationExecution(
+      DeleteNexusOperationExecutionInput input);
 
   final class StartNexusOperationExecutionInput {
     private final String endpoint;
@@ -304,17 +312,18 @@ public interface NexusClientCallsInterceptor {
   }
 
   /**
-   * Result of a list call. Holds the full materialized result set; pagination is handled inside the
-   * SDK and not exposed through the interceptor surface.
+   * Result of a list call. Holds a lazy {@link Stream} of deserialized {@link
+   * NexusOperationExecutionMetadata} objects; pages are fetched on demand as the stream is
+   * consumed. A {@code Stream} is single-use and must not be consumed more than once.
    */
   final class ListNexusOperationExecutionsOutput {
-    private final List<NexusOperationExecutionListInfo> operations;
+    private final Stream<NexusOperationExecutionMetadata> operations;
 
-    public ListNexusOperationExecutionsOutput(List<NexusOperationExecutionListInfo> operations) {
-      this.operations = Collections.unmodifiableList(operations);
+    public ListNexusOperationExecutionsOutput(Stream<NexusOperationExecutionMetadata> operations) {
+      this.operations = operations;
     }
 
-    public List<NexusOperationExecutionListInfo> getOperations() {
+    public Stream<NexusOperationExecutionMetadata> getOperations() {
       return operations;
     }
   }
@@ -332,38 +341,14 @@ public interface NexusClientCallsInterceptor {
   }
 
   final class CountNexusOperationExecutionsOutput {
-    private final long count;
-    private final List<AggregationGroup> groups;
+    private final NexusOperationExecutionCount count;
 
-    public CountNexusOperationExecutionsOutput(long count, List<AggregationGroup> groups) {
+    public CountNexusOperationExecutionsOutput(NexusOperationExecutionCount count) {
       this.count = count;
-      this.groups = Collections.unmodifiableList(groups);
     }
 
-    public long getCount() {
+    public NexusOperationExecutionCount getCount() {
       return count;
-    }
-
-    public List<AggregationGroup> getGroups() {
-      return groups;
-    }
-
-    public static final class AggregationGroup {
-      private final List<Payload> groupValues;
-      private final long count;
-
-      public AggregationGroup(List<Payload> groupValues, long count) {
-        this.groupValues = Collections.unmodifiableList(groupValues);
-        this.count = count;
-      }
-
-      public List<Payload> getGroupValues() {
-        return groupValues;
-      }
-
-      public long getCount() {
-        return count;
-      }
     }
   }
 
@@ -392,6 +377,12 @@ public interface NexusClientCallsInterceptor {
     }
   }
 
+  final class RequestCancelNexusOperationExecutionOutput {
+    public RequestCancelNexusOperationExecutionOutput() {
+      // This output is intentionally empty and exists so it can carry fields in the future.
+    }
+  }
+
   final class TerminateNexusOperationExecutionInput {
     private final String operationId;
     private final @Nullable String runId;
@@ -417,6 +408,12 @@ public interface NexusClientCallsInterceptor {
     }
   }
 
+  final class TerminateNexusOperationExecutionOutput {
+    public TerminateNexusOperationExecutionOutput() {
+      // This output is intentionally empty and exists so it can carry fields in the future.
+    }
+  }
+
   final class DeleteNexusOperationExecutionInput {
     private final String operationId;
     private final @Nullable String runId;
@@ -432,6 +429,12 @@ public interface NexusClientCallsInterceptor {
 
     public Optional<String> getRunId() {
       return Optional.ofNullable(runId);
+    }
+  }
+
+  final class DeleteNexusOperationExecutionOutput {
+    public DeleteNexusOperationExecutionOutput() {
+      // This output is intentionally empty and exists so it can carry fields in the future.
     }
   }
 }

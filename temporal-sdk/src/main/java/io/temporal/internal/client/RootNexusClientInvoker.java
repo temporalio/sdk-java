@@ -23,7 +23,9 @@ import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateNexusOperationExecutionRequest;
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationAlreadyStartedException;
+import io.temporal.client.NexusOperationExecutionCount;
 import io.temporal.client.NexusOperationExecutionDescription;
+import io.temporal.client.NexusOperationExecutionMetadata;
 import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
@@ -38,6 +40,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
 /**
@@ -271,7 +274,8 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   public ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input) {
     // Pagination is an internal concern; the interceptor surface sees a single query in and a
-    // materialized list out. The loop bounds itself by the server-supplied next_page_token.
+    // stream of deserialized executions out. The loop bounds itself by the server-supplied
+    // next_page_token, accumulating all pages before streaming deserialized results.
     java.util.List<io.temporal.api.nexus.v1.NexusOperationExecutionListInfo> all =
         new java.util.ArrayList<>();
     com.google.protobuf.ByteString token = com.google.protobuf.ByteString.EMPTY;
@@ -292,7 +296,9 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
         break;
       }
     }
-    return new ListNexusOperationExecutionsOutput(all);
+    Stream<NexusOperationExecutionMetadata> stream =
+        all.stream().map(NexusOperationExecutionMetadata::fromListInfo);
+    return new ListNexusOperationExecutionsOutput(stream);
   }
 
   @Override
@@ -306,18 +312,18 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     CountNexusOperationExecutionsResponse response =
         genericClient.countNexusOperationExecutions(request.build());
 
-    java.util.List<CountNexusOperationExecutionsOutput.AggregationGroup> groups =
+    java.util.List<NexusOperationExecutionCount.AggregationGroup> groups =
         new java.util.ArrayList<>(response.getGroupsCount());
     for (CountNexusOperationExecutionsResponse.AggregationGroup g : response.getGroupsList()) {
       groups.add(
-          new CountNexusOperationExecutionsOutput.AggregationGroup(
-              g.getGroupValuesList(), g.getCount()));
+          new NexusOperationExecutionCount.AggregationGroup(g.getCount(), g.getGroupValuesList()));
     }
-    return new CountNexusOperationExecutionsOutput(response.getCount(), groups);
+    return new CountNexusOperationExecutionsOutput(
+        new NexusOperationExecutionCount(response.getCount(), groups));
   }
 
   @Override
-  public void requestCancelNexusOperationExecution(
+  public RequestCancelNexusOperationExecutionOutput requestCancelNexusOperationExecution(
       RequestCancelNexusOperationExecutionInput input) {
     RequestCancelNexusOperationExecutionRequest.Builder request =
         RequestCancelNexusOperationExecutionRequest.newBuilder()
@@ -332,10 +338,12 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     } catch (StatusRuntimeException e) {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
+    return new RequestCancelNexusOperationExecutionOutput();
   }
 
   @Override
-  public void terminateNexusOperationExecution(TerminateNexusOperationExecutionInput input) {
+  public TerminateNexusOperationExecutionOutput terminateNexusOperationExecution(
+      TerminateNexusOperationExecutionInput input) {
     TerminateNexusOperationExecutionRequest.Builder request =
         TerminateNexusOperationExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
@@ -349,10 +357,12 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     } catch (StatusRuntimeException e) {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
+    return new TerminateNexusOperationExecutionOutput();
   }
 
   @Override
-  public void deleteNexusOperationExecution(DeleteNexusOperationExecutionInput input) {
+  public DeleteNexusOperationExecutionOutput deleteNexusOperationExecution(
+      DeleteNexusOperationExecutionInput input) {
     DeleteNexusOperationExecutionRequest.Builder request =
         DeleteNexusOperationExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
@@ -363,6 +373,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     } catch (StatusRuntimeException e) {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
+    return new DeleteNexusOperationExecutionOutput();
   }
 
   /**

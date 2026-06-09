@@ -19,7 +19,6 @@ import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -131,12 +130,10 @@ public class NexusClientImpl implements NexusClient {
   @Override
   public Stream<NexusOperationExecutionMetadata> listNexusOperationExecutions(
       @Nullable String query) {
-    // Pagination is handled inside the interceptor invoker; we receive a fully materialized list
-    // and expose a Stream view of it to honour the public API contract.
     ListNexusOperationExecutionsOutput out =
         nexusClientCallsInvoker.listNexusOperationExecutions(
             new ListNexusOperationExecutionsInput(query));
-    return out.getOperations().stream().map(NexusOperationExecutionMetadata::fromListInfo);
+    return out.getOperations();
   }
 
   @Override
@@ -144,13 +141,6 @@ public class NexusClientImpl implements NexusClient {
     CountNexusOperationExecutionsOutput out =
         nexusClientCallsInvoker.countNexusOperationExecutions(
             new CountNexusOperationExecutionsInput(query));
-    List<NexusOperationExecutionCount.AggregationGroup> publicGroups =
-        out.getGroups().stream()
-            .map(
-                g ->
-                    new NexusOperationExecutionCount.AggregationGroup(
-                        g.getCount(), g.getGroupValues()))
-            .collect(Collectors.toList());
-    return new NexusOperationExecutionCount(out.getCount(), publicGroups);
+    return out.getCount();
   }
 }

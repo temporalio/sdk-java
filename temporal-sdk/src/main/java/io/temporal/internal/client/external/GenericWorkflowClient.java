@@ -103,6 +103,9 @@ public interface GenericWorkflowClient {
   StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request);
 
   @Experimental
+  PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request);
+
+  @Experimental
   PollActivityExecutionResponse pollActivity(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline);
 
@@ -118,6 +121,9 @@ public interface GenericWorkflowClient {
 
   @Experimental
   void terminateActivity(TerminateActivityExecutionRequest request);
+
+  @Experimental
+  ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request);
 
   @Experimental
   CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(
