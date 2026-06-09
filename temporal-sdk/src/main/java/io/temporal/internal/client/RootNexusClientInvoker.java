@@ -254,7 +254,14 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
           clientOptions.getDataConverter().failureToException(failure));
     }
     if (!response.hasResult()) {
-      return new GetNexusOperationResultOutput<>(null);
+      throw new NexusOperationFailedException(
+          "Nexus operation '"
+              + operationId
+              + "' is closed but the poll response carried neither a result nor a failure",
+          operationId,
+          runId,
+          new IllegalStateException(
+              "malformed PollNexusOperationExecutionResponse: outcome oneof is not set"));
     }
     Payload payload = response.getResult();
     R deserialized =
