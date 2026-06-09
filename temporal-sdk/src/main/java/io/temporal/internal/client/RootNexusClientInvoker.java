@@ -1,6 +1,7 @@
 package io.temporal.internal.client;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterators;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payload;
@@ -13,8 +14,6 @@ import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsResponse;
 import io.temporal.api.workflowservice.v1.DeleteNexusOperationExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeNexusOperationExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeNexusOperationExecutionResponse;
-import io.temporal.api.workflowservice.v1.ListNexusOperationExecutionsRequest;
-import io.temporal.api.workflowservice.v1.ListNexusOperationExecutionsResponse;
 import io.temporal.api.workflowservice.v1.PollNexusOperationExecutionRequest;
 import io.temporal.api.workflowservice.v1.PollNexusOperationExecutionResponse;
 import io.temporal.api.workflowservice.v1.RequestCancelNexusOperationExecutionRequest;
@@ -35,12 +34,15 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.serviceclient.StatusUtils;
+import java.util.Iterator;
 import java.util.Objects;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import javax.annotation.Nullable;
 
 /**
@@ -277,31 +279,18 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   @Override
   public ListNexusOperationExecutionsOutput listNexusOperationExecutions(
       ListNexusOperationExecutionsInput input) {
-    // Pagination is an internal concern; the interceptor surface sees a single query in and a
-    // stream of deserialized executions out. The loop bounds itself by the server-supplied
-    // next_page_token, accumulating all pages before streaming deserialized results.
-    java.util.List<io.temporal.api.nexus.v1.NexusOperationExecutionListInfo> all =
-        new java.util.ArrayList<>();
-    com.google.protobuf.ByteString token = com.google.protobuf.ByteString.EMPTY;
-    while (true) {
-      ListNexusOperationExecutionsRequest.Builder request =
-          ListNexusOperationExecutionsRequest.newBuilder()
-              .setNamespace(clientOptions.getNamespace());
-      input.getQuery().ifPresent(request::setQuery);
-      if (!token.isEmpty()) {
-        request.setNextPageToken(token);
-      }
-      ListNexusOperationExecutionsResponse response =
-          genericClient.listNexusOperationExecutions(request.build());
-      all.addAll(response.getOperationsList());
-      token = response.getNextPageToken();
-      if (token.isEmpty()) {
-        break;
-      }
-    }
-    Stream<NexusOperationExecutionMetadata> stream =
-        all.stream().map(NexusOperationExecutionMetadata::fromListInfo);
-    return new ListNexusOperationExecutionsOutput(stream);
+
+    ListNexusOperationExecutionIterator iterator =
+        new ListNexusOperationExecutionIterator(
+            input.getQuery().orElse(null), clientOptions.getNamespace(), genericClient);
+    iterator.init();
+    Iterator<NexusOperationExecutionMetadata> wrappedIterator =
+        Iterators.transform(iterator, NexusOperationExecutionMetadata::fromListInfo);
+
+    final int characteristics = Spliterator.ORDERED | Spliterator.NONNULL | Spliterator.IMMUTABLE;
+    return new ListNexusOperationExecutionsOutput(
+        StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(wrappedIterator, characteristics), false));
   }
 
   @Override

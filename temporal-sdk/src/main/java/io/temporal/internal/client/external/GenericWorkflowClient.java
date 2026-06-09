@@ -76,6 +76,9 @@ public interface GenericWorkflowClient {
   ListNexusOperationExecutionsResponse listNexusOperationExecutions(
       @Nonnull ListNexusOperationExecutionsRequest request);
 
+  CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
+      @Nonnull ListNexusOperationExecutionsRequest request);
+
   CountNexusOperationExecutionsResponse countNexusOperationExecutions(
       @Nonnull CountNexusOperationExecutionsRequest request);
 

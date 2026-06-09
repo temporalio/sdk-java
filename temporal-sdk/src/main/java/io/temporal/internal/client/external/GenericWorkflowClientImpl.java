@@ -377,6 +377,20 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
+  public CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
+      @Nonnull ListNexusOperationExecutionsRequest request) {
+    return grpcRetryer.retryWithResultAsync(
+        asyncThrottlerExecutor,
+        () ->
+            toCompletableFuture(
+                service
+                    .futureStub()
+                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .listNexusOperationExecutions(request)),
+        grpcRetryerOptions);
+  }
+
+  @Override
   public CountNexusOperationExecutionsResponse countNexusOperationExecutions(
       @Nonnull CountNexusOperationExecutionsRequest request) {
     return grpcRetryer.retryWithResult(

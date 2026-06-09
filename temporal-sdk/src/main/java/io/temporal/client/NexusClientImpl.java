@@ -115,16 +115,10 @@ public class NexusClientImpl implements NexusClient {
   @Override
   public UntypedNexusServiceClient newUntypedNexusServiceClient(
       String endpoint, String serviceName) {
-    return new UntypedNexusServiceClientImpl(
-        nexusClientCallsInvoker, endpoint, serviceName, options);
-  }
-
-  /**
-   * Returns the head of the interceptor chain. Package-private so service-client builders can route
-   * start RPCs through the chain without exposing it on the public {@link NexusClient} interface.
-   */
-  NexusClientCallsInterceptor getNexusClientCallsInvoker() {
-    return nexusClientCallsInvoker;
+    enforceNonWorkflowThread();
+    return WorkflowThreadMarker.protectFromWorkflowThread(
+        new UntypedNexusServiceClientImpl(nexusClientCallsInvoker, endpoint, serviceName, options),
+        UntypedNexusServiceClient.class);
   }
 
   @Override
