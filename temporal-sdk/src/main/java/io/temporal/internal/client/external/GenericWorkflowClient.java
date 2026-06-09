@@ -73,9 +73,6 @@ public interface GenericWorkflowClient {
   CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
       @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
 
-  ListNexusOperationExecutionsResponse listNexusOperationExecutions(
-      @Nonnull ListNexusOperationExecutionsRequest request);
-
   CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
       @Nonnull ListNexusOperationExecutionsRequest request);
 

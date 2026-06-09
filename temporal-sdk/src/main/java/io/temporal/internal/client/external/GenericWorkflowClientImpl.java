@@ -309,7 +309,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
-  // TODO -- EVAN -- START
   @Override
   public StartNexusOperationExecutionResponse startNexusOperationExecution(
       @Nonnull StartNexusOperationExecutionRequest request) {
@@ -362,18 +361,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
                     .withDeadline(deadline)
                     .pollNexusOperationExecution(request)),
         new GrpcRetryer.GrpcRetryerOptions(DefaultStubLongPollRpcRetryOptions.INSTANCE, deadline));
-  }
-
-  @Override
-  public ListNexusOperationExecutionsResponse listNexusOperationExecutions(
-      @Nonnull ListNexusOperationExecutionsRequest request) {
-    return grpcRetryer.retryWithResult(
-        () ->
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .listNexusOperationExecutions(request),
-        grpcRetryerOptions);
   }
 
   @Override
@@ -438,7 +425,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
         grpcRetryerOptions);
   }
 
-  // TODO -- EVAN -- END
   private static <T> CompletableFuture<T> toCompletableFuture(
       ListenableFuture<T> listenableFuture) {
     CompletableFuture<T> result = new CompletableFuture<>();
