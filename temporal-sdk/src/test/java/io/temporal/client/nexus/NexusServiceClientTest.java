@@ -54,7 +54,7 @@ public class NexusServiceClientTest {
         buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
     String result =
-        client.execute(TestNexusServices.TestNexusService1::operation, "hello", newOptionsWithId());
+        client.execute(TestNexusServices.TestNexusService1::operation, newOptionsWithId(), "hello");
 
     Assert.assertEquals("echo:hello", result);
   }
@@ -65,7 +65,7 @@ public class NexusServiceClientTest {
         buildServiceClient(testWorkflowRule.getNexusEndpoint());
 
     NexusOperationHandle<String> handle =
-        client.start(TestNexusServices.TestNexusService1::operation, "world", newOptionsWithId());
+        client.start(TestNexusServices.TestNexusService1::operation, newOptionsWithId(), "world");
 
     Assert.assertNotNull(handle.getNexusOperationId());
     Assert.assertEquals("echo:world", handle.getResult());
@@ -73,7 +73,7 @@ public class NexusServiceClientTest {
 
   @Test
   public void executeWithOptionsReturnsResult() {
-    // Covers the 3-arg execute(op, input, options) overload — exercises a non-default
+    // Covers the 3-arg execute(op, options, input) overload — exercises a non-default
     // scheduleToCloseTimeout in addition to the required id.
     StartNexusOperationOptions options =
         StartNexusOperationOptions.newBuilder()
@@ -83,7 +83,7 @@ public class NexusServiceClientTest {
 
     String result =
         buildServiceClient(testWorkflowRule.getNexusEndpoint())
-            .execute(TestNexusServices.TestNexusService1::operation, "with-opts", options);
+            .execute(TestNexusServices.TestNexusService1::operation, options, "with-opts");
 
     Assert.assertEquals("echo:with-opts", result);
   }
@@ -99,7 +99,7 @@ public class NexusServiceClientTest {
 
     NexusOperationHandle<String> handle =
         buildServiceClient(testWorkflowRule.getNexusEndpoint())
-            .start(TestNexusServices.TestNexusService1::operation, "id-test", options);
+            .start(TestNexusServices.TestNexusService1::operation, options, "id-test");
 
     Assert.assertEquals(
         "explicit ID supplied via StartNexusOperationOptions.setId must round-trip on the handle",
@@ -120,7 +120,7 @@ public class NexusServiceClientTest {
             .setSummary("per-call-summary")
             .build();
     NexusOperationHandle<String> handle =
-        client.start(TestNexusServices.TestNexusService1::operation, "world", startOptions);
+        client.start(TestNexusServices.TestNexusService1::operation, startOptions, "world");
 
     // Describe round-trips the operation through the server, proving the summary was actually
     // persisted on the server-side record rather than just forwarded through the local interceptor
@@ -161,7 +161,7 @@ public class NexusServiceClientTest {
 
     Void result =
         client.execute(
-            TestNexusServices.TestNexusServiceVoidReturn::operation, "ignored", newOptionsWithId());
+            TestNexusServices.TestNexusServiceVoidReturn::operation, newOptionsWithId(), "ignored");
 
     Assert.assertNull(result);
     Assert.assertEquals(

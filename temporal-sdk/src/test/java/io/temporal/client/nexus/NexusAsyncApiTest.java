@@ -56,7 +56,7 @@ public class NexusAsyncApiTest {
     String result =
         buildServiceClient()
             .executeAsync(
-                TestNexusServices.TestNexusService1::operation, "hello", newOptionsWithId())
+                TestNexusServices.TestNexusService1::operation, newOptionsWithId(), "hello")
             .get();
 
     Assert.assertEquals("echo:hello", result);
@@ -72,7 +72,7 @@ public class NexusAsyncApiTest {
 
     String result =
         buildServiceClient()
-            .executeAsync(TestNexusServices.TestNexusService1::operation, "world", options)
+            .executeAsync(TestNexusServices.TestNexusService1::operation, options, "world")
             .get();
 
     Assert.assertEquals("echo:world", result);
@@ -84,7 +84,7 @@ public class NexusAsyncApiTest {
   public void typedHandleGetResultAsyncReturnsResult() throws Exception {
     NexusOperationHandle<String> handle =
         buildServiceClient()
-            .start(TestNexusServices.TestNexusService1::operation, "typed", newOptionsWithId());
+            .start(TestNexusServices.TestNexusService1::operation, newOptionsWithId(), "typed");
 
     String result = handle.getResultAsync().get();
 
@@ -95,7 +95,7 @@ public class NexusAsyncApiTest {
   public void typedHandleGetResultAsyncWithTimeoutReturnsResult() throws Exception {
     NexusOperationHandle<String> handle =
         buildServiceClient()
-            .start(TestNexusServices.TestNexusService1::operation, "typed-tm", newOptionsWithId());
+            .start(TestNexusServices.TestNexusService1::operation, newOptionsWithId(), "typed-tm");
 
     // The 60s argument here exists to satisfy the API signature being exercised; the test rule's
     // global timeout will fail the test long before this value matters.
@@ -150,8 +150,8 @@ public class NexusAsyncApiTest {
         buildServiceClient()
             .executeAsync(
                 TestNexusServices.TestNexusService1::operation,
-                EchoNexusServiceImpl.FAIL_PREFIX + "boom",
-                newOptionsWithId());
+                newOptionsWithId(),
+                EchoNexusServiceImpl.FAIL_PREFIX + "boom");
 
     try {
       future.get();

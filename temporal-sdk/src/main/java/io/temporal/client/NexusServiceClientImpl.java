@@ -48,21 +48,21 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
 
   @Override
   public <U, R> NexusOperationHandle<R> start(
-      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options) {
+      Functions.Func2<T, U, R> operation, StartNexusOperationOptions options, U input) {
     Method method = MethodExtractor.extract(serviceInterface, operation);
     return startResolved(method, input, options);
   }
 
   @Override
   public <U, R> R execute(
-      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return start(operation, input, options).getResult();
+      Functions.Func2<T, U, R> operation, StartNexusOperationOptions options, U input) {
+    return start(operation, options, input).getResult();
   }
 
   @Override
   public <U, R> CompletableFuture<R> executeAsync(
-      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options) {
-    return start(operation, input, options).getResultAsync();
+      Functions.Func2<T, U, R> operation, StartNexusOperationOptions options, U input) {
+    return start(operation, options, input).getResultAsync();
   }
 
   @Override

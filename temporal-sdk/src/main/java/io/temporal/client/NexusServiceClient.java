@@ -37,21 +37,21 @@ import java.util.concurrent.CompletableFuture;
  *     .build();
  *
  * // Operation that takes an input (Func2 overload):
- * String hi = client.execute(GreeterService::greet, "Ada", options);
+ * String hi = client.execute(GreeterService::greet, options, "Ada");
  *
  * // Operation with no input (Func1 overload):
  * String t = client.execute(GreeterService::now, options);
  *
  * // Operation that returns Void: the same overloads work, R is just Void.
- * client.execute(GreeterService::log, "hello", options);
+ * client.execute(GreeterService::log, options, "hello");
  *
  * // Get a handle instead of blocking:
- * NexusOperationHandle<String> handle = client.start(GreeterService::greet, "Ada", options);
+ * NexusOperationHandle<String> handle = client.start(GreeterService::greet, options, "Ada");
  * String result = handle.getResult();
  *
  * // Run asynchronously:
  * CompletableFuture<String> future =
- *     client.executeAsync(GreeterService::greet, "Ada", options);
+ *     client.executeAsync(GreeterService::greet, options, "Ada");
  * }</pre>
  *
  * @param <T> the Nexus service interface this client is bound to
@@ -65,35 +65,35 @@ public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
    * Executes an operation synchronously with per-call options.
    *
    * @param operation a method reference on {@code T} identifying the operation
-   * @param input the operation input
    * @param options per-call options controlling timeouts, search attributes, etc.
+   * @param input the operation input
    * @return the operation result
    * @throws NexusOperationException if the operation failed, timed out, or was cancelled
    */
-  <U, R> R execute(Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options);
+  <U, R> R execute(Functions.Func2<T, U, R> operation, StartNexusOperationOptions options, U input);
 
   /**
    * Starts an operation with per-call options and returns a typed handle.
    *
    * @param operation a method reference on {@code T} identifying the operation
-   * @param input the operation input
    * @param options per-call options controlling timeouts, search attributes, etc.
+   * @param input the operation input
    * @return a typed handle bound to the started operation
    */
   <U, R> NexusOperationHandle<R> start(
-      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options);
+      Functions.Func2<T, U, R> operation, StartNexusOperationOptions options, U input);
 
   /**
-   * Async variant of {@link #execute(Functions.Func2, Object, StartNexusOperationOptions)}. Returns
+   * Async variant of {@link #execute(Functions.Func2, StartNexusOperationOptions, Object)}. Returns
    * a {@link CompletableFuture} that completes with the typed result, or completes exceptionally if
    * the operation fails.
    *
    * @param operation a method reference on {@code T} identifying the operation
-   * @param input the operation input
    * @param options per-call options controlling timeouts, search attributes, etc.
+   * @param input the operation input
    */
   <U, R> CompletableFuture<R> executeAsync(
-      Functions.Func2<T, U, R> operation, U input, StartNexusOperationOptions options);
+      Functions.Func2<T, U, R> operation, StartNexusOperationOptions options, U input);
 
   /**
    * Executes a no-input operation synchronously with per-call options. Use this overload for Nexus
