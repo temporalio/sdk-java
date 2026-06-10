@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 public interface StorageDriverSelector {
   /**
    * Returns the driver to store {@code payload}, which must be one of the drivers registered in the
-   * {@link ExternalStorage}, or {@code null} to leave the payload stored inline.
+   * {@link ExternalStorageOptions}, or {@code null} to leave the payload stored inline.
    */
   @Nullable
   StorageDriver selectDriver(@Nonnull StorageDriverStoreContext context, @Nonnull Payload payload);
