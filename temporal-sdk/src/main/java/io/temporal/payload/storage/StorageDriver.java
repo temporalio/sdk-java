@@ -11,7 +11,7 @@ import javax.annotation.Nonnull;
 public interface StorageDriver {
   /**
    * Name of this driver instance, unique among the drivers registered in a single {@link
-   * ExternalStorage}. Used as the routing key recorded in a stored payload's reference and resolved
+   * ExternalStorageOptions}. Used as the routing key recorded in a stored payload's reference and resolved
    * back to this driver on retrieval.
    */
   @Nonnull
