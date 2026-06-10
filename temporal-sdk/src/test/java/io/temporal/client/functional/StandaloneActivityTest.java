@@ -98,7 +98,6 @@ public class StandaloneActivityTest {
 
   @ActivityInterface
   public interface RetryThenSucceedActivity {
-    /** Fails on attempt 1, returns the server-side attempt number on attempt >= 2. */
     @ActivityMethod(name = "RetryThenSucceed")
     int run();
   }
