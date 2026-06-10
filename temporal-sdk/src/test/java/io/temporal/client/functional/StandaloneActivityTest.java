@@ -1055,7 +1055,7 @@ public class StandaloneActivityTest {
         StartActivityOptions.newBuilder()
             .setId(uniqueId())
             .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setScheduleToCloseTimeout(Duration.ofSeconds(3))
+            .setScheduleToCloseTimeout(Duration.ofSeconds(1))
             .setStartDelay(Duration.ofSeconds(2))
             .build();
     String result =
@@ -1169,7 +1169,7 @@ public class StandaloneActivityTest {
     Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
     assertTrue(
         "Duration.ZERO should not introduce dispatch latency, was " + between,
-        between.compareTo(Duration.ofSeconds(3)) < 0);
+        between.compareTo(Duration.ofSeconds(1)) < 0);
   }
 
   // ---------------------------------------------------------------------------
