@@ -5,12 +5,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import javax.annotation.Nonnull;
 
-/** Hash helpers shared by external storage drivers. */
+/** Computes payload hashes shared by external storage drivers. */
 @Experimental
-public final class PayloadStorageHashes {
+public final class PayloadHasher {
   private static final char[] HEX = "0123456789abcdef".toCharArray();
 
-  private PayloadStorageHashes() {}
+  private PayloadHasher() {}
 
   /** Returns the lower-case SHA-256 hex digest of {@code data}. */
   @Nonnull
