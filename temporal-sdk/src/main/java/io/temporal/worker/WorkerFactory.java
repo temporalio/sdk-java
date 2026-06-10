@@ -268,17 +268,8 @@ public final class WorkerFactory {
                 DescribeNamespaceRequest.newBuilder()
                     .setNamespace(workflowClient.getOptions().getNamespace())
                     .build());
-    if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getWorkerHeartbeats()) {
-      namespaceCapabilities.setWorkerHeartbeats(true);
-    } else {
-      log.debug(
-          "Server does not support worker heartbeats for namespace {}",
-          workflowClient.getOptions().getNamespace());
-    }
-
-    if (describeNamespaceResponse.getNamespaceInfo().getCapabilities().getPollerAutoscaling()) {
-      namespaceCapabilities.setPollerAutoscaling(true);
-    }
+    namespaceCapabilities.setFromCapabilities(
+        describeNamespaceResponse.getNamespaceInfo().getCapabilities());
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;
@@ -321,7 +312,7 @@ public final class WorkerFactory {
         Supplier<WorkerHeartbeat> heartbeatSupplier =
             worker.buildHeartbeatCallback(workerGroupingKey);
         hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
-        worker.workflowWorker.setHeartbeatSupplier(heartbeatSupplier);
+        worker.setHeartbeatSupplier(heartbeatSupplier);
       }
     }
 
@@ -411,7 +402,8 @@ public final class WorkerFactory {
 
   /** Internal method that actually shuts down workers. Called from the plugin chain. */
   private void doShutdown(boolean interruptUserTasks) {
-    ShutdownManager shutdownManager = new ShutdownManager();
+    ShutdownManager shutdownManager =
+        new ShutdownManager((int) factoryOptions.getShutdownCheckInterval().toMillis());
 
     // Shutdown each worker with plugin hooks
     List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();

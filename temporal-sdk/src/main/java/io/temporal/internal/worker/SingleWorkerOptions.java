@@ -40,6 +40,7 @@ public final class SingleWorkerOptions {
     private Duration drainStickyTaskQueueTimeout;
     private boolean usingVirtualThreads;
     private WorkerDeploymentOptions deploymentOptions;
+    private String workerInstanceKey;
 
     private Builder() {}
 
@@ -64,6 +65,7 @@ public final class SingleWorkerOptions {
       this.drainStickyTaskQueueTimeout = options.getDrainStickyTaskQueueTimeout();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
       this.deploymentOptions = options.getDeploymentOptions();
+      this.workerInstanceKey = options.getWorkerInstanceKey();
     }
 
     public Builder setIdentity(String identity) {
@@ -155,6 +157,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setWorkerInstanceKey(String workerInstanceKey) {
+      this.workerInstanceKey = workerInstanceKey;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -193,7 +200,8 @@ public final class SingleWorkerOptions {
           this.defaultHeartbeatThrottleInterval,
           drainStickyTaskQueueTimeout,
           usingVirtualThreads,
-          this.deploymentOptions);
+          this.deploymentOptions,
+          this.workerInstanceKey);
     }
   }
 
@@ -214,6 +222,7 @@ public final class SingleWorkerOptions {
   private final Duration drainStickyTaskQueueTimeout;
   private final boolean usingVirtualThreads;
   private final WorkerDeploymentOptions deploymentOptions;
+  private final String workerInstanceKey;
 
   private SingleWorkerOptions(
       String identity,
@@ -232,7 +241,8 @@ public final class SingleWorkerOptions {
       Duration defaultHeartbeatThrottleInterval,
       Duration drainStickyTaskQueueTimeout,
       boolean usingVirtualThreads,
-      WorkerDeploymentOptions deploymentOptions) {
+      WorkerDeploymentOptions deploymentOptions,
+      String workerInstanceKey) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -250,6 +260,7 @@ public final class SingleWorkerOptions {
     this.drainStickyTaskQueueTimeout = drainStickyTaskQueueTimeout;
     this.usingVirtualThreads = usingVirtualThreads;
     this.deploymentOptions = deploymentOptions;
+    this.workerInstanceKey = workerInstanceKey;
   }
 
   public String getIdentity() {
@@ -329,6 +340,10 @@ public final class SingleWorkerOptions {
 
   public WorkerDeploymentOptions getDeploymentOptions() {
     return deploymentOptions;
+  }
+
+  public String getWorkerInstanceKey() {
+    return workerInstanceKey;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

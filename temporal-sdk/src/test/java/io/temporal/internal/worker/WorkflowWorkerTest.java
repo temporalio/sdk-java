@@ -14,7 +14,6 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
-import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
@@ -30,12 +29,8 @@ import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -74,12 +69,11 @@ public class WorkflowWorkerTest {
             client,
             "default",
             "task_queue",
-            "test-worker-instance-key",
-            java.util.Collections::emptyList,
             "sticky_task_queue",
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(3))
@@ -246,12 +240,11 @@ public class WorkflowWorkerTest {
             client,
             "default",
             "task_queue",
-            "test-worker-instance-key",
-            java.util.Collections::emptyList,
             "sticky_task_queue",
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -391,12 +384,11 @@ public class WorkflowWorkerTest {
             client,
             "default",
             "taskQueue",
-            "test-worker-instance-key",
-            java.util.Collections::emptyList,
             "sticky",
             SingleWorkerOptions.newBuilder()
                 .setIdentity("test_identity")
                 .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
                 .setPollerOptions(
                     PollerOptions.newBuilder()
                         .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -442,80 +434,6 @@ public class WorkflowWorkerTest {
     assertEquals(Long.valueOf(1), resetEventIdQueue.take());
     // Cleanup
     worker.shutdown(new ShutdownManager(), true).get();
-  }
-
-  @Test
-  public void activeTaskQueueTypesEvaluatedAtShutdownTime() throws Exception {
-    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
-    when(client.getServerCapabilities())
-        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
-
-    WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
-    Scope metricsScope = new NoopScope();
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
-    SlotSupplier<WorkflowSlotInfo> slotSupplier = new FixedSizeSlotSupplier<>(10);
-
-    WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
-    when(taskHandler.isAnyTypeSupported()).thenReturn(true);
-
-    // Supplier that starts with WORKFLOW only, then adds NEXUS later
-    AtomicReference<List<TaskQueueType>> typesRef =
-        new AtomicReference<>(Arrays.asList(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW));
-    Supplier<List<TaskQueueType>> supplier = typesRef::get;
-
-    EagerActivityDispatcher eagerActivityDispatcher = mock(EagerActivityDispatcher.class);
-    WorkflowWorker worker =
-        new WorkflowWorker(
-            client,
-            "default",
-            "task_queue",
-            "test-worker-instance-key",
-            supplier,
-            null,
-            SingleWorkerOptions.newBuilder()
-                .setIdentity("test_identity")
-                .setBuildId(UUID.randomUUID().toString())
-                .setPollerOptions(
-                    PollerOptions.newBuilder()
-                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
-                        .build())
-                .setMetricsScope(metricsScope)
-                .build(),
-            runLockManager,
-            cache,
-            taskHandler,
-            eagerActivityDispatcher,
-            slotSupplier,
-            new NamespaceCapabilities());
-
-    // Simulate registering Nexus after construction
-    typesRef.set(
-        Arrays.asList(
-            TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW,
-            TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY,
-            TaskQueueType.TASK_QUEUE_TYPE_NEXUS));
-
-    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
-        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
-    when(client.futureStub()).thenReturn(futureStub);
-    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
-        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
-
-    worker.shutdown(new ShutdownManager(), true).get(5, TimeUnit.SECONDS);
-
-    org.mockito.ArgumentCaptor<ShutdownWorkerRequest> captor =
-        org.mockito.ArgumentCaptor.forClass(ShutdownWorkerRequest.class);
-    verify(futureStub).shutdownWorker(captor.capture());
-    List<TaskQueueType> shutdownTypes = captor.getValue().getTaskQueueTypesList();
-    assertTrue(
-        "ShutdownWorkerRequest should include NEXUS type added after construction",
-        shutdownTypes.contains(TaskQueueType.TASK_QUEUE_TYPE_NEXUS));
-    assertTrue(
-        "ShutdownWorkerRequest should include WORKFLOW type",
-        shutdownTypes.contains(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW));
-    assertTrue(
-        "ShutdownWorkerRequest should include ACTIVITY type",
-        shutdownTypes.contains(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY));
   }
 
   private ReplayWorkflowFactory setUpMockWorkflowFactory() throws Throwable {

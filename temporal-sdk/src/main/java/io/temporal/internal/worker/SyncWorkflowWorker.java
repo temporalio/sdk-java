@@ -3,9 +3,7 @@ package io.temporal.internal.worker;
 import static io.temporal.internal.common.InternalUtils.createStickyTaskQueue;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.taskqueue.v1.TaskQueue;
-import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -24,11 +22,9 @@ import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
 import java.lang.reflect.Type;
 import java.time.Duration;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.*;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -64,8 +60,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowClient client,
       @Nonnull String namespace,
       @Nonnull String taskQueue,
-      @Nonnull String workerInstanceKey,
-      @Nonnull Supplier<List<TaskQueueType>> activeTaskQueueTypesSupplier,
       @Nonnull SingleWorkerOptions singleWorkerOptions,
       @Nonnull SingleWorkerOptions localActivityOptions,
       @Nonnull WorkflowRunLockManager runLocks,
@@ -123,8 +117,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             client.getWorkflowServiceStubs(),
             namespace,
             taskQueue,
-            workerInstanceKey,
-            activeTaskQueueTypesSupplier,
             stickyTaskQueueName,
             singleWorkerOptions,
             runLocks,
@@ -248,10 +240,6 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   public TrackingSlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
     return laWorker.getSlotSupplier();
-  }
-
-  public void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
-    workflowWorker.setHeartbeatSupplier(supplier);
   }
 
   public boolean hasStickyQueue() {

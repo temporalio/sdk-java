@@ -3,6 +3,8 @@ package io.temporal.worker.shutdown;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
+import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -53,6 +55,7 @@ public class StickyWorkflowDrainShutdownTest {
 
   @Test
   public void testShutdown() throws InterruptedException {
+    boolean gracefulPollShutdownSupported = isGracefulPollShutdownSupported();
     TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
     WorkflowClient.start(workflow::execute, null);
     testWorkflowRule.getTestEnvironment().shutdown();
@@ -62,10 +65,16 @@ public class StickyWorkflowDrainShutdownTest {
     assertTrue(testWorkflowRule.getTestEnvironment().getWorkerFactory().isTerminated());
     System.out.println("Shutdown completed");
     long endTime = System.currentTimeMillis();
-    assertTrue("Drain time should be respected", endTime - startTime > DRAIN_TIME.toMillis());
-    // Workflow should complete successfully since the drain time is longer than the workflow
-    // execution time
-    assertEquals("Success", workflow.execute(null));
+    WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
+    if (gracefulPollShutdownSupported) {
+      assertTrue("Drain time should be skipped", endTime - startTime < DRAIN_TIME.toMillis());
+      untyped.terminate("test cleanup");
+    } else {
+      assertTrue("Drain time should be respected", endTime - startTime > DRAIN_TIME.toMillis());
+      // Workflow should complete successfully since the drain time is longer than the workflow
+      // execution time.
+      assertEquals("Success", untyped.getResult(String.class));
+    }
   }
 
   @Test
@@ -93,5 +102,18 @@ public class StickyWorkflowDrainShutdownTest {
       }
       return "Success";
     }
+  }
+
+  private boolean isGracefulPollShutdownSupported() {
+    DescribeNamespaceResponse response =
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .describeNamespace(
+                DescribeNamespaceRequest.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .build());
+    return response.getNamespaceInfo().getCapabilities().getWorkerPollCompleteOnShutdown();
   }
 }
