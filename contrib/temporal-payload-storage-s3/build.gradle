@@ -1,0 +1,18 @@
+description = '''Temporal Java SDK External Storage Driver for AWS S3'''
+
+ext {
+    awsSdkVersion = '2.31.0'
+}
+
+dependencies {
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
+
+    api platform("software.amazon.awssdk:bom:$awsSdkVersion")
+    api "software.amazon.awssdk:s3"
+
+    testImplementation project(':temporal-serviceclient')
+    testImplementation project(':temporal-sdk')
+    testImplementation "junit:junit:${junitVersion}"
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
