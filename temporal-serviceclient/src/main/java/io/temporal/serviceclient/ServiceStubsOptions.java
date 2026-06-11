@@ -114,6 +114,9 @@ public class ServiceStubsOptions {
 
   protected final Scope metricsScope;
 
+  /** Transport-level gRPC compression. */
+  protected final GrpcCompression grpcCompression;
+
   ServiceStubsOptions(ServiceStubsOptions that) {
     this.channel = that.channel;
     this.target = that.target;
@@ -135,6 +138,7 @@ public class ServiceStubsOptions {
     this.grpcMetadataProviders = that.grpcMetadataProviders;
     this.grpcClientInterceptors = that.grpcClientInterceptors;
     this.metricsScope = that.metricsScope;
+    this.grpcCompression = that.grpcCompression;
   }
 
   ServiceStubsOptions(
@@ -157,7 +161,8 @@ public class ServiceStubsOptions {
       Metadata headers,
       Collection<GrpcMetadataProvider> grpcMetadataProviders,
       Collection<ClientInterceptor> grpcClientInterceptors,
-      Scope metricsScope) {
+      Scope metricsScope,
+      GrpcCompression grpcCompression) {
     this.channel = channel;
     this.target = target;
     this.channelInitializer = channelInitializer;
@@ -178,6 +183,7 @@ public class ServiceStubsOptions {
     this.grpcMetadataProviders = grpcMetadataProviders;
     this.grpcClientInterceptors = grpcClientInterceptors;
     this.metricsScope = metricsScope;
+    this.grpcCompression = grpcCompression;
   }
 
   /**
@@ -342,6 +348,15 @@ public class ServiceStubsOptions {
     return metricsScope;
   }
 
+  /**
+   * @return transport-level gRPC compression used for requests and response negotiation.
+   * @see Builder#setGrpcCompression(GrpcCompression)
+   */
+  @Nonnull
+  public GrpcCompression getGrpcCompression() {
+    return grpcCompression;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -366,7 +381,8 @@ public class ServiceStubsOptions {
         && Objects.equals(headers, that.headers)
         && Objects.equals(grpcMetadataProviders, that.grpcMetadataProviders)
         && Objects.equals(grpcClientInterceptors, that.grpcClientInterceptors)
-        && Objects.equals(metricsScope, that.metricsScope);
+        && Objects.equals(metricsScope, that.metricsScope)
+        && grpcCompression == that.grpcCompression;
   }
 
   @Override
@@ -391,7 +407,8 @@ public class ServiceStubsOptions {
         headers,
         grpcMetadataProviders,
         grpcClientInterceptors,
-        metricsScope);
+        metricsScope,
+        grpcCompression);
   }
 
   @Override
@@ -436,6 +453,8 @@ public class ServiceStubsOptions {
         + grpcClientInterceptors
         + ", metricsScope="
         + metricsScope
+        + ", grpcCompression="
+        + grpcCompression
         + '}';
   }
 
@@ -460,6 +479,7 @@ public class ServiceStubsOptions {
     private Collection<ClientInterceptor> grpcClientInterceptors;
     private Scope metricsScope;
     private boolean apiKeyProvided;
+    private GrpcCompression grpcCompression = GrpcCompression.GZIP;
 
     protected Builder() {}
 
@@ -491,6 +511,7 @@ public class ServiceStubsOptions {
               ? new ArrayList<>(options.grpcClientInterceptors)
               : null;
       this.metricsScope = options.metricsScope;
+      this.grpcCompression = options.grpcCompression;
     }
 
     /**
@@ -721,6 +742,22 @@ public class ServiceStubsOptions {
     }
 
     /**
+     * Sets transport-level gRPC compression. Defaults to {@link GrpcCompression#GZIP}. Set to
+     * {@link GrpcCompression#NONE} to opt out.
+     *
+     * <p>For SDK-created channels, this controls both request compression and the {@code
+     * grpc-accept-encoding} response negotiation header. For user-supplied channels, the SDK still
+     * controls request compression, but response decompression negotiation is configured by the
+     * supplied channel.
+     *
+     * @return {@code this}
+     */
+    public T setGrpcCompression(GrpcCompression grpcCompression) {
+      this.grpcCompression = Objects.requireNonNull(grpcCompression);
+      return self();
+    }
+
+    /**
      * Set the time to wait between service responses on each health check.
      *
      * @return {@code this}
@@ -853,7 +890,8 @@ public class ServiceStubsOptions {
           this.headers,
           this.grpcMetadataProviders,
           this.grpcClientInterceptors,
-          this.metricsScope);
+          this.metricsScope,
+          this.grpcCompression);
     }
 
     public ServiceStubsOptions validateAndBuildWithDefaults() {
@@ -916,7 +954,8 @@ public class ServiceStubsOptions {
           headers,
           grpcMetadataProviders,
           grpcClientInterceptors,
-          metricsScope);
+          metricsScope,
+          this.grpcCompression);
     }
   }
 }

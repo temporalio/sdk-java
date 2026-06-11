@@ -161,6 +161,7 @@ final class ChannelManager {
 
     return ClientInterceptors.intercept(
         channel,
+        new GrpcCompressionInterceptor(options.getGrpcCompression()),
         MetadataUtils.newAttachHeadersInterceptor(headers),
         new SystemInfoInterceptor(serverCapabilitiesFuture));
   }
@@ -205,6 +206,8 @@ final class ChannelManager {
     } else {
       builder.useTransportSecurity();
     }
+
+    builder.decompressorRegistry(options.getGrpcCompression().getDecompressorRegistry());
 
     // Disable built-in idleTimer until https://github.com/grpc/grpc-java/issues/8714 is resolved.
     // jsdk force-idles channels often anyway, so this is not needed until we stop doing
