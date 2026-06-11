@@ -13,6 +13,8 @@ import io.temporal.failure.TerminatedFailure;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.worker.PollerOptions;
+import io.temporal.serviceclient.GrpcCompression;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testUtils.LoggerUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestActivities;
@@ -24,6 +26,8 @@ import org.junit.Test;
 public class GrpcMessageTooLargeTest {
   private static final String QUERY_ERROR_MESSAGE =
       "Failed to send query response: RESOURCE_EXHAUSTED: grpc: received message larger than max";
+  private static final WorkflowServiceStubsOptions GRPC_COMPRESSION_DISABLED =
+      WorkflowServiceStubsOptions.newBuilder().setGrpcCompression(GrpcCompression.NONE).build();
   private static final String VERY_LARGE_DATA;
 
   static {
@@ -39,21 +43,31 @@ public class GrpcMessageTooLargeTest {
   @Rule
   public SDKTestWorkflowRule activityStartWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setWorkflowServiceStubsOptions(GRPC_COMPRESSION_DISABLED)
           .setWorkflowTypes(ActivityStartWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
           .build();
 
   @Rule
   public SDKTestWorkflowRule failureWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(FailureWorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowServiceStubsOptions(GRPC_COMPRESSION_DISABLED)
+          .setWorkflowTypes(FailureWorkflowImpl.class)
+          .build();
 
   @Rule
   public SDKTestWorkflowRule querySuccessWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(QuerySuccessWorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowServiceStubsOptions(GRPC_COMPRESSION_DISABLED)
+          .setWorkflowTypes(QuerySuccessWorkflowImpl.class)
+          .build();
 
   @Rule
   public SDKTestWorkflowRule queryFailureWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(QueryFailureWorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowServiceStubsOptions(GRPC_COMPRESSION_DISABLED)
+          .setWorkflowTypes(QueryFailureWorkflowImpl.class)
+          .build();
 
   @Test
   public void workflowStartTooLarge() {
