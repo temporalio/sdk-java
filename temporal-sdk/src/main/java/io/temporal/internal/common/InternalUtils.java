@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
   public static String TEMPORAL_RESERVED_PREFIX = "__temporal_";
+  public static final String WORKFLOW_STREAM_RESERVED_PREFIX = "__temporal_workflow_stream_";
 
   private static final Logger log = LoggerFactory.getLogger(InternalUtils.class);
   private static String QUERY_TYPE_STACK_TRACE = "__stack_trace";
@@ -159,9 +160,21 @@ public final class InternalUtils {
     return new NexusWorkflowStarter(stub.newInstance(nexusWorkflowOptions.build()), operationToken);
   }
 
+  /**
+   * Returns true if the given name is in the {@code __temporal_workflow_stream_} sub-namespace,
+   * which is reserved for the workflow streams contrib module and permitted for signal, update, and
+   * query handler registration.
+   */
+  public static boolean isWorkflowStreamReservedName(String name) {
+    return name.startsWith(WORKFLOW_STREAM_RESERVED_PREFIX);
+  }
+
   /** Check the method name for reserved prefixes or names. */
   public static void checkMethodName(POJOWorkflowMethodMetadata methodMetadata) {
-    if (methodMetadata.getName().startsWith(TEMPORAL_RESERVED_PREFIX)) {
+    boolean workflowStreamExempt =
+        !methodMetadata.getType().equals(WorkflowMethodType.WORKFLOW)
+            && isWorkflowStreamReservedName(methodMetadata.getName());
+    if (methodMetadata.getName().startsWith(TEMPORAL_RESERVED_PREFIX) && !workflowStreamExempt) {
       throw new IllegalArgumentException(
           methodMetadata.getType().toString().toLowerCase()
               + " name \""
