@@ -100,7 +100,9 @@ public class ExternalStorageOptionsTest {
 
   @Test(expected = IllegalStateException.class)
   public void duplicateDriverNamesRejected() {
-    ExternalStorageOptions.newBuilder().setDrivers(Arrays.asList(driver("dup"), driver("dup"))).build();
+    ExternalStorageOptions.newBuilder()
+        .setDrivers(Arrays.asList(driver("dup"), driver("dup")))
+        .build();
   }
 
   @Test(expected = IllegalStateException.class)
