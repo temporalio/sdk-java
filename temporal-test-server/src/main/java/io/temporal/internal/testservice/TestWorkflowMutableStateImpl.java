@@ -37,7 +37,6 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflow.v1.*;
-import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ServerFailure;

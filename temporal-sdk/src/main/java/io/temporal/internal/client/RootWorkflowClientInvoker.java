@@ -10,7 +10,6 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.*;
-import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
@@ -103,29 +102,14 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               e);
         }
       }
+      // If this start is being issued from inside a Nexus operation handler, stash only the
+      // forward operation->workflow link from the start response so NexusStartWorkflowHelper can
+      // attach it to the WorkflowExecutionStarted event. Unlike signal/signalWithStart, start
+      // deliberately does NOT add a backlink here: the operation->workflow relationship is already
+      // captured by the forward link, so re-adding response.getLink() as a backlink would duplicate
+      // it on the caller's history event. Do not "restore symmetry" by calling addBacklink here.
       if (CurrentNexusOperationContext.isNexusContext()) {
-        // Auto-capture the start-workflow backlink so the task handler drains it onto the
-        // StartOperationResponse, the same path used for signal/signalWithStart responses.
-        if (response.hasLink()) {
-          CurrentNexusOperationContext.get().addBacklink(response.getLink());
-        } else {
-          // Older servers (pre-1.31) don't return a link on the start response. Fabricate one
-          // pointing at the started workflow's WorkflowExecutionStarted event so the caller still
-          // gets a backlink.
-          CurrentNexusOperationContext.get()
-              .addBacklink(
-                  Link.newBuilder()
-                      .setWorkflowEvent(
-                          Link.WorkflowEvent.newBuilder()
-                              .setNamespace(clientOptions.getNamespace())
-                              .setWorkflowId(execution.getWorkflowId())
-                              .setRunId(execution.getRunId())
-                              .setEventRef(
-                                  Link.WorkflowEvent.EventReference.newBuilder()
-                                      .setEventType(
-                                          EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)))
-                      .build());
-        }
+        CurrentNexusOperationContext.get().setStartWorkflowResponseLink(response.getLink());
       }
       return new WorkflowStartOutput(execution);
     }

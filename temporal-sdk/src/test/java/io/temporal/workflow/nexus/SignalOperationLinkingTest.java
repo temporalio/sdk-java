@@ -95,14 +95,11 @@ public class SignalOperationLinkingTest {
   @Test
   public void testMultiSignalOperationLinks() {
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    List<String> calleeIds =
-        Arrays.asList(
-            "multi-callee-a-" + UUID.randomUUID(),
-            "multi-callee-b-" + UUID.randomUUID(),
-            "multi-callee-c-" + UUID.randomUUID());
+    List<String> calleeIds = Arrays.asList("multicallee-a", "multicallee-b", "multicallee-c");
 
     TestWorkflows.TestWorkflow1 callerStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class, "caller");
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.TestWorkflow1.class, "multicaller");
     String result =
         callerStub.execute(MODE_MULTI_SIGNAL_WITH_START + ":" + String.join(",", calleeIds));
     Assert.assertEquals("ok:multi:" + String.join(",", calleeIds), result);
@@ -153,10 +150,11 @@ public class SignalOperationLinkingTest {
   @Test
   public void testAsyncSignalOperationLinks() {
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    String calleeWorkflowId = "async-callee-" + UUID.randomUUID();
+    String calleeWorkflowId = "async-callee";
 
     TestWorkflows.TestWorkflow1 callerStub =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class, "caller");
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.TestWorkflow1.class, "async-caller");
     String result = callerStub.execute(MODE_ASYNC_SIGNAL_WITH_START + ":" + calleeWorkflowId);
     Assert.assertEquals("async-started", result);
 
@@ -184,7 +182,7 @@ public class SignalOperationLinkingTest {
   /** Drive the two-signal flow (signalWithStart + plain signal) and assert link propagation. */
   private void runTwoSignalScenario() {
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
-    String calleeWorkflowId = "signal-callee-" + UUID.randomUUID();
+    String calleeWorkflowId = "callee";
 
     TestWorkflows.TestWorkflow1 callerStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class, "caller");
