@@ -114,6 +114,7 @@ jobs:
               --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
               --dynamic-config-value frontend.activityAPIsEnabled=true \
               --dynamic-config-value activity.enableStandalone=true \
+              --dynamic-config-value nexusoperation.enableStandalone=true \
               --dynamic-config-value history.enableChasm=true \
               --dynamic-config-value history.enableTransitionHistory=true &
           sleep 10s
