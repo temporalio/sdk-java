@@ -37,7 +37,6 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflow.v1.*;
-import io.temporal.api.workflow.v1.OnConflictOptions;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ServerFailure;
@@ -622,7 +621,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
     update(
         ctx -> {
-          OnConflictOptions options = request.getOnConflictOptions();
+          io.temporal.api.workflow.v1.OnConflictOptions options = request.getOnConflictOptions();
           String requestId = null;
           List<Callback> completionCallbacks = null;
           List<Link> links = null;
