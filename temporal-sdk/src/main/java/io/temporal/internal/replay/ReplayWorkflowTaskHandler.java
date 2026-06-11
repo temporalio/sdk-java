@@ -99,18 +99,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       Result result;
 
       if (directQuery) {
-        // Direct query happens when there is no reason (events) to produce a real persisted
-        // workflow task.
-        // But Server needs to notify the workflow about the query and get back the query result.
-        // Server creates a fake non-persisted a PollWorkflowTaskResponse with just the query.
-        // This WFT has no new events in the history to process
-        // and the worker response on such a WFT can't contain any new commands either.
+        // A direct query is when the server needs to notify the workflow about queries (and get back the query
+        // results), but there are no new events in history. In this situation the server creates a
+        // PollWorkflowTaskResponse (i.e. a WFT) with the queries but without new events in the history. The worker
+        // response to such a WFT may not contain any new commands.
         QueryResult queryResult =
             workflowRunTaskHandler.handleDirectQueryWorkflowTask(workflowTask, historyIterator);
         finalCommand = queryResult.isWorkflowMethodCompleted();
         result = createDirectQueryResult(workflowTask, queryResult, null);
       } else {
-        // main code path, handle workflow task that can have an embedded query
+        // Main code path; handle workflow task (with events, and perhaps also queries).
         WorkflowTaskResult wftResult =
             workflowRunTaskHandler.handleWorkflowTask(workflowTask, historyIterator);
         finalCommand = wftResult.isFinalCommand();

@@ -146,7 +146,7 @@ public interface ActivityExecutionContext {
   Scope getMetricsScope();
 
   /**
-   * Get a {@link WorkflowClient} that can be used to start interact with the Temporal service from
+   * Get a {@link WorkflowClient} that can be used to interact with the Temporal service from
    * an activity.
    */
   WorkflowClient getWorkflowClient();
