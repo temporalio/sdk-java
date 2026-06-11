@@ -7,6 +7,7 @@ import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.Duration;
 import io.nexusrpc.Header;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.Payload;
@@ -240,6 +241,49 @@ public class NexusTaskHandlerImplTest {
   }
 
   /**
+   * Failure path: a handler that stashes a backlink (as a successful signal RPC would) and then
+   * throws afterwards must NOT leak the captured backlink onto the failure response. Backlinks are
+   * only drained on the success branch of {@link NexusTaskHandlerImpl#handleStartOperation}; the
+   * failure branch builds a {@code StartOperationResponse.failure} that carries no links.
+   */
+  @Test
+  public void failureResponseDropsCapturedBacklinks() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(
+        new Object[] {new BacklinkStashingThenThrowingServiceImpl()});
+    nexusTaskHandlerImpl.start();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService1")
+                            .setPayload(dataConverter.toPayload("input").get())
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+
+    Assert.assertNull(result.getHandlerException());
+    StartOperationResponse response = result.getResponse().getStartOperation();
+    Assert.assertEquals(
+        "expected the failure response variant",
+        StartOperationResponse.VariantCase.FAILURE,
+        response.getVariantCase());
+    // The handler captured a backlink before throwing; the failure response must not carry it
+    // (and has no links field at all).
+    Assert.assertFalse(
+        "failure response variant should not expose any success-path links",
+        response.hasSyncSuccess() || response.hasAsyncSuccess());
+  }
+
+  /**
    * Handler that simulates what a real Nexus operation would do after issuing a signal: stash a
    * backlink on the operation context, then return an async result. Lets us exercise the
    * async-response link merge in {@link NexusTaskHandlerImpl} without standing up a real signal
@@ -295,6 +339,35 @@ public class NexusTaskHandlerImplTest {
                     .build();
             CurrentNexusOperationContext.get().addBacklink(backlink);
             return "result";
+          });
+    }
+  }
+
+  /**
+   * Stashes a backlink on the operation context (as a successful signal RPC would) and then throws
+   * an {@link OperationException}, exercising the failure branch of {@link
+   * NexusTaskHandlerImpl#handleStartOperation}.
+   */
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public class BacklinkStashingThenThrowingServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return OperationHandler.sync(
+          (ctx, details, input) -> {
+            Link backlink =
+                Link.newBuilder()
+                    .setWorkflowEvent(
+                        Link.WorkflowEvent.newBuilder()
+                            .setNamespace(NAMESPACE)
+                            .setWorkflowId("callee-wf")
+                            .setRunId("callee-run-id")
+                            .setEventRef(
+                                Link.WorkflowEvent.EventReference.newBuilder()
+                                    .setEventType(
+                                        EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
+                    .build();
+            CurrentNexusOperationContext.get().addBacklink(backlink);
+            throw OperationException.failed("boom after capturing a backlink");
           });
     }
   }

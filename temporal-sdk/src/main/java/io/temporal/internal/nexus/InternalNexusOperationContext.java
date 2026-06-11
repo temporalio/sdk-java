@@ -18,6 +18,11 @@ public class InternalNexusOperationContext {
   private final Scope metricScope;
   private final WorkflowClient client;
   NexusOperationOutboundCallsInterceptor outboundCalls;
+  // Link returned by the StartWorkflowExecution response when the operation is backed by a workflow
+  // (workflow-run operations). Read by NexusStartWorkflowHelper to attach the forward
+  // operation->workflow link, fabricating a WORKFLOW_EXECUTION_STARTED link when the server omits
+  // one. Distinct from the signal backlinks below.
+  Link startWorkflowResponseLink;
   // Links extracted from the inbound Nexus task. Stored once at the task-handler boundary so the
   // workflow client can attach them to the outgoing requests it issues (e.g. signal,
   // signalWithStart) via the request's links field.
@@ -28,9 +33,9 @@ public class InternalNexusOperationContext {
   // by the task handler when building StartOperationResponse so each RPC the handler issued gets a
   // corresponding link on the caller workflow's history event.
   //
-  // This context is only safe for use from the single thread that runs the operation handler (the
-  // Nexus task executor's thread); the backing ArrayList is not synchronized. Handlers must not
-  // mutate it from other threads.
+  // A handler may issue RPCs from multiple threads, so every read and write of this list is guarded
+  // by backlinksLock and getBacklinks() returns a defensive copy taken under the lock.
+  private final Object backlinksLock = new Object();
   private final List<Link> responseBacklinks = new ArrayList<>();
 
   public InternalNexusOperationContext(
@@ -90,6 +95,14 @@ public class InternalNexusOperationContext {
     return Collections.unmodifiableList(nexusOperationLinks);
   }
 
+  public void setStartWorkflowResponseLink(Link link) {
+    this.startWorkflowResponseLink = link;
+  }
+
+  public Link getStartWorkflowResponseLink() {
+    return startWorkflowResponseLink;
+  }
+
   /**
    * Append a backlink returned by an outbound RPC the operation handler issued (e.g. signal,
    * signalWithStart, etc). The task handler drains the list when building the operation's
@@ -97,7 +110,9 @@ public class InternalNexusOperationContext {
    */
   public void addBacklink(Link link) {
     if (link != null) {
-      this.responseBacklinks.add(link);
+      synchronized (backlinksLock) {
+        responseBacklinks.add(link);
+      }
     }
   }
 
@@ -109,7 +124,9 @@ public class InternalNexusOperationContext {
    * drained afterward by the task handler when building the StartOperationResponse.
    */
   public @Nonnull List<Link> getBacklinks() {
-    return Collections.unmodifiableList(responseBacklinks);
+    synchronized (backlinksLock) {
+      return Collections.unmodifiableList(new ArrayList<>(responseBacklinks));
+    }
   }
 
   private class NexusOperationContextImpl implements NexusOperationContext {
