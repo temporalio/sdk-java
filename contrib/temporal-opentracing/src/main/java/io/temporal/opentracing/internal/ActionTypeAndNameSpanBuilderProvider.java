@@ -84,6 +84,15 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
+      case START_STANDALONE_ACTIVITY:
+      case RUN_STANDALONE_ACTIVITY:
+      case GET_STANDALONE_ACTIVITY_RESULT:
+      case DESCRIBE_STANDALONE_ACTIVITY:
+      case CANCEL_STANDALONE_ACTIVITY:
+      case TERMINATE_STANDALONE_ACTIVITY:
+        return ImmutableMap.of(StandardTagNames.ACTIVITY_ID, context.getActivityId());
+      case LIST_STANDALONE_ACTIVITIES:
+      case COUNT_STANDALONE_ACTIVITIES:
       case RUN_START_NEXUS_OPERATION:
       case RUN_CANCEL_NEXUS_OPERATION:
       case HANDLE_QUERY:

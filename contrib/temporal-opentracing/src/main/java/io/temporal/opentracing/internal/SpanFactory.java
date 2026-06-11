@@ -186,6 +186,52 @@ public class SpanFactory {
     return createSpan(context, tracer, nexusStartSpanContext, References.FOLLOWS_FROM);
   }
 
+  public Tracer.SpanBuilder createStandaloneActivityStartSpan(
+      Tracer tracer, String activityType, String activityId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.START_STANDALONE_ACTIVITY)
+            .setActionName(activityType)
+            .setActivityId(activityId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createStandaloneActivityRunSpan(
+      Tracer tracer,
+      String activityType,
+      String activityId,
+      SpanContext activityStartSpanContext) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(SpanOperationType.RUN_STANDALONE_ACTIVITY)
+            .setActionName(activityType)
+            .setActivityId(activityId)
+            .build();
+    return createSpan(context, tracer, activityStartSpanContext, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createStandaloneActivityOperationSpan(
+      Tracer tracer, SpanOperationType operationType, String activityId) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(operationType)
+            .setActionName("StandaloneActivity")
+            .setActivityId(activityId)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
+  public Tracer.SpanBuilder createStandaloneActivityQuerySpan(
+      Tracer tracer, SpanOperationType operationType, String query) {
+    SpanCreationContext context =
+        SpanCreationContext.newBuilder()
+            .setSpanOperationType(operationType)
+            .setActionName(query)
+            .build();
+    return createSpan(context, tracer, null, References.FOLLOWS_FROM);
+  }
+
   public Tracer.SpanBuilder createWorkflowStartUpdateSpan(
       Tracer tracer, String updateName, String workflowId, String runId) {
     SpanCreationContext context =
