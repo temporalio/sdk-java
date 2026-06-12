@@ -9,6 +9,10 @@ project(':temporal-opentracing').projectDir = file('contrib/temporal-opentracing
 include 'temporal-kotlin'
 include 'temporal-spring-ai'
 project(':temporal-spring-ai').projectDir = file('contrib/temporal-spring-ai')
+include 'temporal-payload-storage-s3driver'
+project(':temporal-payload-storage-s3driver').projectDir = file('contrib/temporal-payload-storage-s3driver')
+include 'temporal-payload-storage-s3driver-awssdkv2'
+project(':temporal-payload-storage-s3driver-awssdkv2').projectDir = file('contrib/temporal-payload-storage-s3driver-awssdkv2')
 include 'temporal-spring-boot-autoconfigure'
 include 'temporal-spring-boot-starter'
 include 'temporal-remote-data-encoder'
