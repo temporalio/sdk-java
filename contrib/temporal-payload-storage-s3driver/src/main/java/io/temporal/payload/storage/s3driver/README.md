@@ -64,13 +64,25 @@ v0/d/{hash-algorithm}/{hex-digest}
 
 ### Percent-encoding rules
 
-1. Treat each key path component as UTF-8 bytes.
-2. Leave ASCII letters and digits unescaped.
-3. Leave `-`, `_`, and `.` unescaped. These are the only punctuation characters that are both in the
-   RFC 3986 unreserved set and in the set AWS documents as safe for S3 object keys. Everything else,
-   including `~`, is escaped.
-4. Encode all other bytes as `%` followed by two uppercase hexadecimal digits.
-5. Empty or null values are encoded as the literal string `null`.
+The Temporal SDKs escape anything that isn't listed in S3's safe character set: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+
+Safe Characters:
+```text
+Alphanumeric characters	
+  0-9
+  a-z
+  A-Z
+
+Special characters	
+  Exclamation point (!)
+  Hyphen (-)
+  Underscore (_)
+  Period (.)
+  Asterisk (*)
+  Single quotation mark (')
+  Opening parenthesis (()
+  Closing parenthesis ())
+```
 
 ### Examples
 
