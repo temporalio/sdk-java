@@ -1,0 +1,13 @@
+description = '''Temporal Java SDK External Storage S3 Driver'''
+
+dependencies {
+    // No cloud SDK dependency: the driver works against any S3StorageDriverClient implementation.
+    // The AWS SDK v2 client lives in the separate temporal-payload-storage-s3driver-awssdkv2 module.
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
+
+    testImplementation project(':temporal-serviceclient')
+    testImplementation project(':temporal-sdk')
+    testImplementation "junit:junit:${junitVersion}"
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
