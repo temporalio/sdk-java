@@ -11,9 +11,8 @@ final class CompletableFutures {
   private CompletableFutures() {}
 
   /**
-   * Completes with the results in input order once every future succeeds, or fails fast with the
-   * first failure's (unwrapped) cause as soon as any future fails. Supports cooperative
-   * cancellation.
+   * Completes with the results in input order once every future succeeds. Fails fast with the first
+   * failure's cause as soon as any future fails, without waiting for the rest.
    */
   static <T> CompletableFuture<List<T>> allAsList(List<CompletableFuture<T>> futures) {
     CompletableFuture<List<T>> result = new CompletableFuture<>();
