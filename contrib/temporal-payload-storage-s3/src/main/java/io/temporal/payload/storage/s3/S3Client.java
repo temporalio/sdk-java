@@ -6,7 +6,11 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-/** Interface for S3 {@link S3StorageDriver} operations: upload, existence check, and download. */
+/**
+ * Interface for S3 {@link S3StorageDriver} operations: upload, existence check, and download.
+ *
+ * <p>Cancelling a returned future makes a best-effort attempt to abort the in-flight requests.
+ */
 @Experimental
 public interface S3Client {
   /**

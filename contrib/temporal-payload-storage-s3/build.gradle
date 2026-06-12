@@ -14,5 +14,6 @@ dependencies {
     testImplementation project(':temporal-serviceclient')
     testImplementation project(':temporal-sdk')
     testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }

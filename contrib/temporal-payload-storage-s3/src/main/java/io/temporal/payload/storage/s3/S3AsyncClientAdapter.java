@@ -7,14 +7,18 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import javax.annotation.Nonnull;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
@@ -33,20 +37,21 @@ public final class S3AsyncClientAdapter implements S3Client {
   @Override
   public CompletableFuture<Void> putObject(
       @Nonnull String bucket, @Nonnull String key, @Nonnull byte[] data) {
-    // fromBytesUnsafe avoids a defensive copy of data; the driver never mutates it after this call.
-    return client
-        .putObject(
+    CompletableFuture<PutObjectResponse> request =
+        client.putObject(
             PutObjectRequest.builder().bucket(bucket).key(key).build(),
-            AsyncRequestBody.fromBytesUnsafe(data))
-        .thenApply(response -> (Void) null);
+            AsyncRequestBody.fromBytesUnsafe(data)); // avoids a defensive copy
+    return abortRequestOnCancel(request, request.thenApply(response -> (Void) null));
   }
 
   @Nonnull
   @Override
   public CompletableFuture<Boolean> objectExists(@Nonnull String bucket, @Nonnull String key) {
-    return client
-        .headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build())
-        .handle(
+    CompletableFuture<HeadObjectResponse> request =
+        client.headObject(HeadObjectRequest.builder().bucket(bucket).key(key).build());
+    return abortRequestOnCancel(
+        request,
+        request.handle(
             (response, ex) -> {
               if (ex == null) {
                 return true;
@@ -63,18 +68,33 @@ public final class S3AsyncClientAdapter implements S3Client {
                 throw (RuntimeException) cause;
               }
               throw new RuntimeException(cause);
-            });
+            }));
   }
 
   @Nonnull
   @Override
   public CompletableFuture<byte[]> getObject(@Nonnull String bucket, @Nonnull String key) {
-    return client
-        .getObject(
+    CompletableFuture<ResponseBytes<GetObjectResponse>> request =
+        client.getObject(
             GetObjectRequest.builder().bucket(bucket).key(key).build(),
-            AsyncResponseTransformer.toBytes())
-        // asByteArrayUnsafe avoids a copy; the driver only reads the bytes (hash + parse).
-        .thenApply(response -> response.asByteArrayUnsafe());
+            AsyncResponseTransformer.toBytes());
+    return abortRequestOnCancel(request, request.thenApply(ResponseBytes::asByteArrayUnsafe));
+  }
+
+  /**
+   * Returns {@code result}, wired so that cancelling it cancels the underlying {@code request}. The
+   * AWS SDK aborts an async request when the future it returns is cancelled. Cancellation does not
+   * otherwise propagate across the {@code thenApply}/{@code handle} boundary.
+   */
+  private static <T> CompletableFuture<T> abortRequestOnCancel(
+      CompletableFuture<?> request, CompletableFuture<T> result) {
+    result.whenComplete(
+        (value, ex) -> {
+          if (result.isCancelled()) {
+            request.cancel(true);
+          }
+        });
+    return result;
   }
 
   @Nonnull

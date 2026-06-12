@@ -3,29 +3,55 @@ package io.temporal.payload.storage.s3;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 final class CompletableFutures {
   private CompletableFutures() {}
 
   /**
-   * Returns a future that completes when all of the given futures complete, yielding a list of
-   * their results. If any future completes exceptionally, the returned future also completes
-   * exceptionally with the same exception. If the input list is empty, the returned future
-   * completes immediately with an empty list.
-   *
-   * @param <T>
-   * @param futures
-   * @return
+   * Completes with the results in input order once every future succeeds, or fails fast with the
+   * first failure's (unwrapped) cause as soon as any future fails. Supports cooperative
+   * cancellation.
    */
-  static <T> CompletableFuture<List<T>> allOf(List<CompletableFuture<T>> futures) {
-    return CompletableFuture.allOf(futures.toArray(new CompletableFuture<?>[0]))
-        .thenApply(
-            ignored -> {
+  static <T> CompletableFuture<List<T>> allAsList(List<CompletableFuture<T>> futures) {
+    CompletableFuture<List<T>> result = new CompletableFuture<>();
+    if (futures.isEmpty()) {
+      result.complete(new ArrayList<>());
+      return result;
+    }
+    AtomicInteger remaining = new AtomicInteger(futures.size());
+    for (CompletableFuture<T> future : futures) {
+      future.whenComplete(
+          (value, ex) -> {
+            if (ex != null) {
+              result.completeExceptionally(unwrap(ex));
+            } else if (remaining.decrementAndGet() == 0) {
               List<T> results = new ArrayList<>(futures.size());
-              for (CompletableFuture<T> future : futures) {
-                results.add(future.join());
+              for (CompletableFuture<T> completed : futures) {
+                results.add(completed.join());
               }
-              return results;
-            });
+              result.complete(results);
+            }
+          });
+    }
+    result.whenComplete(
+        (value, ex) -> {
+          if (ex != null) {
+            for (CompletableFuture<T> future : futures) {
+              future.cancel(true);
+            }
+          }
+        });
+    return result;
+  }
+
+  static Throwable unwrap(Throwable t) {
+    while ((t instanceof CompletionException || t instanceof ExecutionException)
+        && t.getCause() != null) {
+      t = t.getCause();
+    }
+    return t;
   }
 }

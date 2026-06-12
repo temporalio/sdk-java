@@ -476,6 +476,58 @@ public class S3StorageDriverTest {
     assertTrue(message, message.endsWith(", client_region=ap-southeast-2]: throttled"));
   }
 
+  @Test(timeout = 5000)
+  public void storeFailsFastAndCancelsInFlightUploads() {
+    // The first upload fails; the second stays pending. The batch must surface the failure promptly
+    // (rather than blocking on the pending upload), as an unwrapped S3StorageException, and must
+    // cancel the still-running upload.
+    HoldSecondUploadClient client = new HoldSecondUploadClient();
+    S3StorageDriver driver = S3StorageDriver.newBuilder().setClient(client).setBucket("b").build();
+
+    CompletableFuture<List<StorageDriverClaim>> future =
+        driver.store(storeContext(), Arrays.asList(payload("a"), payload("b")));
+
+    try {
+      future.join();
+      fail("expected the future to fail");
+    } catch (CompletionException e) {
+      assertTrue(String.valueOf(e.getCause()), e.getCause() instanceof S3StorageException);
+      assertTrue(e.getCause().getMessage(), e.getCause().getMessage().endsWith(": boom"));
+    }
+    assertTrue("the in-flight upload should be cancelled", client.secondUpload.isCancelled());
+  }
+
+  /**
+   * Fails the first upload and leaves the second pending (cancellable), to exercise fail-fast and
+   * in-flight cancellation.
+   */
+  private static final class HoldSecondUploadClient implements S3Client {
+    private final AtomicInteger puts = new AtomicInteger();
+    final CompletableFuture<Void> secondUpload = new CompletableFuture<>();
+
+    @Override
+    public CompletableFuture<Void> putObject(String bucket, String key, byte[] data) {
+      if (puts.incrementAndGet() == 1) {
+        CompletableFuture<Void> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("boom"));
+        return failed;
+      }
+      return secondUpload;
+    }
+
+    @Override
+    public CompletableFuture<Boolean> objectExists(String bucket, String key) {
+      return CompletableFuture.completedFuture(false);
+    }
+
+    @Override
+    public CompletableFuture<byte[]> getObject(String bucket, String key) {
+      CompletableFuture<byte[]> failed = new CompletableFuture<>();
+      failed.completeExceptionally(new UnsupportedOperationException());
+      return failed;
+    }
+  }
+
   /** In-memory {@link S3Client} with optional error injection, for unit tests. */
   private static final class InMemoryS3Client implements S3Client {
     final Map<String, byte[]> objects = new ConcurrentHashMap<>();

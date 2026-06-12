@@ -15,8 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 
 /**
@@ -90,17 +89,26 @@ public final class S3StorageDriver implements StorageDriver {
       String bucket = bucketResolver.resolveBucket(context, payload);
       String key = S3StorageKey.forPayload(target, HASH_ALGORITHM, hexDigest);
       String location = storageLocation(bucket, key, describeSuffix);
-      claimFutures.add(
-          withFailureContext(client.objectExists(bucket, key), "existence check failed " + location)
+
+      CompletableFuture<Boolean> existsRequest = client.objectExists(bucket, key);
+      // We track current inflight request for cancellation
+      AtomicReference<CompletableFuture<?>> inFlightRequest = new AtomicReference<>(existsRequest);
+      CompletableFuture<StorageDriverClaim> claimFuture =
+          withFailureContext(existsRequest, "existence check failed " + location)
               .thenCompose(
-                  exists ->
-                      exists
-                          ? CompletableFuture.<Void>completedFuture(null)
-                          : withFailureContext(
-                              client.putObject(bucket, key, data), "upload failed " + location))
-              .thenApply(ignored -> claimFor(bucket, key, hexDigest)));
+                  exists -> {
+                    if (exists) {
+                      return CompletableFuture.<Void>completedFuture(null);
+                    }
+                    CompletableFuture<Void> uploadRequest = client.putObject(bucket, key, data);
+                    inFlightRequest.set(uploadRequest);
+                    return withFailureContext(uploadRequest, "upload failed " + location);
+                  })
+              .thenApply(ignored -> claimFor(bucket, key, hexDigest));
+      cancelRequestWhenCancelled(claimFuture, inFlightRequest);
+      claimFutures.add(claimFuture);
     }
-    return CompletableFutures.allOf(claimFutures);
+    return CompletableFutures.allAsList(claimFutures);
   }
 
   @Nonnull
@@ -122,12 +130,14 @@ public final class S3StorageDriver implements StorageDriver {
         continue;
       }
       String location = storageLocation(bucket, key, describeSuffix);
+      CompletableFuture<byte[]> downloadRequest = client.getObject(bucket, key);
       CompletableFuture<Payload> payloadFuture =
-          withFailureContext(client.getObject(bucket, key), "download failed " + location)
+          withFailureContext(downloadRequest, "download failed " + location)
               .thenApply(data -> verifyAndParse(claimData, bucket, key, data));
+      cancelRequestWhenCancelled(payloadFuture, downloadRequest);
       payloadFutures.add(payloadFuture);
     }
-    return CompletableFutures.allOf(payloadFutures);
+    return CompletableFutures.allAsList(payloadFutures);
   }
 
   private StorageDriverClaim claimFor(String bucket, String key, String hexDigest) {
@@ -193,6 +203,32 @@ public final class S3StorageDriver implements StorageDriver {
     return new S3StorageException("claim missing field \"" + field + "\"");
   }
 
+  /**
+   * Cancels {@code request} when {@code pipeline} is cancelled
+   */
+  private static void cancelRequestWhenCancelled(
+      CompletableFuture<?> pipeline, CompletableFuture<?> request) {
+    pipeline.whenComplete(
+        (value, ex) -> {
+          if (pipeline.isCancelled()) {
+            request.cancel(true);
+          }
+        });
+  }
+
+  /**
+   * Cancels {@code request} when {@code pipeline} is cancelled
+   */
+  private static void cancelRequestWhenCancelled(
+      CompletableFuture<?> pipeline, AtomicReference<CompletableFuture<?>> inFlightRequest) {
+    pipeline.whenComplete(
+        (value, ex) -> {
+          if (pipeline.isCancelled()) {
+            inFlightRequest.get().cancel(true);
+          }
+        });
+  }
+
   private static <T> CompletableFuture<T> withFailureContext(
       CompletableFuture<T> future, String failureMessage) {
     return future.handle(
@@ -200,7 +236,7 @@ public final class S3StorageDriver implements StorageDriver {
           if (ex == null) {
             return value;
           }
-          Throwable cause = unwrap(ex);
+          Throwable cause = CompletableFutures.unwrap(ex);
           String causeMessage = cause.getMessage() != null ? cause.getMessage() : cause.toString();
           throw new S3StorageException(failureMessage + ": " + causeMessage, cause);
         });
@@ -210,14 +246,6 @@ public final class S3StorageDriver implements StorageDriver {
     CompletableFuture<T> future = new CompletableFuture<>();
     future.completeExceptionally(t);
     return future;
-  }
-
-  private static Throwable unwrap(Throwable t) {
-    while ((t instanceof CompletionException || t instanceof ExecutionException)
-        && t.getCause() != null) {
-      t = t.getCause();
-    }
-    return t;
   }
 
   public static final class Builder {
