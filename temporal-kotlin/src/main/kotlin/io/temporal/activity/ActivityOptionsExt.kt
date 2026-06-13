@@ -28,7 +28,7 @@ inline fun ActivityOptions.copy(
  * @see ActivityOptions.Builder.setRetryOptions
  * @see ActivityOptions.getRetryOptions
  */
-inline fun ActivityOptions.Builder.setRetryOptions(
+inline fun @TemporalDsl ActivityOptions.Builder.setRetryOptions(
   retryOptions: @TemporalDsl RetryOptions.Builder.() -> Unit
 ) {
   setRetryOptions(RetryOptions(retryOptions))
