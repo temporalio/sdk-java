@@ -26,7 +26,7 @@ inline fun WorkflowOptions.copy(
  * @see WorkflowOptions.Builder.setRetryOptions
  * @see WorkflowOptions.getRetryOptions
  */
-inline fun WorkflowOptions.Builder.setRetryOptions(
+inline fun @TemporalDsl WorkflowOptions.Builder.setRetryOptions(
   retryOptions: @TemporalDsl RetryOptions.Builder.() -> Unit
 ) {
   setRetryOptions(RetryOptions(retryOptions))

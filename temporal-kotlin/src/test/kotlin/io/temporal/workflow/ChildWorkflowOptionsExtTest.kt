@@ -33,6 +33,27 @@ class ChildWorkflowOptionsExtTest {
   }
 
   @Test
+  fun `setRetryOptions DSL extension should work on ChildWorkflowOptions builder directly`() {
+    val builder = ChildWorkflowOptions.newBuilder().setTaskQueue("TestQueue")
+    builder.setRetryOptions {
+      setInitialInterval(Duration.ofMillis(50))
+      setMaximumAttempts(3)
+    }
+
+    val expected = ChildWorkflowOptions.newBuilder()
+      .setTaskQueue("TestQueue")
+      .setRetryOptions(
+        RetryOptions.newBuilder()
+          .setInitialInterval(Duration.ofMillis(50))
+          .setMaximumAttempts(3)
+          .build()
+      )
+      .build()
+
+    assertEquals(expected, builder.build())
+  }
+
+  @Test
   fun `ChildWorkflowOptions copy() DSL should merge override options`() {
     val sourceOptions = ChildWorkflowOptions {
       setTaskQueue("TestQueue")
