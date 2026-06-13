@@ -139,11 +139,6 @@ public class SpanFactory {
   }
 
   public Tracer.SpanBuilder createActivityStartSpan(
-      Tracer tracer, String activityType, String workflowId, String runId) {
-    return createActivityStartSpan(tracer, activityType, workflowId, runId, null);
-  }
-
-  public Tracer.SpanBuilder createActivityStartSpan(
       Tracer tracer,
       String activityType,
       @Nullable String workflowId,
