@@ -6,7 +6,7 @@ This module provides a set of Interceptors that adds support for OpenTracing Spa
 
 You want to register two interceptors - one on the Temporal client side, another on the worker side:
 
-1. Client configuration:
+1. Workflow Client configuration:
     ```java
     WorkflowClientOptions.newBuilder()
        //...
@@ -19,6 +19,16 @@ You want to register two interceptors - one on the Temporal client side, another
        //...
        .setWorkerInterceptors(new OpenTracingWorkerInterceptor())
        .build();
+    ```
+
+3. Standalone Activity Client configuration:
+    ```java
+    ActivityClientOptions activityClientOptions =
+        ActivityClientOptions.newBuilder()
+            //...
+            .setInterceptors(Collections.singletonList(new OpenTracingActivityClientInterceptor()))
+            .build();
+    ActivityClient activityClient = ActivityClient.newInstance(service, activityClientOptions);
     ```
 
 ## [OpenTelemetry](https://opentelemetry.io/)
@@ -37,5 +47,4 @@ to hook their OpenTelemetry setup and make it available for OpenTracing API:
     //or io.opentracing.Tracer tracer = OpenTracingShim.createTracerShim(openTelemetry);
     GlobalTracer.registerIfAbsent(tracer);
 ```
-
 
