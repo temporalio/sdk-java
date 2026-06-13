@@ -37,6 +37,7 @@ public final class ContinueAsNewOptions {
     private String taskQueue;
     private RetryOptions retryOptions;
     private Duration workflowTaskTimeout;
+    private Duration backoffStartInterval;
     private Map<String, Object> memo;
     private Map<String, Object> searchAttributes;
     private SearchAttributes typedSearchAttributes;
@@ -57,6 +58,7 @@ public final class ContinueAsNewOptions {
       this.taskQueue = options.taskQueue;
       this.retryOptions = options.retryOptions;
       this.workflowTaskTimeout = options.workflowTaskTimeout;
+      this.backoffStartInterval = options.backoffStartInterval;
       this.memo = options.getMemo();
       this.searchAttributes = options.getSearchAttributes();
       this.typedSearchAttributes = options.getTypedSearchAttributes();
@@ -82,6 +84,12 @@ public final class ContinueAsNewOptions {
 
     public Builder setWorkflowTaskTimeout(Duration workflowTaskTimeout) {
       this.workflowTaskTimeout = workflowTaskTimeout;
+      return this;
+    }
+
+    /** Sets the delay before the first workflow task of the continued run is scheduled. */
+    public Builder setBackoffStartInterval(Duration backoffStartInterval) {
+      this.backoffStartInterval = backoffStartInterval;
       return this;
     }
 
@@ -152,6 +160,7 @@ public final class ContinueAsNewOptions {
           taskQueue,
           retryOptions,
           workflowTaskTimeout,
+          backoffStartInterval,
           memo,
           searchAttributes,
           typedSearchAttributes,
@@ -165,6 +174,7 @@ public final class ContinueAsNewOptions {
   private final @Nullable String taskQueue;
   private final @Nullable RetryOptions retryOptions;
   private final @Nullable Duration workflowTaskTimeout;
+  private final @Nullable Duration backoffStartInterval;
   private final @Nullable Map<String, Object> memo;
   private final @Nullable Map<String, Object> searchAttributes;
   private final @Nullable SearchAttributes typedSearchAttributes;
@@ -186,10 +196,37 @@ public final class ContinueAsNewOptions {
       @Nullable List<ContextPropagator> contextPropagators,
       @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent,
       @Nullable InitialVersioningBehavior initialVersioningBehavior) {
+    this(
+        workflowRunTimeout,
+        taskQueue,
+        retryOptions,
+        workflowTaskTimeout,
+        null,
+        memo,
+        searchAttributes,
+        typedSearchAttributes,
+        contextPropagators,
+        versioningIntent,
+        initialVersioningBehavior);
+  }
+
+  public ContinueAsNewOptions(
+      @Nullable Duration workflowRunTimeout,
+      @Nullable String taskQueue,
+      @Nullable RetryOptions retryOptions,
+      @Nullable Duration workflowTaskTimeout,
+      @Nullable Duration backoffStartInterval,
+      @Nullable Map<String, Object> memo,
+      @Nullable Map<String, Object> searchAttributes,
+      @Nullable SearchAttributes typedSearchAttributes,
+      @Nullable List<ContextPropagator> contextPropagators,
+      @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent,
+      @Nullable InitialVersioningBehavior initialVersioningBehavior) {
     this.workflowRunTimeout = workflowRunTimeout;
     this.taskQueue = taskQueue;
     this.retryOptions = retryOptions;
     this.workflowTaskTimeout = workflowTaskTimeout;
+    this.backoffStartInterval = backoffStartInterval;
     this.memo = memo;
     this.searchAttributes = searchAttributes;
     this.typedSearchAttributes = typedSearchAttributes;
@@ -213,6 +250,14 @@ public final class ContinueAsNewOptions {
 
   public @Nullable Duration getWorkflowTaskTimeout() {
     return workflowTaskTimeout;
+  }
+
+  /**
+   * @return the delay before the first workflow task of the continued run is scheduled, or null if
+   *     unset.
+   */
+  public @Nullable Duration getBackoffStartInterval() {
+    return backoffStartInterval;
   }
 
   public @Nullable Map<String, Object> getMemo() {
