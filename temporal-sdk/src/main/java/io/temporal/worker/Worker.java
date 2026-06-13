@@ -893,6 +893,7 @@ public final class Worker {
     return toSingleWorkerOptions(
             factoryOptions, options, clientOptions, contextPropagators, workerInstanceKey)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
+        .setAllowActivityHeartbeatDuringShutdown(options.getAllowActivityHeartbeatDuringShutdown())
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())

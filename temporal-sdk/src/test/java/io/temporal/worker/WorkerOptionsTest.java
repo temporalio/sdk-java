@@ -56,6 +56,7 @@ public class WorkerOptionsTest {
             .setBuildId("build-id")
             .setStickyTaskQueueDrainTimeout(Duration.ofSeconds(15))
             .setIdentity("worker-identity")
+            .setAllowActivityHeartbeatDuringShutdown(true)
             .build();
 
     WorkerOptions w2 = WorkerOptions.newBuilder(w1).build();
@@ -89,6 +90,8 @@ public class WorkerOptionsTest {
     assertEquals(w1.getBuildId(), w2.getBuildId());
     assertEquals(w1.getStickyTaskQueueDrainTimeout(), w2.getStickyTaskQueueDrainTimeout());
     assertEquals(w1.getIdentity(), w2.getIdentity());
+    assertEquals(
+        w1.getAllowActivityHeartbeatDuringShutdown(), w2.getAllowActivityHeartbeatDuringShutdown());
   }
 
   @Test
