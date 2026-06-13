@@ -66,8 +66,6 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.PARENT_RUN_ID, context.getParentRunId());
       case RUN_WORKFLOW:
-      case START_ACTIVITY:
-      case RUN_ACTIVITY:
       case SIGNAL_EXTERNAL_WORKFLOW:
       case SIGNAL_WORKFLOW:
       case UPDATE_WORKFLOW:
@@ -80,19 +78,23 @@ public class ActionTypeAndNameSpanBuilderProvider implements SpanBuilderProvider
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
+      case START_ACTIVITY:
+      case RUN_ACTIVITY:
+        ImmutableMap.Builder<String, String> tags = ImmutableMap.builder();
+        if (context.getActivityId() != null) {
+          tags.put(StandardTagNames.ACTIVITY_ID, context.getActivityId());
+        }
+        if (context.getWorkflowId() != null) {
+          tags.put(StandardTagNames.WORKFLOW_ID, context.getWorkflowId());
+        }
+        if (context.getRunId() != null) {
+          tags.put(StandardTagNames.RUN_ID, context.getRunId());
+        }
+        return tags.build();
       case START_NEXUS_OPERATION:
         return ImmutableMap.of(
             StandardTagNames.WORKFLOW_ID, context.getWorkflowId(),
             StandardTagNames.RUN_ID, context.getRunId());
-      case START_STANDALONE_ACTIVITY:
-      case RUN_STANDALONE_ACTIVITY:
-      case GET_STANDALONE_ACTIVITY_RESULT:
-      case DESCRIBE_STANDALONE_ACTIVITY:
-      case CANCEL_STANDALONE_ACTIVITY:
-      case TERMINATE_STANDALONE_ACTIVITY:
-        return ImmutableMap.of(StandardTagNames.ACTIVITY_ID, context.getActivityId());
-      case LIST_STANDALONE_ACTIVITIES:
-      case COUNT_STANDALONE_ACTIVITIES:
       case RUN_START_NEXUS_OPERATION:
       case RUN_CANCEL_NEXUS_OPERATION:
       case HANDLE_QUERY:

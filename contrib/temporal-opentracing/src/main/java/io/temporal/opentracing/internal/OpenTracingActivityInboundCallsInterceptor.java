@@ -46,22 +46,15 @@ public class OpenTracingActivityInboundCallsInterceptor
         contextAccessor.readSpanContextFromHeader(input.getHeader(), tracer);
     ActivityInfo activityInfo = activityExecutionContext.getInfo();
     Span activityRunSpan =
-        activityInfo.isInWorkflow()
-            ? spanFactory
-                .createActivityRunSpan(
-                    tracer,
-                    activityInfo.getActivityType(),
-                    activityInfo.getWorkflowId(),
-                    activityInfo.getWorkflowRunId(),
-                    rootSpanContext)
-                .start()
-            : spanFactory
-                .createStandaloneActivityRunSpan(
-                    tracer,
-                    activityInfo.getActivityType(),
-                    activityInfo.getActivityId(),
-                    rootSpanContext)
-                .start();
+        spanFactory
+            .createActivityRunSpan(
+                tracer,
+                activityInfo.getActivityType(),
+                activityInfo.getWorkflowId(),
+                activityInfo.getWorkflowRunId(),
+                activityInfo.getActivityId(),
+                rootSpanContext)
+            .start();
     try (Scope scope = tracer.scopeManager().activate(activityRunSpan)) {
       return super.execute(input);
     } catch (Throwable t) {

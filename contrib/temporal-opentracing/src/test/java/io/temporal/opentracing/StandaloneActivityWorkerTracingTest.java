@@ -1,6 +1,7 @@
 package io.temporal.opentracing;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -53,8 +54,8 @@ public class StandaloneActivityWorkerTracingTest {
         contextAccessor.writeSpanContextToHeader(
             () ->
                 spanFactory
-                    .createStandaloneActivityStartSpan(
-                        mockTracer, "MyStandaloneActivity", "act-run")
+                    .createActivityStartSpan(
+                        mockTracer, "MyStandaloneActivity", null, null, "act-run")
                     .start(),
             header,
             mockTracer);
@@ -72,10 +73,11 @@ public class StandaloneActivityWorkerTracingTest {
 
     OpenTracingSpansHelper spansHelper = new OpenTracingSpansHelper(mockTracer.finishedSpans());
     MockSpan startSpan =
-        spansHelper.getSpanByOperationName("StartStandaloneActivity:MyStandaloneActivity");
-    MockSpan runSpan =
-        spansHelper.getSpanByOperationName("RunStandaloneActivity:MyStandaloneActivity");
+        spansHelper.getSpanByOperationName("StartActivity:MyStandaloneActivity");
+    MockSpan runSpan = spansHelper.getSpanByOperationName("RunActivity:MyStandaloneActivity");
     assertEquals("act-run", runSpan.tags().get("activityId"));
+    assertNull(runSpan.tags().get("workflowId"));
+    assertNull(runSpan.tags().get("runId"));
     assertEquals(startSpan.context().spanId(), runSpan.parentId());
   }
 

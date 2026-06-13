@@ -16,14 +16,6 @@ public enum SpanOperationType {
   HANDLE_SIGNAL("HandleSignal"),
   HANDLE_UPDATE("HandleUpdate"),
   START_NEXUS_OPERATION("StartNexusOperation"),
-  START_STANDALONE_ACTIVITY("StartStandaloneActivity"),
-  RUN_STANDALONE_ACTIVITY("RunStandaloneActivity"),
-  GET_STANDALONE_ACTIVITY_RESULT("GetStandaloneActivityResult"),
-  DESCRIBE_STANDALONE_ACTIVITY("DescribeStandaloneActivity"),
-  CANCEL_STANDALONE_ACTIVITY("CancelStandaloneActivity"),
-  TERMINATE_STANDALONE_ACTIVITY("TerminateStandaloneActivity"),
-  LIST_STANDALONE_ACTIVITIES("ListStandaloneActivities"),
-  COUNT_STANDALONE_ACTIVITIES("CountStandaloneActivities"),
   RUN_START_NEXUS_OPERATION("RunStartNexusOperationHandler"),
   RUN_CANCEL_NEXUS_OPERATION("RunCancelNexusOperationHandler");
 
