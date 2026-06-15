@@ -32,6 +32,23 @@ public class StartActivityOptionsTest {
     StartActivityOptions.newBuilder().setId("id").setTaskQueue("q").build();
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testNegativeStartDelayFails() {
+    StartActivityOptions.newBuilder().setStartDelay(Duration.ofSeconds(-1));
+  }
+
+  @Test
+  public void testZeroStartDelayAccepted() {
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId("id")
+            .setTaskQueue("q")
+            .setStartToCloseTimeout(Duration.ofSeconds(5))
+            .setStartDelay(Duration.ZERO)
+            .build();
+    assertEquals(Duration.ZERO, opts.getStartDelay());
+  }
+
   @Test
   public void testToBuilder() {
     StartActivityOptions original =
@@ -64,6 +81,7 @@ public class StartActivityOptionsTest {
             .setStaticSummary("summary")
             .setStaticDetails("details")
             .setPriority(priority)
+            .setStartDelay(Duration.ofSeconds(7))
             .build();
 
     StartActivityOptions copy = original.toBuilder().build();
@@ -80,5 +98,6 @@ public class StartActivityOptionsTest {
     assertEquals("summary", copy.getStaticSummary());
     assertEquals("details", copy.getStaticDetails());
     assertEquals(priority, copy.getPriority());
+    assertEquals(Duration.ofSeconds(7), copy.getStartDelay());
   }
 }
