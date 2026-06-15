@@ -366,19 +366,19 @@ public class LambdaWorkerLifecycleTest {
   }
 
   private RequestHandler<Object, Void> handler(
-      java.util.function.Consumer<LambdaWorkerOptions> configure, FakeRuntime runtime) {
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure, FakeRuntime runtime) {
     return handler(configure, runtime, duration -> {});
   }
 
   private RequestHandler<Object, Void> handler(
-      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
     return handler(baseEnv(), configure, runtime, sleeper, new FakeNanoClock());
   }
 
   private RequestHandler<Object, Void> handler(
-      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper,
       LambdaWorker.NanoClock clock) {
@@ -387,7 +387,7 @@ public class LambdaWorkerLifecycleTest {
 
   private RequestHandler<Object, Void> handler(
       Map<String, String> env,
-      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
     return handler(env, configure, runtime, sleeper, new FakeNanoClock());
@@ -395,14 +395,14 @@ public class LambdaWorkerLifecycleTest {
 
   private RequestHandler<Object, Void> handler(
       Map<String, String> env,
-      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper,
       LambdaWorker.NanoClock clock) {
     try {
-      LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(env);
+      LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env);
       configure.accept(options);
-      return LambdaWorker.newHandler(VERSION, options, runtime, sleeper, clock);
+      return LambdaWorker.newHandler(VERSION, options.build(), runtime, sleeper, clock);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }

@@ -61,7 +61,7 @@ public final class OtelLambdaWorker {
     return resolveServiceName(System.getenv());
   }
 
-  public static void configure(LambdaWorkerOptions options) {
+  public static void configure(LambdaWorkerOptions.Builder options) {
     configure(options, builder -> {});
   }
 
@@ -72,7 +72,7 @@ public final class OtelLambdaWorker {
    * AWS X-Ray-compatible trace ID generation. If {@link Builder#setOpenTelemetry(OpenTelemetry)} is
    * used, the provided instance is used instead and exporters are not created.
    */
-  public static void configure(LambdaWorkerOptions options, Consumer<Builder> configure) {
+  public static void configure(LambdaWorkerOptions.Builder options, Consumer<Builder> configure) {
     Objects.requireNonNull(options, "options");
     Builder builder = newBuilder();
     Objects.requireNonNull(configure, "configure").accept(builder);
@@ -86,7 +86,8 @@ public final class OtelLambdaWorker {
    * metrics before provider flushing. It does not configure tracing interceptors or an
    * OpenTelemetry provider flush hook.
    */
-  public static void configureMetrics(LambdaWorkerOptions options, OpenTelemetry openTelemetry) {
+  public static void configureMetrics(
+      LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry) {
     configureMetrics(options, openTelemetry, getDefaultServiceName(), Duration.ofSeconds(1));
   }
 
@@ -98,7 +99,7 @@ public final class OtelLambdaWorker {
    * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(
-      LambdaWorkerOptions options,
+      LambdaWorkerOptions.Builder options,
       OpenTelemetry openTelemetry,
       String serviceName,
       Duration reportInterval) {
@@ -123,7 +124,8 @@ public final class OtelLambdaWorker {
    * <p>This helper only installs tracing interceptors. It does not configure metrics or register a
    * flush hook.
    */
-  public static void configureTracing(LambdaWorkerOptions options, OpenTelemetry openTelemetry) {
+  public static void configureTracing(
+      LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry) {
     Objects.requireNonNull(options, "options");
     OpenTracingOptions tracingOptions =
         OpenTracingOptions.newBuilder()
@@ -141,7 +143,7 @@ public final class OtelLambdaWorker {
    * <p>This helper only registers the flush hook. It does not configure metrics or tracing.
    */
   public static void configureFlushHook(
-      LambdaWorkerOptions options, OpenTelemetry openTelemetry, Duration flushTimeout) {
+      LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry, Duration flushTimeout) {
     Objects.requireNonNull(options, "options");
     options.addShutdownHook(
         new OpenTelemetryFlushHook(
@@ -233,7 +235,7 @@ public final class OtelLambdaWorker {
           getEndpoint(), getServiceName(), metricsReportInterval, flushTimeout);
     }
 
-    void apply(LambdaWorkerOptions options) {
+    void apply(LambdaWorkerOptions.Builder options) {
       OpenTelemetry resolvedOpenTelemetry =
           openTelemetry == null ? createOpenTelemetry() : openTelemetry;
       configureMetrics(options, resolvedOpenTelemetry, getServiceName(), metricsReportInterval);
@@ -298,7 +300,7 @@ public final class OtelLambdaWorker {
   }
 
   private static void appendClientInterceptor(
-      LambdaWorkerOptions options, WorkflowClientInterceptor interceptor) {
+      LambdaWorkerOptions.Builder options, WorkflowClientInterceptor interceptor) {
     WorkflowClientOptions raw = options.getWorkflowClientOptionsBuilder().build();
     WorkflowClientInterceptor[] existing = raw.getInterceptors();
     int existingLength = existing == null ? 0 : existing.length;
@@ -311,7 +313,7 @@ public final class OtelLambdaWorker {
   }
 
   private static void appendWorkerInterceptor(
-      LambdaWorkerOptions options, WorkerInterceptor interceptor) {
+      LambdaWorkerOptions.Builder options, WorkerInterceptor interceptor) {
     WorkerFactoryOptions raw = options.getWorkerFactoryOptionsBuilder().build();
     WorkerInterceptor[] existing = raw.getWorkerInterceptors();
     int existingLength = existing == null ? 0 : existing.length;
