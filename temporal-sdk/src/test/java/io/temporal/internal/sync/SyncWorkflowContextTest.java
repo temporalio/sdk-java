@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -33,9 +32,6 @@ public class SyncWorkflowContextTest {
     this.context = DummySyncWorkflowContext.newDummySyncWorkflowContext();
     this.context.setReplayContext(mockReplayWorkflowContext);
   }
-
-  @After
-  public void tearDown() {}
 
   @Test
   public void testUpsertSearchAttributes() {

@@ -185,6 +185,10 @@ public final class ContinueAsNewOptions {
 
   private final @Nullable InitialVersioningBehavior initialVersioningBehavior;
 
+  /**
+   * @deprecated This constructor doesn't include all options. Use the builder instead.
+   */
+  @Deprecated
   public ContinueAsNewOptions(
       @Nullable Duration workflowRunTimeout,
       @Nullable String taskQueue,
