@@ -114,7 +114,7 @@ public class ServiceStubsOptions {
 
   protected final Scope metricsScope;
 
-  /** Transport-level gRPC compression. */
+  /** Outbound transport-level gRPC compression. */
   protected final GrpcCompression grpcCompression;
 
   ServiceStubsOptions(ServiceStubsOptions that) {
@@ -349,7 +349,7 @@ public class ServiceStubsOptions {
   }
 
   /**
-   * @return transport-level gRPC compression used for requests and response negotiation.
+   * @return outbound transport-level gRPC compression used for requests.
    * @see Builder#setGrpcCompression(GrpcCompression)
    */
   @Nonnull
@@ -742,13 +742,11 @@ public class ServiceStubsOptions {
     }
 
     /**
-     * Sets transport-level gRPC compression. Defaults to {@link GrpcCompression#GZIP}. Set to
-     * {@link GrpcCompression#NONE} to opt out.
+     * Sets outbound transport-level gRPC compression. Defaults to {@link GrpcCompression#GZIP}. Set
+     * to {@link GrpcCompression#NONE} to opt out of compressing requests.
      *
-     * <p>For SDK-created channels, this controls both request compression and the {@code
-     * grpc-accept-encoding} response negotiation header. For user-supplied channels, the SDK still
-     * controls request compression, but response decompression negotiation is configured by the
-     * supplied channel.
+     * <p>The SDK uses the default gRPC response decompression registry for all compression options,
+     * so disabling request compression does not disable accepting compressed responses.
      *
      * @return {@code this}
      */

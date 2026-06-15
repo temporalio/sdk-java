@@ -35,11 +35,11 @@ public class GrpcCompressionTest {
   }
 
   @Test
-  public void noneCompressionDoesNotSendOrAcceptGzip() throws Exception {
+  public void noneCompressionDoesNotSendGzipButStillAcceptsGzip() throws Exception {
     Metadata headers = callGetSystemInfo(GrpcCompression.NONE);
 
     assertNull(headers.get(GRPC_ENCODING));
-    assertNull(headers.get(GRPC_ACCEPT_ENCODING));
+    assertTrue(headers.get(GRPC_ACCEPT_ENCODING).contains("gzip"));
   }
 
   private Metadata callGetSystemInfo(GrpcCompression compression) throws Exception {
