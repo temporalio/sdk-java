@@ -27,25 +27,15 @@ import org.mockito.ArgumentCaptor;
 public class SyncWorkflowContextTest {
   SyncWorkflowContext context;
   ReplayWorkflowContext mockReplayWorkflowContext = mock(ReplayWorkflowContext.class);
-  ExecutorService threadPool;
-  DeterministicRunner runner;
 
   @Before
   public void setUp() {
-    this.threadPool = Executors.newCachedThreadPool();
     this.context = DummySyncWorkflowContext.newDummySyncWorkflowContext();
     this.context.setReplayContext(mockReplayWorkflowContext);
-    when(mockReplayWorkflowContext.getWorkflowType())
-        .thenReturn(WorkflowType.newBuilder().setName("dummy-workflow").build());
   }
 
   @After
-  public void tearDown() {
-    if (runner != null) {
-      runner.close();
-    }
-    threadPool.shutdown();
-  }
+  public void tearDown() {}
 
   @Test
   public void testUpsertSearchAttributes() {
@@ -57,12 +47,20 @@ public class SyncWorkflowContextTest {
     verify(mockReplayWorkflowContext, times(1)).upsertSearchAttributes(serializedAttr);
   }
 
+  @Test(expected = IllegalArgumentException.class)
+  public void testUpsertSearchAttributesException() {
+    Map<String, Object> attr = new HashMap<>();
+    context.upsertSearchAttributes(attr);
+  }
+
   @Test
   public void testContinueAsNewBackoffStartInterval() {
+    ExecutorService threadPool = Executors.newCachedThreadPool();
+
     Duration backoffStartInterval = Duration.ofSeconds(7);
     ContinueAsNewOptions options =
         ContinueAsNewOptions.newBuilder().setBackoffStartInterval(backoffStartInterval).build();
-    runner =
+    DeterministicRunner runner =
         DeterministicRunner.newRunner(
             threadPool::submit,
             context,
@@ -70,17 +68,20 @@ public class SyncWorkflowContextTest {
                 context.continueAsNew(
                     new ContinueAsNewInput(null, options, new Object[0], Header.empty())));
 
-    runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+    try {
+      when(mockReplayWorkflowContext.getWorkflowType())
+          .thenReturn(WorkflowType.newBuilder().setName("dummy-workflow").build());
 
-    ArgumentCaptor<ContinueAsNewWorkflowExecutionCommandAttributes> attributes =
-        ArgumentCaptor.forClass(ContinueAsNewWorkflowExecutionCommandAttributes.class);
-    verify(mockReplayWorkflowContext).continueAsNewOnCompletion(attributes.capture());
-    assertEquals(7, attributes.getValue().getBackoffStartInterval().getSeconds());
-  }
+      runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
-  @Test(expected = IllegalArgumentException.class)
-  public void testUpsertSearchAttributesException() {
-    Map<String, Object> attr = new HashMap<>();
-    context.upsertSearchAttributes(attr);
+      ArgumentCaptor<ContinueAsNewWorkflowExecutionCommandAttributes> attributes =
+          ArgumentCaptor.forClass(ContinueAsNewWorkflowExecutionCommandAttributes.class);
+      verify(mockReplayWorkflowContext).continueAsNewOnCompletion(attributes.capture());
+      assertEquals(7, attributes.getValue().getBackoffStartInterval().getSeconds());
+    } finally {
+
+      runner.close();
+      threadPool.shutdown();
+    }
   }
 }

@@ -210,7 +210,7 @@ public final class ContinueAsNewOptions {
         initialVersioningBehavior);
   }
 
-  public ContinueAsNewOptions(
+  ContinueAsNewOptions(
       @Nullable Duration workflowRunTimeout,
       @Nullable String taskQueue,
       @Nullable RetryOptions retryOptions,
