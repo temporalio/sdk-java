@@ -46,11 +46,11 @@ import org.junit.Test;
  *   <li>{@link #testSignalOperationLinks()} — sync handler, two signals (signalWithStart + plain
  *       signal).
  *   <li>{@link #testMultiSignalOperationLinks()} — one Nexus operation signals three different
- *       callees; verifies all three backlinks land on the caller's single {@code
+ *       callees; verifies all three response links land on the caller's single {@code
  *       NexusOperationCompleted} event.
  *   <li>{@link #testAsyncSignalOperationLinks()} — handler returns an async result after signaling;
- *       verifies the backlink lands on {@code NexusOperationStarted} (the async response path in
- *       {@link io.temporal.internal.nexus.NexusTaskHandlerImpl}).
+ *       verifies the response link lands on {@code NexusOperationStarted} (the async response path
+ *       in {@link io.temporal.internal.nexus.NexusTaskHandlerImpl}).
  * </ul>
  *
  * <p>All tests require Temporal server &ge; 1.31 with {@code EnableCHASMSignalBacklinks=true}; the
@@ -73,10 +73,10 @@ public class SignalOperationLinkingTest {
 
   @BeforeClass
   public static void requireExternalService() {
-    // The server-side backlink implementation (temporalio/temporal#9897) is gated by
+    // The server-side response link implementation (temporalio/temporal#9897) is gated by
     // EnableCHASMSignalBacklinks and is only present in real servers.
     assumeTrue(
-        "signal backlinks require a real server with EnableCHASMSignalBacklinks=true",
+        "signal response links require a real server with EnableCHASMSignalBacklinks=true",
         SDKTestWorkflowRule.useExternalService);
   }
 
@@ -89,7 +89,7 @@ public class SignalOperationLinkingTest {
 
   /**
    * One Nexus operation signals three different callees. The handler's three signal-class RPCs each
-   * contribute a backlink and all three end up on the caller's single {@code
+   * contribute a response link and all three end up on the caller's single {@code
    * NexusOperationCompleted} event.
    */
   @Test
@@ -119,33 +119,36 @@ public class SignalOperationLinkingTest {
       assertForwardLinks(calleeHistory, callerWorkflowId, /* expectedCount= */ 1);
     }
 
-    // Callee → caller: the single NexusOperationCompleted carries one backlink per callee.
+    // Callee → caller: the single NexusOperationCompleted carries one response link per callee.
     List<HistoryEvent> completedEvents =
         getAllEventsOfType(callerHistory, EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED);
     Assert.assertEquals(
         "expected exactly one NexusOperationCompleted event", 1, completedEvents.size());
     HistoryEvent completed = completedEvents.get(0);
     Assert.assertEquals(
-        "expected one backlink per signaled callee", calleeIds.size(), completed.getLinksCount());
-    List<String> backlinkWorkflowIds = new ArrayList<>();
+        "expected one response link per signaled callee",
+        calleeIds.size(),
+        completed.getLinksCount());
+    List<String> responseLinkWorkflowIds = new ArrayList<>();
     for (int i = 0; i < completed.getLinksCount(); i++) {
-      io.temporal.api.common.v1.Link.WorkflowEvent backlink =
+      io.temporal.api.common.v1.Link.WorkflowEvent responseLink =
           completed.getLinks(i).getWorkflowEvent();
-      backlinkWorkflowIds.add(backlink.getWorkflowId());
-      EventType backlinkEventType =
-          backlink.hasRequestIdRef()
-              ? backlink.getRequestIdRef().getEventType()
-              : backlink.getEventRef().getEventType();
-      Assert.assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, backlinkEventType);
+      responseLinkWorkflowIds.add(responseLink.getWorkflowId());
+      EventType responseLinkEventType =
+          responseLink.hasRequestIdRef()
+              ? responseLink.getRequestIdRef().getEventType()
+              : responseLink.getEventRef().getEventType();
+      Assert.assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, responseLinkEventType);
     }
     Assert.assertTrue(
-        "expected backlinks to reference all three callees: " + backlinkWorkflowIds,
-        backlinkWorkflowIds.containsAll(calleeIds));
+        "expected response links to reference all three callees: " + responseLinkWorkflowIds,
+        responseLinkWorkflowIds.containsAll(calleeIds));
   }
 
   /**
    * Async response path: handler signals the callee then returns an async result. Verifies that the
-   * backlink lands on {@code NexusOperationStarted} (the async branch in NexusTaskHandlerImpl).
+   * response link lands on {@code NexusOperationStarted} (the async branch in
+   * NexusTaskHandlerImpl).
    */
   @Test
   public void testAsyncSignalOperationLinks() {
@@ -174,7 +177,7 @@ public class SignalOperationLinkingTest {
         "expected exactly one NexusOperationStarted event for the async op",
         1,
         startedEvents.size());
-    assertBacklink(startedEvents.get(0), calleeWorkflowId);
+    assertResponseLink(startedEvents.get(0), calleeWorkflowId);
   }
 
   // ── Shared scenario + assertion helpers ──────────────────────────────────────────────────
@@ -203,7 +206,7 @@ public class SignalOperationLinkingTest {
     Assert.assertEquals(
         "expected two NexusOperationCompleted events on the caller", 2, completedEvents.size());
     for (HistoryEvent completed : completedEvents) {
-      assertBacklink(completed, calleeWorkflowId);
+      assertResponseLink(completed, calleeWorkflowId);
     }
   }
 
@@ -235,21 +238,22 @@ public class SignalOperationLinkingTest {
 
   /**
    * Assert that a single caller-side event ({@code NexusOperationCompleted} or {@code
-   * NexusOperationStarted}) carries a backlink to the callee's {@code WorkflowExecutionSignaled}
-   * event. Server PR #9897 keys these via {@code RequestIdReference} rather than {@code
-   * EventReference}, so we accept either oneof variant.
+   * NexusOperationStarted}) carries a response link to the callee's {@code
+   * WorkflowExecutionSignaled} event. Server PR #9897 keys these via {@code RequestIdReference}
+   * rather than {@code EventReference}, so we accept either oneof variant.
    */
-  private static void assertBacklink(HistoryEvent event, String calleeWorkflowId) {
+  private static void assertResponseLink(HistoryEvent event, String calleeWorkflowId) {
     Assert.assertTrue(
-        "expected a signal-event backlink on " + event.getEventType().name(),
+        "expected a signal-event response link on " + event.getEventType().name(),
         event.getLinksCount() >= 1);
-    io.temporal.api.common.v1.Link.WorkflowEvent backlink = event.getLinks(0).getWorkflowEvent();
-    Assert.assertEquals(calleeWorkflowId, backlink.getWorkflowId());
-    EventType backlinkEventType =
-        backlink.hasRequestIdRef()
-            ? backlink.getRequestIdRef().getEventType()
-            : backlink.getEventRef().getEventType();
-    Assert.assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, backlinkEventType);
+    io.temporal.api.common.v1.Link.WorkflowEvent responseLink =
+        event.getLinks(0).getWorkflowEvent();
+    Assert.assertEquals(calleeWorkflowId, responseLink.getWorkflowId());
+    EventType responseLinkEventType =
+        responseLink.hasRequestIdRef()
+            ? responseLink.getRequestIdRef().getEventType()
+            : responseLink.getEventRef().getEventType();
+    Assert.assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED, responseLinkEventType);
   }
 
   /** Find all history events of a given type, in order. */
@@ -309,7 +313,7 @@ public class SignalOperationLinkingTest {
             NexusOperationHandle<String> h =
                 Workflow.startNexusOperation(
                     stub::operation, MODE_ASYNC_SIGNAL_WITH_START + ":" + rest);
-            // Wait for the async op to be Started (the event that carries the backlink) but
+            // Wait for the async op to be Started (the event that carries the response link) but
             // not for its eventual result — the async op completes outside this workflow.
             h.getExecution().get();
             return "async-started";

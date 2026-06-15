@@ -162,18 +162,18 @@ public class NexusTaskHandlerImplTest {
   }
 
   /**
-   * Verify that signal-response backlinks stashed on the {@link InternalNexusOperationContext}
-   * during a handler invocation are merged into the resulting {@code StartOperationResponse.Async}
-   * via {@link io.temporal.internal.common.LinkConverter}. No server required.
+   * Verify that signal response links stashed on the {@link InternalNexusOperationContext} during a
+   * handler invocation are merged into the resulting {@code StartOperationResponse.Async} via
+   * {@link io.temporal.internal.common.LinkConverter}. No server required.
    */
   @Test
-  public void asyncResponseIncludesSignalBacklinks() throws TimeoutException {
+  public void asyncResponseIncludesSignalResponseLinks() throws TimeoutException {
     WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
         new NexusTaskHandlerImpl(
             client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
-        new Object[] {new BacklinkStashingAsyncServiceImpl()});
+        new Object[] {new ResponseLinkStashingAsyncServiceImpl()});
     nexusTaskHandlerImpl.start();
 
     PollNexusTaskQueueResponse.Builder task =
@@ -194,27 +194,28 @@ public class NexusTaskHandlerImplTest {
     StartOperationResponse.Async async = result.getResponse().getStartOperation().getAsyncSuccess();
     Assert.assertEquals("op-token", async.getOperationToken());
     Assert.assertEquals(
-        "expected one signal backlink on the async response", 1, async.getLinksCount());
-    // The backlink was stashed as a WorkflowEvent for callee workflowId "callee-wf"; the response
-    // should contain a temporal:// URL referencing that workflow.
+        "expected one signal response link on the async response", 1, async.getLinksCount());
+    // The response link was stashed as a WorkflowEvent for callee workflowId "callee-wf"; the
+    // response should contain a temporal:// URL referencing that workflow.
     Assert.assertTrue(
-        "expected backlink URL to reference the callee workflow, got: "
+        "expected response link URL to reference the callee workflow, got: "
             + async.getLinks(0).getUrl(),
         async.getLinks(0).getUrl().contains("callee-wf"));
   }
 
   /**
-   * Same as {@link #asyncResponseIncludesSignalBacklinks} but the handler returns sync. Guards
-   * against the sync and async builders drifting (both must call {@code addAllLinks(backlinks)}).
+   * Same as {@link #asyncResponseIncludesSignalResponseLinks} but the handler returns sync. Guards
+   * against the sync and async builders drifting (both must call {@code
+   * addAllLinks(responseLinks)}).
    */
   @Test
-  public void syncResponseIncludesSignalBacklinks() throws TimeoutException {
+  public void syncResponseIncludesSignalResponseLinks() throws TimeoutException {
     WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
         new NexusTaskHandlerImpl(
             client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
-        new Object[] {new BacklinkStashingSyncServiceImpl()});
+        new Object[] {new ResponseLinkStashingSyncServiceImpl()});
     nexusTaskHandlerImpl.start();
 
     PollNexusTaskQueueResponse.Builder task =
@@ -234,26 +235,28 @@ public class NexusTaskHandlerImplTest {
     Assert.assertNull(result.getHandlerException());
     StartOperationResponse.Sync sync = result.getResponse().getStartOperation().getSyncSuccess();
     Assert.assertEquals(
-        "expected one signal backlink on the sync response", 1, sync.getLinksCount());
+        "expected one signal response link on the sync response", 1, sync.getLinksCount());
     Assert.assertTrue(
-        "expected backlink URL to reference the callee workflow, got: " + sync.getLinks(0).getUrl(),
+        "expected response link URL to reference the callee workflow, got: "
+            + sync.getLinks(0).getUrl(),
         sync.getLinks(0).getUrl().contains("callee-wf"));
   }
 
   /**
-   * Failure path: a handler that stashes a backlink (as a successful signal RPC would) and then
-   * throws afterwards must NOT leak the captured backlink onto the failure response. Backlinks are
-   * only drained on the success branch of {@link NexusTaskHandlerImpl#handleStartOperation}; the
-   * failure branch builds a {@code StartOperationResponse.failure} that carries no links.
+   * Failure path: a handler that stashes a response link (as a successful signal RPC would) and
+   * then throws afterwards must NOT leak the captured response link onto the failure response.
+   * Response links are only drained on the success branch of {@link
+   * NexusTaskHandlerImpl#handleStartOperation}; the failure branch builds a {@code
+   * StartOperationResponse.failure} that carries no links.
    */
   @Test
-  public void failureResponseDropsCapturedBacklinks() throws TimeoutException {
+  public void failureResponseDropsCapturedResponseLinks() throws TimeoutException {
     WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
         new NexusTaskHandlerImpl(
             client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
     nexusTaskHandlerImpl.registerNexusServiceImplementations(
-        new Object[] {new BacklinkStashingThenThrowingServiceImpl()});
+        new Object[] {new ResponseLinkStashingThenThrowingServiceImpl()});
     nexusTaskHandlerImpl.start();
 
     PollNexusTaskQueueResponse.Builder task =
@@ -276,7 +279,7 @@ public class NexusTaskHandlerImplTest {
         "expected the failure response variant",
         StartOperationResponse.VariantCase.FAILURE,
         response.getVariantCase());
-    // The handler captured a backlink before throwing; the failure response must not carry it
+    // The handler captured a response link before throwing; the failure response must not carry it
     // (and has no links field at all).
     Assert.assertFalse(
         "failure response variant should not expose any success-path links",
@@ -285,19 +288,19 @@ public class NexusTaskHandlerImplTest {
 
   /**
    * Handler that simulates what a real Nexus operation would do after issuing a signal: stash a
-   * backlink on the operation context, then return an async result. Lets us exercise the
+   * response link on the operation context, then return an async result. Lets us exercise the
    * async-response link merge in {@link NexusTaskHandlerImpl} without standing up a real signal
    * RPC.
    */
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public class BacklinkStashingAsyncServiceImpl {
+  public class ResponseLinkStashingAsyncServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return new OperationHandler<String, String>() {
         @Override
         public OperationStartResult<String> start(
             OperationContext ctx, OperationStartDetails details, @Nullable String token) {
-          Link backlink =
+          Link responseLink =
               Link.newBuilder()
                   .setWorkflowEvent(
                       Link.WorkflowEvent.newBuilder()
@@ -308,7 +311,7 @@ public class NexusTaskHandlerImplTest {
                               Link.WorkflowEvent.EventReference.newBuilder()
                                   .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
                   .build();
-          CurrentNexusOperationContext.get().addBacklink(backlink);
+          CurrentNexusOperationContext.get().addResponseLink(responseLink);
           return OperationStartResult.async(token);
         }
 
@@ -318,14 +321,14 @@ public class NexusTaskHandlerImplTest {
     }
   }
 
-  /** Sync mirror of {@link BacklinkStashingAsyncServiceImpl}. */
+  /** Sync mirror of {@link ResponseLinkStashingAsyncServiceImpl}. */
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public class BacklinkStashingSyncServiceImpl {
+  public class ResponseLinkStashingSyncServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (ctx, details, input) -> {
-            Link backlink =
+            Link responseLink =
                 Link.newBuilder()
                     .setWorkflowEvent(
                         Link.WorkflowEvent.newBuilder()
@@ -337,24 +340,24 @@ public class NexusTaskHandlerImplTest {
                                     .setEventType(
                                         EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
                     .build();
-            CurrentNexusOperationContext.get().addBacklink(backlink);
+            CurrentNexusOperationContext.get().addResponseLink(responseLink);
             return "result";
           });
     }
   }
 
   /**
-   * Stashes a backlink on the operation context (as a successful signal RPC would) and then throws
-   * an {@link OperationException}, exercising the failure branch of {@link
+   * Stashes a response link on the operation context (as a successful signal RPC would) and then
+   * throws an {@link OperationException}, exercising the failure branch of {@link
    * NexusTaskHandlerImpl#handleStartOperation}.
    */
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public class BacklinkStashingThenThrowingServiceImpl {
+  public class ResponseLinkStashingThenThrowingServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (ctx, details, input) -> {
-            Link backlink =
+            Link responseLink =
                 Link.newBuilder()
                     .setWorkflowEvent(
                         Link.WorkflowEvent.newBuilder()
@@ -366,8 +369,8 @@ public class NexusTaskHandlerImplTest {
                                     .setEventType(
                                         EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)))
                     .build();
-            CurrentNexusOperationContext.get().addBacklink(backlink);
-            throw OperationException.failed("boom after capturing a backlink");
+            CurrentNexusOperationContext.get().addResponseLink(responseLink);
+            throw OperationException.failed("boom after capturing a response link");
           });
     }
   }

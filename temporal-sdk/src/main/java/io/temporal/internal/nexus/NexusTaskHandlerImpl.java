@@ -317,7 +317,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     link.getUrl());
               }
             });
-    CurrentNexusOperationContext.get().setNexusOperationLinks(inboundCommonLinks);
+    CurrentNexusOperationContext.get().setRequestLinks(inboundCommonLinks);
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
@@ -329,19 +329,19 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         OperationStartResult<HandlerResultContent> result =
             startOperation(context, operationStartDetails.build(), input.build());
         // If any RPCs the handler issued (e.g. signal, signalWithStart, etc) returned
-        // backlinks, propagate them to the caller so the caller workflow's history event links to
-        // each event on the callee. Same set of backlinks applies to both sync and async response
-        // variants.
-        List<io.temporal.api.nexus.v1.Link> backlinks = new ArrayList<>();
-        for (io.temporal.api.common.v1.Link backlink :
-            CurrentNexusOperationContext.get().getBacklinks()) {
-          if (!backlink.hasWorkflowEvent()) {
+        // response links, propagate them to the caller so the caller workflow's history event links
+        // to each event on the callee. Same set of response links applies to both sync and async
+        // response variants.
+        List<io.temporal.api.nexus.v1.Link> responseLinks = new ArrayList<>();
+        for (io.temporal.api.common.v1.Link responseLink :
+            CurrentNexusOperationContext.get().getResponseLinks()) {
+          if (!responseLink.hasWorkflowEvent()) {
             continue;
           }
           io.temporal.api.nexus.v1.Link converted =
-              LinkConverter.workflowEventToNexusLink(backlink.getWorkflowEvent());
+              LinkConverter.workflowEventToNexusLink(responseLink.getWorkflowEvent());
           if (converted != null) {
-            backlinks.add(converted);
+            responseLinks.add(converted);
           }
         }
 
@@ -349,7 +349,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
           startResponseBuilder.setSyncSuccess(
               StartOperationResponse.Sync.newBuilder()
                   .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
-                  .addAllLinks(backlinks)
+                  .addAllLinks(responseLinks)
                   .build());
         } else {
           startResponseBuilder.setAsyncSuccess(
@@ -365,7 +365,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                                       .setUrl(link.getUri().toString())
                                       .build())
                           .collect(Collectors.toList()))
-                  .addAllLinks(backlinks)
+                  .addAllLinks(responseLinks)
                   .build());
         }
       } catch (OperationException e) {

@@ -73,15 +73,15 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
 
   /**
    * Happy path against a flag-enabled server: inbound nexus links are forwarded onto the
-   * SignalWorkflowExecutionRequest, and the response's backlink is captured back onto the operation
+   * SignalWorkflowExecutionRequest, and the response link is captured back onto the operation
    * context.
    */
   @Test
-  public void signalForwardsInboundLinksAndCapturesResponseBacklink() {
+  public void signalForwardsInboundLinksAndCapturesResponseLink() {
     Link inboundLink =
         workflowEventLink(
             "caller-wf", "caller-run", EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
-    nexusCtx.setNexusOperationLinks(Collections.singletonList(inboundLink));
+    nexusCtx.setRequestLinks(Collections.singletonList(inboundLink));
 
     Link responseLink =
         workflowEventLink(
@@ -101,21 +101,21 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     Assert.assertEquals(inboundLink, sent.getLinks(0));
 
     // Backward direction: the response's link is now on the context for the task handler to read.
-    List<Link> captured = nexusCtx.getBacklinks();
-    Assert.assertEquals("expected one captured backlink", 1, captured.size());
+    List<Link> captured = nexusCtx.getResponseLinks();
+    Assert.assertEquals("expected one captured response link", 1, captured.size());
     Assert.assertEquals(responseLink, captured.get(0));
   }
 
   /**
    * Older-server compatibility: the server returns a response without {@code link} set. The SDK
-   * must not crash and must leave the operation context's backlink list empty.
+   * must not crash and must leave the operation context's response link list empty.
    */
   @Test
-  public void signalAgainstOlderServerCapturesNoBacklink() {
+  public void signalAgainstOlderServerCapturesNoResponseLink() {
     Link inboundLink =
         workflowEventLink(
             "caller-wf", "caller-run", EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
-    nexusCtx.setNexusOperationLinks(Collections.singletonList(inboundLink));
+    nexusCtx.setRequestLinks(Collections.singletonList(inboundLink));
 
     // Pre-1.31 server / flag-off server: response has no link.
     SignalWorkflowExecutionResponse response = SignalWorkflowExecutionResponse.getDefaultInstance();
@@ -129,18 +129,18 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     org.mockito.Mockito.verify(genericClient).signal(captor.capture());
     Assert.assertEquals(1, captor.getValue().getLinksCount());
 
-    // Backward direction: no backlink captured because the server didn't send one.
+    // Backward direction: no response link captured because the server didn't send one.
     Assert.assertTrue(
-        "expected no captured backlink when server returned no link",
-        nexusCtx.getBacklinks().isEmpty());
+        "expected no captured response link when server returned no link",
+        nexusCtx.getResponseLinks().isEmpty());
   }
 
   /**
-   * Multi-signal: two signal RPCs in a row each contribute a backlink; both must be captured in
-   * order on the context, ready for the task handler to drain into the operation response.
+   * Multi-signal: two signal RPCs in a row each contribute a response link; both must be captured
+   * in order on the context, ready for the task handler to drain into the operation response.
    */
   @Test
-  public void multipleSignalsAccumulateAllBacklinks() {
+  public void multipleSignalsAccumulateAllResponseLinks() {
     Link firstResponseLink =
         workflowEventLink("callee-a", "run-a", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
     Link secondResponseLink =
@@ -153,28 +153,28 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     invoker.signal(newSignalInput());
     invoker.signal(newSignalInput());
 
-    List<Link> captured = nexusCtx.getBacklinks();
+    List<Link> captured = nexusCtx.getResponseLinks();
     Assert.assertEquals(
-        "expected one backlink per signal call",
+        "expected one response link per signal call",
         Arrays.asList(firstResponseLink, secondResponseLink),
         captured);
   }
 
   /**
-   * Happy-path mirror of {@link #signalForwardsInboundLinksAndCapturesResponseBacklink} but for
-   * {@code signalWithStart}. The forward direction must attach inbound links to {@link
+   * Happy-path mirror of {@link #signalForwardsInboundLinksAndCapturesResponseLink} but for {@code
+   * signalWithStart}. The forward direction must attach inbound links to {@link
    * SignalWithStartWorkflowExecutionRequest#getLinksList}, and the backward direction must capture
-   * {@code response.signal_link} via the same backlink path. Different proto field name ({@code
-   * signal_link} vs {@code link}) and different code path inside {@link
+   * {@code response.signal_link} via the same response link path. Different proto field name
+   * ({@code signal_link} vs {@code link}) and different code path inside {@link
    * io.temporal.internal.client.RootWorkflowClientInvoker#signalWithStart} — a regression in only
    * one branch would otherwise pass the plain-signal tests.
    */
   @Test
-  public void signalWithStartForwardsInboundLinksAndCapturesResponseBacklink() {
+  public void signalWithStartForwardsInboundLinksAndCapturesResponseLink() {
     Link inboundLink =
         workflowEventLink(
             "caller-wf", "caller-run", EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
-    nexusCtx.setNexusOperationLinks(Collections.singletonList(inboundLink));
+    nexusCtx.setRequestLinks(Collections.singletonList(inboundLink));
 
     Link responseLink =
         workflowEventLink(
@@ -198,18 +198,18 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     Assert.assertEquals(inboundLink, sent.getLinks(0));
 
     // Backward direction: response.signal_link is on the context for the task handler to read.
-    List<Link> captured = nexusCtx.getBacklinks();
-    Assert.assertEquals("expected one captured backlink", 1, captured.size());
+    List<Link> captured = nexusCtx.getResponseLinks();
+    Assert.assertEquals("expected one captured response link", 1, captured.size());
     Assert.assertEquals(responseLink, captured.get(0));
   }
 
   /**
    * Mixed-RPC accumulation: a handler that issues one signal and one signalWithStart against the
-   * same context must end up with both backlinks captured, in call order. Guards against
+   * same context must end up with both response links captured, in call order. Guards against
    * regressions where one of the two code paths stops appending to the same list.
    */
   @Test
-  public void mixedSignalAndSignalWithStartAccumulateAllBacklinks() {
+  public void mixedSignalAndSignalWithStartAccumulateAllResponseLinks() {
     Link signalResponseLink =
         workflowEventLink("callee-s", "run-s", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED);
     Link signalWithStartResponseLink =
@@ -229,20 +229,20 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     invoker.signalWithStart(newSignalWithStartInput());
 
     Assert.assertEquals(
-        "expected one backlink each from signal and signalWithStart, in call order",
+        "expected one response link each from signal and signalWithStart, in call order",
         Arrays.asList(signalResponseLink, signalWithStartResponseLink),
-        nexusCtx.getBacklinks());
+        nexusCtx.getResponseLinks());
   }
 
   /**
    * Post-rebase start contract: a plain {@code start()} issued from inside a Nexus operation
    * handler captures only the FORWARD operation->workflow link (via {@code
-   * setStartWorkflowResponseLink}) and deliberately does NOT add a backlink (unlike
-   * signal/signalWithStart). Replaces the two start-backlink tests removed by the rebase and guards
-   * against a regression that re-adds a backlink on the start path.
+   * setStartWorkflowResponseLink}) and deliberately does NOT add a response link (unlike
+   * signal/signalWithStart). Replaces the two start-link tests removed by the rebase and guards
+   * against a regression that re-adds a response link on the start path.
    */
   @Test
-  public void startSetsForwardLinkOnlyAndCapturesNoBacklink() {
+  public void startSetsForwardLinkOnlyAndCapturesNoResponseLink() {
     Link startResponseLink =
         workflowEventLink(
             WORKFLOW_ID, "target-run", EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED);
@@ -261,9 +261,10 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
         startResponseLink,
         nexusCtx.getStartWorkflowResponseLink());
 
-    // Backward direction: start must not add a backlink.
+    // Backward direction: start must not add a response link.
     Assert.assertTrue(
-        "expected no backlink captured on the start path", nexusCtx.getBacklinks().isEmpty());
+        "expected no response link captured on the start path",
+        nexusCtx.getResponseLinks().isEmpty());
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────────────────────

@@ -105,9 +105,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       // If this start is being issued from inside a Nexus operation handler, stash only the
       // forward operation->workflow link from the start response so NexusStartWorkflowHelper can
       // attach it to the WorkflowExecutionStarted event. Unlike signal/signalWithStart, start
-      // deliberately does NOT add a backlink here: the operation->workflow relationship is already
-      // captured by the forward link, so re-adding response.getLink() as a backlink would duplicate
-      // it on the caller's history event. Do not "restore symmetry" by calling addBacklink here.
+      // deliberately does NOT add a response link here: the operation->workflow relationship is
+      // already captured by the forward link, so re-adding response.getLink() as a response link
+      // would duplicate it on the caller's history event. Do not "restore symmetry" by calling
+      // addResponseLink here.
       if (CurrentNexusOperationContext.isNexusContext()) {
         CurrentNexusOperationContext.get().setStartWorkflowResponseLink(response.getLink());
       }
@@ -130,7 +131,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // Nexus task links so the SignalWorkflowExecution history event links back to the caller.
     boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
     if (inNexusContext) {
-      request.addAllLinks(CurrentNexusOperationContext.get().getNexusOperationLinks());
+      request.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
     }
 
     DataConverter dataConverterWitSignalContext =
@@ -143,10 +144,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     Optional<Payloads> inputArgs = dataConverterWitSignalContext.toPayloads(input.getArguments());
     inputArgs.ifPresent(request::setInput);
     SignalWorkflowExecutionResponse response = genericClient.signal(request.build());
-    // Server >=1.31 with EnableCHASMSignalBacklinks returns a backlink pointing at the signal
+    // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
     // event; older servers leave it unset. Propagate when present.
     if (inNexusContext && response.hasLink()) {
-      CurrentNexusOperationContext.get().addBacklink(response.getLink());
+      CurrentNexusOperationContext.get().addResponseLink(response.getLink());
     }
     return new WorkflowSignalOutput();
   }
@@ -174,7 +175,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // WorkflowExecutionSignaled events on the callee link back to the caller.
     boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
     if (inNexusContext) {
-      requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getNexusOperationLinks());
+      requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
     }
     SignalWithStartWorkflowExecutionRequest request = requestBuilder.build();
     SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
@@ -183,10 +184,10 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setRunId(response.getRunId())
             .setWorkflowId(request.getWorkflowId())
             .build();
-    // Server >=1.31 with EnableCHASMSignalBacklinks returns a backlink pointing at the signal
+    // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
     // event; older servers leave it unset. Propagate when present.
     if (inNexusContext && response.hasSignalLink()) {
-      CurrentNexusOperationContext.get().addBacklink(response.getSignalLink());
+      CurrentNexusOperationContext.get().addResponseLink(response.getSignalLink());
     }
     // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
     //  We should wire it when it's implemented server-side.
