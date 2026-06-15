@@ -72,8 +72,7 @@ public class StandaloneActivityWorkerTracingTest {
     interceptor.execute(new ActivityInboundCallsInterceptor.ActivityInput(header, new Object[0]));
 
     OpenTracingSpansHelper spansHelper = new OpenTracingSpansHelper(mockTracer.finishedSpans());
-    MockSpan startSpan =
-        spansHelper.getSpanByOperationName("StartActivity:MyStandaloneActivity");
+    MockSpan startSpan = spansHelper.getSpanByOperationName("StartActivity:MyStandaloneActivity");
     MockSpan runSpan = spansHelper.getSpanByOperationName("RunActivity:MyStandaloneActivity");
     assertEquals("act-run", runSpan.tags().get("activityId"));
     assertNull(runSpan.tags().get("workflowId"));
