@@ -379,7 +379,7 @@ public final class PayloadVisitorGenerator {
     switch (plan.kind) {
       case SINGLE_PAYLOAD:
         sb.append("    if (b.has").append(B).append("()) {\n");
-        sb.append("      t.singlePayload(b, b.get")
+        sb.append("      t.singlePayload(b.get")
             .append(B)
             .append("(), p -> b.set")
             .append(B)
@@ -387,14 +387,14 @@ public final class PayloadVisitorGenerator {
         sb.append("    }\n");
         break;
       case REPEATED_PAYLOAD:
-        sb.append("    t.payloads(b, b.get").append(B).append("List(), pl -> {\n");
+        sb.append("    t.payloads(b.get").append(B).append("List(), pl -> {\n");
         sb.append("      b.clear").append(B).append("();\n");
         sb.append("      b.addAll").append(B).append("(pl);\n");
         sb.append("    });\n");
         break;
       case PAYLOADS_SINGLE:
         sb.append("    if (b.has").append(B).append("()) {\n");
-        sb.append("      t.payloads(b, b.get").append(B).append("().getPayloadsList(),\n");
+        sb.append("      t.payloads(b.get").append(B).append("().getPayloadsList(),\n");
         sb.append("          pl -> b.set")
             .append(B)
             .append("(")
@@ -413,7 +413,7 @@ public final class PayloadVisitorGenerator {
             .append(v)
             .append("++) {\n");
         sb.append("      final int ").append(k).append(" = ").append(v).append(";\n");
-        sb.append("      t.payloads(b, b.get")
+        sb.append("      t.payloads(b.get")
             .append(B)
             .append("(")
             .append(k)
@@ -434,7 +434,7 @@ public final class PayloadVisitorGenerator {
             .append(B)
             .append("Map().keySet())) {\n");
         sb.append("      final String ").append(v).append(" = ").append(k).append(";\n");
-        sb.append("      t.singlePayload(b, b.get")
+        sb.append("      t.singlePayload(b.get")
             .append(B)
             .append("Map().get(")
             .append(v)
@@ -452,7 +452,7 @@ public final class PayloadVisitorGenerator {
             .append(B)
             .append("Map().keySet())) {\n");
         sb.append("      final String ").append(v).append(" = ").append(k).append(";\n");
-        sb.append("      t.payloads(b, b.get")
+        sb.append("      t.payloads(b.get")
             .append(B)
             .append("Map().get(")
             .append(v)

@@ -92,11 +92,11 @@ final class Traversal {
   }
 
   /** Record a visit of a payload sequence ({@code Payloads} or {@code repeated Payload}). */
-  void payloads(MessageOrBuilder parent, List<Payload> batch, Consumer<List<Payload>> writeBack) {
+  void payloads(List<Payload> batch, Consumer<List<Payload>> writeBack) {
     if (payloadVisitor == null) {
       return; // message-only traversal: payload seams are inert
     }
-    LeafJob job = new LeafJob(batch, currentContext, parent, false);
+    LeafJob job = new LeafJob(batch, currentContext, false);
     jobs.add(job);
     writeBacks.add(() -> writeBack.accept(job.result));
   }
@@ -105,11 +105,11 @@ final class Traversal {
    * Record a visit of a singular payload field. The visitor must return exactly one payload for
    * such a field (enforced in {@link #runJob}), which the consumer writes back.
    */
-  void singlePayload(MessageOrBuilder parent, Payload value, Consumer<Payload> writeBack) {
+  void singlePayload(Payload value, Consumer<Payload> writeBack) {
     if (payloadVisitor == null) {
       return; // message-only traversal: payload seams are inert
     }
-    LeafJob job = new LeafJob(Collections.singletonList(value), currentContext, parent, true);
+    LeafJob job = new LeafJob(Collections.singletonList(value), currentContext, true);
     jobs.add(job);
     writeBacks.add(() -> writeBack.accept(job.result.get(0)));
   }
@@ -207,8 +207,7 @@ final class Traversal {
   }
 
   private void runJob(LeafJob job) {
-    List<Payload> result =
-        payloadVisitor.visit(new PayloadVisitorContext<>(job.context, job.parent), job.input);
+    List<Payload> result = payloadVisitor.visit(job.context, job.input);
     if (result == null) {
       throw new IllegalStateException("payload visitor returned null");
     }
@@ -223,14 +222,12 @@ final class Traversal {
   private static final class LeafJob {
     final List<Payload> input;
     final Object context;
-    final MessageOrBuilder parent;
     final boolean single;
     volatile List<Payload> result;
 
-    LeafJob(List<Payload> input, Object context, MessageOrBuilder parent, boolean single) {
+    LeafJob(List<Payload> input, Object context, boolean single) {
       this.input = input;
       this.context = context;
-      this.parent = parent;
       this.single = single;
     }
   }

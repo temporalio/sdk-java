@@ -13,7 +13,7 @@ import javax.annotation.Nonnull;
  *     PayloadVisitors.visit(
  *         request,
  *         PayloadVisitorOptions.<CommandInfo>newBuilder()
- *             .setPayloadVisitor((ctx, payloads) -> encode(ctx.getContext(), payloads))
+ *             .setPayloadVisitor((ctx, payloads) -> encode(ctx, payloads))
  *             .setMessageVisitor((current, msg) -> msg instanceof Command.Builder
  *                 ? CommandInfo.of((Command.Builder) msg) : current)
  *             .setConcurrency(4)

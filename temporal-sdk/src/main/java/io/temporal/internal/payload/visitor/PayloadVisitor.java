@@ -18,9 +18,9 @@ interface PayloadVisitor<C> {
   /**
    * Visits a sequence of payloads and returns their replacements.
    *
-   * @param context the location of these payloads and the contextual value in scope
+   * @param context the contextual value in scope
    * @param payloads the payloads found at this location
    * @return the replacement payloads
    */
-  List<Payload> visit(PayloadVisitorContext<C> context, List<Payload> payloads);
+  List<Payload> visit(C context, List<Payload> payloads);
 }

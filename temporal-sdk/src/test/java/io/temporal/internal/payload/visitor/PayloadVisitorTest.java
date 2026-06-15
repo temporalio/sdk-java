@@ -75,7 +75,7 @@ public class PayloadVisitorTest {
     final AtomicInteger visits = new AtomicInteger();
 
     @Override
-    public List<Payload> visit(PayloadVisitorContext<Object> ctx, List<Payload> payloads) {
+    public List<Payload> visit(Object ctx, List<Payload> payloads) {
       visits.incrementAndGet();
       for (Payload p : payloads) {
         seen.add(data(p));
@@ -434,7 +434,7 @@ public class PayloadVisitorTest {
                 (ctx, pls) -> {
                   for (Payload p : pls) {
                     dataOrder.add(data(p));
-                    contextOrder.add(ctx.getContext());
+                    contextOrder.add(ctx);
                   }
                   return pls;
                 })
@@ -467,7 +467,7 @@ public class PayloadVisitorTest {
             .setInitialContext("root")
             .setPayloadVisitor(
                 (ctx, pls) -> {
-                  observed.add(ctx.getContext());
+                  observed.add(ctx);
                   return pls;
                 })
             .build();
