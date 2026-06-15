@@ -4,8 +4,12 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class ActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
@@ -17,6 +21,8 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
+  private final ConcurrentMap<ByteBuffer, ActivityExecutionContextImpl> activeContexts =
+      new ConcurrentHashMap<>();
 
   public ActivityExecutionContextFactoryImpl(
       WorkflowClient client,
@@ -42,18 +48,37 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   @Override
   public InternalActivityExecutionContext createContext(
       ActivityInfoInternal info, Object activity, Scope metricsScope) {
-    return new ActivityExecutionContextImpl(
-        client,
-        namespace,
-        activity,
-        info,
-        dataConverter,
-        heartbeatExecutor,
-        manualCompletionClientFactory,
-        info.getCompletionHandle(),
-        metricsScope,
-        identity,
-        maxHeartbeatThrottleInterval,
-        defaultHeartbeatThrottleInterval);
+    ByteBuffer taskToken = taskTokenKey(info.getTaskToken());
+    ActivityExecutionContextImpl context =
+        new ActivityExecutionContextImpl(
+            client,
+            namespace,
+            activity,
+            info,
+            dataConverter,
+            heartbeatExecutor,
+            manualCompletionClientFactory,
+            info.getCompletionHandle(),
+            metricsScope,
+            identity,
+            maxHeartbeatThrottleInterval,
+            defaultHeartbeatThrottleInterval,
+            () -> activeContexts.remove(taskToken));
+    activeContexts.put(taskToken, context);
+    return context;
+  }
+
+  @Override
+  public boolean requestCancel(byte[] taskToken) {
+    ActivityExecutionContextImpl context = activeContexts.get(taskTokenKey(taskToken));
+    if (context == null) {
+      return false;
+    }
+    context.cancelFromWorkerCommand();
+    return true;
+  }
+
+  private static ByteBuffer taskTokenKey(byte[] taskToken) {
+    return ByteBuffer.wrap(Arrays.copyOf(taskToken, taskToken.length)).asReadOnlyBuffer();
   }
 }

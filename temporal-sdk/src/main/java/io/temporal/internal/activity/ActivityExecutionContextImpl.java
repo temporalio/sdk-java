@@ -1,6 +1,7 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
@@ -32,6 +33,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private final HeartbeatContext heartbeatContext;
+  private final Functions.Proc closeCallback;
 
   private final Scope metricsScope;
   private final ActivityInfo info;
@@ -51,12 +53,14 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       Scope metricsScope,
       String identity,
       Duration maxHeartbeatThrottleInterval,
-      Duration defaultHeartbeatThrottleInterval) {
+      Duration defaultHeartbeatThrottleInterval,
+      Functions.Proc closeCallback) {
     this.client = client;
     this.activity = activity;
     this.metricsScope = metricsScope;
     this.info = info;
     this.completionHandle = completionHandle;
+    this.closeCallback = closeCallback;
     this.manualCompletionClientFactory = manualCompletionClientFactory;
     this.heartbeatContext =
         new HeartbeatContextImpl(
@@ -103,6 +107,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public byte[] getTaskToken() {
     return info.getTaskToken();
+  }
+
+  @Override
+  public ActivityCancellationToken getCancellationToken() {
+    return heartbeatContext.getCancellationToken();
   }
 
   @Override
@@ -170,6 +179,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public void cancelOutstandingHeartbeat() {
     heartbeatContext.cancelOutstandingHeartbeat();
+    closeCallback.apply();
+  }
+
+  void cancelFromWorkerCommand() {
+    heartbeatContext.cancelFromWorkerCommand();
   }
 
   @Override

@@ -126,7 +126,8 @@ final class WorkflowWorker implements SuspendableWorker {
                   slotSupplier,
                   workerMetricsScope,
                   service.getServerCapabilities(),
-                  pollerTracker);
+                  pollerTracker,
+                  options.getWorkerControlTaskQueue());
           pollers =
               Arrays.asList(
                   new AsyncWorkflowPollTask(
@@ -140,7 +141,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       slotSupplier,
                       workerMetricsScope,
                       service.getServerCapabilities(),
-                      stickyPollerTracker),
+                      stickyPollerTracker,
+                      options.getWorkerControlTaskQueue()),
                   normalPoller);
           this.stickyQueueBalancer = normalPoller;
         } else {
@@ -157,7 +159,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       slotSupplier,
                       workerMetricsScope,
                       service.getServerCapabilities(),
-                      pollerTracker));
+                      pollerTracker,
+                      options.getWorkerControlTaskQueue()));
         }
         poller =
             new AsyncPoller<>(
@@ -191,7 +194,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     pollerTracker,
-                    stickyPollerTracker),
+                    stickyPollerTracker,
+                    options.getWorkerControlTaskQueue()),
                 pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope,
@@ -647,6 +651,9 @@ final class WorkflowWorker implements SuspendableWorker {
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
           .setTaskToken(taskToken);
+      if (options.getWorkerControlTaskQueue() != null) {
+        taskCompleted.setWorkerControlTaskQueue(options.getWorkerControlTaskQueue());
+      }
 
       if (options.getDeploymentOptions() != null) {
         taskCompleted.setDeploymentOptions(

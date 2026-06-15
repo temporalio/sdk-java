@@ -17,6 +17,8 @@ import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.internal.worker.HeartbeatManager;
 import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.internal.worker.SuspendableWorker;
+import io.temporal.internal.worker.WorkerCommandTaskHandler;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
@@ -63,6 +65,8 @@ public final class WorkerFactory {
 
   /** Namespace capabilities populated during start() from DescribeNamespace response. */
   private final NamespaceCapabilities namespaceCapabilities = new NamespaceCapabilities();
+
+  private SuspendableWorker workerCommandWorker;
 
   private State state = State.Initial;
 
@@ -201,6 +205,7 @@ public final class WorkerFactory {
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators(),
               plugins,
+              ((WorkflowClientInternal) workflowClient.getInternal()).getWorkerGroupingKey(),
               namespaceCapabilities);
       workers.put(taskQueue, worker);
 
@@ -314,6 +319,25 @@ public final class WorkerFactory {
         hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
         worker.setHeartbeatSupplier(heartbeatSupplier);
       }
+      if (namespaceCapabilities.isWorkerCommands()) {
+        workerCommandWorker =
+            WorkerCommandTaskHandler.newWorkerCommandWorker(
+                workflowClient.getWorkflowServiceStubs(),
+                namespace,
+                workflowClient.getOptions().getIdentity(),
+                workerGroupingKey,
+                taskToken -> {
+                  for (Worker worker : workers.values()) {
+                    if (worker.requestCancelActivity(taskToken)) {
+                      return true;
+                    }
+                  }
+                  return false;
+                },
+                metricsScope,
+                namespaceCapabilities);
+        workerCommandWorker.start();
+      }
     }
 
     state = State.Started;
@@ -336,6 +360,9 @@ public final class WorkerFactory {
    */
   public synchronized boolean isTerminated() {
     if (state != State.Shutdown) {
+      return false;
+    }
+    if (workerCommandWorker != null && !workerCommandWorker.isTerminated()) {
       return false;
     }
     for (Worker worker : workers.values()) {
@@ -432,6 +459,9 @@ public final class WorkerFactory {
         shutdownFutures.add(futureHolder[0]);
       }
     }
+    if (workerCommandWorker != null) {
+      shutdownFutures.add(workerCommandWorker.shutdown(shutdownManager, interruptUserTasks));
+    }
 
     CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
         .thenApply(
@@ -450,6 +480,7 @@ public final class WorkerFactory {
               }
               cache.invalidateAll();
               workflowThreadPool.shutdownNow();
+              workerCommandWorker = null;
               return null;
             })
         .whenComplete(
@@ -476,6 +507,11 @@ public final class WorkerFactory {
           ShutdownManager.runAndGetRemainingTimeoutMs(
               t, () -> worker.awaitTermination(t, TimeUnit.MILLISECONDS));
     }
+    if (workerCommandWorker != null) {
+      long t = timeoutMillis;
+      ShutdownManager.runAndGetRemainingTimeoutMs(
+          t, () -> workerCommandWorker.awaitTermination(t, TimeUnit.MILLISECONDS));
+    }
     log.info("awaitTermination done: {}", this);
   }
 
@@ -496,6 +532,9 @@ public final class WorkerFactory {
     for (Worker worker : workers.values()) {
       worker.suspendPolling();
     }
+    if (workerCommandWorker != null) {
+      workerCommandWorker.suspendPolling();
+    }
   }
 
   public synchronized void resumePolling() {
@@ -507,6 +546,9 @@ public final class WorkerFactory {
     state = State.Started;
     for (Worker worker : workers.values()) {
       worker.resumePolling();
+    }
+    if (workerCommandWorker != null) {
+      workerCommandWorker.resumePolling();
     }
   }
 

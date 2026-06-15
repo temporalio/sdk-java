@@ -83,6 +83,10 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
     return activities.get(type) != null || dynamicActivity != null;
   }
 
+  public boolean requestCancel(byte[] taskToken) {
+    return executionContextFactory.requestCancel(taskToken);
+  }
+
   public void registerActivityImplementations(Object[] activitiesImplementation) {
     for (Object activity : activitiesImplementation) {
       registerActivityImplementation(activity);

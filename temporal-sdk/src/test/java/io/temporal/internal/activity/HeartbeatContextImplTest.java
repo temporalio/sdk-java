@@ -13,6 +13,7 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -183,6 +184,85 @@ public class HeartbeatContextImplTest {
     ctx.cancelOutstandingHeartbeat();
   }
 
+  @Test
+  public void workerCommandCancelThrowsWithoutHeartbeatRpc() {
+    ActivityInfo info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
+    HeartbeatContextImpl ctx = createHeartbeatContext(info);
+
+    assertFalse(ctx.getCancellationToken().isCancellationRequested());
+    assertFalse(ctx.getCancellationToken().getCancellationRequest().isDone());
+
+    ctx.cancelFromWorkerCommand();
+
+    assertTrue(ctx.getCancellationToken().isCancellationRequested());
+    assertTrue(ctx.getCancellationToken().getCancellationRequest().isDone());
+    assertThrows(
+        ActivityCanceledException.class,
+        () -> ctx.getCancellationToken().throwIfCancellationRequested());
+
+    try {
+      ctx.heartbeat("details");
+      fail("Expected ActivityCanceledException");
+    } catch (ActivityCanceledException e) {
+      assertNull(e.getCause());
+    }
+
+    verify(blockingStub, never()).recordActivityTaskHeartbeat(any());
+    ctx.cancelOutstandingHeartbeat();
+  }
+
+  @Test
+  public void heartbeatCancelCompletesCancellationToken() {
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenReturn(
+            RecordActivityTaskHeartbeatResponse.newBuilder().setCancelRequested(true).build());
+
+    ActivityInfo info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
+    HeartbeatContextImpl ctx = createHeartbeatContext(info);
+
+    assertFalse(ctx.getCancellationToken().isCancellationRequested());
+    assertFalse(ctx.getCancellationToken().getCancellationRequest().isDone());
+
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
+
+    assertTrue(ctx.getCancellationToken().isCancellationRequested());
+    assertTrue(ctx.getCancellationToken().getCancellationRequest().isDone());
+    assertThrows(
+        ActivityCanceledException.class,
+        () -> ctx.getCancellationToken().throwIfCancellationRequested());
+
+    ctx.cancelOutstandingHeartbeat();
+  }
+
+  @Test
+  public void factoryCancelByTaskTokenCompletesCancellationToken() {
+    WorkflowClient client = mock(WorkflowClient.class);
+    when(client.getWorkflowServiceStubs()).thenReturn(service);
+
+    ActivityExecutionContextFactoryImpl factory =
+        new ActivityExecutionContextFactoryImpl(
+            client,
+            "test-identity",
+            "test-namespace",
+            Duration.ofSeconds(60),
+            Duration.ofSeconds(30),
+            GlobalDataConverter.get(),
+            heartbeatExecutor);
+
+    ActivityInfoInternal info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
+    InternalActivityExecutionContext context =
+        factory.createContext(info, new Object(), new NoopScope());
+
+    assertFalse(context.getCancellationToken().isCancellationRequested());
+    assertFalse(factory.requestCancel(new byte[] {9, 8, 7}));
+    assertTrue(factory.requestCancel(new byte[] {1, 2, 3}));
+    assertTrue(context.getCancellationToken().isCancellationRequested());
+    assertTrue(context.getCancellationToken().getCancellationRequest().isDone());
+
+    context.cancelOutstandingHeartbeat();
+    assertFalse(factory.requestCancel(new byte[] {1, 2, 3}));
+  }
+
   private HeartbeatContextImpl createHeartbeatContext(ActivityInfo info) {
     return new HeartbeatContextImpl(
         service,
@@ -197,8 +277,8 @@ public class HeartbeatContextImplTest {
         TEST_BUFFER_MILLIS);
   }
 
-  private static ActivityInfo activityInfoWithHeartbeatTimeout(Duration heartbeatTimeout) {
-    ActivityInfo info = mock(ActivityInfo.class);
+  private static ActivityInfoInternal activityInfoWithHeartbeatTimeout(Duration heartbeatTimeout) {
+    ActivityInfoInternal info = mock(ActivityInfoInternal.class);
     when(info.getHeartbeatTimeout()).thenReturn(heartbeatTimeout);
     when(info.getTaskToken()).thenReturn(new byte[] {1, 2, 3});
     when(info.getWorkflowId()).thenReturn("test-workflow-id");
@@ -208,6 +288,7 @@ public class HeartbeatContextImplTest {
     when(info.getActivityId()).thenReturn("test-activity-id");
     when(info.isLocal()).thenReturn(false);
     when(info.getHeartbeatDetails()).thenReturn(Optional.empty());
+    when(info.getCompletionHandle()).thenReturn(() -> {});
     return info;
   }
 }

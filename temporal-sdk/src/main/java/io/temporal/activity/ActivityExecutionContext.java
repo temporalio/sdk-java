@@ -90,6 +90,14 @@ public interface ActivityExecutionContext {
   byte[] getTaskToken();
 
   /**
+   * Returns a token that can be used by Activity code to observe cancellation requests without
+   * recording Heartbeats.
+   */
+  default ActivityCancellationToken getCancellationToken() {
+    return ActivityCancellationToken.NONE;
+  }
+
+  /**
    * If this method is called during an Activity Execution then the Activity Execution is not going
    * to complete when it's method returns. It is expected to be completed asynchronously using
    * {@link io.temporal.client.ActivityCompletionClient}.

@@ -1,6 +1,7 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.ActivityCompletionException;
@@ -55,6 +56,12 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   @Override
   public byte[] getTaskToken() {
     throw new UnsupportedOperationException("getTaskToken is not supported for local activities");
+  }
+
+  @Override
+  public ActivityCancellationToken getCancellationToken() {
+    throw new UnsupportedOperationException(
+        "getCancellationToken is not supported for local activities");
   }
 
   @Override
