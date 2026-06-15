@@ -27,13 +27,14 @@ public final class LambdaWorker {
    * @param configure callback invoked once while the Lambda handler is constructed.
    */
   public static RequestHandler<Object, Void> run(
-      WorkerDeploymentVersion version, Consumer<LambdaWorkerOptions> configure) {
+      WorkerDeploymentVersion version, Consumer<LambdaWorkerOptions.Builder> configure) {
     LambdaWorkerOptions.validateVersion(version);
     Objects.requireNonNull(configure, "configure");
     try {
-      LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(System.getenv());
-      configure.accept(options);
-      return newHandler(version, options);
+      LambdaWorkerOptions.Builder builder =
+          LambdaWorkerOptions.newBuilderFromEnvironment(System.getenv());
+      configure.accept(builder);
+      return newHandler(version, builder.build());
     } catch (IOException e) {
       throw new RuntimeException("Unable to load Temporal client configuration", e);
     }

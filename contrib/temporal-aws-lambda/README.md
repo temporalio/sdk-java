@@ -14,13 +14,13 @@ import io.temporal.common.WorkerDeploymentVersion;
 
 public final class Handler implements RequestHandler<Object, Void> {
   private static final RequestHandler<Object, Void> WORKER =
-      LambdaWorker.run(
-          new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
-          options ->
-              options
-                  .setTaskQueue("orders")
-                  .registerWorkflowImplementationTypes(OrderWorkflowImpl.class)
-                  .registerActivitiesImplementations(new OrderActivitiesImpl()));
+	      LambdaWorker.run(
+	          new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
+	          builder ->
+	              builder
+	                  .setTaskQueue("orders")
+	                  .registerWorkflowImplementationTypes(OrderWorkflowImpl.class)
+	                  .registerActivitiesImplementations(new OrderActivitiesImpl()));
 
   @Override
   public Void handleRequest(Object input, Context context) {
@@ -33,7 +33,7 @@ public final class Handler implements RequestHandler<Object, Void> {
 
 Connection options are loaded with `temporal-envconfig` when the handler is constructed during Lambda cold start. The Lambda worker checks `TEMPORAL_CONFIG_FILE` first, then readable `$LAMBDA_TASK_ROOT/temporal.toml`, then readable `./temporal.toml`, then falls back to the envconfig defaults and Temporal environment variables. The `configure` callback also runs during handler construction, so non-invocation configuration is prepared once and reused.
 
-If you need to assemble options outside the `run` callback, call `LambdaWorkerOptions.fromEnvironment()`, mutate the returned options, and pass them to `LambdaWorker.newHandler(...)`.
+If you need to assemble options outside the `run` callback, call `LambdaWorkerOptions.newBuilderFromEnvironment()`, configure the returned builder, call `build()`, and pass the options to `LambdaWorker.newHandler(...)`.
 
 Dynamic workflow and activity implementations can be registered with `registerDynamicWorkflowImplementationType(...)` and `registerDynamicActivityImplementation(...)`. Java SDK worker rules still apply: only one dynamic workflow implementation type and one dynamic activity implementation can be registered per worker.
 
@@ -44,18 +44,18 @@ If you explicitly set `shutdownDeadlineBuffer`, it must be greater than or equal
 
 ## OpenTelemetry
 
-`OtelLambdaWorker.configure(options)` creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters. To enable it, call the helper from the handler initializer:
+`OtelLambdaWorker.configure(builder)` creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters. To enable it, call the helper from the handler initializer:
 
 ```java
 private static final RequestHandler<Object, Void> WORKER =
-    LambdaWorker.run(
-        new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
-        options -> {
-          OtelLambdaWorker.configure(options);
-          options
-              .setTaskQueue("orders")
-              .registerWorkflowImplementationTypes(OrderWorkflowImpl.class);
-        });
+	    LambdaWorker.run(
+	        new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
+	        builder -> {
+	          OtelLambdaWorker.configure(builder);
+	          builder
+	              .setTaskQueue("orders")
+	              .registerWorkflowImplementationTypes(OrderWorkflowImpl.class);
+	        });
 ```
 
 The helper defaults the OTLP endpoint from `OTEL_EXPORTER_OTLP_ENDPOINT`, then `http://localhost:4317`. It defaults the service name from `OTEL_SERVICE_NAME`, then `AWS_LAMBDA_FUNCTION_NAME`, then `temporal-lambda-worker`, and sets it on the OpenTelemetry resource. To use an application-owned provider, call `builder.setOpenTelemetry(...)`; in that path, no exporters are created and the helper only installs the metrics scope, interceptors, and per-invocation flush hook. Providers and scopes are not closed after each invocation.

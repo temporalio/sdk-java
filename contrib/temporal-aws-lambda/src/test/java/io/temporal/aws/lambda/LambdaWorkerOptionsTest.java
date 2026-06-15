@@ -31,10 +31,11 @@ public class LambdaWorkerOptionsTest {
 
   @Test
   public void lambdaDefaultsAreAppliedToUnsetOptions() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
     options.setTaskQueue("task-queue");
 
-    LambdaWorkerOptions.Materialized materialized = options.materialize(VERSION, "request@arn");
+    LambdaWorkerOptions.Materialized materialized =
+        options.build().materialize(VERSION, "request@arn");
 
     WorkerOptions workerOptions = materialized.workerOptions;
     assertEquals(2, workerOptions.getMaxConcurrentActivityExecutionSize());
@@ -60,7 +61,7 @@ public class LambdaWorkerOptionsTest {
 
   @Test
   public void userOverridesWinOverLambdaDefaults() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
     options.setTaskQueue("task-queue");
     options.getWorkerOptionsBuilder().setMaxConcurrentActivityExecutionSize(11);
     options.getWorkerOptionsBuilder().setMaxConcurrentWorkflowTaskExecutionSize(12);
@@ -80,7 +81,8 @@ public class LambdaWorkerOptionsTest {
     options.getWorkerFactoryOptionsBuilder().setWorkflowCacheSize(17);
     options.getWorkerFactoryOptionsBuilder().setMaxWorkflowThreadCount(18);
 
-    LambdaWorkerOptions.Materialized materialized = options.materialize(VERSION, "request@arn");
+    LambdaWorkerOptions.Materialized materialized =
+        options.build().materialize(VERSION, "request@arn");
 
     WorkerOptions workerOptions = materialized.workerOptions;
     assertEquals(11, workerOptions.getMaxConcurrentActivityExecutionSize());
@@ -106,29 +108,32 @@ public class LambdaWorkerOptionsTest {
     env.put(LambdaWorkerOptions.TEMPORAL_TASK_QUEUE, "env-task-queue");
 
     LambdaWorkerOptions.Materialized materialized =
-        LambdaWorkerOptions.fromEnvironment(env).materialize(VERSION, "request@arn");
+        LambdaWorkerOptions.newBuilderFromEnvironment(env)
+            .build()
+            .materialize(VERSION, "request@arn");
 
     assertEquals("env-task-queue", materialized.taskQueue);
   }
 
   @Test
   public void missingTaskQueueFailsBeforeRuntimeCreation() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     IllegalStateException e =
         assertThrows(
-            IllegalStateException.class, () -> options.materialize(VERSION, "request@arn"));
+            IllegalStateException.class, () -> options.build().materialize(VERSION, "request@arn"));
 
     assertTrue(e.getMessage().contains("Task queue must be set"));
   }
 
   @Test
   public void gracefulShutdownTimeoutRecomputesDefaultShutdownDeadlineBuffer() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
     options.setTaskQueue("task-queue");
     options.setGracefulShutdownTimeout(Duration.ofSeconds(3));
 
-    LambdaWorkerOptions.Materialized materialized = options.materialize(VERSION, "request@arn");
+    LambdaWorkerOptions.Materialized materialized =
+        options.build().materialize(VERSION, "request@arn");
 
     assertEquals(Duration.ofSeconds(3), materialized.gracefulShutdownTimeout);
     assertEquals(Duration.ofSeconds(5), materialized.shutdownDeadlineBuffer);
@@ -136,26 +141,58 @@ public class LambdaWorkerOptionsTest {
 
   @Test
   public void explicitShutdownDeadlineBufferIsNotRecomputed() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
     options.setTaskQueue("task-queue");
     options.setShutdownDeadlineBuffer(Duration.ofSeconds(9));
     options.setGracefulShutdownTimeout(Duration.ofSeconds(3));
 
-    LambdaWorkerOptions.Materialized materialized = options.materialize(VERSION, "request@arn");
+    LambdaWorkerOptions.Materialized materialized =
+        options.build().materialize(VERSION, "request@arn");
 
     assertEquals(Duration.ofSeconds(3), materialized.gracefulShutdownTimeout);
     assertEquals(Duration.ofSeconds(9), materialized.shutdownDeadlineBuffer);
   }
 
   @Test
+  public void buildCreatesImmutableSnapshot() throws IOException {
+    LambdaWorkerOptions.Builder builder = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
+    builder.setTaskQueue("first-task-queue");
+
+    LambdaWorkerOptions options = builder.build();
+    builder.setTaskQueue("second-task-queue");
+
+    assertEquals("first-task-queue", options.getTaskQueue());
+    assertEquals("first-task-queue", options.materialize(VERSION, "request@arn").taskQueue);
+  }
+
+  @Test
+  public void toBuilderPreservesExplicitShutdownDeadlineBuffer() throws IOException {
+    LambdaWorkerOptions options =
+        LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv())
+            .setTaskQueue("task-queue")
+            .setShutdownDeadlineBuffer(Duration.ofSeconds(9))
+            .setGracefulShutdownTimeout(Duration.ofSeconds(3))
+            .build();
+
+    LambdaWorkerOptions.Materialized materialized =
+        options.toBuilder()
+            .setGracefulShutdownTimeout(Duration.ofSeconds(4))
+            .build()
+            .materialize(VERSION, "request@arn");
+
+    assertEquals(Duration.ofSeconds(4), materialized.gracefulShutdownTimeout);
+    assertEquals(Duration.ofSeconds(9), materialized.shutdownDeadlineBuffer);
+  }
+
+  @Test
   public void shutdownDeadlineBufferMustCoverGracefulShutdownTimeout() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
     options.setTaskQueue("task-queue");
     options.setShutdownDeadlineBuffer(Duration.ofSeconds(2));
 
     IllegalStateException e =
         assertThrows(
-            IllegalStateException.class, () -> options.materialize(VERSION, "request@arn"));
+            IllegalStateException.class, () -> options.build().materialize(VERSION, "request@arn"));
 
     assertTrue(e.getMessage().contains("shutdownDeadlineBuffer"));
   }
@@ -175,9 +212,10 @@ public class LambdaWorkerOptionsTest {
     env.put(LambdaWorkerOptions.TEMPORAL_CONFIG_FILE, explicitConfig.getAbsolutePath());
     env.put(LambdaWorkerOptions.LAMBDA_TASK_ROOT, taskRoot.getAbsolutePath());
 
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(env);
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env);
     options.setTaskQueue("task-queue");
-    WorkflowClientOptions clientOptions = options.materialize(VERSION, "request@arn").clientOptions;
+    WorkflowClientOptions clientOptions =
+        options.build().materialize(VERSION, "request@arn").clientOptions;
 
     assertEquals("explicit", clientOptions.getNamespace());
   }
@@ -192,11 +230,12 @@ public class LambdaWorkerOptionsTest {
     Map<String, String> env = new HashMap<>();
     env.put(LambdaWorkerOptions.LAMBDA_TASK_ROOT, taskRoot.getAbsolutePath());
 
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(env, cwd);
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env, cwd);
     options.setTaskQueue("task-queue");
 
     assertEquals(
-        "lambda-root", options.materialize(VERSION, "request@arn").clientOptions.getNamespace());
+        "lambda-root",
+        options.build().materialize(VERSION, "request@arn").clientOptions.getNamespace());
   }
 
   @Test
@@ -204,10 +243,12 @@ public class LambdaWorkerOptionsTest {
     File cwd = temporaryFolder.newFolder("cwd");
     writeConfig(cwd, "cwd");
 
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(new HashMap<>(), cwd);
+    LambdaWorkerOptions.Builder options =
+        LambdaWorkerOptions.newBuilderFromEnvironment(new HashMap<>(), cwd);
     options.setTaskQueue("task-queue");
 
-    assertEquals("cwd", options.materialize(VERSION, "request@arn").clientOptions.getNamespace());
+    assertEquals(
+        "cwd", options.build().materialize(VERSION, "request@arn").clientOptions.getNamespace());
   }
 
   @Test
@@ -218,21 +259,24 @@ public class LambdaWorkerOptionsTest {
     Map<String, String> env = new HashMap<>();
     env.put(LambdaWorkerOptions.LAMBDA_TASK_ROOT, taskRoot.getAbsolutePath());
 
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(env, cwd);
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env, cwd);
     options.setTaskQueue("task-queue");
 
-    assertEquals("cwd", options.materialize(VERSION, "request@arn").clientOptions.getNamespace());
+    assertEquals(
+        "cwd", options.build().materialize(VERSION, "request@arn").clientOptions.getNamespace());
   }
 
   @Test
   public void envconfigDefaultsAreUsedWhenNoConfigFileCandidateExists() throws IOException {
     File cwd = temporaryFolder.newFolder("cwd");
 
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(new HashMap<>(), cwd);
+    LambdaWorkerOptions.Builder options =
+        LambdaWorkerOptions.newBuilderFromEnvironment(new HashMap<>(), cwd);
     options.setTaskQueue("task-queue");
 
     assertEquals(
-        "default", options.materialize(VERSION, "request@arn").clientOptions.getNamespace());
+        "default",
+        options.build().materialize(VERSION, "request@arn").clientOptions.getNamespace());
   }
 
   @Test
@@ -247,7 +291,7 @@ public class LambdaWorkerOptionsTest {
 
   @Test
   public void dynamicRegistrationMethodsRejectNullInputs() throws IOException {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     assertThrows(
         NullPointerException.class,

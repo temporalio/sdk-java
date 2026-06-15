@@ -50,46 +50,68 @@ public final class LambdaWorkerOptions {
   private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 30;
   private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 30;
 
-  private final WorkflowServiceStubsOptions.Builder workflowServiceStubsOptionsBuilder;
-  private final WorkflowClientOptions.Builder workflowClientOptionsBuilder;
-  private final WorkerFactoryOptions.Builder workerFactoryOptionsBuilder;
-  private final WorkerOptions.Builder workerOptionsBuilder;
-  private final List<Registration> registrations = new ArrayList<>();
-  private final List<Runnable> shutdownHooks = new ArrayList<>();
+  private final WorkflowServiceStubsOptions workflowServiceStubsOptions;
+  private final WorkflowClientOptions workflowClientOptions;
+  private final WorkerFactoryOptions workerFactoryOptions;
+  private final WorkerOptions workerOptions;
+  private final List<Registration> registrations;
+  private final List<Runnable> shutdownHooks;
+  private final String taskQueue;
+  private final Duration gracefulShutdownTimeout;
+  private final Duration shutdownDeadlineBuffer;
+  private final boolean shutdownDeadlineBufferExplicit;
 
-  private String taskQueue;
-  private Duration gracefulShutdownTimeout = DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT;
-  private Duration shutdownDeadlineBuffer = DEFAULT_SHUTDOWN_DEADLINE_BUFFER;
-  private boolean shutdownDeadlineBufferExplicit;
-
-  private LambdaWorkerOptions(ClientConfigProfile profile, Map<String, String> env) {
-    this.workflowServiceStubsOptionsBuilder =
-        WorkflowServiceStubsOptions.newBuilder(profile.toWorkflowServiceStubsOptions());
-    this.workflowClientOptionsBuilder =
-        WorkflowClientOptions.newBuilder(profile.toWorkflowClientOptions());
-    this.workerFactoryOptionsBuilder = WorkerFactoryOptions.newBuilder();
-    this.workerOptionsBuilder = WorkerOptions.newBuilder();
-    this.taskQueue = nonEmptyEnv(env, TEMPORAL_TASK_QUEUE);
+  private LambdaWorkerOptions(
+      WorkflowServiceStubsOptions workflowServiceStubsOptions,
+      WorkflowClientOptions workflowClientOptions,
+      WorkerFactoryOptions workerFactoryOptions,
+      WorkerOptions workerOptions,
+      List<Registration> registrations,
+      List<Runnable> shutdownHooks,
+      String taskQueue,
+      Duration gracefulShutdownTimeout,
+      Duration shutdownDeadlineBuffer,
+      boolean shutdownDeadlineBufferExplicit) {
+    this.workflowServiceStubsOptions = workflowServiceStubsOptions;
+    this.workflowClientOptions = workflowClientOptions;
+    this.workerFactoryOptions = workerFactoryOptions;
+    this.workerOptions = workerOptions;
+    this.registrations = Collections.unmodifiableList(new ArrayList<>(registrations));
+    this.shutdownHooks = Collections.unmodifiableList(new ArrayList<>(shutdownHooks));
+    this.taskQueue = taskQueue;
+    this.gracefulShutdownTimeout = gracefulShutdownTimeout;
+    this.shutdownDeadlineBuffer = shutdownDeadlineBuffer;
+    this.shutdownDeadlineBufferExplicit = shutdownDeadlineBufferExplicit;
   }
 
-  /** Loads Temporal client configuration from the process environment. */
-  public static LambdaWorkerOptions fromEnvironment() throws IOException {
-    return fromEnvironment(System.getenv());
+  public static Builder newBuilder() {
+    return new Builder();
   }
 
-  /** Loads Temporal client configuration from the provided environment values. */
-  public static LambdaWorkerOptions fromEnvironment(Map<String, String> env) throws IOException {
-    return fromEnvironment(env, new File("."));
+  public static Builder newBuilder(LambdaWorkerOptions options) {
+    return new Builder(options);
   }
 
-  static LambdaWorkerOptions fromEnvironment(Map<String, String> env, File cwd) throws IOException {
+  /** Loads Temporal client configuration from the process environment into a new builder. */
+  public static Builder newBuilderFromEnvironment() throws IOException {
+    return newBuilderFromEnvironment(System.getenv());
+  }
+
+  /**
+   * Loads Temporal client configuration from the provided environment values into a new builder.
+   */
+  public static Builder newBuilderFromEnvironment(Map<String, String> env) throws IOException {
+    return newBuilderFromEnvironment(env, new File("."));
+  }
+
+  static Builder newBuilderFromEnvironment(Map<String, String> env, File cwd) throws IOException {
     ClientConfigProfile profile =
         ClientConfigProfile.load(
             LoadClientConfigProfileOptions.newBuilder()
                 .setConfigFilePath(resolveConfigFilePath(env, cwd))
                 .setEnvOverrides(env)
                 .build());
-    return new LambdaWorkerOptions(profile, env);
+    return new Builder(profile, env);
   }
 
   static String resolveConfigFilePath(Map<String, String> env) {
@@ -114,187 +136,36 @@ public final class LambdaWorkerOptions {
     return isReadableFile(cwdConfig) ? cwdConfig.getAbsolutePath() : null;
   }
 
-  /** Returns the builder used to prepare {@link WorkflowServiceStubsOptions}. */
-  public WorkflowServiceStubsOptions.Builder getWorkflowServiceStubsOptionsBuilder() {
-    return workflowServiceStubsOptionsBuilder;
+  public Builder toBuilder() {
+    return new Builder(this);
   }
 
-  /** Returns the builder used to prepare {@link WorkflowClientOptions}. */
-  public WorkflowClientOptions.Builder getWorkflowClientOptionsBuilder() {
-    return workflowClientOptionsBuilder;
+  public WorkflowServiceStubsOptions getWorkflowServiceStubsOptions() {
+    return workflowServiceStubsOptions;
   }
 
-  /** Returns the builder used to prepare {@link WorkerFactoryOptions}. */
-  public WorkerFactoryOptions.Builder getWorkerFactoryOptionsBuilder() {
-    return workerFactoryOptionsBuilder;
+  public WorkflowClientOptions getWorkflowClientOptions() {
+    return workflowClientOptions;
   }
 
-  /** Returns the builder used to prepare {@link WorkerOptions}. */
-  public WorkerOptions.Builder getWorkerOptionsBuilder() {
-    return workerOptionsBuilder;
+  public WorkerFactoryOptions getWorkerFactoryOptions() {
+    return workerFactoryOptions;
+  }
+
+  public WorkerOptions getWorkerOptions() {
+    return workerOptions;
   }
 
   public String getTaskQueue() {
     return taskQueue;
   }
 
-  /** Sets the Temporal task queue polled by the per-invocation worker. */
-  public LambdaWorkerOptions setTaskQueue(String taskQueue) {
-    this.taskQueue = taskQueue;
-    return this;
-  }
-
   public Duration getGracefulShutdownTimeout() {
     return gracefulShutdownTimeout;
   }
 
-  /**
-   * Sets how long worker shutdown waits for pollers and executions to stop.
-   *
-   * <p>If {@link #setShutdownDeadlineBuffer(Duration)} has not been called, the shutdown deadline
-   * buffer is recomputed as this timeout plus a 2 second hook and service stubs margin.
-   */
-  public LambdaWorkerOptions setGracefulShutdownTimeout(Duration gracefulShutdownTimeout) {
-    this.gracefulShutdownTimeout =
-        requireNonNegative(gracefulShutdownTimeout, "gracefulShutdownTimeout");
-    if (!shutdownDeadlineBufferExplicit) {
-      shutdownDeadlineBuffer =
-          this.gracefulShutdownTimeout.plus(DEFAULT_SHUTDOWN_HOOKS_AND_STUBS_TIMEOUT);
-    }
-    return this;
-  }
-
   public Duration getShutdownDeadlineBuffer() {
     return shutdownDeadlineBuffer;
-  }
-
-  /**
-   * Sets the full shutdown window reserved at the end of the Lambda invocation.
-   *
-   * <p>The worker stops when remaining invocation time reaches this buffer. The default is 7
-   * seconds, made up of the 5 second graceful shutdown timeout and a 2 second hook and service
-   * stubs margin. This buffer must be greater than or equal to {@link
-   * #getGracefulShutdownTimeout()}.
-   */
-  public LambdaWorkerOptions setShutdownDeadlineBuffer(Duration shutdownDeadlineBuffer) {
-    this.shutdownDeadlineBuffer =
-        requireNonNegative(shutdownDeadlineBuffer, "shutdownDeadlineBuffer");
-    shutdownDeadlineBufferExplicit = true;
-    return this;
-  }
-
-  public LambdaWorkerOptions registerWorkflowImplementationTypes(
-      Class<?>... workflowImplementationClasses) {
-    final Class<?>[] classes = copyClasses(workflowImplementationClasses);
-    registrations.add(registrar -> registrar.registerWorkflowImplementationTypes(classes));
-    return this;
-  }
-
-  public LambdaWorkerOptions registerWorkflowImplementationTypes(
-      WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
-    Objects.requireNonNull(options, "options");
-    final Class<?>[] classes = copyClasses(workflowImplementationClasses);
-    registrations.add(registrar -> registrar.registerWorkflowImplementationTypes(options, classes));
-    return this;
-  }
-
-  /**
-   * Registers a dynamic workflow implementation type.
-   *
-   * <p>Only one dynamic workflow implementation type can be registered per worker.
-   */
-  public LambdaWorkerOptions registerDynamicWorkflowImplementationType(
-      Class<? extends DynamicWorkflow> workflowImplementationClass) {
-    final Class<? extends DynamicWorkflow> implementationClass =
-        Objects.requireNonNull(workflowImplementationClass, "workflowImplementationClass");
-    registrations.add(
-        registrar -> registrar.registerWorkflowImplementationTypes(implementationClass));
-    return this;
-  }
-
-  /**
-   * Registers a dynamic workflow implementation type with custom workflow implementation options.
-   *
-   * <p>Only one dynamic workflow implementation type can be registered per worker.
-   */
-  public LambdaWorkerOptions registerDynamicWorkflowImplementationType(
-      WorkflowImplementationOptions options,
-      Class<? extends DynamicWorkflow> workflowImplementationClass) {
-    Objects.requireNonNull(options, "options");
-    final Class<? extends DynamicWorkflow> implementationClass =
-        Objects.requireNonNull(workflowImplementationClass, "workflowImplementationClass");
-    registrations.add(
-        registrar -> registrar.registerWorkflowImplementationTypes(options, implementationClass));
-    return this;
-  }
-
-  public <R> LambdaWorkerOptions registerWorkflowImplementationFactory(
-      Class<R> workflowInterface, Functions.Func<R> factory) {
-    Objects.requireNonNull(workflowInterface, "workflowInterface");
-    Objects.requireNonNull(factory, "factory");
-    registrations.add(
-        registrar -> registrar.registerWorkflowImplementationFactory(workflowInterface, factory));
-    return this;
-  }
-
-  public <R> LambdaWorkerOptions registerWorkflowImplementationFactory(
-      Class<R> workflowInterface,
-      Functions.Func<R> factory,
-      WorkflowImplementationOptions options) {
-    Objects.requireNonNull(workflowInterface, "workflowInterface");
-    Objects.requireNonNull(factory, "factory");
-    Objects.requireNonNull(options, "options");
-    registrations.add(
-        registrar ->
-            registrar.registerWorkflowImplementationFactory(workflowInterface, factory, options));
-    return this;
-  }
-
-  public <R> LambdaWorkerOptions registerWorkflowImplementationFactory(
-      Class<R> workflowInterface,
-      Functions.Func1<EncodedValues, R> factory,
-      WorkflowImplementationOptions options) {
-    Objects.requireNonNull(workflowInterface, "workflowInterface");
-    Objects.requireNonNull(factory, "factory");
-    Objects.requireNonNull(options, "options");
-    registrations.add(
-        registrar ->
-            registrar.registerWorkflowImplementationFactory(workflowInterface, factory, options));
-    return this;
-  }
-
-  public LambdaWorkerOptions registerActivitiesImplementations(Object... activityImplementations) {
-    final Object[] implementations =
-        copyObjects(activityImplementations, "activityImplementations");
-    registrations.add(registrar -> registrar.registerActivitiesImplementations(implementations));
-    return this;
-  }
-
-  /**
-   * Registers a dynamic activity implementation.
-   *
-   * <p>Only one dynamic activity implementation can be registered per worker.
-   */
-  public LambdaWorkerOptions registerDynamicActivityImplementation(
-      DynamicActivity activityImplementation) {
-    final DynamicActivity implementation =
-        Objects.requireNonNull(activityImplementation, "activityImplementation");
-    registrations.add(registrar -> registrar.registerActivitiesImplementations(implementation));
-    return this;
-  }
-
-  public LambdaWorkerOptions registerNexusServiceImplementation(
-      Object... nexusServiceImplementations) {
-    final Object[] implementations =
-        copyObjects(nexusServiceImplementations, "nexusServiceImplementations");
-    registrations.add(registrar -> registrar.registerNexusServiceImplementation(implementations));
-    return this;
-  }
-
-  /** Adds a shutdown hook that runs after the worker has stopped and before service stubs close. */
-  public LambdaWorkerOptions addShutdownHook(Runnable hook) {
-    shutdownHooks.add(Objects.requireNonNull(hook, "hook"));
-    return this;
   }
 
   Materialized materialize(WorkerDeploymentVersion version, String invocationIdentity) {
@@ -305,13 +176,13 @@ public final class LambdaWorkerOptions {
     validateVersion(version);
     if (isNullOrEmpty(taskQueue)) {
       throw new IllegalStateException(
-          "Task queue must be set with LambdaWorkerOptions#setTaskQueue or TEMPORAL_TASK_QUEUE");
+          "Task queue must be set with LambdaWorkerOptions.Builder#setTaskQueue or TEMPORAL_TASK_QUEUE");
     }
     validateShutdownConfiguration();
 
-    WorkflowClientOptions rawClientOptions = workflowClientOptionsBuilder.build();
-    WorkerOptions rawWorkerOptions = workerOptionsBuilder.build();
-    WorkerFactoryOptions rawFactoryOptions = workerFactoryOptionsBuilder.build();
+    WorkflowClientOptions rawClientOptions = workflowClientOptions;
+    WorkerOptions rawWorkerOptions = workerOptions;
+    WorkerFactoryOptions rawFactoryOptions = workerFactoryOptions;
 
     WorkflowClientOptions.Builder clientOptionsBuilder =
         WorkflowClientOptions.newBuilder(rawClientOptions);
@@ -329,7 +200,8 @@ public final class LambdaWorkerOptions {
     applyLambdaFactoryDefaults(rawFactoryOptions, factoryOptionsBuilder);
 
     return new Prepared(
-        workflowServiceStubsOptionsBuilder.validateAndBuildWithDefaults(),
+        WorkflowServiceStubsOptions.newBuilder(workflowServiceStubsOptions)
+            .validateAndBuildWithDefaults(),
         clientOptionsBuilder.build(),
         factoryOptionsBuilder.validateAndBuildWithDefaults(),
         taskQueue,
@@ -455,6 +327,251 @@ public final class LambdaWorkerOptions {
   private static Object[] copyObjects(Object[] objects, String name) {
     Objects.requireNonNull(objects, name);
     return Arrays.copyOf(objects, objects.length);
+  }
+
+  public static final class Builder {
+    private final WorkflowServiceStubsOptions.Builder workflowServiceStubsOptionsBuilder;
+    private final WorkflowClientOptions.Builder workflowClientOptionsBuilder;
+    private final WorkerFactoryOptions.Builder workerFactoryOptionsBuilder;
+    private final WorkerOptions.Builder workerOptionsBuilder;
+    private final List<Registration> registrations = new ArrayList<>();
+    private final List<Runnable> shutdownHooks = new ArrayList<>();
+
+    private String taskQueue;
+    private Duration gracefulShutdownTimeout = DEFAULT_GRACEFUL_SHUTDOWN_TIMEOUT;
+    private Duration shutdownDeadlineBuffer = DEFAULT_SHUTDOWN_DEADLINE_BUFFER;
+    private boolean shutdownDeadlineBufferExplicit;
+
+    private Builder() {
+      this.workflowServiceStubsOptionsBuilder = WorkflowServiceStubsOptions.newBuilder();
+      this.workflowClientOptionsBuilder = WorkflowClientOptions.newBuilder();
+      this.workerFactoryOptionsBuilder = WorkerFactoryOptions.newBuilder();
+      this.workerOptionsBuilder = WorkerOptions.newBuilder();
+    }
+
+    private Builder(ClientConfigProfile profile, Map<String, String> env) {
+      this.workflowServiceStubsOptionsBuilder =
+          WorkflowServiceStubsOptions.newBuilder(profile.toWorkflowServiceStubsOptions());
+      this.workflowClientOptionsBuilder =
+          WorkflowClientOptions.newBuilder(profile.toWorkflowClientOptions());
+      this.workerFactoryOptionsBuilder = WorkerFactoryOptions.newBuilder();
+      this.workerOptionsBuilder = WorkerOptions.newBuilder();
+      this.taskQueue = nonEmptyEnv(env, TEMPORAL_TASK_QUEUE);
+    }
+
+    private Builder(LambdaWorkerOptions options) {
+      Objects.requireNonNull(options, "options");
+      this.workflowServiceStubsOptionsBuilder =
+          WorkflowServiceStubsOptions.newBuilder(options.workflowServiceStubsOptions);
+      this.workflowClientOptionsBuilder =
+          WorkflowClientOptions.newBuilder(options.workflowClientOptions);
+      this.workerFactoryOptionsBuilder =
+          WorkerFactoryOptions.newBuilder(options.workerFactoryOptions);
+      this.workerOptionsBuilder = WorkerOptions.newBuilder(options.workerOptions);
+      this.registrations.addAll(options.registrations);
+      this.shutdownHooks.addAll(options.shutdownHooks);
+      this.taskQueue = options.taskQueue;
+      this.gracefulShutdownTimeout = options.gracefulShutdownTimeout;
+      this.shutdownDeadlineBuffer = options.shutdownDeadlineBuffer;
+      this.shutdownDeadlineBufferExplicit = options.shutdownDeadlineBufferExplicit;
+    }
+
+    /** Returns the builder used to prepare {@link WorkflowServiceStubsOptions}. */
+    public WorkflowServiceStubsOptions.Builder getWorkflowServiceStubsOptionsBuilder() {
+      return workflowServiceStubsOptionsBuilder;
+    }
+
+    /** Returns the builder used to prepare {@link WorkflowClientOptions}. */
+    public WorkflowClientOptions.Builder getWorkflowClientOptionsBuilder() {
+      return workflowClientOptionsBuilder;
+    }
+
+    /** Returns the builder used to prepare {@link WorkerFactoryOptions}. */
+    public WorkerFactoryOptions.Builder getWorkerFactoryOptionsBuilder() {
+      return workerFactoryOptionsBuilder;
+    }
+
+    /** Returns the builder used to prepare {@link WorkerOptions}. */
+    public WorkerOptions.Builder getWorkerOptionsBuilder() {
+      return workerOptionsBuilder;
+    }
+
+    public String getTaskQueue() {
+      return taskQueue;
+    }
+
+    /** Sets the Temporal task queue polled by the per-invocation worker. */
+    public Builder setTaskQueue(String taskQueue) {
+      this.taskQueue = taskQueue;
+      return this;
+    }
+
+    public Duration getGracefulShutdownTimeout() {
+      return gracefulShutdownTimeout;
+    }
+
+    /**
+     * Sets how long worker shutdown waits for pollers and executions to stop.
+     *
+     * <p>If {@link #setShutdownDeadlineBuffer(Duration)} has not been called, the shutdown deadline
+     * buffer is recomputed as this timeout plus a 2 second hook and service stubs margin.
+     */
+    public Builder setGracefulShutdownTimeout(Duration gracefulShutdownTimeout) {
+      this.gracefulShutdownTimeout =
+          requireNonNegative(gracefulShutdownTimeout, "gracefulShutdownTimeout");
+      if (!shutdownDeadlineBufferExplicit) {
+        shutdownDeadlineBuffer =
+            this.gracefulShutdownTimeout.plus(DEFAULT_SHUTDOWN_HOOKS_AND_STUBS_TIMEOUT);
+      }
+      return this;
+    }
+
+    public Duration getShutdownDeadlineBuffer() {
+      return shutdownDeadlineBuffer;
+    }
+
+    /**
+     * Sets the full shutdown window reserved at the end of the Lambda invocation.
+     *
+     * <p>The worker stops when remaining invocation time reaches this buffer. The default is 7
+     * seconds, made up of the 5 second graceful shutdown timeout and a 2 second hook and service
+     * stubs margin. This buffer must be greater than or equal to {@link
+     * #getGracefulShutdownTimeout()}.
+     */
+    public Builder setShutdownDeadlineBuffer(Duration shutdownDeadlineBuffer) {
+      this.shutdownDeadlineBuffer =
+          requireNonNegative(shutdownDeadlineBuffer, "shutdownDeadlineBuffer");
+      shutdownDeadlineBufferExplicit = true;
+      return this;
+    }
+
+    public Builder registerWorkflowImplementationTypes(Class<?>... workflowImplementationClasses) {
+      final Class<?>[] classes = copyClasses(workflowImplementationClasses);
+      registrations.add(registrar -> registrar.registerWorkflowImplementationTypes(classes));
+      return this;
+    }
+
+    public Builder registerWorkflowImplementationTypes(
+        WorkflowImplementationOptions options, Class<?>... workflowImplementationClasses) {
+      Objects.requireNonNull(options, "options");
+      final Class<?>[] classes = copyClasses(workflowImplementationClasses);
+      registrations.add(
+          registrar -> registrar.registerWorkflowImplementationTypes(options, classes));
+      return this;
+    }
+
+    /**
+     * Registers a dynamic workflow implementation type.
+     *
+     * <p>Only one dynamic workflow implementation type can be registered per worker.
+     */
+    public Builder registerDynamicWorkflowImplementationType(
+        Class<? extends DynamicWorkflow> workflowImplementationClass) {
+      final Class<? extends DynamicWorkflow> implementationClass =
+          Objects.requireNonNull(workflowImplementationClass, "workflowImplementationClass");
+      registrations.add(
+          registrar -> registrar.registerWorkflowImplementationTypes(implementationClass));
+      return this;
+    }
+
+    /**
+     * Registers a dynamic workflow implementation type with custom workflow implementation options.
+     *
+     * <p>Only one dynamic workflow implementation type can be registered per worker.
+     */
+    public Builder registerDynamicWorkflowImplementationType(
+        WorkflowImplementationOptions options,
+        Class<? extends DynamicWorkflow> workflowImplementationClass) {
+      Objects.requireNonNull(options, "options");
+      final Class<? extends DynamicWorkflow> implementationClass =
+          Objects.requireNonNull(workflowImplementationClass, "workflowImplementationClass");
+      registrations.add(
+          registrar -> registrar.registerWorkflowImplementationTypes(options, implementationClass));
+      return this;
+    }
+
+    public <R> Builder registerWorkflowImplementationFactory(
+        Class<R> workflowInterface, Functions.Func<R> factory) {
+      Objects.requireNonNull(workflowInterface, "workflowInterface");
+      Objects.requireNonNull(factory, "factory");
+      registrations.add(
+          registrar -> registrar.registerWorkflowImplementationFactory(workflowInterface, factory));
+      return this;
+    }
+
+    public <R> Builder registerWorkflowImplementationFactory(
+        Class<R> workflowInterface,
+        Functions.Func<R> factory,
+        WorkflowImplementationOptions options) {
+      Objects.requireNonNull(workflowInterface, "workflowInterface");
+      Objects.requireNonNull(factory, "factory");
+      Objects.requireNonNull(options, "options");
+      registrations.add(
+          registrar ->
+              registrar.registerWorkflowImplementationFactory(workflowInterface, factory, options));
+      return this;
+    }
+
+    public <R> Builder registerWorkflowImplementationFactory(
+        Class<R> workflowInterface,
+        Functions.Func1<EncodedValues, R> factory,
+        WorkflowImplementationOptions options) {
+      Objects.requireNonNull(workflowInterface, "workflowInterface");
+      Objects.requireNonNull(factory, "factory");
+      Objects.requireNonNull(options, "options");
+      registrations.add(
+          registrar ->
+              registrar.registerWorkflowImplementationFactory(workflowInterface, factory, options));
+      return this;
+    }
+
+    public Builder registerActivitiesImplementations(Object... activityImplementations) {
+      final Object[] implementations =
+          copyObjects(activityImplementations, "activityImplementations");
+      registrations.add(registrar -> registrar.registerActivitiesImplementations(implementations));
+      return this;
+    }
+
+    /**
+     * Registers a dynamic activity implementation.
+     *
+     * <p>Only one dynamic activity implementation can be registered per worker.
+     */
+    public Builder registerDynamicActivityImplementation(DynamicActivity activityImplementation) {
+      final DynamicActivity implementation =
+          Objects.requireNonNull(activityImplementation, "activityImplementation");
+      registrations.add(registrar -> registrar.registerActivitiesImplementations(implementation));
+      return this;
+    }
+
+    public Builder registerNexusServiceImplementation(Object... nexusServiceImplementations) {
+      final Object[] implementations =
+          copyObjects(nexusServiceImplementations, "nexusServiceImplementations");
+      registrations.add(registrar -> registrar.registerNexusServiceImplementation(implementations));
+      return this;
+    }
+
+    /**
+     * Adds a shutdown hook that runs after the worker has stopped and before service stubs close.
+     */
+    public Builder addShutdownHook(Runnable hook) {
+      shutdownHooks.add(Objects.requireNonNull(hook, "hook"));
+      return this;
+    }
+
+    public LambdaWorkerOptions build() {
+      return new LambdaWorkerOptions(
+          workflowServiceStubsOptionsBuilder.build(),
+          workflowClientOptionsBuilder.build(),
+          workerFactoryOptionsBuilder.build(),
+          workerOptionsBuilder.build(),
+          registrations,
+          shutdownHooks,
+          taskQueue,
+          gracefulShutdownTimeout,
+          shutdownDeadlineBuffer,
+          shutdownDeadlineBufferExplicit);
+    }
   }
 
   interface Registration {

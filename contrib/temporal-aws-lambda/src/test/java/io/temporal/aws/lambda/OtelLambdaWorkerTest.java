@@ -134,7 +134,7 @@ public class OtelLambdaWorkerTest {
     env.put(OtelLambdaWorker.OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317");
     env.put(OtelLambdaWorker.AWS_LAMBDA_FUNCTION_NAME, "function-name");
     RecordingTelemetryFactory factory = new RecordingTelemetryFactory();
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.newBuilder(env).setTelemetryFactory(factory).apply(options);
 
@@ -146,7 +146,7 @@ public class OtelLambdaWorkerTest {
   @Test
   public void customEndpointAndServiceNameAreUsedByExporterFactory() throws Exception {
     RecordingTelemetryFactory factory = new RecordingTelemetryFactory();
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.newBuilder(new HashMap<>())
         .setTelemetryFactory(factory)
@@ -165,7 +165,7 @@ public class OtelLambdaWorkerTest {
 
   @Test
   public void metricsScopeAndTracingInterceptorsAreInstalled() throws Exception {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.configure(
         options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()).setFlushHook(() -> {}));
@@ -178,12 +178,12 @@ public class OtelLambdaWorkerTest {
 
   @Test
   public void configureRegistersTallyFlushBeforeOpenTelemetryFlush() throws Exception {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.configure(options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()));
     options.setTaskQueue("task-queue");
 
-    List<Runnable> hooks = options.prepare(VERSION).materialize("identity").shutdownHooks;
+    List<Runnable> hooks = options.build().prepare(VERSION).materialize("identity").shutdownHooks;
     assertEquals(2, hooks.size());
     assertTrue(hooks.get(0) instanceof TallyScopeFlushHook);
     assertTrue(hooks.get(1) instanceof OpenTelemetryFlushHook);
@@ -191,7 +191,7 @@ public class OtelLambdaWorkerTest {
 
   @Test
   public void metricsOnlyInstallsScopeWithoutTracingInterceptors() throws Exception {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.configureMetrics(options, OpenTelemetry.noop());
 
@@ -220,7 +220,7 @@ public class OtelLambdaWorkerTest {
 
   @Test
   public void tracingOnlyInstallsInterceptorsWithoutMetricsScope() throws Exception {
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.configureTracing(options, OpenTelemetry.noop());
 
@@ -311,7 +311,7 @@ public class OtelLambdaWorkerTest {
   @Test
   public void customOpenTelemetryBypassesExporterCreation() throws Exception {
     RecordingTelemetryFactory factory = new RecordingTelemetryFactory();
-    LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorker.newBuilder(new HashMap<>())
         .setTelemetryFactory(factory)
@@ -356,25 +356,26 @@ public class OtelLambdaWorkerTest {
   }
 
   private RequestHandler<Object, Void> handler(
-      java.util.function.Consumer<LambdaWorkerOptions> configure,
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
     try {
-      LambdaWorkerOptions options = LambdaWorkerOptions.fromEnvironment(baseEnv());
+      LambdaWorkerOptions.Builder options =
+          LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
       configure.accept(options);
-      return LambdaWorker.newHandler(VERSION, options, runtime, sleeper);
+      return LambdaWorker.newHandler(VERSION, options.build(), runtime, sleeper);
     } catch (java.io.IOException e) {
       throw new RuntimeException(e);
     }
   }
 
-  private int clientInterceptorCount(LambdaWorkerOptions options) {
+  private int clientInterceptorCount(LambdaWorkerOptions.Builder options) {
     io.temporal.common.interceptors.WorkflowClientInterceptor[] interceptors =
         options.getWorkflowClientOptionsBuilder().build().getInterceptors();
     return interceptors == null ? 0 : interceptors.length;
   }
 
-  private int workerInterceptorCount(LambdaWorkerOptions options) {
+  private int workerInterceptorCount(LambdaWorkerOptions.Builder options) {
     io.temporal.common.interceptors.WorkerInterceptor[] interceptors =
         options.getWorkerFactoryOptionsBuilder().build().getWorkerInterceptors();
     return interceptors == null ? 0 : interceptors.length;
