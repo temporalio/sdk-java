@@ -56,7 +56,7 @@ public class SyncOperationFailTest {
             .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
             .put(MetricsTag.NEXUS_SERVICE, "TestNexusService1")
             .put(MetricsTag.NEXUS_OPERATION, "operation")
-            .put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(1),

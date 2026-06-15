@@ -548,13 +548,13 @@ final class WorkflowWorker implements SuspendableWorker {
               String taskFailureType;
               switch (taskFailedCause) {
                 case WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR:
-                  taskFailureType = "NonDeterminismError";
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR;
                   break;
                 case WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE:
-                  taskFailureType = "GrpcMessageTooLarge";
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_GRPC_MESSAGE_TOO_LARGE;
                   break;
                 default:
-                  taskFailureType = "WorkflowError";
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR;
               }
               Scope workflowTaskFailureScope =
                   workflowTypeScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, taskFailureType));
@@ -616,10 +616,12 @@ final class WorkflowWorker implements SuspendableWorker {
         if (e instanceof NonDeterministicException) {
           workflowTaskFailureScope =
               workflowTaskFailureScope.tagged(
-                  ImmutableMap.of(TASK_FAILURE_TYPE, "NonDeterminismError"));
+                  ImmutableMap.of(
+                      TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR));
         } else {
           workflowTaskFailureScope =
-              workflowTaskFailureScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, "WorkflowError"));
+              workflowTaskFailureScope.tagged(
+                  ImmutableMap.of(TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR));
         }
         // more detailed logging that we can do here is already done inside `handler`
         workflowTaskFailureScope
