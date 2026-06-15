@@ -1,5 +1,6 @@
 package io.temporal.internal.payload.visitor;
 
+import java.util.Objects;
 import java.util.concurrent.Executor;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -28,8 +29,8 @@ final class PayloadVisitorOptions<C> {
     this.executor = b.executor;
   }
 
-  public static <C> Builder<C> newBuilder() {
-    return new Builder<>();
+  public static <C> Builder<C> newBuilder(@Nonnull PayloadVisitor<C> payloadVisitor) {
+    return new Builder<>(payloadVisitor);
   }
 
   @Nonnull
@@ -69,7 +70,7 @@ final class PayloadVisitorOptions<C> {
   }
 
   public static final class Builder<C> {
-    private PayloadVisitor<C> payloadVisitor;
+    private final @Nonnull PayloadVisitor<C> payloadVisitor;
     private MessageVisitor<C> messageVisitor;
     private C initialContext;
     private boolean skipSearchAttributes;
@@ -77,12 +78,8 @@ final class PayloadVisitorOptions<C> {
     private int concurrency = 1;
     private Executor executor;
 
-    private Builder() {}
-
-    /** Required. The payload visitor. */
-    public Builder<C> setPayloadVisitor(@Nonnull PayloadVisitor<C> payloadVisitor) {
-      this.payloadVisitor = payloadVisitor;
-      return this;
+    private Builder(@Nonnull PayloadVisitor<C> payloadVisitor) {
+      this.payloadVisitor = Objects.requireNonNull(payloadVisitor, "payloadVisitor");
     }
 
     /** Optional. A callback invoked when entering each message. */
@@ -125,9 +122,6 @@ final class PayloadVisitorOptions<C> {
     }
 
     public PayloadVisitorOptions<C> build() {
-      if (payloadVisitor == null) {
-        throw new IllegalArgumentException("payloadVisitor is required");
-      }
       if (concurrency < 1) {
         throw new IllegalArgumentException("concurrency must be at least 1, got " + concurrency);
       }

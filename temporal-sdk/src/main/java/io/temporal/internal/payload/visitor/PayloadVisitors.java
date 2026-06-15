@@ -12,8 +12,7 @@ import javax.annotation.Nonnull;
  * RespondWorkflowTaskCompletedRequest result =
  *     PayloadVisitors.visit(
  *         request,
- *         PayloadVisitorOptions.<CommandInfo>newBuilder()
- *             .setPayloadVisitor((ctx, payloads) -> encode(ctx, payloads))
+ *         PayloadVisitorOptions.<CommandInfo>newBuilder((ctx, payloads) -> encode(ctx, payloads))
  *             .setMessageVisitor((current, msg) -> msg instanceof Command.Builder
  *                 ? CommandInfo.of((Command.Builder) msg) : current)
  *             .setConcurrency(4)

@@ -43,8 +43,7 @@ public class MessageVisitorTest {
     List<String> entered = new ArrayList<>();
     MessageVisitors.visit(
         builder,
-        MessageVisitorOptions.<Void>newBuilder()
-            .setMessageVisitor(
+        MessageVisitorOptions.<Void>newBuilder(
                 (current, msg) -> {
                   entered.add(msg.getDescriptorForType().getFullName());
                   return current;
@@ -61,8 +60,7 @@ public class MessageVisitorTest {
     RespondWorkflowTaskCompletedRequest result =
         MessageVisitors.visit(
             request,
-            MessageVisitorOptions.<Void>newBuilder()
-                .setMessageVisitor(
+            MessageVisitorOptions.<Void>newBuilder(
                     (current, msg) -> {
                       if (msg instanceof ScheduleActivityTaskCommandAttributes.Builder) {
                         ((ScheduleActivityTaskCommandAttributes.Builder) msg)
@@ -103,8 +101,7 @@ public class MessageVisitorTest {
     List<CommandType> contextOnEnter = new ArrayList<>();
 
     MessageVisitorOptions<CommandType> opts =
-        MessageVisitorOptions.<CommandType>newBuilder()
-            .setMessageVisitor(
+        MessageVisitorOptions.<CommandType>newBuilder(
                 (current, msg) -> {
                   entered.add(msg.getDescriptorForType().getFullName());
                   contextOnEnter.add(current);
@@ -145,8 +142,7 @@ public class MessageVisitorTest {
   public void messageOnlyVisitorValidatesPerMessageType() {
     int maxMemoFields = 2;
     MessageVisitorOptions<Void> opts =
-        MessageVisitorOptions.<Void>newBuilder()
-            .setMessageVisitor(
+        MessageVisitorOptions.<Void>newBuilder(
                 (current, msg) -> {
                   if (msg instanceof Memo.Builder
                       && ((Memo.Builder) msg).getFieldsCount() > maxMemoFields) {
@@ -174,19 +170,18 @@ public class MessageVisitorTest {
     List<String> observed = new ArrayList<>();
     MessageVisitors.visit(
         memo,
-        MessageVisitorOptions.<String>newBuilder()
-            .setInitialContext("root")
-            .setMessageVisitor(
+        MessageVisitorOptions.<String>newBuilder(
                 (current, msg) -> {
                   observed.add(current);
                   return current;
                 })
+            .setInitialContext("root")
             .build());
     assertEquals(Arrays.asList("root"), observed);
   }
 
   @Test
-  public void rejectsMissingMessageVisitor() {
-    assertThrows(IllegalArgumentException.class, () -> MessageVisitorOptions.newBuilder().build());
+  public void rejectsNullMessageVisitor() {
+    assertThrows(NullPointerException.class, () -> MessageVisitorOptions.newBuilder(null));
   }
 }

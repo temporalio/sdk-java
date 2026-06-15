@@ -85,7 +85,7 @@ public class PayloadVisitorTest {
   }
 
   static PayloadVisitorOptions<Object> options(PayloadVisitor<Object> visitor) {
-    return PayloadVisitorOptions.newBuilder().setPayloadVisitor(visitor).build();
+    return PayloadVisitorOptions.newBuilder(visitor).build();
   }
 
   static Command activity(String activityId, Payloads input) {
@@ -383,8 +383,7 @@ public class PayloadVisitorTest {
 
     CollectingVisitor counter = new CollectingVisitor();
     PayloadVisitors.visit(
-        command,
-        PayloadVisitorOptions.newBuilder().setPayloadVisitor(counter).setSkipHeaders(true).build());
+        command, PayloadVisitorOptions.newBuilder(counter).setSkipHeaders(true).build());
     // The header payload is skipped; other payloads are still visited.
     assertEquals(Collections.singletonList("in"), counter.seen);
   }
@@ -402,11 +401,7 @@ public class PayloadVisitorTest {
 
     CollectingVisitor counter = new CollectingVisitor();
     PayloadVisitors.visit(
-        command,
-        PayloadVisitorOptions.newBuilder()
-            .setPayloadVisitor(counter)
-            .setSkipSearchAttributes(true)
-            .build());
+        command, PayloadVisitorOptions.newBuilder(counter).setSkipSearchAttributes(true).build());
     // The search attribute payload is skipped; other payloads are still visited.
     assertEquals(Collections.singletonList("in"), counter.seen);
   }
@@ -429,8 +424,7 @@ public class PayloadVisitorTest {
     List<String> dataOrder = new ArrayList<>();
     List<CommandType> contextOrder = new ArrayList<>();
     PayloadVisitorOptions<CommandType> opts =
-        PayloadVisitorOptions.<CommandType>newBuilder()
-            .setPayloadVisitor(
+        PayloadVisitorOptions.<CommandType>newBuilder(
                 (ctx, pls) -> {
                   for (Payload p : pls) {
                     dataOrder.add(data(p));
@@ -463,13 +457,12 @@ public class PayloadVisitorTest {
             .build();
     List<String> observed = new ArrayList<>();
     PayloadVisitorOptions<String> opts =
-        PayloadVisitorOptions.<String>newBuilder()
-            .setInitialContext("root")
-            .setPayloadVisitor(
+        PayloadVisitorOptions.<String>newBuilder(
                 (ctx, pls) -> {
                   observed.add(ctx);
                   return pls;
                 })
+            .setInitialContext("root")
             .build();
     PayloadVisitors.visit(command, opts);
     assertEquals(Collections.singletonList("root"), observed);
@@ -484,8 +477,7 @@ public class PayloadVisitorTest {
     int maxMemoFields = 2;
 
     PayloadVisitorOptions<Void> validator =
-        PayloadVisitorOptions.<Void>newBuilder()
-            .setPayloadVisitor(
+        PayloadVisitorOptions.<Void>newBuilder(
                 (ctx, pls) -> {
                   for (Payload pl : pls) {
                     if (pl.getData().size() > blobLimit) {
@@ -649,8 +641,7 @@ public class PayloadVisitorTest {
             () ->
                 PayloadVisitors.visit(
                     command,
-                    PayloadVisitorOptions.newBuilder()
-                        .setPayloadVisitor((ctx, pls) -> pls)
+                    PayloadVisitorOptions.newBuilder((ctx, pls) -> pls)
                         .setMessageVisitor(
                             (current, msg) -> {
                               throw boom;
@@ -685,8 +676,8 @@ public class PayloadVisitorTest {
   }
 
   @Test
-  public void rejectsMissingVisitor() {
-    assertThrows(IllegalArgumentException.class, () -> PayloadVisitorOptions.newBuilder().build());
+  public void rejectsNullPayloadVisitor() {
+    assertThrows(NullPointerException.class, () -> PayloadVisitorOptions.newBuilder(null));
   }
 
   @Test
@@ -707,22 +698,14 @@ public class PayloadVisitorTest {
   public void rejectsConcurrencyBelowOne() {
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            PayloadVisitorOptions.newBuilder()
-                .setPayloadVisitor((ctx, pls) -> pls)
-                .setConcurrency(0)
-                .build());
+        () -> PayloadVisitorOptions.newBuilder((ctx, pls) -> pls).setConcurrency(0).build());
   }
 
   @Test
   public void rejectsConcurrencyAboveOneWithoutExecutor() {
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            PayloadVisitorOptions.newBuilder()
-                .setPayloadVisitor((ctx, pls) -> pls)
-                .setConcurrency(2)
-                .build());
+        () -> PayloadVisitorOptions.newBuilder((ctx, pls) -> pls).setConcurrency(2).build());
   }
 
   /**
@@ -746,10 +729,7 @@ public class PayloadVisitorTest {
     // Each of the n visits must reach the barrier simultaneously, proving n concurrent visits.
     PayloadVisitors.visit(
         request,
-        PayloadVisitorOptions.newBuilder()
-            .setConcurrency(n)
-            .setExecutor(executor)
-            .setPayloadVisitor(
+        PayloadVisitorOptions.newBuilder(
                 (ctx, pls) -> {
                   try {
                     barrier.await(5, TimeUnit.SECONDS);
@@ -758,6 +738,8 @@ public class PayloadVisitorTest {
                   }
                   return pls;
                 })
+            .setConcurrency(n)
+            .setExecutor(executor)
             .build());
   }
 
@@ -772,10 +754,7 @@ public class PayloadVisitorTest {
 
     PayloadVisitors.visit(
         request,
-        PayloadVisitorOptions.newBuilder()
-            .setConcurrency(limit)
-            .setExecutor(executor)
-            .setPayloadVisitor(
+        PayloadVisitorOptions.newBuilder(
                 (ctx, pls) -> {
                   int now = inFlight.incrementAndGet();
                   maxInFlight.accumulateAndGet(now, Math::max);
@@ -787,6 +766,8 @@ public class PayloadVisitorTest {
                   inFlight.decrementAndGet();
                   return pls;
                 })
+            .setConcurrency(limit)
+            .setExecutor(executor)
             .build());
 
     assertTrue(
@@ -805,9 +786,7 @@ public class PayloadVisitorTest {
 
     PayloadVisitors.visit(
         request,
-        PayloadVisitorOptions.newBuilder()
-            .setConcurrency(1)
-            .setPayloadVisitor(
+        PayloadVisitorOptions.newBuilder(
                 (ctx, pls) -> {
                   int now = inFlight.incrementAndGet();
                   maxInFlight.accumulateAndGet(now, Math::max);
@@ -815,6 +794,7 @@ public class PayloadVisitorTest {
                   inFlight.decrementAndGet();
                   return pls;
                 })
+            .setConcurrency(1)
             .build());
 
     assertEquals(1, maxInFlight.get());
@@ -835,16 +815,15 @@ public class PayloadVisitorTest {
             () ->
                 PayloadVisitors.visit(
                     request,
-                    PayloadVisitorOptions.newBuilder()
-                        .setConcurrency(4)
-                        .setExecutor(executor)
-                        .setPayloadVisitor(
+                    PayloadVisitorOptions.newBuilder(
                             (ctx, pls) -> {
                               if (pls.get(0).getData().toStringUtf8().equals("p5")) {
                                 throw boom;
                               }
                               return pls;
                             })
+                        .setConcurrency(4)
+                        .setExecutor(executor)
                         .build()));
     assertSame(boom, thrown);
   }
@@ -856,10 +835,7 @@ public class PayloadVisitorTest {
     RespondWorkflowTaskCompletedRequest mutated =
         PayloadVisitors.visit(
             request,
-            PayloadVisitorOptions.newBuilder()
-                .setConcurrency(8)
-                .setExecutor(executor)
-                .setPayloadVisitor(
+            PayloadVisitorOptions.newBuilder(
                     (ctx, pls) -> {
                       Payload p = pls.get(0);
                       return Collections.singletonList(
@@ -867,6 +843,8 @@ public class PayloadVisitorTest {
                               .setData(ByteString.copyFromUtf8(p.getData().toStringUtf8() + "!"))
                               .build());
                     })
+                .setConcurrency(8)
+                .setExecutor(executor)
                 .build());
     for (int i = 0; i < n; i++) {
       assertEquals(
@@ -897,14 +875,13 @@ public class PayloadVisitorTest {
 
       PayloadVisitors.visit(
           request,
-          PayloadVisitorOptions.newBuilder()
-              .setConcurrency(4)
-              .setExecutor(pool)
-              .setPayloadVisitor(
+          PayloadVisitorOptions.newBuilder(
                   (ctx, pls) -> {
                     visitThreads.add(Thread.currentThread().getName());
                     return pls;
                   })
+              .setConcurrency(4)
+              .setExecutor(pool)
               .build());
 
       assertTrue("no visits recorded", !visitThreads.isEmpty());
@@ -933,16 +910,15 @@ public class PayloadVisitorTest {
 
     PayloadVisitors.visit(
         request,
-        PayloadVisitorOptions.newBuilder()
-            .setConcurrency(1)
-            .setExecutor(tripwire)
-            .setPayloadVisitor(
+        PayloadVisitorOptions.newBuilder(
                 (ctx, pls) -> {
                   if (!Thread.currentThread().getName().equals(callingThread)) {
                     sawDifferentThread.set(Thread.currentThread().getName());
                   }
                   return pls;
                 })
+            .setConcurrency(1)
+            .setExecutor(tripwire)
             .build());
 
     assertEquals("executor was used for sequential traversal", 0, submittedToExecutor.get());

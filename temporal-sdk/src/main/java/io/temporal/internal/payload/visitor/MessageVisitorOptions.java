@@ -1,5 +1,6 @@
 package io.temporal.internal.payload.visitor;
 
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -17,8 +18,8 @@ final class MessageVisitorOptions<C> {
     this.initialContext = b.initialContext;
   }
 
-  public static <C> Builder<C> newBuilder() {
-    return new Builder<>();
+  public static <C> Builder<C> newBuilder(@Nonnull MessageVisitor<C> messageVisitor) {
+    return new Builder<>(messageVisitor);
   }
 
   @Nonnull
@@ -32,15 +33,11 @@ final class MessageVisitorOptions<C> {
   }
 
   public static final class Builder<C> {
-    private MessageVisitor<C> messageVisitor;
+    private final @Nonnull MessageVisitor<C> messageVisitor;
     private C initialContext;
 
-    private Builder() {}
-
-    /** Required. The message visitor. */
-    public Builder<C> setMessageVisitor(@Nonnull MessageVisitor<C> messageVisitor) {
-      this.messageVisitor = messageVisitor;
-      return this;
+    private Builder(@Nonnull MessageVisitor<C> messageVisitor) {
+      this.messageVisitor = Objects.requireNonNull(messageVisitor, "messageVisitor");
     }
 
     /** Optional. The contextual value in scope before any message is entered. */
@@ -50,9 +47,6 @@ final class MessageVisitorOptions<C> {
     }
 
     public MessageVisitorOptions<C> build() {
-      if (messageVisitor == null) {
-        throw new IllegalArgumentException("messageVisitor is required");
-      }
       return new MessageVisitorOptions<>(this);
     }
   }
