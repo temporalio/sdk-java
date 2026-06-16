@@ -103,6 +103,7 @@ public class ActivityCancellationTokenIntegrationTest {
                   .setScheduleToCloseTimeout(Duration.ofSeconds(20))
                   .setStartToCloseTimeout(Duration.ofSeconds(20))
                   .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
+                  .setDisableEagerExecution(true)
                   .build());
 
       List<Promise<String>> activityResults = new ArrayList<>();

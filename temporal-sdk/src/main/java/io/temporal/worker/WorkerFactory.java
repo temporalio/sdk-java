@@ -290,6 +290,33 @@ public final class WorkerFactory {
 
   /** Internal method that actually starts the workers. Called from the plugin chain. */
   private void doStart() {
+    // Start the internal nexus worker if enabled
+    WorkflowClientInternal clientInternal = (WorkflowClientInternal) workflowClient.getInternal();
+    String namespace = workflowClient.getOptions().getNamespace();
+    String workerGroupingKey = clientInternal.getWorkerGroupingKey();
+    HeartbeatManager hbManager = clientInternal.getHeartbeatManager();
+    if (hbManager != null
+        && namespaceCapabilities.isWorkerHeartbeats()
+        && namespaceCapabilities.isWorkerCommands()) {
+      workerCommandWorker =
+          WorkerCommandTaskHandler.newWorkerCommandWorker(
+              workflowClient.getWorkflowServiceStubs(),
+              namespace,
+              workflowClient.getOptions().getIdentity(),
+              workerGroupingKey,
+              taskToken -> {
+                for (Worker worker : workers.values()) {
+                  if (worker.requestCancelActivity(taskToken)) {
+                    return true;
+                  }
+                }
+                return false;
+              },
+              metricsScope,
+              namespaceCapabilities);
+      workerCommandWorker.start();
+    }
+
     // Start each worker with plugin hooks
     for (Map.Entry<String, Worker> entry : workers.entrySet()) {
       String taskQueue = entry.getKey();
@@ -308,35 +335,12 @@ public final class WorkerFactory {
     }
 
     // Register heartbeat callbacks after workers are started.
-    WorkflowClientInternal clientInternal = (WorkflowClientInternal) workflowClient.getInternal();
-    HeartbeatManager hbManager = clientInternal.getHeartbeatManager();
     if (hbManager != null && namespaceCapabilities.isWorkerHeartbeats()) {
-      String namespace = workflowClient.getOptions().getNamespace();
-      String workerGroupingKey = clientInternal.getWorkerGroupingKey();
       for (Worker worker : workers.values()) {
         Supplier<WorkerHeartbeat> heartbeatSupplier =
             worker.buildHeartbeatCallback(workerGroupingKey);
         hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
         worker.setHeartbeatSupplier(heartbeatSupplier);
-      }
-      if (namespaceCapabilities.isWorkerCommands()) {
-        workerCommandWorker =
-            WorkerCommandTaskHandler.newWorkerCommandWorker(
-                workflowClient.getWorkflowServiceStubs(),
-                namespace,
-                workflowClient.getOptions().getIdentity(),
-                workerGroupingKey,
-                taskToken -> {
-                  for (Worker worker : workers.values()) {
-                    if (worker.requestCancelActivity(taskToken)) {
-                      return true;
-                    }
-                  }
-                  return false;
-                },
-                metricsScope,
-                namespaceCapabilities);
-        workerCommandWorker.start();
       }
     }
 

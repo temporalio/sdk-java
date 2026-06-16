@@ -128,7 +128,9 @@ public final class Worker {
     String namespace = clientOptions.getNamespace();
     this.namespace = namespace;
     String workerControlTaskQueue =
-        WorkerCommandTaskHandler.workerControlTaskQueue(namespace, workerGroupingKey);
+        clientOptions.getWorkerHeartbeatInterval().isNegative()
+            ? null
+            : WorkerCommandTaskHandler.workerControlTaskQueue(namespace, workerGroupingKey);
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
     Scope taggedScope = metricsScope.tagged(tags);

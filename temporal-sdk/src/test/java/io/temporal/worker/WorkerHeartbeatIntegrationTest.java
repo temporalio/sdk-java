@@ -748,6 +748,7 @@ public class WorkerHeartbeatIntegrationTest {
                       .setNamespace(
                           testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
                       .setQuery("TaskQueue = \"" + taskQueue + "\"")
+                      .setIncludeSystemWorkers(false)
                       .setPageSize(200)
                       .build());
       return resp.getWorkersInfoList().stream()
