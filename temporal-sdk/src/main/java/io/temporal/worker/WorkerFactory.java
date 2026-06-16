@@ -393,7 +393,7 @@ public final class WorkerFactory {
    * Invocation has no additional effect if already shut down.
    */
   public synchronized void shutdown() {
-    log.info("shutdown: {}", this);
+    log.debug("shutdown: {}", this);
     shutdownInternal(false);
   }
 
@@ -499,7 +499,7 @@ public final class WorkerFactory {
    * occurs.
    */
   public void awaitTermination(long timeout, TimeUnit unit) {
-    log.info("awaitTermination begin: {}", this);
+    log.debug("awaitTermination begin: {}", this);
     long timeoutMillis = unit.toMillis(timeout);
     for (Worker worker : workers.values()) {
       long t = timeoutMillis; // closure needs immutable value
@@ -512,7 +512,7 @@ public final class WorkerFactory {
       ShutdownManager.runAndGetRemainingTimeoutMs(
           t, () -> workerCommandWorker.awaitTermination(t, TimeUnit.MILLISECONDS));
     }
-    log.info("awaitTermination done: {}", this);
+    log.debug("awaitTermination done: {}", this);
   }
 
   // TODO we should hide an actual implementation of WorkerFactory under WorkerFactory interface and

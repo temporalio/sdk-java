@@ -68,7 +68,7 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
 
   @Override
   public boolean start() {
-    log.info("start: {}", this);
+    log.debug("start: {}", this);
 
     if (pollerOptions.getMaximumPollRatePerSecond() > 0.0) {
       pollRateThrottler =
@@ -193,7 +193,7 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
           // Resubmit itself back to pollExecutor
           pollExecutor.execute(this);
         } else {
-          log.info(
+          log.debug(
               "poll loop is terminated: {}",
               MultiThreadedPoller.this.pollTask.getClass().getSimpleName());
         }
