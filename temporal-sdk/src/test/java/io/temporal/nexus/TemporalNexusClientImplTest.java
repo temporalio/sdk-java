@@ -20,10 +20,10 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Pure unit tests for {@link TemporalNexusClientImpl#claimAsyncSlot()} semantics. These run without
- * a Temporal server (no {@link io.temporal.testing.internal.SDKTestWorkflowRule}).
+ * Pure unit tests for {@link TemporalNexusClientImpl#markAsyncOperationStarted()} semantics. These
+ * run without a Temporal server (no {@link io.temporal.testing.internal.SDKTestWorkflowRule}).
  *
- * <p>The {@code claimAsyncSlot} guard fires as the very first statement in both {@code
+ * <p>The {@code markAsyncOperationStarted} guard fires as the very first statement in both {@code
  * startActivityImpl} and {@code invokeAndReturn}, so the second call always throws {@link
  * HandlerException}({@link HandlerException.ErrorType#BAD_REQUEST}) regardless of whether the first
  * call's downstream RPC succeeded.
@@ -80,22 +80,23 @@ public class TemporalNexusClientImplTest {
             .setStartToCloseTimeout(Duration.ofSeconds(10))
             .build();
 
-    // First call: claimAsyncSlot() succeeds (sets flag), RPC may throw — we don't care.
+    // First call: markAsyncOperationStarted() succeeds (sets flag), RPC may throw — we don't care.
     try {
       client.startActivity(TestActivity.class, TestActivity::doSomething, options);
     } catch (HandlerException e) {
       // If a HandlerException leaks out of the first call it must NOT be BAD_REQUEST
-      // from claimAsyncSlot — that would mean the flag was already set before setUp.
+      // from markAsyncOperationStarted — that would mean the flag was already set before setUp.
       Assert.assertNotEquals(
-          "First startActivity must not fail with BAD_REQUEST (claimAsyncSlot guard)",
+          "First startActivity must not fail with BAD_REQUEST (markAsyncOperationStarted guard)",
           HandlerException.ErrorType.BAD_REQUEST,
           e.getErrorType());
     } catch (Exception ignored) {
       // Any other exception from the RPC layer is expected; the important thing is
-      // claimAsyncSlot already ran and set asyncOperationStarted = true.
+      // markAsyncOperationStarted already ran and set asyncOperationStarted = true.
     }
 
-    // Second call: claimAsyncSlot() sees the flag and must throw BAD_REQUEST immediately.
+    // Second call: markAsyncOperationStarted() sees the flag and must throw BAD_REQUEST
+    // immediately.
     HandlerException ex =
         Assert.assertThrows(
             HandlerException.class,
@@ -125,12 +126,12 @@ public class TemporalNexusClientImplTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setWorkflowId("wf-1").setTaskQueue(TASK_QUEUE).build();
 
-    // First call: claimAsyncSlot() succeeds, downstream RPC may throw — we don't care.
+    // First call: markAsyncOperationStarted() succeeds, downstream RPC may throw — we don't care.
     try {
       client.startWorkflow(BlockingWorkflow.class, BlockingWorkflow::execute, "input", options);
     } catch (HandlerException e) {
       Assert.assertNotEquals(
-          "First startWorkflow must not fail with BAD_REQUEST (claimAsyncSlot guard)",
+          "First startWorkflow must not fail with BAD_REQUEST (markAsyncOperationStarted guard)",
           HandlerException.ErrorType.BAD_REQUEST,
           e.getErrorType());
     } catch (Exception ignored) {

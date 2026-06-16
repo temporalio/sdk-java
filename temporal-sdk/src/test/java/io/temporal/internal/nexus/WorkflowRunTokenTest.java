@@ -100,10 +100,34 @@ public class WorkflowRunTokenTest {
     Assert.assertEquals("act-1", token.getActivityId());
     Assert.assertEquals("ns", token.getNamespace());
     Assert.assertNull(token.getWorkflowId());
+    Assert.assertNull(token.getRunId());
     Assert.assertNull(token.getVersion());
 
     // Also exercise the symmetric activityId loader.
     Assert.assertEquals("act-1", OperationTokenUtil.loadActivityIdFromOperationToken(encoded));
+  }
+
+  @Test
+  public void roundTripActivityExecutionTokenWithRunId() throws JsonProcessingException {
+    String encoded =
+        OperationTokenUtil.generateActivityExecutionOperationToken("act-1", "run-1", "ns");
+    OperationToken token = OperationTokenUtil.loadOperationToken(encoded);
+    Assert.assertEquals(OperationTokenType.ACTIVITY_EXECUTION, token.getType());
+    Assert.assertEquals("act-1", token.getActivityId());
+    Assert.assertEquals("run-1", token.getRunId());
+    Assert.assertEquals("ns", token.getNamespace());
+    Assert.assertNull(token.getWorkflowId());
+    Assert.assertNull(token.getVersion());
+  }
+
+  @Test
+  public void activityExecutionTokenOmitsRunIdWhenNull() throws JsonProcessingException {
+    // The header-token path passes runId=null and must produce a payload byte-identical to the
+    // two-arg overload — the runId-aware overload is the *only* one used in code now.
+    String withRunId =
+        OperationTokenUtil.generateActivityExecutionOperationToken("act-1", null, "ns");
+    String withoutRunId = OperationTokenUtil.generateActivityExecutionOperationToken("act-1", "ns");
+    Assert.assertEquals(withoutRunId, withRunId);
   }
 
   @Test

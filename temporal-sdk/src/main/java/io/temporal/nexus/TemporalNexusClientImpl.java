@@ -1,5 +1,6 @@
 package io.temporal.nexus;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
@@ -17,6 +18,7 @@ import io.temporal.internal.client.NexusStartActivityResponse;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
 import io.temporal.internal.nexus.NexusStartActivityHelper;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
+import io.temporal.internal.nexus.OperationTokenUtil;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
@@ -257,7 +259,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   }
 
   private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<R> handle) {
-    claimAsyncSlot();
+    markAsyncOperationStarted();
     try {
       NexusStartWorkflowResponse response =
           NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
@@ -436,7 +438,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
 
   private <R> TemporalOperationResult<R> startActivityImpl(
       String activityType, List<Object> args, StartActivityOptions options) {
-    claimAsyncSlot();
+    markAsyncOperationStarted();
     try {
       NexusStartActivityResponse response =
           NexusStartActivityHelper.startActivityAndAttachLinks(
@@ -473,18 +475,34 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
                             .build());
                 ActivityClientCallsInterceptor.StartActivityOutput out =
                     ((ActivityClientInternal) activityClient).getInvoker().startActivity(input);
-                // The invoker generated and injected the token into the callback headers before
-                // the start RPC; read it back from the output instead of regenerating it.
-                String token = out.getNexusOperationToken();
-                if (token == null) {
+                // The invoker generated and injected the runId-free token into the callback
+                // headers before the start RPC fired. The header token cannot include a run ID
+                // because the run ID isn't known until after the start RPC returns. The operation
+                // token returned to the Nexus caller can — and should — include it, so it's
+                // regenerated here from the same activity ID + the run ID the start RPC produced.
+                String headerToken = out.getNexusOperationToken();
+                if (headerToken == null) {
                   throw new HandlerException(
                       HandlerException.ErrorType.INTERNAL,
                       "invoker did not return a Nexus operation token for activity start with callback",
                       new IllegalStateException(
                           "nexusOperationToken is null on StartActivityOutput when CompletionCallback was set"));
                 }
+                String returnToken;
+                try {
+                  returnToken =
+                      OperationTokenUtil.generateActivityExecutionOperationToken(
+                          out.getActivityId(),
+                          out.getActivityRunId(),
+                          client.getOptions().getNamespace());
+                } catch (JsonProcessingException e) {
+                  throw new HandlerException(
+                      HandlerException.ErrorType.INTERNAL,
+                      "failed to generate activity operation token",
+                      e);
+                }
                 return new NexusStartActivityResponse(
-                    out.getActivityId(), out.getActivityRunId(), token);
+                    out.getActivityId(), out.getActivityRunId(), returnToken);
               });
       return TemporalOperationResult.async(response.getOperationToken());
     } catch (Throwable t) {
@@ -495,7 +513,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
     }
   }
 
-  private void claimAsyncSlot() {
+  private void markAsyncOperationStarted() {
     if (!asyncOperationStarted.compareAndSet(false, true)) {
       throw new HandlerException(
           HandlerException.ErrorType.BAD_REQUEST,

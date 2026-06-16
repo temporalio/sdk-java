@@ -110,7 +110,8 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
         break;
       case ACTIVITY_EXECUTION:
         cancelActivityExecution(
-            cancelContext, new CancelActivityExecutionInput(token.getActivityId()));
+            cancelContext,
+            new CancelActivityExecutionInput(token.getActivityId(), token.getRunId()));
         break;
       default:
         throw new HandlerException(
@@ -154,6 +155,6 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
                 .setDataConverter(wc.getOptions().getDataConverter())
                 .setIdentity(wc.getOptions().getIdentity())
                 .build());
-    ac.getHandle(input.getActivityId(), null).cancel();
+    ac.getHandle(input.getActivityId(), input.getRunId()).cancel();
   }
 }
