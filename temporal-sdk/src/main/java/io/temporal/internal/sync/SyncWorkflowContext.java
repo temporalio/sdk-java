@@ -1376,6 +1376,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         attributes.setWorkflowTaskTimeout(
             ProtobufTimeUtils.toProtoDuration(options.getWorkflowTaskTimeout()));
       }
+      if (options.getBackoffStartInterval() != null) {
+        attributes.setBackoffStartInterval(
+            ProtobufTimeUtils.toProtoDuration(options.getBackoffStartInterval()));
+      }
       if (options.getTaskQueue() != null && !options.getTaskQueue().isEmpty()) {
         attributes.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()));
       }
