@@ -251,7 +251,7 @@ public class OpenTracingWorkflowOutboundCallsInterceptor
   private Tracer.SpanBuilder createActivityStartSpanBuilder(String activityName) {
     WorkflowInfo workflowInfo = Workflow.getInfo();
     return spanFactory.createActivityStartSpan(
-        tracer, activityName, workflowInfo.getWorkflowId(), workflowInfo.getRunId());
+        tracer, activityName, workflowInfo.getWorkflowId(), workflowInfo.getRunId(), null);
   }
 
   private <R> Tracer.SpanBuilder createChildWorkflowStartSpanBuilder(ChildWorkflowInput<R> input) {

@@ -139,13 +139,18 @@ public class SpanFactory {
   }
 
   public Tracer.SpanBuilder createActivityStartSpan(
-      Tracer tracer, String activityType, String workflowId, String runId) {
+      Tracer tracer,
+      String activityType,
+      @Nullable String workflowId,
+      @Nullable String runId,
+      @Nullable String activityId) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
             .setSpanOperationType(SpanOperationType.START_ACTIVITY)
             .setActionName(activityType)
             .setWorkflowId(workflowId)
             .setRunId(runId)
+            .setActivityId(activityId)
             .build();
     return createSpan(context, tracer, null, References.CHILD_OF);
   }
@@ -153,8 +158,9 @@ public class SpanFactory {
   public Tracer.SpanBuilder createActivityRunSpan(
       Tracer tracer,
       String activityType,
-      String workflowId,
-      String runId,
+      @Nullable String workflowId,
+      @Nullable String runId,
+      @Nullable String activityId,
       SpanContext activityStartSpanContext) {
     SpanCreationContext context =
         SpanCreationContext.newBuilder()
@@ -162,6 +168,7 @@ public class SpanFactory {
             .setActionName(activityType)
             .setWorkflowId(workflowId)
             .setRunId(runId)
+            .setActivityId(activityId)
             .build();
     return createSpan(context, tracer, activityStartSpanContext, References.FOLLOWS_FROM);
   }

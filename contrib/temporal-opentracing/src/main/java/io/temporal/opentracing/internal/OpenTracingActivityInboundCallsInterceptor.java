@@ -52,6 +52,7 @@ public class OpenTracingActivityInboundCallsInterceptor
                 activityInfo.getActivityType(),
                 activityInfo.getWorkflowId(),
                 activityInfo.getWorkflowRunId(),
+                activityInfo.getActivityId(),
                 rootSpanContext)
             .start();
     try (Scope scope = tracer.scopeManager().activate(activityRunSpan)) {

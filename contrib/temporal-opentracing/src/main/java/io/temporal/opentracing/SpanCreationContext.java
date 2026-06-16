@@ -14,6 +14,7 @@ public class SpanCreationContext {
   private final String runId;
   private final String parentWorkflowId;
   private final String parentRunId;
+  private final String activityId;
 
   private SpanCreationContext(
       SpanOperationType spanOperationType,
@@ -21,13 +22,15 @@ public class SpanCreationContext {
       String workflowId,
       String runId,
       String parentWorkflowId,
-      String parentRunId) {
+      String parentRunId,
+      String activityId) {
     this.spanOperationType = spanOperationType;
     this.actionName = actionName;
     this.workflowId = workflowId;
     this.runId = runId;
     this.parentWorkflowId = parentWorkflowId;
     this.parentRunId = parentRunId;
+    this.activityId = activityId;
   }
 
   public SpanOperationType getSpanOperationType() {
@@ -59,6 +62,10 @@ public class SpanCreationContext {
     return parentRunId;
   }
 
+  public @Nullable String getActivityId() {
+    return activityId;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -70,6 +77,7 @@ public class SpanCreationContext {
     private String runId;
     private String parentWorkflowId;
     private String parentRunId;
+    private String activityId;
 
     private Builder() {}
 
@@ -103,9 +111,20 @@ public class SpanCreationContext {
       return this;
     }
 
+    public Builder setActivityId(String activityId) {
+      this.activityId = activityId;
+      return this;
+    }
+
     public SpanCreationContext build() {
       return new SpanCreationContext(
-          spanOperationType, actionName, workflowId, runId, parentWorkflowId, parentRunId);
+          spanOperationType,
+          actionName,
+          workflowId,
+          runId,
+          parentWorkflowId,
+          parentRunId,
+          activityId);
     }
   }
 }
