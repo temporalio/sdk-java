@@ -31,18 +31,15 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CyclicBarrier;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.Before;
@@ -66,11 +63,21 @@ public class PayloadVisitorTest {
     return b.build();
   }
 
+  /** A synchronous visit; {@link #toAsync} adapts it to the asynchronous {@link PayloadVisitor}. */
+  @FunctionalInterface
+  interface SyncPayloadVisitor {
+    List<Payload> visit(Object ctx, List<Payload> payloads);
+  }
+
+  static PayloadVisitor<Object> toAsync(SyncPayloadVisitor visitor) {
+    return (ctx, pls) -> CompletableFuture.completedFuture(visitor.visit(ctx, pls));
+  }
+
   /**
    * Records every payload seen (in order) and the number of visit calls, leaving payloads
    * unchanged.
    */
-  static final class CollectingVisitor implements PayloadVisitor<Object> {
+  static final class CollectingVisitor implements SyncPayloadVisitor {
     final List<String> seen = Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger visits = new AtomicInteger();
 
@@ -84,8 +91,35 @@ public class PayloadVisitorTest {
     }
   }
 
-  static PayloadVisitorOptions<Object> options(PayloadVisitor<Object> visitor) {
-    return PayloadVisitorOptions.newBuilder(visitor).build();
+  static PayloadVisitorOptions<Object> options(SyncPayloadVisitor visitor) {
+    return PayloadVisitorOptions.newBuilder(toAsync(visitor)).build();
+  }
+
+  /**
+   * Blocks and unwraps the {@link CompletionException} {@code join} adds, exposing the original.
+   */
+  static <T extends com.google.protobuf.Message> T visit(
+      T message, PayloadVisitorOptions<?> options) {
+    return join(PayloadVisitors.visit(message, options));
+  }
+
+  static void visit(com.google.protobuf.Message.Builder builder, PayloadVisitorOptions<?> options) {
+    join(PayloadVisitors.visit(builder, options));
+  }
+
+  private static <V> V join(CompletableFuture<V> future) {
+    try {
+      return future.join();
+    } catch (CompletionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof RuntimeException) {
+        throw (RuntimeException) cause;
+      }
+      if (cause instanceof Error) {
+        throw (Error) cause;
+      }
+      throw e;
+    }
   }
 
   static Command activity(String activityId, Payloads input) {
@@ -98,7 +132,7 @@ public class PayloadVisitorTest {
         .build();
   }
 
-  /** Executor supplied to the concurrent visits (unused by the single-threaded tests). */
+  /** Backs the simulated async visitors in the concurrency tests; the engine needs no executor. */
   private ExecutorService executor;
 
   @Before
@@ -120,8 +154,7 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    RespondWorkflowTaskCompletedRequest unchanged =
-        PayloadVisitors.visit(request, options(counter));
+    RespondWorkflowTaskCompletedRequest unchanged = visit(request, options(counter));
     assertEquals(java.util.Arrays.asList("one", "two", "three"), counter.seen);
     // Two Payloads sequences (one per command's input): two visits, three payloads.
     assertEquals(2, counter.visits.get());
@@ -129,7 +162,7 @@ public class PayloadVisitorTest {
 
     // Mutating: uppercase every payload's data.
     RespondWorkflowTaskCompletedRequest mutated =
-        PayloadVisitors.visit(
+        visit(
             request,
             options(
                 (ctx, pls) ->
@@ -157,13 +190,12 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    Command result = PayloadVisitors.visit(command, options(counter));
+    Command result = visit(command, options(counter));
     assertEquals(Collections.singletonList("nexus"), counter.seen);
 
     // A single-payload field can be replaced with one payload.
     Command observed =
-        PayloadVisitors.visit(
-            command, options((ctx, pls) -> Collections.singletonList(p("replaced"))));
+        visit(command, options((ctx, pls) -> Collections.singletonList(p("replaced"))));
     assertEquals(
         "replaced",
         observed.getScheduleNexusOperationCommandAttributes().getInput().getData().toStringUtf8());
@@ -182,14 +214,12 @@ public class PayloadVisitorTest {
     // Returning zero payloads for a single-payload field is rejected.
     assertThrows(
         IllegalStateException.class,
-        () -> PayloadVisitors.visit(command, options((ctx, pls) -> Collections.emptyList())));
+        () -> visit(command, options((ctx, pls) -> Collections.emptyList())));
 
     // Returning more than one payload for a single-payload field is rejected.
     assertThrows(
         IllegalStateException.class,
-        () ->
-            PayloadVisitors.visit(
-                command, options((ctx, pls) -> java.util.Arrays.asList(p("a"), p("b")))));
+        () -> visit(command, options((ctx, pls) -> java.util.Arrays.asList(p("a"), p("b")))));
   }
 
   @Test
@@ -205,15 +235,14 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(command, options(counter));
+    visit(command, options(counter));
     // A map<string, Payload> is visited once per entry; map iteration order is unspecified, so
     // assert the exact visit count and the value set rather than positional offsets.
     assertEquals(2, counter.visits.get());
     assertEquals(new HashSet<>(java.util.Arrays.asList("v1", "v2")), new HashSet<>(counter.seen));
 
     Command mutated =
-        PayloadVisitors.visit(
-            command, options((ctx, pls) -> Collections.singletonList(p(data(pls.get(0)) + "!"))));
+        visit(command, options((ctx, pls) -> Collections.singletonList(p(data(pls.get(0)) + "!"))));
     Map<String, Payload> fields =
         mutated
             .getUpsertWorkflowSearchAttributesCommandAttributes()
@@ -234,7 +263,7 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(command, options(counter));
+    visit(command, options(counter));
     // A single map<string, Payloads> entry is one sequence: one visit, two payloads.
     assertEquals(1, counter.visits.get());
     assertEquals(java.util.Arrays.asList("x", "y"), counter.seen);
@@ -251,12 +280,11 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(request, options(counter));
+    visit(request, options(counter));
     assertEquals(Collections.singletonList("a"), counter.seen);
 
     RespondWorkflowTaskCompletedRequest mutated =
-        PayloadVisitors.visit(
-            request, options((ctx, pls) -> Collections.singletonList(p(data(pls.get(0)) + "!"))));
+        visit(request, options((ctx, pls) -> Collections.singletonList(p(data(pls.get(0)) + "!"))));
     assertEquals(payloads("a!"), mutated.getQueryResultsMap().get("q1").getAnswer());
   }
 
@@ -272,13 +300,13 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(response, options(counter));
+    visit(response, options(counter));
     // A repeated Payload is one sequence: one visit, two payloads.
     assertEquals(1, counter.visits.get());
     assertEquals(java.util.Arrays.asList("g1", "g2"), counter.seen);
 
     CountWorkflowExecutionsResponse mutated =
-        PayloadVisitors.visit(
+        visit(
             response,
             options(
                 (ctx, pls) ->
@@ -292,14 +320,13 @@ public class PayloadVisitorTest {
     Payloads root = payloads("a", "b");
 
     CollectingVisitor counter = new CollectingVisitor();
-    Payloads unchanged = PayloadVisitors.visit(root, options(counter));
+    Payloads unchanged = visit(root, options(counter));
     // The repeated Payload inside Payloads is one sequence: one visit, two payloads.
     assertEquals(1, counter.visits.get());
     assertEquals(java.util.Arrays.asList("a", "b"), counter.seen);
     assertEquals(root, unchanged);
 
-    Payloads mutated =
-        PayloadVisitors.visit(root, options((ctx, pls) -> Collections.singletonList(p("x"))));
+    Payloads mutated = visit(root, options((ctx, pls) -> Collections.singletonList(p("x"))));
     assertEquals(payloads("x"), mutated);
   }
 
@@ -308,7 +335,7 @@ public class PayloadVisitorTest {
     RespondWorkflowTaskCompletedRequest.Builder builder =
         RespondWorkflowTaskCompletedRequest.newBuilder().addCommands(activity("a", payloads("x")));
 
-    PayloadVisitors.visit(builder, options((ctx, pls) -> Collections.singletonList(p("y"))));
+    visit(builder, options((ctx, pls) -> Collections.singletonList(p("y"))));
 
     assertEquals(
         payloads("y"),
@@ -320,7 +347,7 @@ public class PayloadVisitorTest {
     // A Memo with two fields is visited once per entry: two visits, two payloads.
     Memo memo = Memo.newBuilder().putFields("a", p("1")).putFields("b", p("2")).build();
     CollectingVisitor memoVisitor = new CollectingVisitor();
-    PayloadVisitors.visit(memo, options(memoVisitor));
+    visit(memo, options(memoVisitor));
     // Memo fields are a map (unspecified order): assert visit count and the value set.
     assertEquals(2, memoVisitor.visits.get());
     assertEquals(new HashSet<>(java.util.Arrays.asList("1", "2")), new HashSet<>(memoVisitor.seen));
@@ -332,7 +359,7 @@ public class PayloadVisitorTest {
                 ScheduleActivityTaskCommandAttributes.newBuilder().setInput(payloads("1", "2")))
             .build();
     CollectingVisitor inputVisitor = new CollectingVisitor();
-    PayloadVisitors.visit(command, options(inputVisitor));
+    visit(command, options(inputVisitor));
     // A Payloads sequence preserves order, so assert the exact ordered values.
     assertEquals(1, inputVisitor.visits.get());
     assertEquals(java.util.Arrays.asList("1", "2"), inputVisitor.seen);
@@ -349,7 +376,7 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(command, options(counter));
+    visit(command, options(counter));
     // With headers not skipped (the default), the header payload is visited too.
     assertEquals(new HashSet<>(java.util.Arrays.asList("in", "hv")), new HashSet<>(counter.seen));
   }
@@ -366,7 +393,7 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(command, options(counter));
+    visit(command, options(counter));
     // With search attributes not skipped (the default), the search attribute payload is visited.
     assertEquals(new HashSet<>(java.util.Arrays.asList("in", "v")), new HashSet<>(counter.seen));
   }
@@ -382,8 +409,7 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(
-        command, PayloadVisitorOptions.newBuilder(counter).setSkipHeaders(true).build());
+    visit(command, PayloadVisitorOptions.newBuilder(toAsync(counter)).setSkipHeaders(true).build());
     // The header payload is skipped; other payloads are still visited.
     assertEquals(Collections.singletonList("in"), counter.seen);
   }
@@ -400,8 +426,9 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(
-        command, PayloadVisitorOptions.newBuilder(counter).setSkipSearchAttributes(true).build());
+    visit(
+        command,
+        PayloadVisitorOptions.newBuilder(toAsync(counter)).setSkipSearchAttributes(true).build());
     // The search attribute payload is skipped; other payloads are still visited.
     assertEquals(Collections.singletonList("in"), counter.seen);
   }
@@ -430,7 +457,7 @@ public class PayloadVisitorTest {
                     dataOrder.add(data(p));
                     contextOrder.add(ctx);
                   }
-                  return pls;
+                  return CompletableFuture.completedFuture(pls);
                 })
             .setMessageVisitor(
                 (current, msg) ->
@@ -439,7 +466,7 @@ public class PayloadVisitorTest {
                         : current)
             .build();
 
-    PayloadVisitors.visit(request, opts);
+    visit(request, opts);
     assertEquals(java.util.Arrays.asList("act", "child"), dataOrder);
     assertEquals(
         java.util.Arrays.asList(
@@ -460,11 +487,11 @@ public class PayloadVisitorTest {
         PayloadVisitorOptions.<String>newBuilder(
                 (ctx, pls) -> {
                   observed.add(ctx);
-                  return pls;
+                  return CompletableFuture.completedFuture(pls);
                 })
             .setInitialContext("root")
             .build();
-    PayloadVisitors.visit(command, opts);
+    visit(command, opts);
     assertEquals(Collections.singletonList("root"), observed);
   }
 
@@ -484,7 +511,7 @@ public class PayloadVisitorTest {
                       throw new TestVisitorException("blob too large");
                     }
                   }
-                  return pls; // read-only
+                  return CompletableFuture.completedFuture(pls); // read-only
                 })
             .setMessageVisitor(
                 (current, msg) -> {
@@ -507,7 +534,7 @@ public class PayloadVisitorTest {
                             .setMemo(
                                 Memo.newBuilder().putFields("a", p("1")).putFields("b", p("2")))))
             .build();
-    PayloadVisitors.visit(ok, validator);
+    visit(ok, validator);
 
     // Oversized blob trips the payload seam.
     RespondWorkflowTaskCompletedRequest bigBlob =
@@ -515,7 +542,7 @@ public class PayloadVisitorTest {
             .addCommands(activity("a", payloads("way-too-large-payload")))
             .build();
     TestVisitorException blobError =
-        assertThrows(TestVisitorException.class, () -> PayloadVisitors.visit(bigBlob, validator));
+        assertThrows(TestVisitorException.class, () -> visit(bigBlob, validator));
     assertEquals("blob too large", blobError.getMessage());
 
     // Too many memo fields trips the message seam (its payloads are individually small).
@@ -532,7 +559,7 @@ public class PayloadVisitorTest {
                                     .putFields("c", p("3")))))
             .build();
     TestVisitorException memoError =
-        assertThrows(TestVisitorException.class, () -> PayloadVisitors.visit(bigMemo, validator));
+        assertThrows(TestVisitorException.class, () -> visit(bigMemo, validator));
     assertEquals("too many memo fields", memoError.getMessage());
   }
 
@@ -553,7 +580,7 @@ public class PayloadVisitorTest {
             .build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    PayloadVisitors.visit(failure, options(counter));
+    visit(failure, options(counter));
     assertEquals(2, counter.seen.size());
     assertTrue(counter.seen.contains("d1"));
     assertTrue(counter.seen.contains("d2"));
@@ -565,13 +592,12 @@ public class PayloadVisitorTest {
     Message message = Message.newBuilder().setBody(Any.pack(memo)).build();
 
     CollectingVisitor counter = new CollectingVisitor();
-    Message result = PayloadVisitors.visit(message, options(counter));
+    Message result = visit(message, options(counter));
     assertEquals(Collections.singletonList("inside-any"), counter.seen);
 
     // Mutating through the Any re-packs correctly.
     Message mutated =
-        PayloadVisitors.visit(
-            message, options((ctx, pls) -> Collections.singletonList(p("changed"))));
+        visit(message, options((ctx, pls) -> Collections.singletonList(p("changed"))));
     Memo unpacked = mutated.getBody().unpack(Memo.class);
     assertEquals("changed", data(unpacked.getFieldsMap().get("k")));
     // Unrelated content unchanged.
@@ -589,7 +615,7 @@ public class PayloadVisitorTest {
                     .setValue(ByteString.copyFromUtf8("opaque")))
             .build();
     CollectingVisitor counter = new CollectingVisitor();
-    Message result = PayloadVisitors.visit(message, options(counter));
+    Message result = visit(message, options(counter));
     assertTrue(counter.seen.isEmpty());
     assertEquals(message, result);
   }
@@ -602,7 +628,7 @@ public class PayloadVisitorTest {
                 io.temporal.api.command.v1.CancelWorkflowExecutionCommandAttributes.newBuilder())
             .build();
     CollectingVisitor counter = new CollectingVisitor();
-    Command result = PayloadVisitors.visit(command, options(counter));
+    Command result = visit(command, options(counter));
     assertTrue(counter.seen.isEmpty());
     assertEquals(command, result);
   }
@@ -618,7 +644,7 @@ public class PayloadVisitorTest {
         assertThrows(
             TestVisitorException.class,
             () ->
-                PayloadVisitors.visit(
+                visit(
                     request,
                     options(
                         (ctx, pls) -> {
@@ -639,9 +665,9 @@ public class PayloadVisitorTest {
         assertThrows(
             TestVisitorException.class,
             () ->
-                PayloadVisitors.visit(
+                visit(
                     command,
-                    PayloadVisitorOptions.newBuilder((ctx, pls) -> pls)
+                    PayloadVisitorOptions.newBuilder(toAsync((ctx, pls) -> pls))
                         .setMessageVisitor(
                             (current, msg) -> {
                               throw boom;
@@ -687,25 +713,20 @@ public class PayloadVisitorTest {
             .setScheduleActivityTaskCommandAttributes(
                 ScheduleActivityTaskCommandAttributes.newBuilder().setInput(payloads("x")))
             .build();
-    assertThrows(
-        IllegalStateException.class,
-        () -> PayloadVisitors.visit(command, options((ctx, pls) -> null)));
+    assertThrows(IllegalStateException.class, () -> visit(command, options((ctx, pls) -> null)));
   }
 
-  // --- Concurrency and executor ---
+  // --- Concurrency ---
+  //
+  // These tests simulate an I/O-backed visitor with futures completed on a test-local thread pool,
+  // so concurrency produces real overlap.
 
   @Test
   public void rejectsConcurrencyBelowOne() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> PayloadVisitorOptions.newBuilder((ctx, pls) -> pls).setConcurrency(0).build());
-  }
-
-  @Test
-  public void rejectsConcurrencyAboveOneWithoutExecutor() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> PayloadVisitorOptions.newBuilder((ctx, pls) -> pls).setConcurrency(2).build());
+        () ->
+            PayloadVisitorOptions.newBuilder(toAsync((ctx, pls) -> pls)).setConcurrency(0).build());
   }
 
   /**
@@ -721,25 +742,29 @@ public class PayloadVisitorTest {
   }
 
   @Test
-  public void concurrencyEqualToWorkAllowsFullOverlap() throws Exception {
+  public void concurrencyEqualToWorkAllowsFullOverlap() {
     int n = 4;
     RespondWorkflowTaskCompletedRequest request = requestWithInputs(n);
     CyclicBarrier barrier = new CyclicBarrier(n);
 
-    // Each of the n visits must reach the barrier simultaneously, proving n concurrent visits.
-    PayloadVisitors.visit(
+    // All n visits must reach the barrier at once; with fewer than n in flight it would time out.
+    visit(
         request,
-        PayloadVisitorOptions.newBuilder(
-                (ctx, pls) -> {
-                  try {
-                    barrier.await(5, TimeUnit.SECONDS);
-                  } catch (InterruptedException | BrokenBarrierException | TimeoutException e) {
-                    throw new RuntimeException(e);
-                  }
-                  return pls;
-                })
+        PayloadVisitorOptions.<Object>newBuilder(
+                (ctx, pls) ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          try {
+                            barrier.await(5, TimeUnit.SECONDS);
+                          } catch (InterruptedException
+                              | BrokenBarrierException
+                              | TimeoutException e) {
+                            throw new RuntimeException(e);
+                          }
+                          return pls;
+                        },
+                        executor))
             .setConcurrency(n)
-            .setExecutor(executor)
             .build());
   }
 
@@ -752,22 +777,24 @@ public class PayloadVisitorTest {
     AtomicInteger inFlight = new AtomicInteger();
     AtomicInteger maxInFlight = new AtomicInteger();
 
-    PayloadVisitors.visit(
+    visit(
         request,
-        PayloadVisitorOptions.newBuilder(
-                (ctx, pls) -> {
-                  int now = inFlight.incrementAndGet();
-                  maxInFlight.accumulateAndGet(now, Math::max);
-                  try {
-                    Thread.sleep(20);
-                  } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                  }
-                  inFlight.decrementAndGet();
-                  return pls;
-                })
+        PayloadVisitorOptions.<Object>newBuilder(
+                (ctx, pls) ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          int now = inFlight.incrementAndGet();
+                          maxInFlight.accumulateAndGet(now, Math::max);
+                          try {
+                            Thread.sleep(20);
+                          } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                          }
+                          inFlight.decrementAndGet();
+                          return pls;
+                        },
+                        executor))
             .setConcurrency(limit)
-            .setExecutor(executor)
             .build());
 
     assertTrue(
@@ -782,18 +809,22 @@ public class PayloadVisitorTest {
 
     AtomicInteger inFlight = new AtomicInteger();
     AtomicInteger maxInFlight = new AtomicInteger();
-    List<String> order = new ArrayList<>();
+    List<String> order = Collections.synchronizedList(new ArrayList<>());
 
-    PayloadVisitors.visit(
+    // Concurrency 1 awaits each visit before the next, so even async visits run one at a time.
+    visit(
         request,
-        PayloadVisitorOptions.newBuilder(
-                (ctx, pls) -> {
-                  int now = inFlight.incrementAndGet();
-                  maxInFlight.accumulateAndGet(now, Math::max);
-                  order.add(pls.get(0).getData().toStringUtf8());
-                  inFlight.decrementAndGet();
-                  return pls;
-                })
+        PayloadVisitorOptions.<Object>newBuilder(
+                (ctx, pls) ->
+                    CompletableFuture.supplyAsync(
+                        () -> {
+                          int now = inFlight.incrementAndGet();
+                          maxInFlight.accumulateAndGet(now, Math::max);
+                          order.add(pls.get(0).getData().toStringUtf8());
+                          inFlight.decrementAndGet();
+                          return pls;
+                        },
+                        executor))
             .setConcurrency(1)
             .build());
 
@@ -809,21 +840,24 @@ public class PayloadVisitorTest {
   public void concurrentVisitorErrorPropagates() {
     RespondWorkflowTaskCompletedRequest request = requestWithInputs(8);
     TestVisitorException boom = new TestVisitorException("boom");
+    // The failure arrives as an exceptionally-completed future; it must surface unchanged.
     TestVisitorException thrown =
         assertThrows(
             TestVisitorException.class,
             () ->
-                PayloadVisitors.visit(
+                visit(
                     request,
-                    PayloadVisitorOptions.newBuilder(
-                            (ctx, pls) -> {
-                              if (pls.get(0).getData().toStringUtf8().equals("p5")) {
-                                throw boom;
-                              }
-                              return pls;
-                            })
+                    PayloadVisitorOptions.<Object>newBuilder(
+                            (ctx, pls) ->
+                                CompletableFuture.supplyAsync(
+                                    () -> {
+                                      if (pls.get(0).getData().toStringUtf8().equals("p5")) {
+                                        throw boom;
+                                      }
+                                      return pls;
+                                    },
+                                    executor))
                         .setConcurrency(4)
-                        .setExecutor(executor)
                         .build()));
     assertSame(boom, thrown);
   }
@@ -832,19 +866,23 @@ public class PayloadVisitorTest {
   public void mutationsAppliedCorrectlyUnderConcurrency() {
     int n = 16;
     RespondWorkflowTaskCompletedRequest request = requestWithInputs(n);
+    // Visits complete out of order, but write-backs apply in walk order, so each input is correct.
     RespondWorkflowTaskCompletedRequest mutated =
-        PayloadVisitors.visit(
+        visit(
             request,
-            PayloadVisitorOptions.newBuilder(
-                    (ctx, pls) -> {
-                      Payload p = pls.get(0);
-                      return Collections.singletonList(
-                          p.toBuilder()
-                              .setData(ByteString.copyFromUtf8(p.getData().toStringUtf8() + "!"))
-                              .build());
-                    })
+            PayloadVisitorOptions.<Object>newBuilder(
+                    (ctx, pls) ->
+                        CompletableFuture.supplyAsync(
+                            () -> {
+                              Payload p = pls.get(0);
+                              return Collections.singletonList(
+                                  p.toBuilder()
+                                      .setData(
+                                          ByteString.copyFromUtf8(p.getData().toStringUtf8() + "!"))
+                                      .build());
+                            },
+                            executor))
                 .setConcurrency(8)
-                .setExecutor(executor)
                 .build());
     for (int i = 0; i < n; i++) {
       assertEquals(
@@ -860,68 +898,28 @@ public class PayloadVisitorTest {
   }
 
   @Test
-  public void concurrentVisitsRunOnProvidedExecutor() throws InterruptedException {
-    AtomicInteger threadSeq = new AtomicInteger();
-    ThreadFactory factory =
-        r -> {
-          Thread t = new Thread(r);
-          t.setName("pv-exec-" + threadSeq.incrementAndGet());
-          return t;
-        };
-    ExecutorService pool = Executors.newFixedThreadPool(4, factory);
-    try {
-      RespondWorkflowTaskCompletedRequest request = requestWithInputs(12);
-      Set<String> visitThreads = ConcurrentHashMap.newKeySet();
+  public void entryPointReturnsPendingFutureWhileVisitInFlight() throws Exception {
+    RespondWorkflowTaskCompletedRequest request = requestWithInputs(1);
+    // A visit future we complete by hand, to observe the traversal future's state meanwhile.
+    CompletableFuture<List<Payload>> gate = new CompletableFuture<>();
 
-      PayloadVisitors.visit(
-          request,
-          PayloadVisitorOptions.newBuilder(
-                  (ctx, pls) -> {
-                    visitThreads.add(Thread.currentThread().getName());
-                    return pls;
-                  })
-              .setConcurrency(4)
-              .setExecutor(pool)
-              .build());
+    CompletableFuture<RespondWorkflowTaskCompletedRequest> result =
+        PayloadVisitors.visit(
+            request, PayloadVisitorOptions.<Object>newBuilder((ctx, pls) -> gate).build());
 
-      assertTrue("no visits recorded", !visitThreads.isEmpty());
-      for (String name : visitThreads) {
-        assertTrue("visit ran off the provided executor: " + name, name.startsWith("pv-exec-"));
-      }
-    } finally {
-      pool.shutdownNow();
-      pool.awaitTermination(5, TimeUnit.SECONDS);
-    }
-  }
+    // The caller is not blocked: the traversal future is pending while the visit is outstanding.
+    assertFalse(result.isDone());
 
-  @Test
-  public void sequentialConcurrencyIgnoresExecutorAndRunsOnCallingThread() {
-    // With concurrency == 1 the executor must never be touched and visits run inline.
-    AtomicInteger submittedToExecutor = new AtomicInteger();
-    Executor tripwire =
-        command -> {
-          submittedToExecutor.incrementAndGet();
-          command.run();
-        };
-
-    RespondWorkflowTaskCompletedRequest request = requestWithInputs(5);
-    String callingThread = Thread.currentThread().getName();
-    AtomicReference<String> sawDifferentThread = new AtomicReference<>();
-
-    PayloadVisitors.visit(
-        request,
-        PayloadVisitorOptions.newBuilder(
-                (ctx, pls) -> {
-                  if (!Thread.currentThread().getName().equals(callingThread)) {
-                    sawDifferentThread.set(Thread.currentThread().getName());
-                  }
-                  return pls;
-                })
-            .setConcurrency(1)
-            .setExecutor(tripwire)
-            .build());
-
-    assertEquals("executor was used for sequential traversal", 0, submittedToExecutor.get());
-    assertEquals("visit ran off the calling thread", null, sawDifferentThread.get());
+    gate.complete(Collections.singletonList(p("done")));
+    RespondWorkflowTaskCompletedRequest mutated = result.get(5, TimeUnit.SECONDS);
+    assertEquals(
+        "done",
+        mutated
+            .getCommands(0)
+            .getScheduleActivityTaskCommandAttributes()
+            .getInput()
+            .getPayloads(0)
+            .getData()
+            .toStringUtf8());
   }
 }

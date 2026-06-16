@@ -5,34 +5,32 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.common.AsyncSemaphore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 /**
  * Mutable state for one traversal, called into by the generated per-message visitors.
  *
- * <p>A single-threaded walk records a visit job and a write-back for each payload sequence it
- * finds; {@link #execute()} then runs the visitor calls (optionally with bounded concurrency) and
- * finally applies the write-backs in walk order, so the non-thread-safe builders are never mutated
- * concurrently.
+ * <p>The single-threaded walk only records a job and a write-back per payload sequence; {@link
+ * #execute()} runs the visits and applies the write-backs afterward in walk order, so the
+ * non-thread-safe builders are never mutated concurrently. Visits are asynchronous, so the engine
+ * needs no executor — it only bounds how many of their futures are outstanding.
  */
 final class Traversal {
-  // The payload visitor is null for a message-only traversal (see MessageVisitors); in that case
-  // the payload seams are skipped and only the per-message MessageVisitor fires.
+  // Null for a message-only traversal: payload seams are skipped, only the MessageVisitor fires.
   private final PayloadVisitor<Object> payloadVisitor;
   private final MessageVisitor<Object> messageVisitor;
   private final Map<String, MessageRegistryEntry> registry;
   final boolean skipSearchAttributes;
   final boolean skipHeaders;
   private final int concurrency;
-  private final Executor executor;
 
   private final List<LeafJob> jobs = new ArrayList<>();
   private final List<Runnable> writeBacks = new ArrayList<>();
@@ -46,13 +44,9 @@ final class Traversal {
       boolean skipSearchAttributes,
       boolean skipHeaders,
       int concurrency,
-      Executor executor,
       Map<String, MessageRegistryEntry> registry) {
     if (concurrency < 1) {
       throw new IllegalArgumentException("concurrency must be at least 1, got " + concurrency);
-    }
-    if (concurrency > 1 && executor == null) {
-      throw new IllegalArgumentException("executor is required when concurrency is greater than 1");
     }
     this.payloadVisitor = (PayloadVisitor<Object>) payloadVisitor;
     this.messageVisitor = (MessageVisitor<Object>) messageVisitor;
@@ -60,13 +54,12 @@ final class Traversal {
     this.skipSearchAttributes = skipSearchAttributes;
     this.skipHeaders = skipHeaders;
     this.concurrency = concurrency;
-    this.executor = executor;
     this.registry = registry;
   }
 
   // --- Structural walk: called by generated code ---
 
-  /** Dispatch to the generated visitor for {@code builder}'s type; no-op if it has no payloads. */
+  /** No-op for a type with no payloads. */
   void dispatch(Message.Builder builder) {
     MessageRegistryEntry entry = registry.get(builder.getDescriptorForType().getFullName());
     if (entry != null) {
@@ -74,10 +67,7 @@ final class Traversal {
     }
   }
 
-  /**
-   * Run the message visitor for {@code message}, narrowing the scoped context; returns the value to
-   * restore.
-   */
+  /** Narrows the scoped context; returns the value {@link #exit} restores. */
   Object enter(MessageOrBuilder message) {
     Object previous = currentContext;
     if (messageVisitor != null) {
@@ -86,47 +76,43 @@ final class Traversal {
     return previous;
   }
 
-  /** Restore the scoped context to {@code previous} when leaving a message's subtree. */
   void exit(Object previous) {
     currentContext = previous;
   }
 
-  /** Record a visit of a payload sequence ({@code Payloads} or {@code repeated Payload}). */
+  /** Record a visit of a payload sequence (a {@code Payloads} or {@code repeated Payload}). */
   void payloads(List<Payload> batch, Consumer<List<Payload>> writeBack) {
     if (payloadVisitor == null) {
-      return; // message-only traversal: payload seams are inert
+      return;
     }
     LeafJob job = new LeafJob(batch, currentContext, false);
     jobs.add(job);
     writeBacks.add(() -> writeBack.accept(job.result));
   }
 
-  /**
-   * Record a visit of a singular payload field. The visitor must return exactly one payload for
-   * such a field (enforced in {@link #runJob}), which the consumer writes back.
-   */
+  /** The visitor must return exactly one payload (checked in {@link #record}). */
   void singlePayload(Payload value, Consumer<Payload> writeBack) {
     if (payloadVisitor == null) {
-      return; // message-only traversal: payload seams are inert
+      return;
     }
     LeafJob job = new LeafJob(Collections.singletonList(value), currentContext, true);
     jobs.add(job);
     writeBacks.add(() -> writeBack.accept(job.result.get(0)));
   }
 
-  /** Append a deferred write-back, applied (single-threaded) after all visits and in walk order. */
+  /** Applied after all visits, single-threaded, in walk order. */
   void deferWriteBack(Runnable writeBack) {
     writeBacks.add(writeBack);
   }
 
-  /** Unpack a {@code google.protobuf.Any}, traverse its contents, and re-pack it after visits. */
+  /** Unpack a {@code google.protobuf.Any}, traverse its contents, and re-pack after visits. */
   void any(Any.Builder anyBuilder) {
     String typeUrl = anyBuilder.getTypeUrl();
     int slash = typeUrl.lastIndexOf('/');
     String fullName = slash >= 0 ? typeUrl.substring(slash + 1) : typeUrl;
     MessageRegistryEntry entry = registry.get(fullName);
     if (entry == null) {
-      // Unknown type, or a type with no payloads; leave the Any untouched.
+      // Unknown or payload-free type: leave the Any untouched.
       return;
     }
     Message.Builder inner = entry.newBuilder.get();
@@ -139,86 +125,109 @@ final class Traversal {
     deferWriteBack(() -> anyBuilder.setValue(inner.build().toByteString()));
   }
 
-  // --- Execution: visitor calls (phase 2) then write-backs (phase 3) ---
+  // --- Execution: visits, then write-backs ---
 
-  void execute() {
-    if (jobs.isEmpty()) {
-      return;
-    }
-    if (concurrency <= 1 || jobs.size() == 1) {
-      for (LeafJob job : jobs) {
-        runJob(job);
-      }
-    } else {
-      executeConcurrently();
-    }
-    for (Runnable writeBack : writeBacks) {
-      writeBack.run();
-    }
+  /**
+   * Completes the returned future once the visits and write-backs are done. Blocks no thread of its
+   * own: the caller decides how to wait and which executor to chain on. Write-backs run on whatever
+   * thread completes the last visit (inline if the visits are synchronous). A visit failure aborts
+   * the traversal — remaining visits unstarted, write-backs skipped — and completes the future
+   * exceptionally with the original throwable.
+   */
+  CompletableFuture<Void> execute() {
+    CompletableFuture<Void> visitsDone =
+        jobs.isEmpty() ? CompletableFuture.completedFuture(null) : runVisits();
+    CompletableFuture<Void> result = new CompletableFuture<>();
+    visitsDone.whenComplete(
+        (v, err) -> {
+          if (err != null) {
+            result.completeExceptionally(unwrap(err));
+            return;
+          }
+          try {
+            for (Runnable writeBack : writeBacks) {
+              writeBack.run();
+            }
+            result.complete(null);
+          } catch (Throwable t) {
+            result.completeExceptionally(t);
+          }
+        });
+    return result;
   }
 
-  private void executeConcurrently() {
-    // concurrency > 1 and a non-null executor are guaranteed by the constructor's validation.
-    Executor pool = executor;
-    Semaphore semaphore = new Semaphore(concurrency);
+  /** Run the visits with at most {@code concurrency} outstanding; fails with the first error. */
+  private CompletableFuture<Void> runVisits() {
+    AsyncSemaphore permits = new AsyncSemaphore(concurrency);
     AtomicReference<Throwable> firstError = new AtomicReference<>();
-    List<CompletableFuture<Void>> futures = new ArrayList<>(jobs.size());
+    List<CompletableFuture<Void>> all = new ArrayList<>(jobs.size());
     for (LeafJob job : jobs) {
-      if (firstError.get() != null) {
-        break;
-      }
-      try {
-        semaphore.acquire();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        firstError.compareAndSet(null, e);
-        break;
-      }
-      if (firstError.get() != null) {
-        semaphore.release();
-        break;
-      }
-      futures.add(
-          CompletableFuture.runAsync(
-              () -> {
-                try {
-                  runJob(job);
-                } catch (Throwable t) {
-                  firstError.compareAndSet(null, t);
-                } finally {
-                  semaphore.release();
-                }
-              },
-              pool));
+      all.add(permits.acquire().thenCompose(p -> runJob(job, permits, firstError)));
     }
-    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-    Throwable error = firstError.get();
-    if (error instanceof RuntimeException) {
-      throw (RuntimeException) error;
+    return CompletableFuture.allOf(all.toArray(new CompletableFuture[0]))
+        .thenCompose(
+            v -> {
+              Throwable error = firstError.get();
+              if (error == null) {
+                return CompletableFuture.completedFuture(null);
+              }
+              CompletableFuture<Void> failed = new CompletableFuture<>();
+              failed.completeExceptionally(error);
+              return failed;
+            });
+  }
+
+  /** Runs one job under a held permit, releasing it exactly once when the visit settles. */
+  private CompletableFuture<Void> runJob(
+      LeafJob job, AsyncSemaphore permits, AtomicReference<Throwable> firstError) {
+    if (firstError.get() != null) {
+      permits.release();
+      return CompletableFuture.completedFuture(null);
     }
-    if (error instanceof Error) {
-      throw (Error) error;
+    CompletableFuture<List<Payload>> visit;
+    try {
+      visit = payloadVisitor.visit(job.context, job.input);
+    } catch (RuntimeException | Error t) {
+      firstError.compareAndSet(null, t);
+      permits.release();
+      return CompletableFuture.completedFuture(null);
     }
-    if (error != null) {
-      // The only checked exception that can reach here is an InterruptedException from acquiring
-      // the semaphore.
-      throw new VisitorException("payload visit interrupted", error);
+    if (visit == null) {
+      firstError.compareAndSet(null, new IllegalStateException("payload visitor returned null"));
+      permits.release();
+      return CompletableFuture.completedFuture(null);
+    }
+    return visit
+        .handle(
+            (result, err) -> {
+              record(job, result, err, firstError);
+              return (Void) null;
+            })
+        .whenComplete((v, e) -> permits.release());
+  }
+
+  private void record(
+      LeafJob job, List<Payload> result, Throwable err, AtomicReference<Throwable> firstError) {
+    if (err != null) {
+      firstError.compareAndSet(null, unwrap(err));
+    } else if (result == null) {
+      firstError.compareAndSet(null, new IllegalStateException("payload visitor returned null"));
+    } else if (job.single && result.size() != 1) {
+      firstError.compareAndSet(
+          null,
+          new IllegalStateException(
+              "single-payload field requires exactly 1 returned payload, got " + result.size()));
+    } else {
+      job.result = result;
     }
   }
 
-  private void runJob(LeafJob job) {
-    List<Payload> result = payloadVisitor.visit(job.context, job.input);
-    if (result == null) {
-      throw new IllegalStateException("payload visitor returned null");
-    }
-    if (job.single && result.size() != 1) {
-      throw new IllegalStateException(
-          "single-payload field requires exactly 1 returned payload, got " + result.size());
-    }
-    job.result = result;
+  /** Strip the {@link CompletionException} a dependent stage wraps around its cause. */
+  private static Throwable unwrap(Throwable t) {
+    return (t instanceof CompletionException && t.getCause() != null) ? t.getCause() : t;
   }
 
-  /** A single recorded visitor call and the slot its result is written into. */
+  /** A recorded visit and the slot its result lands in. */
   private static final class LeafJob {
     final List<Payload> input;
     final Object context;

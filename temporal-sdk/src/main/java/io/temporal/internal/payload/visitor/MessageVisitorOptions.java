@@ -40,7 +40,7 @@ final class MessageVisitorOptions<C> {
       this.messageVisitor = Objects.requireNonNull(messageVisitor, "messageVisitor");
     }
 
-    /** Optional. The contextual value in scope before any message is entered. */
+    /** The contextual value in scope before any message is entered. */
     public Builder<C> setInitialContext(@Nullable C initialContext) {
       this.initialContext = initialContext;
       return this;

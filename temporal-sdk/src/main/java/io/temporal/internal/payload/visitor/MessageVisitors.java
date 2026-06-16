@@ -23,16 +23,14 @@ final class MessageVisitors {
             /* skipSearchAttributes= */ false,
             /* skipHeaders= */ false,
             1,
-            null,
             GeneratedPayloadVisitor.REGISTRY);
     traversal.dispatch(builder);
-    traversal.execute();
+    // No payload visits, so execute() completes inline; join() returns at once. Message-visitor
+    // errors throw from dispatch above.
+    traversal.execute().join();
   }
 
-  /**
-   * Visits the messages in {@code message}, returning a copy with any changes applied; the input is
-   * unchanged.
-   */
+  /** Returns a copy with any changes applied; {@code message} is unchanged. */
   @SuppressWarnings("unchecked")
   public static <C, T extends Message> T visit(
       @Nonnull T message, @Nonnull MessageVisitorOptions<C> options) {
