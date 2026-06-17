@@ -464,7 +464,9 @@ public final class WorkerFactory {
       }
     }
     if (workerCommandWorker != null) {
-      shutdownFutures.add(workerCommandWorker.shutdown(shutdownManager, interruptUserTasks));
+      // TODO: Should be able to pass `interruptUserTasks` here when
+      // https://github.com/temporalio/api/pull/784 is in
+      shutdownFutures.add(workerCommandWorker.shutdown(shutdownManager, true));
     }
 
     CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
