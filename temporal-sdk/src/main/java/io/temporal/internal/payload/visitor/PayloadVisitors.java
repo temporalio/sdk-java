@@ -4,9 +4,7 @@ import com.google.protobuf.Message;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-/**
- * Visits every payload within a proto message.
- */
+/** Visits every payload within a proto message. */
 final class PayloadVisitors {
   private PayloadVisitors() {}
 
