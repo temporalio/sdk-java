@@ -61,9 +61,6 @@ public class TestWorkflowEnvironmentActivityClientTest {
       assertEquals("activity-client-namespace", activityClientOptions.getNamespace());
       assertEquals("activity-client-identity", activityClientOptions.getIdentity());
       assertSame(interceptor, activityClientOptions.getInterceptors().get(0));
-      assertTrue(
-          activityClientOptions.getInterceptors().stream()
-              .anyMatch(TimeLockingActivityClientInterceptor.class::isInstance));
     }
   }
 

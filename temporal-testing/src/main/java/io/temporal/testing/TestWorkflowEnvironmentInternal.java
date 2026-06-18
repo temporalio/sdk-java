@@ -159,7 +159,6 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     if (testServiceStubs != null) {
       List<ActivityClientInterceptor> interceptors =
           new ArrayList<>(activityClientOptions.getInterceptors());
-      interceptors.add(new TimeLockingActivityClientInterceptor(testServiceStubs));
       options =
           ActivityClientOptions.newBuilder(activityClientOptions)
               .setInterceptors(interceptors)

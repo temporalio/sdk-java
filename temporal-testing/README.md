@@ -37,7 +37,7 @@ and `io.temporal.testing.TestActivityExtension` for isolated testing of activiti
 
 `TestWorkflowEnvironment`, `TestWorkflowRule`, and `TestWorkflowExtension` provide clients connected
 to the test service. Use `getWorkflowClient()` for Workflows and `getActivityClient()` for
-Standalone Activities when the target Temporal service supports Standalone Activity APIs.
+Standalone Activities.
 
 ## For isolated testing of activity implementations
 
