@@ -6,8 +6,8 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.internal.nexus.OperationToken;
 import io.temporal.internal.nexus.OperationTokenUtil;
-import io.temporal.internal.nexus.WorkflowRunOperationToken;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowRunOperation;
 import io.temporal.testing.WorkflowReplayer;
@@ -74,7 +74,7 @@ public class AsyncWorkflowOperationTest extends BaseNexusTest {
           "Operation token should be present", asyncExec.getOperationToken().isPresent());
       // Result should only be completed if the operation is completed
       Assert.assertFalse("Result should not be completed", asyncOpHandle.getResult().isCompleted());
-      WorkflowRunOperationToken token =
+      OperationToken token =
           OperationTokenUtil.loadWorkflowRunOperationToken(asyncExec.getOperationToken().get());
       Assert.assertTrue(token.getWorkflowId().startsWith(WORKFLOW_ID_PREFIX));
       // Unblock the operation

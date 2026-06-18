@@ -97,6 +97,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (options.getPriority() != null) {
       request.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
+    if (options.getStartDelay() != null) {
+      request.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
+    }
 
     io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
     request.setHeader(grpcHeader);

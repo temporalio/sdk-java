@@ -17,9 +17,12 @@ import io.temporal.api.nexus.v1.EndpointTarget;
 import io.temporal.api.operatorservice.v1.AddSearchAttributesRequest;
 import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.*;
@@ -28,6 +31,8 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +40,7 @@ import javax.annotation.Nullable;
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private final WorkflowClientOptions workflowClientOptions;
+  private final ActivityClientOptions activityClientOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final OperatorServiceStubs operatorServiceStubs;
   private final @Nullable TestServiceStubs testServiceStubs;
@@ -48,9 +54,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
     if (testEnvironmentOptions == null) {
       testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     }
-    this.workflowClientOptions =
-        WorkflowClientOptions.newBuilder(testEnvironmentOptions.getWorkflowClientOptions())
-            .validateAndBuildWithDefaults();
+    testEnvironmentOptions =
+        TestEnvironmentOptions.newBuilder(testEnvironmentOptions).validateAndBuildWithDefaults();
+    this.workflowClientOptions = testEnvironmentOptions.getWorkflowClientOptions();
+    this.activityClientOptions = testEnvironmentOptions.getActivityClientOptions();
 
     WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
         testEnvironmentOptions.getWorkflowServiceStubsOptions() != null
@@ -144,6 +151,22 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       options = workflowClientOptions;
     }
     return WorkflowClient.newInstance(workflowServiceStubs, options);
+  }
+
+  @Override
+  public ActivityClient getActivityClient() {
+    ActivityClientOptions options;
+    if (testServiceStubs != null) {
+      List<ActivityClientInterceptor> interceptors =
+          new ArrayList<>(activityClientOptions.getInterceptors());
+      options =
+          ActivityClientOptions.newBuilder(activityClientOptions)
+              .setInterceptors(interceptors)
+              .build();
+    } else {
+      options = activityClientOptions;
+    }
+    return ActivityClient.newInstance(workflowServiceStubs, options);
   }
 
   @Override

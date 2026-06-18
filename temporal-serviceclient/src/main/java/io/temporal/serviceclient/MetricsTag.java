@@ -24,6 +24,16 @@ public class MetricsTag {
   public static final String EXCEPTION = "exception";
   public static final String OPERATION_NAME = "operation";
   public static final String TASK_FAILURE_TYPE = "failure_reason";
+  public static final String TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR = "NonDeterminismError";
+  public static final String TASK_FAILURE_VALUE_GRPC_MESSAGE_TOO_LARGE = "GrpcMessageTooLarge";
+  public static final String TASK_FAILURE_VALUE_WORKFLOW_ERROR = "WorkflowError";
+  public static final String TASK_FAILURE_VALUE_OPERATION_FAILED = "operation_failed";
+  public static final String TASK_FAILURE_VALUE_OPERATION_CANCELED = "operation_canceled";
+  public static final String TASK_FAILURE_VALUE_HANDLER_ERROR_BAD_REQUEST =
+      "handler_error_BAD_REQUEST";
+  public static final String TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL = "handler_error_INTERNAL";
+  public static final String TASK_FAILURE_VALUE_TIMEOUT = "timeout";
+  public static final String TASK_FAILURE_VALUE_INTERNAL_SDK_ERROR = "internal_sdk_error";
   public static final String POLLER_TYPE = "poller_type";
 
   /** Used to pass metrics scope to the interceptor */

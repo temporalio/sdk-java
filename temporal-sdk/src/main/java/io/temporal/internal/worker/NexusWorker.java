@@ -350,27 +350,30 @@ final class NexusWorker implements SuspendableWorker {
             && result.getResponse().getStartOperation().hasFailure()) {
           failed = true;
           Failure f = result.getResponse().getStartOperation().getFailure();
-          String operationState;
+          String taskFailureValue;
           if (f.hasApplicationFailureInfo()) {
-            operationState = "failed";
+            taskFailureValue = MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED;
           } else {
-            operationState = "canceled";
+            taskFailureValue = MetricsTag.TASK_FAILURE_VALUE_OPERATION_CANCELED;
           }
           metricsScope
-              .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "operation_" + operationState))
+              .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, taskFailureValue))
               .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
               .inc(1);
         }
       } catch (TimeoutException e) {
         log.warn("Nexus task timed out while processing", e);
         metricsScope
-            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "timeout"))
+            .tagged(
+                Collections.singletonMap(TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_TIMEOUT))
             .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
             .inc(1);
         return true;
       } catch (Throwable e) {
         metricsScope
-            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "internal_sdk_error"))
+            .tagged(
+                Collections.singletonMap(
+                    TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_INTERNAL_SDK_ERROR))
             .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
             .inc(1);
         // handler.handle if expected to never throw an exception and return result

@@ -96,7 +96,7 @@ public class SyncClientOperationTest {
     Map<String, String> execFailedTags =
         ImmutableMap.<String, String>builder()
             .putAll(operationTags)
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL)
             .buildKeepingLast();
     reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
   }

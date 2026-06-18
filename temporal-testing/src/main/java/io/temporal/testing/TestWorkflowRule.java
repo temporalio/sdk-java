@@ -8,6 +8,8 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
@@ -72,6 +74,7 @@ public class TestWorkflowRule implements TestRule {
   private final Object[] nexusServiceImplementations;
   private final WorkflowServiceStubsOptions serviceStubsOptions;
   private final WorkflowClientOptions clientOptions;
+  private final ActivityClientOptions activityClientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final WorkerOptions workerOptions;
@@ -115,6 +118,7 @@ public class TestWorkflowRule implements TestRule {
         (builder.workflowClientOptions == null)
             ? WorkflowClientOptions.newBuilder().setNamespace(namespace).build()
             : builder.workflowClientOptions.toBuilder().setNamespace(namespace).build();
+    this.activityClientOptions = builder.activityClientOptions;
     this.workerOptions =
         (builder.workerOptions == null)
             ? WorkerOptions.newBuilder().build()
@@ -145,6 +149,7 @@ public class TestWorkflowRule implements TestRule {
     return TestEnvironmentOptions.newBuilder()
         .setWorkflowServiceStubsOptions(serviceStubsOptions)
         .setWorkflowClientOptions(clientOptions)
+        .setActivityClientOptions(activityClientOptions)
         .setWorkerFactoryOptions(workerFactoryOptions)
         .setUseExternalService(useExternalService)
         .setUseTimeskipping(useTimeskipping)
@@ -176,6 +181,7 @@ public class TestWorkflowRule implements TestRule {
     private Object[] nexusServiceImplementations;
     private WorkflowServiceStubsOptions workflowServiceStubsOptions;
     private WorkflowClientOptions workflowClientOptions;
+    private ActivityClientOptions activityClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
     private WorkflowImplementationOptions workflowImplementationOptions;
     private WorkerOptions workerOptions;
@@ -201,6 +207,12 @@ public class TestWorkflowRule implements TestRule {
      */
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       this.workflowClientOptions = workflowClientOptions;
+      return this;
+    }
+
+    /** Override {@link ActivityClientOptions} for test environment. */
+    public Builder setActivityClientOptions(ActivityClientOptions activityClientOptions) {
+      this.activityClientOptions = activityClientOptions;
       return this;
     }
 
@@ -482,6 +494,13 @@ public class TestWorkflowRule implements TestRule {
    */
   public WorkflowClient getWorkflowClient() {
     return testEnvironment.getWorkflowClient();
+  }
+
+  /**
+   * @return client to the Temporal service used to start standalone activities.
+   */
+  public ActivityClient getActivityClient() {
+    return testEnvironment.getActivityClient();
   }
 
   /**
