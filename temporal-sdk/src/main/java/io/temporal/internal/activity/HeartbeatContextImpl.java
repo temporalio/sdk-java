@@ -154,7 +154,6 @@ class HeartbeatContextImpl implements HeartbeatContext {
       checkHeartbeatTimeoutDeadlineLocked();
       receivedAHeartbeat = true;
       lastDetails = details;
-      cancellationToken.throwIfCancellationRequested();
       hasOutstandingHeartbeat = true;
       // Only do sync heartbeat if there is no such call scheduled.
       if (scheduledHeartbeat == null) {
@@ -163,6 +162,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
       if (lastException != null) {
         throw lastException;
       }
+      cancellationToken.throwIfCancellationRequested();
     } finally {
       lock.unlock();
     }

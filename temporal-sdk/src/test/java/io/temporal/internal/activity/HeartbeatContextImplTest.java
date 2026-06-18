@@ -9,6 +9,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.ActivityCanceledException;
@@ -26,6 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class HeartbeatContextImplTest {
 
@@ -185,13 +187,18 @@ public class HeartbeatContextImplTest {
   }
 
   @Test
-  public void workerCommandCancelThrowsWithoutHeartbeatRpc() {
+  public void workerCommandCancelStillSendsHeartbeatDetails() {
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+
     ActivityInfo info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
-    HeartbeatContextImpl ctx = createHeartbeatContext(info);
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(info, Duration.ofMillis(100), Duration.ofMillis(100));
 
     assertFalse(ctx.getCancellationToken().isCancellationRequested());
     assertFalse(ctx.getCancellationToken().getCancellationRequest().isDone());
 
+    ctx.heartbeat("before-cancel");
     ctx.cancelFromWorkerCommand();
 
     assertTrue(ctx.getCancellationToken().isCancellationRequested());
@@ -201,13 +208,24 @@ public class HeartbeatContextImplTest {
         () -> ctx.getCancellationToken().throwIfCancellationRequested());
 
     try {
-      ctx.heartbeat("details");
+      ctx.heartbeat("after-cancel");
       fail("Expected ActivityCanceledException");
     } catch (ActivityCanceledException e) {
       assertNull(e.getCause());
     }
 
-    verify(blockingStub, never()).recordActivityTaskHeartbeat(any());
+    ArgumentCaptor<RecordActivityTaskHeartbeatRequest> requestCaptor =
+        ArgumentCaptor.forClass(RecordActivityTaskHeartbeatRequest.class);
+    verify(blockingStub, timeout(1000).times(2))
+        .recordActivityTaskHeartbeat(requestCaptor.capture());
+    String details =
+        GlobalDataConverter.get()
+            .fromPayloads(
+                0,
+                Optional.of(requestCaptor.getAllValues().get(1).getDetails()),
+                String.class,
+                String.class);
+    assertEquals("after-cancel", details);
     ctx.cancelOutstandingHeartbeat();
   }
 
@@ -264,6 +282,13 @@ public class HeartbeatContextImplTest {
   }
 
   private HeartbeatContextImpl createHeartbeatContext(ActivityInfo info) {
+    return createHeartbeatContext(info, Duration.ofSeconds(60), Duration.ofSeconds(30));
+  }
+
+  private HeartbeatContextImpl createHeartbeatContext(
+      ActivityInfo info,
+      Duration maxHeartbeatThrottleInterval,
+      Duration defaultHeartbeatThrottleInterval) {
     return new HeartbeatContextImpl(
         service,
         "test-namespace",
@@ -272,8 +297,8 @@ public class HeartbeatContextImplTest {
         heartbeatExecutor,
         new NoopScope(),
         "test-identity",
-        Duration.ofSeconds(60),
-        Duration.ofSeconds(30),
+        maxHeartbeatThrottleInterval,
+        defaultHeartbeatThrottleInterval,
         TEST_BUFFER_MILLIS);
   }
 
