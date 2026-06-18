@@ -8,6 +8,7 @@ import io.temporal.client.ActivityFailedException;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -79,6 +80,42 @@ public interface ActivityClientCallsInterceptor {
    * @return an empty output object (reserved for future use)
    */
   TerminateActivityOutput terminateActivity(TerminateActivityInput input);
+
+  /**
+   * Pauses a running standalone activity. A paused activity stops being dispatched to workers until
+   * it is unpaused.
+   *
+   * @param input activity ID, optional run ID, and optional human-readable reason
+   * @return an empty output object (reserved for future use)
+   */
+  PauseActivityOutput pauseActivity(PauseActivityInput input);
+
+  /**
+   * Unpauses a previously paused standalone activity, optionally resetting its attempt counter and
+   * heartbeat details.
+   *
+   * @param input activity ID, optional run ID, and unpause options
+   * @return an empty output object (reserved for future use)
+   */
+  UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input);
+
+  /**
+   * Resets a standalone activity, scheduling a fresh attempt.
+   *
+   * @param input activity ID, optional run ID, and reset options
+   * @return an empty output object (reserved for future use)
+   */
+  ResetActivityOutput resetActivity(ResetActivityInput input);
+
+  /**
+   * Updates the options of a standalone activity. The {@code updateMask} controls which fields of
+   * {@code activityOptions} are applied; alternatively {@code restoreOriginal} reverts the options
+   * to the values the activity was created with.
+   *
+   * @param input activity ID, optional run ID, options, update mask, and restore flag
+   * @return output carrying the activity options as resolved by the server after the update
+   */
+  UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);
 
   /**
    * Returns a lazy {@link java.util.stream.Stream} of activity execution metadata matching the
@@ -338,6 +375,203 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class TerminateActivityOutput {}
+
+  @Experimental
+  final class PauseActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final @Nullable String reason;
+
+    public PauseActivityInput(String id, @Nullable String runId, @Nullable String reason) {
+      this.id = id;
+      this.runId = runId;
+      this.reason = reason;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
+    }
+  }
+
+  @Experimental
+  final class PauseActivityOutput {}
+
+  @Experimental
+  final class UnpauseActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final @Nullable String reason;
+    private final boolean resetAttempts;
+    private final boolean resetHeartbeat;
+    private final @Nullable Duration jitter;
+
+    public UnpauseActivityInput(
+        String id,
+        @Nullable String runId,
+        @Nullable String reason,
+        boolean resetAttempts,
+        boolean resetHeartbeat,
+        @Nullable Duration jitter) {
+      this.id = id;
+      this.runId = runId;
+      this.reason = reason;
+      this.resetAttempts = resetAttempts;
+      this.resetHeartbeat = resetHeartbeat;
+      this.jitter = jitter;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    @Nullable
+    public String getReason() {
+      return reason;
+    }
+
+    public boolean isResetAttempts() {
+      return resetAttempts;
+    }
+
+    public boolean isResetHeartbeat() {
+      return resetHeartbeat;
+    }
+
+    @Nullable
+    public Duration getJitter() {
+      return jitter;
+    }
+  }
+
+  @Experimental
+  final class UnpauseActivityOutput {}
+
+  @Experimental
+  final class ResetActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final boolean resetHeartbeat;
+    private final boolean keepPaused;
+    private final @Nullable Duration jitter;
+    private final boolean restoreOriginalOptions;
+
+    public ResetActivityInput(
+        String id,
+        @Nullable String runId,
+        boolean resetHeartbeat,
+        boolean keepPaused,
+        @Nullable Duration jitter,
+        boolean restoreOriginalOptions) {
+      this.id = id;
+      this.runId = runId;
+      this.resetHeartbeat = resetHeartbeat;
+      this.keepPaused = keepPaused;
+      this.jitter = jitter;
+      this.restoreOriginalOptions = restoreOriginalOptions;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public boolean isResetHeartbeat() {
+      return resetHeartbeat;
+    }
+
+    public boolean isKeepPaused() {
+      return keepPaused;
+    }
+
+    @Nullable
+    public Duration getJitter() {
+      return jitter;
+    }
+
+    public boolean isRestoreOriginalOptions() {
+      return restoreOriginalOptions;
+    }
+  }
+
+  @Experimental
+  final class ResetActivityOutput {}
+
+  @Experimental
+  final class UpdateActivityOptionsInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final io.temporal.api.activity.v1.ActivityOptions activityOptions;
+    private final com.google.protobuf.FieldMask updateMask;
+    private final boolean restoreOriginal;
+
+    public UpdateActivityOptionsInput(
+        String id,
+        @Nullable String runId,
+        io.temporal.api.activity.v1.ActivityOptions activityOptions,
+        com.google.protobuf.FieldMask updateMask,
+        boolean restoreOriginal) {
+      this.id = id;
+      this.runId = runId;
+      this.activityOptions = activityOptions;
+      this.updateMask = updateMask;
+      this.restoreOriginal = restoreOriginal;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public io.temporal.api.activity.v1.ActivityOptions getActivityOptions() {
+      return activityOptions;
+    }
+
+    public com.google.protobuf.FieldMask getUpdateMask() {
+      return updateMask;
+    }
+
+    public boolean isRestoreOriginal() {
+      return restoreOriginal;
+    }
+  }
+
+  @Experimental
+  final class UpdateActivityOptionsOutput {
+    private final io.temporal.api.activity.v1.ActivityOptions activityOptions;
+
+    public UpdateActivityOptionsOutput(
+        io.temporal.api.activity.v1.ActivityOptions activityOptions) {
+      this.activityOptions = activityOptions;
+    }
+
+    /** The activity options as resolved by the server after the update. */
+    public io.temporal.api.activity.v1.ActivityOptions getActivityOptions() {
+      return activityOptions;
+    }
+  }
 
   @Experimental
   final class ListActivitiesInput {

@@ -15,6 +15,7 @@ import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
+import io.temporal.api.enums.v1.PendingActivityState;
 import io.temporal.client.*;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
@@ -94,6 +95,12 @@ public class StandaloneActivityTest {
   public interface AlwaysFailActivity {
     @ActivityMethod(name = "AlwaysFail")
     void alwaysFail();
+  }
+
+  @ActivityInterface
+  public interface RetryThenSucceedActivity {
+    @ActivityMethod(name = "RetryThenSucceed")
+    String run();
   }
 
   /** Snapshot of {@link ActivityInfo} fields captured inside an activity body. */
@@ -200,6 +207,24 @@ public class StandaloneActivityTest {
     }
   }
 
+  /**
+   * Fails on the first attempt and succeeds on the second. Used to drive an activity into retry
+   * backoff so it can be paused/unpaused/reset between attempts.
+   */
+  private static volatile java.util.concurrent.atomic.AtomicInteger retryAttempts;
+
+  public static class RetryThenSucceedActivityImpl implements RetryThenSucceedActivity {
+    @Override
+    public String run() {
+      java.util.concurrent.atomic.AtomicInteger counter = retryAttempts;
+      int attempt = counter == null ? 1 : counter.incrementAndGet();
+      if (attempt < 2) {
+        throw ApplicationFailure.newFailure("retry me", "retry-type");
+      }
+      return "succeeded-on-attempt-" + attempt;
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Test rule
   // ---------------------------------------------------------------------------
@@ -215,7 +240,8 @@ public class StandaloneActivityTest {
               new InspectInfoActivityImpl(),
               new EchoVoidActivityImpl(),
               new ConcatActivityImpl(),
-              new AlwaysFailActivityImpl())
+              new AlwaysFailActivityImpl(),
+              new RetryThenSucceedActivityImpl())
           .build();
 
   // ---------------------------------------------------------------------------
@@ -984,6 +1010,245 @@ public class StandaloneActivityTest {
     assertEquals(
         "echo:x",
         newActivityClient().execute(SimpleActivity.class, SimpleActivity::execute, opts, "x"));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Operator commands: pause / unpause / reset / updateOptions
+  // ---------------------------------------------------------------------------
+
+  private static boolean isPaused(ActivityExecutionDescription desc) {
+    PendingActivityState state = desc.getRunState();
+    return state == PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED
+        || state == PendingActivityState.PENDING_ACTIVITY_STATE_PAUSE_REQUESTED;
+  }
+
+  @Test
+  public void pauseShowsPaused() throws InterruptedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    cancelLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+              .setHeartbeatTimeout(Duration.ofSeconds(10))
+              .build();
+      ActivityHandle<Void> handle =
+          client.start(WaitForCancelActivity.class, WaitForCancelActivity::waitForCancel, opts);
+
+      assertTrue("Activity did not start within 30s", cancelLatch.await(30, TimeUnit.SECONDS));
+
+      handle.pause("operator pause");
+
+      assertEventually(
+          Duration.ofSeconds(30),
+          () -> {
+            ActivityExecutionDescription desc = handle.describe();
+            assertTrue("expected paused run state, got " + desc.getRunState(), isPaused(desc));
+          });
+    } finally {
+      cancelLatch = null;
+      // best-effort cleanup
+    }
+  }
+
+  // Overrides the rule's default 10s global timeout: retry backoff makes this scenario take longer.
+  @Test(timeout = 60_000)
+  public void unpauseResumes() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    retryAttempts = new java.util.concurrent.atomic.AtomicInteger(1);
+    try {
+      ActivityClient client = newActivityClient();
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setScheduleToCloseTimeout(Duration.ofMinutes(5))
+              .setStartToCloseTimeout(Duration.ofSeconds(10))
+              .setRetryOptions(
+                  RetryOptions.newBuilder()
+                      .setInitialInterval(Duration.ofSeconds(30))
+                      .setMaximumAttempts(5)
+                      .build())
+              .build();
+      ActivityHandle<String> handle =
+          client.start(RetryThenSucceedActivity.class, RetryThenSucceedActivity::run, opts);
+
+      // Wait until the first attempt has failed and the activity is backing off.
+      assertEventually(
+          Duration.ofSeconds(60),
+          () -> {
+            ActivityExecutionDescription desc = handle.describe();
+            assertNotNull("expected a recorded failure before pausing", desc.getLastFailure());
+          });
+
+      handle.pause("hold");
+      assertEventually(Duration.ofSeconds(30), () -> assertTrue(isPaused(handle.describe())));
+
+      // Unpause and reset the backoff so the next attempt fires immediately.
+      handle.unpause(UnpauseActivityOptions.newBuilder().setReason("resume").build());
+
+      assertEquals("succeeded-on-attempt-2", handle.getResult());
+    } finally {
+      retryAttempts = null;
+    }
+  }
+
+  // Overrides the rule's default 10s global timeout: driving retries + reset takes longer.
+  @Test(timeout = 60_000)
+  public void reset() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    // Never succeed: we only want to observe the attempt counter being reset.
+    retryAttempts = new java.util.concurrent.atomic.AtomicInteger(100);
+    try {
+      ActivityClient client = newActivityClient();
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setScheduleToCloseTimeout(Duration.ofMinutes(10))
+              .setStartToCloseTimeout(Duration.ofSeconds(10))
+              .setRetryOptions(
+                  RetryOptions.newBuilder()
+                      .setInitialInterval(Duration.ofSeconds(1))
+                      .setBackoffCoefficient(1.0)
+                      .setMaximumAttempts(100)
+                      .build())
+              .build();
+      ActivityHandle<String> handle =
+          client.start(RetryThenSucceedActivity.class, RetryThenSucceedActivity::run, opts);
+
+      // Drive the activity well past its first attempt (short, constant backoff).
+      assertEventually(
+          Duration.ofSeconds(30),
+          () ->
+              assertTrue(
+                  "expected attempt >= 3 before reset", handle.describe().getAttempt() >= 3));
+
+      handle.reset();
+
+      // After reset the attempt counter returns to 1.
+      assertEventually(
+          Duration.ofSeconds(30),
+          () -> assertEquals("attempt should be reset to 1", 1, handle.describe().getAttempt()));
+    } finally {
+      retryAttempts = null;
+    }
+  }
+
+  @Test
+  public void updateOptionsRespectsMask() throws InterruptedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    cancelLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      Duration originalStartToClose = Duration.ofSeconds(45);
+      Duration originalScheduleToClose = Duration.ofMinutes(10);
+      Duration newStartToClose = Duration.ofSeconds(90);
+
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setStartToCloseTimeout(originalStartToClose)
+              .setScheduleToCloseTimeout(originalScheduleToClose)
+              .setHeartbeatTimeout(Duration.ofSeconds(10))
+              .build();
+      ActivityHandle<Void> handle =
+          client.start(WaitForCancelActivity.class, WaitForCancelActivity::waitForCancel, opts);
+      assertTrue("Activity did not start within 30s", cancelLatch.await(30, TimeUnit.SECONDS));
+
+      ActivityExecutionOptions updated =
+          handle.updateOptions(
+              UpdateActivityOptions.newBuilder().setStartToCloseTimeout(newStartToClose).build());
+
+      // Returned options reflect the change AND leave the untouched field as-is.
+      assertEquals(newStartToClose, updated.getStartToCloseTimeout());
+      assertEquals(originalScheduleToClose, updated.getScheduleToCloseTimeout());
+
+      // describe confirms server-side state matches.
+      assertEventually(
+          Duration.ofSeconds(30),
+          () -> {
+            ActivityExecutionDescription desc = handle.describe();
+            assertEquals(newStartToClose, desc.getStartToCloseTimeout());
+            assertEquals(originalScheduleToClose, desc.getScheduleToCloseTimeout());
+          });
+    } finally {
+      cancelLatch = null;
+    }
+  }
+
+  @Test
+  public void updateOptionsRestoreOriginalExclusive() throws InterruptedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    cancelLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setStartToCloseTimeout(Duration.ofSeconds(45))
+              .setScheduleToCloseTimeout(Duration.ofMinutes(10))
+              .setHeartbeatTimeout(Duration.ofSeconds(10))
+              .build();
+      ActivityHandle<Void> handle =
+          client.start(WaitForCancelActivity.class, WaitForCancelActivity::waitForCancel, opts);
+      assertTrue("Activity did not start within 30s", cancelLatch.await(30, TimeUnit.SECONDS));
+
+      // restoreOriginal combined with another option must fail client-side, before the RPC.
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              handle.updateOptions(
+                  UpdateActivityOptions.newBuilder()
+                      .setRestoreOriginal(true)
+                      .setStartToCloseTimeout(Duration.ofSeconds(99))
+                      .build()));
+    } finally {
+      cancelLatch = null;
+    }
+  }
+
+  @Test
+  public void updateOptionsRestoreOriginalAlone() throws InterruptedException {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    cancelLatch = new CountDownLatch(1);
+    try {
+      ActivityClient client = newActivityClient();
+      Duration originalStartToClose = Duration.ofSeconds(45);
+      Duration changedStartToClose = Duration.ofSeconds(90);
+
+      StartActivityOptions opts =
+          StartActivityOptions.newBuilder()
+              .setId(uniqueId())
+              .setTaskQueue(testWorkflowRule.getTaskQueue())
+              .setStartToCloseTimeout(originalStartToClose)
+              .setScheduleToCloseTimeout(Duration.ofMinutes(10))
+              .setHeartbeatTimeout(Duration.ofSeconds(10))
+              .build();
+      ActivityHandle<Void> handle =
+          client.start(WaitForCancelActivity.class, WaitForCancelActivity::waitForCancel, opts);
+      assertTrue("Activity did not start within 30s", cancelLatch.await(30, TimeUnit.SECONDS));
+
+      // Change a field, confirm it took effect.
+      ActivityExecutionOptions changed =
+          handle.updateOptions(
+              UpdateActivityOptions.newBuilder()
+                  .setStartToCloseTimeout(changedStartToClose)
+                  .build());
+      assertEquals(changedStartToClose, changed.getStartToCloseTimeout());
+
+      // Restore originals.
+      ActivityExecutionOptions restored =
+          handle.updateOptions(UpdateActivityOptions.newBuilder().setRestoreOriginal(true).build());
+      assertEquals(originalStartToClose, restored.getStartToCloseTimeout());
+    } finally {
+      cancelLatch = null;
+    }
   }
 
   // ---------------------------------------------------------------------------

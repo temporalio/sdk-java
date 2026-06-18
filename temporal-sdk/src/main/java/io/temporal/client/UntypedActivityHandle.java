@@ -146,4 +146,47 @@ public interface UntypedActivityHandle {
    * @param reason human-readable reason for termination, may be {@code null}
    */
   void terminate(@Nullable String reason);
+
+  /**
+   * Pauses the activity. A paused activity stops being dispatched to workers until it is unpaused.
+   */
+  void pause();
+
+  /**
+   * Pauses the activity with an optional reason.
+   *
+   * @param reason human-readable reason for pausing, may be {@code null}
+   */
+  void pause(@Nullable String reason);
+
+  /** Unpauses the activity with default options, allowing it to be dispatched again. */
+  void unpause();
+
+  /**
+   * Unpauses the activity with the given options.
+   *
+   * @param options unpause options (reset attempts, reset heartbeat, jitter, reason)
+   */
+  void unpause(UnpauseActivityOptions options);
+
+  /** Resets the activity with default options, scheduling a fresh attempt. */
+  void reset();
+
+  /**
+   * Resets the activity with the given options.
+   *
+   * @param options reset options (reset heartbeat, keep paused, jitter, restore original options)
+   */
+  void reset(ResetActivityOptions options);
+
+  /**
+   * Updates the activity's options. Only the fields explicitly set in {@code options} are changed;
+   * a derived field mask leaves the rest untouched. Alternatively, {@link
+   * UpdateActivityOptions.Builder#setRestoreOriginal(boolean)} reverts the options to the values
+   * the activity was created with.
+   *
+   * @param options the options to apply
+   * @return the activity options as resolved by the server after the update
+   */
+  ActivityExecutionOptions updateOptions(UpdateActivityOptions options);
 }

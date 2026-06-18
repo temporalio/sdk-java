@@ -121,4 +121,39 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   public void terminate(@Nullable String reason) {
     delegate.terminate(reason);
   }
+
+  @Override
+  public void pause() {
+    delegate.pause();
+  }
+
+  @Override
+  public void pause(@Nullable String reason) {
+    delegate.pause(reason);
+  }
+
+  @Override
+  public void unpause() {
+    delegate.unpause();
+  }
+
+  @Override
+  public void unpause(UnpauseActivityOptions options) {
+    delegate.unpause(options);
+  }
+
+  @Override
+  public void reset() {
+    delegate.reset();
+  }
+
+  @Override
+  public void reset(ResetActivityOptions options) {
+    delegate.reset(options);
+  }
+
+  @Override
+  public ActivityExecutionOptions updateOptions(UpdateActivityOptions options) {
+    return delegate.updateOptions(options);
+  }
 }

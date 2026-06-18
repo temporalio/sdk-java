@@ -334,6 +334,86 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   @Override
+  public PauseActivityOutput pauseActivity(PauseActivityInput input) {
+    PauseActivityExecutionRequest.Builder req =
+        PauseActivityExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setRequestId(UUID.randomUUID().toString())
+            .setActivityId(input.getId());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getReason() != null) {
+      req.setReason(input.getReason());
+    }
+    genericClient.pauseActivity(req.build());
+    return new PauseActivityOutput();
+  }
+
+  @Override
+  public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
+    UnpauseActivityExecutionRequest.Builder req =
+        UnpauseActivityExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setActivityId(input.getId())
+            .setResetAttempts(input.isResetAttempts())
+            .setResetHeartbeat(input.isResetHeartbeat());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getReason() != null) {
+      req.setReason(input.getReason());
+    }
+    if (input.getJitter() != null) {
+      req.setJitter(ProtobufTimeUtils.toProtoDuration(input.getJitter()));
+    }
+    genericClient.unpauseActivity(req.build());
+    return new UnpauseActivityOutput();
+  }
+
+  @Override
+  public ResetActivityOutput resetActivity(ResetActivityInput input) {
+    ResetActivityExecutionRequest.Builder req =
+        ResetActivityExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setActivityId(input.getId())
+            .setResetHeartbeat(input.isResetHeartbeat())
+            .setKeepPaused(input.isKeepPaused())
+            .setRestoreOriginalOptions(input.isRestoreOriginalOptions());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getJitter() != null) {
+      req.setJitter(ProtobufTimeUtils.toProtoDuration(input.getJitter()));
+    }
+    genericClient.resetActivity(req.build());
+    return new ResetActivityOutput();
+  }
+
+  @Override
+  public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
+    UpdateActivityExecutionOptionsRequest.Builder req =
+        UpdateActivityExecutionOptionsRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setActivityId(input.getId());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.isRestoreOriginal()) {
+      req.setRestoreOriginal(true);
+    } else {
+      req.setActivityOptions(input.getActivityOptions()).setUpdateMask(input.getUpdateMask());
+    }
+    UpdateActivityExecutionOptionsResponse response =
+        genericClient.updateActivityOptions(req.build());
+    return new UpdateActivityOptionsOutput(response.getActivityOptions());
+  }
+
+  @Override
   public ListActivitiesOutput listActivities(ListActivitiesInput input) {
     ListActivityExecutionIterator iterator =
         new ListActivityExecutionIterator(

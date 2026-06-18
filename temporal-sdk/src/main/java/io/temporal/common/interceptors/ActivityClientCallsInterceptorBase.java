@@ -45,6 +45,26 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   }
 
   @Override
+  public PauseActivityOutput pauseActivity(PauseActivityInput input) {
+    return next.pauseActivity(input);
+  }
+
+  @Override
+  public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
+    return next.unpauseActivity(input);
+  }
+
+  @Override
+  public ResetActivityOutput resetActivity(ResetActivityInput input) {
+    return next.resetActivity(input);
+  }
+
+  @Override
+  public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
+    return next.updateActivityOptions(input);
+  }
+
+  @Override
   public ListActivitiesOutput listActivities(ListActivitiesInput input) {
     return next.listActivities(input);
   }
