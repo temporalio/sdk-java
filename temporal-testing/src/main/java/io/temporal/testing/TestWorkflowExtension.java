@@ -5,6 +5,8 @@ import static io.temporal.testing.internal.TestServiceUtils.applyNexusServiceOpt
 import com.uber.m3.tally.Scope;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
@@ -40,8 +42,8 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * Builder#useExternalService(String)}}).
  *
  * <p>This extension can inject workflow stubs as well as instances of {@link
- * TestWorkflowEnvironment}, {@link WorkflowClient}, {@link WorkflowOptions}, {@link Worker}, into
- * test methods.
+ * TestWorkflowEnvironment}, {@link WorkflowClient}, {@link ActivityClient}, {@link
+ * WorkflowOptions}, {@link Worker}, into test methods.
  *
  * <p>Usage example:
  *
@@ -72,6 +74,7 @@ public class TestWorkflowExtension
 
   private final WorkerOptions workerOptions;
   private final WorkflowClientOptions workflowClientOptions;
+  private final ActivityClientOptions activityClientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
   private final Map<Class<?>, WorkflowImplementationOptions> workflowTypes;
   private final Object[] activityImplementations;
@@ -96,6 +99,7 @@ public class TestWorkflowExtension
       workflowClientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(builder.namespace).build();
     }
+    activityClientOptions = builder.activityClientOptions;
     workerFactoryOptions = builder.workerFactoryOptions;
     workflowTypes = builder.workflowTypes;
     activityImplementations = builder.activityImplementations;
@@ -111,6 +115,7 @@ public class TestWorkflowExtension
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
     supportedParameterTypes.add(WorkflowClient.class);
+    supportedParameterTypes.add(ActivityClient.class);
     supportedParameterTypes.add(WorkflowOptions.class);
     supportedParameterTypes.add(Worker.class);
 
@@ -172,6 +177,8 @@ public class TestWorkflowExtension
       return getTestEnvironment(extensionContext);
     } else if (parameterType == WorkflowClient.class) {
       return getTestEnvironment(extensionContext).getWorkflowClient();
+    } else if (parameterType == ActivityClient.class) {
+      return getTestEnvironment(extensionContext).getActivityClient();
     } else if (parameterType == WorkflowOptions.class) {
       return getWorkflowOptions(extensionContext);
     } else if (parameterType == Worker.class) {
@@ -225,6 +232,7 @@ public class TestWorkflowExtension
   protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
     return TestEnvironmentOptions.newBuilder()
         .setWorkflowClientOptions(workflowClientOptions)
+        .setActivityClientOptions(activityClientOptions)
         .setWorkerFactoryOptions(workerFactoryOptions)
         .setUseExternalService(useExternalService)
         .setUseTimeskipping(useTimeskipping)
@@ -297,6 +305,7 @@ public class TestWorkflowExtension
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
     private WorkflowClientOptions workflowClientOptions;
+    private ActivityClientOptions activityClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
     private String namespace = "UnitTest";
     private Map<Class<?>, WorkflowImplementationOptions> workflowTypes = new HashMap<>();
@@ -329,6 +338,12 @@ public class TestWorkflowExtension
      */
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       this.workflowClientOptions = workflowClientOptions;
+      return this;
+    }
+
+    /** Override {@link ActivityClientOptions} for test environment. */
+    public Builder setActivityClientOptions(ActivityClientOptions activityClientOptions) {
+      this.activityClientOptions = activityClientOptions;
       return this;
     }
 
