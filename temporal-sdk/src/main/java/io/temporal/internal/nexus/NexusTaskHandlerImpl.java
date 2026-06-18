@@ -20,6 +20,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
@@ -284,6 +285,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             .setCallbackUrl(task.getCallback())
             .setRequestId(task.getRequestId());
     task.getCallbackHeaderMap().forEach(operationStartDetails::putCallbackHeader);
+    // Stash the inbound links in common.v1.Link form on the operation context so the RPCs the
+    // handler issues (e.g. signal, signalWithStart, etc) can attach them to their
+    // request's links field.
+    List<io.temporal.api.common.v1.Link> inboundCommonLinks = new ArrayList<>();
     task.getLinksList()
         .forEach(
             link -> {
@@ -296,7 +301,23 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
+              // LinkConverter only returns a WorkflowEvent-shaped common.v1.Link; nexus links of
+              // other shapes (e.g. non-temporal URLs) come back null and are intentionally not
+              // forwarded onto the RPCs the handler issues, which require the WorkflowEvent
+              // variant. Log so a debugging session can see what was dropped.
+              io.temporal.api.common.v1.Link commonLink =
+                  LinkConverter.nexusLinkToWorkflowEvent(link);
+              if (commonLink != null) {
+                inboundCommonLinks.add(commonLink);
+              } else {
+                log.warn(
+                    "Dropping inbound Nexus link from outbound link propagation: type='{}',"
+                        + " url='{}' (not a parseable temporal WorkflowEvent link)",
+                    link.getType(),
+                    link.getUrl());
+              }
             });
+    CurrentNexusOperationContext.get().setRequestLinks(inboundCommonLinks);
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
@@ -307,10 +328,28 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       try {
         OperationStartResult<HandlerResultContent> result =
             startOperation(context, operationStartDetails.build(), input.build());
+        // If any RPCs the handler issued (e.g. signal, signalWithStart, etc) returned
+        // response links, propagate them to the caller so the caller workflow's history event links
+        // to each event on the callee. Same set of response links applies to both sync and async
+        // response variants.
+        List<io.temporal.api.nexus.v1.Link> responseLinks = new ArrayList<>();
+        for (io.temporal.api.common.v1.Link responseLink :
+            CurrentNexusOperationContext.get().getResponseLinks()) {
+          if (!responseLink.hasWorkflowEvent()) {
+            continue;
+          }
+          io.temporal.api.nexus.v1.Link converted =
+              LinkConverter.workflowEventToNexusLink(responseLink.getWorkflowEvent());
+          if (converted != null) {
+            responseLinks.add(converted);
+          }
+        }
+
         if (result.isSync()) {
           startResponseBuilder.setSyncSuccess(
               StartOperationResponse.Sync.newBuilder()
                   .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                  .addAllLinks(responseLinks)
                   .build());
         } else {
           startResponseBuilder.setAsyncSuccess(
@@ -326,6 +365,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                                       .setUrl(link.getUri().toString())
                                       .build())
                           .collect(Collectors.toList()))
+                  .addAllLinks(responseLinks)
                   .build());
         }
       } catch (OperationException e) {
