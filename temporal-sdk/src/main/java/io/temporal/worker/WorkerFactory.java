@@ -358,7 +358,9 @@ public final class WorkerFactory {
    * activity tasks are executed. <br>
    * After the shutdown, calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
-   * io.temporal.client.ActivityWorkerShutdownException}.<br>
+   * io.temporal.client.ActivityWorkerShutdownException}, unless {@link
+   * WorkerOptions.Builder#setAllowActivityHeartbeatDuringShutdown(boolean)} is enabled, in which
+   * case heartbeats keep working until the activity tasks finish executing.<br>
    * This method does not wait for the shutdown to complete. Use {@link #awaitTermination(long,
    * TimeUnit)} to do that.<br>
    * Invocation has no additional effect if already shut down.
