@@ -182,6 +182,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
     closeCallback.apply();
   }
 
+  @Override
+  public void asyncCompletionStarted() {
+    heartbeatContext.asyncCompletionStarted();
+  }
+
   void cancelFromWorkerCommand() {
     heartbeatContext.cancelFromWorkerCommand();
   }

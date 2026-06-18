@@ -63,18 +63,20 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
             identity,
             maxHeartbeatThrottleInterval,
             defaultHeartbeatThrottleInterval,
-            () -> activeContexts.remove(taskToken));
+            () -> cleanupContext(info.getTaskToken(), false));
     activeContexts.put(taskToken, context);
     return context;
   }
 
   @Override
-  public boolean requestCancel(byte[] taskToken) {
-    ActivityExecutionContextImpl context = activeContexts.get(taskTokenKey(taskToken));
+  public boolean cleanupContext(byte[] taskToken, boolean cancel) {
+    ActivityExecutionContextImpl context = activeContexts.remove(taskTokenKey(taskToken));
     if (context == null) {
       return false;
     }
-    context.cancelFromWorkerCommand();
+    if (cancel) {
+      context.cancelFromWorkerCommand();
+    }
     return true;
   }
 

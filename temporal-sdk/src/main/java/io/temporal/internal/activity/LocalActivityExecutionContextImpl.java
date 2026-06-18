@@ -97,6 +97,11 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   }
 
   @Override
+  public void asyncCompletionStarted() {
+    // Ignored
+  }
+
+  @Override
   public void cancelOutstandingHeartbeat() {
     // Ignored
   }

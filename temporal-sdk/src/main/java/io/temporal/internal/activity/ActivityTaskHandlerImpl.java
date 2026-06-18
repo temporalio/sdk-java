@@ -84,7 +84,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
   }
 
   public boolean requestCancel(byte[] taskToken) {
-    return executionContextFactory.requestCancel(taskToken);
+    return executionContextFactory.cleanupContext(taskToken, true);
   }
 
   public void registerActivityImplementations(Object[] activitiesImplementation) {

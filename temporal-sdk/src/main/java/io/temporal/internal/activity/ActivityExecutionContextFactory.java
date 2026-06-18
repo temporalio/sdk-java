@@ -7,11 +7,12 @@ public interface ActivityExecutionContextFactory {
       ActivityInfoInternal info, Object activity, Scope metricsScope);
 
   /**
-   * Requests cancellation for a currently running activity identified by task token.
+   * Removes a context for a currently running activity identified by task token and optionally
+   * requests cancellation.
    *
-   * @return true if the activity was found and marked canceled.
+   * @return true if the activity was found and cleaned up.
    */
-  default boolean requestCancel(byte[] taskToken) {
+  default boolean cleanupContext(byte[] taskToken, boolean cancel) {
     return false;
   }
 }

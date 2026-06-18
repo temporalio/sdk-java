@@ -29,6 +29,9 @@ interface HeartbeatContext {
   /** Mark this activity as canceled by an external worker command. */
   void cancelFromWorkerCommand();
 
+  /** Mark this activity as returned for async completion. */
+  void asyncCompletionStarted();
+
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
 }

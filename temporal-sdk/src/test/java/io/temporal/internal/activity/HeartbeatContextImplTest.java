@@ -230,6 +230,38 @@ public class HeartbeatContextImplTest {
   }
 
   @Test
+  public void asyncCompletionRejectsNewHeartbeatsAndFlushesQueuedHeartbeat() {
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+
+    ActivityInfo info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(info, Duration.ofMillis(100), Duration.ofMillis(100));
+
+    ctx.heartbeat("sent-before-return");
+    ctx.heartbeat("queued-before-return");
+    ctx.asyncCompletionStarted();
+
+    assertTrue(ctx.getCancellationToken().isCancellationRequested());
+    assertTrue(ctx.getCancellationToken().getCancellationRequest().isDone());
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("after-return"));
+
+    ArgumentCaptor<RecordActivityTaskHeartbeatRequest> requestCaptor =
+        ArgumentCaptor.forClass(RecordActivityTaskHeartbeatRequest.class);
+    verify(blockingStub, timeout(1000).times(2))
+        .recordActivityTaskHeartbeat(requestCaptor.capture());
+    String details =
+        GlobalDataConverter.get()
+            .fromPayloads(
+                0,
+                Optional.of(requestCaptor.getAllValues().get(1).getDetails()),
+                String.class,
+                String.class);
+    assertEquals("queued-before-return", details);
+    ctx.cancelOutstandingHeartbeat();
+  }
+
+  @Test
   public void heartbeatCancelCompletesCancellationToken() {
     when(blockingStub.recordActivityTaskHeartbeat(any()))
         .thenReturn(
@@ -272,13 +304,13 @@ public class HeartbeatContextImplTest {
         factory.createContext(info, new Object(), new NoopScope());
 
     assertFalse(context.getCancellationToken().isCancellationRequested());
-    assertFalse(factory.requestCancel(new byte[] {9, 8, 7}));
-    assertTrue(factory.requestCancel(new byte[] {1, 2, 3}));
+    assertFalse(factory.cleanupContext(new byte[] {9, 8, 7}, true));
+    assertTrue(factory.cleanupContext(new byte[] {1, 2, 3}, true));
     assertTrue(context.getCancellationToken().isCancellationRequested());
     assertTrue(context.getCancellationToken().getCancellationRequest().isDone());
 
     context.cancelOutstandingHeartbeat();
-    assertFalse(factory.requestCancel(new byte[] {1, 2, 3}));
+    assertFalse(factory.cleanupContext(new byte[] {1, 2, 3}, true));
   }
 
   private HeartbeatContextImpl createHeartbeatContext(ActivityInfo info) {

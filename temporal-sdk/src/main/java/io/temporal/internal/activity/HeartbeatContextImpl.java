@@ -73,6 +73,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
   // 0 means no local timeout is active.
   private long heartbeatTimeoutDeadlineNanos;
   private boolean heartbeatTimedOut;
+  private boolean rejectNewHeartbeats;
 
   private ActivityCompletionException lastException;
   private final ActivityCancellationTokenImpl cancellationToken =
@@ -152,6 +153,10 @@ class HeartbeatContextImpl implements HeartbeatContext {
     lock.lock();
     try {
       checkHeartbeatTimeoutDeadlineLocked();
+      if (rejectNewHeartbeats) {
+        cancellationToken.throwIfCancellationRequested();
+        throw new ActivityCanceledException(info);
+      }
       receivedAHeartbeat = true;
       lastDetails = details;
       hasOutstandingHeartbeat = true;
@@ -237,6 +242,17 @@ class HeartbeatContextImpl implements HeartbeatContext {
     lock.lock();
     try {
       requestCancelLocked();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public void asyncCompletionStarted() {
+    lock.lock();
+    try {
+      requestCancelLocked();
+      rejectNewHeartbeats = true;
     } finally {
       lock.unlock();
     }
