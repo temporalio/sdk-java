@@ -77,7 +77,7 @@ public class ActivityHandleOperatorCommandsTest {
   }
 
   @Test
-  public void interceptorInvokesEachOperatorCommand() {
+  public void operatorCommandsBuildExpectedRequests() {
     when(genericClient.updateActivityOptions(any()))
         .thenReturn(
             UpdateActivityExecutionOptionsResponse.newBuilder()
