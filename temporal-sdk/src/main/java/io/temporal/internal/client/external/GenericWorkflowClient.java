@@ -10,7 +10,7 @@ public interface GenericWorkflowClient {
 
   StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request);
 
-  SignalWorkflowExecutionResponse signal(SignalWorkflowExecutionRequest request);
+  void signal(SignalWorkflowExecutionRequest request);
 
   SignalWithStartWorkflowExecutionResponse signalWithStart(
       SignalWithStartWorkflowExecutionRequest request);

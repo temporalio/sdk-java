@@ -102,13 +102,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
               e);
         }
       }
-      // If this start is being issued from inside a Nexus operation handler, stash only the
-      // forward operation->workflow link from the start response so NexusStartWorkflowHelper can
-      // attach it to the WorkflowExecutionStarted event. Unlike signal/signalWithStart, start
-      // deliberately does NOT add a response link here: the operation->workflow relationship is
-      // already captured by the forward link, so re-adding response.getLink() as a response link
-      // would duplicate it on the caller's history event. Do not "restore symmetry" by calling
-      // addResponseLink here.
       if (CurrentNexusOperationContext.isNexusContext()) {
         CurrentNexusOperationContext.get().setStartWorkflowResponseLink(response.getLink());
       }
@@ -127,13 +120,6 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setRequestId(UUID.randomUUID().toString())
             .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
 
-    // If this signal is being issued from inside a Nexus operation handler, forward the inbound
-    // Nexus task links so the SignalWorkflowExecution history event links back to the caller.
-    boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
-    if (inNexusContext) {
-      request.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
-    }
-
     DataConverter dataConverterWitSignalContext =
         clientOptions
             .getDataConverter()
@@ -143,12 +129,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     Optional<Payloads> inputArgs = dataConverterWitSignalContext.toPayloads(input.getArguments());
     inputArgs.ifPresent(request::setInput);
-    SignalWorkflowExecutionResponse response = genericClient.signal(request.build());
-    // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
-    // event; older servers leave it unset. Propagate when present.
-    if (inNexusContext && response.hasLink()) {
-      CurrentNexusOperationContext.get().addResponseLink(response.getLink());
-    }
+    genericClient.signal(request.build());
     return new WorkflowSignalOutput();
   }
 
@@ -167,28 +148,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     Optional<Payloads> signalInput =
         dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
-    SignalWithStartWorkflowExecutionRequest.Builder requestBuilder =
-        requestsHelper.newSignalWithStartWorkflowExecutionRequest(
-            startRequest, input.getSignalName(), signalInput.orElse(null));
-    // If this signalWithStart is being issued from inside a Nexus operation handler, forward
-    // the inbound Nexus task links so both the WorkflowExecutionStarted and
-    // WorkflowExecutionSignaled events on the callee link back to the caller.
-    boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
-    if (inNexusContext) {
-      requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
-    }
-    SignalWithStartWorkflowExecutionRequest request = requestBuilder.build();
+    SignalWithStartWorkflowExecutionRequest request =
+        requestsHelper
+            .newSignalWithStartWorkflowExecutionRequest(
+                startRequest, input.getSignalName(), signalInput.orElse(null))
+            .build();
     SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setRunId(response.getRunId())
             .setWorkflowId(request.getWorkflowId())
             .build();
-    // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
-    // event; older servers leave it unset. Propagate when present.
-    if (inNexusContext && response.hasSignalLink()) {
-      CurrentNexusOperationContext.get().addResponseLink(response.getSignalLink());
-    }
     // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
     //  We should wire it when it's implemented server-side.
     return new WorkflowSignalWithStartOutput(new WorkflowStartOutput(execution));
