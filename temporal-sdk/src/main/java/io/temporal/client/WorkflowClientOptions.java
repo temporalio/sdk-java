@@ -4,6 +4,7 @@ import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.ExternalStorage;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import java.lang.management.ManagementFactory;
@@ -11,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** Options for WorkflowClient configuration. */
 public final class WorkflowClientOptions {
@@ -43,6 +45,7 @@ public final class WorkflowClientOptions {
 
     private String namespace;
     private DataConverter dataConverter;
+    private ExternalStorage externalStorage;
     private WorkflowClientInterceptor[] interceptors;
     private String identity;
     private String binaryChecksum;
@@ -58,6 +61,7 @@ public final class WorkflowClientOptions {
       }
       namespace = options.namespace;
       dataConverter = options.dataConverter;
+      externalStorage = options.externalStorage;
       interceptors = options.interceptors;
       identity = options.identity;
       binaryChecksum = options.binaryChecksum;
@@ -79,6 +83,22 @@ public final class WorkflowClientOptions {
      */
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = Objects.requireNonNull(dataConverter);
+      return this;
+    }
+
+    /**
+     * Configures external storage for offloading large payloads to external storage (e.g., S3)
+     * using the Claim Check pattern. Payloads exceeding the configured threshold will be stored
+     * externally and replaced with small reference tokens in Event History.
+     *
+     * <p>This is completely transparent to workflow and activity business logic.
+     *
+     * @param externalStorage the external storage configuration, or null to disable
+     * @see ExternalStorage
+     */
+    @Experimental
+    public Builder setExternalStorage(@Nullable ExternalStorage externalStorage) {
+      this.externalStorage = externalStorage;
       return this;
     }
 
@@ -157,6 +177,7 @@ public final class WorkflowClientOptions {
       return new WorkflowClientOptions(
           namespace,
           dataConverter,
+          externalStorage,
           interceptors,
           identity,
           binaryChecksum,
@@ -181,6 +202,7 @@ public final class WorkflowClientOptions {
       return new WorkflowClientOptions(
           namespace == null ? DEFAULT_NAMESPACE : namespace,
           dataConverter == null ? GlobalDataConverter.get() : dataConverter,
+          externalStorage,
           interceptors == null ? EMPTY_INTERCEPTOR_ARRAY : interceptors,
           name,
           binaryChecksum == null ? DEFAULT_BINARY_CHECKSUM : binaryChecksum,
@@ -203,6 +225,8 @@ public final class WorkflowClientOptions {
 
   private final DataConverter dataConverter;
 
+  private final @Nullable ExternalStorage externalStorage;
+
   private final WorkflowClientInterceptor[] interceptors;
 
   private final String identity;
@@ -218,6 +242,7 @@ public final class WorkflowClientOptions {
   private WorkflowClientOptions(
       String namespace,
       DataConverter dataConverter,
+      @Nullable ExternalStorage externalStorage,
       WorkflowClientInterceptor[] interceptors,
       String identity,
       String binaryChecksum,
@@ -226,6 +251,7 @@ public final class WorkflowClientOptions {
       WorkflowClientPlugin[] plugins) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
+    this.externalStorage = externalStorage;
     this.interceptors = interceptors;
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
@@ -245,6 +271,17 @@ public final class WorkflowClientOptions {
 
   public DataConverter getDataConverter() {
     return dataConverter;
+  }
+
+  /**
+   * Returns the external storage configuration, or null if external storage is not configured.
+   *
+   * @see ExternalStorage
+   */
+  @Experimental
+  @Nullable
+  public ExternalStorage getExternalStorage() {
+    return externalStorage;
   }
 
   public WorkflowClientInterceptor[] getInterceptors() {
@@ -297,6 +334,8 @@ public final class WorkflowClientOptions {
         + '\''
         + ", dataConverter="
         + dataConverter
+        + ", externalStorage="
+        + externalStorage
         + ", interceptors="
         + Arrays.toString(interceptors)
         + ", identity='"
@@ -321,6 +360,7 @@ public final class WorkflowClientOptions {
     WorkflowClientOptions that = (WorkflowClientOptions) o;
     return com.google.common.base.Objects.equal(namespace, that.namespace)
         && com.google.common.base.Objects.equal(dataConverter, that.dataConverter)
+        && com.google.common.base.Objects.equal(externalStorage, that.externalStorage)
         && Arrays.equals(interceptors, that.interceptors)
         && com.google.common.base.Objects.equal(identity, that.identity)
         && com.google.common.base.Objects.equal(binaryChecksum, that.binaryChecksum)
@@ -334,6 +374,7 @@ public final class WorkflowClientOptions {
     return com.google.common.base.Objects.hashCode(
         namespace,
         dataConverter,
+        externalStorage,
         Arrays.hashCode(interceptors),
         identity,
         binaryChecksum,
