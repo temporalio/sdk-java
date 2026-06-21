@@ -12,6 +12,13 @@ import java.util.Objects;
  * the contents.
  *
  * <p>For example, an S3 driver might store {@code {"key": "<sha256-hash>"}} in the claim data.
+ *
+ * <p><b>Reserved keys:</b> Claim data keys should <em>not</em> use the reserved key names {@code
+ * encoding}, {@code driver-name}, or any key starting with {@code claim.}, as these are used
+ * internally by the SDK.
+ *
+ * <p><b>Note:</b> {@link #toString()} outputs the full claim data map, which may include sensitive
+ * information such as S3 bucket names and object keys. Use caution when logging.
  */
 @Experimental
 public final class StorageDriverClaim {

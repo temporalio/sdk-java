@@ -51,6 +51,13 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   /** Metadata key for the driver name in a claim payload. */
   static final String CLAIM_DRIVER_NAME_KEY = "driver-name";
 
+  /**
+   * Prefix for claim data keys in payload metadata. All claim data keys are prefixed with this
+   * string to prevent collisions with reserved metadata keys ({@code encoding}, {@code
+   * driver-name}).
+   */
+  static final String CLAIM_DATA_PREFIX = "claim.";
+
   private final DataConverter dataConverter;
   private final ChainCodec chainCodec;
   private final boolean encodeFailureAttributes;
@@ -236,6 +243,20 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
         dataConverter, chainCodec, encodeFailureAttributes, externalStorage, context);
   }
 
+  /**
+   * Returns a new {@link CodecDataConverter} with the given external storage configuration. This is
+   * used internally to wire external storage from {@code WorkflowClientOptions} into the converter
+   * pipeline without requiring users to pass it to the constructor directly.
+   *
+   * @param externalStorage the external storage configuration
+   * @return a new CodecDataConverter with external storage configured
+   */
+  @Nonnull
+  public CodecDataConverter withExternalStorage(@Nonnull ExternalStorage externalStorage) {
+    return new CodecDataConverter(
+        dataConverter, chainCodec, encodeFailureAttributes, externalStorage, serializationContext);
+  }
+
   @Nonnull
   @Override
   public List<Payload> encode(@Nonnull List<Payload> payloads) {
@@ -365,12 +386,26 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return failure;
   }
 
+  /**
+   * Encodes failure payloads through the codec chain AND external storage. This ensures large
+   * failure details (heartbeat data, error context) are also offloaded when external storage is
+   * configured.
+   */
   private Payloads encodePayloads(Payloads decodedPayloads) {
-    return Payloads.newBuilder().addAllPayloads(encode(decodedPayloads.getPayloadsList())).build();
+    List<Payload> encoded = encode(decodedPayloads.getPayloadsList());
+    encoded = storeIfNeeded(encoded);
+    return Payloads.newBuilder().addAllPayloads(encoded).build();
   }
 
+  /**
+   * Decodes failure payloads, retrieving from external storage first if needed, then through the
+   * codec chain.
+   */
   private Payloads decodePayloads(Payloads encodedPayloads) {
-    return Payloads.newBuilder().addAllPayloads(decode(encodedPayloads.getPayloadsList())).build();
+    List<Payload> payloads = retrieveIfNeeded(encodedPayloads.getPayloadsList());
+    List<Payload> decoded =
+        ConverterUtils.withContext(chainCodec, serializationContext).decode(payloads);
+    return Payloads.newBuilder().addAllPayloads(decoded).build();
   }
 
   /**
@@ -492,7 +527,9 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     builder.putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EXTERNAL_STORAGE_ENCODING);
     builder.putMetadata(CLAIM_DRIVER_NAME_KEY, ByteString.copyFromUtf8(driverName));
     for (Map.Entry<String, String> entry : claim.getClaimData().entrySet()) {
-      builder.putMetadata(entry.getKey(), ByteString.copyFromUtf8(entry.getValue()));
+      // Prefix all claim data keys to prevent collisions with reserved metadata keys.
+      builder.putMetadata(
+          CLAIM_DATA_PREFIX + entry.getKey(), ByteString.copyFromUtf8(entry.getValue()));
     }
     return builder.build();
   }
@@ -502,11 +539,10 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     Map<String, String> claimData = new HashMap<>();
     for (Map.Entry<String, ByteString> entry : claimPayload.getMetadataMap().entrySet()) {
       String key = entry.getKey();
-      // Skip the encoding and driver name metadata keys — they are not part of claim data.
-      if (EncodingKeys.METADATA_ENCODING_KEY.equals(key) || CLAIM_DRIVER_NAME_KEY.equals(key)) {
-        continue;
+      // Only include keys with the claim data prefix; strip the prefix.
+      if (key.startsWith(CLAIM_DATA_PREFIX)) {
+        claimData.put(key.substring(CLAIM_DATA_PREFIX.length()), entry.getValue().toStringUtf8());
       }
-      claimData.put(key, entry.getValue().toStringUtf8());
     }
     return new StorageDriverClaim(claimData);
   }
@@ -522,6 +558,11 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     return driverNameBytes.toStringUtf8();
   }
 
+  /**
+   * Builds a store context from the current serialization context. Returns {@code null} when no
+   * serialization context is available, which causes {@link #storeIfNeeded} to skip externalization
+   * and keep payloads inline.
+   */
   @Nullable
   private StorageDriverStoreContext buildStoreContext() {
     if (serializationContext instanceof ActivitySerializationContext) {
@@ -534,8 +575,9 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
       return StorageDriverStoreContext.forWorkflow(
           wfCtx.getNamespace(), wfCtx.getWorkflowId(), null);
     }
-    // No context available — fall back to a default context.
-    return StorageDriverStoreContext.forWorkflow("unknown", "unknown", null);
+    // No serialization context available — cannot determine where to store payloads.
+    // Return null so storeIfNeeded() keeps payloads inline.
+    return null;
   }
 
   @Nonnull

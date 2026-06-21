@@ -6,6 +6,8 @@ import io.temporal.common.converter.StorageDriverClaim;
 import io.temporal.common.converter.StorageDriverException;
 import io.temporal.common.converter.StorageDriverRetrieveContext;
 import io.temporal.common.converter.StorageDriverStoreContext;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -14,6 +16,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link StorageDriver} implementation that stores payloads in Amazon S3. Uses content-addressed
@@ -46,9 +50,18 @@ import javax.annotation.Nonnull;
  * <p><b>Important:</b> Temporal does not manage the lifecycle of stored objects. Users must
  * configure S3 Lifecycle Policies or similar mechanisms for cleanup. Objects should be retained at
  * least for the workflow lifetime plus the namespace retention period.
+ *
+ * @implNote Each payload is held in memory as a {@code byte[]}, so peak memory usage during store
+ *     and retrieve operations is approximately 2–3× the payload size (original bytes, hash
+ *     computation buffer, and S3 request/response buffer). S3 provides data integrity via checksums
+ *     automatically. Content-addressed storage means that duplicate payloads produce identical
+ *     object keys, making writes idempotent — re-uploading the same payload simply overwrites the
+ *     same S3 object with identical content.
  */
 @Experimental
 public final class S3StorageDriver implements StorageDriver {
+
+  private static final Logger log = LoggerFactory.getLogger(S3StorageDriver.class);
 
   private static final String DRIVER_TYPE = "aws.s3driver";
   static final String CLAIM_KEY_BUCKET = "bucket";
@@ -90,7 +103,17 @@ public final class S3StorageDriver implements StorageDriver {
       String hash = sha256Hex(payload);
       String objectKey = buildObjectKey(context, hash);
 
-      client.putObject(bucket, objectKey, payload);
+      log.debug(
+          "Storing payload to S3: bucket={}, key={}, size={} bytes",
+          bucket,
+          objectKey,
+          payload.length);
+      try {
+        client.putObject(bucket, objectKey, payload);
+      } catch (StorageDriverException e) {
+        log.warn("Failed to store payload to S3: bucket={}, key={}", bucket, objectKey, e);
+        throw e;
+      }
 
       Map<String, String> claimData = new HashMap<>();
       claimData.put(CLAIM_KEY_BUCKET, bucket);
@@ -100,25 +123,49 @@ public final class S3StorageDriver implements StorageDriver {
     return claims;
   }
 
+  /**
+   * Retrieves payloads from S3 using the configured bucket.
+   *
+   * <p><b>Security note:</b> This method always uses the bucket configured at construction time
+   * ({@code this.bucket}) and ignores any bucket value stored in claim data. Although claims
+   * include a bucket field for informational purposes, honoring it at retrieval time would be a
+   * confused-deputy vulnerability — an attacker who can craft or tamper with claim tokens could
+   * redirect reads to an arbitrary bucket.
+   */
   @Override
   public List<byte[]> retrieve(
       StorageDriverRetrieveContext context, List<StorageDriverClaim> claims)
       throws StorageDriverException {
     List<byte[]> results = new ArrayList<>(claims.size());
     for (StorageDriverClaim claim : claims) {
-      String claimBucket = claim.getClaimData().get(CLAIM_KEY_BUCKET);
       String objectKey = claim.getClaimData().get(CLAIM_KEY_OBJECT_KEY);
       if (objectKey == null) {
         throw new StorageDriverException(
             "Claim is missing required '" + CLAIM_KEY_OBJECT_KEY + "' field: " + claim);
       }
-      // Use the bucket from the claim if present, otherwise fall back to configured bucket.
-      String effectiveBucket = claimBucket != null ? claimBucket : bucket;
-      results.add(client.getObject(effectiveBucket, objectKey));
+      log.debug("Retrieving payload from S3: bucket={}, key={}", bucket, objectKey);
+      // Always use the configured bucket for security — claim data could be tampered.
+      try {
+        results.add(client.getObject(bucket, objectKey));
+      } catch (StorageDriverException e) {
+        log.warn("Failed to retrieve payload from S3: bucket={}, key={}", bucket, objectKey, e);
+        throw e;
+      }
     }
     return results;
   }
 
+  /**
+   * Builds the S3 object key for a payload.
+   *
+   * <p>Each path segment derived from user-controlled input (namespace, workflowId, activityType)
+   * is URL-encoded to prevent path-injection attacks (e.g., a workflowId containing {@code "../"}
+   * could escape the intended key hierarchy).
+   *
+   * @param context the store context providing namespace, workflowId, and optional activityType
+   * @param hash the SHA-256 hex digest of the payload
+   * @return the fully-qualified S3 object key
+   */
   private String buildObjectKey(StorageDriverStoreContext context, String hash) {
     StringBuilder sb = new StringBuilder();
     if (!keyPrefix.isEmpty()) {
@@ -127,13 +174,26 @@ public final class S3StorageDriver implements StorageDriver {
         sb.append('/');
       }
     }
-    sb.append(context.getNamespace()).append('/');
-    sb.append(context.getWorkflowId()).append('/');
+    sb.append(encodePathSegment(context.getNamespace())).append('/');
+    sb.append(encodePathSegment(context.getWorkflowId())).append('/');
     if (context.getActivityType() != null) {
-      sb.append(context.getActivityType()).append('/');
+      sb.append(encodePathSegment(context.getActivityType())).append('/');
     }
     sb.append(hash);
     return sb.toString();
+  }
+
+  /**
+   * URL-encodes a single path segment, replacing {@code +} with {@code %20} so that spaces are
+   * represented correctly in S3 object keys.
+   */
+  private static String encodePathSegment(String segment) {
+    try {
+      return URLEncoder.encode(segment, "UTF-8").replace("+", "%20");
+    } catch (UnsupportedEncodingException e) {
+      // UTF-8 is guaranteed to be available on all JVMs
+      throw new AssertionError("UTF-8 encoding not available", e);
+    }
   }
 
   static String sha256Hex(byte[] data) {

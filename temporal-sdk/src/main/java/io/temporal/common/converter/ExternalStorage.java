@@ -5,14 +5,20 @@ import io.temporal.common.Experimental;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
  * Configuration for external storage that offloads large payloads to an external store (e.g., S3)
- * using the Claim Check pattern. Payloads exceeding the {@link #getPayloadSizeThreshold()} are
- * stored externally and replaced with a small {@link StorageDriverClaim} reference token in Event
- * History.
+ * using the <a href="https://www.enterpriseintegrationpatterns.com/StoreInLibrary.html">Claim
+ * Check</a> enterprise integration pattern. Payloads exceeding the {@link
+ * #getPayloadSizeThreshold()} are stored externally and replaced with a small {@link
+ * StorageDriverClaim} reference token in Event History.
+ *
+ * <p>The default threshold of {@link #DEFAULT_PAYLOAD_SIZE_THRESHOLD} (256 KiB) matches the
+ * Temporal server's gRPC warning threshold. Note that the Temporal server's hard limit for a single
+ * payload is typically 2 MiB.
  *
  * <p>External storage is the <b>last stage</b> of the data conversion pipeline, running after
  * {@link io.temporal.payload.codec.PayloadCodec} (compression/encryption):
@@ -99,8 +105,8 @@ public final class ExternalStorage {
     if (driverSelector != null) {
       return driverSelector.select(context, drivers);
     }
-    // Should not happen if builder validates correctly.
-    return drivers.get(0);
+    throw new IllegalStateException(
+        "Multiple drivers configured without a selector. This should not happen — please report this as a bug.");
   }
 
   /**
@@ -132,6 +138,21 @@ public final class ExternalStorage {
     }
     sb.append("]");
     return sb.toString();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ExternalStorage that = (ExternalStorage) o;
+    return payloadSizeThreshold == that.payloadSizeThreshold
+        && Objects.equals(drivers, that.drivers)
+        && Objects.equals(driverSelector, that.driverSelector);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(payloadSizeThreshold, drivers, driverSelector);
   }
 
   @Override
@@ -170,8 +191,12 @@ public final class ExternalStorage {
      * @return this builder
      */
     public Builder setDrivers(@Nonnull List<StorageDriver> drivers) {
+      Preconditions.checkNotNull(drivers, "drivers");
+      for (StorageDriver d : drivers) {
+        Preconditions.checkNotNull(d, "driver in list must not be null");
+      }
       this.drivers.clear();
-      this.drivers.addAll(Preconditions.checkNotNull(drivers, "drivers"));
+      this.drivers.addAll(drivers);
       return this;
     }
 

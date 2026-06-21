@@ -10,6 +10,11 @@ import java.util.List;
  * <p>Drivers not selected for storage remain available for retrieval, which supports migration
  * scenarios (e.g., switching from one S3 bucket to another).
  *
+ * <p>Returning {@code null} from {@link #select} indicates that the payload should <em>not</em> be
+ * externalized and should remain inline in Event History. This can be used to implement conditional
+ * externalization logic (e.g., only externalize payloads for specific namespaces or workflow
+ * types).
+ *
  * @see ExternalStorage
  */
 @Experimental

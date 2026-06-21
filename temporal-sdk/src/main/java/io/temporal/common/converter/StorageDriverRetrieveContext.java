@@ -6,6 +6,12 @@ import javax.annotation.Nullable;
 /**
  * Context passed to {@link StorageDriver#retrieve} providing identity information about the
  * retrieval environment. This may be used by drivers for logging, metrics, or access control.
+ *
+ * <p>Unlike {@link StorageDriverStoreContext}, fields in this context are nullable because
+ * retrieval may happen in contexts where the full workflow identity is not available (e.g., during
+ * query handling).
+ *
+ * <p>Instances of this class are immutable and therefore thread-safe.
  */
 @Experimental
 public final class StorageDriverRetrieveContext {

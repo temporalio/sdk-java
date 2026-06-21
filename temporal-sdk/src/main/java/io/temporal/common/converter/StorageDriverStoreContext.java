@@ -1,6 +1,7 @@
 package io.temporal.common.converter;
 
 import io.temporal.common.Experimental;
+import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -8,6 +9,8 @@ import javax.annotation.Nullable;
  * Context passed to {@link StorageDriver#store} providing identity information about the workflow
  * or activity that owns the payload being stored. Drivers can use this context to organize stored
  * objects (e.g., by namespace and workflow ID in the object key path).
+ *
+ * <p>Instances of this class are immutable and therefore thread-safe.
  */
 @Experimental
 public final class StorageDriverStoreContext {
@@ -22,8 +25,8 @@ public final class StorageDriverStoreContext {
       @Nonnull String workflowId,
       @Nullable String runId,
       @Nullable String activityType) {
-    this.namespace = namespace;
-    this.workflowId = workflowId;
+    this.namespace = Objects.requireNonNull(namespace, "namespace");
+    this.workflowId = Objects.requireNonNull(workflowId, "workflowId");
     this.runId = runId;
     this.activityType = activityType;
   }

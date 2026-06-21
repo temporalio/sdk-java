@@ -18,6 +18,26 @@ import javax.annotation.Nullable;
  *     .setKeyPrefix("temporal/payloads/")
  *     .build();
  * }</pre>
+ *
+ * <p><b>Retry configuration:</b> The AWS SDK v2 has built-in retry logic that is configurable on
+ * the {@code S3Client} passed to {@link AwsSdkV2S3Client}. Users <b>should</b> configure
+ * appropriate retry policies for production use. For example:
+ *
+ * <pre>{@code
+ * S3Client.builder()
+ *     .overrideConfiguration(o -> o.retryPolicy(
+ *         RetryPolicy.builder().numRetries(3).build()))
+ *     .build();
+ * }</pre>
+ *
+ * <p>S3 failures during workflow replay will block workflow progress until retries succeed.
+ *
+ * <p><b>Data confidentiality:</b> Payload data is stored as-is in S3. To protect data at rest,
+ * configure S3 bucket-level encryption (SSE-S3 or SSE-KMS) on the target bucket.
+ *
+ * <p><b>Data cleanup:</b> Temporal does not manage the lifecycle of stored S3 objects. Configure S3
+ * Lifecycle Policies on the target bucket to automatically expire or transition objects. Objects
+ * should be retained at least for the workflow lifetime plus the namespace retention period.
  */
 @Experimental
 public final class S3StorageDriverOptions {

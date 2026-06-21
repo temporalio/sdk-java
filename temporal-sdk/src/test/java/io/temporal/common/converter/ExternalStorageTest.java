@@ -3,6 +3,9 @@ package io.temporal.common.converter;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.payload.context.HasWorkflowSerializationContext;
 import java.util.*;
 import org.junit.Test;
 
@@ -122,6 +125,129 @@ public class ExternalStorageTest {
     StorageDriverClaim claim2 = new StorageDriverClaim(data2);
     assertEquals(claim1, claim2);
     assertEquals(claim1.hashCode(), claim2.hashCode());
+  }
+
+  /**
+   * Integration test: full CodecDataConverter pipeline roundtrip with external storage. Verifies
+   * that large payloads are stored and retrieved correctly through the complete pipeline.
+   */
+  @Test
+  public void testFullPipelineRoundtrip() {
+    InMemoryStorageDriver driver = new InMemoryStorageDriver("test");
+    ExternalStorage es =
+        ExternalStorage.newBuilder()
+            .addDriver(driver)
+            .setPayloadSizeThreshold(10) // Low threshold to trigger externalization
+            .build();
+
+    // Create a simple serialization context
+    HasWorkflowSerializationContext ctx =
+        new HasWorkflowSerializationContext() {
+          @Override
+          public String getNamespace() {
+            return "test-ns";
+          }
+
+          @Override
+          public String getWorkflowId() {
+            return "test-wf";
+          }
+        };
+
+    CodecDataConverter converter =
+        new CodecDataConverter(
+            DefaultDataConverter.STANDARD_INSTANCE, Collections.emptyList(), false, es);
+    CodecDataConverter contextualConverter = converter.withContext(ctx);
+
+    // Serialize a large string (will exceed threshold)
+    String largeValue = new String(new char[1000]).replace('\0', 'A');
+    Optional<Payloads> serialized = contextualConverter.toPayloads(largeValue);
+    assertTrue(serialized.isPresent());
+
+    // The payload in serialized should be a claim token, not the original data
+    Payload payload = serialized.get().getPayloads(0);
+    assertTrue("Payload should be a claim token", CodecDataConverter.isClaimPayload(payload));
+
+    // Deserialize — should retrieve from external storage and return original value
+    String deserialized =
+        contextualConverter.fromPayloads(0, serialized, String.class, String.class);
+    assertEquals(largeValue, deserialized);
+  }
+
+  /** Integration test: small payloads stay inline (below threshold). */
+  @Test
+  public void testSmallPayloadsStayInline() {
+    InMemoryStorageDriver driver = new InMemoryStorageDriver("test");
+    ExternalStorage es =
+        ExternalStorage.newBuilder()
+            .addDriver(driver)
+            .setPayloadSizeThreshold(1_000_000) // Very high threshold
+            .build();
+
+    HasWorkflowSerializationContext ctx =
+        new HasWorkflowSerializationContext() {
+          @Override
+          public String getNamespace() {
+            return "ns";
+          }
+
+          @Override
+          public String getWorkflowId() {
+            return "wf";
+          }
+        };
+
+    CodecDataConverter converter =
+        new CodecDataConverter(
+            DefaultDataConverter.STANDARD_INSTANCE, Collections.emptyList(), false, es);
+    CodecDataConverter contextualConverter = converter.withContext(ctx);
+
+    Optional<Payloads> serialized = contextualConverter.toPayloads("small");
+    assertTrue(serialized.isPresent());
+    Payload payload = serialized.get().getPayloads(0);
+    assertFalse(
+        "Small payload should NOT be a claim token", CodecDataConverter.isClaimPayload(payload));
+  }
+
+  /**
+   * Test that claim data keys with reserved names ("encoding", "driver-name") do not collide
+   * because of the "claim." prefix namespacing.
+   */
+  @Test
+  public void testClaimKeyCollisionProtection() {
+    // A driver that uses "encoding" as a claim data key (would collide without prefixing)
+    Map<String, String> data = new HashMap<>();
+    data.put("encoding", "some-value");
+    data.put("driver-name", "another-value");
+    data.put("bucket", "my-bucket");
+    StorageDriverClaim claim = new StorageDriverClaim(data);
+
+    Payload claimPayload = CodecDataConverter.claimToPayload("my-driver", claim);
+
+    // Verify the claim is still detected as a claim payload
+    assertTrue(CodecDataConverter.isClaimPayload(claimPayload));
+    // Verify the driver name is still correct (not overwritten)
+    assertEquals("my-driver", CodecDataConverter.getClaimDriverName(claimPayload));
+
+    // Verify round-trip preserves all claim data including the 'encoding' key
+    StorageDriverClaim roundTripped = CodecDataConverter.payloadToClaim(claimPayload);
+    assertEquals("some-value", roundTripped.getClaimData().get("encoding"));
+    assertEquals("another-value", roundTripped.getClaimData().get("driver-name"));
+    assertEquals("my-bucket", roundTripped.getClaimData().get("bucket"));
+  }
+
+  /** Test that WorkflowClientOptions properly wires ExternalStorage into the data converter. */
+  @Test
+  public void testWorkflowClientOptionsWiring() {
+    InMemoryStorageDriver driver = new InMemoryStorageDriver("test");
+    ExternalStorage es = ExternalStorage.newBuilder().addDriver(driver).build();
+
+    // Without CodecDataConverter — should auto-wrap
+    WorkflowClientOptions options =
+        WorkflowClientOptions.newBuilder().setExternalStorage(es).build();
+    assertTrue(
+        "DataConverter should be wrapped in CodecDataConverter when ExternalStorage is set",
+        options.getDataConverter() instanceof CodecDataConverter);
   }
 
   /** A simple in-memory storage driver for testing. */

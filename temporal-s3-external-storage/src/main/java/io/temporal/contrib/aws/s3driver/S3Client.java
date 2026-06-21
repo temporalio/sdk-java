@@ -6,6 +6,9 @@ import io.temporal.common.Experimental;
  * Abstraction over S3 client operations used by {@link S3StorageDriver}. This interface allows
  * plugging in different S3 client implementations and enables testing with mocks.
  *
+ * <p>Implementations <b>must</b> be thread-safe. A single {@code S3Client} instance may be shared
+ * across multiple workflow threads and activity workers concurrently.
+ *
  * @see AwsSdkV2S3Client
  */
 @Experimental

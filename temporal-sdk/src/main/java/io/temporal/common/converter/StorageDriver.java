@@ -8,12 +8,11 @@ import java.util.List;
  * uploading large payloads to external storage (e.g., S3, GCS) and retrieving them using claim
  * references.
  *
- * <p>Implementations must be thread-safe as the SDK may call {@link #store} and {@link #retrieve}
- * concurrently from multiple threads.
- *
  * <p>The driver's {@link #name()} is stored in claim tokens persisted in workflow history. Changing
  * a driver's name after payloads have been stored will break retrieval of those payloads.
  *
+ * @implSpec Implementations must be thread-safe since the SDK may call {@link #store} and {@link
+ *     #retrieve} concurrently from multiple workflow task threads.
  * @see ExternalStorage
  * @see StorageDriverClaim
  */
@@ -43,7 +42,9 @@ public interface StorageDriver {
    * The claims contain addressing information needed to retrieve the data later.
    *
    * <p>Each element in the returned list corresponds to the payload at the same index in the input
-   * list.
+   * list. Each {@code byte[]} in the input is the serialized protobuf {@code Payload} message (not
+   * raw user data) — it has already passed through {@code PayloadConverter} and {@code
+   * PayloadCodec}.
    *
    * @param context context with identity information about the workflow/activity owning the
    *     payloads
@@ -52,8 +53,7 @@ public interface StorageDriver {
    * @return list of claims, one per input payload, in the same order
    * @throws StorageDriverException if the store operation fails
    */
-  List<StorageDriverClaim> store(StorageDriverStoreContext context, List<byte[]> payloads)
-      throws StorageDriverException;
+  List<StorageDriverClaim> store(StorageDriverStoreContext context, List<byte[]> payloads);
 
   /**
    * Downloads payloads from external storage using the claim references produced by {@link #store}.
@@ -66,6 +66,5 @@ public interface StorageDriver {
    * @return list of serialized payload bytes, one per input claim, in the same order
    * @throws StorageDriverException if the retrieve operation fails
    */
-  List<byte[]> retrieve(StorageDriverRetrieveContext context, List<StorageDriverClaim> claims)
-      throws StorageDriverException;
+  List<byte[]> retrieve(StorageDriverRetrieveContext context, List<StorageDriverClaim> claims);
 }

@@ -3,6 +3,7 @@ package io.temporal.client;
 import io.temporal.api.enums.v1.QueryRejectCondition;
 import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.ExternalStorage;
 import io.temporal.common.converter.GlobalDataConverter;
@@ -250,7 +251,8 @@ public final class WorkflowClientOptions {
       QueryRejectCondition queryRejectCondition,
       WorkflowClientPlugin[] plugins) {
     this.namespace = namespace;
-    this.dataConverter = dataConverter;
+    // Wire external storage into the data converter if configured.
+    this.dataConverter = wrapWithExternalStorage(dataConverter, externalStorage);
     this.externalStorage = externalStorage;
     this.interceptors = interceptors;
     this.identity = identity;
@@ -258,6 +260,24 @@ public final class WorkflowClientOptions {
     this.contextPropagators = contextPropagators;
     this.queryRejectCondition = queryRejectCondition;
     this.plugins = plugins;
+  }
+
+  /**
+   * If external storage is configured, ensures the data converter is a {@link CodecDataConverter}
+   * with external storage wired in. If the data converter is already a {@link CodecDataConverter},
+   * it is replaced with a new instance that includes external storage. Otherwise, it is wrapped in
+   * a new {@link CodecDataConverter} with an empty codec chain.
+   */
+  private static DataConverter wrapWithExternalStorage(
+      DataConverter dataConverter, @Nullable ExternalStorage externalStorage) {
+    if (externalStorage == null) {
+      return dataConverter;
+    }
+    if (dataConverter instanceof CodecDataConverter) {
+      CodecDataConverter cdc = (CodecDataConverter) dataConverter;
+      return cdc.withExternalStorage(externalStorage);
+    }
+    return new CodecDataConverter(dataConverter, Collections.emptyList(), false, externalStorage);
   }
 
   /**
