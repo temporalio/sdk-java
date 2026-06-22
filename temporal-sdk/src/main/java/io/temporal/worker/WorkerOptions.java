@@ -77,6 +77,7 @@ public final class WorkerOptions {
     private PollerBehavior workflowTaskPollersBehavior;
     private PollerBehavior activityTaskPollersBehavior;
     private PollerBehavior nexusTaskPollersBehavior;
+    private boolean allowActivityHeartbeatDuringShutdown;
 
     private Builder() {}
 
@@ -112,6 +113,7 @@ public final class WorkerOptions {
       this.workflowTaskPollersBehavior = o.workflowTaskPollersBehavior;
       this.activityTaskPollersBehavior = o.activityTaskPollersBehavior;
       this.nexusTaskPollersBehavior = o.nexusTaskPollersBehavior;
+      this.allowActivityHeartbeatDuringShutdown = o.allowActivityHeartbeatDuringShutdown;
     }
 
     /**
@@ -524,6 +526,28 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * If true, activities can keep heartbeating during graceful worker shutdown (see {@link
+     * io.temporal.worker.WorkerFactory#shutdown WorkerFactory.shutdown}). Defaults to false, which
+     * means that after graceful shutdown is requested, calling {@link
+     * io.temporal.activity.ActivityExecutionContext#heartbeat ActivityExecutionContext.heartbeat}
+     * does not send a heartbeat and instead throws {@link
+     * io.temporal.client.ActivityWorkerShutdownException ActivityWorkerShutdownException}. This
+     * option is ignored by non-graceful shutdown (see {@link
+     * io.temporal.worker.WorkerFactory#shutdownNow WorkerFactory.shutdownNow}).
+     *
+     * <p>Note that with this option enabled, activities are no longer notified of the worker
+     * shutdown by the {@link io.temporal.client.ActivityWorkerShutdownException
+     * ActivityWorkerShutdownException} exception, so they are expected to complete within the
+     * termination grace period on their own.
+     */
+    @Experimental
+    public Builder setAllowActivityHeartbeatDuringShutdown(
+        boolean allowActivityHeartbeatDuringShutdown) {
+      this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -553,7 +577,8 @@ public final class WorkerOptions {
           deploymentOptions,
           workflowTaskPollersBehavior,
           activityTaskPollersBehavior,
-          nexusTaskPollersBehavior);
+          nexusTaskPollersBehavior,
+          allowActivityHeartbeatDuringShutdown);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -685,7 +710,8 @@ public final class WorkerOptions {
           deploymentOptions,
           workflowTaskPollersBehavior,
           activityTaskPollersBehavior,
-          nexusTaskPollersBehavior);
+          nexusTaskPollersBehavior,
+          allowActivityHeartbeatDuringShutdown);
     }
   }
 
@@ -717,6 +743,7 @@ public final class WorkerOptions {
   private final PollerBehavior workflowTaskPollersBehavior;
   private final PollerBehavior activityTaskPollersBehavior;
   private final PollerBehavior nexusTaskPollersBehavior;
+  private final boolean allowActivityHeartbeatDuringShutdown;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -746,7 +773,8 @@ public final class WorkerOptions {
       WorkerDeploymentOptions deploymentOptions,
       PollerBehavior workflowTaskPollersBehavior,
       PollerBehavior activityTaskPollersBehavior,
-      PollerBehavior nexusTaskPollersBehavior) {
+      PollerBehavior nexusTaskPollersBehavior,
+      boolean allowActivityHeartbeatDuringShutdown) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -775,6 +803,7 @@ public final class WorkerOptions {
     this.workflowTaskPollersBehavior = workflowTaskPollersBehavior;
     this.activityTaskPollersBehavior = activityTaskPollersBehavior;
     this.nexusTaskPollersBehavior = nexusTaskPollersBehavior;
+    this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -912,6 +941,11 @@ public final class WorkerOptions {
     return nexusTaskPollersBehavior;
   }
 
+  @Experimental
+  public boolean getAllowActivityHeartbeatDuringShutdown() {
+    return allowActivityHeartbeatDuringShutdown;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -944,7 +978,8 @@ public final class WorkerOptions {
         && Objects.equals(deploymentOptions, that.deploymentOptions)
         && Objects.equals(workflowTaskPollersBehavior, that.workflowTaskPollersBehavior)
         && Objects.equals(activityTaskPollersBehavior, that.activityTaskPollersBehavior)
-        && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior);
+        && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior)
+        && allowActivityHeartbeatDuringShutdown == that.allowActivityHeartbeatDuringShutdown;
   }
 
   @Override
@@ -977,7 +1012,8 @@ public final class WorkerOptions {
         deploymentOptions,
         workflowTaskPollersBehavior,
         activityTaskPollersBehavior,
-        nexusTaskPollersBehavior);
+        nexusTaskPollersBehavior,
+        allowActivityHeartbeatDuringShutdown);
   }
 
   @Override
@@ -1040,6 +1076,8 @@ public final class WorkerOptions {
         + activityTaskPollersBehavior
         + ", nexusTaskPollersBehavior="
         + nexusTaskPollersBehavior
+        + ", allowActivityHeartbeatDuringShutdown="
+        + allowActivityHeartbeatDuringShutdown
         + '}';
   }
 }

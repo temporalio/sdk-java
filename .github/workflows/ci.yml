@@ -84,7 +84,7 @@ jobs:
 
       - name: Start CLI server
         env:
-          TEMPORAL_CLI_VERSION: 1.7.1-standalone-nexus-operations
+          TEMPORAL_CLI_VERSION: 1.7.2-standalone-nexus-operations
         run: |
           wget -O temporal_cli.tar.gz https://github.com/temporalio/cli/releases/download/v${TEMPORAL_CLI_VERSION}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz
           tar -xzf temporal_cli.tar.gz
@@ -112,10 +112,13 @@ jobs:
               --dynamic-config-value frontend.ListWorkersEnabled=true \
               --dynamic-config-value frontend.enableCancelWorkerPollsOnShutdown=true \
               --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
+              --dynamic-config-value 'callback.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
               --dynamic-config-value frontend.activityAPIsEnabled=true \
               --dynamic-config-value activity.enableStandalone=true \
+              --dynamic-config-value activity.startDelayEnabled=true \
               --dynamic-config-value nexusoperation.enableStandalone=true \
               --dynamic-config-value history.enableChasm=true \
+              --dynamic-config-value history.enableCHASMSignalBacklinks=true \
               --dynamic-config-value history.enableTransitionHistory=true &
           sleep 10s
 

@@ -3,6 +3,9 @@ on: [push, pull_request]
 
 jobs:
   features-test:
+    permissions:
+      contents: read
+      actions: read
     uses: temporalio/features/.github/workflows/java.yaml@main
     with:
       java-repo-path: ${{github.event.pull_request.head.repo.full_name}}

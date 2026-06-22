@@ -26,6 +26,7 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final ScheduledExecutorService heartbeatExecutor;
   private final ActivityTaskHandlerImpl taskHandler;
   private final ActivityWorker worker;
+  private final boolean allowActivityHeartbeatDuringShutdown;
 
   public SyncActivityWorker(
       WorkflowClient client,
@@ -38,6 +39,7 @@ public class SyncActivityWorker implements SuspendableWorker {
     this.identity = options.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
+    this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
 
     this.heartbeatExecutor =
         Executors.newScheduledThreadPool(
@@ -89,16 +91,31 @@ public class SyncActivityWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    return shutdownManager
-        // we want to shut down heartbeatExecutor before activity worker, so in-flight activities
-        // could get an ActivityWorkerShutdownException from their heartbeat
-        .shutdownExecutor(heartbeatExecutor, this + "#heartbeatExecutor", Duration.ofSeconds(5))
-        .thenCompose(r -> worker.shutdown(shutdownManager, interruptTasks))
-        .exceptionally(
-            e -> {
-              log.error("[BUG] Unexpected exception during shutdown", e);
-              return null;
-            });
+    CompletableFuture<Void> shutdownFuture;
+    if (allowActivityHeartbeatDuringShutdown && !interruptTasks) {
+      // we want to shut down heartbeatExecutor only after all outstanding activity tasks have
+      // finished executing, so in-flight activities can keep heartbeating during the shutdown
+      shutdownFuture =
+          worker
+              .shutdown(shutdownManager, interruptTasks)
+              .thenCompose(r -> shutdownHeartbeatExecutor(shutdownManager));
+    } else {
+      // we want to shut down heartbeatExecutor before activity worker, so in-flight activities
+      // could get an ActivityWorkerShutdownException from their heartbeat
+      shutdownFuture =
+          shutdownHeartbeatExecutor(shutdownManager)
+              .thenCompose(r -> worker.shutdown(shutdownManager, interruptTasks));
+    }
+    return shutdownFuture.exceptionally(
+        e -> {
+          log.error("[BUG] Unexpected exception during shutdown", e);
+          return null;
+        });
+  }
+
+  private CompletableFuture<Void> shutdownHeartbeatExecutor(ShutdownManager shutdownManager) {
+    return shutdownManager.shutdownExecutor(
+        heartbeatExecutor, this + "#heartbeatExecutor", Duration.ofSeconds(5));
   }
 
   @Override
