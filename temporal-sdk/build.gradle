@@ -94,6 +94,12 @@ def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) 
 
 sourceSets.main.java.srcDir(generatePayloadVisitor)
 
+tasks.named('compilePayloadVisitorGeneratorJava') {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+    options.errorprone.error('MissingCasesInEnumSwitch')
+}
+
 tasks.named('compileJava17Java') {
     options.release = 17
 }

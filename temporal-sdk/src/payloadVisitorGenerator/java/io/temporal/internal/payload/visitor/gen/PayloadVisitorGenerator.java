@@ -283,9 +283,10 @@ public final class PayloadVisitorGenerator {
       case ANY_REPEATED:
       case MESSAGE_REPEATED:
         return Arrays.asList("get" + base + "BuilderList");
-      default:
+      case IGNORE:
         return Arrays.asList();
     }
+    throw new AssertionError(kind);
   }
 
   // --- Emission ---
@@ -574,7 +575,7 @@ public final class PayloadVisitorGenerator {
           sb.append("    }\n");
         }
         break;
-      default:
+      case IGNORE:
         break;
     }
   }

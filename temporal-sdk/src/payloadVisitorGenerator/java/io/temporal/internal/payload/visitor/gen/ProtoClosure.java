@@ -109,7 +109,7 @@ final class ProtoClosure {
           case MAP_MESSAGE:
             refs.add(plan.child);
             break;
-          default:
+          case IGNORE:
             break;
         }
       }
