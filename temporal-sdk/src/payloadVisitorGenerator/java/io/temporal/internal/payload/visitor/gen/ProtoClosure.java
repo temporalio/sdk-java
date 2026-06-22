@@ -23,6 +23,7 @@ final class ProtoClosure {
   /** All non-map-entry messages in the closure, in discovery order. */
   final List<Descriptor> allMessages;
 
+  /** Full names of the messages that can transitively contain a payload. */
   private final Set<String> reaches;
 
   private ProtoClosure(List<Descriptor> allMessages, Set<String> reaches) {
