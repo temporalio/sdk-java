@@ -3,6 +3,7 @@ package io.temporal.activity;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
@@ -93,9 +94,8 @@ public interface ActivityExecutionContext {
    * Returns a token that can be used by Activity code to observe cancellation requests without
    * recording Heartbeats.
    */
-  default ActivityCancellationToken getCancellationToken() {
-    return ActivityCancellationToken.NONE;
-  }
+  @Experimental
+  ActivityCancellationToken getCancellationToken();
 
   /**
    * If this method is called during an Activity Execution then the Activity Execution is not going

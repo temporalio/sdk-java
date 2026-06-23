@@ -7,6 +7,7 @@ import static org.mockito.Mockito.*;
 import com.uber.m3.tally.NoopScope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
@@ -21,6 +22,8 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.Eventually;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -196,16 +199,18 @@ public class HeartbeatContextImplTest {
         createHeartbeatContext(info, Duration.ofMillis(100), Duration.ofMillis(100));
 
     assertFalse(ctx.getCancellationToken().isCancellationRequested());
-    assertFalse(ctx.getCancellationToken().getCancellationRequest().isDone());
+    assertFalse(ctx.getCancellationToken().getCancellationFuture().isDone());
 
     ctx.heartbeat("before-cancel");
     ctx.cancelFromWorkerCommand();
 
     assertTrue(ctx.getCancellationToken().isCancellationRequested());
-    assertTrue(ctx.getCancellationToken().getCancellationRequest().isDone());
-    assertThrows(
-        ActivityCanceledException.class,
-        () -> ctx.getCancellationToken().throwIfCancellationRequested());
+    ActivityCanceledException exception =
+        assertThrows(
+            ActivityCanceledException.class,
+            () -> ctx.getCancellationToken().throwIfCancellationRequested());
+    assertSame(
+        exception, assertCancellationFutureCompletedExceptionally(ctx.getCancellationToken()));
 
     try {
       ctx.heartbeat("after-cancel");
@@ -230,6 +235,31 @@ public class HeartbeatContextImplTest {
   }
 
   @Test
+  public void completingReturnedCancellationFutureDoesNotCancelToken() {
+    ActivityInfo info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(info, Duration.ofMillis(100), Duration.ofMillis(100));
+
+    CompletableFuture<Void> callerFuture = ctx.getCancellationToken().getCancellationFuture();
+    callerFuture.complete(null);
+
+    assertTrue(callerFuture.isDone());
+    assertFalse(ctx.getCancellationToken().isCancellationRequested());
+    ctx.getCancellationToken().throwIfCancellationRequested();
+
+    ctx.cancelFromWorkerCommand();
+
+    ActivityCanceledException exception =
+        assertThrows(
+            ActivityCanceledException.class,
+            () -> ctx.getCancellationToken().throwIfCancellationRequested());
+    assertSame(
+        exception, assertCancellationFutureCompletedExceptionally(ctx.getCancellationToken()));
+
+    ctx.cancelOutstandingHeartbeat();
+  }
+
+  @Test
   public void asyncCompletionRejectsNewHeartbeatsAndFlushesQueuedHeartbeat() {
     when(blockingStub.recordActivityTaskHeartbeat(any()))
         .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
@@ -243,7 +273,7 @@ public class HeartbeatContextImplTest {
     ctx.asyncCompletionStarted();
 
     assertTrue(ctx.getCancellationToken().isCancellationRequested());
-    assertTrue(ctx.getCancellationToken().getCancellationRequest().isDone());
+    assertCancellationFutureCompletedExceptionally(ctx.getCancellationToken());
     assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("after-return"));
 
     ArgumentCaptor<RecordActivityTaskHeartbeatRequest> requestCaptor =
@@ -271,15 +301,17 @@ public class HeartbeatContextImplTest {
     HeartbeatContextImpl ctx = createHeartbeatContext(info);
 
     assertFalse(ctx.getCancellationToken().isCancellationRequested());
-    assertFalse(ctx.getCancellationToken().getCancellationRequest().isDone());
+    assertFalse(ctx.getCancellationToken().getCancellationFuture().isDone());
 
     assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
 
     assertTrue(ctx.getCancellationToken().isCancellationRequested());
-    assertTrue(ctx.getCancellationToken().getCancellationRequest().isDone());
-    assertThrows(
-        ActivityCanceledException.class,
-        () -> ctx.getCancellationToken().throwIfCancellationRequested());
+    ActivityCanceledException exception =
+        assertThrows(
+            ActivityCanceledException.class,
+            () -> ctx.getCancellationToken().throwIfCancellationRequested());
+    assertSame(
+        exception, assertCancellationFutureCompletedExceptionally(ctx.getCancellationToken()));
 
     ctx.cancelOutstandingHeartbeat();
   }
@@ -307,7 +339,7 @@ public class HeartbeatContextImplTest {
     assertFalse(factory.cleanupContext(new byte[] {9, 8, 7}, true));
     assertTrue(factory.cleanupContext(new byte[] {1, 2, 3}, true));
     assertTrue(context.getCancellationToken().isCancellationRequested());
-    assertTrue(context.getCancellationToken().getCancellationRequest().isDone());
+    assertCancellationFutureCompletedExceptionally(context.getCancellationToken());
 
     context.cancelOutstandingHeartbeat();
     assertFalse(factory.cleanupContext(new byte[] {1, 2, 3}, true));
@@ -332,6 +364,16 @@ public class HeartbeatContextImplTest {
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
         TEST_BUFFER_MILLIS);
+  }
+
+  private static ActivityCanceledException assertCancellationFutureCompletedExceptionally(
+      ActivityCancellationToken cancellationToken) {
+    CompletableFuture<Void> cancellationFuture = cancellationToken.getCancellationFuture();
+    assertTrue(cancellationFuture.isDone());
+    assertTrue(cancellationFuture.isCompletedExceptionally());
+    ExecutionException exception = assertThrows(ExecutionException.class, cancellationFuture::get);
+    assertSame(ActivityCanceledException.class, exception.getCause().getClass());
+    return (ActivityCanceledException) exception.getCause();
   }
 
   private static ActivityInfoInternal activityInfoWithHeartbeatTimeout(Duration heartbeatTimeout) {

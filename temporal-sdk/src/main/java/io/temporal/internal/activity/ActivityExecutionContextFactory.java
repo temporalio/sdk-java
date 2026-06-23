@@ -12,7 +12,5 @@ public interface ActivityExecutionContextFactory {
    *
    * @return true if the activity was found and cleaned up.
    */
-  default boolean cleanupContext(byte[] taskToken, boolean cancel) {
-    return false;
-  }
+  boolean cleanupContext(byte[] taskToken, boolean cancel);
 }

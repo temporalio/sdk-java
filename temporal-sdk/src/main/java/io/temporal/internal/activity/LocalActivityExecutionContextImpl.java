@@ -60,8 +60,7 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
 
   @Override
   public ActivityCancellationToken getCancellationToken() {
-    throw new UnsupportedOperationException(
-        "getCancellationToken is not supported for local activities");
+    return ActivityCancellationToken.NONE;
   }
 
   @Override

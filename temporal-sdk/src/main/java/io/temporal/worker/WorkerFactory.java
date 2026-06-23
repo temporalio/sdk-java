@@ -295,23 +295,14 @@ public final class WorkerFactory {
     String namespace = workflowClient.getOptions().getNamespace();
     String workerGroupingKey = clientInternal.getWorkerGroupingKey();
     HeartbeatManager hbManager = clientInternal.getHeartbeatManager();
-    if (hbManager != null
-        && namespaceCapabilities.isWorkerHeartbeats()
-        && namespaceCapabilities.isWorkerCommands()) {
+    if (namespaceCapabilities.isWorkerCommands()) {
       workerCommandWorker =
           WorkerCommandTaskHandler.newWorkerCommandWorker(
               workflowClient.getWorkflowServiceStubs(),
               namespace,
               workflowClient.getOptions().getIdentity(),
               workerGroupingKey,
-              taskToken -> {
-                for (Worker worker : workers.values()) {
-                  if (worker.requestCancelActivity(taskToken)) {
-                    return true;
-                  }
-                }
-                return false;
-              },
+              this::requestCancelActivity,
               metricsScope,
               namespaceCapabilities);
       workerCommandWorker.start();
@@ -346,6 +337,15 @@ public final class WorkerFactory {
 
     state = State.Started;
     ((WorkflowClientInternal) workflowClient.getInternal()).registerWorkerFactory(this);
+  }
+
+  private synchronized boolean requestCancelActivity(byte[] taskToken) {
+    for (Worker worker : workers.values()) {
+      if (worker.requestCancelActivity(taskToken)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Was {@link #start()} called. */

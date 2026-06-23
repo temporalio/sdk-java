@@ -4,6 +4,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.Response;
+import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.nexusservices.workerservice.v1.ExecuteCommandsRequest;
 import io.temporal.api.nexusservices.workerservice.v1.ExecuteCommandsResponse;
@@ -98,15 +99,13 @@ public final class WorkerCommandTaskHandler implements NexusTaskHandler {
   }
 
   private ExecuteCommandsRequest decodeRequest(NexusTask task) {
-    if (!task.getResponse().hasRequest()
-        || !task.getResponse().getRequest().hasStartOperation()
-        || !task.getResponse().getRequest().getStartOperation().hasPayload()) {
+    StartOperationRequest request = task.getResponse().getRequest().getStartOperation();
+    if (!request.hasPayload()) {
       throw new IllegalArgumentException(
           "Worker command Nexus task missing ExecuteCommands payload");
     }
     try {
-      return ExecuteCommandsRequest.parseFrom(
-          task.getResponse().getRequest().getStartOperation().getPayload().getData());
+      return ExecuteCommandsRequest.parseFrom(request.getPayload().getData());
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalArgumentException("Failed to decode ExecuteCommandsRequest", e);
     }
@@ -122,7 +121,7 @@ public final class WorkerCommandTaskHandler implements NexusTaskHandler {
       }
       result.setCancelActivity(CancelActivityResult.newBuilder());
     } else {
-      log.warn("Worker command has no supported type set");
+      log.warn("Unsupported worker command");
     }
     return result.build();
   }

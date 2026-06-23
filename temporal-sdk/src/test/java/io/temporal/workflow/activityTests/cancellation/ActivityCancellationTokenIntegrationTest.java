@@ -142,15 +142,20 @@ public class ActivityCancellationTokenIntegrationTest {
           .activityStarted();
 
       try {
-        context.getCancellationToken().getCancellationRequest().get(20, TimeUnit.SECONDS);
+        context.getCancellationToken().getCancellationFuture().get(20, TimeUnit.SECONDS);
         context.getCancellationToken().throwIfCancellationRequested();
         return "not-cancelled";
       } catch (ActivityCanceledException e) {
         throw e;
+      } catch (ExecutionException e) {
+        if (e.getCause() instanceof ActivityCanceledException) {
+          throw (ActivityCanceledException) e.getCause();
+        }
+        throw new RuntimeException(e);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
-      } catch (ExecutionException | TimeoutException e) {
+      } catch (TimeoutException e) {
         throw new RuntimeException(e);
       }
     }

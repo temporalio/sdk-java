@@ -149,9 +149,7 @@ final class ActivityWorker implements SuspendableWorker {
   }
 
   private String workerControlTaskQueue() {
-    return namespaceCapabilities.isWorkerHeartbeats() && namespaceCapabilities.isWorkerCommands()
-        ? options.getWorkerControlTaskQueue()
-        : null;
+    return namespaceCapabilities.isWorkerCommands() ? options.getWorkerControlTaskQueue() : null;
   }
 
   @Override

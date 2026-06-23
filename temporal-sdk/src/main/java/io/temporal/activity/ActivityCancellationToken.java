@@ -1,9 +1,11 @@
 package io.temporal.activity;
 
 import io.temporal.client.ActivityCanceledException;
+import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 
 /** Token that allows an Activity implementation to observe cancellation requests. */
+@Experimental
 public interface ActivityCancellationToken {
 
   ActivityCancellationToken NONE =
@@ -17,7 +19,7 @@ public interface ActivityCancellationToken {
         public void throwIfCancellationRequested() throws ActivityCanceledException {}
 
         @Override
-        public CompletableFuture<Void> getCancellationRequest() {
+        public CompletableFuture<Void> getCancellationFuture() {
           return new CompletableFuture<>();
         }
       };
@@ -39,11 +41,11 @@ public interface ActivityCancellationToken {
   void throwIfCancellationRequested() throws ActivityCanceledException;
 
   /**
-   * Future that completes when cancellation has been requested for this Activity Execution.
+   * Future that completes exceptionally with {@link ActivityCanceledException} when cancellation
+   * has been requested for this Activity Execution.
    *
-   * <p>The future completes normally. Activity code should still call {@link
-   * #throwIfCancellationRequested()} or otherwise report cancellation if it wants the Activity
-   * Execution to complete as canceled.
+   * <p>Activity code should still call {@link #throwIfCancellationRequested()} or otherwise report
+   * cancellation if it wants the Activity Execution to complete as canceled.
    */
-  CompletableFuture<Void> getCancellationRequest();
+  CompletableFuture<Void> getCancellationFuture();
 }
