@@ -272,9 +272,9 @@ public class HeartbeatContextImplTest {
     ctx.heartbeat("queued-before-return");
     ctx.asyncCompletionStarted();
 
-    assertTrue(ctx.getCancellationToken().isCancellationRequested());
-    assertCancellationFutureCompletedExceptionally(ctx.getCancellationToken());
-    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("after-return"));
+    assertFalse(ctx.getCancellationToken().isCancellationRequested());
+    assertFalse(ctx.getCancellationToken().getCancellationFuture().isDone());
+    assertThrows(IllegalStateException.class, () -> ctx.heartbeat("after-return"));
 
     ArgumentCaptor<RecordActivityTaskHeartbeatRequest> requestCaptor =
         ArgumentCaptor.forClass(RecordActivityTaskHeartbeatRequest.class);

@@ -154,8 +154,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     try {
       checkHeartbeatTimeoutDeadlineLocked();
       if (rejectNewHeartbeats) {
-        cancellationToken.throwIfCancellationRequested();
-        throw new ActivityCanceledException(info);
+        throw new IllegalStateException("Cannot record heartbeats after async activity completion");
       }
       receivedAHeartbeat = true;
       lastDetails = details;
@@ -251,7 +250,6 @@ class HeartbeatContextImpl implements HeartbeatContext {
   public void asyncCompletionStarted() {
     lock.lock();
     try {
-      requestCancelLocked();
       rejectNewHeartbeats = true;
     } finally {
       lock.unlock();

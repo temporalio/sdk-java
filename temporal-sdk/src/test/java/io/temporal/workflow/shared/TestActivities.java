@@ -431,8 +431,14 @@ public class TestActivities {
           () -> {
             invocations.add("activity1");
             long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
-            while (!ctx.getCancellationToken().isCancellationRequested()
+            while (!activity1PostReturnHeartbeatRejected.get()
                 && System.currentTimeMillis() < deadline) {
+              try {
+                ctx.heartbeat("after-async-return");
+              } catch (IllegalStateException e) {
+                activity1PostReturnHeartbeatRejected.set(true);
+                break;
+              }
               try {
                 Thread.sleep(10);
               } catch (InterruptedException e) {
@@ -442,11 +448,6 @@ public class TestActivities {
             }
             activity1AsyncCompletionTokenCanceled.set(
                 ctx.getCancellationToken().isCancellationRequested());
-            try {
-              ctx.heartbeat("after-async-return");
-            } catch (ActivityCanceledException e) {
-              activity1PostReturnHeartbeatRejected.set(true);
-            }
             completionClient.complete(taskToken, a1);
           });
       ctx.doNotCompleteOnReturn();

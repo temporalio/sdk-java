@@ -41,7 +41,7 @@ public class AsyncActivityWithCompletionClientTest {
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("activity1", completionClientActivitiesImpl.invocations.get(0));
-    Assert.assertTrue(completionClientActivitiesImpl.activity1AsyncCompletionTokenCanceled.get());
+    Assert.assertFalse(completionClientActivitiesImpl.activity1AsyncCompletionTokenCanceled.get());
     Assert.assertTrue(completionClientActivitiesImpl.activity1PostReturnHeartbeatRejected.get());
   }
 
