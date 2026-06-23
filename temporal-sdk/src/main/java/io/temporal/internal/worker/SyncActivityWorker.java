@@ -171,6 +171,10 @@ public class SyncActivityWorker implements SuspendableWorker {
     return taskHandler.isAnyTypeSupported();
   }
 
+  public boolean requestCancelActivity(byte[] taskToken) {
+    return taskHandler.requestCancel(taskToken);
+  }
+
   public TrackingSlotSupplier<ActivitySlotInfo> getSlotSupplier() {
     return worker.getSlotSupplier();
   }

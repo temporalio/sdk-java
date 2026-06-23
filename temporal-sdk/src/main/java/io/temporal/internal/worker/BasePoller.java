@@ -52,7 +52,7 @@ abstract class BasePoller<T> implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    log.info("shutdown: {}", this);
+    log.debug("shutdown: {}", this);
     WorkerLifecycleState lifecycleState = getLifecycleState();
     switch (lifecycleState) {
       case NOT_STARTED:

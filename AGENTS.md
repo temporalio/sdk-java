@@ -17,7 +17,7 @@
 - The SDK code is written for Java 8.
 
 ## Building and Testing
-1. Format the code before committing:
+1. Format the code before committing (and don't bother running spotlessCheck, just run apply):
    ```bash
    ./gradlew --offline spotlessApply
    ```

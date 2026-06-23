@@ -25,6 +25,7 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestActivities {
@@ -407,6 +408,8 @@ public class TestActivities {
   public static class CompletionClientActivitiesImpl
       implements CompletionClientActivities, Closeable {
     public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
+    public final AtomicBoolean activity1AsyncCompletionTokenCanceled = new AtomicBoolean();
+    public final AtomicBoolean activity1PostReturnHeartbeatRejected = new AtomicBoolean();
     private final ThreadPoolExecutor executor =
         new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     public ActivityCompletionClient completionClient;
@@ -422,13 +425,32 @@ public class TestActivities {
     @Override
     public String activity1(String a1) {
       Preconditions.checkNotNull(completionClient, "completionClient");
-      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      byte[] taskToken = ctx.getInfo().getTaskToken();
       executor.execute(
           () -> {
             invocations.add("activity1");
+            long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
+            while (!activity1PostReturnHeartbeatRejected.get()
+                && System.currentTimeMillis() < deadline) {
+              try {
+                ctx.heartbeat("after-async-return");
+              } catch (IllegalStateException e) {
+                activity1PostReturnHeartbeatRejected.set(true);
+                break;
+              }
+              try {
+                Thread.sleep(10);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+              }
+            }
+            activity1AsyncCompletionTokenCanceled.set(
+                ctx.getCancellationToken().isCancellationRequested());
             completionClient.complete(taskToken, a1);
           });
-      Activity.getExecutionContext().doNotCompleteOnReturn();
+      ctx.doNotCompleteOnReturn();
       return "ignored";
     }
 

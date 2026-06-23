@@ -118,6 +118,7 @@ public class WorkerShutdownTest {
             wfThreadExecutor,
             Collections.emptyList(),
             Collections.emptyList(),
+            "test-worker-group",
             new NamespaceCapabilities());
 
     // Register types AFTER worker construction. The request built by shutdown should reflect
