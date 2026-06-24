@@ -6,6 +6,7 @@ import com.google.protobuf.Timestamp;
 import com.uber.m3.tally.Scope;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueRequest;
@@ -47,6 +48,33 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
       TrackingSlotSupplier<?> slotSupplier,
       @Nonnull PollerTracker pollerTracker) {
+    this(
+        service,
+        namespace,
+        taskQueue,
+        identity,
+        workerInstanceKey,
+        versioningOptions,
+        metricsScope,
+        serverCapabilities,
+        slotSupplier,
+        pollerTracker,
+        false);
+  }
+
+  @SuppressWarnings("deprecation")
+  public AsyncNexusPollTask(
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
+      @Nonnull WorkerVersioningOptions versioningOptions,
+      @Nonnull Scope metricsScope,
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      TrackingSlotSupplier<?> slotSupplier,
+      @Nonnull PollerTracker pollerTracker,
+      boolean workerCommandsTaskQueue) {
     this.service = Objects.requireNonNull(service);
     this.metricsScope = Objects.requireNonNull(metricsScope);
     this.slotSupplier = slotSupplier;
@@ -56,7 +84,13 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
         PollNexusTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
             .setIdentity(identity)
-            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+            .setTaskQueue(
+                TaskQueue.newBuilder()
+                    .setName(taskQueue)
+                    .setKind(
+                        workerCommandsTaskQueue
+                            ? TaskQueueKind.TASK_QUEUE_KIND_WORKER_COMMANDS
+                            : TaskQueueKind.TASK_QUEUE_KIND_NORMAL));
 
     pollRequest.setWorkerInstanceKey(workerInstanceKey);
 

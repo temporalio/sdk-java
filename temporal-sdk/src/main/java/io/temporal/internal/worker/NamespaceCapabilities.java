@@ -12,6 +12,7 @@ public final class NamespaceCapabilities {
   private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
   private final AtomicBoolean gracefulPollShutdown = new AtomicBoolean(false);
   private final AtomicBoolean workerHeartbeats = new AtomicBoolean(false);
+  private final AtomicBoolean workerCommands = new AtomicBoolean(false);
 
   public void setFromCapabilities(Capabilities capabilities) {
     if (capabilities.getPollerAutoscaling()) {
@@ -22,6 +23,9 @@ public final class NamespaceCapabilities {
     }
     if (capabilities.getWorkerHeartbeats()) {
       workerHeartbeats.set(true);
+    }
+    if (capabilities.getWorkerCommands()) {
+      workerCommands.set(true);
     }
   }
 
@@ -43,5 +47,13 @@ public final class NamespaceCapabilities {
 
   public void setWorkerHeartbeats(boolean value) {
     workerHeartbeats.set(value);
+  }
+
+  public boolean isWorkerCommands() {
+    return workerCommands.get();
+  }
+
+  public void setWorkerCommands(boolean value) {
+    workerCommands.set(value);
   }
 }
