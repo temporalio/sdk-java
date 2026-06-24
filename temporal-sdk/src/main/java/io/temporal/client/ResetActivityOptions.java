@@ -71,6 +71,8 @@ public final class ResetActivityOptions {
     /**
      * If set, the activity options are restored to the originals the activity was created with (the
      * options recorded in the first schedule event).
+     *
+     * <p>This flag may be combined with other reset settings.
      */
     public Builder setRestoreOriginalOptions(boolean restoreOriginalOptions) {
       this.restoreOriginalOptions = restoreOriginalOptions;

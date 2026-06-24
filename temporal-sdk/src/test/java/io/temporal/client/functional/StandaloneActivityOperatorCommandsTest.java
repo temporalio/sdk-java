@@ -183,7 +183,7 @@ public class StandaloneActivityOperatorCommandsTest {
         ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
   }
 
-  private void assertPaused(ActivityHandle<?> handle) {
+  private void assertEventuallyPaused(ActivityHandle<?> handle) {
     assertEventually(
         Duration.ofSeconds(30),
         () ->
@@ -205,10 +205,6 @@ public class StandaloneActivityOperatorCommandsTest {
     return handle;
   }
 
-  /**
-   * Start a HeartbeatDetailsActivity and wait until its heartbeat details are visible via describe,
-   * so a subsequent reset_heartbeat has something observable to clear.
-   */
   /**
    * Start a HeartbeatThenStopActivity and wait until its first attempt has recorded heartbeat
    * details and the activity is backing off, so it can be paused into a true PAUSED state.
@@ -257,7 +253,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startRunningSlowActivity(slowOpts());
     handle.pause("test-pause-reason");
-    assertPaused(handle);
+    assertEventuallyPaused(handle);
     handle.terminate("cleanup");
   }
 
@@ -372,9 +368,6 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<String> handle =
         newActivityClient().start(QuickActivity.class, QuickActivity::run, opts);
 
-    // task_queue is intentionally omitted: the server does not apply a task_queue change to a
-    // standalone activity via UpdateActivityExecutionOptions (it silently preserves the original),
-    // so it isn't observable here.
     ActivityExecutionOptions updated =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
@@ -478,7 +471,7 @@ public class StandaloneActivityOperatorCommandsTest {
             assertTrue("expected attempt > 1 before unpause", handle.describe().getAttempt() > 1));
 
     handle.pause("hold");
-    assertPaused(handle);
+    assertEventuallyPaused(handle);
 
     handle.unpause(UnpauseActivityOptions.newBuilder().setResetAttempts(true).build());
 
@@ -557,7 +550,7 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<Void> handle = startBackedOffHeartbeatActivity();
 
     handle.pause("hold");
-    assertPaused(handle);
+    assertEventuallyPaused(handle);
 
     // Unpause re-dispatches the next attempt with heartbeat details cleared; that attempt does not
     // heartbeat, so the details stay cleared and are observable.
@@ -578,7 +571,7 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<Void> handle = startBackedOffHeartbeatActivity();
 
     handle.pause("hold");
-    assertPaused(handle);
+    assertEventuallyPaused(handle);
 
     // keep_paused so no new attempt runs to re-record details; reset_heartbeat clears them in
     // place.
@@ -617,7 +610,7 @@ public class StandaloneActivityOperatorCommandsTest {
                 handle.describe().getRunState()));
 
     handle.pause("reason");
-    assertPaused(handle);
+    assertEventuallyPaused(handle);
     handle.unpause();
     handle.updateOptions(
         UpdateActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(90)).build());

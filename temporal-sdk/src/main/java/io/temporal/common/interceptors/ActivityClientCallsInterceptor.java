@@ -1,5 +1,7 @@
 package io.temporal.common.interceptors;
 
+import com.google.protobuf.FieldMask;
+import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
@@ -519,15 +521,15 @@ public interface ActivityClientCallsInterceptor {
   final class UpdateActivityOptionsInput {
     private final String id;
     private final @Nullable String runId;
-    private final io.temporal.api.activity.v1.ActivityOptions activityOptions;
-    private final com.google.protobuf.FieldMask updateMask;
+    private final ActivityOptions activityOptions;
+    private final FieldMask updateMask;
     private final boolean restoreOriginal;
 
     public UpdateActivityOptionsInput(
         String id,
         @Nullable String runId,
-        io.temporal.api.activity.v1.ActivityOptions activityOptions,
-        com.google.protobuf.FieldMask updateMask,
+        ActivityOptions activityOptions,
+        FieldMask updateMask,
         boolean restoreOriginal) {
       this.id = id;
       this.runId = runId;
@@ -545,11 +547,11 @@ public interface ActivityClientCallsInterceptor {
       return runId;
     }
 
-    public io.temporal.api.activity.v1.ActivityOptions getActivityOptions() {
+    public ActivityOptions getActivityOptions() {
       return activityOptions;
     }
 
-    public com.google.protobuf.FieldMask getUpdateMask() {
+    public FieldMask getUpdateMask() {
       return updateMask;
     }
 
@@ -560,15 +562,14 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class UpdateActivityOptionsOutput {
-    private final io.temporal.api.activity.v1.ActivityOptions activityOptions;
+    private final ActivityOptions activityOptions;
 
-    public UpdateActivityOptionsOutput(
-        io.temporal.api.activity.v1.ActivityOptions activityOptions) {
+    public UpdateActivityOptionsOutput(ActivityOptions activityOptions) {
       this.activityOptions = activityOptions;
     }
 
     /** The activity options as resolved by the server after the update. */
-    public io.temporal.api.activity.v1.ActivityOptions getActivityOptions() {
+    public ActivityOptions getActivityOptions() {
       return activityOptions;
     }
   }
