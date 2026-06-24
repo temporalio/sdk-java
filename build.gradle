@@ -21,7 +21,7 @@ allprojects {
 
 ext {
     // Platforms
-    grpcVersion = '1.76.0' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
+    grpcVersion = '1.82.0' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
     jacksonVersion = '2.15.4' // [2.9.0,)
     jackson3Version = '3.0.4'
     nexusVersion = '0.5.0-alpha'
