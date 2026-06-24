@@ -18,12 +18,7 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * Unit test for the operator-command request fields the server does not surface back, so they can't
- * be asserted against a real server: the pause/unpause reason, the unpause/reset jitter, and the
- * pause request_id (a dedup UUID). Everything else the commands build — target ids, reset_attempts,
- * reset_heartbeat, keep_paused, restore_original_options, and the update options/mask — is
- * observable via describe and is covered by the real-server tests in {@link
- * io.temporal.client.functional.StandaloneActivityOperatorCommandsTest}.
+ * Unit test for the operator-command request fields that the server does not surface back.
  */
 public class ActivityHandleOperatorCommandsTest {
 
