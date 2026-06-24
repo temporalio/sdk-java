@@ -27,6 +27,12 @@ public class TemporalOperationProcessorTest {
     java.util.List<String> compose(java.util.Map<String, Integer> input);
   }
 
+  @Service
+  public interface VoidIoService {
+    @Operation
+    Void op();
+  }
+
   @Test
   public void happyPath_registersTemporalOperation() {
     TemporalOperationProcessor.process(new ValidSugar());
@@ -38,6 +44,13 @@ public class TemporalOperationProcessorTest {
   public void happyPath_compositeGenerics() {
     // Validation must traverse parameterized types (List<String>, Map<String, Integer>).
     TemporalOperationProcessor.process(new CompositeOk());
+  }
+
+  @Test
+  public void happyPath_voidInputAndOutput() {
+    // A no-input @Operation (Void op()) must register: declared Void param matches Void input,
+    // and a Void result type matches the operation's Void output.
+    TemporalOperationProcessor.process(new VoidIo());
   }
 
   @Test
@@ -235,6 +248,15 @@ public class TemporalOperationProcessorTest {
     public TemporalOperationResult<String> op(
         TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
       throw new IllegalStateException("user-thrown");
+    }
+  }
+
+  @ServiceImpl(service = VoidIoService.class)
+  public static class VoidIo {
+    @TemporalOperation
+    public TemporalOperationResult<Void> op(
+        TemporalOperationStartContext ctx, TemporalNexusClient client, Void input) {
+      return TemporalOperationResult.sync(null);
     }
   }
 
