@@ -17,9 +17,7 @@ import java.time.Duration;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
-/**
- * Unit test for the operator-command request fields that the server does not surface back.
- */
+/** Unit test for the operator-command request fields that the server does not surface back. */
 public class ActivityHandleOperatorCommandsTest {
 
   private final GenericWorkflowClient genericClient = mock(GenericWorkflowClient.class);
@@ -57,10 +55,12 @@ public class ActivityHandleOperatorCommandsTest {
     UnpauseActivityExecutionRequest unpauseReq = captureUnpause();
     assertEquals("go", unpauseReq.getReason());
     assertEquals(5, unpauseReq.getJitter().getSeconds());
+    assertEquals(0, unpauseReq.getJitter().getNanos());
 
     // reset carries the jitter.
     ResetActivityExecutionRequest resetReq = captureReset();
     assertEquals(2, resetReq.getJitter().getSeconds());
+    assertEquals(0, resetReq.getJitter().getNanos());
   }
 
   private PauseActivityExecutionRequest capturePause() {
