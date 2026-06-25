@@ -111,7 +111,8 @@ final class ActivityWorker implements SuspendableWorker {
                     this.slotSupplier,
                     workerMetricsScope,
                     service.getServerCapabilities(),
-                    pollerTracker),
+                    pollerTracker,
+                    workerControlTaskQueue()),
                 this.pollTaskExecutor,
                 pollerOptions,
                 namespaceCapabilities,
@@ -132,7 +133,8 @@ final class ActivityWorker implements SuspendableWorker {
                     this.slotSupplier,
                     workerMetricsScope,
                     service.getServerCapabilities(),
-                    pollerTracker),
+                    pollerTracker,
+                    workerControlTaskQueue()),
                 this.pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope,
@@ -144,6 +146,10 @@ final class ActivityWorker implements SuspendableWorker {
     } else {
       return false;
     }
+  }
+
+  private String workerControlTaskQueue() {
+    return namespaceCapabilities.isWorkerCommands() ? options.getWorkerControlTaskQueue() : null;
   }
 
   @Override

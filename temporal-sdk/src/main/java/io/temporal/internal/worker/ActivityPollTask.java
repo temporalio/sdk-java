@@ -43,7 +43,8 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
-      @Nonnull PollerTracker pollerTracker) {
+      @Nonnull PollerTracker pollerTracker,
+      String workerControlTaskQueue) {
     this.service = Objects.requireNonNull(service);
     this.slotSupplier = slotSupplier;
     this.metricsScope = Objects.requireNonNull(metricsScope);
@@ -55,6 +56,9 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
     pollRequest.setWorkerInstanceKey(workerInstanceKey);
+    if (workerControlTaskQueue != null) {
+      pollRequest.setWorkerControlTaskQueue(workerControlTaskQueue);
+    }
     if (activitiesPerSecond > 0) {
       pollRequest.setTaskQueueMetadata(
           TaskQueueMetadata.newBuilder()

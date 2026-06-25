@@ -39,7 +39,7 @@ final class CloudServiceStubsImpl implements CloudServiceStubs {
                 .setInternalErrorDifferentiation(true)
                 .build());
 
-    log.info("Created CloudServiceStubs for channel: {}", channelManager.getRawChannel());
+    log.debug("Created CloudServiceStubs for channel: {}", channelManager.getRawChannel());
 
     this.blockingStub = CloudServiceGrpc.newBlockingStub(channelManager.getInterceptedChannel());
     this.futureStub = CloudServiceGrpc.newFutureStub(channelManager.getInterceptedChannel());

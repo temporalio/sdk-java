@@ -119,7 +119,10 @@ jobs:
               --dynamic-config-value nexusoperation.enableStandalone=true \
               --dynamic-config-value history.enableChasm=true \
               --dynamic-config-value history.enableCHASMSignalBacklinks=true \
-              --dynamic-config-value history.enableTransitionHistory=true &
+              --dynamic-config-value history.enableTransitionHistory=true \
+              --dynamic-config-value frontend.enableCancelWorkerPollsOnShutdown=true \
+              --dynamic-config-value frontend.workerCommandsEnabled=true \
+              --dynamic-config-value system.enableCancelActivityWorkerCommand=true &
           sleep 10s
 
       # Can't actually run tests against Java 8 because Mockito 5 requires Java 11+.

@@ -54,7 +54,8 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
       @Nonnull Scope workerMetricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
       @Nonnull PollerTracker pollerTracker,
-      @Nonnull PollerTracker stickyPollerTracker) {
+      @Nonnull PollerTracker stickyPollerTracker,
+      String workerControlTaskQueue) {
     this.slotSupplier = Objects.requireNonNull(slotSupplier);
     this.stickyQueueBalancer = Objects.requireNonNull(stickyQueueBalancer);
     this.metricsScope = Objects.requireNonNull(workerMetricsScope);
@@ -75,6 +76,9 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
             .setNamespace(Objects.requireNonNull(namespace))
             .setIdentity(Objects.requireNonNull(identity));
     pollRequestBuilder.setWorkerInstanceKey(workerInstanceKey);
+    if (workerControlTaskQueue != null) {
+      pollRequestBuilder.setWorkerControlTaskQueue(workerControlTaskQueue);
+    }
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequestBuilder.setDeploymentOptions(

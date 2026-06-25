@@ -305,7 +305,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
           if (shouldTerminate()) {
             pollerBalancer.removePoller(asyncTaskPoller.getLabel());
             abort = true;
-            log.info(
+            log.debug(
                 "Poll loop is terminated: {} - {}",
                 AsyncPoller.this.getClass().getSimpleName(),
                 asyncTaskPoller.getLabel());

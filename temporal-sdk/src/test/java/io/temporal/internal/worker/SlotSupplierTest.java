@@ -87,7 +87,8 @@ public class SlotSupplierTest {
             metricsScope,
             () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
             new PollerTracker(),
-            new PollerTracker());
+            new PollerTracker(),
+            null);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()
@@ -178,7 +179,8 @@ public class SlotSupplierTest {
             trackingSS,
             metricsScope,
             () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
-            new PollerTracker());
+            new PollerTracker(),
+            null);
 
     SlotPermit permit = new SlotPermit();
 

@@ -3,6 +3,7 @@ package io.temporal.opentracing;
 public enum SpanOperationType {
   START_WORKFLOW("StartWorkflow"),
   SIGNAL_WITH_START_WORKFLOW("SignalWithStartWorkflow"),
+  UPDATE_WITH_START_WORKFLOW("UpdateWithStartWorkflow"),
   RUN_WORKFLOW("RunWorkflow"),
   START_CHILD_WORKFLOW("StartChildWorkflow"),
   START_CONTINUE_AS_NEW_WORKFLOW("StartContinueAsNewWorkflow"),

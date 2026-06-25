@@ -15,4 +15,9 @@ public class LocalActivityExecutionContextFactoryImpl implements ActivityExecuti
       ActivityInfoInternal info, Object activity, Scope metricsScope) {
     return new LocalActivityExecutionContextImpl(client, activity, info, metricsScope);
   }
+
+  @Override
+  public boolean cleanupContext(byte[] taskToken, boolean cancel) {
+    return false;
+  }
 }

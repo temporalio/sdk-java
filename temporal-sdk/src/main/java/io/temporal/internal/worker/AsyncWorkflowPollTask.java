@@ -57,7 +57,8 @@ public class AsyncWorkflowPollTask
       @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
-      @Nonnull PollerTracker pollerTracker) {
+      @Nonnull PollerTracker pollerTracker,
+      String workerControlTaskQueue) {
     this.service = service;
     this.slotSupplier = slotSupplier;
     this.metricsScope = metricsScope;
@@ -69,6 +70,9 @@ public class AsyncWorkflowPollTask
             .setIdentity(Objects.requireNonNull(identity));
 
     pollRequestBuilder.setWorkerInstanceKey(workerInstanceKey);
+    if (workerControlTaskQueue != null) {
+      pollRequestBuilder.setWorkerControlTaskQueue(workerControlTaskQueue);
+    }
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequestBuilder.setDeploymentOptions(

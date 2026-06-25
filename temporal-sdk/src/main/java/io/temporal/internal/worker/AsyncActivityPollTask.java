@@ -49,7 +49,8 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
       @Nonnull TrackingSlotSupplier<ActivitySlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
-      @Nonnull PollerTracker pollerTracker) {
+      @Nonnull PollerTracker pollerTracker,
+      String workerControlTaskQueue) {
     this.service = service;
     this.slotSupplier = slotSupplier;
     this.metricsScope = metricsScope;
@@ -61,6 +62,9 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
             .setIdentity(identity)
             .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
     pollRequest.setWorkerInstanceKey(workerInstanceKey);
+    if (workerControlTaskQueue != null) {
+      pollRequest.setWorkerControlTaskQueue(workerControlTaskQueue);
+    }
     if (activitiesPerSecond > 0) {
       pollRequest.setTaskQueueMetadata(
           TaskQueueMetadata.newBuilder()

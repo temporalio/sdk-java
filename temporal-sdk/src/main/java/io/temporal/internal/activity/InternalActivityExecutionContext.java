@@ -10,6 +10,9 @@ public interface InternalActivityExecutionContext extends ActivityExecutionConte
   /** Get the latest value of {@link ActivityExecutionContext#heartbeat(Object)}. */
   Object getLastHeartbeatValue();
 
+  /** Mark this context as returned for async completion. */
+  void asyncCompletionStarted();
+
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
 }

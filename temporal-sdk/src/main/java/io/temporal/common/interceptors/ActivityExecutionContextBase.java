@@ -1,6 +1,7 @@
 package io.temporal.common.interceptors;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
@@ -50,6 +51,11 @@ public class ActivityExecutionContextBase implements ActivityExecutionContext {
   @Override
   public byte[] getTaskToken() {
     return next.getTaskToken();
+  }
+
+  @Override
+  public ActivityCancellationToken getCancellationToken() {
+    return next.getCancellationToken();
   }
 
   @Override

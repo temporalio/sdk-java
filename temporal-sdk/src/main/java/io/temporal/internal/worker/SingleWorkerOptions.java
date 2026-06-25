@@ -42,6 +42,7 @@ public final class SingleWorkerOptions {
     private WorkerDeploymentOptions deploymentOptions;
     private String workerInstanceKey;
     private boolean allowActivityHeartbeatDuringShutdown;
+    private String workerControlTaskQueue;
 
     private Builder() {}
 
@@ -68,6 +69,7 @@ public final class SingleWorkerOptions {
       this.deploymentOptions = options.getDeploymentOptions();
       this.workerInstanceKey = options.getWorkerInstanceKey();
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
+      this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
     }
 
     public Builder setIdentity(String identity) {
@@ -170,6 +172,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setWorkerControlTaskQueue(String workerControlTaskQueue) {
+      this.workerControlTaskQueue = workerControlTaskQueue;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -210,7 +217,8 @@ public final class SingleWorkerOptions {
           usingVirtualThreads,
           this.deploymentOptions,
           this.workerInstanceKey,
-          this.allowActivityHeartbeatDuringShutdown);
+          this.allowActivityHeartbeatDuringShutdown,
+          this.workerControlTaskQueue);
     }
   }
 
@@ -233,6 +241,7 @@ public final class SingleWorkerOptions {
   private final WorkerDeploymentOptions deploymentOptions;
   private final String workerInstanceKey;
   private final boolean allowActivityHeartbeatDuringShutdown;
+  private final String workerControlTaskQueue;
 
   private SingleWorkerOptions(
       String identity,
@@ -253,7 +262,8 @@ public final class SingleWorkerOptions {
       boolean usingVirtualThreads,
       WorkerDeploymentOptions deploymentOptions,
       String workerInstanceKey,
-      boolean allowActivityHeartbeatDuringShutdown) {
+      boolean allowActivityHeartbeatDuringShutdown,
+      String workerControlTaskQueue) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -273,6 +283,7 @@ public final class SingleWorkerOptions {
     this.deploymentOptions = deploymentOptions;
     this.workerInstanceKey = workerInstanceKey;
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.workerControlTaskQueue = workerControlTaskQueue;
   }
 
   public String getIdentity() {
@@ -360,6 +371,10 @@ public final class SingleWorkerOptions {
 
   public String getWorkerInstanceKey() {
     return workerInstanceKey;
+  }
+
+  public String getWorkerControlTaskQueue() {
+    return workerControlTaskQueue;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

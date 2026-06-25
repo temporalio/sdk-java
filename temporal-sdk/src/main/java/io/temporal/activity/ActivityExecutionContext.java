@@ -3,6 +3,7 @@ package io.temporal.activity;
 import com.uber.m3.tally.Scope;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
 import java.lang.reflect.Type;
@@ -90,9 +91,16 @@ public interface ActivityExecutionContext {
   byte[] getTaskToken();
 
   /**
+   * Returns a token that can be used by Activity code to observe cancellation requests without
+   * recording Heartbeats.
+   */
+  @Experimental
+  ActivityCancellationToken getCancellationToken();
+
+  /**
    * If this method is called during an Activity Execution then the Activity Execution is not going
-   * to complete when it's method returns. It is expected to be completed asynchronously using
-   * {@link io.temporal.client.ActivityCompletionClient}.
+   * to complete when its method returns. It is expected to be completed asynchronously using {@link
+   * io.temporal.client.ActivityCompletionClient}.
    *
    * <p>Async Activity Executions that have {@link #isUseLocalManualCompletion()} set to false will
    * not respect the limit defined by {@link WorkerOptions#getMaxConcurrentActivityExecutionSize()}.

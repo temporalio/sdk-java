@@ -3,6 +3,7 @@ package io.temporal.internal.activity;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
@@ -72,8 +73,11 @@ class HeartbeatContextImpl implements HeartbeatContext {
   // 0 means no local timeout is active.
   private long heartbeatTimeoutDeadlineNanos;
   private boolean heartbeatTimedOut;
+  private boolean rejectNewHeartbeats;
 
   private ActivityCompletionException lastException;
+  private final ActivityCancellationTokenImpl cancellationToken =
+      new ActivityCancellationTokenImpl();
 
   public HeartbeatContextImpl(
       WorkflowServiceStubs service,
@@ -149,6 +153,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
     lock.lock();
     try {
       checkHeartbeatTimeoutDeadlineLocked();
+      if (rejectNewHeartbeats) {
+        throw new IllegalStateException("Cannot record heartbeats after async activity completion");
+      }
       receivedAHeartbeat = true;
       lastDetails = details;
       hasOutstandingHeartbeat = true;
@@ -159,6 +166,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
       if (lastException != null) {
         throw lastException;
       }
+      cancellationToken.throwIfCancellationRequested();
     } finally {
       lock.unlock();
     }
@@ -226,6 +234,31 @@ class HeartbeatContextImpl implements HeartbeatContext {
     } finally {
       lock.unlock();
     }
+  }
+
+  @Override
+  public void cancelFromWorkerCommand() {
+    lock.lock();
+    try {
+      requestCancelLocked();
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public void asyncCompletionStarted() {
+    lock.lock();
+    try {
+      rejectNewHeartbeats = true;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  @Override
+  public ActivityCancellationToken getCancellationToken() {
+    return cancellationToken;
   }
 
   private void doHeartBeatLocked(Object details) {
@@ -307,7 +340,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
               dataConverterWithActivityContext.toPayloads(details),
               metricsScope);
       if (status.getCancelRequested()) {
-        lastException = new ActivityCanceledException(info);
+        requestCancelLocked();
       } else if (status.getActivityReset()) {
         lastException = new ActivityResetException(info);
       } else if (status.getActivityPaused()) {
@@ -325,6 +358,12 @@ class HeartbeatContextImpl implements HeartbeatContext {
         throw e;
       }
     }
+  }
+
+  private void requestCancelLocked() {
+    ActivityCanceledException exception = new ActivityCanceledException(info);
+    lastException = exception;
+    cancellationToken.requestCancel(exception);
   }
 
   private static long getHeartbeatIntervalMs(
