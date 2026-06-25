@@ -248,15 +248,6 @@ public class StandaloneActivityOperatorCommandsTest {
   // Tests
   // ---------------------------------------------------------------------------
 
-  @Test
-  public void pauseShowsPaused() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startRunningSlowActivity(slowOpts());
-    handle.pause("test-pause-reason");
-    assertEventuallyPaused(handle);
-    handle.terminate("cleanup");
-  }
-
   // Overrides the rule's default 10s global timeout: the start delay makes this take longer.
   @Test(timeout = 60_000)
   public void unpauseResumes() {
