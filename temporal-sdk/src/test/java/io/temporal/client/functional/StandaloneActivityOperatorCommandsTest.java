@@ -423,7 +423,7 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   @Test
-  public void updateOptionsRestoreOriginalAlone() {
+  public void updateOptionsRestoreOriginal() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle =
         startRunningSlowActivity(slowOpts().setStartToCloseTimeout(Duration.ofSeconds(45)));
