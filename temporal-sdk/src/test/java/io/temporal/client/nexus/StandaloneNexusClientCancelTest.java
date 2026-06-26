@@ -7,6 +7,11 @@ import io.nexusrpc.Service;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.api.common.v1.Callback;
+import io.temporal.api.common.v1.Link;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
@@ -87,6 +92,66 @@ public class StandaloneNexusClientCancelTest {
           "expected cause to be CanceledFailure, got "
               + (cause == null ? "null" : cause.getClass().getSimpleName()),
           cause instanceof CanceledFailure);
+    }
+  }
+
+  /**
+   * Verifies that a {@code Link.NexusOperation} pointing back at the standalone Nexus operation is
+   * attached to the backing workflow's WorkflowExecutionStarted completion callback. This is the
+   * SDK-side wiring of the SANO record link: the server delivers the link on the inbound Nexus
+   * task, the handler forwards it onto the workflow's completion callback, and the workflow's
+   * history event surfaces it on {@code attrs.getCompletionCallbacks(i).getLinks(j)}.
+   */
+  @Test
+  public void linkForwardedToBackingWorkflowCallback() throws Exception {
+    Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
+    UntypedNexusServiceClient svc =
+        testWorkflowRule
+            .getNexusClient()
+            .newUntypedNexusServiceClient(
+                endpoint.getSpec().getName(), CancelTargetNexusService.class.getSimpleName());
+
+    String operationId = UUID.randomUUID().toString();
+    UntypedNexusOperationHandle handle =
+        svc.start(
+            "operation",
+            StartNexusOperationOptions.newBuilder()
+                .setId(operationId)
+                .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+                .build(),
+            "ignored");
+    String operationRunId = handle.getNexusOperationRunId();
+    Assert.assertNotNull("expected SANO run id to be populated by start", operationRunId);
+
+    String workflowId = waitForWorkflowIdCaptured(Duration.ofSeconds(8));
+
+    try {
+      History history = testWorkflowRule.getWorkflowClient().fetchHistory(workflowId).getHistory();
+      HistoryEvent startedEvent = history.getEventsList().get(0);
+      WorkflowExecutionStartedEventAttributes attrs =
+          startedEvent.getWorkflowExecutionStartedEventAttributes();
+
+      Link.NexusOperation found = null;
+      for (Callback cb : attrs.getCompletionCallbacksList()) {
+        for (Link link : cb.getLinksList()) {
+          if (link.hasNexusOperation()) {
+            found = link.getNexusOperation();
+            break;
+          }
+        }
+        if (found != null) {
+          break;
+        }
+      }
+      Assert.assertNotNull(
+          "expected Link.NexusOperation on a completion callback of the backing workflow", found);
+      Assert.assertEquals(
+          testWorkflowRule.getWorkflowClient().getOptions().getNamespace(), found.getNamespace());
+      Assert.assertEquals(operationId, found.getOperationId());
+      Assert.assertEquals(operationRunId, found.getRunId());
+    } finally {
+      // Workflow awaits forever; cancel so the test rule shuts down cleanly.
+      handle.cancel("link-test-cleanup");
     }
   }
 
