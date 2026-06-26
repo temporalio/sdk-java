@@ -16,13 +16,15 @@ subprojects {
 
     publishing {
         publications {
-            mavenJava(MavenPublication) {
-                afterEvaluate {
-                    plugins.withId('java-platform') {
-                        from components.javaPlatform
-                    }
-                    plugins.withId('java') {
-                        from components.java
+            if (name != 'temporal-workflowcheck-gradle-plugin') {
+                mavenJava(MavenPublication) {
+                    afterEvaluate {
+                        plugins.withId('java-platform') {
+                            from components.javaPlatform
+                        }
+                        plugins.withId('java') {
+                            from components.java
+                        }
                     }
                 }
             }
