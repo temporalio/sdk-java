@@ -547,13 +547,22 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
 
   @Override
   public StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request) {
+    Map<String, String> tags = tagsForStartActivity(request);
+    Scope scope = metricsScope.tagged(tags);
     return grpcRetryer.retryWithResult(
         () ->
             service
                 .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, scope)
                 .startActivityExecution(request),
         grpcRetryerOptions);
+  }
+
+  private static Map<String, String> tagsForStartActivity(StartActivityExecutionRequest request) {
+    return new ImmutableMap.Builder<String, String>(2)
+        .put(MetricsTag.ACTIVITY_TYPE, request.getActivityType().getName())
+        .put(MetricsTag.TASK_QUEUE, request.getTaskQueue().getName())
+        .build();
   }
 
   @Override
