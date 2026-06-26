@@ -1,5 +1,7 @@
 package io.temporal.internal.common;
 
+import static io.temporal.internal.common.LinkConverter.linkToNexusLink;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToLink;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToNexusOperation;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
 import static io.temporal.internal.common.LinkConverter.nexusOperationToNexusLink;
@@ -462,5 +464,94 @@ public class LinkConverterTest {
             .build();
 
     assertNull(nexusLinkToNexusOperation(input));
+  }
+
+  @Test
+  public void testNexusLinkToLink_WorkflowEventRoundTrip() {
+    Link.WorkflowEvent we =
+        Link.WorkflowEvent.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf-id")
+            .setRunId("run-id")
+            .setEventRef(
+                Link.WorkflowEvent.EventReference.newBuilder()
+                    .setEventId(1)
+                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
+            .build();
+
+    io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(we);
+    assertEquals("temporal.api.common.v1.Link.WorkflowEvent", nexusLink.getType());
+
+    Link converted = nexusLinkToLink(nexusLink);
+    assertNotNull(converted);
+    assertEquals(Link.newBuilder().setWorkflowEvent(we).build(), converted);
+  }
+
+  @Test
+  public void testNexusLinkToLink_NexusOperation() {
+    io.temporal.api.nexus.v1.Link nexusLink =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/nexus-operations/op-id/run-id/details")
+            .setType("temporal.api.common.v1.Link.NexusOperation")
+            .build();
+
+    Link expected =
+        Link.newBuilder()
+            .setNexusOperation(
+                Link.NexusOperation.newBuilder()
+                    .setNamespace("ns")
+                    .setOperationId("op-id")
+                    .setRunId("run-id"))
+            .build();
+
+    assertEquals(expected, nexusLinkToLink(nexusLink));
+  }
+
+  @Test
+  public void testNexusLinkToLink_UnknownType() {
+    io.temporal.api.nexus.v1.Link nexusLink =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id/history")
+            .setType("unknown.type")
+            .build();
+
+    assertNull(nexusLinkToLink(nexusLink));
+  }
+
+  @Test
+  public void testLinkToNexusLink_WorkflowEvent() {
+    Link.WorkflowEvent we =
+        Link.WorkflowEvent.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf-id")
+            .setRunId("run-id")
+            .setEventRef(
+                Link.WorkflowEvent.EventReference.newBuilder()
+                    .setEventId(1)
+                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
+            .build();
+
+    io.temporal.api.nexus.v1.Link actual =
+        linkToNexusLink(Link.newBuilder().setWorkflowEvent(we).build());
+    assertEquals(workflowEventToNexusLink(we), actual);
+  }
+
+  @Test
+  public void testLinkToNexusLink_NexusOperation() {
+    Link.NexusOperation no =
+        Link.NexusOperation.newBuilder()
+            .setNamespace("ns")
+            .setOperationId("op-id")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link actual =
+        linkToNexusLink(Link.newBuilder().setNexusOperation(no).build());
+    assertEquals(nexusOperationToNexusLink(no), actual);
+  }
+
+  @Test
+  public void testLinkToNexusLink_Empty() {
+    assertNull(linkToNexusLink(Link.newBuilder().build()));
   }
 }

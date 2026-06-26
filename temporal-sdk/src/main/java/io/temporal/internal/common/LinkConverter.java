@@ -31,6 +31,8 @@ public class LinkConverter {
       Link.WorkflowEvent.EventReference.getDescriptor().getName();
   private static final String requestIDReferenceType =
       Link.WorkflowEvent.RequestIdReference.getDescriptor().getName();
+  private static final String workflowEventLinkType =
+      Link.WorkflowEvent.getDescriptor().getFullName();
   private static final String nexusOperationLinkType =
       Link.NexusOperation.getDescriptor().getFullName();
 
@@ -184,7 +186,7 @@ public class LinkConverter {
    */
   public static Link nexusLinkToLink(io.temporal.api.nexus.v1.Link nexusLink) {
     String type = nexusLink.getType();
-    if (eventReferenceType.equals(type)) {
+    if (workflowEventLinkType.equals(type)) {
       return nexusLinkToWorkflowEvent(nexusLink);
     }
     if (nexusOperationLinkType.equals(type)) {
