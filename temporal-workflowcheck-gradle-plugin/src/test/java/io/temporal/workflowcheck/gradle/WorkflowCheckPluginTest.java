@@ -1,0 +1,329 @@
+package io.temporal.workflowcheck.gradle;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import org.gradle.testkit.runner.BuildResult;
+import org.gradle.testkit.runner.GradleRunner;
+import org.gradle.testkit.runner.TaskOutcome;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+
+public class WorkflowCheckPluginTest {
+
+  private static final String TEMPORAL_SDK_VERSION = "1.36.0";
+
+  @Rule public final TemporaryFolder testProjectDir = new TemporaryFolder();
+
+  private File buildFile;
+
+  @Before
+  public void setUp() throws IOException {
+    write("settings.gradle", "rootProject.name = 'workflowcheck-plugin-test'\n");
+    buildFile = testProjectDir.newFile("build.gradle");
+    writeBuildFile("");
+  }
+
+  @Test
+  public void passesForValidWorkflow() throws IOException {
+    writeValidWorkflow();
+
+    BuildResult result = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+  }
+
+  @Test
+  public void failsForDeterminismViolation() throws IOException {
+    writeWorkflowWithThreadSleep();
+
+    BuildResult result = runAndFail("workflowCheck");
+
+    assertEquals(TaskOutcome.FAILED, result.task(":workflowCheck").getOutcome());
+    assertTrue(result.getOutput().contains("invalid member access"));
+    assertTrue(result.getOutput().contains("determinism violations found"));
+  }
+
+  @Test
+  public void reportsViolationsButSucceedsWhenFailOnViolationIsFalse() throws IOException {
+    writeBuildFile("workflowCheck {\n    failOnViolation = false\n}\n");
+    writeWorkflowWithThreadSleep();
+
+    BuildResult result = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+    assertTrue(result.getOutput().contains("invalid member access"));
+  }
+
+  @Test
+  public void showValidOptionIncludesValidMethodsInOutput() throws IOException {
+    writeValidWorkflow();
+
+    BuildResult result = run("workflowCheck", "--show-valid");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+    assertTrue(result.getOutput().contains("is valid"));
+  }
+
+  @Test
+  public void customConfigFileIsRespected() throws IOException {
+    writeBuildFile(
+        "workflowCheck {\n" + "    configFiles.from('check/overrides.properties')\n" + "}\n");
+    write(
+        "check/overrides.properties",
+        "temporal.workflowcheck.invalid.java/lang/Thread.sleep=false\n");
+    writeWorkflowWithThreadSleep();
+
+    BuildResult result = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+  }
+
+  @Test
+  public void checkLifecycleRunsWorkflowCheck() throws IOException {
+    writeValidWorkflow();
+
+    BuildResult result = run("check");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+  }
+
+  @Test
+  public void resolvesAnalyzerFromConfiguredSourceSetRuntimeClasspath() throws IOException {
+    writeBuildFile(
+        "    testImplementation 'io.temporal:temporal-sdk:" + TEMPORAL_SDK_VERSION + "'\n",
+        "workflowCheck {\n    sourceSets = ['test']\n}\n");
+    writeTestWorkflow();
+
+    BuildResult result = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+    assertTrue(result.getOutput().contains("Found 1 class(es) with workflow methods"));
+  }
+
+  @Test
+  public void taskIsUpToDateOnSecondRun() throws IOException {
+    writeValidWorkflow();
+
+    BuildResult firstResult = run("workflowCheck");
+    BuildResult secondResult = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, firstResult.task(":workflowCheck").getOutcome());
+    assertEquals(TaskOutcome.UP_TO_DATE, secondResult.task(":workflowCheck").getOutcome());
+  }
+
+  @Test
+  public void configFileOrderIsTrackedAsTaskInput() throws IOException {
+    writeBuildFile(
+        "def configFilesInOrder = providers.gradleProperty('reverseConfig').isPresent()\n"
+            + "    ? [file('check/deny.properties'), file('check/allow.properties')]\n"
+            + "    : [file('check/allow.properties'), file('check/deny.properties')]\n"
+            + "workflowCheck {\n"
+            + "    failOnViolation = false\n"
+            + "    noDefaultConfig = true\n"
+            + "    configFiles.from(configFilesInOrder)\n"
+            + "}\n");
+    write(
+        "check/allow.properties", "temporal.workflowcheck.invalid.java/lang/Thread.sleep=false\n");
+    write("check/deny.properties", "temporal.workflowcheck.invalid.java/lang/Thread.sleep=true\n");
+    writeWorkflowWithThreadSleep();
+
+    BuildResult firstResult = run("workflowCheck");
+    BuildResult secondResult = run("workflowCheck", "-PreverseConfig");
+
+    assertEquals(TaskOutcome.SUCCESS, firstResult.task(":workflowCheck").getOutcome());
+    assertTrue(firstResult.getOutput().contains("invalid member access"));
+    assertEquals(TaskOutcome.SUCCESS, secondResult.task(":workflowCheck").getOutcome());
+    assertFalse(secondResult.getOutput().contains("invalid member access"));
+  }
+
+  @Test
+  public void doesNotLogClasspathEntriesByDefault() throws IOException {
+    writeValidWorkflow();
+
+    BuildResult result = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+    assertTrue(result.getOutput().contains("WorkflowCheck: scanning"));
+    assertFalse(
+        result
+            .getOutput()
+            .contains(
+                new File(testProjectDir.getRoot(), "build/classes/java/main").getAbsolutePath()));
+  }
+
+  @Test
+  public void showClasspathLogsClasspathEntries() throws IOException {
+    writeBuildFile("workflowCheck {\n    showClasspath = true\n}\n");
+    writeValidWorkflow();
+
+    BuildResult result = run("workflowCheck");
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":workflowCheck").getOutcome());
+    assertTrue(
+        result
+            .getOutput()
+            .contains(
+                new File(testProjectDir.getRoot(), "build/classes/java/main").getAbsolutePath()));
+  }
+
+  @Test
+  public void onlyCompletedAnalysisExitOneIsClassifiedAsViolation() {
+    assertTrue(
+        WorkflowCheckTask.isViolationExit(
+            1, "Found 1 " + WorkflowCheckTask.COMPLETED_ANALYSIS_SUMMARY));
+    assertFalse(WorkflowCheckTask.isViolationExit(1, ""));
+    assertFalse(
+        WorkflowCheckTask.isViolationExit(
+            2, "Found 1 " + WorkflowCheckTask.COMPLETED_ANALYSIS_SUMMARY));
+  }
+
+  @Test
+  public void analyzerConfigurationFailureFailsEvenWhenFailOnViolationIsFalse() throws IOException {
+    writeBuildFile(
+        "workflowCheck {\n"
+            + "    failOnViolation = false\n"
+            + "    configFiles.from('check/bad.properties')\n"
+            + "}\n");
+    write(
+        "check/bad.properties",
+        // Invalid boolean value causes the analyzer to fail before analysis completes.
+        "temporal.workflowcheck.invalid.foo=not-a-boolean\n");
+    writeValidWorkflow();
+
+    BuildResult result = runAndFail("workflowCheck");
+
+    assertEquals(TaskOutcome.FAILED, result.task(":workflowCheck").getOutcome());
+    assertTrue(result.getOutput().contains("WorkflowCheck failed before completing analysis"));
+    // A completed analysis with violations would have succeeded with
+    // failOnViolation=false, so this failure must be the pre-scan one.
+    assertFalse(result.getOutput().contains(WorkflowCheckTask.COMPLETED_ANALYSIS_SUMMARY));
+  }
+
+  private BuildResult run(String... arguments) {
+    return runner(arguments).build();
+  }
+
+  private BuildResult runAndFail(String... arguments) {
+    return runner(arguments).buildAndFail();
+  }
+
+  private GradleRunner runner(String... arguments) {
+    return GradleRunner.create()
+        .withProjectDir(testProjectDir.getRoot())
+        .withPluginClasspath()
+        .withArguments(arguments)
+        .forwardOutput();
+  }
+
+  private void writeBuildFile(String extraConfiguration) throws IOException {
+    writeBuildFile(
+        "    implementation 'io.temporal:temporal-sdk:" + TEMPORAL_SDK_VERSION + "'\n",
+        extraConfiguration);
+  }
+
+  private void writeBuildFile(String dependencies, String extraConfiguration) throws IOException {
+    write(
+        buildFile,
+        "plugins {\n"
+            + "    id 'java'\n"
+            + "    id 'io.temporal.workflowcheck'\n"
+            + "}\n"
+            + "\n"
+            + "repositories {\n"
+            + "    mavenCentral()\n"
+            + "}\n"
+            + "\n"
+            + "dependencies {\n"
+            + dependencies
+            + "}\n"
+            + "\n"
+            + extraConfiguration);
+  }
+
+  private void writeValidWorkflow() throws IOException {
+    writeWorkflowInterface();
+    write(
+        "src/main/java/com/example/MyWorkflowImpl.java",
+        "package com.example;\n"
+            + "\n"
+            + "public class MyWorkflowImpl implements MyWorkflow {\n"
+            + "  @Override\n"
+            + "  public String run(String input) {\n"
+            + "    return \"Hello, \" + input;\n"
+            + "  }\n"
+            + "}\n");
+  }
+
+  private void writeWorkflowWithThreadSleep() throws IOException {
+    writeWorkflowInterface();
+    write(
+        "src/main/java/com/example/MyWorkflowImpl.java",
+        "package com.example;\n"
+            + "\n"
+            + "public class MyWorkflowImpl implements MyWorkflow {\n"
+            + "  @Override\n"
+            + "  public String run(String input) {\n"
+            + "    try {\n"
+            + "      Thread.sleep(1000);\n"
+            + "    } catch (InterruptedException e) {\n"
+            + "      // Ignore for test.\n"
+            + "    }\n"
+            + "    return \"Hello, \" + input;\n"
+            + "  }\n"
+            + "}\n");
+  }
+
+  private void writeWorkflowInterface() throws IOException {
+    writeWorkflowInterface("src/main/java/com/example/MyWorkflow.java");
+  }
+
+  private void writeTestWorkflow() throws IOException {
+    writeWorkflowInterface("src/test/java/com/example/MyWorkflow.java");
+    write(
+        "src/test/java/com/example/MyWorkflowImpl.java",
+        "package com.example;\n"
+            + "\n"
+            + "public class MyWorkflowImpl implements MyWorkflow {\n"
+            + "  @Override\n"
+            + "  public String run(String input) {\n"
+            + "    return \"Hello, \" + input;\n"
+            + "  }\n"
+            + "}\n");
+  }
+
+  private void writeWorkflowInterface(String relativePath) throws IOException {
+    write(
+        relativePath,
+        "package com.example;\n"
+            + "\n"
+            + "import io.temporal.workflow.WorkflowInterface;\n"
+            + "import io.temporal.workflow.WorkflowMethod;\n"
+            + "\n"
+            + "@WorkflowInterface\n"
+            + "public interface MyWorkflow {\n"
+            + "  @WorkflowMethod\n"
+            + "  String run(String input);\n"
+            + "}\n");
+  }
+
+  private void write(String relativePath, String content) throws IOException {
+    File file = new File(testProjectDir.getRoot(), relativePath);
+    write(file, content);
+  }
+
+  private void write(File file, String content) throws IOException {
+    File parentFile = file.getParentFile();
+    if (parentFile != null) {
+      parentFile.mkdirs();
+    }
+    Files.write(file.toPath(), content.getBytes(StandardCharsets.UTF_8));
+  }
+}
