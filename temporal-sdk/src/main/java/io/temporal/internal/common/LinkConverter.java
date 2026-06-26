@@ -165,12 +165,26 @@ public class LinkConverter {
   }
 
   /**
+   * Dispatches on the oneof variant of {@code commonLink} and converts to the matching {@link
+   * io.temporal.api.nexus.v1.Link}. Returns {@code null} if no variant is set or encoding fails.
+   */
+  public static io.temporal.api.nexus.v1.Link linkToNexusLink(Link commonLink) {
+    if (commonLink.hasWorkflowEvent()) {
+      return workflowEventToNexusLink(commonLink.getWorkflowEvent());
+    }
+    if (commonLink.hasNexusOperation()) {
+      return nexusOperationToNexusLink(commonLink.getNexusOperation());
+    }
+    return null;
+  }
+
+  /**
    * Dispatches on {@link io.temporal.api.nexus.v1.Link#getType()} and converts to the matching
    * {@link Link} variant. Returns {@code null} for unknown or unparseable types.
    */
   public static Link nexusLinkToLink(io.temporal.api.nexus.v1.Link nexusLink) {
     String type = nexusLink.getType();
-    if (Link.WorkflowEvent.getDescriptor().getFullName().equals(type)) {
+    if (eventReferenceType.equals(type)) {
       return nexusLinkToWorkflowEvent(nexusLink);
     }
     if (nexusOperationLinkType.equals(type)) {

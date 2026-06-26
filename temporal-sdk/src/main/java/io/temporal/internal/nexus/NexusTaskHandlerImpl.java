@@ -328,11 +328,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         List<io.temporal.api.nexus.v1.Link> responseLinks = new ArrayList<>();
         for (io.temporal.api.common.v1.Link responseLink :
             CurrentNexusOperationContext.get().getResponseLinks()) {
-          if (!responseLink.hasWorkflowEvent()) {
-            continue;
-          }
-          io.temporal.api.nexus.v1.Link converted =
-              LinkConverter.workflowEventToNexusLink(responseLink.getWorkflowEvent());
+          io.temporal.api.nexus.v1.Link converted = LinkConverter.linkToNexusLink(responseLink);
           if (converted != null) {
             responseLinks.add(converted);
           }
