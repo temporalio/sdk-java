@@ -9,10 +9,12 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Link;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
@@ -35,13 +37,12 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Verifies that {@link UntypedNexusOperationHandle#cancel()} from a standalone client propagates
- * through the server to the handler workflow backing a Nexus operation. Mirrors {@code
- * sdk-go/test/nexus_test.go TestNexusWorkflowRunOperation}: start a Nexus operation backed by a
- * workflow that awaits forever, cancel via the standalone client handle, then assert the backing
- * workflow ends with {@link CanceledFailure}.
+ * Behavior tests for standalone Nexus operations whose handler is {@link WorkflowRunOperation},
+ * i.e. each SANO is backed by a workflow. Shares one fixture (a workflow that awaits forever) so
+ * individual tests can exercise cancel propagation, bidirectional link plumbing, and any other
+ * behavior that depends on the SANO ↔ backing-workflow relationship.
  */
-public class StandaloneNexusClientCancelTest {
+public class StandaloneNexusBackingWorkflowTest {
 
   static final AtomicReference<String> capturedWorkflowId = new AtomicReference<>();
 
@@ -96,11 +97,17 @@ public class StandaloneNexusClientCancelTest {
   }
 
   /**
-   * Verifies that a {@code Link.NexusOperation} pointing back at the standalone Nexus operation is
-   * attached to the backing workflow's WorkflowExecutionStarted completion callback. This is the
-   * SDK-side wiring of the SANO record link: the server delivers the link on the inbound Nexus
-   * task, the handler forwards it onto the workflow's completion callback, and the workflow's
-   * history event surfaces it on {@code attrs.getCompletionCallbacks(i).getLinks(j)}.
+   * Verifies bidirectional linking between the standalone Nexus operation and the backing workflow
+   * it starts.
+   *
+   * <ul>
+   *   <li>Forward: a {@code Link.NexusOperation} pointing at the SANO record is attached to the
+   *       backing workflow's WorkflowExecutionStarted completion callback (visible on {@code
+   *       attrs.getCompletionCallbacks(i).getLinks(j)}).
+   *   <li>Backward: a {@code Link.WorkflowEvent} pointing at the backing workflow's
+   *       WorkflowExecutionStarted event is stored on the SANO record's {@code
+   *       NexusOperationExecutionInfo.links} (visible via {@code handle.describe()}).
+   * </ul>
    */
   @Test
   public void linkForwardedToBackingWorkflowCallback() throws Exception {
@@ -149,6 +156,29 @@ public class StandaloneNexusClientCancelTest {
           testWorkflowRule.getWorkflowClient().getOptions().getNamespace(), found.getNamespace());
       Assert.assertEquals(operationId, found.getOperationId());
       Assert.assertEquals(operationRunId, found.getRunId());
+
+      // Backward direction: SANO record's info.links should carry a Link.WorkflowEvent referencing
+      // the backing workflow's WorkflowExecutionStarted event.
+      NexusOperationExecutionDescription desc = handle.describe();
+      Link.WorkflowEvent backLink = null;
+      for (Link link : desc.getRawInfo().getLinksList()) {
+        if (link.hasWorkflowEvent() && workflowId.equals(link.getWorkflowEvent().getWorkflowId())) {
+          backLink = link.getWorkflowEvent();
+          break;
+        }
+      }
+      Assert.assertNotNull(
+          "expected Link.WorkflowEvent on the SANO record's info.links pointing at the backing"
+              + " workflow",
+          backLink);
+      Assert.assertEquals(
+          testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
+          backLink.getNamespace());
+      EventType backLinkEventType =
+          backLink.hasRequestIdRef()
+              ? backLink.getRequestIdRef().getEventType()
+              : backLink.getEventRef().getEventType();
+      Assert.assertEquals(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED, backLinkEventType);
     } finally {
       // Workflow awaits forever; cancel so the test rule shuts down cleanly.
       handle.cancel("link-test-cleanup");
