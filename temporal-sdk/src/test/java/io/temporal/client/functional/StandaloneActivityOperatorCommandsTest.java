@@ -362,6 +362,7 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityExecutionOptions updated =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
+                .setTaskQueue("updated-tq")
                 .setScheduleToCloseTimeout(Duration.ofSeconds(200))
                 .setScheduleToStartTimeout(Duration.ofSeconds(15))
                 .setStartToCloseTimeout(Duration.ofSeconds(90))
@@ -376,6 +377,7 @@ public class StandaloneActivityOperatorCommandsTest {
                 .build());
 
     // Every field is settable and lands: the returned options reflect each new value.
+    assertEquals("updated-tq", updated.getTaskQueue());
     assertEquals(Duration.ofSeconds(200), updated.getScheduleToCloseTimeout());
     assertEquals(Duration.ofSeconds(15), updated.getScheduleToStartTimeout());
     assertEquals(Duration.ofSeconds(90), updated.getStartToCloseTimeout());
@@ -385,6 +387,7 @@ public class StandaloneActivityOperatorCommandsTest {
 
     // And describe reflects them server-side.
     ActivityExecutionDescription desc = handle.describe();
+    assertEquals("updated-tq", desc.getTaskQueue());
     assertEquals(Duration.ofSeconds(200), desc.getScheduleToCloseTimeout());
     assertEquals(Duration.ofSeconds(15), desc.getScheduleToStartTimeout());
     assertEquals(Duration.ofSeconds(90), desc.getStartToCloseTimeout());

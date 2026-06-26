@@ -199,7 +199,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
       if (options.getTaskQueue() != null) {
         activityOptions.setTaskQueue(
             TaskQueue.newBuilder().setName(options.getTaskQueue()).build());
-        maskPaths.add("task_queue");
+        maskPaths.add("task_queue.name");
       }
       if (options.getScheduleToCloseTimeout() != null) {
         activityOptions.setScheduleToCloseTimeout(
