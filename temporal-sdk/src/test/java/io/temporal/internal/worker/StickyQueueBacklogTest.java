@@ -75,7 +75,8 @@ public class StickyQueueBacklogTest {
             metricsScope,
             () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
             new PollerTracker(),
-            new PollerTracker());
+            new PollerTracker(),
+            null);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()

@@ -126,7 +126,8 @@ final class WorkflowWorker implements SuspendableWorker {
                   slotSupplier,
                   workerMetricsScope,
                   service.getServerCapabilities(),
-                  pollerTracker);
+                  pollerTracker,
+                  workerControlTaskQueue());
           pollers =
               Arrays.asList(
                   new AsyncWorkflowPollTask(
@@ -140,7 +141,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       slotSupplier,
                       workerMetricsScope,
                       service.getServerCapabilities(),
-                      stickyPollerTracker),
+                      stickyPollerTracker,
+                      workerControlTaskQueue()),
                   normalPoller);
           this.stickyQueueBalancer = normalPoller;
         } else {
@@ -157,7 +159,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       slotSupplier,
                       workerMetricsScope,
                       service.getServerCapabilities(),
-                      pollerTracker));
+                      pollerTracker,
+                      workerControlTaskQueue()));
         }
         poller =
             new AsyncPoller<>(
@@ -191,7 +194,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     pollerTracker,
-                    stickyPollerTracker),
+                    stickyPollerTracker,
+                    workerControlTaskQueue()),
                 pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope,
@@ -647,6 +651,10 @@ final class WorkflowWorker implements SuspendableWorker {
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
           .setTaskToken(taskToken);
+      String workerControlTaskQueue = workerControlTaskQueue();
+      if (workerControlTaskQueue != null) {
+        taskCompleted.setWorkerControlTaskQueue(workerControlTaskQueue);
+      }
 
       if (options.getDeploymentOptions() != null) {
         taskCompleted.setDeploymentOptions(
@@ -754,5 +762,9 @@ final class WorkflowWorker implements SuspendableWorker {
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
           .exceptionToFailure(applicationFailure);
     }
+  }
+
+  private String workerControlTaskQueue() {
+    return namespaceCapabilities.isWorkerCommands() ? options.getWorkerControlTaskQueue() : null;
   }
 }
