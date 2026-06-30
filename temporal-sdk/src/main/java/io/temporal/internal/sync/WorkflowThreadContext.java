@@ -238,14 +238,14 @@ class WorkflowThreadContext {
       if (WorkflowThreadScheduler.WaitForYieldResult.DEADLOCK_DETECTED.equals(yieldResult)) {
         long detectionTimestamp = System.currentTimeMillis();
         if (currentThread != null) {
-          throw new PotentialDeadlockException(currentThread.getName(), this, detectionTimestamp);
+          throw new PotentialDeadlockException(currentThread.getName(), this, detectionTimestamp, deadlockDetectionTimeoutMs);
         } else {
           // This should never happen.
           // We clear currentThread only after setting the status to DONE.
           // And we check for it by the status condition check after waking up on the condition
           // and acquiring the lock back
           log.warn("Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
-          throw new PotentialDeadlockException("UnknownThread", this, detectionTimestamp);
+          throw new PotentialDeadlockException("UnknownThread", this, detectionTimestamp, deadlockDetectionTimeoutMs);
         }
       }
       Preconditions.checkState(
