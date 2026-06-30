@@ -29,7 +29,10 @@ public class PotentialDeadlockException extends RuntimeException {
    * @param timeoutMillis configured deadlock detection timeout in milliseconds
    */
   PotentialDeadlockException(
-      String threadName, WorkflowThreadContext workflowThreadContext, long detectionTimestamp, long timeoutMillis) {
+      String threadName,
+      WorkflowThreadContext workflowThreadContext,
+      long detectionTimestamp,
+      long timeoutMillis) {
     super(
         "[TMPRL1101] Potential deadlock detected. Workflow thread \""
             + threadName
