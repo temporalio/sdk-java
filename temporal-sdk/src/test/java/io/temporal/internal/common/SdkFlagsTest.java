@@ -15,7 +15,7 @@ public class SdkFlagsTest {
   public void setSdkFlagIsRespectedWithoutMetadataCapability() {
     SdkFlags flags = new SdkFlags(false, () -> true);
 
-    assertTrue(flags.setSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER));
+    flags.setSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER);
 
     assertTrue(flags.checkSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER));
     assertTrue(flags.tryUseSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER));

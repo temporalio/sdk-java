@@ -1,5 +1,6 @@
 package io.temporal.serviceclient;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.*;
 import io.temporal.api.workflowservice.v1.GetSystemInfoRequest;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
@@ -119,6 +120,7 @@ public class SystemInfoInterceptor implements ClientInterceptor {
     }
   }
 
+  @VisibleForTesting
   static boolean isGetSystemInfoUnknownMethod(Status status) {
     if (!Status.Code.UNIMPLEMENTED.equals(status.getCode())) {
       return false;

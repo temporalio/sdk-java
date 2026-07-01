@@ -18,14 +18,9 @@ public final class SdkFlags {
     this.replaying = replaying;
   }
 
-  /**
-   * Marks a flag as usable regardless of replay status.
-   *
-   * @return True.
-   */
-  public boolean setSdkFlag(SdkFlag flag) {
+  /** Marks a flag as usable regardless of replay status. */
+  public void setSdkFlag(SdkFlag flag) {
     sdkFlags.add(flag);
-    return true;
   }
 
   /**
@@ -40,13 +35,13 @@ public final class SdkFlags {
       return false;
     }
 
-    if (!replaying.apply()) {
-      sdkFlags.add(flag);
-      unsentSdkFlags.add(flag);
-      return true;
-    } else {
-      return sdkFlags.contains(flag);
+    if (replaying.apply()) {
+      return false;
     }
+
+    sdkFlags.add(flag);
+    unsentSdkFlags.add(flag);
+    return true;
   }
 
   /**
