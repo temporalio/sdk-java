@@ -33,6 +33,13 @@ public class SdkFlagsTest {
   }
 
   @Test
+  public void checkSdkFlagReturnsFalseForMissingFlagsWithoutMetadataCapability() {
+    SdkFlags flags = new SdkFlags(false, () -> false);
+
+    assertFalse(flags.checkSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER));
+  }
+
+  @Test
   public void tryUseRecordsNewFlagsWithMetadataCapability() {
     SdkFlags flags = new SdkFlags(true, () -> false);
 

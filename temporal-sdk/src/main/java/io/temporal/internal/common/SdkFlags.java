@@ -53,6 +53,14 @@ public final class SdkFlags {
    * @return True if this flag is set.
    */
   public boolean checkSdkFlag(SdkFlag flag) {
+    if (sdkFlags.contains(flag)) {
+      return true;
+    }
+
+    if (!supportSdkMetadata) {
+      return false;
+    }
+
     return sdkFlags.contains(flag);
   }
 
