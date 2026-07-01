@@ -89,6 +89,27 @@ public class GrpcCompressionTest {
   }
 
   @Test
+  public void gzipCompressionDowngradesCompressionErrorWithoutEncodingName() throws Exception {
+    TestWorkflowService service = new TestWorkflowService();
+    service.rejectGzipGetSystemInfo = true;
+    service.rejectGzipGetSystemInfoDescription = "grpc: Decompressor is not installed";
+    CompressionHistoryInterceptor compressionHistory = new CompressionHistoryInterceptor();
+    Server server = startServer(service, compressionHistory);
+    WorkflowServiceStubs serviceStubs = newServiceStubs(server, GrpcCompression.GZIP);
+    try {
+      serviceStubs.blockingStub().getSystemInfo(GetSystemInfoRequest.getDefaultInstance());
+    } finally {
+      serviceStubs.shutdownNow();
+    }
+
+    List<String> getSystemInfoHistory =
+        compressionHistory.compressionHistoryForMethod(getSystemInfoMethod());
+    assertEquals(2, getSystemInfoHistory.size());
+    assertEquals("gzip", getSystemInfoHistory.get(0));
+    assertNull(getSystemInfoHistory.get(1));
+  }
+
+  @Test
   public void noneCompressionDoesNotInstallDowngrade() throws Exception {
     TestWorkflowService service = new TestWorkflowService();
     service.rejectGzipGetSystemInfo = true;
@@ -212,6 +233,8 @@ public class GrpcCompressionTest {
   private static final class TestWorkflowService
       extends WorkflowServiceGrpc.WorkflowServiceImplBase {
     private boolean rejectGzipGetSystemInfo;
+    private String rejectGzipGetSystemInfoDescription =
+        "grpc: Decompressor is not installed for grpc-encoding \"gzip\"";
     private Status getSystemInfoError;
 
     @Override
@@ -220,7 +243,7 @@ public class GrpcCompressionTest {
       if (rejectGzipGetSystemInfo && "gzip".equals(REQUEST_COMPRESSION.get())) {
         responseObserver.onError(
             Status.UNIMPLEMENTED
-                .withDescription("grpc: Decompressor is not installed for grpc-encoding \"gzip\"")
+                .withDescription(rejectGzipGetSystemInfoDescription)
                 .asRuntimeException());
         return;
       }

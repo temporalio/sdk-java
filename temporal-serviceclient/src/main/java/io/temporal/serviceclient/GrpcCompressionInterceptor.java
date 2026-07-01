@@ -38,8 +38,8 @@ final class GrpcCompressionInterceptor implements ClientInterceptor {
   }
 
   static boolean isCompressionUnsupported(Status status, GrpcCompression compression) {
-    String compressorName = compression.getCompressorName();
-    if (!Status.Code.UNIMPLEMENTED.equals(status.getCode()) || compressorName == null) {
+    if (!Status.Code.UNIMPLEMENTED.equals(status.getCode())
+        || compression.getCompressorName() == null) {
       return false;
     }
     String description = status.getDescription();
@@ -47,10 +47,9 @@ final class GrpcCompressionInterceptor implements ClientInterceptor {
       return false;
     }
     String lowerDescription = description.toLowerCase(Locale.ROOT);
-    return lowerDescription.contains(compressorName.toLowerCase(Locale.ROOT))
-        && (lowerDescription.contains("decompress")
-            || lowerDescription.contains("grpc-encoding")
-            || lowerDescription.contains("compressor"));
+    return lowerDescription.contains("decompress")
+        || lowerDescription.contains("grpc-encoding")
+        || lowerDescription.contains("compressor");
   }
 
   private static final class GrpcCompressionRetryingClientCall<ReqT, RespT>
