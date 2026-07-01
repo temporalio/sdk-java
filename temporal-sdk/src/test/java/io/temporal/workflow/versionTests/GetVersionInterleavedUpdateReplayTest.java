@@ -140,16 +140,17 @@ public class GetVersionInterleavedUpdateReplayTest {
    * SDK metadata to select the fixed behavior.
    *
    * <p>The second replay runs the same history through a minimal gRPC proxy. The proxy forwards all
-   * WorkflowService RPCs to an in-memory test server except GetSystemInfo, which returns
-   * UNIMPLEMENTED. Current SDK code interprets that as default server capabilities. Default
-   * capabilities report sdkMetadata as unsupported, so the replay state machines ignore the
-   * langUsedFlags that are present in history and do not enable VERSION_WAIT_FOR_MARKER.
+   * WorkflowService RPCs to an in-memory test server except GetSystemInfo, which returns the
+   * UNIMPLEMENTED "unknown method" error shape used when the server is too old to know about the
+   * GetSystemInfo RPC. The SDK interprets that as default server capabilities. Default capabilities
+   * report sdkMetadata as unsupported, which previously caused the replay state machines to ignore
+   * langUsedFlags that are present in history and not enable VERSION_WAIT_FOR_MARKER.
    *
-   * <p>The intended behavior is that this replay still succeeds: a GetSystemInfo failure caused by
-   * an intermediary should not make a worker forget SDK flags already recorded in workflow history.
-   * On buggy code, this test fails with the same TMPRL1100 NonDeterministicException as the
-   * original unflagged fixture, which demonstrates that the proxy-induced default capabilities
-   * masked the recorded SDK flag.
+   * <p>The intended behavior is that this replay still succeeds: default server capabilities should
+   * only stop the worker from writing new SDK flag metadata; they should not make the worker forget
+   * SDK flags already recorded in workflow history. On buggy code, this test fails with the same
+   * TMPRL1100 NonDeterministicException as the original unflagged fixture, which demonstrates that
+   * default capabilities masked the recorded SDK flag.
    */
   @Test
   public void testGetSystemInfoUnimplementedDoesNotMaskSdkFlags() throws Exception {
@@ -346,7 +347,8 @@ public class GetVersionInterleavedUpdateReplayTest {
 
     private static RuntimeException unimplementedGetSystemInfo() {
       return Status.UNIMPLEMENTED
-          .withDescription("proxy intentionally hides getSystemInfo")
+          .withDescription(
+              "unknown method GetSystemInfo for service " + WorkflowServiceGrpc.SERVICE_NAME)
           .asRuntimeException();
     }
   }

@@ -1,6 +1,7 @@
 package io.temporal.serviceclient;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import io.grpc.ManagedChannel;
@@ -51,6 +52,7 @@ public class ChannelManagerTest {
   private final AtomicInteger getSystemInfoCount = new AtomicInteger(0);
   private final AtomicInteger getSystemInfoUnavailable = new AtomicInteger(0);
   private final AtomicInteger getSystemInfoUnimplemented = new AtomicInteger(0);
+  private String getSystemInfoUnimplementedDescription;
 
   private final HealthImplBase healthImpl =
       new HealthImplBase() {
@@ -76,7 +78,11 @@ public class ChannelManagerTest {
           if (getSystemInfoUnavailable.getAndDecrement() > 0) {
             responseObserver.onError(Status.fromCode(Status.Code.UNAVAILABLE).asException());
           } else if (getSystemInfoUnimplemented.getAndDecrement() > 0) {
-            responseObserver.onError(Status.fromCode(Status.Code.UNIMPLEMENTED).asException());
+            Status status = Status.fromCode(Status.Code.UNIMPLEMENTED);
+            if (getSystemInfoUnimplementedDescription != null) {
+              status = status.withDescription(getSystemInfoUnimplementedDescription);
+            }
+            responseObserver.onError(status.asException());
           } else {
             getSystemInfoCount.getAndIncrement();
             responseObserver.onNext(GET_SYSTEM_INFO_RESPONSE);
@@ -94,6 +100,7 @@ public class ChannelManagerTest {
     getSystemInfoCount.set(0);
     getSystemInfoUnavailable.set(0);
     getSystemInfoUnimplemented.set(0);
+    getSystemInfoUnimplementedDescription = null;
     String serverName = InProcessServerBuilder.generateName();
     grpcCleanupRule.register(
         InProcessServerBuilder.forName(serverName)
@@ -118,6 +125,28 @@ public class ChannelManagerTest {
     if (channelManager != null) {
       channelManager.shutdownNow();
     }
+  }
+
+  @Test
+  public void testGetSystemInfoUnknownMethodDescriptions() {
+    assertTrue(
+        SystemInfoInterceptor.isGetSystemInfoUnknownMethod(
+            Status.UNIMPLEMENTED.withDescription(
+                "unknown method GetSystemInfo for service "
+                    + "temporal.api.workflowservice.v1.WorkflowService")));
+    assertTrue(
+        SystemInfoInterceptor.isGetSystemInfoUnknownMethod(
+            Status.UNIMPLEMENTED.withDescription(
+                "Method not found: temporal.api.workflowservice.v1.WorkflowService/GetSystemInfo")));
+    assertFalse(
+        SystemInfoInterceptor.isGetSystemInfoUnknownMethod(
+            Status.UNIMPLEMENTED.withDescription(
+                "grpc: Decompressor is not installed for grpc-encoding \"gzip\"")));
+    assertFalse(
+        SystemInfoInterceptor.isGetSystemInfoUnknownMethod(
+            Status.UNAVAILABLE.withDescription(
+                "unknown method GetSystemInfo for service "
+                    + "temporal.api.workflowservice.v1.WorkflowService")));
   }
 
   @Test
@@ -154,13 +183,32 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesUnimplemented() {
+  public void testGetServerCapabilitiesUnimplementedUnknownMethod() {
     getSystemInfoUnimplemented.set(1);
+    getSystemInfoUnimplementedDescription =
+        "unknown method GetSystemInfo for service temporal.api.workflowservice.v1.WorkflowService";
     Capabilities capabilities = channelManager.getServerCapabilities().get();
     assertEquals(Capabilities.getDefaultInstance(), capabilities);
     assertEquals(0, getSystemInfoCount.get());
     assertEquals(-1, getSystemInfoUnavailable.get());
     assertEquals(0, getSystemInfoUnimplemented.get());
+  }
+
+  @Test
+  public void testGetServerCapabilitiesUnimplementedOtherDescription() {
+    getSystemInfoUnimplemented.set(Integer.MAX_VALUE);
+    getSystemInfoUnimplementedDescription =
+        "grpc: Decompressor is not installed for grpc-encoding \"gzip\"";
+    try {
+      Capabilities unused = channelManager.getServerCapabilities().get();
+      Assert.fail("expected StatusRuntimeException");
+    } catch (StatusRuntimeException e) {
+      assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
+      assertEquals(getSystemInfoUnimplementedDescription, e.getStatus().getDescription());
+      assertEquals(0, getSystemInfoCount.get());
+      assertEquals(-1, getSystemInfoUnavailable.get());
+      assertTrue(getSystemInfoUnimplemented.get() >= 0);
+    }
   }
 
   @Test
@@ -200,13 +248,33 @@ public class ChannelManagerTest {
   }
 
   @Test
-  public void testGetServerCapabilitiesUnimplementedWithConnect() {
+  public void testGetServerCapabilitiesUnimplementedUnknownMethodWithConnect() {
     getSystemInfoUnimplemented.set(1);
+    getSystemInfoUnimplementedDescription =
+        "unknown method GetSystemInfo for service temporal.api.workflowservice.v1.WorkflowService";
     channelManager.connect(HEALTH_CHECK_NAME, Duration.ofMillis(100));
     Capabilities capabilities = channelManager.getServerCapabilities().get();
     assertEquals(Capabilities.getDefaultInstance(), capabilities);
     assertEquals(0, getSystemInfoCount.get());
     assertEquals(-1, getSystemInfoUnavailable.get());
     assertEquals(0, getSystemInfoUnimplemented.get());
+  }
+
+  @Test
+  public void testGetServerCapabilitiesUnimplementedOtherDescriptionWithConnect() {
+    getSystemInfoUnimplemented.set(Integer.MAX_VALUE);
+    getSystemInfoUnimplementedDescription =
+        "grpc: Decompressor is not installed for grpc-encoding \"gzip\"";
+    try {
+      channelManager.connect(HEALTH_CHECK_NAME, Duration.ofMillis(100));
+      Capabilities unused = channelManager.getServerCapabilities().get();
+      Assert.fail("expected StatusRuntimeException");
+    } catch (StatusRuntimeException e) {
+      assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
+      assertEquals(getSystemInfoUnimplementedDescription, e.getStatus().getDescription());
+      assertEquals(0, getSystemInfoCount.get());
+      assertEquals(-1, getSystemInfoUnavailable.get());
+      assertTrue(getSystemInfoUnimplemented.get() >= 0);
+    }
   }
 }

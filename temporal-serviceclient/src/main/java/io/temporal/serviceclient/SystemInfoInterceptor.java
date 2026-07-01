@@ -48,7 +48,7 @@ public class SystemInfoInterceptor implements ClientInterceptor {
 
                   @Override
                   public void onClose(Status status, Metadata trailers) {
-                    if (Status.UNIMPLEMENTED.getCode().equals(status.getCode())) {
+                    if (isGetSystemInfoUnknownMethod(status)) {
                       serverCapabilitiesFuture.complete(Capabilities.getDefaultInstance());
                     }
                     super.onClose(status, trailers);
@@ -112,10 +112,25 @@ public class SystemInfoInterceptor implements ClientInterceptor {
           .getSystemInfo(GetSystemInfoRequest.newBuilder().build())
           .getCapabilities();
     } catch (StatusRuntimeException ex) {
-      if (Status.Code.UNIMPLEMENTED.equals(ex.getStatus().getCode())) {
+      if (isGetSystemInfoUnknownMethod(ex.getStatus())) {
         return Capabilities.getDefaultInstance();
       }
       throw ex;
     }
+  }
+
+  static boolean isGetSystemInfoUnknownMethod(Status status) {
+    if (!Status.Code.UNIMPLEMENTED.equals(status.getCode())) {
+      return false;
+    }
+    String description = status.getDescription();
+    if (description == null) {
+      return false;
+    }
+    String fullMethodName = WorkflowServiceGrpc.getGetSystemInfoMethod().getFullMethodName();
+    return description.contains(
+            "unknown method GetSystemInfo for service " + WorkflowServiceGrpc.SERVICE_NAME)
+        || description.contains("Method not found: " + fullMethodName)
+        || description.contains("Method not found: /" + fullMethodName);
   }
 }
