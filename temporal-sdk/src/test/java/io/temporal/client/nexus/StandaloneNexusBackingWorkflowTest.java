@@ -33,6 +33,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -53,11 +54,15 @@ public class StandaloneNexusBackingWorkflowTest {
           .setNexusServiceImplementation(new CancelTargetNexusServiceImpl())
           .build();
 
-  @Before
-  public void requireStandaloneNexusSupportAndReset() {
+  @BeforeClass
+  public static void requireStandaloneNexusSupport() {
     assumeTrue(
         "server does not support standalone Nexus operations",
-        testWorkflowRule.isUseExternalService());
+        SDKTestWorkflowRule.useExternalService);
+  }
+
+  @Before
+  public void resetCapturedWorkflowId() {
     capturedWorkflowId.set(null);
   }
 
