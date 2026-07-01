@@ -21,12 +21,9 @@ public final class SdkFlags {
   /**
    * Marks a flag as usable regardless of replay status.
    *
-   * @return True, as long as the server supports SDK flags
+   * @return True.
    */
   public boolean setSdkFlag(SdkFlag flag) {
-    if (!supportSdkMetadata) {
-      return false;
-    }
     sdkFlags.add(flag);
     return true;
   }
@@ -35,6 +32,10 @@ public final class SdkFlags {
    * @return True if this flag may currently be used.
    */
   public boolean tryUseSdkFlag(SdkFlag flag) {
+    if (sdkFlags.contains(flag)) {
+      return true;
+    }
+
     if (!supportSdkMetadata) {
       return false;
     }
@@ -52,10 +53,6 @@ public final class SdkFlags {
    * @return True if this flag is set.
    */
   public boolean checkSdkFlag(SdkFlag flag) {
-    if (!supportSdkMetadata) {
-      return false;
-    }
-
     return sdkFlags.contains(flag);
   }
 
