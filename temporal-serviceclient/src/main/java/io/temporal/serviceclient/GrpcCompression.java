@@ -7,7 +7,10 @@ public enum GrpcCompression {
   /** Do not compress requests. */
   NONE(null),
 
-  /** Gzip-compress requests. */
+  /**
+   * Gzip-compress requests. If a specific server RPC does not support gzip, the SDK may retry that
+   * RPC without compression and continue using gzip for other RPCs.
+   */
   GZIP("gzip");
 
   private final @Nullable String compressorName;

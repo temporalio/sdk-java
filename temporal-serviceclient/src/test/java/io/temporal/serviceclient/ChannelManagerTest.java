@@ -206,7 +206,7 @@ public class ChannelManagerTest {
       assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
       assertEquals(getSystemInfoUnimplementedDescription, e.getStatus().getDescription());
       assertEquals(0, getSystemInfoCount.get());
-      assertEquals(-1, getSystemInfoUnavailable.get());
+      assertEquals(-2, getSystemInfoUnavailable.get());
       assertTrue(getSystemInfoUnimplemented.get() >= 0);
     }
   }
@@ -273,7 +273,7 @@ public class ChannelManagerTest {
       assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
       assertEquals(getSystemInfoUnimplementedDescription, e.getStatus().getDescription());
       assertEquals(0, getSystemInfoCount.get());
-      assertEquals(-1, getSystemInfoUnavailable.get());
+      assertEquals(-2, getSystemInfoUnavailable.get());
       assertTrue(getSystemInfoUnimplemented.get() >= 0);
     }
   }
