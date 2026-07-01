@@ -1,5 +1,6 @@
 package io.temporal.internal.nexus;
 
+import static io.temporal.internal.common.LinkConverter.linkToNexusLink;
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
@@ -50,12 +51,10 @@ public class NexusStartWorkflowHelper {
 
     // If the start workflow response returned a link use it, otherwise
     // create the link information about the new workflow and return to the caller.
-    Link.WorkflowEvent workflowEventLink =
-        nexusCtx.getStartWorkflowResponseLink().hasWorkflowEvent()
-            ? nexusCtx.getStartWorkflowResponseLink().getWorkflowEvent()
-            : null;
-    if (workflowEventLink == null) {
-      workflowEventLink =
+    io.temporal.api.nexus.v1.Link nexusLink =
+        linkToNexusLink(nexusCtx.getStartWorkflowResponseLink());
+    if (nexusLink == null) {
+      Link.WorkflowEvent synthesized =
           Link.WorkflowEvent.newBuilder()
               .setNamespace(nexusCtx.getNamespace())
               .setWorkflowId(workflowExec.getWorkflowId())
@@ -64,8 +63,8 @@ public class NexusStartWorkflowHelper {
                   Link.WorkflowEvent.EventReference.newBuilder()
                       .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED))
               .build();
+      nexusLink = workflowEventToNexusLink(synthesized);
     }
-    io.temporal.api.nexus.v1.Link nexusLink = workflowEventToNexusLink(workflowEventLink);
     if (nexusLink != null) {
       try {
         ctx.addLinks(nexusProtoLinkToLink(nexusLink));
