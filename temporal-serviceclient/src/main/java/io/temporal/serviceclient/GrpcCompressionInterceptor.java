@@ -9,7 +9,6 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -17,8 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 final class GrpcCompressionInterceptor implements ClientInterceptor {
   private final GrpcCompression compression;
-  private final Set<String> compressionUnsupportedMethods =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<String> compressionUnsupportedMethods = ConcurrentHashMap.newKeySet();
 
   GrpcCompressionInterceptor(GrpcCompression compression) {
     this.compression = compression;
