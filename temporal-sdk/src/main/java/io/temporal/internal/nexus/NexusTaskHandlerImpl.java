@@ -403,7 +403,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     if (nexusService instanceof Class) {
       throw new IllegalArgumentException("Nexus service object instance expected, not the class");
     }
-    ServiceImplInstance instance = ServiceImplInstance.fromInstance(nexusService);
+    ServiceImplInstance instance = TemporalOperationProcessor.process(nexusService);
     InternalUtils.checkMethodName(instance);
     if (serviceImplInstances.put(instance.getDefinition().getName(), instance) != null) {
       throw new TypeAlreadyRegisteredException(
