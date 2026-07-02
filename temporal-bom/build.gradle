@@ -18,5 +18,6 @@ dependencies {
         api project(':temporal-test-server')
         api project(':temporal-testing')
         api project(':temporal-envconfig')
+        api project(':temporal-workflowstreams')
     }
 }
