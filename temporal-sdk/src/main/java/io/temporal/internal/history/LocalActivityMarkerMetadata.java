@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 
 /**
  * See <a
- * href="https://github.com/temporalio/sdk-core/blob/master/protos/local/temporal/sdk/core/external_data/external_data.proto#L12">Core
+ * href="https://github.com/temporalio/sdk-core/blob/main/protos/local/temporal/sdk/core/external_data/external_data.proto#L12">Core
  * Data Structure</a>
  */
 public class LocalActivityMarkerMetadata {

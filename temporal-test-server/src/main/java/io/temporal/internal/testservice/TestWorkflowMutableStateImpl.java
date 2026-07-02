@@ -1498,7 +1498,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
 
     // This should probably follow the retry logic from
-    // https://github.com/temporalio/temporal/blob/master/service/history/retry.go#L95
+    // https://github.com/temporalio/temporal/blob/main/service/history/retry.go#L95
     Failure failure = d.getFailure();
     WorkflowData data = workflow.getData();
 
