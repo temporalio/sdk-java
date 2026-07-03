@@ -59,9 +59,9 @@ public interface TaskScope<T> extends AutoCloseable {
   /**
    * Non-blocking fail-fast wait that collects all task results and passes them to a transformer.
    *
-   * <p>The returned future completes after all collected tasks complete successfully. Attached tasks
-   * are collected by default; when a collected task is transformed, the transformed child replaces
-   * its parent in the collected result list. On first failure or cancellation it completes
+   * <p>The returned future completes after all collected tasks complete successfully. Attached
+   * tasks are collected by default; when a collected task is transformed, the transformed child
+   * replaces its parent in the collected result list. On first failure or cancellation it completes
    * exceptionally and cancels unfinished tasks.
    *
    * <p>This method does not close the scope. Scope lifetime remains caller-owned.

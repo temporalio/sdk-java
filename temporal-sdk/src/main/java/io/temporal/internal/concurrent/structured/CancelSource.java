@@ -5,8 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The <em>write</em> side of cancellation. Whoever holds the {@code CancelSource} can
- * request cancellation while everyone else observes using {@link #token()}.
+ * The <em>write</em> side of cancellation. Whoever holds the {@code CancelSource} can request
+ * cancellation while everyone else observes using {@link #token()}.
  */
 public final class CancelSource {
 

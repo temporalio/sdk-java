@@ -190,8 +190,8 @@ final class DefaultTaskScope<T> implements TaskScope<T> {
 
   /**
    * Non-blocking completion for {@link TaskScope#withScope}: when {@code body} settles, cancels the
-   * group on failure, waits for every task to settle, then delivers the outcome. The returned future
-   * does not settle until all tasks have, so no task outlives the scope.
+   * group on failure, waits for every task to settle, then delivers the outcome. The returned
+   * future does not settle until all tasks have, so no task outlives the scope.
    */
   <R> CompletableFuture<R> closeWhenDone(CompletableFuture<R> body) {
     CompletableFuture<R> delivered = new CompletableFuture<>();
@@ -219,7 +219,9 @@ final class DefaultTaskScope<T> implements TaskScope<T> {
     return awaitTermination(0, null);
   }
 
-  /** Runs {@code body} against {@code scope} and ties the scope's lifetime to the returned future. */
+  /**
+   * Runs {@code body} against {@code scope} and ties the scope's lifetime to the returned future.
+   */
   static <T, R> CompletableFuture<R> run(
       DefaultTaskScope<T> scope, Function<TaskScope<T>, CompletableFuture<R>> body) {
     CompletableFuture<R> future;

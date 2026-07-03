@@ -11,9 +11,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-/**
- * Reference implementation of {@link AsyncTask}.
- */
+/** Reference implementation of {@link AsyncTask}. */
 final class DefaultAsyncTask<T> implements AsyncTask<T> {
 
   final CompletableFuture<T> cf;

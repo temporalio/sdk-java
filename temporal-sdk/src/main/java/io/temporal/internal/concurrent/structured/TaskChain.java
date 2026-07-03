@@ -10,8 +10,8 @@ public interface TaskChain<T> {
   <R> TaskChain<R> map(Function<? super T, ? extends R> fn);
 
   /**
-   * Supplies a fallback value if this chain fails. Unlike {@code CompletableFuture.exceptionally}, a
-   * cancelled chain is not recovered (cancellation propagates) and the fallback receives the
+   * Supplies a fallback value if this chain fails. Unlike {@code CompletableFuture.exceptionally},
+   * a cancelled chain is not recovered (cancellation propagates) and the fallback receives the
    * unwrapped cause.
    */
   TaskChain<T> recover(Function<? super Throwable, ? extends T> fn);

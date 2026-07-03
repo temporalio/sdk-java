@@ -7,8 +7,8 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
- * Internal task handle over a {@link CompletableFuture} that manages cancellation
- * and tracks derived tasks.
+ * Internal task handle over a {@link CompletableFuture} that manages cancellation and tracks
+ * derived tasks.
  *
  * <p><strong>Continuation style.</strong> {@link #map}, {@link #recover}, and {@link #whenSettled}
  * chain follow-on work, mirroring {@code thenApply}/{@code exceptionally}/{@code whenComplete}.

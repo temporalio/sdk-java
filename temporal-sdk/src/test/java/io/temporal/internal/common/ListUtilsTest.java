@@ -16,7 +16,8 @@ public class ListUtilsTest {
   @Test
   public void flattensNestedCollectionsInOrder() {
     List<Integer> flat =
-        ListUtils.flatten(Arrays.asList(Arrays.asList(1, 2), Arrays.asList(3), Arrays.asList(4, 5)));
+        ListUtils.flatten(
+            Arrays.asList(Arrays.asList(1, 2), Arrays.asList(3), Arrays.asList(4, 5)));
 
     assertEquals(Arrays.asList(1, 2, 3, 4, 5), flat);
   }
