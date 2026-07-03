@@ -3173,11 +3173,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
     public UpdateWorkflowExecutionLifecycleStage getStage() {
       // A resolved outcome is terminal (a success result or a rejection/failure), so it always
-      // means
-      // COMPLETED. Checking it first keeps stage derivation independent of the order in which the
-      // `accepted` and `outcome` futures complete. The `accepted` future only distinguishes
-      // ADMITTED
-      // from ACCEPTED.
+      // means COMPLETED. Checking it first keeps stage derivation independent of the order in
+      // which the `accepted` and `outcome` futures complete. The `accepted` future only
+      // distinguishes ADMITTED from ACCEPTED.
       if (outcome.isDone()) {
         return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
       } else if (accepted.isDone()) {
