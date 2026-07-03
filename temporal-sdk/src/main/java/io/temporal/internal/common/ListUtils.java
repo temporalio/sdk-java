@@ -1,17 +1,17 @@
 package io.temporal.internal.common;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public final class ListUtils {
 
   private ListUtils() {}
 
-  public static <T> List<T> flatten(Collection<? extends Collection<? extends T>> collections) {
+  /** Concatenates a list of lists into a single list, preserving order. */
+  public static <T> List<T> flatten(List<? extends List<? extends T>> lists) {
     List<T> result = new ArrayList<>();
-    for (Collection<? extends T> collection : collections) {
-      result.addAll(collection);
+    for (List<? extends T> list : lists) {
+      result.addAll(list);
     }
     return result;
   }

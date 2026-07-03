@@ -6,11 +6,7 @@ import java.util.function.Function;
 /**
  * A settled outcome of a task: {@code SUCCESS}, {@code FAILURE}, or {@code CANCELLED}.
  *
- * <p>This is the element type returned by {@link TaskScope#awaitAllSettled}. It is the direct
- * analogue of JavaScript's {@code Promise.allSettled} result objects ({@code {status, value}} /
- * {@code {status, reason}}), with cancellation broken out as its own status because in the JVM a
- * cancelled task is meaningfully different from a task that threw — you usually don't want to log
- * it as an error or retry it.
+ * <p>This is the element type returned by {@link TaskScope#awaitAllSettled}.
  *
  * @param <T> the success value type
  */
