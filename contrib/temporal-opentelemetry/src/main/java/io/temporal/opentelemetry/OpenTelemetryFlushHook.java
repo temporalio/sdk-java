@@ -1,4 +1,4 @@
-package io.temporal.aws.lambda;
+package io.temporal.opentelemetry;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
@@ -10,19 +10,19 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class OpenTelemetryFlushHook implements TimedShutdownHook {
+/** Force-flushes OpenTelemetry providers without closing them. */
+public final class OpenTelemetryFlushHook implements TimedShutdownHook {
   private static final Logger log = LoggerFactory.getLogger(OpenTelemetryFlushHook.class);
 
   private final OpenTelemetry openTelemetry;
   private final Duration timeout;
-  private final LambdaWorker.NanoClock clock;
+  private final NanoClock clock;
 
-  OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout) {
+  public OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout) {
     this(openTelemetry, timeout, System::nanoTime);
   }
 
-  OpenTelemetryFlushHook(
-      OpenTelemetry openTelemetry, Duration timeout, LambdaWorker.NanoClock clock) {
+  OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout, NanoClock clock) {
     this.openTelemetry = Objects.requireNonNull(openTelemetry, "openTelemetry");
     this.timeout = Objects.requireNonNull(timeout, "timeout");
     this.clock = Objects.requireNonNull(clock, "clock");
@@ -38,6 +38,10 @@ final class OpenTelemetryFlushHook implements TimedShutdownHook {
     long deadlineNanos = clock.nanoTime() + min(timeout, this.timeout).toNanos();
     forceFlush(tracerProvider(), deadlineNanos);
     forceFlush(meterProvider(), deadlineNanos);
+  }
+
+  interface NanoClock {
+    long nanoTime();
   }
 
   private Object tracerProvider() {

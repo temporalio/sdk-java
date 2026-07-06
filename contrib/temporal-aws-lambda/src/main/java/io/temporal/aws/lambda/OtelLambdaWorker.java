@@ -1,47 +1,22 @@
 package io.temporal.aws.lambda;
 
-import com.uber.m3.tally.RootScopeBuilder;
-import com.uber.m3.tally.Scope;
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.common.AttributeKey;
-import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
-import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.contrib.awsxray.AwsXrayIdGenerator;
-import io.opentelemetry.exporter.otlp.metrics.OtlpGrpcMetricExporter;
-import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
-import io.opentelemetry.opentracingshim.OpenTracingShim;
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.metrics.SdkMeterProvider;
-import io.opentelemetry.sdk.metrics.export.MetricExporter;
-import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
-import io.opentelemetry.sdk.resources.Resource;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
-import io.opentelemetry.sdk.trace.export.SpanExporter;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.common.interceptors.WorkflowClientInterceptor;
-import io.temporal.opentracing.OpenTracingClientInterceptor;
-import io.temporal.opentracing.OpenTracingOptions;
-import io.temporal.opentracing.OpenTracingWorkerInterceptor;
-import io.temporal.worker.WorkerFactoryOptions;
+import io.opentelemetry.sdk.trace.IdGenerator;
+import io.temporal.opentelemetry.OpenTelemetryWorker;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
 /** OpenTelemetry helper for {@link LambdaWorker}. */
 public final class OtelLambdaWorker {
-  public static final String OTEL_EXPORTER_OTLP_ENDPOINT = "OTEL_EXPORTER_OTLP_ENDPOINT";
-  public static final String OTEL_SERVICE_NAME = "OTEL_SERVICE_NAME";
+  public static final String OTEL_EXPORTER_OTLP_ENDPOINT =
+      OpenTelemetryWorker.OTEL_EXPORTER_OTLP_ENDPOINT;
+  public static final String OTEL_SERVICE_NAME = OpenTelemetryWorker.OTEL_SERVICE_NAME;
   public static final String AWS_LAMBDA_FUNCTION_NAME = "AWS_LAMBDA_FUNCTION_NAME";
-  public static final String DEFAULT_OTLP_ENDPOINT = "http://localhost:4317";
+  public static final String DEFAULT_OTLP_ENDPOINT = OpenTelemetryWorker.DEFAULT_OTLP_ENDPOINT;
   public static final String DEFAULT_SERVICE_NAME = "temporal-lambda-worker";
-
-  private static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE =
-      AttributeKey.stringKey("service.name");
 
   private OtelLambdaWorker() {}
 
@@ -54,7 +29,7 @@ public final class OtelLambdaWorker {
   }
 
   public static String getDefaultEndpoint() {
-    return resolveEndpoint(System.getenv());
+    return OpenTelemetryWorker.getDefaultEndpoint();
   }
 
   public static String getDefaultServiceName() {
@@ -104,18 +79,12 @@ public final class OtelLambdaWorker {
       String serviceName,
       Duration reportInterval) {
     Objects.requireNonNull(options, "options");
-    OpenTelemetryStatsReporter reporter =
-        new OpenTelemetryStatsReporter(
-            Objects.requireNonNull(openTelemetry, "openTelemetry"),
-            Objects.requireNonNull(serviceName, "serviceName"));
-    Scope scope =
-        new RootScopeBuilder()
-            .reporter(reporter)
-            .reportEvery(
-                com.uber.m3.util.Duration.ofMillis(
-                    requirePositive(reportInterval, "reportInterval").toMillis()));
-    options.getWorkflowServiceStubsOptionsBuilder().setMetricsScope(scope);
-    options.addShutdownHook(new TallyScopeFlushHook(scope));
+    OpenTelemetryWorker.configureMetrics(
+        options.getWorkflowServiceStubsOptionsBuilder(),
+        options::addShutdownHook,
+        openTelemetry,
+        serviceName,
+        reportInterval);
   }
 
   /**
@@ -127,14 +96,10 @@ public final class OtelLambdaWorker {
   public static void configureTracing(
       LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry) {
     Objects.requireNonNull(options, "options");
-    OpenTracingOptions tracingOptions =
-        OpenTracingOptions.newBuilder()
-            .setTracer(
-                OpenTracingShim.createTracerShim(
-                    Objects.requireNonNull(openTelemetry, "openTelemetry")))
-            .build();
-    appendClientInterceptor(options, new OpenTracingClientInterceptor(tracingOptions));
-    appendWorkerInterceptor(options, new OpenTracingWorkerInterceptor(tracingOptions));
+    OpenTelemetryWorker.configureTracing(
+        options.getWorkflowClientOptionsBuilder(),
+        options.getWorkerFactoryOptionsBuilder(),
+        openTelemetry);
   }
 
   /**
@@ -145,15 +110,7 @@ public final class OtelLambdaWorker {
   public static void configureFlushHook(
       LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry, Duration flushTimeout) {
     Objects.requireNonNull(options, "options");
-    options.addShutdownHook(
-        new OpenTelemetryFlushHook(
-            Objects.requireNonNull(openTelemetry, "openTelemetry"),
-            requireNonNegative(flushTimeout, "flushTimeout")));
-  }
-
-  static String resolveEndpoint(Map<String, String> env) {
-    String endpoint = nonEmptyEnv(env, OTEL_EXPORTER_OTLP_ENDPOINT);
-    return endpoint == null ? DEFAULT_OTLP_ENDPOINT : endpoint;
+    OpenTelemetryWorker.configureFlushHook(options::addShutdownHook, openTelemetry, flushTimeout);
   }
 
   static String resolveServiceName(Map<String, String> env) {
@@ -167,16 +124,17 @@ public final class OtelLambdaWorker {
 
   public static final class Builder {
     private final Map<String, String> env;
+    private final OpenTelemetryWorker.Builder delegate;
     private OpenTelemetry openTelemetry;
-    private String endpoint;
     private String serviceName;
     private Duration metricsReportInterval = Duration.ofSeconds(1);
     private Duration flushTimeout = Duration.ofSeconds(10);
-    private Runnable flushHook;
-    private TelemetryFactory telemetryFactory = new DefaultTelemetryFactory();
+    private TelemetryFactory telemetryFactory;
 
     private Builder(Map<String, String> env) {
       this.env = Objects.requireNonNull(env, "env");
+      this.delegate =
+          OpenTelemetryWorker.newBuilder(env).setIdGenerator(AwsXrayIdGenerator.getInstance());
     }
 
     /**
@@ -184,41 +142,45 @@ public final class OtelLambdaWorker {
      */
     public Builder setOpenTelemetry(OpenTelemetry openTelemetry) {
       this.openTelemetry = Objects.requireNonNull(openTelemetry, "openTelemetry");
+      delegate.setOpenTelemetry(openTelemetry);
       return this;
     }
 
     /** Sets the OTLP metric and trace exporter endpoint used by the default SDK setup. */
     public Builder setEndpoint(String endpoint) {
-      this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
+      delegate.setEndpoint(endpoint);
       return this;
     }
 
     /** Sets the service name used by the default SDK resource and Temporal metrics reporter. */
     public Builder setServiceName(String serviceName) {
       this.serviceName = Objects.requireNonNull(serviceName, "serviceName");
+      delegate.setServiceName(serviceName);
       return this;
     }
 
     /** Sets the interval used by the Tally metrics scope and periodic metric reader. */
     public Builder setMetricsReportInterval(Duration metricsReportInterval) {
-      this.metricsReportInterval = requirePositive(metricsReportInterval, "metricsReportInterval");
+      delegate.setMetricsReportInterval(metricsReportInterval);
+      this.metricsReportInterval = metricsReportInterval;
       return this;
     }
 
     /** Sets how long the per-invocation OpenTelemetry flush hook waits for provider flushing. */
     public Builder setFlushTimeout(Duration flushTimeout) {
-      this.flushTimeout = requireNonNegative(flushTimeout, "flushTimeout");
+      delegate.setFlushTimeout(flushTimeout);
+      this.flushTimeout = flushTimeout;
       return this;
     }
 
     /** Overrides the per-invocation flush hook. */
     public Builder setFlushHook(Runnable flushHook) {
-      this.flushHook = Objects.requireNonNull(flushHook, "flushHook");
+      delegate.setFlushHook(flushHook);
       return this;
     }
 
     public String getEndpoint() {
-      return endpoint == null ? resolveEndpoint(env) : endpoint;
+      return delegate.getEndpoint();
     }
 
     public String getServiceName() {
@@ -231,64 +193,57 @@ public final class OtelLambdaWorker {
     }
 
     OpenTelemetry createOpenTelemetry() {
-      return telemetryFactory.create(
-          getEndpoint(), getServiceName(), metricsReportInterval, flushTimeout);
+      applyLambdaServiceNameDefault();
+      if (telemetryFactory != null) {
+        return openTelemetry == null ? getOrCreateTestOpenTelemetry() : openTelemetry;
+      }
+      return delegate.createOpenTelemetry();
     }
 
     void apply(LambdaWorkerOptions.Builder options) {
-      OpenTelemetry resolvedOpenTelemetry =
-          openTelemetry == null ? createOpenTelemetry() : openTelemetry;
-      configureMetrics(options, resolvedOpenTelemetry, getServiceName(), metricsReportInterval);
-      configureTracing(options, resolvedOpenTelemetry);
-      if (flushHook == null) {
-        configureFlushHook(options, resolvedOpenTelemetry, flushTimeout);
-      } else {
-        options.addShutdownHook(flushHook);
+      applyLambdaDefaults();
+      delegate.apply(
+          options.getWorkflowServiceStubsOptionsBuilder(),
+          options.getWorkflowClientOptionsBuilder(),
+          options.getWorkerFactoryOptionsBuilder(),
+          options::addShutdownHook);
+    }
+
+    private void applyLambdaDefaults() {
+      applyLambdaServiceNameDefault();
+      if (telemetryFactory != null && openTelemetry == null) {
+        delegate.setOpenTelemetry(getOrCreateTestOpenTelemetry());
       }
+    }
+
+    private void applyLambdaServiceNameDefault() {
+      delegate.setServiceName(getServiceName());
+    }
+
+    private OpenTelemetry getOrCreateTestOpenTelemetry() {
+      if (openTelemetry == null) {
+        openTelemetry = createTestOpenTelemetry();
+      }
+      return openTelemetry;
+    }
+
+    private OpenTelemetry createTestOpenTelemetry() {
+      return telemetryFactory.create(
+          getEndpoint(),
+          getServiceName(),
+          metricsReportInterval,
+          flushTimeout,
+          AwsXrayIdGenerator.getInstance());
     }
   }
 
   interface TelemetryFactory {
     OpenTelemetry create(
-        String endpoint, String serviceName, Duration metricsReportInterval, Duration flushTimeout);
-  }
-
-  private static final class DefaultTelemetryFactory implements TelemetryFactory {
-    @Override
-    public OpenTelemetry create(
         String endpoint,
         String serviceName,
         Duration metricsReportInterval,
-        Duration flushTimeout) {
-      Resource resource =
-          Resource.getDefault()
-              .merge(Resource.create(Attributes.of(SERVICE_NAME_ATTRIBUTE, serviceName)));
-      MetricExporter metricExporter =
-          OtlpGrpcMetricExporter.builder().setEndpoint(endpoint).build();
-      SpanExporter spanExporter = OtlpGrpcSpanExporter.builder().setEndpoint(endpoint).build();
-
-      SdkMeterProvider meterProvider =
-          SdkMeterProvider.builder()
-              .setResource(resource)
-              .registerMetricReader(
-                  PeriodicMetricReader.builder(metricExporter)
-                      .setInterval(metricsReportInterval)
-                      .build())
-              .build();
-      SdkTracerProvider tracerProvider =
-          SdkTracerProvider.builder()
-              .setResource(resource)
-              .setIdGenerator(AwsXrayIdGenerator.getInstance())
-              .addSpanProcessor(
-                  BatchSpanProcessor.builder(spanExporter).setExporterTimeout(flushTimeout).build())
-              .build();
-
-      return OpenTelemetrySdk.builder()
-          .setMeterProvider(meterProvider)
-          .setTracerProvider(tracerProvider)
-          .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
-          .build();
-    }
+        Duration flushTimeout,
+        IdGenerator idGenerator);
   }
 
   private static String nonEmptyEnv(Map<String, String> env, String name) {
@@ -297,47 +252,5 @@ public final class OtelLambdaWorker {
     }
     String value = env.get(name);
     return value == null || value.trim().isEmpty() ? null : value;
-  }
-
-  private static void appendClientInterceptor(
-      LambdaWorkerOptions.Builder options, WorkflowClientInterceptor interceptor) {
-    WorkflowClientOptions raw = options.getWorkflowClientOptionsBuilder().build();
-    WorkflowClientInterceptor[] existing = raw.getInterceptors();
-    int existingLength = existing == null ? 0 : existing.length;
-    WorkflowClientInterceptor[] interceptors =
-        existingLength == 0
-            ? new WorkflowClientInterceptor[1]
-            : Arrays.copyOf(existing, existingLength + 1);
-    interceptors[existingLength] = interceptor;
-    options.getWorkflowClientOptionsBuilder().setInterceptors(interceptors);
-  }
-
-  private static void appendWorkerInterceptor(
-      LambdaWorkerOptions.Builder options, WorkerInterceptor interceptor) {
-    WorkerFactoryOptions raw = options.getWorkerFactoryOptionsBuilder().build();
-    WorkerInterceptor[] existing = raw.getWorkerInterceptors();
-    int existingLength = existing == null ? 0 : existing.length;
-    WorkerInterceptor[] interceptors =
-        existingLength == 0
-            ? new WorkerInterceptor[1]
-            : Arrays.copyOf(existing, existingLength + 1);
-    interceptors[existingLength] = interceptor;
-    options.getWorkerFactoryOptionsBuilder().setWorkerInterceptors(interceptors);
-  }
-
-  private static Duration requirePositive(Duration value, String name) {
-    Objects.requireNonNull(value, name);
-    if (value.isZero() || value.isNegative()) {
-      throw new IllegalArgumentException(name + " must be positive");
-    }
-    return value;
-  }
-
-  private static Duration requireNonNegative(Duration value, String name) {
-    Objects.requireNonNull(value, name);
-    if (value.isNegative()) {
-      throw new IllegalArgumentException(name + " must not be negative");
-    }
-    return value;
   }
 }

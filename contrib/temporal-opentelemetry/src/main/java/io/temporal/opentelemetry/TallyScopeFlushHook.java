@@ -1,4 +1,4 @@
-package io.temporal.aws.lambda;
+package io.temporal.opentelemetry;
 
 import com.uber.m3.tally.Scope;
 import java.lang.reflect.InvocationTargetException;
@@ -7,12 +7,13 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-final class TallyScopeFlushHook implements Runnable {
+/** Reports buffered Tally metrics without closing the scope. */
+public final class TallyScopeFlushHook implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(TallyScopeFlushHook.class);
 
   private final Scope scope;
 
-  TallyScopeFlushHook(Scope scope) {
+  public TallyScopeFlushHook(Scope scope) {
     this.scope = Objects.requireNonNull(scope, "scope");
   }
 

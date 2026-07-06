@@ -1,4 +1,4 @@
-package io.temporal.aws.lambda;
+package io.temporal.opentelemetry;
 
 import com.uber.m3.tally.Capabilities;
 import com.uber.m3.tally.CapableOf;
@@ -18,14 +18,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
 
-final class OpenTelemetryStatsReporter implements StatsReporter {
+/** Tally reporter that emits Temporal metrics through OpenTelemetry. */
+public final class OpenTelemetryStatsReporter implements StatsReporter {
   private final Meter meter;
   private final String serviceName;
   private final ConcurrentMap<String, LongCounter> counters = new ConcurrentHashMap<>();
   private final ConcurrentMap<String, DoubleHistogram> timers = new ConcurrentHashMap<>();
   private final ConcurrentMap<MetricKey, GaugeHolder> gauges = new ConcurrentHashMap<>();
 
-  OpenTelemetryStatsReporter(OpenTelemetry openTelemetry, String serviceName) {
+  public OpenTelemetryStatsReporter(OpenTelemetry openTelemetry, String serviceName) {
     this.meter = Objects.requireNonNull(openTelemetry, "openTelemetry").getMeter("io.temporal");
     this.serviceName = Objects.requireNonNull(serviceName, "serviceName");
   }
@@ -37,7 +38,7 @@ final class OpenTelemetryStatsReporter implements StatsReporter {
 
   @Override
   public void flush() {
-    // OpenTelemetry SDK flushing is handled by OtelLambdaWorker's shutdown hook.
+    // OpenTelemetry SDK flushing is handled by OpenTelemetryWorker's shutdown hook.
   }
 
   @Override

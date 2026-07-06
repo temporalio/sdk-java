@@ -3,6 +3,7 @@ package io.temporal.aws.lambda;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 import io.temporal.common.WorkerDeploymentVersion;
+import io.temporal.opentelemetry.TimedShutdownHook;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;

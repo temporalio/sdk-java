@@ -9,6 +9,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.SimplePlugin;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.opentelemetry.TimedShutdownHook;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerFactoryOptions;
