@@ -100,6 +100,21 @@ public class TemporalOperationProcessorTest {
   }
 
   @Test
+  public void invokeStartHandler_readsInstanceField() throws Exception {
+    // The method handle must be bound to the @ServiceImpl instance so the user's method can
+    // read constructor-injected dependencies (workflow client, config, etc.) off `this`.
+    StatefulHandler instance = new StatefulHandler("injected");
+    java.lang.reflect.Method m =
+        StatefulHandler.class.getMethod(
+            "op", TemporalOperationStartContext.class, TemporalNexusClient.class, String.class);
+    java.lang.invoke.MethodHandle handle =
+        java.lang.invoke.MethodHandles.lookup().unreflect(m).bindTo(instance);
+    TemporalOperationResult<Object> result =
+        TemporalOperationProcessor.invokeStartHandler(handle, null, null, "input");
+    Assert.assertEquals("injected:input", result.getSyncResult());
+  }
+
+  @Test
   public void invokeStartHandler_propagatesRuntimeExceptionUnwrapped() throws Exception {
     // A RuntimeException thrown from a user @TemporalOperation method must arrive at the
     // caller without an InvocationTargetException or RuntimeException wrapper inserted by the
@@ -139,6 +154,32 @@ public class TemporalOperationProcessorTest {
         e.getMessage(),
         e.getMessage()
             .contains("must accept (TemporalOperationStartContext, TemporalNexusClient, I)"));
+  }
+
+  @Test
+  public void rejects_checkedExceptionInThrows() {
+    IllegalArgumentException e =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () -> TemporalOperationProcessor.process(new DeclaresCheckedException()));
+    Assert.assertTrue(
+        e.getMessage(),
+        e.getMessage()
+            .contains("may only declare OperationException or HandlerException as checked"));
+    Assert.assertTrue(e.getMessage(), e.getMessage().contains(java.io.IOException.class.getName()));
+  }
+
+  @Test
+  public void allows_runtimeExceptionInThrows() {
+    // Unchecked exceptions in the throws clause are fine — they don't constrain callers.
+    TemporalOperationProcessor.process(new DeclaresRuntimeException());
+  }
+
+  @Test
+  public void allows_nexusrpcCheckedExceptionsInThrows() {
+    // OperationException and HandlerException are the nexusrpc-sanctioned checked exceptions on
+    // OperationHandler.start, so we let them through.
+    TemporalOperationProcessor.process(new DeclaresNexusrpcCheckedExceptions());
   }
 
   @Test
@@ -243,6 +284,21 @@ public class TemporalOperationProcessorTest {
   }
 
   @ServiceImpl(service = SingleOpService.class)
+  public static class StatefulHandler {
+    private final String prefix;
+
+    public StatefulHandler(String prefix) {
+      this.prefix = prefix;
+    }
+
+    @TemporalOperation
+    public TemporalOperationResult<String> op(
+        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+      return TemporalOperationResult.sync(prefix + ":" + input);
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
   public static class ThrowingHandler {
     @TemporalOperation
     public TemporalOperationResult<String> op(
@@ -257,6 +313,36 @@ public class TemporalOperationProcessorTest {
     public TemporalOperationResult<Void> op(
         TemporalOperationStartContext ctx, TemporalNexusClient client, Void input) {
       return TemporalOperationResult.sync(null);
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
+  public static class DeclaresCheckedException {
+    @TemporalOperation
+    public TemporalOperationResult<String> op(
+        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+        throws java.io.IOException {
+      return TemporalOperationResult.sync(input);
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
+  public static class DeclaresRuntimeException {
+    @TemporalOperation
+    public TemporalOperationResult<String> op(
+        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+        throws IllegalStateException {
+      return TemporalOperationResult.sync(input);
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
+  public static class DeclaresNexusrpcCheckedExceptions {
+    @TemporalOperation
+    public TemporalOperationResult<String> op(
+        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+        throws io.nexusrpc.OperationException, io.nexusrpc.handler.HandlerException {
+      return TemporalOperationResult.sync(input);
     }
   }
 

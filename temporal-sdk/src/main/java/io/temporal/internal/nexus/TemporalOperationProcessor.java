@@ -3,7 +3,9 @@ package io.temporal.internal.nexus;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Primitives;
 import io.nexusrpc.OperationDefinition;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.ServiceDefinition;
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.MethodExtension;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImplInstance;
@@ -111,6 +113,19 @@ public final class TemporalOperationProcessor {
               + method.getGenericReturnType().getTypeName()
               + ". Use @OperationImpl for custom handler shapes.");
     }
+    for (Class<?> declared : method.getExceptionTypes()) {
+      if (!RuntimeException.class.isAssignableFrom(declared)
+          && !Error.class.isAssignableFrom(declared)
+          && !OperationException.class.isAssignableFrom(declared)
+          && !HandlerException.class.isAssignableFrom(declared)) {
+        throw new IllegalArgumentException(
+            "@TemporalOperation method "
+                + method.getName()
+                + " may only declare OperationException or HandlerException as checked"
+                + " exceptions; found "
+                + declared.getName());
+      }
+    }
   }
 
   private static void validateTypes(Method method, OperationDefinition operationDefinition) {
@@ -150,13 +165,17 @@ public final class TemporalOperationProcessor {
       MethodHandle handle,
       TemporalOperationStartContext ctx,
       TemporalNexusClient client,
-      Object input) {
+      Object input)
+      throws OperationException {
     try {
       return (TemporalOperationResult<Object>) handle.invoke(ctx, client, input);
-    } catch (RuntimeException | Error e) {
+    } catch (RuntimeException | Error | OperationException e) {
+      // HandlerException is a RuntimeException and falls into the RuntimeException arm.
       throw e;
     } catch (Throwable t) {
-      throw new RuntimeException("@TemporalOperation method threw checked exception", t);
+      // Unreachable: validateSignature rejects @TemporalOperation methods that declare
+      // any other checked exception, so MethodHandle.invoke cannot surface one here.
+      throw new AssertionError("@TemporalOperation method threw unexpected checked exception", t);
     }
   }
 

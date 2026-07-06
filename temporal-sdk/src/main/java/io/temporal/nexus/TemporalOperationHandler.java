@@ -62,7 +62,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
   public interface StartHandler<T, R> {
     TemporalOperationResult<R> apply(
         TemporalOperationStartContext context, TemporalNexusClient client, T input)
-        throws OperationException;
+        throws OperationException, HandlerException;
   }
 
   private final StartHandler<T, R> startHandler;
@@ -73,7 +73,8 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
   @Override
   public final OperationStartResult<R> start(
-      OperationContext ctx, OperationStartDetails details, T input) throws OperationException {
+      OperationContext ctx, OperationStartDetails details, T input)
+      throws OperationException, HandlerException {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
     TemporalNexusClient client =
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
