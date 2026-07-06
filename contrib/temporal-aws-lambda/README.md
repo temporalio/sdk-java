@@ -33,6 +33,21 @@ public final class Handler implements RequestHandler<Object, Void> {
 
 Connection options are loaded with `temporal-envconfig` when the handler is constructed during Lambda cold start. The Lambda worker checks `TEMPORAL_CONFIG_FILE` first, then readable `$LAMBDA_TASK_ROOT/temporal.toml`, then readable `./temporal.toml`, then falls back to the envconfig defaults and Temporal environment variables. The `configure` callback also runs during handler construction, so non-invocation configuration is prepared once and reused.
 
+Use the per-invocation configuration overload when final options depend on the Lambda `Context` or on resources opened for one invocation. The cold-start callback still runs once; the invocation callback runs before Temporal service stubs, client, and worker are created:
+
+```java
+private static final RequestHandler<Object, Void> WORKER =
+    LambdaWorker.run(
+        new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
+        builder -> builder.registerWorkflowImplementationTypes(OrderWorkflowImpl.class),
+        (builder, context) -> {
+          builder.setTaskQueue(taskQueueFor(context));
+          builder.addShutdownHook(() -> cleanupInvocationResources(context));
+        });
+```
+
+Each invocation receives a fresh copy of the base options, so mutations and shutdown hooks added by the invocation callback do not leak across warm invocations. If the invocation callback throws after adding shutdown hooks, those hooks still run for cleanup. Reusable resources such as AWS SDK clients should usually be created during cold start and reused across warm invocations.
+
 If you need to assemble options outside the `run` callback, call `LambdaWorkerOptions.newBuilderFromEnvironment()`, configure the returned builder, call `build()`, and pass the options to `LambdaWorker.newHandler(...)`.
 
 Dynamic workflow and activity implementations can be registered with `registerDynamicWorkflowImplementationType(...)` and `registerDynamicActivityImplementation(...)`. Java SDK worker rules still apply: only one dynamic workflow implementation type and one dynamic activity implementation can be registered per worker.

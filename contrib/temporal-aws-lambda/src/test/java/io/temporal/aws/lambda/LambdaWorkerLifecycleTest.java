@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -126,6 +127,156 @@ public class LambdaWorkerLifecycleTest {
 
     assertEquals(1, configureCount.get());
     assertEquals(2, runtime.createCount);
+  }
+
+  @Test
+  public void perInvocationConfigureRunsOncePerInvocation() {
+    AtomicInteger coldStartConfigureCount = new AtomicInteger();
+    AtomicInteger invocationConfigureCount = new AtomicInteger();
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {
+              coldStartConfigureCount.incrementAndGet();
+              options.setTaskQueue("task-queue");
+            },
+            (options, context) -> {
+              invocationConfigureCount.incrementAndGet();
+              options.getWorkflowClientOptionsBuilder().setNamespace(context.getAwsRequestId());
+            },
+            runtime);
+
+    assertEquals(1, coldStartConfigureCount.get());
+
+    handler.handleRequest(null, context(20_000, "request-1", "function-arn-1"));
+    assertEquals("request-1", runtime.clientOptions.getNamespace());
+
+    handler.handleRequest(null, context(20_000, "request-2", "function-arn-2"));
+    assertEquals("request-2", runtime.clientOptions.getNamespace());
+
+    assertEquals(1, coldStartConfigureCount.get());
+    assertEquals(2, invocationConfigureCount.get());
+    assertEquals(2, runtime.createCount);
+  }
+
+  @Test
+  public void perInvocationConfigureCanSupplyTaskQueue() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {},
+            (options, context) -> options.setTaskQueue(context.getAwsRequestId()),
+            runtime);
+
+    handler.handleRequest(null, context(20_000, "request-task-queue", "function-arn"));
+
+    assertEquals("request-task-queue", runtime.taskQueue);
+    assertEquals(1, runtime.createCount);
+  }
+
+  @Test
+  public void missingTaskQueueWithPerInvocationConfigureFailsDuringInvocation() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(options -> {}, (options, context) -> {}, runtime);
+
+    assertThrows(IllegalStateException.class, () -> handler.handleRequest(null, context(20_000)));
+
+    assertEquals(0, runtime.createCount);
+  }
+
+  @Test
+  public void perInvocationShutdownHooksDoNotAccumulateAcrossInvocations() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> options.setTaskQueue("task-queue"),
+            (options, context) ->
+                options.addShutdownHook(
+                    () -> runtime.events.add("hook:" + context.getAwsRequestId())),
+            runtime);
+
+    handler.handleRequest(null, context(20_000, "request-1", "function-arn"));
+    handler.handleRequest(null, context(20_000, "request-2", "function-arn"));
+
+    assertEquals(1, Collections.frequency(runtime.events, "hook:request-1"));
+    assertEquals(1, Collections.frequency(runtime.events, "hook:request-2"));
+  }
+
+  @Test
+  public void perInvocationShutdownHooksRunWhenConfigureThrows() {
+    FakeRuntime runtime = new FakeRuntime();
+    FakeNanoClock clock = new FakeNanoClock();
+    AtomicReference<Duration> hookTimeout = new AtomicReference<>();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {},
+            (options, context) -> {
+              options.setTaskQueue("task-queue");
+              options.addShutdownHook(
+                  new TimedShutdownHook() {
+                    @Override
+                    public void run() {
+                      run(Duration.ZERO);
+                    }
+
+                    @Override
+                    public void run(Duration timeout) {
+                      hookTimeout.set(timeout);
+                      runtime.events.add("cleanup");
+                    }
+                  });
+              throw new RuntimeException("configure failed");
+            },
+            runtime,
+            duration -> {},
+            clock);
+
+    RuntimeException e =
+        assertThrows(RuntimeException.class, () -> handler.handleRequest(null, context(20_000)));
+
+    assertEquals("configure failed", e.getMessage());
+    assertEquals(0, runtime.createCount);
+    assertEquals(Duration.ofSeconds(2), hookTimeout.get());
+    assertEquals(events("cleanup"), runtime.events);
+  }
+
+  @Test
+  public void perInvocationShutdownHooksRunWhenFinalValidationFails() {
+    FakeRuntime runtime = new FakeRuntime();
+    RequestHandler<Object, Void> handler =
+        handler(
+            options -> {},
+            (options, context) -> options.addShutdownHook(() -> runtime.events.add("cleanup")),
+            runtime);
+
+    assertThrows(IllegalStateException.class, () -> handler.handleRequest(null, context(20_000)));
+
+    assertEquals(0, runtime.createCount);
+    assertEquals(events("cleanup"), runtime.events);
+  }
+
+  @Test
+  public void newHandlerSupportsPerInvocationConfigure() throws IOException {
+    FakeRuntime runtime = new FakeRuntime();
+    LambdaWorkerOptions options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv()).build();
+    RequestHandler<Object, Void> handler =
+        LambdaWorker.newHandler(
+            VERSION,
+            options,
+            (builder, context) -> {
+              builder.setTaskQueue("task-queue");
+              builder.getWorkerOptionsBuilder().setIdentity("worker-" + context.getAwsRequestId());
+            },
+            runtime,
+            duration -> {},
+            new FakeNanoClock());
+
+    handler.handleRequest(null, context(20_000, "request-1", "function-arn"));
+
+    assertEquals("task-queue", runtime.taskQueue);
+    assertEquals("worker-request-1", runtime.workerOptions.getIdentity());
+    assertEquals("worker-request-1", runtime.clientOptions.getIdentity());
   }
 
   @Test
@@ -372,9 +523,25 @@ public class LambdaWorkerLifecycleTest {
 
   private RequestHandler<Object, Void> handler(
       java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
+      LambdaWorker.InvocationConfigurator invocationConfigure,
+      FakeRuntime runtime) {
+    return handler(configure, invocationConfigure, runtime, duration -> {});
+  }
+
+  private RequestHandler<Object, Void> handler(
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
     return handler(baseEnv(), configure, runtime, sleeper, new FakeNanoClock());
+  }
+
+  private RequestHandler<Object, Void> handler(
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
+      LambdaWorker.InvocationConfigurator invocationConfigure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper) {
+    return handler(
+        baseEnv(), configure, invocationConfigure, runtime, sleeper, new FakeNanoClock());
   }
 
   private RequestHandler<Object, Void> handler(
@@ -383,6 +550,15 @@ public class LambdaWorkerLifecycleTest {
       LambdaWorker.Sleeper sleeper,
       LambdaWorker.NanoClock clock) {
     return handler(baseEnv(), configure, runtime, sleeper, clock);
+  }
+
+  private RequestHandler<Object, Void> handler(
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
+      LambdaWorker.InvocationConfigurator invocationConfigure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper,
+      LambdaWorker.NanoClock clock) {
+    return handler(baseEnv(), configure, invocationConfigure, runtime, sleeper, clock);
   }
 
   private RequestHandler<Object, Void> handler(
@@ -403,6 +579,23 @@ public class LambdaWorkerLifecycleTest {
       LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env);
       configure.accept(options);
       return LambdaWorker.newHandler(VERSION, options.build(), runtime, sleeper, clock);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  private RequestHandler<Object, Void> handler(
+      Map<String, String> env,
+      java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
+      LambdaWorker.InvocationConfigurator invocationConfigure,
+      FakeRuntime runtime,
+      LambdaWorker.Sleeper sleeper,
+      LambdaWorker.NanoClock clock) {
+    try {
+      LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env);
+      configure.accept(options);
+      return LambdaWorker.newHandler(
+          VERSION, options.build(), invocationConfigure, runtime, sleeper, clock);
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -453,6 +646,7 @@ public class LambdaWorkerLifecycleTest {
     private int createCount;
     private WorkflowClientOptions clientOptions;
     private WorkerOptions workerOptions;
+    private String taskQueue;
 
     private FakeRuntime() {
       this(true, true, null, Duration.ZERO, false);
@@ -490,6 +684,7 @@ public class LambdaWorkerLifecycleTest {
       events.add("create");
       this.clientOptions = clientOptions;
       this.workerOptions = workerOptions;
+      this.taskQueue = taskQueue;
       return new FakeInvocation(
           events,
           gracefulTerminates,

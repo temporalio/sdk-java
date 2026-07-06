@@ -27,8 +27,9 @@ import java.util.Objects;
 /**
  * Configuration for Temporal workers running inside AWS Lambda invocations.
  *
- * <p>Instances are configured during handler construction and then copied for each invocation so
- * invocation identity can be added without rerunning user configuration.
+ * <p>Instances are immutable snapshots. Lambda handlers copy snapshots for each invocation so
+ * invocation identity and optional per-invocation configuration can be applied without mutating the
+ * base options.
  */
 public final class LambdaWorkerOptions {
   public static final String TEMPORAL_TASK_QUEUE = "TEMPORAL_TASK_QUEUE";
@@ -428,6 +429,10 @@ public final class LambdaWorkerOptions {
 
     public Duration getShutdownDeadlineBuffer() {
       return shutdownDeadlineBuffer;
+    }
+
+    List<Runnable> getShutdownHooks() {
+      return new ArrayList<>(shutdownHooks);
     }
 
     /**
