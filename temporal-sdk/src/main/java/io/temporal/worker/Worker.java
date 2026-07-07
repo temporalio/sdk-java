@@ -1072,7 +1072,8 @@ public final class Worker {
         .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
         .setDeploymentOptions(options.getDeploymentOptions())
         .setWorkerInstanceKey(workerInstanceKey)
-        .setWorkerControlTaskQueue(workerControlTaskQueue);
+        .setWorkerControlTaskQueue(workerControlTaskQueue)
+        .setPreferredVersionProvider(options.getPreferredVersionProvider());
   }
 
   /**

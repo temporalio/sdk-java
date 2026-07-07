@@ -27,6 +27,7 @@ import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.ReplayAwareLogger;
+import io.temporal.internal.replay.WorkflowInfoImpl;
 import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.workflow.*;

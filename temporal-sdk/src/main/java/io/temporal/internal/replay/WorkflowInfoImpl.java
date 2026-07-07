@@ -1,4 +1,4 @@
-package io.temporal.internal.sync;
+package io.temporal.internal.replay;
 
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -6,7 +6,6 @@ import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.internal.common.ProtoConverters;
-import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.WorkflowInfo;
 import java.time.Duration;
 import java.util.List;
@@ -14,11 +13,11 @@ import java.util.Optional;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class WorkflowInfoImpl implements WorkflowInfo {
+public final class WorkflowInfoImpl implements WorkflowInfo {
 
   private final ReplayWorkflowContext context;
 
-  WorkflowInfoImpl(ReplayWorkflowContext context) {
+  public WorkflowInfoImpl(ReplayWorkflowContext context) {
     this.context = context;
   }
 

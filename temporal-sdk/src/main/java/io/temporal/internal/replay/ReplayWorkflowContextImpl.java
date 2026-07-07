@@ -16,6 +16,8 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.statemachines.*;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.worker.PreferredVersionProvider;
+import io.temporal.worker.PreferredVersionProviderInput;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -38,6 +40,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   private final @Nullable String fullReplayDirectQueryName;
   private final Scope replayAwareWorkflowMetricsScope;
   private final SingleWorkerOptions workerOptions;
+  private final WorkflowInfoImpl workflowInfo;
 
   /**
    * @param fullReplayDirectQueryName query name if an execution is a full replay caused by a direct
@@ -61,6 +64,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     this.replayAwareWorkflowMetricsScope =
         new ReplayAwareScope(workflowMetricsScope, this, workflowStateMachines::currentTimeMillis);
     this.workerOptions = workerOptions;
+    this.workflowInfo = new WorkflowInfoImpl(this);
   }
 
   @Override
@@ -337,7 +341,17 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
-    return workflowStateMachines.getVersion(changeId, minSupported, maxSupported, callback);
+    PreferredVersionProvider preferredVersionProvider = workerOptions.getPreferredVersionProvider();
+    return workflowStateMachines.getVersion(
+        changeId,
+        minSupported,
+        maxSupported,
+        preferredVersionProvider == null
+            ? null
+            : (min, max) ->
+                preferredVersionProvider.getPreferredVersion(
+                    new PreferredVersionProviderInput(workflowInfo, changeId, min, max)),
+        callback);
   }
 
   @Override

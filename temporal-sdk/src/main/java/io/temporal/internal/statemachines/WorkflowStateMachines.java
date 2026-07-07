@@ -30,12 +30,14 @@ import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.serviceclient.Version;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.worker.VersionPreference;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.NexusOperationCancellationType;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -1244,6 +1246,15 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
+    return getVersion(changeId, minSupported, maxSupported, null, callback);
+  }
+
+  public Integer getVersion(
+      String changeId,
+      int minSupported,
+      int maxSupported,
+      @Nullable BiFunction<Integer, Integer, Optional<VersionPreference>> preferredVersionProvider,
+      Functions.Proc2<Integer, RuntimeException> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
             changeId,
@@ -1275,6 +1286,7 @@ public final class WorkflowStateMachines {
           }
           return sa;
         },
+        preferredVersionProvider,
         (v, e) -> {
           callback.apply(v, e);
           // without this getVersion call will trigger the end of WFT,

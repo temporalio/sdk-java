@@ -17,10 +17,12 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.worker.VersionPreference;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -39,6 +41,239 @@ public class VersionStateMachineTest {
 
   private WorkflowStateMachines newStateMachines(TestEntityManagerListenerBase listener) {
     return new WorkflowStateMachines(listener, stateMachineList::add);
+  }
+
+  @Test
+  public void testPreferredVersionIsRecorded() {
+    final int preferredVersion = 7;
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1",
+                        DEFAULT_VERSION,
+                        12,
+                        (min, max) -> Optional.of(VersionPreference.of(preferredVersion)),
+                        c))
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
+      }
+    }
+
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+
+    stateMachines = newStateMachines(new TestListener());
+    List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+
+    assertEquals(preferredVersion, getVersionFromMarker(commands.get(0)));
+    assertEquals(
+        preferredVersion,
+        (int)
+            converter.fromPayloads(
+                0,
+                Optional.of(
+                    commands.get(1).getCompleteWorkflowExecutionCommandAttributes().getResult()),
+                Integer.class,
+                Integer.class));
+  }
+
+  @Test
+  public void testPreferredVersionEmptyFallsBackToMaxSupported() {
+    final int maxSupported = 12;
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1", DEFAULT_VERSION, maxSupported, (min, max) -> Optional.empty(), c))
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
+      }
+    }
+
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+
+    stateMachines = newStateMachines(new TestListener());
+    List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+
+    assertEquals(maxSupported, getVersionFromMarker(commands.get(0)));
+  }
+
+  @Test
+  public void testPreferredVersionCalledOnceForChangeId() {
+    AtomicInteger providerCalls = new AtomicInteger();
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1",
+                        DEFAULT_VERSION,
+                        12,
+                        (min, max) -> {
+                          providerCalls.incrementAndGet();
+                          return Optional.of(VersionPreference.of(3));
+                        },
+                        c))
+            .<Integer, RuntimeException>add2(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1",
+                        DEFAULT_VERSION,
+                        12,
+                        (min, max) -> {
+                          providerCalls.incrementAndGet();
+                          return Optional.of(VersionPreference.of(4));
+                        },
+                        c))
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
+      }
+    }
+
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+
+    stateMachines = newStateMachines(new TestListener());
+    List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+
+    assertEquals(1, providerCalls.get());
+    assertEquals(3, getVersionFromMarker(commands.get(0)));
+  }
+
+  @Test
+  public void testPreferredVersionOutOfRangeThrows() {
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder.<Integer, RuntimeException>add2(
+            (v, c) ->
+                stateMachines.getVersion(
+                    "id1",
+                    DEFAULT_VERSION,
+                    1,
+                    (min, max) -> Optional.of(VersionPreference.of(2)),
+                    c));
+      }
+    }
+
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+
+    stateMachines = newStateMachines(new TestListener());
+    RuntimeException exception =
+        assertThrows(
+            RuntimeException.class, () -> h.handleWorkflowTaskTakeCommands(stateMachines, 1));
+
+    assertEquals(
+        "Version 2 of changeId id1 is not supported. Supported v is between -1 and 1.",
+        rootCause(exception).getMessage());
+  }
+
+  private Throwable rootCause(Throwable throwable) {
+    Throwable result = throwable;
+    while (result.getCause() != null) {
+      result = result.getCause();
+    }
+    return result;
+  }
+
+  @Test
+  public void testPreferredVersionCanClampToSupportedRange() {
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1",
+                        DEFAULT_VERSION,
+                        1,
+                        (min, max) -> Optional.of(VersionPreference.of(2).clampToSupportedRange()),
+                        c))
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
+      }
+    }
+
+    TestHistoryBuilder h =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTask();
+
+    stateMachines = newStateMachines(new TestListener());
+    List<Command> commands = h.handleWorkflowTaskTakeCommands(stateMachines, 1);
+
+    assertEquals(1, getVersionFromMarker(commands.get(0)));
+  }
+
+  @Test
+  public void testPreferredVersionProviderNotCalledDuringReplay() {
+    AtomicInteger providerCalls = new AtomicInteger();
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      public void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        builder
+            .<Integer, RuntimeException>add2(
+                (v, c) ->
+                    stateMachines.getVersion(
+                        "id1",
+                        DEFAULT_VERSION,
+                        12,
+                        (min, max) -> {
+                          providerCalls.incrementAndGet();
+                          return Optional.of(VersionPreference.of(4));
+                        },
+                        c))
+            .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
+      }
+    }
+
+    TestHistoryBuilder h =
+        historyWithVersionMarker("id1", 3).add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    stateMachines = newStateMachines(new TestListener());
+    h.handleWorkflowTaskTakeCommands(stateMachines);
+
+    assertEquals(0, providerCalls.get());
+  }
+
+  private int getVersionFromMarker(Command command) {
+    return converter.fromPayloads(
+        0,
+        Optional.ofNullable(
+            command
+                .getRecordMarkerCommandAttributes()
+                .getDetailsOrThrow(VersionMarkerUtils.MARKER_VERSION_KEY)),
+        Integer.class,
+        Integer.class);
+  }
+
+  private TestHistoryBuilder historyWithVersionMarker(String changeId, int version) {
+    MarkerRecordedEventAttributes.Builder markerBuilder =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(VersionMarkerUtils.MARKER_NAME)
+            .putDetails(
+                VersionMarkerUtils.MARKER_CHANGE_ID_KEY, converter.toPayloads(changeId).get())
+            .putDetails(VersionMarkerUtils.MARKER_VERSION_KEY, converter.toPayloads(version).get());
+    return new TestHistoryBuilder()
+        .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+        .addWorkflowTask()
+        .add(EventType.EVENT_TYPE_MARKER_RECORDED, markerBuilder.build());
   }
 
   @AfterClass
