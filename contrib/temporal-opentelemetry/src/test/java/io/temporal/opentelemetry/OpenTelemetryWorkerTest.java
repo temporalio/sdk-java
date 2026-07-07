@@ -222,7 +222,7 @@ public class OpenTelemetryWorkerTest {
 
   @Test
   public void flushHookUsesSmallerConfiguredAndCallerTimeout() {
-    FakeNanoClock clock = new FakeNanoClock();
+    FakeMonotonicClock clock = new FakeMonotonicClock();
     TimeoutRecordingOpenTelemetry openTelemetry = new TimeoutRecordingOpenTelemetry();
 
     new OpenTelemetryFlushHook(openTelemetry, Duration.ofMillis(250), clock)
@@ -231,7 +231,7 @@ public class OpenTelemetryWorkerTest {
     assertEquals(250, openTelemetry.tracerProvider.joinTimeoutMillis.get());
     assertEquals(250, openTelemetry.meterProvider.joinTimeoutMillis.get());
 
-    clock = new FakeNanoClock();
+    clock = new FakeMonotonicClock();
     openTelemetry = new TimeoutRecordingOpenTelemetry();
 
     new OpenTelemetryFlushHook(openTelemetry, Duration.ofSeconds(2), clock)
@@ -243,7 +243,7 @@ public class OpenTelemetryWorkerTest {
 
   @Test
   public void flushHookSpendsTimeoutOnceAcrossProviders() {
-    FakeNanoClock clock = new FakeNanoClock();
+    FakeMonotonicClock clock = new FakeMonotonicClock();
     TimeoutRecordingOpenTelemetry openTelemetry =
         new TimeoutRecordingOpenTelemetry(clock, Duration.ofMillis(150));
 
@@ -264,7 +264,7 @@ public class OpenTelemetryWorkerTest {
             .setMeterProvider(SdkMeterProvider.builder().registerMetricReader(metricReader).build())
             .build();
     try {
-      new OpenTelemetryFlushHook(sdk, Duration.ofSeconds(1), new FakeNanoClock())
+      new OpenTelemetryFlushHook(sdk, Duration.ofSeconds(1), new FakeMonotonicClock())
           .run(Duration.ofSeconds(1));
 
       assertEquals(1, spanProcessor.flushes.get());
@@ -471,7 +471,7 @@ public class OpenTelemetryWorkerTest {
       this(null, Duration.ZERO);
     }
 
-    private TimeoutRecordingOpenTelemetry(FakeNanoClock clock, Duration joinDuration) {
+    private TimeoutRecordingOpenTelemetry(FakeMonotonicClock clock, Duration joinDuration) {
       this.tracerProvider = new TimeoutRecordingTracerProvider(clock, joinDuration);
       this.meterProvider = new TimeoutRecordingMeterProvider(clock, joinDuration);
     }
@@ -494,10 +494,10 @@ public class OpenTelemetryWorkerTest {
 
   public static final class TimeoutRecordingTracerProvider implements TracerProvider {
     private final AtomicLong joinTimeoutMillis = new AtomicLong(-1);
-    private final FakeNanoClock clock;
+    private final FakeMonotonicClock clock;
     private final Duration joinDuration;
 
-    private TimeoutRecordingTracerProvider(FakeNanoClock clock, Duration joinDuration) {
+    private TimeoutRecordingTracerProvider(FakeMonotonicClock clock, Duration joinDuration) {
       this.clock = clock;
       this.joinDuration = joinDuration;
     }
@@ -519,10 +519,10 @@ public class OpenTelemetryWorkerTest {
 
   public static final class TimeoutRecordingMeterProvider implements MeterProvider {
     private final AtomicLong joinTimeoutMillis = new AtomicLong(-1);
-    private final FakeNanoClock clock;
+    private final FakeMonotonicClock clock;
     private final Duration joinDuration;
 
-    private TimeoutRecordingMeterProvider(FakeNanoClock clock, Duration joinDuration) {
+    private TimeoutRecordingMeterProvider(FakeMonotonicClock clock, Duration joinDuration) {
       this.clock = clock;
       this.joinDuration = joinDuration;
     }
@@ -539,11 +539,11 @@ public class OpenTelemetryWorkerTest {
 
   public static final class TimeoutRecordingResult {
     private final AtomicLong joinTimeoutMillis;
-    private final FakeNanoClock clock;
+    private final FakeMonotonicClock clock;
     private final Duration joinDuration;
 
     private TimeoutRecordingResult(
-        AtomicLong joinTimeoutMillis, FakeNanoClock clock, Duration joinDuration) {
+        AtomicLong joinTimeoutMillis, FakeMonotonicClock clock, Duration joinDuration) {
       this.joinTimeoutMillis = joinTimeoutMillis;
       this.clock = clock;
       this.joinDuration = joinDuration;
@@ -558,7 +558,7 @@ public class OpenTelemetryWorkerTest {
     }
   }
 
-  private static final class FakeNanoClock implements OpenTelemetryFlushHook.NanoClock {
+  private static final class FakeMonotonicClock implements OpenTelemetryFlushHook.MonotonicClock {
     private long nowNanos;
 
     @Override

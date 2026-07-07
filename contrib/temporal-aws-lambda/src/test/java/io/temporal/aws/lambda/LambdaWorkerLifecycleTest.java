@@ -207,7 +207,7 @@ public class LambdaWorkerLifecycleTest {
   @Test
   public void perInvocationShutdownHooksRunWhenConfigureThrows() {
     FakeRuntime runtime = new FakeRuntime();
-    FakeNanoClock clock = new FakeNanoClock();
+    FakeMonotonicClock clock = new FakeMonotonicClock();
     AtomicReference<Duration> hookTimeout = new AtomicReference<>();
     RequestHandler<Object, Void> handler =
         handler(
@@ -271,7 +271,7 @@ public class LambdaWorkerLifecycleTest {
             },
             runtime,
             duration -> {},
-            new FakeNanoClock());
+            new FakeMonotonicClock());
 
     handler.handleRequest(null, context(20_000, "request-1", "function-arn"));
 
@@ -416,7 +416,7 @@ public class LambdaWorkerLifecycleTest {
   @Test
   public void shutdownHooksAndStubsShareCleanupDeadline() {
     FakeRuntime runtime = new FakeRuntime();
-    FakeNanoClock clock = new FakeNanoClock();
+    FakeMonotonicClock clock = new FakeMonotonicClock();
     AtomicReference<Duration> hookTimeout = new AtomicReference<>();
     RequestHandler<Object, Void> handler =
         handler(
@@ -448,7 +448,7 @@ public class LambdaWorkerLifecycleTest {
 
   @Test
   public void workerShutdownEscalatesAfterGracefulTimeoutAndSharesCleanupDeadline() {
-    FakeNanoClock clock = new FakeNanoClock();
+    FakeMonotonicClock clock = new FakeMonotonicClock();
     FakeRuntime runtime = new FakeRuntime(false, true, clock, Duration.ofMillis(1500));
     RequestHandler<Object, Void> handler =
         handler(options -> options.setTaskQueue("task-queue"), runtime, duration -> {}, clock);
@@ -463,7 +463,7 @@ public class LambdaWorkerLifecycleTest {
 
   @Test
   public void workerShutdownEscalatesWhenGracefulAwaitThrows() {
-    FakeNanoClock clock = new FakeNanoClock();
+    FakeMonotonicClock clock = new FakeMonotonicClock();
     FakeRuntime runtime = new FakeRuntime(false, true, clock, Duration.ZERO, true);
     RequestHandler<Object, Void> handler =
         handler(options -> options.setTaskQueue("task-queue"), runtime, duration -> {}, clock);
@@ -533,7 +533,7 @@ public class LambdaWorkerLifecycleTest {
       java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
-    return handler(baseEnv(), configure, runtime, sleeper, new FakeNanoClock());
+    return handler(baseEnv(), configure, runtime, sleeper, new FakeMonotonicClock());
   }
 
   private RequestHandler<Object, Void> handler(
@@ -542,14 +542,14 @@ public class LambdaWorkerLifecycleTest {
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
     return handler(
-        baseEnv(), configure, invocationConfigure, runtime, sleeper, new FakeNanoClock());
+        baseEnv(), configure, invocationConfigure, runtime, sleeper, new FakeMonotonicClock());
   }
 
   private RequestHandler<Object, Void> handler(
       java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper,
-      LambdaWorker.NanoClock clock) {
+      LambdaWorker.MonotonicClock clock) {
     return handler(baseEnv(), configure, runtime, sleeper, clock);
   }
 
@@ -558,7 +558,7 @@ public class LambdaWorkerLifecycleTest {
       LambdaWorker.InvocationConfigurator invocationConfigure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper,
-      LambdaWorker.NanoClock clock) {
+      LambdaWorker.MonotonicClock clock) {
     return handler(baseEnv(), configure, invocationConfigure, runtime, sleeper, clock);
   }
 
@@ -567,7 +567,7 @@ public class LambdaWorkerLifecycleTest {
       java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper) {
-    return handler(env, configure, runtime, sleeper, new FakeNanoClock());
+    return handler(env, configure, runtime, sleeper, new FakeMonotonicClock());
   }
 
   private RequestHandler<Object, Void> handler(
@@ -575,7 +575,7 @@ public class LambdaWorkerLifecycleTest {
       java.util.function.Consumer<LambdaWorkerOptions.Builder> configure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper,
-      LambdaWorker.NanoClock clock) {
+      LambdaWorker.MonotonicClock clock) {
     try {
       LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env);
       configure.accept(options);
@@ -591,7 +591,7 @@ public class LambdaWorkerLifecycleTest {
       LambdaWorker.InvocationConfigurator invocationConfigure,
       FakeRuntime runtime,
       LambdaWorker.Sleeper sleeper,
-      LambdaWorker.NanoClock clock) {
+      LambdaWorker.MonotonicClock clock) {
     try {
       LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(env);
       configure.accept(options);
@@ -624,7 +624,7 @@ public class LambdaWorkerLifecycleTest {
     return result;
   }
 
-  private static final class FakeNanoClock implements LambdaWorker.NanoClock {
+  private static final class FakeMonotonicClock implements LambdaWorker.MonotonicClock {
     private long nowNanos;
 
     @Override
@@ -641,7 +641,7 @@ public class LambdaWorkerLifecycleTest {
     private final List<String> events = new ArrayList<>();
     private final boolean gracefulTerminates;
     private final boolean forcedTerminates;
-    private final FakeNanoClock clock;
+    private final FakeMonotonicClock clock;
     private final Duration forcedAwaitDuration;
     private final boolean gracefulAwaitThrows;
     private int createCount;
@@ -656,7 +656,7 @@ public class LambdaWorkerLifecycleTest {
     private FakeRuntime(
         boolean gracefulTerminates,
         boolean forcedTerminates,
-        FakeNanoClock clock,
+        FakeMonotonicClock clock,
         Duration forcedAwaitDuration) {
       this(gracefulTerminates, forcedTerminates, clock, forcedAwaitDuration, false);
     }
@@ -664,7 +664,7 @@ public class LambdaWorkerLifecycleTest {
     private FakeRuntime(
         boolean gracefulTerminates,
         boolean forcedTerminates,
-        FakeNanoClock clock,
+        FakeMonotonicClock clock,
         Duration forcedAwaitDuration,
         boolean gracefulAwaitThrows) {
       this.gracefulTerminates = gracefulTerminates;
@@ -701,7 +701,7 @@ public class LambdaWorkerLifecycleTest {
     private final WorkerRegistrar registrar;
     private final boolean gracefulTerminates;
     private final boolean forcedTerminates;
-    private final FakeNanoClock clock;
+    private final FakeMonotonicClock clock;
     private final Duration forcedAwaitDuration;
     private final boolean gracefulAwaitThrows;
     private boolean terminated;
@@ -711,7 +711,7 @@ public class LambdaWorkerLifecycleTest {
         List<String> events,
         boolean gracefulTerminates,
         boolean forcedTerminates,
-        FakeNanoClock clock,
+        FakeMonotonicClock clock,
         Duration forcedAwaitDuration,
         boolean gracefulAwaitThrows) {
       this.events = events;

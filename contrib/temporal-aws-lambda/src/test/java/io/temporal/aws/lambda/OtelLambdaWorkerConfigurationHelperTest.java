@@ -27,31 +27,37 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.Test;
 
-public class OtelLambdaWorkerTest {
+public class OtelLambdaWorkerConfigurationHelperTest {
   private static final WorkerDeploymentVersion VERSION =
       new WorkerDeploymentVersion("deployment", "build");
 
   @Test
   public void defaultsResolveEndpointAndServiceName() {
     assertEquals(
-        "http://localhost:4317", OtelLambdaWorker.newBuilder(new HashMap<>()).getEndpoint());
+        "http://localhost:4317",
+        OtelLambdaWorkerConfigurationHelper.newBuilder(new HashMap<>()).getEndpoint());
     assertEquals(
-        "temporal-lambda-worker", OtelLambdaWorker.newBuilder(new HashMap<>()).getServiceName());
+        "temporal-lambda-worker",
+        OtelLambdaWorkerConfigurationHelper.newBuilder(new HashMap<>()).getServiceName());
 
     Map<String, String> env = new HashMap<>();
-    env.put(OtelLambdaWorker.OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317");
-    env.put(OtelLambdaWorker.AWS_LAMBDA_FUNCTION_NAME, "function-name");
-    assertEquals("http://collector:4317", OtelLambdaWorker.newBuilder(env).getEndpoint());
-    assertEquals("function-name", OtelLambdaWorker.newBuilder(env).getServiceName());
+    env.put(
+        OtelLambdaWorkerConfigurationHelper.OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317");
+    env.put(OtelLambdaWorkerConfigurationHelper.AWS_LAMBDA_FUNCTION_NAME, "function-name");
+    assertEquals(
+        "http://collector:4317", OtelLambdaWorkerConfigurationHelper.newBuilder(env).getEndpoint());
+    assertEquals(
+        "function-name", OtelLambdaWorkerConfigurationHelper.newBuilder(env).getServiceName());
 
-    env.put(OtelLambdaWorker.OTEL_SERVICE_NAME, "explicit-service");
-    assertEquals("explicit-service", OtelLambdaWorker.newBuilder(env).getServiceName());
+    env.put(OtelLambdaWorkerConfigurationHelper.OTEL_SERVICE_NAME, "explicit-service");
+    assertEquals(
+        "explicit-service", OtelLambdaWorkerConfigurationHelper.newBuilder(env).getServiceName());
   }
 
   @Test
   public void defaultFactoryCreatesXRayTraceIds() {
     OpenTelemetry openTelemetry =
-        OtelLambdaWorker.newBuilder(new HashMap<>())
+        OtelLambdaWorkerConfigurationHelper.newBuilder(new HashMap<>())
             .setFlushTimeout(Duration.ofMillis(10))
             .createOpenTelemetry();
     long beforeSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
@@ -76,12 +82,13 @@ public class OtelLambdaWorkerTest {
   @Test
   public void exporterFactoryReceivesResolvedEndpointServiceNameAndIdGenerator() throws Exception {
     Map<String, String> env = new HashMap<>();
-    env.put(OtelLambdaWorker.OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317");
-    env.put(OtelLambdaWorker.AWS_LAMBDA_FUNCTION_NAME, "function-name");
+    env.put(
+        OtelLambdaWorkerConfigurationHelper.OTEL_EXPORTER_OTLP_ENDPOINT, "http://collector:4317");
+    env.put(OtelLambdaWorkerConfigurationHelper.AWS_LAMBDA_FUNCTION_NAME, "function-name");
     RecordingTelemetryFactory factory = new RecordingTelemetryFactory();
     LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
-    OtelLambdaWorker.newBuilder(env).setTelemetryFactory(factory).apply(options);
+    OtelLambdaWorkerConfigurationHelper.newBuilder(env).setTelemetryFactory(factory).apply(options);
 
     assertEquals(1, factory.creates.get());
     assertEquals("http://collector:4317", factory.endpoint);
@@ -94,7 +101,7 @@ public class OtelLambdaWorkerTest {
     RecordingTelemetryFactory factory = new RecordingTelemetryFactory();
     LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
-    OtelLambdaWorker.newBuilder(new HashMap<>())
+    OtelLambdaWorkerConfigurationHelper.newBuilder(new HashMap<>())
         .setTelemetryFactory(factory)
         .setOpenTelemetry(OpenTelemetry.noop())
         .apply(options);
@@ -107,7 +114,7 @@ public class OtelLambdaWorkerTest {
   public void metricsScopeAndTracingInterceptorsAreInstalled() throws Exception {
     LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
-    OtelLambdaWorker.configure(
+    OtelLambdaWorkerConfigurationHelper.configure(
         options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()).setFlushHook(() -> {}));
 
     assertNotNull(options.getWorkflowServiceStubsOptionsBuilder().build().getMetricsScope());
@@ -120,7 +127,8 @@ public class OtelLambdaWorkerTest {
   public void configureRegistersTallyFlushBeforeOpenTelemetryFlush() throws Exception {
     LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
-    OtelLambdaWorker.configure(options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()));
+    OtelLambdaWorkerConfigurationHelper.configure(
+        options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()));
     options.setTaskQueue("task-queue");
 
     List<Runnable> hooks = options.build().prepare(VERSION).materialize("identity").shutdownHooks;
@@ -137,7 +145,8 @@ public class OtelLambdaWorkerTest {
         handler(
             options -> {
               options.setTaskQueue("task-queue");
-              OtelLambdaWorker.configureFlushHook(options, openTelemetry, Duration.ofSeconds(10));
+              OtelLambdaWorkerConfigurationHelper.configureFlushHook(
+                  options, openTelemetry, Duration.ofSeconds(10));
             },
             runtime,
             duration -> {});
@@ -160,7 +169,7 @@ public class OtelLambdaWorkerTest {
         handler(
             options -> {
               options.setTaskQueue("task-queue");
-              OtelLambdaWorker.configure(
+              OtelLambdaWorkerConfigurationHelper.configure(
                   options, builder -> builder.setOpenTelemetry(openTelemetry));
             },
             runtime,
@@ -200,7 +209,7 @@ public class OtelLambdaWorkerTest {
   }
 
   private static final class RecordingTelemetryFactory
-      implements OtelLambdaWorker.TelemetryFactory {
+      implements OtelLambdaWorkerConfigurationHelper.TelemetryFactory {
     private final AtomicInteger creates = new AtomicInteger();
     private String endpoint;
     private String serviceName;

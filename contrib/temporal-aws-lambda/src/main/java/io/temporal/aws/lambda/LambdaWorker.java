@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,7 @@ public final class LambdaWorker {
    */
   @FunctionalInterface
   public interface InvocationConfigurator {
-    void configure(LambdaWorkerOptions.Builder builder, Context context);
+    void configure(@Nonnull LambdaWorkerOptions.Builder builder, @Nonnull Context context);
   }
 
   /**
@@ -42,7 +43,8 @@ public final class LambdaWorker {
    * @param configure callback invoked once while the Lambda handler is constructed.
    */
   public static RequestHandler<Object, Void> run(
-      WorkerDeploymentVersion version, Consumer<LambdaWorkerOptions.Builder> configure) {
+      @Nonnull WorkerDeploymentVersion version,
+      @Nonnull Consumer<LambdaWorkerOptions.Builder> configure) {
     LambdaWorkerOptions.validateVersion(version);
     Objects.requireNonNull(configure, "configure");
     try {
@@ -64,9 +66,9 @@ public final class LambdaWorker {
    *     stubs, client, and worker are created. Required fields may be supplied by this callback.
    */
   public static RequestHandler<Object, Void> run(
-      WorkerDeploymentVersion version,
-      Consumer<LambdaWorkerOptions.Builder> configure,
-      InvocationConfigurator invocationConfigure) {
+      @Nonnull WorkerDeploymentVersion version,
+      @Nonnull Consumer<LambdaWorkerOptions.Builder> configure,
+      @Nonnull InvocationConfigurator invocationConfigure) {
     LambdaWorkerOptions.validateVersion(version);
     Objects.requireNonNull(configure, "configure");
     Objects.requireNonNull(invocationConfigure, "invocationConfigure");
@@ -82,9 +84,9 @@ public final class LambdaWorker {
 
   /** Returns an AWS Lambda Java handler using already-configured Lambda worker options. */
   public static RequestHandler<Object, Void> newHandler(
-      WorkerDeploymentVersion version, LambdaWorkerOptions options) {
+      @Nonnull WorkerDeploymentVersion version, @Nonnull LambdaWorkerOptions options) {
     return newHandler(
-        version, options, new DefaultLambdaWorkerRuntime(), sleep(), systemNanoClock());
+        version, options, new DefaultLambdaWorkerRuntime(), sleep(), systemMonotonicClock());
   }
 
   /**
@@ -94,16 +96,16 @@ public final class LambdaWorker {
    * Required fields may be supplied by {@code invocationConfigure}.
    */
   public static RequestHandler<Object, Void> newHandler(
-      WorkerDeploymentVersion version,
-      LambdaWorkerOptions options,
-      InvocationConfigurator invocationConfigure) {
+      @Nonnull WorkerDeploymentVersion version,
+      @Nonnull LambdaWorkerOptions options,
+      @Nonnull InvocationConfigurator invocationConfigure) {
     return newHandler(
         version,
         options,
         invocationConfigure,
         new DefaultLambdaWorkerRuntime(),
         sleep(),
-        systemNanoClock());
+        systemMonotonicClock());
   }
 
   static RequestHandler<Object, Void> newHandler(
@@ -112,7 +114,7 @@ public final class LambdaWorker {
       LambdaWorkerRuntime runtime,
       Sleeper sleeper) {
     // This overload exists to let tests inject a fake runtime and sleeper.
-    return newHandler(version, options, runtime, sleeper, systemNanoClock());
+    return newHandler(version, options, runtime, sleeper, systemMonotonicClock());
   }
 
   static RequestHandler<Object, Void> newHandler(
@@ -122,7 +124,8 @@ public final class LambdaWorker {
       LambdaWorkerRuntime runtime,
       Sleeper sleeper) {
     // This overload exists to let tests inject a fake runtime and sleeper.
-    return newHandler(version, options, invocationConfigure, runtime, sleeper, systemNanoClock());
+    return newHandler(
+        version, options, invocationConfigure, runtime, sleeper, systemMonotonicClock());
   }
 
   static RequestHandler<Object, Void> newHandler(
@@ -130,7 +133,7 @@ public final class LambdaWorker {
       LambdaWorkerOptions options,
       LambdaWorkerRuntime runtime,
       Sleeper sleeper,
-      NanoClock clock) {
+      MonotonicClock clock) {
     // This overload exists to let tests inject a deterministic clock.
     return new Handler(
         Objects.requireNonNull(options, "options").prepare(version),
@@ -146,7 +149,7 @@ public final class LambdaWorker {
       InvocationConfigurator invocationConfigure,
       LambdaWorkerRuntime runtime,
       Sleeper sleeper,
-      NanoClock clock) {
+      MonotonicClock clock) {
     LambdaWorkerOptions.validateVersion(version);
     Objects.requireNonNull(options, "options");
     Objects.requireNonNull(invocationConfigure, "invocationConfigure");
@@ -174,11 +177,11 @@ public final class LambdaWorker {
     void sleep(Duration duration) throws InterruptedException;
   }
 
-  interface NanoClock {
+  interface MonotonicClock {
     long nanoTime();
   }
 
-  private static NanoClock systemNanoClock() {
+  private static MonotonicClock systemMonotonicClock() {
     return System::nanoTime;
   }
 
@@ -200,14 +203,14 @@ public final class LambdaWorker {
     private final OptionsMaterializer optionsMaterializer;
     private final LambdaWorkerRuntime runtime;
     private final Sleeper sleeper;
-    private final NanoClock clock;
+    private final MonotonicClock clock;
     private final boolean runShutdownHooksBeforeRuntimeCreation;
 
     private Handler(
-        LambdaWorkerOptions.Prepared preparedOptions,
+        LambdaWorkerOptions.Materialized preparedOptions,
         LambdaWorkerRuntime runtime,
         Sleeper sleeper,
-        NanoClock clock,
+        MonotonicClock clock,
         boolean runShutdownHooksBeforeRuntimeCreation) {
       this(
           context -> preparedOptions.materialize(identityFor(context)),
@@ -222,7 +225,7 @@ public final class LambdaWorker {
         OptionsMaterializer optionsMaterializer,
         LambdaWorkerRuntime runtime,
         Sleeper sleeper,
-        NanoClock clock) {
+        MonotonicClock clock) {
       this(optionsMaterializer, runtime, sleeper, clock, false);
     }
 
@@ -230,7 +233,7 @@ public final class LambdaWorker {
         OptionsMaterializer optionsMaterializer,
         LambdaWorkerRuntime runtime,
         Sleeper sleeper,
-        NanoClock clock,
+        MonotonicClock clock,
         boolean runShutdownHooksBeforeRuntimeCreation) {
       this.optionsMaterializer = Objects.requireNonNull(optionsMaterializer, "optionsMaterializer");
       this.runtime = runtime;

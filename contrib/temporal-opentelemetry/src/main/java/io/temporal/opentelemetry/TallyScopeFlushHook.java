@@ -4,6 +4,7 @@ import com.uber.m3.tally.Scope;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +14,7 @@ public final class TallyScopeFlushHook implements Runnable {
 
   private final Scope scope;
 
-  public TallyScopeFlushHook(Scope scope) {
+  public TallyScopeFlushHook(@Nonnull Scope scope) {
     this.scope = Objects.requireNonNull(scope, "scope");
   }
 

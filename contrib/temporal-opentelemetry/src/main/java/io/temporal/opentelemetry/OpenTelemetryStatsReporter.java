@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
 
 /** Tally reporter that emits Temporal metrics through OpenTelemetry. */
 public final class OpenTelemetryStatsReporter implements StatsReporter {
@@ -26,7 +27,8 @@ public final class OpenTelemetryStatsReporter implements StatsReporter {
   private final ConcurrentMap<String, DoubleHistogram> timers = new ConcurrentHashMap<>();
   private final ConcurrentMap<MetricKey, GaugeHolder> gauges = new ConcurrentHashMap<>();
 
-  public OpenTelemetryStatsReporter(OpenTelemetry openTelemetry, String serviceName) {
+  public OpenTelemetryStatsReporter(
+      @Nonnull OpenTelemetry openTelemetry, @Nonnull String serviceName) {
     this.meter = Objects.requireNonNull(openTelemetry, "openTelemetry").getMeter("io.temporal");
     this.serviceName = Objects.requireNonNull(serviceName, "serviceName");
   }

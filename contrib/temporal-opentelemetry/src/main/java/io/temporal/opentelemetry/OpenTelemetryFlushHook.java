@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,13 +17,13 @@ public final class OpenTelemetryFlushHook implements TimedShutdownHook {
 
   private final OpenTelemetry openTelemetry;
   private final Duration timeout;
-  private final NanoClock clock;
+  private final MonotonicClock clock;
 
-  public OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout) {
+  public OpenTelemetryFlushHook(@Nonnull OpenTelemetry openTelemetry, @Nonnull Duration timeout) {
     this(openTelemetry, timeout, System::nanoTime);
   }
 
-  OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout, NanoClock clock) {
+  OpenTelemetryFlushHook(OpenTelemetry openTelemetry, Duration timeout, MonotonicClock clock) {
     this.openTelemetry = Objects.requireNonNull(openTelemetry, "openTelemetry");
     this.timeout = Objects.requireNonNull(timeout, "timeout");
     this.clock = Objects.requireNonNull(clock, "clock");
@@ -34,13 +35,13 @@ public final class OpenTelemetryFlushHook implements TimedShutdownHook {
   }
 
   @Override
-  public void run(Duration timeout) {
+  public void run(@Nonnull Duration timeout) {
     long deadlineNanos = clock.nanoTime() + min(timeout, this.timeout).toNanos();
     forceFlush(tracerProvider(), deadlineNanos);
     forceFlush(meterProvider(), deadlineNanos);
   }
 
-  interface NanoClock {
+  interface MonotonicClock {
     long nanoTime();
   }
 

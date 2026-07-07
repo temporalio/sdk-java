@@ -31,9 +31,9 @@ public final class Handler implements RequestHandler<Object, Void> {
 
 `TEMPORAL_TASK_QUEUE` can provide the task queue. If it is not set, call `setTaskQueue`.
 
-Connection options are loaded with `temporal-envconfig` when the handler is constructed during Lambda cold start. The Lambda worker checks `TEMPORAL_CONFIG_FILE` first, then readable `$LAMBDA_TASK_ROOT/temporal.toml`, then readable `./temporal.toml`, then falls back to the envconfig defaults and Temporal environment variables. The `configure` callback also runs during handler construction, so non-invocation configuration is prepared once and reused.
+Connection options are loaded with `temporal-envconfig` when the handler is constructed during Lambda cold start. The Lambda worker checks `TEMPORAL_CONFIG_FILE` first, then `$LAMBDA_TASK_ROOT/temporal.toml`, then `./temporal.toml`, then falls back to the envconfig defaults and Temporal environment variables. The `configure` callback, passed as the second parameter to `LambdaWorker.run`, also runs during handler construction, so non-invocation configuration is prepared once and reused.
 
-Use the per-invocation configuration overload when final options depend on the Lambda `Context` or on resources opened for one invocation. The cold-start callback still runs once; the invocation callback runs before Temporal service stubs, client, and worker are created:
+Use the per-invocation configuration overload when final options depend on the Lambda `Context` or on resources opened for one invocation. The cold-start `configure` callback passed as the second parameter to `LambdaWorker.run` still runs once; the invocation callback runs before Temporal service stubs, client, and worker are created:
 
 ```java
 private static final RequestHandler<Object, Void> WORKER =
@@ -59,14 +59,14 @@ If you explicitly set `shutdownDeadlineBuffer`, it must be greater than or equal
 
 ## OpenTelemetry
 
-`OtelLambdaWorker.configure(builder)` is a Lambda-specific facade over `temporal-opentelemetry`. It creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters. To enable it, call the helper from the handler initializer:
+`OtelLambdaWorkerConfigurationHelper.configure(builder)` is a Lambda-specific facade over `temporal-opentelemetry`. It creates an OpenTelemetry SDK with OTLP metric and trace exporters by default, uses AWS X-Ray-compatible trace ID generation, installs an OpenTelemetry-backed Tally metrics scope, configures tracing through the SDK OpenTracing interceptor path, and registers per-invocation flush hooks. The metrics hook reports buffered Tally values before the OpenTelemetry provider hook force-flushes exporters. To enable it, call the helper from the handler initializer:
 
 ```java
 private static final RequestHandler<Object, Void> WORKER =
 	    LambdaWorker.run(
 	        new WorkerDeploymentVersion("orders-worker", "2026-06-02"),
 	        builder -> {
-	          OtelLambdaWorker.configure(builder);
+	          OtelLambdaWorkerConfigurationHelper.configure(builder);
 	          builder
 	              .setTaskQueue("orders")
 	              .registerWorkflowImplementationTypes(OrderWorkflowImpl.class);
@@ -75,6 +75,6 @@ private static final RequestHandler<Object, Void> WORKER =
 
 The helper defaults the OTLP endpoint from `OTEL_EXPORTER_OTLP_ENDPOINT`, then `http://localhost:4317`. It defaults the service name from `OTEL_SERVICE_NAME`, then `AWS_LAMBDA_FUNCTION_NAME`, then `temporal-lambda-worker`, and sets it on the OpenTelemetry resource. To use an application-owned provider, call `builder.setOpenTelemetry(...)`; in that path, no exporters are created and the helper only installs the metrics scope, interceptors, and per-invocation flush hook. Providers and scopes are not closed after each invocation.
 
-Use `OtelLambdaWorker.configureMetrics(...)`, `OtelLambdaWorker.configureTracing(...)`, and `OtelLambdaWorker.configureFlushHook(...)` when you want to compose metrics, tracing, or provider flushing separately around an application-owned OpenTelemetry instance. Use `temporal-opentelemetry` directly for non-Lambda serverless adapters or long-running workers.
+Use `OtelLambdaWorkerConfigurationHelper.configureMetrics(...)`, `OtelLambdaWorkerConfigurationHelper.configureTracing(...)`, and `OtelLambdaWorkerConfigurationHelper.configureFlushHook(...)` when you want to compose metrics, tracing, or provider flushing separately around an application-owned OpenTelemetry instance. Use `temporal-opentelemetry` directly for non-Lambda serverless adapters or long-running workers.
 
 For Java logging, this module depends on `slf4j-api` only. It does not bundle a runtime logging binding, so Lambda log formatting remains owned by the application.

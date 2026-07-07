@@ -8,9 +8,10 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 
-/** OpenTelemetry helper for {@link LambdaWorker}. */
-public final class OtelLambdaWorker {
+/** OpenTelemetry configuration helper for {@link LambdaWorker}. */
+public final class OtelLambdaWorkerConfigurationHelper {
   public static final String OTEL_EXPORTER_OTLP_ENDPOINT =
       OpenTelemetryWorker.OTEL_EXPORTER_OTLP_ENDPOINT;
   public static final String OTEL_SERVICE_NAME = OpenTelemetryWorker.OTEL_SERVICE_NAME;
@@ -18,7 +19,7 @@ public final class OtelLambdaWorker {
   public static final String DEFAULT_OTLP_ENDPOINT = OpenTelemetryWorker.DEFAULT_OTLP_ENDPOINT;
   public static final String DEFAULT_SERVICE_NAME = "temporal-lambda-worker";
 
-  private OtelLambdaWorker() {}
+  private OtelLambdaWorkerConfigurationHelper() {}
 
   public static Builder newBuilder() {
     return new Builder(System.getenv());
@@ -36,7 +37,7 @@ public final class OtelLambdaWorker {
     return resolveServiceName(System.getenv());
   }
 
-  public static void configure(LambdaWorkerOptions.Builder options) {
+  public static void configure(@Nonnull LambdaWorkerOptions.Builder options) {
     configure(options, builder -> {});
   }
 
@@ -47,7 +48,8 @@ public final class OtelLambdaWorker {
    * AWS X-Ray-compatible trace ID generation. If {@link Builder#setOpenTelemetry(OpenTelemetry)} is
    * used, the provided instance is used instead and exporters are not created.
    */
-  public static void configure(LambdaWorkerOptions.Builder options, Consumer<Builder> configure) {
+  public static void configure(
+      @Nonnull LambdaWorkerOptions.Builder options, @Nonnull Consumer<Builder> configure) {
     Objects.requireNonNull(options, "options");
     Builder builder = newBuilder();
     Objects.requireNonNull(configure, "configure").accept(builder);
@@ -62,7 +64,7 @@ public final class OtelLambdaWorker {
    * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(
-      LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry) {
+      @Nonnull LambdaWorkerOptions.Builder options, @Nonnull OpenTelemetry openTelemetry) {
     configureMetrics(options, openTelemetry, getDefaultServiceName(), Duration.ofSeconds(1));
   }
 
@@ -74,10 +76,10 @@ public final class OtelLambdaWorker {
    * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(
-      LambdaWorkerOptions.Builder options,
-      OpenTelemetry openTelemetry,
-      String serviceName,
-      Duration reportInterval) {
+      @Nonnull LambdaWorkerOptions.Builder options,
+      @Nonnull OpenTelemetry openTelemetry,
+      @Nonnull String serviceName,
+      @Nonnull Duration reportInterval) {
     Objects.requireNonNull(options, "options");
     OpenTelemetryWorker.configureMetrics(
         options.getWorkflowServiceStubsOptionsBuilder(),
@@ -94,7 +96,7 @@ public final class OtelLambdaWorker {
    * flush hook.
    */
   public static void configureTracing(
-      LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry) {
+      @Nonnull LambdaWorkerOptions.Builder options, @Nonnull OpenTelemetry openTelemetry) {
     Objects.requireNonNull(options, "options");
     OpenTelemetryWorker.configureTracing(
         options.getWorkflowClientOptionsBuilder(),
@@ -108,7 +110,9 @@ public final class OtelLambdaWorker {
    * <p>This helper only registers the flush hook. It does not configure metrics or tracing.
    */
   public static void configureFlushHook(
-      LambdaWorkerOptions.Builder options, OpenTelemetry openTelemetry, Duration flushTimeout) {
+      @Nonnull LambdaWorkerOptions.Builder options,
+      @Nonnull OpenTelemetry openTelemetry,
+      @Nonnull Duration flushTimeout) {
     Objects.requireNonNull(options, "options");
     OpenTelemetryWorker.configureFlushHook(options::addShutdownHook, openTelemetry, flushTimeout);
   }
@@ -140,41 +144,41 @@ public final class OtelLambdaWorker {
     /**
      * Uses an application-owned OpenTelemetry instance instead of creating an SDK and exporters.
      */
-    public Builder setOpenTelemetry(OpenTelemetry openTelemetry) {
+    public Builder setOpenTelemetry(@Nonnull OpenTelemetry openTelemetry) {
       this.openTelemetry = Objects.requireNonNull(openTelemetry, "openTelemetry");
       delegate.setOpenTelemetry(openTelemetry);
       return this;
     }
 
     /** Sets the OTLP metric and trace exporter endpoint used by the default SDK setup. */
-    public Builder setEndpoint(String endpoint) {
+    public Builder setEndpoint(@Nonnull String endpoint) {
       delegate.setEndpoint(endpoint);
       return this;
     }
 
     /** Sets the service name used by the default SDK resource and Temporal metrics reporter. */
-    public Builder setServiceName(String serviceName) {
+    public Builder setServiceName(@Nonnull String serviceName) {
       this.serviceName = Objects.requireNonNull(serviceName, "serviceName");
       delegate.setServiceName(serviceName);
       return this;
     }
 
     /** Sets the interval used by the Tally metrics scope and periodic metric reader. */
-    public Builder setMetricsReportInterval(Duration metricsReportInterval) {
+    public Builder setMetricsReportInterval(@Nonnull Duration metricsReportInterval) {
       delegate.setMetricsReportInterval(metricsReportInterval);
       this.metricsReportInterval = metricsReportInterval;
       return this;
     }
 
     /** Sets how long the per-invocation OpenTelemetry flush hook waits for provider flushing. */
-    public Builder setFlushTimeout(Duration flushTimeout) {
+    public Builder setFlushTimeout(@Nonnull Duration flushTimeout) {
       delegate.setFlushTimeout(flushTimeout);
       this.flushTimeout = flushTimeout;
       return this;
     }
 
     /** Overrides the per-invocation flush hook. */
-    public Builder setFlushHook(Runnable flushHook) {
+    public Builder setFlushHook(@Nonnull Runnable flushHook) {
       delegate.setFlushHook(flushHook);
       return this;
     }

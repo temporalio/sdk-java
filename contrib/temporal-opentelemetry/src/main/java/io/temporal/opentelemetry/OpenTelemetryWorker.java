@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import javax.annotation.Nonnull;
 
 /** OpenTelemetry helper for Temporal workers. */
 public final class OpenTelemetryWorker {
@@ -50,7 +51,7 @@ public final class OpenTelemetryWorker {
     return new Builder(System.getenv());
   }
 
-  public static Builder newBuilder(Map<String, String> env) {
+  public static Builder newBuilder(@Nonnull Map<String, String> env) {
     return new Builder(env);
   }
 
@@ -63,10 +64,10 @@ public final class OpenTelemetryWorker {
   }
 
   public static void configure(
-      WorkflowServiceStubsOptions.Builder serviceStubsOptions,
-      WorkflowClientOptions.Builder clientOptions,
-      WorkerFactoryOptions.Builder workerFactoryOptions,
-      Consumer<Runnable> addShutdownHook) {
+      @Nonnull WorkflowServiceStubsOptions.Builder serviceStubsOptions,
+      @Nonnull WorkflowClientOptions.Builder clientOptions,
+      @Nonnull WorkerFactoryOptions.Builder workerFactoryOptions,
+      @Nonnull Consumer<Runnable> addShutdownHook) {
     configure(
         serviceStubsOptions, clientOptions, workerFactoryOptions, addShutdownHook, builder -> {});
   }
@@ -79,11 +80,11 @@ public final class OpenTelemetryWorker {
    * and exporters are not created.
    */
   public static void configure(
-      WorkflowServiceStubsOptions.Builder serviceStubsOptions,
-      WorkflowClientOptions.Builder clientOptions,
-      WorkerFactoryOptions.Builder workerFactoryOptions,
-      Consumer<Runnable> addShutdownHook,
-      Consumer<Builder> configure) {
+      @Nonnull WorkflowServiceStubsOptions.Builder serviceStubsOptions,
+      @Nonnull WorkflowClientOptions.Builder clientOptions,
+      @Nonnull WorkerFactoryOptions.Builder workerFactoryOptions,
+      @Nonnull Consumer<Runnable> addShutdownHook,
+      @Nonnull Consumer<Builder> configure) {
     Builder builder = newBuilder();
     Objects.requireNonNull(configure, "configure").accept(builder);
     builder.apply(serviceStubsOptions, clientOptions, workerFactoryOptions, addShutdownHook);
@@ -97,9 +98,9 @@ public final class OpenTelemetryWorker {
    * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(
-      WorkflowServiceStubsOptions.Builder serviceStubsOptions,
-      Consumer<Runnable> addShutdownHook,
-      OpenTelemetry openTelemetry) {
+      @Nonnull WorkflowServiceStubsOptions.Builder serviceStubsOptions,
+      @Nonnull Consumer<Runnable> addShutdownHook,
+      @Nonnull OpenTelemetry openTelemetry) {
     configureMetrics(
         serviceStubsOptions,
         addShutdownHook,
@@ -116,11 +117,11 @@ public final class OpenTelemetryWorker {
    * OpenTelemetry provider flush hook.
    */
   public static void configureMetrics(
-      WorkflowServiceStubsOptions.Builder serviceStubsOptions,
-      Consumer<Runnable> addShutdownHook,
-      OpenTelemetry openTelemetry,
-      String serviceName,
-      Duration reportInterval) {
+      @Nonnull WorkflowServiceStubsOptions.Builder serviceStubsOptions,
+      @Nonnull Consumer<Runnable> addShutdownHook,
+      @Nonnull OpenTelemetry openTelemetry,
+      @Nonnull String serviceName,
+      @Nonnull Duration reportInterval) {
     Objects.requireNonNull(serviceStubsOptions, "serviceStubsOptions");
     Objects.requireNonNull(addShutdownHook, "addShutdownHook");
     OpenTelemetryStatsReporter reporter =
@@ -144,9 +145,9 @@ public final class OpenTelemetryWorker {
    * flush hook.
    */
   public static void configureTracing(
-      WorkflowClientOptions.Builder clientOptions,
-      WorkerFactoryOptions.Builder workerFactoryOptions,
-      OpenTelemetry openTelemetry) {
+      @Nonnull WorkflowClientOptions.Builder clientOptions,
+      @Nonnull WorkerFactoryOptions.Builder workerFactoryOptions,
+      @Nonnull OpenTelemetry openTelemetry) {
     Objects.requireNonNull(clientOptions, "clientOptions");
     Objects.requireNonNull(workerFactoryOptions, "workerFactoryOptions");
     OpenTracingOptions tracingOptions =
@@ -165,7 +166,9 @@ public final class OpenTelemetryWorker {
    * <p>This helper only registers the flush hook. It does not configure metrics or tracing.
    */
   public static void configureFlushHook(
-      Consumer<Runnable> addShutdownHook, OpenTelemetry openTelemetry, Duration flushTimeout) {
+      @Nonnull Consumer<Runnable> addShutdownHook,
+      @Nonnull OpenTelemetry openTelemetry,
+      @Nonnull Duration flushTimeout) {
     Objects.requireNonNull(addShutdownHook, "addShutdownHook");
     addShutdownHook.accept(
         new OpenTelemetryFlushHook(
@@ -201,43 +204,43 @@ public final class OpenTelemetryWorker {
     /**
      * Uses an application-owned OpenTelemetry instance instead of creating an SDK and exporters.
      */
-    public Builder setOpenTelemetry(OpenTelemetry openTelemetry) {
+    public Builder setOpenTelemetry(@Nonnull OpenTelemetry openTelemetry) {
       this.openTelemetry = Objects.requireNonNull(openTelemetry, "openTelemetry");
       return this;
     }
 
     /** Sets the OTLP metric and trace exporter endpoint used by the default SDK setup. */
-    public Builder setEndpoint(String endpoint) {
+    public Builder setEndpoint(@Nonnull String endpoint) {
       this.endpoint = Objects.requireNonNull(endpoint, "endpoint");
       return this;
     }
 
     /** Sets the service name used by the default SDK resource and Temporal metrics reporter. */
-    public Builder setServiceName(String serviceName) {
+    public Builder setServiceName(@Nonnull String serviceName) {
       this.serviceName = Objects.requireNonNull(serviceName, "serviceName");
       return this;
     }
 
     /** Sets the interval used by the Tally metrics scope and periodic metric reader. */
-    public Builder setMetricsReportInterval(Duration metricsReportInterval) {
+    public Builder setMetricsReportInterval(@Nonnull Duration metricsReportInterval) {
       this.metricsReportInterval = requirePositive(metricsReportInterval, "metricsReportInterval");
       return this;
     }
 
     /** Sets how long the OpenTelemetry flush hook waits for provider flushing. */
-    public Builder setFlushTimeout(Duration flushTimeout) {
+    public Builder setFlushTimeout(@Nonnull Duration flushTimeout) {
       this.flushTimeout = requireNonNegative(flushTimeout, "flushTimeout");
       return this;
     }
 
     /** Overrides the OpenTelemetry provider flush hook. */
-    public Builder setFlushHook(Runnable flushHook) {
+    public Builder setFlushHook(@Nonnull Runnable flushHook) {
       this.flushHook = Objects.requireNonNull(flushHook, "flushHook");
       return this;
     }
 
     /** Sets the trace ID generator used by the default SDK setup. */
-    public Builder setIdGenerator(IdGenerator idGenerator) {
+    public Builder setIdGenerator(@Nonnull IdGenerator idGenerator) {
       this.idGenerator = Objects.requireNonNull(idGenerator, "idGenerator");
       return this;
     }
@@ -261,10 +264,10 @@ public final class OpenTelemetryWorker {
     }
 
     public void apply(
-        WorkflowServiceStubsOptions.Builder serviceStubsOptions,
-        WorkflowClientOptions.Builder clientOptions,
-        WorkerFactoryOptions.Builder workerFactoryOptions,
-        Consumer<Runnable> addShutdownHook) {
+        @Nonnull WorkflowServiceStubsOptions.Builder serviceStubsOptions,
+        @Nonnull WorkflowClientOptions.Builder clientOptions,
+        @Nonnull WorkerFactoryOptions.Builder workerFactoryOptions,
+        @Nonnull Consumer<Runnable> addShutdownHook) {
       OpenTelemetry resolvedOpenTelemetry =
           openTelemetry == null ? createOpenTelemetry() : openTelemetry;
       configureMetrics(

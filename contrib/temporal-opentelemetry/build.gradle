@@ -12,6 +12,7 @@ dependencies {
     // be using a shaded artifact.
     compileOnly project(':temporal-serviceclient')
     compileOnly project(':temporal-sdk')
+    compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
 
     api "com.uber.m3:tally-core:$tallyVersion"
     api "io.opentelemetry:opentelemetry-api"
