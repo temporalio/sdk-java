@@ -23,6 +23,8 @@ public final class OtelLambdaWorkerConfigurationHelper {
   public static final String DEFAULT_OTLP_ENDPOINT = OpenTelemetryWorker.DEFAULT_OTLP_ENDPOINT;
   public static final String DEFAULT_SERVICE_NAME = "temporal-lambda-worker";
 
+  private static final Duration DEFAULT_METRICS_REPORT_INTERVAL = Duration.ofSeconds(1);
+
   private OtelLambdaWorkerConfigurationHelper() {}
 
   public static Builder newBuilder() {
@@ -69,7 +71,8 @@ public final class OtelLambdaWorkerConfigurationHelper {
    */
   public static void configureMetrics(
       @Nonnull LambdaWorkerOptions.Builder options, @Nonnull OpenTelemetry openTelemetry) {
-    configureMetrics(options, openTelemetry, getDefaultServiceName(), Duration.ofSeconds(1));
+    configureMetrics(
+        options, openTelemetry, getDefaultServiceName(), DEFAULT_METRICS_REPORT_INTERVAL);
   }
 
   /**
@@ -135,7 +138,7 @@ public final class OtelLambdaWorkerConfigurationHelper {
     private final OpenTelemetryPlugin.Builder delegate;
     private OpenTelemetry openTelemetry;
     private String serviceName;
-    private Duration metricsReportInterval = Duration.ofSeconds(1);
+    private Duration metricsReportInterval = DEFAULT_METRICS_REPORT_INTERVAL;
     private Duration flushTimeout = Duration.ofSeconds(10);
     private TelemetryFactory telemetryFactory;
 

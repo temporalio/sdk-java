@@ -159,7 +159,7 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
     private OpenTelemetry openTelemetry;
     private String endpoint;
     private String serviceName;
-    private Duration metricsReportInterval = Duration.ofSeconds(1);
+    private Duration metricsReportInterval = OpenTelemetryWorker.DEFAULT_METRICS_REPORT_INTERVAL;
     private Duration flushTimeout = Duration.ofSeconds(10);
     private Runnable flushHook;
     private IdGenerator idGenerator;

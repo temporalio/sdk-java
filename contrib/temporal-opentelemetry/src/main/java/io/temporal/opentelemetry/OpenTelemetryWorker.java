@@ -42,6 +42,8 @@ public final class OpenTelemetryWorker {
   public static final String DEFAULT_OTLP_ENDPOINT = "http://localhost:4317";
   public static final String DEFAULT_SERVICE_NAME = "temporal-worker";
 
+  static final Duration DEFAULT_METRICS_REPORT_INTERVAL = Duration.ofSeconds(1);
+
   private static final AttributeKey<String> SERVICE_NAME_ATTRIBUTE =
       AttributeKey.stringKey("service.name");
 
@@ -106,7 +108,7 @@ public final class OpenTelemetryWorker {
         addShutdownHook,
         openTelemetry,
         getDefaultServiceName(),
-        Duration.ofSeconds(1));
+        DEFAULT_METRICS_REPORT_INTERVAL);
   }
 
   /**
@@ -178,7 +180,7 @@ public final class OpenTelemetryWorker {
     private OpenTelemetry openTelemetry;
     private String endpoint;
     private String serviceName;
-    private Duration metricsReportInterval = Duration.ofSeconds(1);
+    private Duration metricsReportInterval = DEFAULT_METRICS_REPORT_INTERVAL;
     private Duration flushTimeout = Duration.ofSeconds(10);
     private Runnable flushHook;
     private IdGenerator idGenerator;
