@@ -3,8 +3,12 @@ package io.temporal.aws.lambda;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.contrib.awsxray.AwsXrayIdGenerator;
 import io.opentelemetry.sdk.trace.IdGenerator;
+import io.temporal.opentelemetry.OpenTelemetryPlugin;
 import io.temporal.opentelemetry.OpenTelemetryWorker;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -128,7 +132,7 @@ public final class OtelLambdaWorkerConfigurationHelper {
 
   public static final class Builder {
     private final Map<String, String> env;
-    private final OpenTelemetryWorker.Builder delegate;
+    private final OpenTelemetryPlugin.Builder delegate;
     private OpenTelemetry openTelemetry;
     private String serviceName;
     private Duration metricsReportInterval = Duration.ofSeconds(1);
@@ -138,7 +142,9 @@ public final class OtelLambdaWorkerConfigurationHelper {
     private Builder(Map<String, String> env) {
       this.env = Objects.requireNonNull(env, "env");
       this.delegate =
-          OpenTelemetryWorker.newBuilder(env).setIdGenerator(AwsXrayIdGenerator.getInstance());
+          OpenTelemetryPlugin.newBuilder(env)
+              .setIdGenerator(AwsXrayIdGenerator.getInstance())
+              .setFlushOnWorkerFactoryShutdown(false);
     }
 
     /**
@@ -205,12 +211,11 @@ public final class OtelLambdaWorkerConfigurationHelper {
     }
 
     void apply(LambdaWorkerOptions.Builder options) {
+      Objects.requireNonNull(options, "options");
       applyLambdaDefaults();
-      delegate.apply(
-          options.getWorkflowServiceStubsOptionsBuilder(),
-          options.getWorkflowClientOptionsBuilder(),
-          options.getWorkerFactoryOptionsBuilder(),
-          options::addShutdownHook);
+      OpenTelemetryPlugin plugin = delegate.build();
+      appendServiceStubsPlugin(options.getWorkflowServiceStubsOptionsBuilder(), plugin);
+      options.addShutdownHook(plugin.newFlushHook());
     }
 
     private void applyLambdaDefaults() {
@@ -256,5 +261,17 @@ public final class OtelLambdaWorkerConfigurationHelper {
     }
     String value = env.get(name);
     return value == null || value.trim().isEmpty() ? null : value;
+  }
+
+  private static void appendServiceStubsPlugin(
+      WorkflowServiceStubsOptions.Builder options, WorkflowServiceStubsPlugin plugin) {
+    WorkflowServiceStubsPlugin[] existing = options.build().getPlugins();
+    int existingLength = existing == null ? 0 : existing.length;
+    WorkflowServiceStubsPlugin[] plugins =
+        existingLength == 0
+            ? new WorkflowServiceStubsPlugin[1]
+            : Arrays.copyOf(existing, existingLength + 1);
+    plugins[existingLength] = Objects.requireNonNull(plugin, "plugin");
+    options.setPlugins(plugins);
   }
 }

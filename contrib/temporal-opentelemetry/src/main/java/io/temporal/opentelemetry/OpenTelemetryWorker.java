@@ -124,16 +124,7 @@ public final class OpenTelemetryWorker {
       @Nonnull Duration reportInterval) {
     Objects.requireNonNull(serviceStubsOptions, "serviceStubsOptions");
     Objects.requireNonNull(addShutdownHook, "addShutdownHook");
-    OpenTelemetryStatsReporter reporter =
-        new OpenTelemetryStatsReporter(
-            Objects.requireNonNull(openTelemetry, "openTelemetry"),
-            Objects.requireNonNull(serviceName, "serviceName"));
-    Scope scope =
-        new RootScopeBuilder()
-            .reporter(reporter)
-            .reportEvery(
-                com.uber.m3.util.Duration.ofMillis(
-                    requirePositive(reportInterval, "reportInterval").toMillis()));
+    Scope scope = createMetricsScope(openTelemetry, serviceName, reportInterval);
     serviceStubsOptions.setMetricsScope(scope);
     addShutdownHook.accept(new TallyScopeFlushHook(scope));
   }
@@ -151,11 +142,7 @@ public final class OpenTelemetryWorker {
     Objects.requireNonNull(clientOptions, "clientOptions");
     Objects.requireNonNull(workerFactoryOptions, "workerFactoryOptions");
     OpenTracingOptions tracingOptions =
-        OpenTracingOptions.newBuilder()
-            .setTracer(
-                OpenTracingShim.createTracerShim(
-                    Objects.requireNonNull(openTelemetry, "openTelemetry")))
-            .build();
+        createOpenTracingOptions(Objects.requireNonNull(openTelemetry, "openTelemetry"));
     appendClientInterceptor(clientOptions, new OpenTracingClientInterceptor(tracingOptions));
     appendWorkerInterceptor(workerFactoryOptions, new OpenTracingWorkerInterceptor(tracingOptions));
   }
@@ -294,7 +281,7 @@ public final class OpenTelemetryWorker {
         IdGenerator idGenerator);
   }
 
-  private static final class DefaultTelemetryFactory implements TelemetryFactory {
+  static final class DefaultTelemetryFactory implements TelemetryFactory {
     @Override
     public OpenTelemetry create(
         String endpoint,
@@ -344,7 +331,30 @@ public final class OpenTelemetryWorker {
     return value == null || value.trim().isEmpty() ? null : value;
   }
 
-  private static void appendClientInterceptor(
+  static Scope createMetricsScope(
+      @Nonnull OpenTelemetry openTelemetry,
+      @Nonnull String serviceName,
+      @Nonnull Duration reportInterval) {
+    OpenTelemetryStatsReporter reporter =
+        new OpenTelemetryStatsReporter(
+            Objects.requireNonNull(openTelemetry, "openTelemetry"),
+            Objects.requireNonNull(serviceName, "serviceName"));
+    return new RootScopeBuilder()
+        .reporter(reporter)
+        .reportEvery(
+            com.uber.m3.util.Duration.ofMillis(
+                requirePositive(reportInterval, "reportInterval").toMillis()));
+  }
+
+  static OpenTracingOptions createOpenTracingOptions(@Nonnull OpenTelemetry openTelemetry) {
+    return OpenTracingOptions.newBuilder()
+        .setTracer(
+            OpenTracingShim.createTracerShim(
+                Objects.requireNonNull(openTelemetry, "openTelemetry")))
+        .build();
+  }
+
+  static void appendClientInterceptor(
       WorkflowClientOptions.Builder options, WorkflowClientInterceptor interceptor) {
     WorkflowClientOptions raw = options.build();
     WorkflowClientInterceptor[] existing = raw.getInterceptors();
@@ -357,7 +367,7 @@ public final class OpenTelemetryWorker {
     options.setInterceptors(interceptors);
   }
 
-  private static void appendWorkerInterceptor(
+  static void appendWorkerInterceptor(
       WorkerFactoryOptions.Builder options, WorkerInterceptor interceptor) {
     WorkerFactoryOptions raw = options.build();
     WorkerInterceptor[] existing = raw.getWorkerInterceptors();
@@ -370,7 +380,7 @@ public final class OpenTelemetryWorker {
     options.setWorkerInterceptors(interceptors);
   }
 
-  private static Duration requirePositive(Duration value, String name) {
+  static Duration requirePositive(Duration value, String name) {
     Objects.requireNonNull(value, name);
     if (value.isZero() || value.isNegative()) {
       throw new IllegalArgumentException(name + " must be positive");
@@ -378,7 +388,7 @@ public final class OpenTelemetryWorker {
     return value;
   }
 
-  private static Duration requireNonNegative(Duration value, String name) {
+  static Duration requireNonNegative(Duration value, String name) {
     Objects.requireNonNull(value, name);
     if (value.isNegative()) {
       throw new IllegalArgumentException(name + " must not be negative");

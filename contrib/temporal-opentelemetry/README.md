@@ -6,7 +6,36 @@ The Java SDK metrics API is based on Tally `Scope`. `temporal-opentelemetry` bri
 
 ## Usage
 
-Add `temporal-opentelemetry` next to your Temporal SDK dependency, then configure the SDK builders before creating clients and workers:
+Add `temporal-opentelemetry` next to your Temporal SDK dependency, then install the plugin on service stubs options before creating clients and workers:
+
+```java
+OpenTelemetryPlugin plugin = OpenTelemetryPlugin.newBuilder().build();
+
+WorkflowServiceStubs service =
+    WorkflowServiceStubs.newServiceStubs(
+        WorkflowServiceStubsOptions.newBuilder()
+            .setPlugins(plugin)
+            .build());
+WorkflowClient client = WorkflowClient.newInstance(service);
+WorkerFactory factory = WorkerFactory.newInstance(client);
+```
+
+Plugins configured on service stubs propagate to workflow clients and worker factories. By default, the plugin creates an OpenTelemetry SDK with OTLP metric and trace exporters, W3C trace context propagation, an OpenTelemetry-backed Tally metrics scope, OpenTracing-shim client and worker interceptors, and a worker-factory shutdown flush. Buffered Tally metrics are reported before OpenTelemetry providers are force-flushed. Providers are not closed.
+
+The plugin defaults the OTLP endpoint from `OTEL_EXPORTER_OTLP_ENDPOINT`, then `http://localhost:4317`. It defaults the service name from `OTEL_SERVICE_NAME`, then `temporal-worker`.
+
+To use an application-owned provider, call `builder.setOpenTelemetry(...)`; in that path, no exporters are created and the plugin only installs the metrics scope, interceptors, and flush hook:
+
+```java
+OpenTelemetryPlugin plugin =
+    OpenTelemetryPlugin.newBuilder()
+        .setOpenTelemetry(openTelemetry)
+        .build();
+```
+
+Serverless adapters should disable worker-factory shutdown flushing and run `plugin.newFlushHook()` from their per-invocation cleanup path. If a hook implements `TimedShutdownHook`, pass the remaining cleanup timeout to `run(Duration)`.
+
+For manual composition or existing integrations, `OpenTelemetryWorker.configure(...)` remains available:
 
 ```java
 List<Runnable> shutdownHooks = new ArrayList<>();
@@ -22,11 +51,9 @@ OpenTelemetryWorker.configure(
     shutdownHooks::add);
 ```
 
-By default, the helper creates an OpenTelemetry SDK with OTLP metric and trace exporters, W3C trace context propagation, an OpenTelemetry-backed Tally metrics scope, OpenTracing-shim client and worker interceptors, and flush hooks. The Tally hook is registered before the OpenTelemetry provider hook so buffered Temporal metrics are reported before exporters are force-flushed.
+Use `OpenTelemetryWorker.configureMetrics(...)`, `OpenTelemetryWorker.configureTracing(...)`, and `OpenTelemetryWorker.configureFlushHook(...)` when you want to compose metrics, tracing, or provider flushing separately.
 
-The helper defaults the OTLP endpoint from `OTEL_EXPORTER_OTLP_ENDPOINT`, then `http://localhost:4317`. It defaults the service name from `OTEL_SERVICE_NAME`, then `temporal-worker`.
-
-To use an application-owned provider, call `builder.setOpenTelemetry(...)`; in that path, no exporters are created and the helper only installs the metrics scope, interceptors, and flush hook:
+To use an application-owned provider with the manual helper:
 
 ```java
 OpenTelemetryWorker.configure(
@@ -36,7 +63,3 @@ OpenTelemetryWorker.configure(
     shutdownHooks::add,
     builder -> builder.setOpenTelemetry(openTelemetry));
 ```
-
-Use `OpenTelemetryWorker.configureMetrics(...)`, `OpenTelemetryWorker.configureTracing(...)`, and `OpenTelemetryWorker.configureFlushHook(...)` when you want to compose metrics, tracing, or provider flushing separately.
-
-Serverless adapters should run registered shutdown hooks before the invocation exits. If a hook implements `TimedShutdownHook`, pass the remaining cleanup timeout to `run(Duration)`.

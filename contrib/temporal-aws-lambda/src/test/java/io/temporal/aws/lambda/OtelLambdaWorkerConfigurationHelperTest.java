@@ -15,8 +15,9 @@ import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.common.CompletableResultCode;
 import io.opentelemetry.sdk.trace.IdGenerator;
 import io.temporal.common.WorkerDeploymentVersion;
-import io.temporal.opentelemetry.OpenTelemetryFlushHook;
-import io.temporal.opentelemetry.TallyScopeFlushHook;
+import io.temporal.opentelemetry.OpenTelemetryPlugin;
+import io.temporal.opentelemetry.TimedShutdownHook;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.HashMap;
@@ -107,15 +108,20 @@ public class OtelLambdaWorkerConfigurationHelperTest {
         .apply(options);
 
     assertEquals(0, factory.creates.get());
-    assertNotNull(options.getWorkflowServiceStubsOptionsBuilder().build().getMetricsScope());
+    assertTrue(installedPlugin(options) instanceof OpenTelemetryPlugin);
   }
 
   @Test
-  public void metricsScopeAndTracingInterceptorsAreInstalled() throws Exception {
+  public void pluginInstallsMetricsScopeAndTracingInterceptors() throws Exception {
     LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorkerConfigurationHelper.configure(
         options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()).setFlushHook(() -> {}));
+    OpenTelemetryPlugin plugin = installedPlugin(options);
+
+    plugin.configureServiceStubs(options.getWorkflowServiceStubsOptionsBuilder());
+    plugin.configureWorkflowClient(options.getWorkflowClientOptionsBuilder());
+    plugin.configureWorkerFactory(options.getWorkerFactoryOptionsBuilder());
 
     assertNotNull(options.getWorkflowServiceStubsOptionsBuilder().build().getMetricsScope());
     assertEquals(1, options.getWorkflowClientOptionsBuilder().build().getInterceptors().length);
@@ -124,7 +130,7 @@ public class OtelLambdaWorkerConfigurationHelperTest {
   }
 
   @Test
-  public void configureRegistersTallyFlushBeforeOpenTelemetryFlush() throws Exception {
+  public void configureRegistersPluginAndPerInvocationFlushHook() throws Exception {
     LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
 
     OtelLambdaWorkerConfigurationHelper.configure(
@@ -132,9 +138,9 @@ public class OtelLambdaWorkerConfigurationHelperTest {
     options.setTaskQueue("task-queue");
 
     List<Runnable> hooks = options.build().prepare(VERSION).materialize("identity").shutdownHooks;
-    assertEquals(2, hooks.size());
-    assertTrue(hooks.get(0) instanceof TallyScopeFlushHook);
-    assertTrue(hooks.get(1) instanceof OpenTelemetryFlushHook);
+    assertTrue(installedPlugin(options) instanceof OpenTelemetryPlugin);
+    assertEquals(1, hooks.size());
+    assertTrue(hooks.get(0) instanceof TimedShutdownHook);
   }
 
   @Test
@@ -206,6 +212,15 @@ public class OtelLambdaWorkerConfigurationHelperTest {
     } catch (java.io.IOException e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private OpenTelemetryPlugin installedPlugin(LambdaWorkerOptions.Builder options) {
+    WorkflowServiceStubsPlugin[] plugins =
+        options.getWorkflowServiceStubsOptionsBuilder().build().getPlugins();
+    assertNotNull(plugins);
+    assertEquals(1, plugins.length);
+    assertTrue(plugins[0] instanceof OpenTelemetryPlugin);
+    return (OpenTelemetryPlugin) plugins[0];
   }
 
   private static final class RecordingTelemetryFactory
