@@ -1,8 +1,8 @@
 package io.temporal.worker;
 
 import io.temporal.common.Experimental;
-import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Provides the version to record for a {@link io.temporal.workflow.Workflow#getVersion(String, int,
@@ -17,14 +17,14 @@ import javax.annotation.Nonnull;
 public interface PreferredVersionProvider {
 
   /**
-   * Returns the preferred version for the supplied {@code getVersion} call, or {@link
-   * Optional#empty()} to use the SDK default of {@code maxSupported}.
+   * Returns the preferred version for the supplied {@code getVersion} call, or {@code null} to use
+   * the SDK default of {@code maxSupported}.
    *
    * <p>This method is invoked on the workflow thread. Any exception it throws propagates out of the
    * {@code getVersion} call and fails the current workflow task, which will be retried; a provider
    * that always throws will therefore block the workflow. Implementations should be deterministic
    * and side-effect free.
    */
-  @Nonnull
-  Optional<VersionPreference> getPreferredVersion(@Nonnull PreferredVersionProviderInput input);
+  @Nullable
+  VersionPreference getPreferredVersion(@Nonnull PreferredVersionProviderInput input);
 }

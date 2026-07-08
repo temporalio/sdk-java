@@ -19,7 +19,6 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,7 +52,7 @@ public class PreferredVersionProviderRolloutTest {
               workerOptions(
                   (input) -> {
                     unactivatedProviderCalls.incrementAndGet();
-                    return Optional.of(VersionPreference.of(Workflow.DEFAULT_VERSION));
+                    return VersionPreference.of(Workflow.DEFAULT_VERSION);
                   }));
       newWorker.registerWorkflowImplementationTypes(NewRolloutWorkflowImpl.class);
 
@@ -98,7 +97,7 @@ public class PreferredVersionProviderRolloutTest {
               workerOptions(
                   (input) -> {
                     activatedProviderCalls.incrementAndGet();
-                    return Optional.of(VersionPreference.of(1));
+                    return VersionPreference.of(1);
                   }));
       activatedWorker.registerWorkflowImplementationTypes(NewRolloutWorkflowImpl.class);
 
@@ -121,7 +120,7 @@ public class PreferredVersionProviderRolloutTest {
               workerOptions(
                   (input) -> {
                     unactivatedProviderCalls.incrementAndGet();
-                    return Optional.of(VersionPreference.of(Workflow.DEFAULT_VERSION));
+                    return VersionPreference.of(Workflow.DEFAULT_VERSION);
                   }));
       unactivatedWorker.registerWorkflowImplementationTypes(
           UnactivatedNewRolloutWorkflowImpl.class);

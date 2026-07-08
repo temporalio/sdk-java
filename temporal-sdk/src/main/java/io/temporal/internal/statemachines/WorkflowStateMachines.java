@@ -1253,7 +1253,7 @@ public final class WorkflowStateMachines {
       String changeId,
       int minSupported,
       int maxSupported,
-      @Nullable BiFunction<Integer, Integer, Optional<VersionPreference>> preferredVersionProvider,
+      @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
       Functions.Proc2<Integer, RuntimeException> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(

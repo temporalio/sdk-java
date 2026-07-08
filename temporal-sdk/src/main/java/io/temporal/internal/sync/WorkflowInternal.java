@@ -675,6 +675,17 @@ public final class WorkflowInternal {
     }
   }
 
+  public static <T> T readOnly(Functions.Func<T> func) {
+    SyncWorkflowContext workflowContext = getRootWorkflowContext();
+    boolean previousReadOnly = workflowContext.isReadOnly();
+    workflowContext.setReadOnly(true);
+    try {
+      return func.apply();
+    } finally {
+      workflowContext.setReadOnly(previousReadOnly);
+    }
+  }
+
   public static WorkflowInfo getWorkflowInfo() {
     return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }

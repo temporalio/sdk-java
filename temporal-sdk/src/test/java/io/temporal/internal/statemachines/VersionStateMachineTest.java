@@ -56,7 +56,7 @@ public class VersionStateMachineTest {
                         "id1",
                         DEFAULT_VERSION,
                         12,
-                        (min, max) -> Optional.of(VersionPreference.of(preferredVersion)),
+                        (min, max) -> VersionPreference.of(preferredVersion),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
@@ -92,7 +92,7 @@ public class VersionStateMachineTest {
             .<Integer, RuntimeException>add2(
                 (v, c) ->
                     stateMachines.getVersion(
-                        "id1", DEFAULT_VERSION, maxSupported, (min, max) -> Optional.empty(), c))
+                        "id1", DEFAULT_VERSION, maxSupported, (min, max) -> null, c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
     }
@@ -123,7 +123,7 @@ public class VersionStateMachineTest {
                         12,
                         (min, max) -> {
                           providerCalls.incrementAndGet();
-                          return Optional.of(VersionPreference.of(3));
+                          return VersionPreference.of(3);
                         },
                         c))
             .<Integer, RuntimeException>add2(
@@ -134,7 +134,7 @@ public class VersionStateMachineTest {
                         12,
                         (min, max) -> {
                           providerCalls.incrementAndGet();
-                          return Optional.of(VersionPreference.of(4));
+                          return VersionPreference.of(4);
                         },
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
@@ -161,11 +161,7 @@ public class VersionStateMachineTest {
         builder.<Integer, RuntimeException>add2(
             (v, c) ->
                 stateMachines.getVersion(
-                    "id1",
-                    DEFAULT_VERSION,
-                    1,
-                    (min, max) -> Optional.of(VersionPreference.of(2)),
-                    c));
+                    "id1", DEFAULT_VERSION, 1, (min, max) -> VersionPreference.of(2), c));
       }
     }
 
@@ -204,7 +200,7 @@ public class VersionStateMachineTest {
                         "id1",
                         DEFAULT_VERSION,
                         1,
-                        (min, max) -> Optional.of(VersionPreference.of(2).clampToSupportedRange()),
+                        (min, max) -> VersionPreference.of(2).clampToSupportedRange(),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
@@ -236,7 +232,7 @@ public class VersionStateMachineTest {
                         12,
                         (min, max) -> {
                           providerCalls.incrementAndGet();
-                          return Optional.of(VersionPreference.of(4));
+                          return VersionPreference.of(4);
                         },
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));

@@ -14,7 +14,7 @@ public class WorkerOptionsTest {
         WorkerOptions.newBuilder()
             .setMaxConcurrentActivityExecutionSize(10)
             .setMaxConcurrentLocalActivityExecutionSize(11)
-            .setPreferredVersionProvider((input) -> java.util.Optional.empty());
+            .setPreferredVersionProvider((input) -> null);
 
     verifyBuild(builder.build());
     verifyBuild(builder.validateAndBuildWithDefaults());

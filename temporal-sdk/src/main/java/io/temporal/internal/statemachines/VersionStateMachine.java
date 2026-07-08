@@ -17,7 +17,6 @@ import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.VersionPreference;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
@@ -141,16 +140,14 @@ final class VersionStateMachine {
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
     @Nullable
-    private final BiFunction<Integer, Integer, Optional<VersionPreference>>
-        preferredVersionProvider;
+    private final BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider;
 
     InvocationStateMachine(
         int minSupported,
         int maxSupported,
         boolean waitForMarkerRecordedReplaying,
         Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
-        @Nullable
-            BiFunction<Integer, Integer, Optional<VersionPreference>> preferredVersionProvider,
+        @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
         Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
@@ -271,15 +268,12 @@ final class VersionStateMachine {
       if (preferredVersionProvider == null) {
         return maxSupported;
       }
-      Optional<VersionPreference> preference =
-          Objects.requireNonNull(
-              preferredVersionProvider.apply(minSupported, maxSupported),
-              "PreferredVersionProvider returned null");
-      if (!preference.isPresent()) {
+      VersionPreference versionPreference =
+          preferredVersionProvider.apply(minSupported, maxSupported);
+      if (versionPreference == null) {
         return maxSupported;
       }
 
-      VersionPreference versionPreference = preference.get();
       int preferredVersion = versionPreference.getVersion();
       if (preferredVersion >= minSupported && preferredVersion <= maxSupported) {
         return preferredVersion;
@@ -449,7 +443,7 @@ final class VersionStateMachine {
       int maxSupported,
       boolean waitForMarkerRecordedReplaying,
       Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
-      @Nullable BiFunction<Integer, Integer, Optional<VersionPreference>> preferredVersionProvider,
+      @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
       Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism =
         new InvocationStateMachine(
