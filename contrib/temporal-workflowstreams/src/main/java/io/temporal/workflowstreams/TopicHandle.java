@@ -36,10 +36,21 @@ public final class TopicHandle {
 
   /**
    * Returns a subscription over items on this topic, starting at {@code fromOffset}. See {@link
-   * WorkflowStreamClient#subscribe}.
+   * WorkflowStreamClient#subscribe(SubscribeOptions)}.
    */
   public WorkflowStreamSubscription subscribe(long fromOffset) {
     return client.subscribe(
         SubscribeOptions.newBuilder().setTopics(name).setFromOffset(fromOffset).build());
+  }
+
+  /**
+   * Subscribes {@code listener} to items on this topic, starting at {@code fromOffset}, without
+   * occupying a caller thread. See {@link WorkflowStreamClient#subscribe(SubscribeOptions,
+   * WorkflowStreamListener)}.
+   */
+  public WorkflowStreamSubscriptionHandle subscribe(
+      long fromOffset, WorkflowStreamListener listener) {
+    return client.subscribe(
+        SubscribeOptions.newBuilder().setTopics(name).setFromOffset(fromOffset).build(), listener);
   }
 }

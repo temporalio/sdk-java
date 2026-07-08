@@ -114,13 +114,66 @@ when the buffer reaches the max batch size, on `forceFlush`, on an explicit
 
 ## Subscribing
 
-`subscribe` returns a blocking, single-use subscription driven on the consuming
-thread:
+There are two subscriber APIs over one shared poll engine: a non-blocking
+listener and a blocking iterator. Neither occupies a thread while a poll is
+blocked on the server — polling runs on a small executor shared by all of a
+client's subscriptions (2 daemon threads by default; see `pollExecutor`) — so
+many concurrent subscriptions do not mean many threads. Either way, the
+subscription ends cleanly when the workflow reaches a terminal state,
+automatically follows continue-as-new chains, recovers from truncation by
+restarting from the current base offset, and also ends when the owning
+`WorkflowStreamClient` is closed.
+
+Items carry the raw `io.temporal.api.common.v1.Payload`; decode at the call
+site with your data converter. Offsets are **global** (across all topics), not
+per-topic.
+
+### Listener (non-blocking)
+
+Pass a `WorkflowStreamListener` to `subscribe` to have items delivered on the
+poll executor. Callbacks are serialized (never invoked concurrently) and must
+not block; the `CompletionStage` returned by `onNext` is the backpressure
+boundary — return `null` (or a completed stage) to receive the next item
+immediately, or a pending stage to defer further delivery and polling until it
+completes:
 
 ```java
 SubscribeOptions options = SubscribeOptions.newBuilder()
     .setTopics("events") // unset = all topics
     .build();
+WorkflowStreamSubscriptionHandle handle =
+    client.subscribe(
+        options,
+        new WorkflowStreamListener() {
+          @Override
+          public CompletionStage<Void> onNext(WorkflowStreamItem item) {
+            String value =
+                DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+                    item.getPayload(), String.class, String.class);
+            System.out.printf(
+                "offset=%d topic=%s value=%s%n", item.getOffset(), item.getTopic(), value);
+            return null; // or a pending stage to apply backpressure
+          }
+
+          @Override
+          public void onCompleted() {
+            System.out.println("stream ended");
+          }
+        });
+```
+
+`handle.close()` stops the subscription before the next poll (without calling
+`onCompleted`); `handle.getDoneFuture()` completes when the subscription ends —
+normally on a clean end or close, exceptionally with the failure passed to
+`onError`.
+
+### Iterator (blocking)
+
+For synchronous consumers, `subscribe` without a listener returns a blocking,
+single-use subscription; the consuming thread blocks waiting for items while
+polling still runs on the shared executor:
+
+```java
 try (WorkflowStreamSubscription subscription = client.subscribe(options)) {
   for (WorkflowStreamItem item : subscription) {
     String value =
@@ -131,14 +184,8 @@ try (WorkflowStreamSubscription subscription = client.subscribe(options)) {
 }
 ```
 
-The subscription ends cleanly when the workflow reaches a terminal state,
-automatically follows continue-as-new chains, and recovers from truncation by
-restarting from the current base offset. `close()` stops it before the next
-poll.
-
-Items carry the raw `io.temporal.api.common.v1.Payload`; decode at the call
-site with your data converter. Offsets are **global** (across all topics), not
-per-topic.
+`close()` stops it before the next poll; items already fetched still drain. An
+unrecoverable poll failure is rethrown from `hasNext()`.
 
 ## Options
 
@@ -148,6 +195,7 @@ per-topic.
 | `maxBatchSize` | unset | Flush once the buffer reaches this size |
 | `maxRetryDuration` | 10m | Max time to retry a failed flush before `FlushTimeoutException`. Must be < the workflow's publisher TTL (15m) to preserve exactly-once delivery |
 | `payloadConverters` | standard set | Per-item serialization. Payload conversion only — the client's codec chain runs once on the envelope, never per item |
+| `pollExecutor` | 2 daemon threads, client-owned | Scheduler shared by the client's subscriptions. It runs the short update-admission and delivery steps and poll cooldowns — never held during the long poll itself. A user-supplied executor is never shut down by the client; supply a bigger pool for many subscriptions against slow workflows |
 | `SubscribeOptions.pollCooldown` | 100ms | Min interval between polls |
 
 ## Cross-language protocol

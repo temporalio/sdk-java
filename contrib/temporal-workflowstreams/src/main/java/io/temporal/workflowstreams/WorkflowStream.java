@@ -100,7 +100,7 @@ public final class WorkflowStream {
       }
     }
 
-    Workflow.registerListener(new ListenerImpl());
+    Workflow.registerListener(new HandlersImpl());
   }
 
   /**
@@ -207,7 +207,7 @@ public final class WorkflowStream {
     log.add(new InternalEntry(topic, payload));
   }
 
-  private class ListenerImpl implements WorkflowStreamListener {
+  private class HandlersImpl implements WorkflowStreamHandlers {
     @Override
     public void publish(PublishInput input) {
       if (input.publisherId != null && !input.publisherId.isEmpty()) {

@@ -3,6 +3,8 @@ package io.temporal.workflowstreams;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.PayloadConverter;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
+import javax.annotation.Nullable;
 
 /** Options for constructing a {@link WorkflowStreamClient}. */
 @Experimental
@@ -21,16 +23,19 @@ public final class WorkflowStreamClientOptions {
   private final int maxBatchSize;
   private final Duration maxRetryDuration;
   private final PayloadConverter[] payloadConverters;
+  @Nullable private final ScheduledExecutorService pollExecutor;
 
   private WorkflowStreamClientOptions(
       Duration batchInterval,
       int maxBatchSize,
       Duration maxRetryDuration,
-      PayloadConverter[] payloadConverters) {
+      PayloadConverter[] payloadConverters,
+      @Nullable ScheduledExecutorService pollExecutor) {
     this.batchInterval = batchInterval;
     this.maxBatchSize = maxBatchSize;
     this.maxRetryDuration = maxRetryDuration;
     this.payloadConverters = payloadConverters;
+    this.pollExecutor = pollExecutor;
   }
 
   public Duration getBatchInterval() {
@@ -49,11 +54,17 @@ public final class WorkflowStreamClientOptions {
     return payloadConverters;
   }
 
+  @Nullable
+  public ScheduledExecutorService getPollExecutor() {
+    return pollExecutor;
+  }
+
   public static final class Builder {
     private Duration batchInterval = WorkflowStreamConstants.DEFAULT_BATCH_INTERVAL;
     private int maxBatchSize;
     private Duration maxRetryDuration = WorkflowStreamConstants.DEFAULT_MAX_RETRY_DURATION;
     private PayloadConverter[] payloadConverters = new PayloadConverter[0];
+    @Nullable private ScheduledExecutorService pollExecutor;
 
     private Builder() {}
 
@@ -100,9 +111,26 @@ public final class WorkflowStreamClientOptions {
       return this;
     }
 
+    /**
+     * Executor that drives the client's subscriptions: it runs the short update-admission and
+     * item-delivery steps and schedules poll cooldowns, but is never occupied while a poll is
+     * blocked on the server, so a small pool serves many subscriptions. The caller owns its
+     * lifecycle; it is shared across all subscriptions of this client and must have at least one
+     * thread. Listener callbacks run on it.
+     *
+     * <p>Default: an executor with {@code 2} daemon threads, created lazily and owned by the client
+     * (shut down by {@link WorkflowStreamClient#close}). The known worst case for pool pressure is
+     * a backlogged workflow pinning a thread in the update-admission call; supply a bigger pool
+     * when running many subscriptions against slow workflows.
+     */
+    public Builder setPollExecutor(ScheduledExecutorService pollExecutor) {
+      this.pollExecutor = pollExecutor;
+      return this;
+    }
+
     public WorkflowStreamClientOptions build() {
       return new WorkflowStreamClientOptions(
-          batchInterval, maxBatchSize, maxRetryDuration, payloadConverters);
+          batchInterval, maxBatchSize, maxRetryDuration, payloadConverters, pollExecutor);
     }
   }
 }

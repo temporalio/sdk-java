@@ -51,5 +51,10 @@ public final class WorkflowStreamConstants {
   static final Duration DEFAULT_PUBLISHER_TTL = Duration.ofMinutes(15);
   static final Duration DEFAULT_MAX_RETRY_DURATION = Duration.ofMinutes(10);
 
+  // Size of the default client-owned poll executor. Subscriptions hold a thread only during
+  // the short update-admission and delivery steps — never during the long poll — so a small
+  // pool serves many subscriptions.
+  static final int DEFAULT_POLL_EXECUTOR_THREADS = 2;
+
   private WorkflowStreamConstants() {}
 }

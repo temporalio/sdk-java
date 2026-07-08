@@ -8,8 +8,16 @@ import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.workflowstreams.internal.StreamPublisher;
+import io.temporal.workflowstreams.internal.SubscriptionDriver;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import javax.annotation.Nullable;
 
 /**
  * Publishes to and subscribes from a workflow stream from external code (activities, starters,
@@ -24,8 +32,14 @@ public final class WorkflowStreamClient implements AutoCloseable {
   private final WorkflowClient client;
   private final String workflowId;
   private final StreamPublisher publisher;
+  @Nullable private final ScheduledExecutorService userPollExecutor;
 
   private final Map<String, TopicHandle> topicHandles = new HashMap<>();
+  private final Set<SubscriptionDriver> liveSubscriptions = ConcurrentHashMap.newKeySet();
+
+  // Lazily created when the first subscription needs it and no user executor was supplied;
+  // owned by this client and shut down in close(). Guarded by `this`.
+  @Nullable private ScheduledExecutorService ownedPollExecutor;
 
   /** Creates a client targeting {@code workflowId} through the given Temporal client. */
   public static WorkflowStreamClient newInstance(WorkflowClient client, String workflowId) {
@@ -78,6 +92,8 @@ public final class WorkflowStreamClient implements AutoCloseable {
       dataConverter = DefaultDataConverter.STANDARD_INSTANCE;
     }
 
+    this.userPollExecutor = options.getPollExecutor();
+
     WorkflowStub stub = client.newUntypedWorkflowStub(workflowId);
     this.publisher =
         new StreamPublisher(
@@ -124,22 +140,95 @@ public final class WorkflowStreamClient implements AutoCloseable {
    * }
    * }</pre>
    *
-   * <p>The iteration runs on the caller's thread. Each item carries the raw {@link
-   * io.temporal.api.common.v1.Payload}; decode it with your data converter. The subscription ends
-   * cleanly when the workflow reaches a terminal state, and automatically follows continue-as-new
-   * chains.
+   * <p>The consuming thread blocks waiting for items; polling itself runs on the client's poll
+   * executor. Each item carries the raw {@link io.temporal.api.common.v1.Payload}; decode it with
+   * your data converter. The subscription ends cleanly when the workflow reaches a terminal state,
+   * automatically follows continue-as-new chains, and also ends when this client is closed.
    */
   public WorkflowStreamSubscription subscribe(SubscribeOptions options) {
-    return new WorkflowStreamSubscription(client, workflowId, options);
+    return new WorkflowStreamSubscription(listener -> newSubscriptionDriver(options, listener));
+  }
+
+  /**
+   * Subscribes {@code listener} to the stream without occupying a caller thread: polling runs on
+   * the client's poll executor (see {@link WorkflowStreamClientOptions.Builder#setPollExecutor}),
+   * which is never held while a poll is blocked on the server, so many subscriptions share a small
+   * pool. Delivery starts immediately.
+   *
+   * <p>The stream ends cleanly with {@link WorkflowStreamListener#onCompleted} when the workflow
+   * reaches a terminal state, automatically follows continue-as-new chains, and reports
+   * unrecoverable failures to {@link WorkflowStreamListener#onError}. Stop it early with {@link
+   * WorkflowStreamSubscriptionHandle#close}; closing this client also stops it.
+   */
+  public WorkflowStreamSubscriptionHandle subscribe(
+      SubscribeOptions options, WorkflowStreamListener listener) {
+    SubscriptionDriver driver = newSubscriptionDriver(options, listener);
+    driver.start();
+    return driver;
+  }
+
+  SubscriptionDriver newSubscriptionDriver(
+      SubscribeOptions options, WorkflowStreamListener listener) {
+    SubscriptionDriver driver =
+        new SubscriptionDriver(
+            client, workflowId, options, pollExecutor(), listener, liveSubscriptions::remove);
+    liveSubscriptions.add(driver);
+    return driver;
+  }
+
+  private ScheduledExecutorService pollExecutor() {
+    if (userPollExecutor != null) {
+      return userPollExecutor;
+    }
+    synchronized (this) {
+      if (ownedPollExecutor == null) {
+        AtomicInteger threadNumber = new AtomicInteger();
+        ScheduledThreadPoolExecutor executor =
+            new ScheduledThreadPoolExecutor(
+                WorkflowStreamConstants.DEFAULT_POLL_EXECUTOR_THREADS,
+                r -> {
+                  Thread t =
+                      new Thread(
+                          r, "temporal-workflow-stream-poll-" + threadNumber.incrementAndGet());
+                  t.setDaemon(true);
+                  return t;
+                });
+        executor.setRemoveOnCancelPolicy(true);
+        ownedPollExecutor = executor;
+      }
+      return ownedPollExecutor;
+    }
   }
 
   /**
    * Stops the background publisher and drains any remaining items, guaranteeing a final flush. It
    * surfaces any deferred {@link FlushTimeoutException} from a prior background flush failure.
+   *
+   * <p>Also stops this client's live subscriptions (their done futures complete normally, without
+   * {@link WorkflowStreamListener#onCompleted}) and, if the client owns the default poll executor,
+   * shuts it down. A user-supplied poll executor is never shut down.
    */
   @Override
   public void close() {
     publisher.close();
+    for (SubscriptionDriver driver : liveSubscriptions.toArray(new SubscriptionDriver[0])) {
+      driver.close();
+    }
+    ScheduledExecutorService owned;
+    synchronized (this) {
+      owned = ownedPollExecutor;
+    }
+    if (owned != null) {
+      owned.shutdown();
+      try {
+        if (!owned.awaitTermination(1, TimeUnit.SECONDS)) {
+          owned.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        owned.shutdownNow();
+      }
+    }
   }
 
   void publishToTopic(String topic, Object value, boolean forceFlush) {

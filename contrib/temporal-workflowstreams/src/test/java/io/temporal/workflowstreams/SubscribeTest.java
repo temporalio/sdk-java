@@ -6,11 +6,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
-import io.temporal.workflow.SignalMethod;
-import io.temporal.workflow.UpdateMethod;
-import io.temporal.workflow.Workflow;
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflow;
+import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflowImpl;
 import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -178,6 +175,25 @@ public class SubscribeTest {
   }
 
   @Test
+  public void testUnrecoverableErrorSurfacesFromHasNext() {
+    try (WorkflowStreamClient streamClient =
+        WorkflowStreamClient.newInstance(
+            testWorkflowRule.getWorkflowClient(), "workflow-that-does-not-exist")) {
+      try (WorkflowStreamSubscription subscription = streamClient.subscribe(FAST_POLL)) {
+        try {
+          subscription.hasNext();
+          Assert.fail("expected the poll failure to be rethrown");
+        } catch (RuntimeException e) {
+          // Expected: the workflow does not exist, which is neither a rollover nor a
+          // terminal end, so the failure surfaces to the consumer.
+        }
+        Assert.assertFalse(
+            "the subscription is over after an unrecoverable error", subscription.hasNext());
+      }
+    }
+  }
+
+  @Test
   public void testCloseStopsIteration() {
     WorkflowStub stub = startHostWorkflow();
     try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
@@ -187,58 +203,5 @@ public class SubscribeTest {
     }
     stub.signal("finish");
     stub.getResult(Void.class);
-  }
-
-  @WorkflowInterface
-  public interface SubscribeHostWorkflow {
-    @WorkflowMethod
-    void execute(WorkflowStreamState priorState);
-
-    @SignalMethod
-    void finish();
-
-    @SignalMethod
-    void rollover();
-
-    @SignalMethod
-    void publishLocal(String topic, String value);
-
-    @UpdateMethod
-    void truncate(long upToOffset);
-  }
-
-  public static class SubscribeHostWorkflowImpl implements SubscribeHostWorkflow {
-    private WorkflowStream stream;
-    private boolean finished;
-    private boolean rollover;
-
-    @Override
-    public void execute(WorkflowStreamState priorState) {
-      stream = WorkflowStream.newInstance(priorState);
-      Workflow.await(() -> finished || rollover);
-      if (rollover) {
-        stream.continueAsNew(state -> new Object[] {state});
-      }
-    }
-
-    @Override
-    public void finish() {
-      finished = true;
-    }
-
-    @Override
-    public void rollover() {
-      rollover = true;
-    }
-
-    @Override
-    public void publishLocal(String topic, String value) {
-      stream.topic(topic).publish(value);
-    }
-
-    @Override
-    public void truncate(long upToOffset) {
-      stream.truncate(upToOffset);
-    }
   }
 }
