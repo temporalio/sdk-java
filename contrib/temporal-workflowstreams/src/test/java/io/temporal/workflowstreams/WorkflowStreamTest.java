@@ -233,12 +233,18 @@ public class WorkflowStreamTest {
   }
 
   public static class StreamHostWorkflowImpl implements StreamHostWorkflow {
-    private WorkflowStream stream;
+    private final WorkflowStream stream;
     private boolean finished;
+
+    // @WorkflowInit so poll updates arriving before the workflow method runs (a real-server
+    // race the in-process test service never exhibits) are accepted rather than rejected.
+    @WorkflowInit
+    public StreamHostWorkflowImpl(WorkflowStreamState priorState) {
+      stream = WorkflowStream.newInstance(priorState);
+    }
 
     @Override
     public void execute(WorkflowStreamState priorState) {
-      stream = WorkflowStream.newInstance(priorState);
       Workflow.await(() -> finished);
     }
 

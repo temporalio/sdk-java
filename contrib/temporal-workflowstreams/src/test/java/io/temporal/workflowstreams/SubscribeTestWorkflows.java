@@ -3,6 +3,7 @@ package io.temporal.workflowstreams;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInit;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
@@ -29,13 +30,21 @@ public final class SubscribeTestWorkflows {
   }
 
   public static class SubscribeHostWorkflowImpl implements SubscribeHostWorkflow {
-    private WorkflowStream stream;
+    private final WorkflowStream stream;
     private boolean finished;
     private boolean rollover;
 
+    // Construct the stream in @WorkflowInit — the module's recommended pattern — so poll
+    // updates arriving before the workflow method runs (a real-server race the in-process
+    // test service never exhibits) are accepted rather than rejected with an unknown-update
+    // error.
+    @WorkflowInit
+    public SubscribeHostWorkflowImpl(WorkflowStreamState priorState) {
+      stream = WorkflowStream.newInstance(priorState);
+    }
+
     @Override
     public void execute(WorkflowStreamState priorState) {
-      stream = WorkflowStream.newInstance(priorState);
       Workflow.await(() -> finished || rollover);
       if (rollover) {
         stream.continueAsNew(state -> new Object[] {state});
