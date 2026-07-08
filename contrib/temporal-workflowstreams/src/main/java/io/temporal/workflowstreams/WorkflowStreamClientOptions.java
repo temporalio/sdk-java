@@ -34,7 +34,7 @@ public final class WorkflowStreamClientOptions {
     this.batchInterval = batchInterval;
     this.maxBatchSize = maxBatchSize;
     this.maxRetryDuration = maxRetryDuration;
-    this.payloadConverters = payloadConverters;
+    this.payloadConverters = payloadConverters.clone();
     this.pollExecutor = pollExecutor;
   }
 
@@ -51,7 +51,7 @@ public final class WorkflowStreamClientOptions {
   }
 
   public PayloadConverter[] getPayloadConverters() {
-    return payloadConverters;
+    return payloadConverters.clone();
   }
 
   @Nullable

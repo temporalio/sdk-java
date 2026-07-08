@@ -19,11 +19,11 @@ public final class WorkflowStreamOptions {
   private final PayloadConverter[] payloadConverters;
 
   private WorkflowStreamOptions(PayloadConverter[] payloadConverters) {
-    this.payloadConverters = payloadConverters;
+    this.payloadConverters = payloadConverters.clone();
   }
 
   public PayloadConverter[] getPayloadConverters() {
-    return payloadConverters;
+    return payloadConverters.clone();
   }
 
   public static final class Builder {

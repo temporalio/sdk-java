@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
 
 /** Utility functions shared by the implementation code. */
 public final class InternalUtils {
-  public static String TEMPORAL_RESERVED_PREFIX = "__temporal_";
+  public static final String TEMPORAL_RESERVED_PREFIX = "__temporal_";
   public static final String WORKFLOW_STREAM_RESERVED_PREFIX = "__temporal_workflow_stream_";
 
   private static final Logger log = LoggerFactory.getLogger(InternalUtils.class);
