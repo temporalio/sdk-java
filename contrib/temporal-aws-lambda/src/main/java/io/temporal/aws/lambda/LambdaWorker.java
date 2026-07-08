@@ -42,7 +42,7 @@ public final class LambdaWorker {
    * @param version worker deployment version to advertise for this worker.
    * @param configure callback invoked once while the Lambda handler is constructed.
    */
-  public static RequestHandler<Object, Void> run(
+  public static RequestHandler<Object, Void> define(
       @Nonnull WorkerDeploymentVersion version,
       @Nonnull Consumer<LambdaWorkerOptions.Builder> configure) {
     LambdaWorkerOptions.validateVersion(version);
@@ -65,7 +65,7 @@ public final class LambdaWorker {
    * @param invocationConfigure callback invoked for each Lambda invocation before Temporal service
    *     stubs, client, and worker are created. Required fields may be supplied by this callback.
    */
-  public static RequestHandler<Object, Void> run(
+  public static RequestHandler<Object, Void> define(
       @Nonnull WorkerDeploymentVersion version,
       @Nonnull Consumer<LambdaWorkerOptions.Builder> configure,
       @Nonnull InvocationConfigurator invocationConfigure) {
