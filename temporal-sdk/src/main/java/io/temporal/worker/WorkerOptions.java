@@ -78,6 +78,7 @@ public final class WorkerOptions {
     private PollerBehavior activityTaskPollersBehavior;
     private PollerBehavior nexusTaskPollersBehavior;
     private boolean allowActivityHeartbeatDuringShutdown;
+    private PreferredVersionProvider preferredVersionProvider;
 
     private Builder() {}
 
@@ -114,6 +115,7 @@ public final class WorkerOptions {
       this.activityTaskPollersBehavior = o.activityTaskPollersBehavior;
       this.nexusTaskPollersBehavior = o.nexusTaskPollersBehavior;
       this.allowActivityHeartbeatDuringShutdown = o.allowActivityHeartbeatDuringShutdown;
+      this.preferredVersionProvider = o.preferredVersionProvider;
     }
 
     /**
@@ -548,6 +550,19 @@ public final class WorkerOptions {
       return this;
     }
 
+    /**
+     * Sets a provider that can choose the version recorded by the first non-replay {@link
+     * io.temporal.workflow.Workflow#getVersion(String, int, int)} call for a change ID.
+     *
+     * <p>If unset, or if the provider returns {@link java.util.Optional#empty()}, the SDK keeps the
+     * existing behavior of recording {@code maxSupported}.
+     */
+    @Experimental
+    public Builder setPreferredVersionProvider(PreferredVersionProvider preferredVersionProvider) {
+      this.preferredVersionProvider = preferredVersionProvider;
+      return this;
+    }
+
     public WorkerOptions build() {
       return new WorkerOptions(
           maxWorkerActivitiesPerSecond,
@@ -578,7 +593,8 @@ public final class WorkerOptions {
           workflowTaskPollersBehavior,
           activityTaskPollersBehavior,
           nexusTaskPollersBehavior,
-          allowActivityHeartbeatDuringShutdown);
+          allowActivityHeartbeatDuringShutdown,
+          preferredVersionProvider);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -711,7 +727,8 @@ public final class WorkerOptions {
           workflowTaskPollersBehavior,
           activityTaskPollersBehavior,
           nexusTaskPollersBehavior,
-          allowActivityHeartbeatDuringShutdown);
+          allowActivityHeartbeatDuringShutdown,
+          preferredVersionProvider);
     }
   }
 
@@ -744,6 +761,7 @@ public final class WorkerOptions {
   private final PollerBehavior activityTaskPollersBehavior;
   private final PollerBehavior nexusTaskPollersBehavior;
   private final boolean allowActivityHeartbeatDuringShutdown;
+  private final PreferredVersionProvider preferredVersionProvider;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -774,7 +792,8 @@ public final class WorkerOptions {
       PollerBehavior workflowTaskPollersBehavior,
       PollerBehavior activityTaskPollersBehavior,
       PollerBehavior nexusTaskPollersBehavior,
-      boolean allowActivityHeartbeatDuringShutdown) {
+      boolean allowActivityHeartbeatDuringShutdown,
+      PreferredVersionProvider preferredVersionProvider) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -804,6 +823,7 @@ public final class WorkerOptions {
     this.activityTaskPollersBehavior = activityTaskPollersBehavior;
     this.nexusTaskPollersBehavior = nexusTaskPollersBehavior;
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.preferredVersionProvider = preferredVersionProvider;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -946,6 +966,11 @@ public final class WorkerOptions {
     return allowActivityHeartbeatDuringShutdown;
   }
 
+  @Experimental
+  public PreferredVersionProvider getPreferredVersionProvider() {
+    return preferredVersionProvider;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -979,7 +1004,8 @@ public final class WorkerOptions {
         && Objects.equals(workflowTaskPollersBehavior, that.workflowTaskPollersBehavior)
         && Objects.equals(activityTaskPollersBehavior, that.activityTaskPollersBehavior)
         && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior)
-        && allowActivityHeartbeatDuringShutdown == that.allowActivityHeartbeatDuringShutdown;
+        && allowActivityHeartbeatDuringShutdown == that.allowActivityHeartbeatDuringShutdown
+        && Objects.equals(preferredVersionProvider, that.preferredVersionProvider);
   }
 
   @Override
@@ -1013,7 +1039,8 @@ public final class WorkerOptions {
         workflowTaskPollersBehavior,
         activityTaskPollersBehavior,
         nexusTaskPollersBehavior,
-        allowActivityHeartbeatDuringShutdown);
+        allowActivityHeartbeatDuringShutdown,
+        preferredVersionProvider);
   }
 
   @Override
@@ -1078,6 +1105,8 @@ public final class WorkerOptions {
         + nexusTaskPollersBehavior
         + ", allowActivityHeartbeatDuringShutdown="
         + allowActivityHeartbeatDuringShutdown
+        + ", preferredVersionProvider="
+        + preferredVersionProvider
         + '}';
   }
 }

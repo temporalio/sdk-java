@@ -13,7 +13,8 @@ public class WorkerOptionsTest {
     WorkerOptions.Builder builder =
         WorkerOptions.newBuilder()
             .setMaxConcurrentActivityExecutionSize(10)
-            .setMaxConcurrentLocalActivityExecutionSize(11);
+            .setMaxConcurrentLocalActivityExecutionSize(11)
+            .setPreferredVersionProvider((input) -> null);
 
     verifyBuild(builder.build());
     verifyBuild(builder.validateAndBuildWithDefaults());
@@ -22,6 +23,7 @@ public class WorkerOptionsTest {
   private void verifyBuild(WorkerOptions options) {
     assertEquals(10, options.getMaxConcurrentActivityExecutionSize());
     assertEquals(11, options.getMaxConcurrentLocalActivityExecutionSize());
+    assertNotNull(options.getPreferredVersionProvider());
   }
 
   @Test
@@ -33,6 +35,7 @@ public class WorkerOptionsTest {
 
   @Test
   public void verifyNewBuilderFromExistingWorkerOptions() {
+    PreferredVersionProvider preferredVersionProvider = mock(PreferredVersionProvider.class);
     @SuppressWarnings("deprecation")
     WorkerOptions w1 =
         WorkerOptions.newBuilder()
@@ -57,6 +60,7 @@ public class WorkerOptionsTest {
             .setStickyTaskQueueDrainTimeout(Duration.ofSeconds(15))
             .setIdentity("worker-identity")
             .setAllowActivityHeartbeatDuringShutdown(true)
+            .setPreferredVersionProvider(preferredVersionProvider)
             .build();
 
     WorkerOptions w2 = WorkerOptions.newBuilder(w1).build();
@@ -92,6 +96,7 @@ public class WorkerOptionsTest {
     assertEquals(w1.getIdentity(), w2.getIdentity());
     assertEquals(
         w1.getAllowActivityHeartbeatDuringShutdown(), w2.getAllowActivityHeartbeatDuringShutdown());
+    assertSame(w1.getPreferredVersionProvider(), w2.getPreferredVersionProvider());
   }
 
   @Test
