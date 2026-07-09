@@ -1757,6 +1757,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     if (ea.hasSearchAttributes()) {
       startRequestBuilder.setSearchAttributes(ea.getSearchAttributes());
     }
+    if (ea.hasMemo()) {
+      startRequestBuilder.setMemo(ea.getMemo());
+    }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
     Optional<Failure> lastFail =
