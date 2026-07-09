@@ -1,0 +1,29 @@
+description = '''Temporal Java SDK AWS Lambda Worker Support Module'''
+
+ext {
+    awsLambdaJavaCoreVersion = '1.4.0'
+    otelVersion = '1.25.0'
+}
+
+dependencies {
+    api platform("io.opentelemetry:opentelemetry-bom:$otelVersion")
+
+    // This module shouldn't carry temporal-sdk with it, especially for situations when users may
+    // be using a shaded artifact.
+    compileOnly project(':temporal-sdk')
+    compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
+
+    api "com.amazonaws:aws-lambda-java-core:$awsLambdaJavaCoreVersion"
+    api project(':temporal-opentelemetry')
+
+    implementation project(':temporal-envconfig')
+    api "io.opentelemetry:opentelemetry-api"
+    implementation "io.opentelemetry.contrib:opentelemetry-aws-xray:$otelVersion"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+
+    testImplementation project(':temporal-sdk')
+    testImplementation "io.opentelemetry:opentelemetry-sdk"
+    testImplementation "junit:junit:${junitVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
