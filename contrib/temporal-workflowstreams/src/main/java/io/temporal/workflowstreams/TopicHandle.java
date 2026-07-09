@@ -27,8 +27,9 @@ public final class TopicHandle {
 
   /**
    * Buffers {@code value} for publishing on this topic. {@code value} goes through the client's
-   * payload converters at flush time; a pre-built {@link io.temporal.api.common.v1.Payload}
-   * bypasses conversion. Pass {@code forceFlush} to wake the publisher and send immediately.
+   * payload converters immediately, so an unconvertible value fails this call rather than a later
+   * background flush; a pre-built {@link io.temporal.api.common.v1.Payload} bypasses conversion.
+   * Pass {@code forceFlush} to wake the publisher and send immediately.
    */
   public void publish(Object value, boolean forceFlush) {
     client.publishToTopic(name, value, forceFlush);

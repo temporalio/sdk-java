@@ -112,22 +112,30 @@ public class StreamPublisherTest {
         payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toStringUtf8());
     publisher.close();
 
-    // A string is unconvertible under the byte-array-only set, so the flush fails — the
-    // default set's JSON fallback would have accepted it. Use a fresh publisher since the
-    // unconvertible item stays buffered after the error.
+    // A string is unconvertible under the byte-array-only set, so the publish call itself
+    // fails — the default set's JSON fallback would have accepted it. Conversion happens at
+    // publish time so a bad value cannot poison the buffer and wedge the background flush
+    // loop behind it.
+    RecordingSignal signal2 = new RecordingSignal();
     StreamPublisher publisher2 =
         new StreamPublisher(
-            new RecordingSignal(),
+            signal2,
             new DefaultDataConverter(new ByteArrayPayloadConverter()),
             Duration.ofSeconds(2),
             0,
             WorkflowStreamConstants.DEFAULT_MAX_RETRY_DURATION);
-    publisher2.publish("events", "not-bytes", false);
     try {
-      publisher2.flush();
+      publisher2.publish("events", "not-bytes", false);
       Assert.fail("unreachable");
     } catch (RuntimeException expected) {
     }
+
+    // The rejected value must not wedge the publisher: a valid item published afterwards
+    // still ships.
+    publisher2.publish("events", "ok".getBytes(StandardCharsets.UTF_8), false);
+    publisher2.flush();
+    Assert.assertEquals(1, signal2.recorded().size());
+    publisher2.close();
   }
 
   @Test

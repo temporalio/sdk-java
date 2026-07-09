@@ -30,17 +30,6 @@ public final class StreamPublisher {
     void send(PublishInput input);
   }
 
-  private static final class BufItem {
-
-    final String topic;
-    final Object value;
-
-    BufItem(String topic, Object value) {
-      this.topic = topic;
-      this.value = value;
-    }
-  }
-
   private final SignalFunction signal;
   private final DataConverter dataConverter;
   private final String publisherId;
@@ -49,7 +38,7 @@ public final class StreamPublisher {
   private final long maxRetryDurationMs;
 
   private final Object stateLock = new Object();
-  private List<BufItem> buffer = new ArrayList<>();
+  private List<PublishEntry> buffer = new ArrayList<>();
   private List<PublishEntry> pending;
   private long pendingSeq;
   private long sequence;
@@ -77,14 +66,21 @@ public final class StreamPublisher {
   }
 
   /**
-   * Buffers a value and lazily starts the background flush loop. Triggers an immediate flush on
-   * {@code forceFlush} or once the buffer reaches the max batch size.
+   * Converts and buffers a value, lazily starting the background flush loop. Triggers an immediate
+   * flush on {@code forceFlush} or once the buffer reaches the max batch size.
+   *
+   * <p>Conversion happens here, on the caller's thread, so an unconvertible value fails the {@code
+   * publish} call itself instead of poisoning the buffer and silently wedging every later item
+   * behind it in the background flush loop.
+   *
+   * @throws RuntimeException if no configured payload converter accepts {@code value}
    */
   public void publish(String topic, Object value, boolean forceFlush) {
+    PublishEntry entry = encode(topic, value);
     boolean trigger;
     ScheduledExecutorService toTrigger = null;
     synchronized (stateLock) {
-      buffer.add(new BufItem(topic, value));
+      buffer.add(entry);
       trigger = forceFlush || (maxBatchSize > 0 && buffer.size() >= maxBatchSize);
       if (!closed) {
         ensureStartedLocked();
@@ -132,8 +128,8 @@ public final class StreamPublisher {
   }
 
   /**
-   * Sends the pending batch (retry) or encodes and sends the buffer (new batch). Serialized so
-   * concurrent callers send sequentially.
+   * Sends the pending batch (retry) or the buffered batch (new batch). Serialized so concurrent
+   * callers send sequentially.
    */
   private void doFlush() {
     synchronized (flushLock) {
@@ -160,8 +156,7 @@ public final class StreamPublisher {
           batch = pending;
           seq = pendingSeq;
         } else if (!buffer.isEmpty()) {
-          // encodeBuffer may throw; the buffer is left intact for a later flush.
-          batch = encodeBuffer(buffer);
+          batch = buffer;
           buffer = new ArrayList<>();
           seq = sequence + 1;
           pending = batch;
@@ -184,24 +179,20 @@ public final class StreamPublisher {
     }
   }
 
-  private List<PublishEntry> encodeBuffer(List<BufItem> items) {
-    List<PublishEntry> out = new ArrayList<>(items.size());
-    for (BufItem item : items) {
-      Payload payload;
-      if (item.value instanceof Payload) {
-        payload = (Payload) item.value;
-      } else {
-        payload =
-            dataConverter
-                .toPayload(item.value)
-                .orElseThrow(
-                    () ->
-                        new IllegalArgumentException(
-                            "workflowstreams: no payload converter accepted the published value"));
-      }
-      out.add(new PublishEntry(item.topic, PayloadWire.encode(payload)));
+  private PublishEntry encode(String topic, Object value) {
+    Payload payload;
+    if (value instanceof Payload) {
+      payload = (Payload) value;
+    } else {
+      payload =
+          dataConverter
+              .toPayload(value)
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "workflowstreams: no payload converter accepted the published value"));
     }
-    return out;
+    return new PublishEntry(topic, PayloadWire.encode(payload));
   }
 
   /**
