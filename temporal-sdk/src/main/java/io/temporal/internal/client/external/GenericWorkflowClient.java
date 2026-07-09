@@ -10,7 +10,7 @@ public interface GenericWorkflowClient {
 
   StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request);
 
-  void signal(SignalWorkflowExecutionRequest request);
+  SignalWorkflowExecutionResponse signal(SignalWorkflowExecutionRequest request);
 
   SignalWithStartWorkflowExecutionResponse signalWithStart(
       SignalWithStartWorkflowExecutionRequest request);
@@ -60,6 +60,33 @@ public interface GenericWorkflowClient {
 
   DescribeWorkflowExecutionResponse describeWorkflowExecution(
       DescribeWorkflowExecutionRequest request);
+
+  StartNexusOperationExecutionResponse startNexusOperationExecution(
+      @Nonnull StartNexusOperationExecutionRequest request);
+
+  DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
+      @Nonnull DescribeNexusOperationExecutionRequest request);
+
+  PollNexusOperationExecutionResponse pollNexusOperationExecution(
+      @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+
+  CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
+      @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+
+  CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
+      @Nonnull ListNexusOperationExecutionsRequest request);
+
+  CountNexusOperationExecutionsResponse countNexusOperationExecutions(
+      @Nonnull CountNexusOperationExecutionsRequest request);
+
+  RequestCancelNexusOperationExecutionResponse requestCancelNexusOperationExecution(
+      @Nonnull RequestCancelNexusOperationExecutionRequest request);
+
+  TerminateNexusOperationExecutionResponse terminateNexusOperationExecution(
+      @Nonnull TerminateNexusOperationExecutionRequest request);
+
+  DeleteNexusOperationExecutionResponse deleteNexusOperationExecution(
+      @Nonnull DeleteNexusOperationExecutionRequest request);
 
   @Experimental
   @Deprecated

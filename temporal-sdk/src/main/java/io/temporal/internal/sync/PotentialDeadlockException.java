@@ -26,15 +26,28 @@ public class PotentialDeadlockException extends RuntimeException {
    * @param threadName name of the thread that is in a potential deadlock state
    * @param workflowThreadContext context of the thread that is in a potential deadlock state
    * @param detectionTimestamp a timestamp the deadlock was detected
+   * @param timeoutMillis configured deadlock detection timeout in milliseconds
    */
   PotentialDeadlockException(
-      String threadName, WorkflowThreadContext workflowThreadContext, long detectionTimestamp) {
+      String threadName,
+      WorkflowThreadContext workflowThreadContext,
+      long detectionTimestamp,
+      long timeoutMillis) {
     super(
         "[TMPRL1101] Potential deadlock detected. Workflow thread \""
             + threadName
-            + "\" didn't yield control for over a second.");
+            + "\" didn't yield control for over "
+            + formatTimeout(timeoutMillis)
+            + ".");
     this.workflowThreadContext = workflowThreadContext;
     this.detectionTimestamp = detectionTimestamp;
+  }
+
+  private static String formatTimeout(long timeoutMillis) {
+    if (timeoutMillis % 1000 == 0) {
+      return timeoutMillis / 1000 + "s";
+    }
+    return timeoutMillis + "ms";
   }
 
   /**

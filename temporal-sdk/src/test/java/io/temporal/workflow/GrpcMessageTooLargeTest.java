@@ -22,8 +22,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class GrpcMessageTooLargeTest {
-  private static final String QUERY_ERROR_MESSAGE =
-      "Failed to send query response: RESOURCE_EXHAUSTED: grpc: received message larger than max";
+  // This string is kept intentionally short to match multiple possible too-large error messages
+  private static final String TOO_BIG_ERR_MESSAGE = "larger than max";
   private static final String VERY_LARGE_DATA;
 
   static {
@@ -120,7 +120,7 @@ public class GrpcMessageTooLargeTest {
     assertNotNull(e.getCause());
     // The exception will not contain the original failure object, so instead of type check we're
     // checking the message to ensure the correct error is being sent.
-    assertTrue(e.getCause().getMessage().contains(QUERY_ERROR_MESSAGE));
+    assertTrue(e.getCause().getMessage().contains(TOO_BIG_ERR_MESSAGE));
   }
 
   @Test
@@ -132,7 +132,7 @@ public class GrpcMessageTooLargeTest {
     WorkflowQueryException e = assertThrows(WorkflowQueryException.class, workflow::query);
 
     assertNotNull(e.getCause());
-    assertTrue(e.getCause().getMessage().contains(QUERY_ERROR_MESSAGE));
+    assertTrue(e.getCause().getMessage().contains(TOO_BIG_ERR_MESSAGE));
   }
 
   private static <T> T createWorkflowStub(Class<T> clazz, SDKTestWorkflowRule workflowRule) {

@@ -54,6 +54,7 @@ final class NexusWorker implements SuspendableWorker {
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final NamespaceCapabilities namespaceCapabilities;
   private final boolean forceOldFailureFormat;
+  private final boolean workerCommandsTaskQueue;
   private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker = new PollerTracker();
 
@@ -66,6 +67,28 @@ final class NexusWorker implements SuspendableWorker {
       @Nonnull DataConverter dataConverter,
       @Nonnull SlotSupplier<NexusSlotInfo> slotSupplier,
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
+    this(
+        service,
+        namespace,
+        taskQueue,
+        options,
+        handler,
+        dataConverter,
+        slotSupplier,
+        namespaceCapabilities,
+        false);
+  }
+
+  public NexusWorker(
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull SingleWorkerOptions options,
+      @Nonnull NexusTaskHandler handler,
+      @Nonnull DataConverter dataConverter,
+      @Nonnull SlotSupplier<NexusSlotInfo> slotSupplier,
+      @Nonnull NamespaceCapabilities namespaceCapabilities,
+      boolean workerCommandsTaskQueue) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -82,6 +105,7 @@ final class NexusWorker implements SuspendableWorker {
 
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
     this.namespaceCapabilities = namespaceCapabilities;
+    this.workerCommandsTaskQueue = workerCommandsTaskQueue;
     // Allow tests to force old format for backward compatibility testing
     String forceOldFormat = System.getProperty("temporal.nexus.forceOldFailureFormat");
     this.forceOldFailureFormat = "true".equalsIgnoreCase(forceOldFormat);
@@ -116,7 +140,8 @@ final class NexusWorker implements SuspendableWorker {
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     this.slotSupplier,
-                    pollerTracker),
+                    pollerTracker,
+                    workerCommandsTaskQueue),
                 this.pollTaskExecutor,
                 pollerOptions,
                 namespaceCapabilities,
@@ -135,7 +160,8 @@ final class NexusWorker implements SuspendableWorker {
                     this.slotSupplier,
                     workerMetricsScope,
                     service.getServerCapabilities(),
-                    pollerTracker),
+                    pollerTracker,
+                    workerCommandsTaskQueue),
                 this.pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope,
@@ -350,27 +376,30 @@ final class NexusWorker implements SuspendableWorker {
             && result.getResponse().getStartOperation().hasFailure()) {
           failed = true;
           Failure f = result.getResponse().getStartOperation().getFailure();
-          String operationState;
+          String taskFailureValue;
           if (f.hasApplicationFailureInfo()) {
-            operationState = "failed";
+            taskFailureValue = MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED;
           } else {
-            operationState = "canceled";
+            taskFailureValue = MetricsTag.TASK_FAILURE_VALUE_OPERATION_CANCELED;
           }
           metricsScope
-              .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "operation_" + operationState))
+              .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, taskFailureValue))
               .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
               .inc(1);
         }
       } catch (TimeoutException e) {
         log.warn("Nexus task timed out while processing", e);
         metricsScope
-            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "timeout"))
+            .tagged(
+                Collections.singletonMap(TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_TIMEOUT))
             .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
             .inc(1);
         return true;
       } catch (Throwable e) {
         metricsScope
-            .tagged(Collections.singletonMap(TASK_FAILURE_TYPE, "internal_sdk_error"))
+            .tagged(
+                Collections.singletonMap(
+                    TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_INTERNAL_SDK_ERROR))
             .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
             .inc(1);
         // handler.handle if expected to never throw an exception and return result

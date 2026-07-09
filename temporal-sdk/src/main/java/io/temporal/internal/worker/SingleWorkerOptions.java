@@ -41,6 +41,8 @@ public final class SingleWorkerOptions {
     private boolean usingVirtualThreads;
     private WorkerDeploymentOptions deploymentOptions;
     private String workerInstanceKey;
+    private boolean allowActivityHeartbeatDuringShutdown;
+    private String workerControlTaskQueue;
 
     private Builder() {}
 
@@ -66,6 +68,8 @@ public final class SingleWorkerOptions {
       this.usingVirtualThreads = options.isUsingVirtualThreads();
       this.deploymentOptions = options.getDeploymentOptions();
       this.workerInstanceKey = options.getWorkerInstanceKey();
+      this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
+      this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
     }
 
     public Builder setIdentity(String identity) {
@@ -162,6 +166,17 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setAllowActivityHeartbeatDuringShutdown(
+        boolean allowActivityHeartbeatDuringShutdown) {
+      this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+      return this;
+    }
+
+    public Builder setWorkerControlTaskQueue(String workerControlTaskQueue) {
+      this.workerControlTaskQueue = workerControlTaskQueue;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -201,7 +216,9 @@ public final class SingleWorkerOptions {
           drainStickyTaskQueueTimeout,
           usingVirtualThreads,
           this.deploymentOptions,
-          this.workerInstanceKey);
+          this.workerInstanceKey,
+          this.allowActivityHeartbeatDuringShutdown,
+          this.workerControlTaskQueue);
     }
   }
 
@@ -223,6 +240,8 @@ public final class SingleWorkerOptions {
   private final boolean usingVirtualThreads;
   private final WorkerDeploymentOptions deploymentOptions;
   private final String workerInstanceKey;
+  private final boolean allowActivityHeartbeatDuringShutdown;
+  private final String workerControlTaskQueue;
 
   private SingleWorkerOptions(
       String identity,
@@ -242,7 +261,9 @@ public final class SingleWorkerOptions {
       Duration drainStickyTaskQueueTimeout,
       boolean usingVirtualThreads,
       WorkerDeploymentOptions deploymentOptions,
-      String workerInstanceKey) {
+      String workerInstanceKey,
+      boolean allowActivityHeartbeatDuringShutdown,
+      String workerControlTaskQueue) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -261,6 +282,8 @@ public final class SingleWorkerOptions {
     this.usingVirtualThreads = usingVirtualThreads;
     this.deploymentOptions = deploymentOptions;
     this.workerInstanceKey = workerInstanceKey;
+    this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.workerControlTaskQueue = workerControlTaskQueue;
   }
 
   public String getIdentity() {
@@ -289,6 +312,10 @@ public final class SingleWorkerOptions {
 
   public Duration getDrainStickyTaskQueueTimeout() {
     return drainStickyTaskQueueTimeout;
+  }
+
+  public boolean getAllowActivityHeartbeatDuringShutdown() {
+    return allowActivityHeartbeatDuringShutdown;
   }
 
   public DataConverter getDataConverter() {
@@ -344,6 +371,10 @@ public final class SingleWorkerOptions {
 
   public String getWorkerInstanceKey() {
     return workerInstanceKey;
+  }
+
+  public String getWorkerControlTaskQueue() {
+    return workerControlTaskQueue;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

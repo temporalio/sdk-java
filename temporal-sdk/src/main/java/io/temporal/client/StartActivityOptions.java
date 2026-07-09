@@ -45,6 +45,7 @@ public final class StartActivityOptions {
     private @Nullable String staticSummary;
     private @Nullable String staticDetails;
     private @Nullable Priority priority;
+    private @Nullable Duration startDelay;
 
     private Builder() {}
 
@@ -65,6 +66,7 @@ public final class StartActivityOptions {
       this.staticSummary = options.staticSummary;
       this.staticDetails = options.staticDetails;
       this.priority = options.priority;
+      this.startDelay = options.startDelay;
     }
 
     /** Required. A unique identifier for this activity in the namespace. */
@@ -159,6 +161,20 @@ public final class StartActivityOptions {
       return this;
     }
 
+    /**
+     * Time to wait before dispatching the first activity task. The delay is one-shot — retry
+     * attempts do not re-apply it. {@code ScheduleToStart} and {@code ScheduleToClose} timeouts
+     * begin counting only after the delay elapses. Must be non-negative; {@code null} or {@link
+     * Duration#ZERO} mean no delay.
+     */
+    public Builder setStartDelay(Duration startDelay) {
+      if (startDelay != null && startDelay.isNegative()) {
+        throw new IllegalArgumentException("startDelay must be non-negative, got " + startDelay);
+      }
+      this.startDelay = startDelay;
+      return this;
+    }
+
     public StartActivityOptions build() {
       Preconditions.checkArgument(!Strings.isNullOrEmpty(id), "id must not be null or empty");
       Preconditions.checkArgument(
@@ -183,6 +199,7 @@ public final class StartActivityOptions {
   private final @Nullable String staticSummary;
   private final @Nullable String staticDetails;
   private final @Nullable Priority priority;
+  private final @Nullable Duration startDelay;
 
   private StartActivityOptions(Builder builder) {
     this.id = builder.id;
@@ -198,6 +215,7 @@ public final class StartActivityOptions {
     this.staticSummary = builder.staticSummary;
     this.staticDetails = builder.staticDetails;
     this.priority = builder.priority;
+    this.startDelay = builder.startDelay;
   }
 
   public Builder toBuilder() {
@@ -265,6 +283,11 @@ public final class StartActivityOptions {
     return priority;
   }
 
+  @Nullable
+  public Duration getStartDelay() {
+    return startDelay;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -282,7 +305,8 @@ public final class StartActivityOptions {
         && Objects.equals(typedSearchAttributes, that.typedSearchAttributes)
         && Objects.equals(staticSummary, that.staticSummary)
         && Objects.equals(staticDetails, that.staticDetails)
-        && Objects.equals(priority, that.priority);
+        && Objects.equals(priority, that.priority)
+        && Objects.equals(startDelay, that.startDelay);
   }
 
   @Override
@@ -300,7 +324,8 @@ public final class StartActivityOptions {
         typedSearchAttributes,
         staticSummary,
         staticDetails,
-        priority);
+        priority,
+        startDelay);
   }
 
   @Override
@@ -332,6 +357,8 @@ public final class StartActivityOptions {
         + staticDetails
         + "', priority="
         + priority
+        + ", startDelay="
+        + startDelay
         + '}';
   }
 }

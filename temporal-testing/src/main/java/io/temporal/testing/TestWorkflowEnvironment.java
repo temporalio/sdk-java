@@ -3,6 +3,7 @@ package io.temporal.testing;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.OperatorServiceStubs;
@@ -103,6 +104,9 @@ public interface TestWorkflowEnvironment extends Closeable {
 
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
   WorkflowClient getWorkflowClient();
+
+  /** Creates an ActivityClient that is connected to the in-memory test Temporal service. */
+  ActivityClient getActivityClient();
 
   /**
    * This time might not be equal to {@link System#currentTimeMillis()} due to time skipping.

@@ -13,6 +13,10 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.NexusClient;
+import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowQueryException;
@@ -113,6 +117,11 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
+      return this;
+    }
+
+    public Builder setActivityClientOptions(ActivityClientOptions activityClientOptions) {
+      testWorkflowRuleBuilder.setActivityClientOptions(activityClientOptions);
       return this;
     }
 
@@ -260,6 +269,18 @@ public class SDKTestWorkflowRule implements TestRule {
     return testWorkflowRule.getNexusEndpoint();
   }
 
+  /**
+   * Returns a {@link NexusClient} bound to this rule's namespace and service stubs. Use for tests
+   * that exercise the standalone Nexus client surface.
+   */
+  public NexusClient getNexusClient() {
+    return NexusClient.newInstance(
+        getWorkflowServiceStubs(),
+        NexusClientOptions.newBuilder()
+            .setNamespace(getWorkflowClient().getOptions().getNamespace())
+            .build());
+  }
+
   public Worker getWorker() {
     return testWorkflowRule.getWorker();
   }
@@ -378,6 +399,10 @@ public class SDKTestWorkflowRule implements TestRule {
 
   public WorkflowClient getWorkflowClient() {
     return testWorkflowRule.getWorkflowClient();
+  }
+
+  public ActivityClient getActivityClient() {
+    return testWorkflowRule.getActivityClient();
   }
 
   public WorkflowServiceStubs getWorkflowServiceStubs() {

@@ -126,7 +126,8 @@ final class WorkflowWorker implements SuspendableWorker {
                   slotSupplier,
                   workerMetricsScope,
                   service.getServerCapabilities(),
-                  pollerTracker);
+                  pollerTracker,
+                  workerControlTaskQueue());
           pollers =
               Arrays.asList(
                   new AsyncWorkflowPollTask(
@@ -140,7 +141,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       slotSupplier,
                       workerMetricsScope,
                       service.getServerCapabilities(),
-                      stickyPollerTracker),
+                      stickyPollerTracker,
+                      workerControlTaskQueue()),
                   normalPoller);
           this.stickyQueueBalancer = normalPoller;
         } else {
@@ -157,7 +159,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       slotSupplier,
                       workerMetricsScope,
                       service.getServerCapabilities(),
-                      pollerTracker));
+                      pollerTracker,
+                      workerControlTaskQueue()));
         }
         poller =
             new AsyncPoller<>(
@@ -191,7 +194,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     pollerTracker,
-                    stickyPollerTracker),
+                    stickyPollerTracker,
+                    workerControlTaskQueue()),
                 pollTaskExecutor,
                 pollerOptions,
                 workerMetricsScope,
@@ -548,13 +552,13 @@ final class WorkflowWorker implements SuspendableWorker {
               String taskFailureType;
               switch (taskFailedCause) {
                 case WORKFLOW_TASK_FAILED_CAUSE_NON_DETERMINISTIC_ERROR:
-                  taskFailureType = "NonDeterminismError";
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR;
                   break;
                 case WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE:
-                  taskFailureType = "GrpcMessageTooLarge";
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_GRPC_MESSAGE_TOO_LARGE;
                   break;
                 default:
-                  taskFailureType = "WorkflowError";
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR;
               }
               Scope workflowTaskFailureScope =
                   workflowTypeScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, taskFailureType));
@@ -616,10 +620,12 @@ final class WorkflowWorker implements SuspendableWorker {
         if (e instanceof NonDeterministicException) {
           workflowTaskFailureScope =
               workflowTaskFailureScope.tagged(
-                  ImmutableMap.of(TASK_FAILURE_TYPE, "NonDeterminismError"));
+                  ImmutableMap.of(
+                      TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR));
         } else {
           workflowTaskFailureScope =
-              workflowTaskFailureScope.tagged(ImmutableMap.of(TASK_FAILURE_TYPE, "WorkflowError"));
+              workflowTaskFailureScope.tagged(
+                  ImmutableMap.of(TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR));
         }
         // more detailed logging that we can do here is already done inside `handler`
         workflowTaskFailureScope
@@ -645,6 +651,10 @@ final class WorkflowWorker implements SuspendableWorker {
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
           .setTaskToken(taskToken);
+      String workerControlTaskQueue = workerControlTaskQueue();
+      if (workerControlTaskQueue != null) {
+        taskCompleted.setWorkerControlTaskQueue(workerControlTaskQueue);
+      }
 
       if (options.getDeploymentOptions() != null) {
         taskCompleted.setDeploymentOptions(
@@ -752,5 +762,9 @@ final class WorkflowWorker implements SuspendableWorker {
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
           .exceptionToFailure(applicationFailure);
     }
+  }
+
+  private String workerControlTaskQueue() {
+    return namespaceCapabilities.isWorkerCommands() ? options.getWorkerControlTaskQueue() : null;
   }
 }
