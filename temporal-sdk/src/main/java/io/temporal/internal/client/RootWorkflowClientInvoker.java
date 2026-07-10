@@ -521,9 +521,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                     .setIdentity(clientOptions.getIdentity()))
             .setInput(updateInput);
 
-    // If this update is being issued from inside a Nexus operation handler via
-    // TemporalNexusClientImpl.startWorkflowUpdate, set the fields the server needs
-    // to deliver the Nexus completion callback.
+    // If this update is being issued via TemporalNexusClientImpl.startWorkflowUpdate,
+    // set the fields the server needs to deliver the Nexus completion callback
     if (CurrentNexusOperationContext.isNexusContext()) {
       InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
       // already in a Nexus operation context, dont need to check nexusContext again
@@ -549,10 +548,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                     nexusOperationMetadata.operationToken,
                     requestLinks))
             .addAllLinks(requestLinks);
-      } else {
-        log.error("unexpected error fetching nexusOperationMetadata");
-        // maybe throw an exception but should never really happen as its all sdk
       }
+      // If no NexusOperationMetadata was found, but there is a NexusContext, then the
+      // update was likely trigger via Operation handler directly
     }
 
     Request request = requestBuilder.build();

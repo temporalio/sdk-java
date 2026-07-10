@@ -1,24 +1,23 @@
 package io.temporal.nexus;
 
+import com.google.common.base.Strings;
 import io.temporal.common.Experimental;
 import java.util.Objects;
-import javax.annotation.Nullable;
 
 /**
  * Input to {@link TemporalOperationHandler#cancelUpdateWorkflow} describing the workflow update to
  * cancel.
  */
 @Experimental
-public final class CancelUpdateWorkflowExecutionInput {
+public final class CancelUpdateWorkflowInput {
 
   private final String workflowId;
-  @Nullable private final String runId;
+  private final String runId;
   private final String updateId;
 
-  public CancelUpdateWorkflowExecutionInput(
-      String workflowId, @Nullable String runId, String updateId) {
+  public CancelUpdateWorkflowInput(String workflowId, String runId, String updateId) {
     this.workflowId = Objects.requireNonNull(workflowId);
-    this.runId = runId;
+    this.runId = Strings.nullToEmpty(runId);
     this.updateId = Objects.requireNonNull(updateId);
   }
 
@@ -27,8 +26,7 @@ public final class CancelUpdateWorkflowExecutionInput {
     return workflowId;
   }
 
-  /** Returns the run ID extracted from the operation token, or null if not present. */
-  @Nullable
+  /** Returns the run ID extracted from the operation token, or empty if not present. */
   public String getRunId() {
     return runId;
   }
