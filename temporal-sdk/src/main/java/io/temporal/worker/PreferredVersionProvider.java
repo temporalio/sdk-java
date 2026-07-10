@@ -22,8 +22,7 @@ public interface PreferredVersionProvider {
    *
    * <p>This method is invoked on the workflow thread. Any exception it throws propagates out of the
    * {@code getVersion} call and fails the current workflow task, which will be retried; a provider
-   * that always throws will therefore block the workflow. Implementations should be deterministic
-   * and side-effect free.
+   * that always throws will therefore block the workflow.
    */
   @Nullable
   VersionPreference getPreferredVersion(@Nonnull PreferredVersionProviderInput input);
