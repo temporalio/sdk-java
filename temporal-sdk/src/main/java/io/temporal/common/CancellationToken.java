@@ -1,42 +1,39 @@
 package io.temporal.common;
 
-import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 
-/** Token that allows asynchronous code to observe cancellation requests. */
+/**
+ * Token that allows asynchronous code to observe cancellation requests.
+ *
+ * @param <E> the exception type surfaced by {@link #throwIfCancellationRequested()} and {@link
+ *     #getCancellationFuture()} when cancellation is requested
+ */
 @Experimental
-public interface CancellationToken {
-  CancellationToken NONE =
-      new CancellationToken() {
-        @Override
-        public boolean isCancellationRequested() {
-          return false;
-        }
-
-        @Override
-        public void throwIfCancellationRequested() throws CancellationException {}
-
-        @Override
-        public Registration onCancel(Runnable callback) {
-          return () -> {};
-        }
-      };
+public interface CancellationToken<E extends RuntimeException> {
 
   /** Returns true after cancellation has been requested. */
   boolean isCancellationRequested();
 
-  /** Throws {@link CancellationException} if cancellation has been requested. */
-  void throwIfCancellationRequested() throws CancellationException;
+  /** Throws {@code E} if cancellation has been requested. */
+  void throwIfCancellationRequested() throws E;
 
   /**
-   * Future that completes normally when cancellation has been requested.
+   * Future that completes exceptionally with {@code E} when cancellation has been requested.
    *
-   * <p>Code waiting on external work can attach a callback to this future to abort in-flight
-   * requests when cancellation is requested.
+   * <p>Code waiting on external work can chain off this future to abort in-flight requests when
+   * cancellation is requested.
    */
   default CompletableFuture<Void> getCancellationFuture() {
     CompletableFuture<Void> result = new CompletableFuture<>();
-    Registration registration = onCancel(() -> result.complete(null));
+    Registration registration =
+        onCancel(
+            () -> {
+              try {
+                throwIfCancellationRequested();
+              } catch (RuntimeException e) {
+                result.completeExceptionally(e);
+              }
+            });
     result.whenComplete((ignored, error) -> registration.close());
     return result;
   }
@@ -53,5 +50,28 @@ public interface CancellationToken {
   interface Registration extends AutoCloseable {
     @Override
     void close();
+  }
+
+  /** A token that is never cancelled. */
+  static <E extends RuntimeException> CancellationToken<E> none() {
+    return new CancellationToken<E>() {
+      @Override
+      public boolean isCancellationRequested() {
+        return false;
+      }
+
+      @Override
+      public void throwIfCancellationRequested() {}
+
+      @Override
+      public CompletableFuture<Void> getCancellationFuture() {
+        return new CompletableFuture<>();
+      }
+
+      @Override
+      public Registration onCancel(Runnable callback) {
+        return () -> {};
+      }
+    };
   }
 }

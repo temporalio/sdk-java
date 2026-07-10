@@ -1,12 +1,13 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.payload.context.ActivitySerializationContext;
@@ -110,7 +111,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   }
 
   @Override
-  public ActivityCancellationToken getCancellationToken() {
+  public CancellationToken<ActivityCanceledException> getCancellationToken() {
     return heartbeatContext.getCancellationToken();
   }
 

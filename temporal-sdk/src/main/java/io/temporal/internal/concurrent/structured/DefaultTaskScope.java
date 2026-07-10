@@ -4,13 +4,14 @@ import io.temporal.common.CancellationToken;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 
 /**
  * Reference implementation of {@link TaskScope}. Each task's {@link CancelSource} is linked to the
@@ -18,21 +19,23 @@ import java.util.function.Supplier;
  */
 final class DefaultTaskScope<T> implements TaskScope<T> {
 
-  private final CancelSource scope = new CancelSource();
+  private final CancelSource<CancellationException> scope =
+      new CancelSource<>(CancellationException::new);
   private final AtomicBoolean closed = new AtomicBoolean(false);
   private final List<DefaultAsyncTask<?>> ownedTasks = new CopyOnWriteArrayList<>();
   private final List<DefaultAsyncTask<?>> resultTasks = new CopyOnWriteArrayList<>();
 
   @Override
-  public CancellationToken token() {
+  public CancellationToken<CancellationException> token() {
     return scope.token();
   }
 
   @Override
-  public <U> AsyncTask<U> attach(CompletableFuture<U> future) {
+  public <U> AsyncTask<U> attach(@Nonnull CompletableFuture<U> future) {
     Objects.requireNonNull(future, "future");
     ensureOpen();
-    CancelSource childSrc = CancelSource.linkedTo(scope.token());
+    CancelSource<CancellationException> childSrc =
+        CancelSource.linkedTo(CancellationException::new, scope.token());
     DefaultAsyncTask<U> task =
         new DefaultAsyncTask<>(
             future, childSrc, () -> future.cancel(true), ownedTasks::add, this::replaceResultTask);
@@ -42,8 +45,12 @@ final class DefaultTaskScope<T> implements TaskScope<T> {
   }
 
   private void replaceResultTask(DefaultAsyncTask<?> parent, DefaultAsyncTask<?> child) {
-    resultTasks.remove(parent);
-    resultTasks.add(child);
+    int index = resultTasks.indexOf(parent);
+    if (index >= 0) {
+      resultTasks.set(index, child);
+    } else {
+      resultTasks.add(child);
+    }
   }
 
   private void ensureOpen() {
@@ -55,28 +62,6 @@ final class DefaultTaskScope<T> implements TaskScope<T> {
   @Override
   public void cancelAll() {
     scope.cancel();
-  }
-
-  @Override
-  public <R> CompletableFuture<R> awaitAll(Supplier<R> resultSupplier) {
-    CompletableFuture<R> result = new CompletableFuture<>();
-    AtomicReference<Throwable> errorRef = new AtomicReference<>();
-    awaitTermination(0, failFastWatch(errorRef))
-        .whenComplete(
-            (ignored, terminationError) -> {
-              Throwable error = errorRef.get();
-              if (error != null) {
-                result.completeExceptionally(error);
-                return;
-              }
-              try {
-                result.complete(resultSupplier.get());
-              } catch (Throwable t) {
-                result.completeExceptionally(t);
-              }
-            });
-    propagateCancellation(result);
-    return result;
   }
 
   @Override

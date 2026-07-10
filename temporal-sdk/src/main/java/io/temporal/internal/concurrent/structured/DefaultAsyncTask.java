@@ -15,7 +15,7 @@ import java.util.function.Function;
 final class DefaultAsyncTask<T> implements AsyncTask<T> {
 
   final CompletableFuture<T> cf;
-  final CancelSource source;
+  final CancelSource<CancellationException> source;
   private final CompletableFuture<Void> terminated;
   private final Runnable cancellationHook;
   private final Consumer<DefaultAsyncTask<?>> taskRegistrar;
@@ -24,7 +24,7 @@ final class DefaultAsyncTask<T> implements AsyncTask<T> {
 
   DefaultAsyncTask(
       CompletableFuture<T> cf,
-      CancelSource source,
+      CancelSource<CancellationException> source,
       Runnable cancellationHook,
       Consumer<DefaultAsyncTask<?>> taskRegistrar,
       BiConsumer<DefaultAsyncTask<?>, DefaultAsyncTask<?>> resultRegistrar) {
@@ -99,17 +99,15 @@ final class DefaultAsyncTask<T> implements AsyncTask<T> {
   private <R> DefaultAsyncTask<R> derive(CompletableFuture<R> next) {
     DefaultAsyncTask<R> child =
         new DefaultAsyncTask<>(
-            next, CancelSource.linkedTo(source.token()), null, taskRegistrar, resultRegistrar);
+            next,
+            CancelSource.linkedTo(CancellationException::new, source.token()),
+            null,
+            taskRegistrar,
+            resultRegistrar);
     children.add(child);
     taskRegistrar.accept(child);
     resultRegistrar.accept(this, child);
     return child;
-  }
-
-  @Override
-  public AsyncTask<T> whenSettled(BiConsumer<? super T, ? super Throwable> cb) {
-    cf.whenComplete((v, ex) -> cb.accept(v, ex == null ? null : unwrap(ex)));
-    return this;
   }
 
   @Override
@@ -156,7 +154,7 @@ final class DefaultAsyncTask<T> implements AsyncTask<T> {
   }
 
   @Override
-  public CancellationToken token() {
+  public CancellationToken<CancellationException> token() {
     return source.token();
   }
 

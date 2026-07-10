@@ -3,11 +3,9 @@ package io.temporal.internal.concurrent.structured;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 
@@ -65,37 +63,6 @@ public class AsyncTaskTest {
     upstream.complete(1);
 
     assertEquals(14, task.join().intValue());
-  }
-
-  @Test
-  public void whenSettledReceivesUnwrappedFailure() {
-    DefaultTaskScope<Integer> scope = new DefaultTaskScope<>();
-
-    IllegalStateException failure = new IllegalStateException("boom");
-    AtomicReference<Throwable> seen = new AtomicReference<>();
-
-    CompletableFuture<Integer> upstream = new CompletableFuture<>();
-    AsyncTask<Integer> task = scope.attach(upstream);
-    task.whenSettled((value, error) -> seen.set(error));
-
-    upstream.completeExceptionally(new CompletionException(failure));
-
-    assertSame(failure, seen.get());
-    assertTrue(task.joinSettled().isFailure());
-  }
-
-  @Test
-  public void whenSettledReceivesNullThrowableOnSuccess() {
-    DefaultTaskScope<Integer> scope = new DefaultTaskScope<>();
-
-    AtomicReference<Throwable> seen = new AtomicReference<>(new RuntimeException("sentinel"));
-
-    CompletableFuture<Integer> upstream = new CompletableFuture<>();
-    scope.attach(upstream).whenSettled((value, error) -> seen.set(error));
-
-    upstream.complete(5);
-
-    assertNull(seen.get());
   }
 
   @Test

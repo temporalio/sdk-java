@@ -61,7 +61,7 @@ public final class Result<T> {
    */
   public T get() {
     if (status == Status.SUCCESS) return value;
-    throw new IllegalStateException("not a success: " + status, cause);
+    throw new IllegalStateException("Result.get() attempted on unsuccessful result", cause);
   }
 
   /**

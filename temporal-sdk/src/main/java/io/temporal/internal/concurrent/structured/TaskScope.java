@@ -2,9 +2,10 @@ package io.temporal.internal.concurrent.structured;
 
 import io.temporal.common.CancellationToken;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
-import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 
 /**
  * A structured-concurrency scope that owns a group of sibling tasks and a shared cancellation
@@ -25,30 +26,20 @@ public interface TaskScope<T> extends AutoCloseable {
    * @return the scope-wide cancellation token (tripped by {@link #cancelAll()} or {@link
    *     #close()}).
    */
-  CancellationToken token();
+  CancellationToken<CancellationException> token();
 
   /**
    * Attaches an existing asynchronous task to this scope. Scope cancellation requests cancellation
    * on the attached future.
    */
-  <U> TaskChain<U> attach(CompletableFuture<U> future);
+  <U> TaskChain<U> attach(@Nonnull CompletableFuture<U> future);
 
   /** Cancels every task in this scope. */
   void cancelAll();
 
   /**
-   * Non-blocking fail-fast wait over all tasks currently owned by this scope.
-   *
-   * <p>The returned future completes with {@code resultSupplier.get()} after all tasks complete
-   * successfully. On first failure or cancellation it completes exceptionally and cancels
-   * unfinished tasks.
-   *
-   * <p>This method does not close the scope. Scope lifetime remains caller-owned.
-   */
-  <R> CompletableFuture<R> awaitAll(Supplier<R> resultSupplier);
-
-  /**
-   * Non-blocking fail-fast wait that completes with the collected task results in collection order.
+   * Non-blocking fail-fast wait that completes with the collected task results in the order the
+   * tasks were attached.
    *
    * <p>This method does not close the scope. Scope lifetime remains caller-owned.
    */
@@ -69,8 +60,8 @@ public interface TaskScope<T> extends AutoCloseable {
   <R> CompletableFuture<R> awaitAll(Function<List<T>, R> resultTransformer);
 
   /**
-   * Non-blocking wait that completes with each collected task's settled outcome in collection
-   * order.
+   * Non-blocking wait that completes with each collected task's settled outcome in the order the
+   * tasks were attached.
    *
    * <p>Task failures and cancellations are returned as {@link Result} values instead of completing
    * the returned future exceptionally.

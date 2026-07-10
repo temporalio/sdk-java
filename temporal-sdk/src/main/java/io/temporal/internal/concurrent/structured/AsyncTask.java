@@ -1,17 +1,14 @@
 package io.temporal.internal.concurrent.structured;
 
 import io.temporal.common.CancellationToken;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /**
  * Internal task handle over a {@link CompletableFuture} that manages cancellation and tracks
  * derived tasks.
- *
- * <p><strong>Continuation style.</strong> {@link #map}, {@link #recover}, and {@link #whenSettled}
- * chain follow-on work, mirroring {@code thenApply}/{@code exceptionally}/{@code whenComplete}.
  *
  * <p><strong>Cancellation is downstream by default.</strong> {@link #cancel()} settles this task
  * and every task derived from it (its {@code map}/{@code recover} children). It does <em>not</em>
@@ -37,12 +34,6 @@ interface AsyncTask<T> extends TaskChain<T> {
   }
 
   /**
-   * Runs a side effect when this task settles. Unlike {@code CompletableFuture.whenComplete}, the
-   * callback receives the unwrapped throwable ({@code null} on success).
-   */
-  AsyncTask<T> whenSettled(BiConsumer<? super T, ? super Throwable> cb);
-
-  /**
    * Cancels this task and everything derived from it.
    *
    * @return {@code true} if this call initiated cancellation (the task had not already settled).
@@ -65,7 +56,7 @@ interface AsyncTask<T> extends TaskChain<T> {
   /**
    * @return the read-only cancellation token for this task.
    */
-  CancellationToken token();
+  CancellationToken<CancellationException> token();
 
   /** Escape hatch to the underlying future for interop with existing APIs. */
   CompletableFuture<T> toCompletableFuture();

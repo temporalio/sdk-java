@@ -132,7 +132,7 @@ public class TaskScopeTest {
             scope -> {
               scope.attach(failing);
               scope.attach(sibling);
-              return scope.awaitAll(() -> 0);
+              return scope.awaitAll(ignored -> 0);
             });
 
     failing.completeExceptionally(new IllegalStateException("boom"));
