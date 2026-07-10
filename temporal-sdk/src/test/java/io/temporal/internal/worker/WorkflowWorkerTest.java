@@ -6,6 +6,9 @@ import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
@@ -33,11 +36,9 @@ import java.util.UUID;
 import java.util.concurrent.*;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WorkflowWorkerTest {
-  private static final Logger log = LoggerFactory.getLogger(WorkflowWorkerTest.class);
   private final TestStatsReporter reporter = new TestStatsReporter();
   private static final String WORKFLOW_ID = "test-workflow-id";
   private static final String RUN_ID = "test-run-id";
@@ -47,6 +48,12 @@ public class WorkflowWorkerTest {
   public void concurrentPollRequestLockTest() throws Exception {
     // Test that if the server sends multiple concurrent workflow tasks for the same workflow the
     // SDK holds the lock during all processing.
+    ch.qos.logback.classic.Logger workflowWorkerLogger =
+        (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(WorkflowWorker.class);
+
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    workflowWorkerLogger.addAppender(appender);
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -197,6 +204,13 @@ public class WorkflowWorkerTest {
         });
     // Wait for the worker to respond, by this time the other blocked tasks should have timed out
     respondTaskLatch.await();
+    assertTrue(
+        appender.list.stream()
+            .anyMatch(
+                event ->
+                    event.getLevel() == Level.INFO
+                        && event.getFormattedMessage().contains("TMPRL1104")
+                        && event.getFormattedMessage().contains("Workflow Task completion took")));
     // All slots should be available
     Eventually.assertEventually(
         Duration.ofSeconds(10),
@@ -209,6 +223,7 @@ public class WorkflowWorkerTest {
               100.0);
         });
     // Cleanup
+    workflowWorkerLogger.detachAppender(appender);
     worker.shutdown(new ShutdownManager(), false).get();
     // Verify we only handled two tasks
     verify(taskHandler, times(2)).handleWorkflowTask(any());
