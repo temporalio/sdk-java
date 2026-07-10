@@ -19,6 +19,7 @@ public class LinkConverter {
 
   private static final Logger log = LoggerFactory.getLogger(LinkConverter.class);
 
+  private static final String temporalUrlScheme = "temporal";
   private static final String linkPathFormat = "temporal:///namespaces/%s/workflows/%s/%s/history";
   private static final String nexusOperationLinkPathFormat =
       "temporal:///namespaces/%s/nexus-operations/%s/%s/details";
@@ -35,6 +36,7 @@ public class LinkConverter {
       Link.WorkflowEvent.getDescriptor().getFullName();
   private static final String nexusOperationLinkType =
       Link.NexusOperation.getDescriptor().getFullName();
+  private static final String workflowLinkType = Link.Workflow.getDescriptor().getFullName();
 
   public static io.temporal.api.nexus.v1.Link workflowEventToNexusLink(Link.WorkflowEvent we) {
     try {
@@ -91,6 +93,24 @@ public class LinkConverter {
       log.error("Failed to encode Nexus link URL", e);
     }
     return null;
+  }
+
+  public static io.temporal.api.nexus.v1.Link workflowLinkToNexusLink(Link.Workflow w) {
+    try {
+      String namespace = URLEncoder.encode(w.getNamespace(), StandardCharsets.UTF_8.toString());
+      String workflowId =
+          URLEncoder.encode(w.getWorkflowId(), StandardCharsets.UTF_8.toString())
+              .replace("+", "%20"); // handle workflowIds supporting spaces
+      String runId = URLEncoder.encode(w.getRunId(), StandardCharsets.UTF_8.toString());
+      String url = String.format(linkPathFormat, namespace, workflowId, runId);
+      return io.temporal.api.nexus.v1.Link.newBuilder()
+          .setUrl(url)
+          .setType(workflowLinkType)
+          .build();
+    } catch (UnsupportedEncodingException e) {
+      log.error("Failed to encode Nexus link URL", e);
+      return null;
+    }
   }
 
   public static Link nexusLinkToWorkflowEvent(io.temporal.api.nexus.v1.Link nexusLink) {
@@ -166,6 +186,43 @@ public class LinkConverter {
     return link.build();
   }
 
+  public static Link nexusLinkToWorkflowLink(io.temporal.api.nexus.v1.Link nexusLink) {
+    Link.Builder link = Link.newBuilder();
+    try {
+      URI uri = new URI(nexusLink.getUrl());
+      if (!uri.getScheme().equals(temporalUrlScheme)) {
+        log.error("Failed to parse Nexus link URL: invalid scheme: {}", uri.getScheme());
+        return null;
+      }
+      StringTokenizer st = new StringTokenizer(uri.getRawPath(), "/");
+      // maybe add constants for "namespaces", "workflows" too
+      if (!st.nextToken().equals("namespaces")) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      if (!st.nextToken().equals("workflows")) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      String workflowID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      if (!st.hasMoreTokens()) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      String runID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      link.setWorkflow(
+          Link.Workflow.newBuilder()
+              .setNamespace(namespace)
+              .setWorkflowId(workflowID)
+              .setRunId(runID));
+    } catch (Exception e) {
+      log.error("Failed to parse Nexus link URL", e);
+      return null;
+    }
+    return link.build();
+  }
+
   /**
    * Dispatches on the oneof variant of {@code commonLink} and converts to the matching {@link
    * io.temporal.api.nexus.v1.Link}. Returns {@code null} if no variant is set or encoding fails.
@@ -176,6 +233,10 @@ public class LinkConverter {
     }
     if (commonLink.hasNexusOperation()) {
       return nexusOperationToNexusLink(commonLink.getNexusOperation());
+    }
+    // check for workflow link only if a more specific variant is not set
+    if (commonLink.hasWorkflow()) {
+      return workflowLinkToNexusLink(commonLink.getWorkflow());
     }
     return null;
   }
@@ -191,6 +252,9 @@ public class LinkConverter {
     }
     if (nexusOperationLinkType.equals(type)) {
       return nexusLinkToNexusOperation(nexusLink);
+    }
+    if (workflowLinkType.equals(type)) {
+      return nexusLinkToWorkflowLink(nexusLink);
     }
     log.warn("ignoring unsupported nexus link type: {}", type);
     return null;

@@ -1,12 +1,12 @@
 package io.temporal.nexus;
 
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.OperationToken;
-import io.temporal.internal.nexus.OperationTokenType;
 import io.temporal.internal.nexus.OperationTokenUtil;
 
 /**
@@ -48,7 +48,8 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
   @FunctionalInterface
   public interface StartHandler<T, R> {
     TemporalOperationResult<R> apply(
-        TemporalOperationStartContext context, TemporalNexusClient client, T input);
+        TemporalOperationStartContext context, TemporalNexusClient client, T input)
+        throws OperationException;
   }
 
   private final StartHandler<T, R> startHandler;
@@ -70,7 +71,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
   @Override
   public final OperationStartResult<R> start(
-      OperationContext ctx, OperationStartDetails details, T input) {
+      OperationContext ctx, OperationStartDetails details, T input) throws OperationException {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
     TemporalNexusClient client =
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
@@ -100,12 +101,20 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
     }
 
     TemporalOperationCancelContext cancelContext = new TemporalOperationCancelContext(ctx, details);
-    if (token.getType() == OperationTokenType.WORKFLOW_RUN) {
-      cancelWorkflowRun(cancelContext, new CancelWorkflowRunInput(token.getWorkflowId()));
-    } else {
-      throw new HandlerException(
-          HandlerException.ErrorType.BAD_REQUEST,
-          new IllegalArgumentException("unsupported operation token type: " + token.getType()));
+    switch (token.getType()) {
+      case WORKFLOW_RUN:
+        cancelWorkflowRun(cancelContext, new CancelWorkflowRunInput(token.getWorkflowId()));
+        break;
+      case WORKFLOW_UPDATE:
+        cancelUpdateWorkflow(
+            cancelContext,
+            new CancelUpdateWorkflowExecutionInput(
+                token.getWorkflowId(), token.getRunId(), token.getUpdateId()));
+        break;
+      default:
+        throw new HandlerException(
+            HandlerException.ErrorType.BAD_REQUEST,
+            new IllegalArgumentException("unsupported operation token type: " + token.getType()));
     }
   }
 
@@ -122,5 +131,22 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
       TemporalOperationCancelContext context, CancelWorkflowRunInput input) {
     WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();
     client.newUntypedWorkflowStub(input.getWorkflowId()).cancel();
+  }
+
+  /**
+   * Called when a cancel request is received for a workflow update token. Override to customize
+   * cancel behavior.
+   *
+   * <p>Default behavior: not implemented. There is no server primitive to cancel an in-flight
+   * workflow update.
+   *
+   * @param context the cancel context
+   * @param input describes the update to cancel
+   */
+  protected void cancelUpdateWorkflow(
+      TemporalOperationCancelContext context, CancelUpdateWorkflowExecutionInput input) {
+    throw new HandlerException(
+        HandlerException.ErrorType.NOT_IMPLEMENTED,
+        new UnsupportedOperationException("cannot cancel an UpdateWorkflow operation"));
   }
 }

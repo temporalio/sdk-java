@@ -5,6 +5,7 @@ import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.R
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -23,7 +24,11 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.internal.nexus.OperationTokenUtil;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
@@ -473,6 +478,19 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       }
     } while (updateNotYetDurable(input, result));
 
+    // If triggered by a Nexus Operation, set necessary fields- link, result
+    if (CurrentNexusOperationContext.isNexusContext()) {
+      NexusOperationMetadata nexusOperationMetadata =
+          CurrentNexusOperationContext.get().getNexusOperationMetadata();
+      if (nexusOperationMetadata != null) {
+        if (result.hasLink()) {
+          // add forward links for caller->handler
+          CurrentNexusOperationContext.get().addResponseLink(result.getLink());
+        }
+        nexusOperationMetadata.operationCompleted = result.hasOutcome();
+      }
+    }
+
     return toUpdateHandle(input, result, dataConverterWithWorkflowContext);
   }
 
@@ -495,14 +513,49 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
 
-    Request request =
+    Request.Builder requestBuilder =
         Request.newBuilder()
             .setMeta(
                 Meta.newBuilder()
                     .setUpdateId(input.getUpdateId())
                     .setIdentity(clientOptions.getIdentity()))
-            .setInput(updateInput)
-            .build();
+            .setInput(updateInput);
+
+    // If this update is being issued from inside a Nexus operation handler via
+    // TemporalNexusClientImpl.startWorkflowUpdate, set the fields the server needs
+    // to deliver the Nexus completion callback.
+    if (CurrentNexusOperationContext.isNexusContext()) {
+      InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+      // already in a Nexus operation context, dont need to check nexusContext again
+      NexusOperationMetadata nexusOperationMetadata = nexusContext.getNexusOperationMetadata();
+      if (nexusOperationMetadata != null) {
+        try {
+          nexusOperationMetadata.operationToken =
+              OperationTokenUtil.generateWorkflowUpdateOperationToken(
+                  clientOptions.getNamespace(),
+                  input.getWorkflowExecution().getWorkflowId(),
+                  input.getWorkflowExecution().getRunId(),
+                  input.getUpdateId());
+        } catch (JsonProcessingException e) {
+          throw new IllegalStateException("failed to generate update operation token", e);
+        }
+        List<Link> requestLinks = nexusContext.getRequestLinks();
+        requestBuilder
+            .setRequestId(nexusOperationMetadata.requestId)
+            .addCompletionCallbacks(
+                InternalUtils.buildNexusCallback(
+                    nexusOperationMetadata.callbackHeaders,
+                    nexusOperationMetadata.callbackUrl,
+                    nexusOperationMetadata.operationToken,
+                    requestLinks))
+            .addAllLinks(requestLinks);
+      } else {
+        log.error("unexpected error fetching nexusOperationMetadata");
+        // maybe throw an exception but should never really happen as its all sdk
+      }
+    }
+
+    Request request = requestBuilder.build();
 
     return UpdateWorkflowExecutionRequest.newBuilder()
         .setNamespace(clientOptions.getNamespace())

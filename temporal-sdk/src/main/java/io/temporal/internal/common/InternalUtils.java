@@ -157,6 +157,31 @@ public final class InternalUtils {
     return name.startsWith(WORKFLOW_STREAM_RESERVED_PREFIX);
   }
 
+  /** Helper to build a Nexus Callback from the provided input. */
+  public static Callback buildNexusCallback(
+      Map<String, String> callbackHeaders,
+      String callbackUrl,
+      String operationToken,
+      List<Link> links) {
+    Map<String, String> headers =
+        callbackHeaders.entrySet().stream()
+            .collect(
+                Collectors.toMap(
+                    (k) -> k.getKey().toLowerCase(),
+                    Map.Entry::getValue,
+                    (a, b) -> a,
+                    TreeMap::new));
+    headers.put(Header.OPERATION_TOKEN.toLowerCase(), operationToken);
+    Callback.Builder cbBuilder =
+        Callback.newBuilder()
+            .setNexus(
+                Callback.Nexus.newBuilder().setUrl(callbackUrl).putAllHeader(headers).build());
+    if (links != null) {
+      cbBuilder.addAllLinks(links);
+    }
+    return cbBuilder.build();
+  }
+
   /** Check the method name for reserved prefixes or names. */
   public static void checkMethodName(POJOWorkflowMethodMetadata methodMetadata) {
     boolean workflowStreamExempt =
