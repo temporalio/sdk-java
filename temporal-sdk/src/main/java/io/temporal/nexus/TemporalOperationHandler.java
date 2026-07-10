@@ -108,7 +108,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
       case WORKFLOW_UPDATE:
         cancelUpdateWorkflow(
             cancelContext,
-            new CancelUpdateWorkflowExecutionInput(
+            new CancelUpdateWorkflowInput(
                 token.getWorkflowId(), token.getRunId(), token.getUpdateId()));
         break;
       default:
@@ -144,7 +144,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
    * @param input describes the update to cancel
    */
   protected void cancelUpdateWorkflow(
-      TemporalOperationCancelContext context, CancelUpdateWorkflowExecutionInput input) {
+      TemporalOperationCancelContext context, CancelUpdateWorkflowInput input) {
     throw new HandlerException(
         HandlerException.ErrorType.NOT_IMPLEMENTED,
         new UnsupportedOperationException("cannot cancel an UpdateWorkflow operation"));

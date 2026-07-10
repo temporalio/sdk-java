@@ -228,10 +228,6 @@ public class UpdateWorkflowOperationTest extends BaseNexusTest {
     public OperationHandler<UpdateRequest, String> update() {
       return TemporalOperationHandler.create(
           (context, client, input) -> {
-            HandlerWorkflow stub =
-                client
-                    .getWorkflowClient()
-                    .newWorkflowStub(HandlerWorkflow.class, input.getTargetWorkflowId());
             UpdateOptions.Builder<String> optionsBuilder =
                 UpdateOptions.newBuilder(String.class)
                     .setUpdateName("setValue")
@@ -240,7 +236,11 @@ public class UpdateWorkflowOperationTest extends BaseNexusTest {
               optionsBuilder.setUpdateId(input.getUpdateId());
             }
             return client.startWorkflowUpdate(
-                stub::setValue, input.getValue(), optionsBuilder.build());
+                HandlerWorkflow.class,
+                input.getTargetWorkflowId(),
+                HandlerWorkflow::setValue,
+                input.getValue(),
+                optionsBuilder.build());
           });
     }
   }

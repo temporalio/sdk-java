@@ -107,7 +107,7 @@ public class LinkConverter {
           .setUrl(url)
           .setType(workflowLinkType)
           .build();
-    } catch (UnsupportedEncodingException e) {
+    } catch (Exception e) {
       log.error("Failed to encode Nexus link URL", e);
       return null;
     }
@@ -190,6 +190,7 @@ public class LinkConverter {
     Link.Builder link = Link.newBuilder();
     try {
       URI uri = new URI(nexusLink.getUrl());
+      log.debug("Parsing nexus link URL: {}", uri.getRawPath());
       if (!uri.getScheme().equals(temporalUrlScheme)) {
         log.error("Failed to parse Nexus link URL: invalid scheme: {}", uri.getScheme());
         return null;
@@ -234,7 +235,6 @@ public class LinkConverter {
     if (commonLink.hasNexusOperation()) {
       return nexusOperationToNexusLink(commonLink.getNexusOperation());
     }
-    // check for workflow link only if a more specific variant is not set
     if (commonLink.hasWorkflow()) {
       return workflowLinkToNexusLink(commonLink.getWorkflow());
     }
