@@ -437,7 +437,6 @@ public final class WorkerOptions {
      * supported for JDK >= 21. Individual options for different types of workers can be set using
      * the respective methods.
      */
-    @Experimental
     public Builder setUsingVirtualThreads(boolean enable) {
       this.usingVirtualThreadsOnWorkflowWorker = enable;
       this.usingVirtualThreadsOnLocalActivityWorker = enable;
@@ -450,7 +449,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Workflow task executors created by this worker. This option is
      * only supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnWorkflowWorker(boolean enable) {
       this.usingVirtualThreadsOnWorkflowWorker = enable;
       return this;
@@ -460,7 +458,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Local Activity task executors created by this worker. This option
      * is only supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnLocalActivityWorker(boolean enable) {
       this.usingVirtualThreadsOnLocalActivityWorker = enable;
       return this;
@@ -470,7 +467,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Activity task executors created by this worker. This option is
      * only supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnActivityWorker(boolean enable) {
       this.usingVirtualThreadsOnActivityWorker = enable;
       return this;
@@ -480,7 +476,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Nexus task executors created by this worker. This option is only
      * supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnNexusWorker(boolean enable) {
       this.usingVirtualThreadsOnNexusWorker = enable;
       return this;
@@ -924,22 +919,18 @@ public final class WorkerOptions {
     return identity;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnWorkflowWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnActivityWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnLocalActivityWorker() {
     return usingVirtualThreadsOnLocalActivityWorker;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnNexusWorker() {
     return usingVirtualThreadsOnNexusWorker;
   }
