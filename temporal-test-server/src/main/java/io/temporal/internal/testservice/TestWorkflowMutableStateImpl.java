@@ -1441,6 +1441,19 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
+  @Override
+  public void childWorkflowTerminated(
+      String activityId, ChildWorkflowExecutionTerminatedEventAttributes a) {
+    update(
+        ctx -> {
+          StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
+          child.action(StateMachines.Action.TERMINATE, ctx, a, 0);
+          childWorkflows.remove(a.getInitiatedEventId());
+          scheduleWorkflowTask(ctx);
+          ctx.unlockTimer("childWorkflowTerminated");
+        });
+  }
+
   private void processStartTimer(
       RequestContext ctx,
       StartTimerCommandAttributes a,
@@ -2964,6 +2977,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           workflow.action(Action.TERMINATE, ctx, request, 0);
           workflowTaskStateMachine.getData().workflowCompleted = true;
           processWorkflowCompletionCallbacks(ctx);
+          if (parent.isPresent()) {
+            ctx.lockTimer("terminateWorkflowExecution notify parent"); // unlocked by the parent
+            ChildWorkflowExecutionTerminatedEventAttributes a =
+                ChildWorkflowExecutionTerminatedEventAttributes.newBuilder()
+                    .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
+                    .setNamespace(ctx.getNamespace())
+                    .setWorkflowExecution(ctx.getExecution())
+                    .setWorkflowType(startRequest.getWorkflowType())
+                    .build();
+            ForkJoinPool.commonPool()
+                .execute(
+                    () -> {
+                      try {
+                        parent
+                            .get()
+                            .childWorkflowTerminated(
+                                ctx.getExecutionId().getWorkflowId().getWorkflowId(), a);
+                      } catch (StatusRuntimeException e) {
+                        // Parent might already close
+                        if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
+                          log.error("Failure reporting child termination", e);
+                        }
+                      } catch (Throwable e) {
+                        log.error("Failure reporting child termination", e);
+                      }
+                    });
+          }
         });
   }
 
