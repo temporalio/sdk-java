@@ -38,6 +38,27 @@ class ActivityOptionsExtTest {
   }
 
   @Test
+  fun `setRetryOptions DSL extension should work on ActivityOptions builder directly`() {
+    val builder = ActivityOptions.newBuilder().setTaskQueue("TestQueue")
+    builder.setRetryOptions {
+      setInitialInterval(Duration.ofMillis(50))
+      setMaximumAttempts(5)
+    }
+
+    val expected = ActivityOptions.newBuilder()
+      .setTaskQueue("TestQueue")
+      .setRetryOptions(
+        RetryOptions.newBuilder()
+          .setInitialInterval(Duration.ofMillis(50))
+          .setMaximumAttempts(5)
+          .build()
+      )
+      .build()
+
+    assertEquals(expected, builder.build())
+  }
+
+  @Test
   fun `ActivityOptions copy() DSL should merge override options`() {
     val sourceOptions = ActivityOptions {
       setTaskQueue("TestQueue")
