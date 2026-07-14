@@ -38,7 +38,8 @@ public final class SchedulePolicy {
 
     /**
      * Set the amount of time in the past to execute missed actions after a Temporal server is
-     * unavailable.
+     * unavailable. If unset, the request omits this value and the Temporal Server applies its
+     * default (currently one year).
      */
     public Builder setCatchupWindow(Duration catchupWindow) {
       this.catchupWindow = catchupWindow;
@@ -81,7 +82,8 @@ public final class SchedulePolicy {
 
   /**
    * Gets the amount of time in the past to execute missed actions after a Temporal server is
-   * unavailable.
+   * unavailable. A {@code null} value is omitted from requests so the Temporal Server applies its
+   * default (currently one year).
    *
    * @return the schedules catchup window
    */
