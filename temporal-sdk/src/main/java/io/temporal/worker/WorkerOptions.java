@@ -229,6 +229,10 @@ public final class WorkerOptions {
      * value cannot be 1 and will be adjusted to 2 if set to that value.
      *
      * <p>Default is 5, which is chosen if set to zero.
+     *
+     * <p>NOTE: If neither this nor {@link #setWorkflowTaskPollersBehavior} is set and the worker's
+     * namespace is configured to auto-enroll workers into poller autoscaling, the worker will
+     * automatically use poller autoscaling for workflow tasks instead of a fixed number of pollers.
      */
     public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
@@ -241,6 +245,10 @@ public final class WorkerOptions {
      * tasks from a task queue.
      *
      * <p>Default is 5, which is chosen if set to zero.
+     *
+     * <p>NOTE: If neither this nor {@link #setNexusTaskPollersBehavior} is set and the worker's
+     * namespace is configured to auto-enroll workers into poller autoscaling, the worker will
+     * automatically use poller autoscaling for nexus tasks instead of a fixed number of pollers.
      */
     @Experimental
     public Builder setMaxConcurrentNexusTaskPollers(int maxConcurrentNexusTaskPollers) {
@@ -268,6 +276,10 @@ public final class WorkerOptions {
      * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
      *
      * <p>Default is 5, which is chosen if set to zero.
+     *
+     * <p>NOTE: If neither this nor {@link #setActivityTaskPollersBehavior} is set and the worker's
+     * namespace is configured to auto-enroll workers into poller autoscaling, the worker will
+     * automatically use poller autoscaling for activity tasks instead of a fixed number of pollers.
      */
     public Builder setMaxConcurrentActivityTaskPollers(int maxConcurrentActivityTaskPollers) {
       this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
@@ -505,19 +517,38 @@ public final class WorkerOptions {
      *
      * <p>If the sticky queue is enabled, the poller behavior will be used for the sticky queue as
      * well.
+     *
+     * <p>NOTE: If neither this nor {@link #setMaxConcurrentWorkflowTaskPollers} is set and the
+     * worker's namespace is configured to auto-enroll workers into poller autoscaling, the worker
+     * will automatically use poller autoscaling for workflow tasks instead of a fixed number of
+     * pollers.
      */
     public Builder setWorkflowTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.workflowTaskPollersBehavior = pollerBehavior;
       return this;
     }
 
-    /** Set the poller behavior for activity task pollers. */
+    /**
+     * Set the poller behavior for activity task pollers.
+     *
+     * <p>NOTE: If neither this nor {@link #setMaxConcurrentActivityTaskPollers} is set and the
+     * worker's namespace is configured to auto-enroll workers into poller autoscaling, the worker
+     * will automatically use poller autoscaling for activity tasks instead of a fixed number of
+     * pollers.
+     */
     public Builder setActivityTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.activityTaskPollersBehavior = pollerBehavior;
       return this;
     }
 
-    /** Set the poller behavior for nexus task pollers. */
+    /**
+     * Set the poller behavior for nexus task pollers.
+     *
+     * <p>NOTE: If neither this nor {@link #setMaxConcurrentNexusTaskPollers} is set and the
+     * worker's namespace is configured to auto-enroll workers into poller autoscaling, the worker
+     * will automatically use poller autoscaling for nexus tasks instead of a fixed number of
+     * pollers.
+     */
     public Builder setNexusTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.nexusTaskPollersBehavior = pollerBehavior;
       return this;

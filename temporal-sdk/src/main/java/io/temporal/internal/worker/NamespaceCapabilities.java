@@ -10,12 +10,18 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class NamespaceCapabilities {
   private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
+  private final AtomicBoolean pollerAutoscalingAutoEnroll = new AtomicBoolean(false);
   private final AtomicBoolean gracefulPollShutdown = new AtomicBoolean(false);
   private final AtomicBoolean workerHeartbeats = new AtomicBoolean(false);
   private final AtomicBoolean workerCommands = new AtomicBoolean(false);
 
   public void setFromCapabilities(Capabilities capabilities) {
-    if (capabilities.getPollerAutoscaling()) {
+    if (capabilities.getPollerAutoscalingAutoEnroll()) {
+      pollerAutoscalingAutoEnroll.set(true);
+    }
+    // Auto-enroll implies full poller autoscaling support, including scaling down, so it also
+    // enables pollerAutoscaling (which drives serverSupportsAutoscaling in PollScaleReportHandle).
+    if (capabilities.getPollerAutoscaling() || capabilities.getPollerAutoscalingAutoEnroll()) {
       pollerAutoscaling.set(true);
     }
     if (capabilities.getWorkerPollCompleteOnShutdown()) {
@@ -31,6 +37,10 @@ public final class NamespaceCapabilities {
 
   public boolean isPollerAutoscaling() {
     return pollerAutoscaling.get();
+  }
+
+  public boolean isPollerAutoscalingAutoEnroll() {
+    return pollerAutoscalingAutoEnroll.get();
   }
 
   public boolean isGracefulPollShutdown() {
