@@ -4,12 +4,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Strings;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.HandlerException;
+import io.nexusrpc.handler.HandlerException.RetryBehavior;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.client.WorkflowUpdateException;
 import io.temporal.client.WorkflowUpdateHandle;
 import io.temporal.client.WorkflowUpdateStage;
@@ -596,15 +599,21 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   private <R> void checkNexusUpdateOptionsValid(UpdateOptions<R> options)
       throws OperationException {
     if (options.getWaitForStage() != WorkflowUpdateStage.ACCEPTED) {
-      throw OperationException.failed(
-          "workflow update Nexus operation only support WaitForStage Accepted");
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST,
+          "invalid update request",
+          new IllegalArgumentException(
+              "nexus op workflow updates only support WorkflowUpdateStageAccepted for async updates"),
+          RetryBehavior.RETRYABLE);
     }
-    // draft-review: TBD, this is still under discussion as we may want to let
-    // handlers trigger invalid updates in some cases and just retry forever
     try {
       options.validate();
     } catch (IllegalStateException e) {
-      throw OperationException.failed(e);
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          "invalid update request",
+          e,
+          RetryBehavior.RETRYABLE);
     }
   }
 
@@ -616,5 +625,29 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
               "Only one async operation can be started per operation handler invocation. "
                   + "Use getWorkflowClient() for additional workflow interactions."));
     }
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub =
+        client.newWorkflowStub(
+            workflowClass,
+            WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6), effective));
   }
 }

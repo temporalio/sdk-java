@@ -1,6 +1,7 @@
 package io.temporal.nexus;
 
 import io.nexusrpc.OperationException;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
@@ -510,7 +511,6 @@ public interface TemporalNexusClient {
       WorkflowOptions options,
       Object... args);
 
-  // draft-review: all these combinations are for 1-1 compatibility - check if they can be trimmed
   /**
    * Starts a workflow update on an existing workflow as a Nexus operation. The result is delivered
    * asynchronously via the Nexus completion callback, unless the update RPC comes back already
@@ -746,7 +746,45 @@ public interface TemporalNexusClient {
       UpdateOptions<R> options)
       throws OperationException;
 
-  // draft-review: check if all these are also necessary to preserve 1:1 compatibility
+  /**
+   * TBD: determine if all the other 14 func+proc+void are required and add if needed Starts a
+   * six-argument workflow update on the provided workflow execution. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param <T>
+   * @param <A1>
+   * @param <A2>
+   * @param <A3>
+   * @param <A4>
+   * @param <A5>
+   * @param <A6>
+   * @param <R>
+   * @param workflowClass
+   * @param execution
+   * @param updateMethod
+   * @param arg1
+   * @param arg2
+   * @param arg3
+   * @param arg4
+   * @param arg5
+   * @param arg6
+   * @param options
+   * @return
+   * @throws OperationException
+   */
+  <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options)
+      throws OperationException;
 
   /**
    * Starts a zero-argument workflow update with no return value on an existing workflow as a Nexus
