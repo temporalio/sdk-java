@@ -120,6 +120,8 @@ jobs:
               --dynamic-config-value history.enableChasm=true \
               --dynamic-config-value history.enableCHASMSignalBacklinks=true \
               --dynamic-config-value history.enableTransitionHistory=true \
+              --dynamic-config-value history.enableUpdateCallbacks=true \
+              --dynamic-config-value history.enableCHASMCallbacks=true \
               --dynamic-config-value frontend.enableCancelWorkerPollsOnShutdown=true \
               --dynamic-config-value frontend.workerCommandsEnabled=true \
               --dynamic-config-value system.enableCancelActivityWorkerCommand=true &

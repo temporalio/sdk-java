@@ -1,6 +1,5 @@
 package io.temporal.nexus;
 
-import com.google.common.base.Strings;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 
@@ -17,7 +16,7 @@ public final class CancelUpdateWorkflowInput {
 
   public CancelUpdateWorkflowInput(String workflowId, String runId, String updateId) {
     this.workflowId = Objects.requireNonNull(workflowId);
-    this.runId = Strings.nullToEmpty(runId);
+    this.runId = Objects.requireNonNull(runId);
     this.updateId = Objects.requireNonNull(updateId);
   }
 

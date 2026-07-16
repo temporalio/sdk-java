@@ -5,7 +5,6 @@ import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.R
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -535,7 +534,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   input.getWorkflowExecution().getWorkflowId(),
                   input.getWorkflowExecution().getRunId(),
                   input.getUpdateId());
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
           throw new IllegalStateException("failed to generate update operation token", e);
         }
         List<Link> requestLinks = nexusContext.getRequestLinks();

@@ -14,7 +14,6 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
-import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.internal.nexus.OperationToken;
 import io.temporal.internal.nexus.OperationTokenType;
 import io.temporal.internal.nexus.OperationTokenUtil;
@@ -111,12 +110,10 @@ public class UpdateWorkflowOperationTest extends BaseNexusTest {
 
   @Test
   public void asyncUpdateWorkflowOperationCompletes() {
-    // only run this test if the server supports update completion callbacks
-    // currently only for local server manual checks until the in-memory test
-    // server can support update completion callbacks
+    // Requires history.enableUpdateCallbacks and history.enableCHASMCallbacks
     assumeTrue(
         "server does not support update completion callbacks",
-        EnvironmentVariableUtils.readBooleanFlag("UPDATE_CALLBACKS_SUPPORTED"));
+        SDKTestWorkflowRule.useExternalService);
 
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(
