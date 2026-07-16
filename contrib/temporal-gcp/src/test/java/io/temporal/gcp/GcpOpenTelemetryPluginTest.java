@@ -82,7 +82,7 @@ public class GcpOpenTelemetryPluginTest {
   }
 
   @Test
-  public void workerFactoryShutdownFlushesByDefault() {
+  public void workerFactoryShutdownDefersFlushByDefault() {
     AtomicInteger flushes = new AtomicInteger();
     AtomicInteger shutdowns = new AtomicInteger();
     GcpOpenTelemetryPlugin plugin =
@@ -94,6 +94,25 @@ public class GcpOpenTelemetryPluginTest {
     plugin.shutdownWorkerFactory(null, factory -> shutdowns.incrementAndGet());
 
     assertEquals(1, shutdowns.get());
+    assertEquals(0, flushes.get());
+
+    plugin.newFlushHook().run();
+
+    assertEquals(1, flushes.get());
+  }
+
+  @Test
+  public void workerFactoryShutdownFlushCanBeEnabled() {
+    AtomicInteger flushes = new AtomicInteger();
+    GcpOpenTelemetryPlugin plugin =
+        GcpOpenTelemetryPlugin.newBuilder(new HashMap<>())
+            .setOpenTelemetry(OpenTelemetry.noop())
+            .setFlushHook(flushes::incrementAndGet)
+            .setFlushOnWorkerFactoryShutdown(true)
+            .build();
+
+    plugin.shutdownWorkerFactory(null, factory -> {});
+
     assertEquals(1, flushes.get());
   }
 }

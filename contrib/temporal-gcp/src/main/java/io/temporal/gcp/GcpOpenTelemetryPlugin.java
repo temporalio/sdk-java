@@ -16,7 +16,10 @@ import java.util.Objects;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 
-/** OpenTelemetry plugin with defaults for Temporal workers running on Google Cloud Run. */
+/**
+ * OpenTelemetry plugin with defaults for Temporal workers running on Google Cloud Run, primarily in
+ * worker pools.
+ */
 @Experimental
 public final class GcpOpenTelemetryPlugin extends SimplePlugin {
   public static final String NAME = OpenTelemetryPlugin.NAME;
@@ -92,7 +95,7 @@ public final class GcpOpenTelemetryPlugin extends SimplePlugin {
 
     private Builder(Map<String, String> env) {
       this.env = Objects.requireNonNull(env, "env");
-      this.delegate = OpenTelemetryPlugin.newBuilder(env);
+      this.delegate = OpenTelemetryPlugin.newBuilder(env).setFlushOnWorkerFactoryShutdown(false);
     }
 
     /**
@@ -130,6 +133,19 @@ public final class GcpOpenTelemetryPlugin extends SimplePlugin {
     /** Overrides the OpenTelemetry provider flush hook. */
     public Builder setFlushHook(@Nonnull Runnable flushHook) {
       delegate.setFlushHook(flushHook);
+      return this;
+    }
+
+    /**
+     * Controls whether the plugin flushes immediately after {@link WorkerFactory#shutdown()} or
+     * {@link WorkerFactory#shutdownNow()} initiates shutdown.
+     *
+     * <p>This is disabled by default because worker-factory shutdown is asynchronous. Cloud Run
+     * applications should wait for worker termination and then run {@link
+     * GcpOpenTelemetryPlugin#newFlushHook()} with the remaining shutdown time.
+     */
+    public Builder setFlushOnWorkerFactoryShutdown(boolean flushOnWorkerFactoryShutdown) {
+      delegate.setFlushOnWorkerFactoryShutdown(flushOnWorkerFactoryShutdown);
       return this;
     }
 
