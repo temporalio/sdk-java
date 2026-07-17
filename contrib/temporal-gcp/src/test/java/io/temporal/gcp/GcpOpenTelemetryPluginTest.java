@@ -7,6 +7,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.opentelemetry.OpenTelemetryPlugin;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactoryOptions;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -19,6 +20,7 @@ public class GcpOpenTelemetryPluginTest {
 
     assertEquals("http://localhost:4317", builder.getEndpoint());
     assertEquals("temporal-worker", builder.getServiceName());
+    assertEquals(Duration.ofSeconds(60), builder.getMetricsReportInterval());
   }
 
   @Test

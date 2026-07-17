@@ -53,6 +53,10 @@ The OTLP endpoint is resolved in this order:
 2. `OTEL_EXPORTER_OTLP_ENDPOINT`.
 3. `http://localhost:4317`.
 
+When the plugin creates the OpenTelemetry SDK, metrics are reported and exported every sixty seconds by default. This matches the coordinated GCP plugin default across Temporal SDKs and exceeds Google Cloud's five-second minimum export interval. If you use `Builder.setMetricsReportInterval(...)`, keep the interval above that minimum. The collector also needs the unbatched metrics pipeline described below to make a forced shutdown flush safe regardless of its timing relative to the last periodic export.
+
+With an application-owned `OpenTelemetry` instance, the setting only controls how often the Temporal metrics scope reports into that instance. Configure the instance's metric reader to export at an interval above the Google Cloud minimum as well.
+
 The OpenTelemetry service name is resolved in this order:
 
 1. `Builder.setServiceName(...)`.
@@ -66,6 +70,27 @@ The collector should use its GCP resource detector to add the Google Cloud attri
 ## Collector sidecar
 
 Google publishes the Google-Built OpenTelemetry Collector as a container image. Configure it as a second Cloud Run container, listen for OTLP gRPC on `localhost:4317`, and use its GCP exporters for metrics and traces. For the image, recommended collector configuration, IAM roles, health check, and Secret Manager mount, see [Deploy Google-Built OpenTelemetry Collector on Cloud Run](https://cloud.google.com/stackdriver/docs/instrumentation/opentelemetry-collector-cloud-run). That guide demonstrates a Cloud Run service; adapt its collector container and configuration when deploying a worker pool.
+
+Do not put a batch processor in the `googlemanagedprometheus` metrics pipeline. A periodic cumulative metric export followed closely by a forced shutdown flush can otherwise put two points for the same time series in one request, which Managed Service for Prometheus rejects. Pass metrics through the memory limiter, GCP resource detection, and any collision transforms directly to `googlemanagedprometheus`. Keep a dedicated five-second batch processor on the traces pipeline:
+
+```yaml
+processors:
+  batch/traces:
+    send_batch_max_size: 200
+    send_batch_size: 200
+    timeout: 5s
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, transform/collision]
+      exporters: [googlemanagedprometheus]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, transform/set_project_id, batch/traces]
+      exporters: [otlp]
+```
 
 Cloud Run worker pools support sidecar containers over localhost and are intended for continuous background work. The deployment should start the collector before the Temporal worker and use the collector health extension as its startup probe.
 

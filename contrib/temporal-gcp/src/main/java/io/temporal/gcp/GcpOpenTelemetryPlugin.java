@@ -30,6 +30,7 @@ public final class GcpOpenTelemetryPlugin extends SimplePlugin {
   public static final String K_SERVICE = "K_SERVICE";
   public static final String DEFAULT_OTLP_ENDPOINT = OpenTelemetryWorker.DEFAULT_OTLP_ENDPOINT;
   public static final String DEFAULT_SERVICE_NAME = OpenTelemetryWorker.DEFAULT_SERVICE_NAME;
+  public static final Duration DEFAULT_METRICS_REPORT_INTERVAL = Duration.ofSeconds(60);
 
   private final OpenTelemetryPlugin delegate;
 
@@ -95,7 +96,10 @@ public final class GcpOpenTelemetryPlugin extends SimplePlugin {
 
     private Builder(Map<String, String> env) {
       this.env = Objects.requireNonNull(env, "env");
-      this.delegate = OpenTelemetryPlugin.newBuilder(env).setFlushOnWorkerFactoryShutdown(false);
+      this.delegate =
+          OpenTelemetryPlugin.newBuilder(env)
+              .setMetricsReportInterval(DEFAULT_METRICS_REPORT_INTERVAL)
+              .setFlushOnWorkerFactoryShutdown(false);
     }
 
     /**
@@ -118,7 +122,12 @@ public final class GcpOpenTelemetryPlugin extends SimplePlugin {
       return this;
     }
 
-    /** Sets the interval used by the Temporal metrics scope and periodic metric reader. */
+    /**
+     * Sets the interval used by the Temporal metrics scope and, when the plugin creates the
+     * OpenTelemetry instance, its periodic metric reader.
+     *
+     * <p>An application-owned OpenTelemetry instance must configure its metric reader separately.
+     */
     public Builder setMetricsReportInterval(@Nonnull Duration metricsReportInterval) {
       delegate.setMetricsReportInterval(metricsReportInterval);
       return this;
@@ -155,6 +164,10 @@ public final class GcpOpenTelemetryPlugin extends SimplePlugin {
 
     public String getServiceName() {
       return serviceName == null ? resolveServiceName(env) : serviceName;
+    }
+
+    public Duration getMetricsReportInterval() {
+      return delegate.getMetricsReportInterval();
     }
 
     public OpenTelemetry createOpenTelemetry() {
