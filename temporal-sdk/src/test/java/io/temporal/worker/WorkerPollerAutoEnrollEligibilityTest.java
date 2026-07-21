@@ -126,9 +126,8 @@ public class WorkerPollerAutoEnrollEligibilityTest {
 
   @Test
   public void defaultInstanceMakesEveryPollerTypeEligible() {
-    // getDefaultInstance() carries the numeric default poller count (5), but the user never called
-    // a
-    // setter, so all types remain eligible.
+    // getDefaultInstance() carries the numeric default poller count (5) but no setter was called,
+    // so all types remain eligible.
     Worker worker = buildWorker(WorkerOptions.getDefaultInstance());
     assertTrue(workflowEligible(worker));
     assertTrue(activityEligible(worker));
