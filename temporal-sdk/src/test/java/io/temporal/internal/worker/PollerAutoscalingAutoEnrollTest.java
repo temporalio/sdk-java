@@ -35,12 +35,13 @@ public class PollerAutoscalingAutoEnrollTest {
   }
 
   @Test
-  public void autoEnrollCapabilityImpliesPollerAutoscaling() {
-    // Auto-enroll implies full autoscaling support (including scale-down), so it also enables the
-    // pollerAutoscaling flag that PollScaleReportHandle reads as serverSupportsAutoscaling.
+  public void autoEnrollAndPollerAutoscalingAreIndependent() {
+    // Auto-enroll drives only the enrollment decision; it does not by itself enable the separate
+    // pollerAutoscaling (scale-down) capability. The server advertises pollerAutoscaling on its
+    // own.
     NamespaceCapabilities caps = capabilities(true, false);
     assertTrue(caps.isPollerAutoscalingAutoEnroll());
-    assertTrue(caps.isPollerAutoscaling());
+    assertFalse(caps.isPollerAutoscaling());
   }
 
   @Test
