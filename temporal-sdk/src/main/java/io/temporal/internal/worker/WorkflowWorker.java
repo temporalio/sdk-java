@@ -48,7 +48,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final WorkflowExecutorCache cache;
   private final WorkflowTaskHandler handler;
   private final String stickyTaskQueueName;
-  private final PollerOptions pollerOptions;
+  private PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
@@ -99,6 +99,11 @@ final class WorkflowWorker implements SuspendableWorker {
   @Override
   public boolean start() {
     if (handler.isAnyTypeSupported()) {
+      // Auto-enroll into poller autoscaling if the namespace advertises the capability and this
+      // poller type was left at its default. Resolved here (after namespace capabilities are known)
+      // so the poller built below reflects the effective behavior.
+      this.pollerOptions =
+          PollerOptions.maybeEnrollInPollerAutoscaling(pollerOptions, namespaceCapabilities);
       pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,
