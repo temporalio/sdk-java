@@ -133,25 +133,13 @@ public final class Worker {
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
     Scope taggedScope = metricsScope.tagged(tags);
 
-    // Determine, per poller type, whether the user left it at its default (set neither a fixed
-    // poller count nor a poller behavior). Eligible types are auto-enrolled into poller autoscaling
-    // at start() when the namespace advertises the PollerAutoscalingAutoEnroll capability. This
-    // must
-    // be read from the raw (pre-defaulting) options, since validateAndBuildWithDefaults() fills in
-    // a
-    // fixed default poller count that would otherwise look like an explicit choice.
-    boolean workflowTaskAutoEnrollEligible =
-        options == null
-            || (options.getWorkflowTaskPollersBehavior() == null
-                && options.getMaxConcurrentWorkflowTaskPollers() == 0);
-    boolean activityTaskAutoEnrollEligible =
-        options == null
-            || (options.getActivityTaskPollersBehavior() == null
-                && options.getMaxConcurrentActivityTaskPollers() == 0);
-    boolean nexusTaskAutoEnrollEligible =
-        options == null
-            || (options.getNexusTaskPollersBehavior() == null
-                && options.getMaxConcurrentNexusTaskPollers() == 0);
+    // Poller types the user left at their default are auto-enrolled into poller autoscaling at
+    // start() when the namespace advertises the PollerAutoscalingAutoEnroll capability. Eligibility
+    // tracks whether the user called a poller setter (recorded on WorkerOptions.Builder), not the
+    // resolved value, so a defaulted count of 5 is not mistaken for an explicit choice.
+    boolean workflowTaskAutoEnrollEligible = this.options.isWorkflowTaskPollerAutoEnrollEligible();
+    boolean activityTaskAutoEnrollEligible = this.options.isActivityTaskPollerAutoEnrollEligible();
+    boolean nexusTaskAutoEnrollEligible = this.options.isNexusTaskPollerAutoEnrollEligible();
 
     SingleWorkerOptions activityOptions =
         toActivityOptions(

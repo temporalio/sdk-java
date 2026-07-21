@@ -22,13 +22,14 @@ import java.util.Collections;
 import org.junit.Test;
 
 /**
- * Verifies that {@link Worker} derives per-poller-type auto-enroll eligibility from the raw
- * (pre-defaulting) {@link WorkerOptions} and threads it into each internal worker's poller options.
+ * Verifies that {@link Worker} derives per-poller-type auto-enroll eligibility from whether the
+ * user called a poller setter (tracked on {@link WorkerOptions.Builder}) and threads it into each
+ * internal worker's poller options.
  *
- * <p>This guards the subtlest part of poller-autoscaling auto-enrollment: eligibility must be read
- * before {@code validateAndBuildWithDefaults()} fills in a fixed default poller count. If it were
- * read from the already-defaulted options, every default worker would look explicitly configured
- * and auto-enroll would silently never happen.
+ * <p>This guards the subtlest part of poller-autoscaling auto-enrollment: eligibility must reflect
+ * the user's intent, not the resolved value. Options from {@code getDefaultInstance()} or {@code
+ * validateAndBuildWithDefaults()} carry the numeric default poller count (5) yet must stay
+ * eligible, while an explicit count of 5 must not. Value-based inference cannot tell these apart.
  */
 public class WorkerPollerAutoEnrollEligibilityTest {
 
@@ -118,6 +119,53 @@ public class WorkerPollerAutoEnrollEligibilityTest {
   public void explicitMaxConcurrentPollersOnOneTypeLeavesOthersEligible() {
     Worker worker =
         buildWorker(WorkerOptions.newBuilder().setMaxConcurrentWorkflowTaskPollers(4).build());
+    assertFalse(workflowEligible(worker));
+    assertTrue(activityEligible(worker));
+    assertTrue(nexusEligible(worker));
+  }
+
+  @Test
+  public void defaultInstanceMakesEveryPollerTypeEligible() {
+    // getDefaultInstance() carries the numeric default poller count (5), but the user never called
+    // a
+    // setter, so all types remain eligible.
+    Worker worker = buildWorker(WorkerOptions.getDefaultInstance());
+    assertTrue(workflowEligible(worker));
+    assertTrue(activityEligible(worker));
+    assertTrue(nexusEligible(worker));
+  }
+
+  @Test
+  public void validateAndBuildWithDefaultsMakesEveryPollerTypeEligible() {
+    Worker worker = buildWorker(WorkerOptions.newBuilder().validateAndBuildWithDefaults());
+    assertTrue(workflowEligible(worker));
+    assertTrue(activityEligible(worker));
+    assertTrue(nexusEligible(worker));
+  }
+
+  @Test
+  public void copyOfDefaultInstanceIsEligible() {
+    // Provenance must survive newBuilder(options), for both build paths.
+    Worker fromBuild =
+        buildWorker(WorkerOptions.newBuilder(WorkerOptions.getDefaultInstance()).build());
+    assertTrue(workflowEligible(fromBuild));
+    assertTrue(activityEligible(fromBuild));
+    assertTrue(nexusEligible(fromBuild));
+
+    Worker fromValidate =
+        buildWorker(
+            WorkerOptions.newBuilder(WorkerOptions.getDefaultInstance())
+                .validateAndBuildWithDefaults());
+    assertTrue(workflowEligible(fromValidate));
+    assertTrue(activityEligible(fromValidate));
+    assertTrue(nexusEligible(fromValidate));
+  }
+
+  @Test
+  public void explicitCountEqualToNumericDefaultIsIneligible() {
+    // Explicitly setting the count to its numeric default (5) still counts as "configured".
+    Worker worker =
+        buildWorker(WorkerOptions.newBuilder().setMaxConcurrentWorkflowTaskPollers(5).build());
     assertFalse(workflowEligible(worker));
     assertTrue(activityEligible(worker));
     assertTrue(nexusEligible(worker));

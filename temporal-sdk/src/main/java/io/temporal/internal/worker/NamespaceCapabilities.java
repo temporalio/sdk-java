@@ -19,8 +19,10 @@ public final class NamespaceCapabilities {
     if (capabilities.getPollerAutoscalingAutoEnroll()) {
       pollerAutoscalingAutoEnroll.set(true);
     }
-    // Auto-enroll implies full poller autoscaling support, including scaling down, so it also
-    // enables pollerAutoscaling (which drives serverSupportsAutoscaling in PollScaleReportHandle).
+    // The auto-enroll capability implies the server speaks the full poller-scaling protocol, so
+    // also enable pollerAutoscaling: it is the flag AsyncPoller passes to PollScaleReportHandle as
+    // serverSupportsAutoscaling, which lets the poller count follow the server's scaling
+    // suggestions.
     if (capabilities.getPollerAutoscaling() || capabilities.getPollerAutoscalingAutoEnroll()) {
       pollerAutoscaling.set(true);
     }

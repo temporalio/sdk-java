@@ -79,6 +79,13 @@ public final class WorkerOptions {
     private PollerBehavior nexusTaskPollersBehavior;
     private boolean allowActivityHeartbeatDuringShutdown;
     private PreferredVersionProvider preferredVersionProvider;
+    // Track whether the user explicitly configured the pollers for a task type (called either the
+    // max-concurrent-pollers or the poller-behavior setter). A type left unconfigured is eligible
+    // for poller-autoscaling auto-enrollment. This must reflect the user's intent, not the resolved
+    // value, since defaulting fills in a non-zero count that would otherwise look explicit.
+    private boolean workflowTaskPollersConfigured;
+    private boolean activityTaskPollersConfigured;
+    private boolean nexusTaskPollersConfigured;
 
     private Builder() {}
 
@@ -116,6 +123,9 @@ public final class WorkerOptions {
       this.nexusTaskPollersBehavior = o.nexusTaskPollersBehavior;
       this.allowActivityHeartbeatDuringShutdown = o.allowActivityHeartbeatDuringShutdown;
       this.preferredVersionProvider = o.preferredVersionProvider;
+      this.workflowTaskPollersConfigured = o.workflowTaskPollersConfigured;
+      this.activityTaskPollersConfigured = o.activityTaskPollersConfigured;
+      this.nexusTaskPollersConfigured = o.nexusTaskPollersConfigured;
     }
 
     /**
@@ -236,6 +246,7 @@ public final class WorkerOptions {
      */
     public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
+      this.workflowTaskPollersConfigured = true;
       return this;
     }
 
@@ -253,6 +264,7 @@ public final class WorkerOptions {
     @Experimental
     public Builder setMaxConcurrentNexusTaskPollers(int maxConcurrentNexusTaskPollers) {
       this.maxConcurrentNexusTaskPollers = maxConcurrentNexusTaskPollers;
+      this.nexusTaskPollersConfigured = true;
       return this;
     }
 
@@ -283,6 +295,7 @@ public final class WorkerOptions {
      */
     public Builder setMaxConcurrentActivityTaskPollers(int maxConcurrentActivityTaskPollers) {
       this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
+      this.activityTaskPollersConfigured = true;
       return this;
     }
 
@@ -525,6 +538,7 @@ public final class WorkerOptions {
      */
     public Builder setWorkflowTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.workflowTaskPollersBehavior = pollerBehavior;
+      this.workflowTaskPollersConfigured = true;
       return this;
     }
 
@@ -538,6 +552,7 @@ public final class WorkerOptions {
      */
     public Builder setActivityTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.activityTaskPollersBehavior = pollerBehavior;
+      this.activityTaskPollersConfigured = true;
       return this;
     }
 
@@ -551,6 +566,7 @@ public final class WorkerOptions {
      */
     public Builder setNexusTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.nexusTaskPollersBehavior = pollerBehavior;
+      this.nexusTaskPollersConfigured = true;
       return this;
     }
 
@@ -620,7 +636,10 @@ public final class WorkerOptions {
           activityTaskPollersBehavior,
           nexusTaskPollersBehavior,
           allowActivityHeartbeatDuringShutdown,
-          preferredVersionProvider);
+          preferredVersionProvider,
+          workflowTaskPollersConfigured,
+          activityTaskPollersConfigured,
+          nexusTaskPollersConfigured);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -754,7 +773,10 @@ public final class WorkerOptions {
           activityTaskPollersBehavior,
           nexusTaskPollersBehavior,
           allowActivityHeartbeatDuringShutdown,
-          preferredVersionProvider);
+          preferredVersionProvider,
+          workflowTaskPollersConfigured,
+          activityTaskPollersConfigured,
+          nexusTaskPollersConfigured);
     }
   }
 
@@ -788,6 +810,9 @@ public final class WorkerOptions {
   private final PollerBehavior nexusTaskPollersBehavior;
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final PreferredVersionProvider preferredVersionProvider;
+  private final boolean workflowTaskPollersConfigured;
+  private final boolean activityTaskPollersConfigured;
+  private final boolean nexusTaskPollersConfigured;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -819,7 +844,10 @@ public final class WorkerOptions {
       PollerBehavior activityTaskPollersBehavior,
       PollerBehavior nexusTaskPollersBehavior,
       boolean allowActivityHeartbeatDuringShutdown,
-      PreferredVersionProvider preferredVersionProvider) {
+      PreferredVersionProvider preferredVersionProvider,
+      boolean workflowTaskPollersConfigured,
+      boolean activityTaskPollersConfigured,
+      boolean nexusTaskPollersConfigured) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -850,6 +878,38 @@ public final class WorkerOptions {
     this.nexusTaskPollersBehavior = nexusTaskPollersBehavior;
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
     this.preferredVersionProvider = preferredVersionProvider;
+    this.workflowTaskPollersConfigured = workflowTaskPollersConfigured;
+    this.activityTaskPollersConfigured = activityTaskPollersConfigured;
+    this.nexusTaskPollersConfigured = nexusTaskPollersConfigured;
+  }
+
+  /**
+   * Whether the workflow task pollers were left at their default (the user called neither {@link
+   * Builder#setMaxConcurrentWorkflowTaskPollers} nor {@link
+   * Builder#setWorkflowTaskPollersBehavior}), which makes them eligible for poller-autoscaling
+   * auto-enrollment.
+   */
+  boolean isWorkflowTaskPollerAutoEnrollEligible() {
+    return !workflowTaskPollersConfigured;
+  }
+
+  /**
+   * Whether the activity task pollers were left at their default (the user called neither {@link
+   * Builder#setMaxConcurrentActivityTaskPollers} nor {@link
+   * Builder#setActivityTaskPollersBehavior}), which makes them eligible for poller-autoscaling
+   * auto-enrollment.
+   */
+  boolean isActivityTaskPollerAutoEnrollEligible() {
+    return !activityTaskPollersConfigured;
+  }
+
+  /**
+   * Whether the nexus task pollers were left at their default (the user called neither {@link
+   * Builder#setMaxConcurrentNexusTaskPollers} nor {@link Builder#setNexusTaskPollersBehavior}),
+   * which makes them eligible for poller-autoscaling auto-enrollment.
+   */
+  boolean isNexusTaskPollerAutoEnrollEligible() {
+    return !nexusTaskPollersConfigured;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
