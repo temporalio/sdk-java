@@ -182,6 +182,46 @@ public class WorkerOptionsTest {
   }
 
   @Test
+  public void setUsingVirtualThreadsEnablesAllWorkers() {
+    WorkerOptions options = WorkerOptions.newBuilder().setUsingVirtualThreads(true).build();
+    assertTrue(options.isUsingVirtualThreadsOnWorkflowWorker());
+    assertTrue(options.isUsingVirtualThreadsOnActivityWorker());
+    assertTrue(options.isUsingVirtualThreadsOnLocalActivityWorker());
+    assertTrue(options.isUsingVirtualThreadsOnNexusWorker());
+  }
+
+  @Test
+  public void perWorkerVirtualThreadOptionsAreIndependent() {
+    WorkerOptions workflowOnly =
+        WorkerOptions.newBuilder().setUsingVirtualThreadsOnWorkflowWorker(true).build();
+    assertTrue(workflowOnly.isUsingVirtualThreadsOnWorkflowWorker());
+    assertFalse(workflowOnly.isUsingVirtualThreadsOnActivityWorker());
+    assertFalse(workflowOnly.isUsingVirtualThreadsOnLocalActivityWorker());
+    assertFalse(workflowOnly.isUsingVirtualThreadsOnNexusWorker());
+
+    WorkerOptions activityOnly =
+        WorkerOptions.newBuilder().setUsingVirtualThreadsOnActivityWorker(true).build();
+    assertFalse(activityOnly.isUsingVirtualThreadsOnWorkflowWorker());
+    assertTrue(activityOnly.isUsingVirtualThreadsOnActivityWorker());
+    assertFalse(activityOnly.isUsingVirtualThreadsOnLocalActivityWorker());
+    assertFalse(activityOnly.isUsingVirtualThreadsOnNexusWorker());
+
+    WorkerOptions localActivityOnly =
+        WorkerOptions.newBuilder().setUsingVirtualThreadsOnLocalActivityWorker(true).build();
+    assertFalse(localActivityOnly.isUsingVirtualThreadsOnWorkflowWorker());
+    assertFalse(localActivityOnly.isUsingVirtualThreadsOnActivityWorker());
+    assertTrue(localActivityOnly.isUsingVirtualThreadsOnLocalActivityWorker());
+    assertFalse(localActivityOnly.isUsingVirtualThreadsOnNexusWorker());
+
+    WorkerOptions nexusOnly =
+        WorkerOptions.newBuilder().setUsingVirtualThreadsOnNexusWorker(true).build();
+    assertFalse(nexusOnly.isUsingVirtualThreadsOnWorkflowWorker());
+    assertFalse(nexusOnly.isUsingVirtualThreadsOnActivityWorker());
+    assertFalse(nexusOnly.isUsingVirtualThreadsOnLocalActivityWorker());
+    assertTrue(nexusOnly.isUsingVirtualThreadsOnNexusWorker());
+  }
+
+  @Test
   public void verifyMaxTaskQueuePerSecondsDisablesEagerExecution() {
     // Verify that by default eager execution is enabled
     WorkerOptions w1 = WorkerOptions.newBuilder().build();

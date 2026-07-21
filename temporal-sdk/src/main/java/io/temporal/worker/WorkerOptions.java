@@ -920,7 +920,7 @@ public final class WorkerOptions {
   }
 
   public boolean isUsingVirtualThreadsOnWorkflowWorker() {
-    return usingVirtualThreadsOnActivityWorker;
+    return usingVirtualThreadsOnWorkflowWorker;
   }
 
   public boolean isUsingVirtualThreadsOnActivityWorker() {
