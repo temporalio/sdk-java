@@ -1,91 +1,122 @@
-# Developing sdk-java
+# Contributing to Temporal SDKs
 
-This doc is intended for contributors to `sdk-java` (hopefully that's you!)
+Thanks for your interest in contributing to Temporal SDKs.
 
-**Note:** All contributors also need to fill out the
-[Temporal Contributor License Agreement](https://gist.github.com/samarabbas/7dcd41eb1d847e12263cc961ccfdb197)
-before we can merge in any of your changes
+This guide describes expectations that apply across Temporal SDK repositories. Each
+repository may have additional local conventions, but the guidance below should help
+you open issues and pull requests that maintainers can evaluate efficiently.
 
-## Development Environment
+## Before You Open an Issue
 
-- **Java 21+** is required to run Gradle, compile the project, and run all tests locally.
-- Some optional tests also require the [Temporal CLI](https://docs.temporal.io/cli#installation).
+Search the existing issues first. If you find an issue that describes the same bug,
+feature request, or design topic, add any relevant details there instead of opening a
+duplicate. Use an upvote on the issue to show that it affects you too.
 
-If you're using Apple Silicon, see the [note on Rosetta](#note-on-rosetta).
+Issues are assigned to people when they are actively working on them. Before taking
+on an issue, check whether it is already assigned so you do not duplicate someone
+else's work.
 
+Use GitHub issues for actionable bugs and feature work. For usage questions, help
+debugging an application, or general discussion, join the relevant
+language-specific channel in the
+[Temporal community Slack](https://temporal.io/slack) or use the support channel
+available to you.
 
-## Build
+## Bug Reports
 
-```
-./gradlew clean build
-```
+When reporting a bug, include enough detail for someone else to reproduce or
+understand the problem:
 
-## Code Formatting
+* A short summary of the problem.
+* A minimal reproduction, preferably as code that can be copied into a small
+  project or test.
+* What you expected to happen and what actually happened.
+* The SDK version.
+* The language runtime version.
+* The operating system and architecture.
+* Temporal Server or Temporal Cloud details, if the issue depends on service
+  behavior.
+* Logs, stack traces, workflow histories, or other diagnostics that show the
+  failure.
+* Whether the behavior is a regression, and the last version where it worked if
+  known.
 
-Code autoformatting is applied automatically during a full gradle build. Build the project before submitting a PR.
-Code is formatted using `spotless` plugin with `google-java-format` tool.
+## Feature Requests and Design Changes
 
-## Commit Messages
+Open or join a GitHub issue before starting substantial feature work, behavior
+changes, or API design changes. This gives maintainers and other SDK users a chance
+to discuss the approach before you invest in a larger implementation.
 
-Overcommit adds some requirements to your commit messages. We follow the
-[Chris Beams](http://chris.beams.io/posts/git-commit/) guide to writing git
-commit messages. Read it, follow it, learn it, love it.
+The relevant language-specific channel in Temporal community Slack is also a good
+place for early discussion, but important decisions should still be captured in a
+GitHub issue so they are visible and searchable.
 
-## Running features tests in CI
+Small bug fixes, documentation fixes, and narrowly scoped maintenance changes can go
+straight to a pull request.
 
-For each PR we run the java tests from the [features repo](https://github.com/temporalio/features/). This requires
-your branch to have tags. Without tags, the features tests in CI will fail with a message like
+## Pull Requests
 
-```
-> Configure project :sdk-java
-fatal: No names found, cannot describe anything.
-```
+Good pull requests are focused and easy to review:
 
-This can be done resolved by running `git fetch --tags` on your branch. Note, make sure your fork has tags copied from
-the main repo.
+* Keep each pull request scoped to one logical change.
+* Include tests for behavior changes.
+* Update public API documentation or doc comments when public behavior changes.
+* Add a high-level changelog entry for user-facing changes according to the
+  repository's local changelog convention.
+* Describe what changed, why it changed, and what validation you ran.
 
-## Testing
+Run the relevant local checks when practical. CI must pass before a pull request can
+be merged.
 
-Run tests:
+## Things to Avoid
 
-```bash
-./gradlew test
-```
+Avoid changes that make review harder without improving the contribution:
 
-Run a single test or group of tests:
+* Unrelated refactors mixed into a behavior change.
+* Style-only churn.
+* Large feature pull requests that were not discussed first.
+* License, copyright, or other legal changes without maintainer discussion.
 
-```bash
-./gradlew :temporal-sdk:test --offline --tests "io.temporal.activity.ActivityPauseTest"
-./gradlew :temporal-sdk:test --offline --tests "io.temporal.workflow.*"
-```
+## AI-Generated Contributions
 
-By default, integration tests run against the built-in time-skipping test server. Some tests require features that the built-in server doesn't support; those tests will be skipped. To run the skipped tests:
+Using AI tools while contributing is acceptable. You are responsible for the
+correctness, quality, and maintainability of everything you submit.
 
-1. Install the [temporal CLI](https://docs.temporal.io/cli#installation), which comes with a built-in dev server.
-2. Find the flags that the dev server will need to run the tests by grepping for `temporal server` in [./github/workflows/ci.yml](./github/workflows/ci.yml).
-3. Start the server: 
-```bash
-temporal server start-dev --YOUR-FLAGS-HERE
-```
-4. Set the `USE_EXTERNAL_SERVICE` environment variable and run the tests: 
-```bash
-USE_EXTERNAL_SERVICE=true ./gradlew test
-```
+Thoroughly self-review AI-generated code and documentation before opening a pull
+request. Make sure it is correct, tested where appropriate, and consistent with the
+style and patterns of the codebase.
 
-## Note on Rosetta
+Keep AI-assisted changes concise and scoped. Avoid verbose generated prose,
+unnecessary comments, or broad rewrites that make the change harder to review.
 
-Newer Apple Silicon macs do not ship with Rosetta by default, and the version of `protoc-gen-rpc-java` we use (1.34.1) does not ship Apple Silicon binaries.
+## Contributor License Agreement
 
-So Gradle is set to hardcode the download of the x86_64 binaries on MacOS, but this depends on Rosetta to function. Make sure Rosetta is installed with
+All contributors must complete the Temporal Contributor License Agreement (CLA)
+before changes can be merged. A link to the CLA will be posted in the pull request.
 
-```bash
-/usr/bin/pgrep oahd
-```
+## Security Issues
 
-which should return a PID of the Rosetta process. If it doesn't, you'll need to run
+Do not open public GitHub issues for suspected security vulnerabilities. Report them
+to security@temporal.io instead.
 
-```bash
-softwareupdate --install-rosetta
-```
+## Review and CI
 
-for builds to complete successfully.
+Maintainers review pull requests for correctness, compatibility, test coverage,
+documentation, and long-term maintainability. Review may require changes before a
+pull request can be merged, and it may take maintainers some time to review a
+contribution.
+
+CI is the final validation gate. If CI fails, update the pull request or ask for help
+if the failure appears unrelated to your change. Some CI gates may wait for a
+maintainer to approve or run them.
+
+## Inactive Pull Requests
+
+Maintainers may close inactive pull requests after follow-up if they are no longer
+moving forward. If that happens, you are welcome to reopen the pull request or open a
+new one when you are ready to continue.
+
+## Community Conduct
+
+Keep discussions respectful, constructive, and focused on the work. Clear context,
+specific examples, and patience with review feedback help everyone move faster.
