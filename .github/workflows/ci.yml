@@ -147,7 +147,7 @@ jobs:
           USER: unittest
           TEMPORAL_SERVICE_ADDRESS: localhost:7233
           USE_EXTERNAL_SERVICE: true
-        run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21
+        run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests :temporal-sdk:virtualThreadStarvationTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21
 
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6

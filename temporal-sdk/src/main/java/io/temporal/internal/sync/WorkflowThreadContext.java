@@ -10,12 +10,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class WorkflowThreadContext {
-  private static final Logger log = LoggerFactory.getLogger(WorkflowThreadContext.class);
-
   // Shared runner lock
   private final Lock runnerLock;
   private final WorkflowThreadScheduler scheduler;
@@ -241,13 +237,10 @@ class WorkflowThreadContext {
           throw new PotentialDeadlockException(
               currentThread.getName(), this, detectionTimestamp, deadlockDetectionTimeoutMs);
         } else {
-          // This should never happen.
-          // We clear currentThread only after setting the status to DONE.
-          // And we check for it by the status condition check after waking up on the condition
-          // and acquiring the lock back
-          log.warn("Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
+          // We clear currentThread only after setting the status to DONE, so this case should
+          // only happen if the WorkflowThread is starving.
           throw new PotentialDeadlockException(
-              "UnknownThread", this, detectionTimestamp, deadlockDetectionTimeoutMs);
+              this, detectionTimestamp, deadlockDetectionTimeoutMs);
         }
       }
       Preconditions.checkState(

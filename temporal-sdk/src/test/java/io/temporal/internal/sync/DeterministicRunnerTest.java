@@ -34,7 +34,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -817,6 +819,37 @@ public class DeterministicRunnerTest {
       d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
     } catch (Throwable t) {
       assertTrue(t instanceof WorkflowRejectedExecutionError);
+    }
+  }
+
+  @Test
+  public void testThreadStarvationBeforeWorkflowThreadStarts() throws InterruptedException {
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    CountDownLatch executorThreadOccupied = new CountDownLatch(1);
+    CountDownLatch releaseExecutorThread = new CountDownLatch(1);
+    executor.submit(
+        () -> {
+          executorThreadOccupied.countDown();
+          releaseExecutorThread.await();
+          return null;
+        });
+    executorThreadOccupied.await();
+
+    DeterministicRunner runner =
+        new DeterministicRunnerImpl(
+            executor::submit,
+            DummySyncWorkflowContext.newDummySyncWorkflowContext(),
+            () -> fail("workflow code should not start while the executor thread is occupied"));
+
+    try {
+      PotentialDeadlockException e =
+          Assert.assertThrows(
+              PotentialDeadlockException.class, () -> runner.runUntilAllBlocked(10));
+      assertTrue(e.getMessage().contains("could not start executing within 10ms"));
+    } finally {
+      executor.shutdownNow();
+      releaseExecutorThread.countDown();
+      assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
     }
   }
 

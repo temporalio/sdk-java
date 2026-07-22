@@ -256,6 +256,23 @@ testing {
             }
         }
 
+        virtualThreadStarvationTests(JvmTestSuite) {
+            targets {
+                all {
+                    testTask.configure {
+                        jvmArgs '-Djdk.virtualThreadScheduler.parallelism=1',
+                                '-Djdk.virtualThreadScheduler.maxPoolSize=1'
+                        if (project.hasProperty("testJavaVersion")) {
+                            javaLauncher = javaToolchains.launcherFor {
+                                languageVersion = JavaLanguageVersion.of(project.property("testJavaVersion") as int)
+                            }
+                        }
+                        shouldRunAfter(virtualThreadTests)
+                    }
+                }
+            }
+        }
+
         // Run the same test as the normal test task with virtual threads
         testsWithVirtualThreads(JvmTestSuite) {
             // Use the same source and resources as the main test set
@@ -287,4 +304,5 @@ testing {
 tasks.named('check') {
     dependsOn(testing.suites.jackson3Tests)
     dependsOn(testing.suites.virtualThreadTests)
+    dependsOn(testing.suites.virtualThreadStarvationTests)
 }
