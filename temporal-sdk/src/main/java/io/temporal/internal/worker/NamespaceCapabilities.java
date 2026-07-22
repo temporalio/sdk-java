@@ -10,11 +10,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public final class NamespaceCapabilities {
   private final AtomicBoolean pollerAutoscaling = new AtomicBoolean(false);
+  private final AtomicBoolean pollerAutoscalingAutoEnroll = new AtomicBoolean(false);
   private final AtomicBoolean gracefulPollShutdown = new AtomicBoolean(false);
   private final AtomicBoolean workerHeartbeats = new AtomicBoolean(false);
   private final AtomicBoolean workerCommands = new AtomicBoolean(false);
 
   public void setFromCapabilities(Capabilities capabilities) {
+    if (capabilities.getPollerAutoscalingAutoEnroll()) {
+      pollerAutoscalingAutoEnroll.set(true);
+    }
     if (capabilities.getPollerAutoscaling()) {
       pollerAutoscaling.set(true);
     }
@@ -31,6 +35,10 @@ public final class NamespaceCapabilities {
 
   public boolean isPollerAutoscaling() {
     return pollerAutoscaling.get();
+  }
+
+  public boolean isPollerAutoscalingAutoEnroll() {
+    return pollerAutoscalingAutoEnroll.get();
   }
 
   public boolean isGracefulPollShutdown() {

@@ -132,6 +132,15 @@ public final class Worker {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
     Scope taggedScope = metricsScope.tagged(tags);
+
+    // Poller types the user left at their default are auto-enrolled into poller autoscaling at
+    // start() when the namespace advertises the PollerAutoscalingAutoEnroll capability. Eligibility
+    // tracks whether the user called a poller setter (recorded on WorkerOptions.Builder), not the
+    // resolved value, so a defaulted count of 5 is not mistaken for an explicit choice.
+    boolean workflowTaskAutoEnrollEligible = this.options.isWorkflowTaskPollerAutoEnrollEligible();
+    boolean activityTaskAutoEnrollEligible = this.options.isActivityTaskPollerAutoEnrollEligible();
+    boolean nexusTaskAutoEnrollEligible = this.options.isNexusTaskPollerAutoEnrollEligible();
+
     SingleWorkerOptions activityOptions =
         toActivityOptions(
             factoryOptions,
@@ -140,7 +149,8 @@ public final class Worker {
             contextPropagators,
             taggedScope,
             workerInstanceKey,
-            workerControlTaskQueue);
+            workerControlTaskQueue,
+            activityTaskAutoEnrollEligible);
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
@@ -174,7 +184,8 @@ public final class Worker {
             contextPropagators,
             taggedScope,
             workerInstanceKey,
-            workerControlTaskQueue);
+            workerControlTaskQueue,
+            nexusTaskAutoEnrollEligible);
     SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
         this.options.getWorkerTuner() == null
             ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentNexusExecutionSize())
@@ -194,7 +205,8 @@ public final class Worker {
             contextPropagators,
             taggedScope,
             workerInstanceKey,
-            workerControlTaskQueue);
+            workerControlTaskQueue,
+            workflowTaskAutoEnrollEligible);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
             factoryOptions,
@@ -901,7 +913,8 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
             options,
@@ -920,6 +933,7 @@ public final class Worker {
                         : new PollerBehaviorSimpleMaximum(
                             options.getMaxConcurrentActivityTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
+                .setAutoscalingAutoEnrollEligible(autoEnrollEligible)
                 .build())
         .setMetricsScope(metricsScope)
         .build();
@@ -932,7 +946,8 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
             options,
@@ -948,6 +963,7 @@ public final class Worker {
                         : new PollerBehaviorSimpleMaximum(
                             options.getMaxConcurrentNexusTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
+                .setAutoscalingAutoEnrollEligible(autoEnrollEligible)
                 .build())
         .setMetricsScope(metricsScope)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
@@ -962,7 +978,8 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      boolean autoEnrollEligible) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
 
@@ -1005,6 +1022,7 @@ public final class Worker {
                         ? pollerBehavior
                         : new PollerBehaviorSimpleMaximum(maxConcurrentWorkflowTaskPollers))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnWorkflowWorker())
+                .setAutoscalingAutoEnrollEligible(autoEnrollEligible)
                 .build())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
         .setStickyTaskQueueDrainTimeout(options.getStickyTaskQueueDrainTimeout())
