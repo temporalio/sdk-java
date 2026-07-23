@@ -10,6 +10,7 @@ import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
 import io.temporal.api.common.v1.Link;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
@@ -17,6 +18,7 @@ import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.NexusStartWorkflowRequest;
@@ -27,6 +29,8 @@ import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -50,6 +54,7 @@ public class TemporalNexusClientImplTest {
 
   private TemporalNexusClientImpl client;
   private MockedStatic<ActivityClient> activityClientFactory;
+  private AtomicReference<ActivityClientCallsInterceptor.StartActivityInput> activityInput;
 
   @Before
   public void setUp() {
@@ -58,6 +63,13 @@ public class TemporalNexusClientImplTest {
     when(workflowClient.getOptions()).thenReturn(clientOptions);
     when(clientOptions.getNamespace()).thenReturn(NAMESPACE);
     when(clientOptions.getIdentity()).thenReturn("test-identity");
+    Payload propagatedPayload = Payload.newBuilder().build();
+    ContextPropagator contextPropagator = mock(ContextPropagator.class);
+    when(contextPropagator.getCurrentContext()).thenReturn("test-context");
+    when(contextPropagator.serializeContext("test-context"))
+        .thenReturn(Collections.singletonMap("propagated-key", propagatedPayload));
+    when(clientOptions.getContextPropagators())
+        .thenReturn(Collections.singletonList(contextPropagator));
     when(workflowClient.getWorkflowServiceStubs()).thenReturn(mock(WorkflowServiceStubs.class));
 
     WorkflowClientInternal workflowClientInternal = mock(WorkflowClientInternal.class);
@@ -100,12 +112,14 @@ public class TemporalNexusClientImplTest {
     ActivityClient activityClient =
         mock(ActivityClient.class, withSettings().extraInterfaces(ActivityClientInternal.class));
     ActivityClientCallsInterceptor activityInvoker = mock(ActivityClientCallsInterceptor.class);
+    activityInput = new AtomicReference<>();
     when(((ActivityClientInternal) activityClient).getInvoker()).thenReturn(activityInvoker);
     when(activityInvoker.startActivity(
             org.mockito.ArgumentMatchers.any(
                 ActivityClientCallsInterceptor.StartActivityInput.class)))
         .thenAnswer(
             invocation -> {
+              activityInput.set(invocation.getArgument(0));
               CurrentNexusOperationContext.get().getNexusOperationMetadata().operationToken =
                   "activity-operation-token";
               ActivityClientCallsInterceptor.StartActivityInput input = invocation.getArgument(0);
@@ -129,6 +143,21 @@ public class TemporalNexusClientImplTest {
   }
 
   // ---------- Activity double-start ----------
+
+  @Test
+  public void startActivity_propagatesWorkflowClientContext() {
+    StartActivityOptions options =
+        StartActivityOptions.newBuilder()
+            .setId("act-context")
+            .setTaskQueue(TASK_QUEUE)
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .build();
+
+    client.startActivity(TestActivity.class, TestActivity::doSomething, options);
+
+    Assert.assertNotNull(activityInput.get());
+    Assert.assertTrue(activityInput.get().getHeader().getValues().containsKey("propagated-key"));
+  }
 
   @Test
   public void doubleStartActivity_secondCallThrowsBadRequest() {

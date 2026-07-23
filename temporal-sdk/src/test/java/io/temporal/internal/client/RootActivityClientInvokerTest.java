@@ -43,7 +43,10 @@ public class RootActivityClientInvokerTest {
     genericClient = mock(GenericWorkflowClient.class);
     when(genericClient.startActivity(any(StartActivityExecutionRequest.class)))
         .thenReturn(
-            StartActivityExecutionResponse.newBuilder().setRunId("activity-run-id").build());
+            StartActivityExecutionResponse.newBuilder()
+                .setRunId("activity-run-id")
+                .setLink(activityLink())
+                .build());
     invoker =
         new RootActivityClientInvoker(
             genericClient,
@@ -97,6 +100,7 @@ public class RootActivityClientInvokerTest {
             .getCompletionCallbacks(0)
             .getNexus()
             .getHeaderOrThrow(io.nexusrpc.Header.OPERATION_TOKEN.toLowerCase()));
+    Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
   }
 
   @Test
@@ -112,6 +116,7 @@ public class RootActivityClientInvokerTest {
     Assert.assertFalse(request.getRequestId().isEmpty());
     Assert.assertEquals(0, request.getLinksCount());
     Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertTrue(nexusContext.getResponseLinks().isEmpty());
   }
 
   private static StartActivityInput newStartActivityInput() {
@@ -134,6 +139,16 @@ public class RootActivityClientInvokerTest {
                 .setEventRef(
                     Link.WorkflowEvent.EventReference.newBuilder()
                         .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED)))
+        .build();
+  }
+
+  private static Link activityLink() {
+    return Link.newBuilder()
+        .setActivity(
+            Link.Activity.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setActivityId("activity-id")
+                .setRunId("activity-run-id"))
         .build();
   }
 }

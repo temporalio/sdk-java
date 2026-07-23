@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
@@ -11,6 +12,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.Experimental;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityClientInternal;
@@ -28,7 +30,9 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -491,7 +495,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
               activityType,
               args,
               options,
-              Header.empty(),
+              propagatedHeader(),
               request -> {
                 ActivityClientCallsInterceptor.StartActivityInput input =
                     new ActivityClientCallsInterceptor.StartActivityInput(
@@ -560,5 +564,17 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
               "Only one async operation can be started per operation handler invocation. "
                   + "Use getWorkflowClient() for additional workflow interactions."));
     }
+  }
+
+  private Header propagatedHeader() {
+    List<ContextPropagator> propagators = client.getOptions().getContextPropagators();
+    if (propagators.isEmpty()) {
+      return Header.empty();
+    }
+    Map<String, Payload> result = new HashMap<>();
+    for (ContextPropagator propagator : propagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
+    return new Header(result);
   }
 }
