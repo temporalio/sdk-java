@@ -9,8 +9,6 @@ import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -118,56 +116,19 @@ public interface ActivityClientCallsInterceptor {
   <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input);
 
-  /**
-   * Nexus completion-callback metadata propagated through {@link StartActivityInput} when an
-   * activity is scheduled from a Nexus operation handler.
-   */
-  @Experimental
-  final class CompletionCallback {
-    private final String url;
-    private final Map<String, String> headers;
-
-    public CompletionCallback(String url, Map<String, String> headers) {
-      this.url = Objects.requireNonNull(url);
-      this.headers = Objects.requireNonNull(headers);
-    }
-
-    public String getUrl() {
-      return url;
-    }
-
-    public Map<String, String> getHeaders() {
-      return headers;
-    }
-  }
-
   @Experimental
   final class StartActivityInput {
     private final String activityType;
     private final List<Object> args;
     private final StartActivityOptions options;
     private final Header header;
-    private final @Nullable CompletionCallback completionCallback;
-    private final @Nullable List<io.nexusrpc.Link> links;
 
     public StartActivityInput(
         String activityType, List<Object> args, StartActivityOptions options, Header header) {
-      this(activityType, args, options, header, null, null);
-    }
-
-    public StartActivityInput(
-        String activityType,
-        List<Object> args,
-        StartActivityOptions options,
-        Header header,
-        @Nullable CompletionCallback completionCallback,
-        @Nullable List<io.nexusrpc.Link> links) {
       this.activityType = activityType;
       this.args = args;
       this.options = options;
       this.header = header;
-      this.completionCallback = completionCallback;
-      this.links = links;
     }
 
     public String getActivityType() {
@@ -185,16 +146,6 @@ public interface ActivityClientCallsInterceptor {
     public Header getHeader() {
       return header;
     }
-
-    @Nullable
-    public CompletionCallback getCompletionCallback() {
-      return completionCallback;
-    }
-
-    @Nullable
-    public List<io.nexusrpc.Link> getLinks() {
-      return links;
-    }
   }
 
   @Experimental
@@ -202,21 +153,9 @@ public interface ActivityClientCallsInterceptor {
     private final String activityId;
     private final @Nullable String activityRunId;
 
-    /**
-     * Set by the invoker when the start request included a Nexus completion callback; null
-     * otherwise. Internal use; do not depend on this in user-facing code.
-     */
-    private final @Nullable String nexusOperationToken;
-
     public StartActivityOutput(String activityId, @Nullable String activityRunId) {
-      this(activityId, activityRunId, null);
-    }
-
-    public StartActivityOutput(
-        String activityId, @Nullable String activityRunId, @Nullable String nexusOperationToken) {
       this.activityId = activityId;
       this.activityRunId = activityRunId;
-      this.nexusOperationToken = nexusOperationToken;
     }
 
     public String getActivityId() {
@@ -226,11 +165,6 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getActivityRunId() {
       return activityRunId;
-    }
-
-    @Nullable
-    public String getNexusOperationToken() {
-      return nexusOperationToken;
     }
   }
 

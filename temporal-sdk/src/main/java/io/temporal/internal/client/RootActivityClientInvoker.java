@@ -22,28 +22,25 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Terminus of the activity interceptor chain. Implements all activity RPCs against the Temporal
  * service.
  */
 public class RootActivityClientInvoker implements ActivityClientCallsInterceptor {
-
-  private static final Logger log = LoggerFactory.getLogger(RootActivityClientInvoker.class);
 
   private final GenericWorkflowClient genericClient;
   private final ActivityClientOptions clientOptions;
@@ -58,12 +55,19 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public StartActivityOutput startActivity(StartActivityInput input) {
     StartActivityOptions options = input.getOptions();
     DataConverter dc = clientOptions.getDataConverter();
+    InternalNexusOperationContext nexusContext =
+        CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
+    NexusOperationMetadata nexusOperationMetadata =
+        nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity())
-            .setRequestId(UUID.randomUUID().toString())
+            .setRequestId(
+                nexusOperationMetadata == null
+                    ? UUID.randomUUID().toString()
+                    : nexusOperationMetadata.requestId)
             .setActivityId(options.getId())
             .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
             .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
@@ -113,41 +117,13 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
     request.setHeader(grpcHeader);
 
-    // Hoisted so it can be returned in StartActivityOutput when a Nexus callback is present.
-    String nexusOperationToken = null;
-    if (input.getCompletionCallback() != null) {
-      List<Link> protoLinks = null;
-      if (input.getLinks() != null) {
-        protoLinks =
-            input.getLinks().stream()
-                .map(
-                    link -> {
-                      if (io.temporal.api.common.v1.Link.WorkflowEvent.getDescriptor()
-                          .getFullName()
-                          .equals(link.getType())) {
-                        io.temporal.api.nexus.v1.Link nexusLink =
-                            io.temporal.api.nexus.v1.Link.newBuilder()
-                                .setType(link.getType())
-                                .setUrl(link.getUri().toString())
-                                .build();
-                        return LinkConverter.nexusLinkToWorkflowEvent(nexusLink);
-                      } else {
-                        log.warn("ignoring unsupported link data type: {}", link.getType());
-                        return null;
-                      }
-                    })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
-        if (!protoLinks.isEmpty()) {
-          request.addAllLinks(protoLinks);
-        } else {
-          protoLinks = null;
-        }
-      }
+    if (nexusOperationMetadata != null) {
+      List<Link> protoLinks = nexusContext.getRequestLinks();
+      request.addAllLinks(protoLinks);
       // Generate the operation token from the user-supplied activity ID and namespace so the
       // dual OPERATION_ID + OPERATION_TOKEN headers can be injected before the start RPC fires.
       try {
-        nexusOperationToken =
+        nexusOperationMetadata.operationToken =
             io.temporal.internal.nexus.OperationTokenUtil.generateActivityExecutionOperationToken(
                 options.getId(), clientOptions.getNamespace());
       } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
@@ -158,9 +134,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       }
       Callback cb =
           InternalUtils.buildNexusCallback(
-              input.getCompletionCallback().getUrl(),
-              input.getCompletionCallback().getHeaders(),
-              nexusOperationToken,
+              nexusOperationMetadata.callbackUrl,
+              nexusOperationMetadata.callbackHeaders,
+              nexusOperationMetadata.operationToken,
               protoLinks);
       request.addCompletionCallbacks(cb);
     }
@@ -182,7 +158,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
 
     String runId = response.getRunId().isEmpty() ? null : response.getRunId();
-    return new StartActivityOutput(options.getId(), runId, nexusOperationToken);
+    return new StartActivityOutput(options.getId(), runId);
   }
 
   @Override

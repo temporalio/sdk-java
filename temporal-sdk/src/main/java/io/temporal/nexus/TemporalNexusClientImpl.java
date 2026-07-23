@@ -16,6 +16,9 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.NexusStartActivityResponse;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.internal.nexus.NexusStartActivityHelper;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
 import io.temporal.internal.nexus.OperationTokenUtil;
@@ -473,7 +476,14 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   private <R> TemporalOperationResult<R> startActivityImpl(
       String activityType, List<Object> args, StartActivityOptions options) {
     markAsyncOperationStarted();
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
     try {
+      NexusOperationMetadata nexusOperationMetadata =
+          new NexusOperationMetadata(
+              operationStartDetails.getRequestId(),
+              operationStartDetails.getCallbackUrl(),
+              operationStartDetails.getCallbackHeaders());
+      nexusContext.setNexusOperationMetadata(nexusOperationMetadata);
       NexusStartActivityResponse response =
           NexusStartActivityHelper.startActivityAndAttachLinks(
               operationContext,
@@ -483,19 +493,12 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
               options,
               Header.empty(),
               request -> {
-                ActivityClientCallsInterceptor.CompletionCallback cb =
-                    (request.getCallbackUrl() == null || request.getCallbackUrl().isEmpty())
-                        ? null
-                        : new ActivityClientCallsInterceptor.CompletionCallback(
-                            request.getCallbackUrl(), request.getCallbackHeaders());
                 ActivityClientCallsInterceptor.StartActivityInput input =
                     new ActivityClientCallsInterceptor.StartActivityInput(
                         request.getActivityType(),
                         request.getArgs(),
                         request.getOptions(),
-                        request.getHeader(),
-                        cb,
-                        request.getLinks());
+                        request.getHeader());
                 // Build an ActivityClient that mirrors the surrounding WorkflowClient's options
                 // so that the metrics-tagged scope built by the impl is preserved. setIdentity is
                 // load-bearing because the cancel RPC reads it from clientOptions.getIdentity().
@@ -514,13 +517,13 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
                 // because the run ID isn't known until after the start RPC returns. The operation
                 // token returned to the Nexus caller can — and should — include it, so it's
                 // regenerated here from the same activity ID + the run ID the start RPC produced.
-                String headerToken = out.getNexusOperationToken();
+                String headerToken = nexusOperationMetadata.operationToken;
                 if (headerToken == null) {
                   throw new HandlerException(
                       HandlerException.ErrorType.INTERNAL,
                       "invoker did not return a Nexus operation token for activity start with callback",
                       new IllegalStateException(
-                          "nexusOperationToken is null on StartActivityOutput when CompletionCallback was set"));
+                          "operationToken is null on NexusOperationMetadata after activity start"));
                 }
                 String returnToken;
                 try {
@@ -544,6 +547,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       // being blocked by the guard.
       asyncOperationStarted.set(false);
       throw t;
+    } finally {
+      nexusContext.setNexusOperationMetadata(null);
     }
   }
 

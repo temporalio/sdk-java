@@ -1,23 +1,37 @@
 package io.temporal.nexus;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 import com.uber.m3.tally.NoopScope;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
+import io.temporal.api.common.v1.Link;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import io.temporal.internal.client.ActivityClientInternal;
+import io.temporal.internal.client.NexusStartWorkflowRequest;
+import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.workflow.Functions;
 import java.time.Duration;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockedStatic;
 
 /**
  * Pure unit tests for {@link TemporalNexusClientImpl#markAsyncOperationStarted()} semantics. These
@@ -35,14 +49,33 @@ public class TemporalNexusClientImplTest {
   private static final String ENDPOINT = "test-endpoint";
 
   private TemporalNexusClientImpl client;
+  private MockedStatic<ActivityClient> activityClientFactory;
 
   @Before
   public void setUp() {
-    // Mock WorkflowClient so constructor doesn't need a live server.
     WorkflowClient workflowClient = mock(WorkflowClient.class);
     WorkflowClientOptions clientOptions = mock(WorkflowClientOptions.class);
     when(workflowClient.getOptions()).thenReturn(clientOptions);
     when(clientOptions.getNamespace()).thenReturn(NAMESPACE);
+    when(clientOptions.getIdentity()).thenReturn("test-identity");
+    when(workflowClient.getWorkflowServiceStubs()).thenReturn(mock(WorkflowServiceStubs.class));
+
+    WorkflowClientInternal workflowClientInternal = mock(WorkflowClientInternal.class);
+    when(workflowClient.getInternal()).thenReturn(workflowClientInternal);
+    when(workflowClientInternal.startNexus(
+            org.mockito.ArgumentMatchers.any(NexusStartWorkflowRequest.class),
+            org.mockito.ArgumentMatchers.any(Functions.Proc.class)))
+        .thenReturn(
+            new NexusStartWorkflowResponse(
+                WorkflowExecution.newBuilder()
+                    .setWorkflowId("workflow-id")
+                    .setRunId("workflow-run-id")
+                    .build(),
+                "workflow-operation-token"));
+    when(workflowClient.newWorkflowStub(
+            org.mockito.ArgumentMatchers.eq(BlockingWorkflow.class),
+            org.mockito.ArgumentMatchers.any(WorkflowOptions.class)))
+        .thenReturn(mock(BlockingWorkflow.class));
 
     OperationContext operationContext = mock(OperationContext.class);
     when(operationContext.getService()).thenReturn("TestService");
@@ -61,11 +94,37 @@ public class TemporalNexusClientImplTest {
     InternalNexusOperationContext internalCtx =
         new InternalNexusOperationContext(
             NAMESPACE, TASK_QUEUE, ENDPOINT, new NoopScope(), workflowClient);
+    internalCtx.setStartWorkflowResponseLink(Link.getDefaultInstance());
     CurrentNexusOperationContext.set(internalCtx);
+
+    ActivityClient activityClient =
+        mock(ActivityClient.class, withSettings().extraInterfaces(ActivityClientInternal.class));
+    ActivityClientCallsInterceptor activityInvoker = mock(ActivityClientCallsInterceptor.class);
+    when(((ActivityClientInternal) activityClient).getInvoker()).thenReturn(activityInvoker);
+    when(activityInvoker.startActivity(
+            org.mockito.ArgumentMatchers.any(
+                ActivityClientCallsInterceptor.StartActivityInput.class)))
+        .thenAnswer(
+            invocation -> {
+              CurrentNexusOperationContext.get().getNexusOperationMetadata().operationToken =
+                  "activity-operation-token";
+              ActivityClientCallsInterceptor.StartActivityInput input = invocation.getArgument(0);
+              return new ActivityClientCallsInterceptor.StartActivityOutput(
+                  input.getOptions().getId(), "activity-run-id");
+            });
+    activityClientFactory = mockStatic(ActivityClient.class);
+    activityClientFactory
+        .when(
+            () ->
+                ActivityClient.newInstance(
+                    org.mockito.ArgumentMatchers.any(WorkflowServiceStubs.class),
+                    org.mockito.ArgumentMatchers.any(ActivityClientOptions.class)))
+        .thenReturn(activityClient);
   }
 
   @After
   public void tearDown() {
+    activityClientFactory.close();
     CurrentNexusOperationContext.unset();
   }
 
@@ -80,20 +139,7 @@ public class TemporalNexusClientImplTest {
             .setStartToCloseTimeout(Duration.ofSeconds(10))
             .build();
 
-    // First call: markAsyncOperationStarted() succeeds (sets flag), RPC may throw — we don't care.
-    try {
-      client.startActivity(TestActivity.class, TestActivity::doSomething, options);
-    } catch (HandlerException e) {
-      // If a HandlerException leaks out of the first call it must NOT be BAD_REQUEST
-      // from markAsyncOperationStarted — that would mean the flag was already set before setUp.
-      Assert.assertNotEquals(
-          "First startActivity must not fail with BAD_REQUEST (markAsyncOperationStarted guard)",
-          HandlerException.ErrorType.BAD_REQUEST,
-          e.getErrorType());
-    } catch (Exception ignored) {
-      // Any other exception from the RPC layer is expected; the important thing is
-      // markAsyncOperationStarted already ran and set asyncOperationStarted = true.
-    }
+    client.startActivity(TestActivity.class, TestActivity::doSomething, options);
 
     // Second call: markAsyncOperationStarted() sees the flag and must throw BAD_REQUEST
     // immediately.
@@ -126,17 +172,7 @@ public class TemporalNexusClientImplTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder().setWorkflowId("wf-1").setTaskQueue(TASK_QUEUE).build();
 
-    // First call: markAsyncOperationStarted() succeeds, downstream RPC may throw — we don't care.
-    try {
-      client.startWorkflow(BlockingWorkflow.class, BlockingWorkflow::execute, "input", options);
-    } catch (HandlerException e) {
-      Assert.assertNotEquals(
-          "First startWorkflow must not fail with BAD_REQUEST (markAsyncOperationStarted guard)",
-          HandlerException.ErrorType.BAD_REQUEST,
-          e.getErrorType());
-    } catch (Exception ignored) {
-      // Expected: no live server.
-    }
+    client.startWorkflow(BlockingWorkflow.class, BlockingWorkflow::execute, "input", options);
 
     // Second call must throw BAD_REQUEST immediately.
     HandlerException ex =
@@ -168,12 +204,7 @@ public class TemporalNexusClientImplTest {
     WorkflowOptions wfOptions =
         WorkflowOptions.newBuilder().setWorkflowId("wf-mixed-1").setTaskQueue(TASK_QUEUE).build();
 
-    try {
-      client.startWorkflow(BlockingWorkflow.class, BlockingWorkflow::execute, "in", wfOptions);
-    } catch (HandlerException e) {
-      Assert.assertNotEquals(HandlerException.ErrorType.BAD_REQUEST, e.getErrorType());
-    } catch (Exception ignored) {
-    }
+    client.startWorkflow(BlockingWorkflow.class, BlockingWorkflow::execute, "in", wfOptions);
 
     HandlerException ex =
         Assert.assertThrows(
@@ -202,12 +233,7 @@ public class TemporalNexusClientImplTest {
             .setStartToCloseTimeout(Duration.ofSeconds(10))
             .build();
 
-    try {
-      client.startActivity(TestActivity.class, TestActivity::doSomething, actOptions);
-    } catch (HandlerException e) {
-      Assert.assertNotEquals(HandlerException.ErrorType.BAD_REQUEST, e.getErrorType());
-    } catch (Exception ignored) {
-    }
+    client.startActivity(TestActivity.class, TestActivity::doSomething, actOptions);
 
     HandlerException ex =
         Assert.assertThrows(
