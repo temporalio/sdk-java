@@ -157,6 +157,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throw e;
     }
 
+    if (nexusOperationMetadata != null && response.hasLink()) {
+      nexusContext.addResponseLink(response.getLink());
+    }
+
     String runId = response.getRunId().isEmpty() ? null : response.getRunId();
     return new StartActivityOutput(options.getId(), runId);
   }

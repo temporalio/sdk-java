@@ -10,19 +10,16 @@ import io.temporal.internal.client.NexusStartActivityResponse;
 import java.util.List;
 import java.util.function.Function;
 
-/**
- * Shared helper for starting an activity from a Nexus operation and (in future) attaching links to
- * the operation context. Mirrors {@link NexusStartWorkflowHelper} for activities.
- */
+/** Shared helper for starting an activity from a Nexus operation. */
 @Experimental
 public class NexusStartActivityHelper {
 
   /**
-   * Starts an activity via the provided invoker function and returns the response.
+   * Starts an activity via the provided invoker function and returns the response. The root
+   * activity invoker records the link from {@code StartActivityExecutionResponse}; the Nexus task
+   * handler attaches that link to the operation response.
    *
-   * <p>The link-attachment block is intentionally a no-op in this revision; see the TODO inside.
-   *
-   * @param ctx the operation context (link attachment is deferred — see TODO)
+   * @param ctx the operation context
    * @param details the operation start details containing requestId, callback, links
    * @param activityType the activity type name
    * @param args the activity arguments
@@ -53,14 +50,7 @@ public class NexusStartActivityHelper {
             options,
             header);
 
-    NexusStartActivityResponse response = invoker.apply(nexusRequest);
-
-    // TODO: Attach activity-event link when server-side activity link support is available.
-    // No StartActivityResponseLink analog exists and there is no verified activity-event link path
-    // in LinkConverter. Do NOT copy the synthetic workflow-event link fabrication from
-    // NexusStartWorkflowHelper; Nexus operations function correctly without diagnostic links.
-
-    return response;
+    return invoker.apply(nexusRequest);
   }
 
   private NexusStartActivityHelper() {}
