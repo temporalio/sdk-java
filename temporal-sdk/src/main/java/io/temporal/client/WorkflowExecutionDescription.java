@@ -1,7 +1,6 @@
 package io.temporal.client;
 
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import javax.annotation.Nonnull;
@@ -25,7 +24,6 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
    * <p>Note: Will be decoded on each invocation, so it is recommended to cache the result if it is
    * used multiple times.
    */
-  @Experimental
   @Nullable
   public String getStaticSummary() {
     if (!response.getExecutionConfig().getUserMetadata().hasSummary()) {
@@ -48,7 +46,6 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
    * <p>Note: Will be decoded on each invocation, so it is recommended to cache the result if it is
    * used multiple times.
    */
-  @Experimental
   @Nullable
   public String getStaticDetails() {
     if (!response.getExecutionConfig().getUserMetadata().hasDetails()) {

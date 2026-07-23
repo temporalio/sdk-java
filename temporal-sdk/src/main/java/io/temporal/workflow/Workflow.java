@@ -1538,7 +1538,6 @@ public final class Workflow {
    *
    * @param details details to set
    */
-  @Experimental
   public static void setCurrentDetails(String details) {
     WorkflowInternal.setCurrentDetails(details);
   }
@@ -1548,7 +1547,6 @@ public final class Workflow {
    *
    * @return details of the current workflow
    */
-  @Experimental
   @Nullable
   public static String getCurrentDetails() {
     return WorkflowInternal.getCurrentDetails();

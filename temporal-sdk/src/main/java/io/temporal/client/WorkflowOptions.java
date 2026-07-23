@@ -400,7 +400,6 @@ public final class WorkflowOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setStaticSummary(String staticSummary) {
       this.staticSummary = staticSummary;
       return this;
@@ -413,7 +412,6 @@ public final class WorkflowOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setStaticDetails(String staticDetails) {
       this.staticDetails = staticDetails;
       return this;
@@ -716,12 +714,10 @@ public final class WorkflowOptions {
     return links;
   }
 
-  @Experimental
   public String getStaticSummary() {
     return staticSummary;
   }
 
-  @Experimental
   public String getStaticDetails() {
     return staticDetails;
   }
