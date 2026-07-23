@@ -3,12 +3,16 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   code-coverage:
+    if: github.event_name == 'push' || github.head_ref == 'fix-temporal-sdk-java-main-code-coverage'
     runs-on: ubuntu-latest-16-cores
     steps:
       - name: Checkout
