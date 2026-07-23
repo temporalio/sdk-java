@@ -210,8 +210,8 @@ class WorkflowThreadContext {
   }
 
   /**
-   * @param deadlockDetectionTimeoutMs maximum time in milliseconds the thread can run before
-   *     calling yield. Discarded if {@code TEMPORAL_DEBUG} env variable is set.
+   * @param deadlockDetectionTimeoutMs the maximum time in milliseconds after a thread is scheduled
+   *     until it yields or completes. Discarded if {@code TEMPORAL_DEBUG} env variable is set.
    * @return true if thread made some progress. Which is await was unblocked and some code after it
    *     * was executed.
    */
