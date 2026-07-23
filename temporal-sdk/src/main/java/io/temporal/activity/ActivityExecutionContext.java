@@ -1,8 +1,10 @@
 package io.temporal.activity;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
@@ -95,7 +97,7 @@ public interface ActivityExecutionContext {
    * recording Heartbeats.
    */
   @Experimental
-  ActivityCancellationToken getCancellationToken();
+  CancellationToken<ActivityCanceledException> getCancellationToken();
 
   /**
    * If this method is called during an Activity Execution then the Activity Execution is not going
