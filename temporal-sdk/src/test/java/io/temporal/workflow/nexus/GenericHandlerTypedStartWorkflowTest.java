@@ -2,11 +2,12 @@ package io.temporal.workflow.nexus;
 
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
-import io.nexusrpc.handler.OperationHandler;
-import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.nexus.TemporalOperationHandler;
+import io.temporal.nexus.TemporalNexusClient;
+import io.temporal.nexus.TemporalOperation;
+import io.temporal.nexus.TemporalOperationResult;
+import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions;
@@ -61,75 +62,72 @@ public class GenericHandlerTypedStartWorkflowTest {
 
   @ServiceImpl(service = TestNexusServiceGeneric.class)
   public class TestNexusServiceImpl {
-    @OperationImpl
-    public OperationHandler<Integer, String> operation() {
-      return TemporalOperationHandler.create(
-          (context, client, input) -> {
-            String prefix = "generic-handler-test-func" + input + "-";
-            String workflowId = prefix + context.getService() + "-" + context.getOperation();
-            WorkflowOptions options =
-                WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
-            switch (input) {
-              case 0:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc::func,
-                    options);
-              case 1:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc::func1,
-                    "input",
-                    options);
-              case 2:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc::func2,
-                    "input",
-                    2,
-                    options);
-              case 3:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc::func3,
-                    "input",
-                    2,
-                    3,
-                    options);
-              case 4:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc::func4,
-                    "input",
-                    2,
-                    3,
-                    4,
-                    options);
-              case 5:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc::func5,
-                    "input",
-                    2,
-                    3,
-                    4,
-                    5,
-                    options);
-              case 6:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc.class,
-                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc::func6,
-                    "input",
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    options);
-              default:
-                throw new IllegalArgumentException("unexpected input: " + input);
-            }
-          });
+    @TemporalOperation
+    public TemporalOperationResult<String> operation(
+        TemporalOperationStartContext context, TemporalNexusClient client, Integer input) {
+      String prefix = "generic-handler-test-func" + input + "-";
+      String workflowId = prefix + context.getService() + "-" + context.getOperation();
+      WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
+      switch (input) {
+        case 0:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.TestNoArgsWorkflowFunc::func,
+              options);
+        case 1:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.Test1ArgWorkflowFunc::func1,
+              "input",
+              options);
+        case 2:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.Test2ArgWorkflowFunc::func2,
+              "input",
+              2,
+              options);
+        case 3:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.Test3ArgWorkflowFunc::func3,
+              "input",
+              2,
+              3,
+              options);
+        case 4:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.Test4ArgWorkflowFunc::func4,
+              "input",
+              2,
+              3,
+              4,
+              options);
+        case 5:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.Test5ArgWorkflowFunc::func5,
+              "input",
+              2,
+              3,
+              4,
+              5,
+              options);
+        case 6:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc.class,
+              TestMultiArgWorkflowFunctions.Test6ArgWorkflowFunc::func6,
+              "input",
+              2,
+              3,
+              4,
+              5,
+              6,
+              options);
+        default:
+          throw new IllegalArgumentException("unexpected input: " + input);
+      }
     }
   }
 }

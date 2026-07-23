@@ -2,11 +2,12 @@ package io.temporal.workflow.nexus;
 
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
-import io.nexusrpc.handler.OperationHandler;
-import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.nexus.TemporalOperationHandler;
+import io.temporal.nexus.TemporalNexusClient;
+import io.temporal.nexus.TemporalOperation;
+import io.temporal.nexus.TemporalOperationResult;
+import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions;
@@ -60,75 +61,72 @@ public class GenericHandlerTypedProcTest {
 
   @ServiceImpl(service = TestNexusServiceProc.class)
   public class TestNexusServiceImpl {
-    @OperationImpl
-    public OperationHandler<Integer, Void> operation() {
-      return TemporalOperationHandler.create(
-          (context, client, input) -> {
-            String prefix = "generic-handler-test-proc" + input + "-";
-            String workflowId = prefix + context.getService() + "-" + context.getOperation();
-            WorkflowOptions options =
-                WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
-            switch (input) {
-              case 0:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc::proc,
-                    options);
-              case 1:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc::proc1,
-                    "input",
-                    options);
-              case 2:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc::proc2,
-                    "input",
-                    2,
-                    options);
-              case 3:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc::proc3,
-                    "input",
-                    2,
-                    3,
-                    options);
-              case 4:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc::proc4,
-                    "input",
-                    2,
-                    3,
-                    4,
-                    options);
-              case 5:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc::proc5,
-                    "input",
-                    2,
-                    3,
-                    4,
-                    5,
-                    options);
-              case 6:
-                return client.startWorkflow(
-                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc.class,
-                    TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc::proc6,
-                    "input",
-                    2,
-                    3,
-                    4,
-                    5,
-                    6,
-                    options);
-              default:
-                throw new IllegalArgumentException("unexpected input: " + input);
-            }
-          });
+    @TemporalOperation
+    public TemporalOperationResult<Void> operation(
+        TemporalOperationStartContext context, TemporalNexusClient client, Integer input) {
+      String prefix = "generic-handler-test-proc" + input + "-";
+      String workflowId = prefix + context.getService() + "-" + context.getOperation();
+      WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
+      switch (input) {
+        case 0:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.TestNoArgsWorkflowProc::proc,
+              options);
+        case 1:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.Test1ArgWorkflowProc::proc1,
+              "input",
+              options);
+        case 2:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.Test2ArgWorkflowProc::proc2,
+              "input",
+              2,
+              options);
+        case 3:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.Test3ArgWorkflowProc::proc3,
+              "input",
+              2,
+              3,
+              options);
+        case 4:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.Test4ArgWorkflowProc::proc4,
+              "input",
+              2,
+              3,
+              4,
+              options);
+        case 5:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.Test5ArgWorkflowProc::proc5,
+              "input",
+              2,
+              3,
+              4,
+              5,
+              options);
+        case 6:
+          return client.startWorkflow(
+              TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc.class,
+              TestMultiArgWorkflowFunctions.Test6ArgWorkflowProc::proc6,
+              "input",
+              2,
+              3,
+              4,
+              5,
+              6,
+              options);
+        default:
+          throw new IllegalArgumentException("unexpected input: " + input);
+      }
     }
   }
 }
