@@ -31,6 +31,9 @@ public class OperationTokenUtil {
     if (token.getVersion() != null && token.getVersion() != 0) {
       throw new IllegalArgumentException("Invalid operation token: unexpected version field");
     }
+    if (Strings.isNullOrEmpty(token.getNamespace())) {
+      throw new IllegalArgumentException("Invalid operation token: missing namespace(ns)");
+    }
     if (Strings.isNullOrEmpty(token.getWorkflowId())) {
       throw new IllegalArgumentException("Invalid operation token: missing workflow ID (wid)");
     }
@@ -53,6 +56,25 @@ public class OperationTokenUtil {
   }
 
   /**
+   * Load a workflow update operation token, asserting that the token type is {@link
+   * OperationTokenType#WORKFLOW_UPDATE}.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid or not a workflow update
+   *     token
+   */
+  public static OperationToken loadWorkflowUpdateOperationToken(String operationToken) {
+    OperationToken token = loadOperationToken(operationToken);
+    if (!token.getType().equals(OperationTokenType.WORKFLOW_UPDATE)) {
+      throw new IllegalArgumentException(
+          "Invalid workflow update token: incorrect operation token type: " + token.getType());
+    }
+    if (Strings.isNullOrEmpty(token.getUpdateId())) {
+      throw new IllegalArgumentException("Invalid workflow update token: missing update ID (uid)");
+    }
+    return token;
+  }
+
+  /**
    * Extract the workflow ID from a workflow run operation token.
    *
    * @throws IllegalArgumentException if the operation token is invalid
@@ -67,6 +89,25 @@ public class OperationTokenUtil {
     String json =
         ow.writeValueAsString(
             new OperationToken(OperationTokenType.WORKFLOW_RUN, namespace, workflowId));
+    return encoder.encodeToString(json.getBytes());
+  }
+
+  /** Generate a workflow update operation token from namespace, workflowId, runId, updateId */
+  public static String generateWorkflowUpdateOperationToken(
+      String namespace, String workflowId, String runId, String updateId)
+      throws JsonProcessingException {
+    if (Strings.isNullOrEmpty(namespace)) {
+      throw new IllegalArgumentException("Invalid workflow update token: missing namespace(ns)");
+    }
+    if (Strings.isNullOrEmpty(workflowId)) {
+      throw new IllegalArgumentException(
+          "Invalid workflow update token: missing workflow ID (wid)");
+    }
+    if (Strings.isNullOrEmpty(updateId)) {
+      throw new IllegalArgumentException("Invalid workflow update token: missing update ID (uid)");
+    }
+    runId = Strings.emptyToNull(runId); // empty runId is allowed but should not be serialized
+    String json = ow.writeValueAsString(new OperationToken(namespace, workflowId, runId, updateId));
     return encoder.encodeToString(json.getBytes());
   }
 

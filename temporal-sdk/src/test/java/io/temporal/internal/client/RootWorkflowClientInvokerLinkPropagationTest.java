@@ -9,25 +9,33 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
+import io.temporal.api.update.v1.UpdateRef;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
+import io.temporal.api.workflowservice.v1.UpdateWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.UpdateWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.common.interceptors.Header;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.StartUpdateInput;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalInput;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalWithStartInput;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowStartInput;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -265,6 +273,79 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
     Assert.assertTrue(
         "expected no response link captured on the start path",
         nexusCtx.getResponseLinks().isEmpty());
+  }
+
+  /**
+   * Verify startUpdate only adds completion callback if {@link NexusOperationMetadata} is present
+   * on the operation context, i.e. when the update was started via {@code
+   * TemporalNexusClientImpl.startWorkflowUpdate}
+   */
+  @Test
+  public void updateWorkflowSetCallbacksIffNexusMetadataPresent() {
+    nexusCtx.setNexusOperationMetadata(
+        new NexusOperationMetadata("rid", "temporal://dummy", Collections.emptyMap()));
+
+    when(genericClient.update(any(UpdateWorkflowExecutionRequest.class), any()))
+        .thenReturn(acceptedUpdateResponse());
+
+    invoker.startUpdate(newStartUpdateInput());
+
+    ArgumentCaptor<UpdateWorkflowExecutionRequest> captor =
+        ArgumentCaptor.forClass(UpdateWorkflowExecutionRequest.class);
+    org.mockito.Mockito.verify(genericClient).update(captor.capture(), any());
+    Assert.assertEquals(
+        "expect callback to be attached when NexusOperationMetadata is present",
+        1,
+        captor.getValue().getRequest().getCompletionCallbacksCount());
+  }
+
+  /**
+   * Verify plain Nexus operation handlers that don't go through {@code TemporalNexusClient} ie,
+   * missing {@link NexusOperationMetadata} do not have a callback attached
+   */
+  @Test
+  public void updateWorkflowSkipSetCallbacksIfNexusMetadataAbsent() {
+    when(genericClient.update(any(UpdateWorkflowExecutionRequest.class), any()))
+        .thenReturn(acceptedUpdateResponse());
+
+    invoker.startUpdate(newStartUpdateInput());
+
+    ArgumentCaptor<UpdateWorkflowExecutionRequest> captor =
+        ArgumentCaptor.forClass(UpdateWorkflowExecutionRequest.class);
+    org.mockito.Mockito.verify(genericClient).update(captor.capture(), any());
+    Assert.assertEquals(
+        "expect no callback when NexusOperationMetadata is absent",
+        0,
+        captor.getValue().getRequest().getCompletionCallbacksCount());
+  }
+
+  private static UpdateWorkflowExecutionResponse acceptedUpdateResponse() {
+    return UpdateWorkflowExecutionResponse.newBuilder()
+        .setStage(
+            UpdateWorkflowExecutionLifecycleStage
+                .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED)
+        .setUpdateRef(
+            UpdateRef.newBuilder()
+                .setWorkflowExecution(
+                    WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId("rid"))
+                .setUpdateId("uid"))
+        .build();
+  }
+
+  private static StartUpdateInput<String> newStartUpdateInput() {
+    return new StartUpdateInput<>(
+        WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId("rid").build(),
+        Optional.of("TestWorkflow"),
+        "un",
+        Header.empty(),
+        "uid",
+        new Object[] {" "},
+        String.class,
+        String.class,
+        "",
+        io.temporal.api.update.v1.WaitPolicy.newBuilder()
+            .setLifecycleStage(WorkflowUpdateStage.ACCEPTED.getProto())
+            .build());
   }
 
   // ── helpers ──────────────────────────────────────────────────────────────────────────────

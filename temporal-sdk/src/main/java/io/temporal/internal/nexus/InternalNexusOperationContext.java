@@ -38,6 +38,21 @@ public class InternalNexusOperationContext {
   private final Object responseLinksLock = new Object();
   private final List<Link> responseLinks = new ArrayList<>();
 
+  private NexusOperationMetadata nexusOperationMetadata;
+
+  /**
+   * Set the Nexus operation metadata
+   *
+   * @param metadata {@link NexusOperationMetadata} to be set
+   */
+  public void setNexusOperationMetadata(NexusOperationMetadata metadata) {
+    this.nexusOperationMetadata = metadata;
+  }
+
+  public NexusOperationMetadata getNexusOperationMetadata() {
+    return nexusOperationMetadata;
+  }
+
   public InternalNexusOperationContext(
       String namespace,
       String taskQueue,

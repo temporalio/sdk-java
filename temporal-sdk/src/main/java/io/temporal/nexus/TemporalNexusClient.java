@@ -1,5 +1,8 @@
 package io.temporal.nexus;
 
+import io.nexusrpc.OperationException;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.Experimental;
@@ -507,4 +510,482 @@ public interface TemporalNexusClient {
       Type resultType,
       WorkflowOptions options,
       Object... args);
+
+  /**
+   * Starts a workflow update on an existing workflow as a Nexus operation. The result is delivered
+   * asynchronously via the Nexus completion callback, unless the update RPC comes back already
+   * completed (e.g. a retried request, or a request that failed validation), in which case the
+   * result (or failure) is returned synchronously.
+   *
+   * <p>{@code updateMethod} must be an unbound method reference to a method on {@code
+   * workflowClass} (as opposed to {@link #startWorkflow}, which creates a new workflow, this
+   * targets the existing workflow identified by {@code workflowId}).
+   *
+   * <p>{@code options}' {@code waitForStage} has to be set to {@code WaitForStage = ACCEPTED} as
+   * Nexus Operations only support async Update requests. If not, the operation will be marked as
+   * failed. If {@code options} does not set an update ID, it defaults to the Nexus request ID which
+   * is consistent with other SDKs usage.
+   *
+   * <p>A Nexus callback URL is required for this operation; if the caller did not provide one, this
+   * method throws a {@code BAD_REQUEST} {@code HandlerException}.
+   *
+   * <p>Example:
+   *
+   * <pre>{@code
+   * client.startWorkflowUpdate(
+   *     MyWorkflow.class, input.getWorkflowId(),
+   *     MyWorkflow::myUpdate, input.getArg(),
+   *     UpdateOptions.newBuilder(String.class)
+   *         .setUpdateName("myUpdate")
+   *         .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
+   *         .build())
+   * }</pre>
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func1<T, R> updateMethod,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a one-argument workflow update on an existing workflow as a Nexus operation. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func2<T, A1, R> updateMethod,
+      A1 arg1,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a two-argument workflow update on an existing workflow as a Nexus operation. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func3<T, A1, A2, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a three-argument workflow update on an existing workflow as a Nexus operation. See
+   * {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full
+   * behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func4<T, A1, A2, A3, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a four-argument workflow update on an existing workflow as a Nexus operation. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param arg4 fourth update argument
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <A4> the type of the fourth update argument
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, A4, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func5<T, A1, A2, A3, A4, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a five-argument workflow update on an existing workflow as a Nexus operation. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param arg4 fourth update argument
+   * @param arg5 fifth update argument
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <A4> the type of the fourth update argument
+   * @param <A5> the type of the fifth update argument
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, A4, A5, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func6<T, A1, A2, A3, A4, A5, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a six-argument workflow update on an existing workflow as a Nexus operation. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param arg4 fourth update argument
+   * @param arg5 fifth update argument
+   * @param arg6 sixth update argument
+   * @param options update options (must include the update result class)
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <A4> the type of the fourth update argument
+   * @param <A5> the type of the fifth update argument
+   * @param <A6> the type of the sixth update argument
+   * @param <R> the update return type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * TBD: determine if all the other 14 func+proc+void are required and add if needed Starts a
+   * six-argument workflow update on the provided workflow execution. See {@link
+   * #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for the full behavior
+   * contract.
+   *
+   * @param <T>
+   * @param <A1>
+   * @param <A2>
+   * @param <A3>
+   * @param <A4>
+   * @param <A5>
+   * @param <A6>
+   * @param <R>
+   * @param workflowClass
+   * @param execution
+   * @param updateMethod
+   * @param arg1
+   * @param arg2
+   * @param arg3
+   * @param arg4
+   * @param arg5
+   * @param arg6
+   * @param options
+   * @return
+   * @throws OperationException
+   */
+  <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options)
+      throws OperationException;
+
+  /**
+   * Starts a zero-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc1<T> updateMethod,
+      UpdateOptions<Void> options)
+      throws OperationException;
+
+  /**
+   * Starts a one-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc2<T, A1> updateMethod,
+      A1 arg1,
+      UpdateOptions<Void> options)
+      throws OperationException;
+
+  /**
+   * Starts a two-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc3<T, A1, A2> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      UpdateOptions<Void> options)
+      throws OperationException;
+
+  /**
+   * Starts a three-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc4<T, A1, A2, A3> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<Void> options)
+      throws OperationException;
+
+  /**
+   * Starts a four-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param arg4 fourth update argument
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <A4> the type of the fourth update argument
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, A4> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc5<T, A1, A2, A3, A4> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<Void> options)
+      throws OperationException;
+
+  /**
+   * Starts a five-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param arg4 fourth update argument
+   * @param arg5 fifth update argument
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <A4> the type of the fourth update argument
+   * @param <A5> the type of the fifth update argument
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, A4, A5> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc6<T, A1, A2, A3, A4, A5> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<Void> options)
+      throws OperationException;
+
+  /**
+   * Starts a six-argument workflow update with no return value on an existing workflow as a Nexus
+   * operation. See {@link #startWorkflowUpdate(Class, String, Functions.Func1, UpdateOptions)} for
+   * the full behavior contract.
+   *
+   * @param workflowClass the workflow interface class
+   * @param workflowId the ID of the existing workflow to update
+   * @param updateMethod unbound method reference to the update method
+   * @param arg1 first update argument
+   * @param arg2 second update argument
+   * @param arg3 third update argument
+   * @param arg4 fourth update argument
+   * @param arg5 fifth update argument
+   * @param arg6 sixth update argument
+   * @param options update options
+   * @param <T> the workflow interface type
+   * @param <A1> the type of the first update argument
+   * @param <A2> the type of the second update argument
+   * @param <A3> the type of the third update argument
+   * @param <A4> the type of the fourth update argument
+   * @param <A5> the type of the fifth update argument
+   * @param <A6> the type of the sixth update argument
+   * @return a {@link TemporalOperationResult}; sync if the update already completed, async
+   *     (carrying the update-workflow operation token) otherwise
+   */
+  <T, A1, A2, A3, A4, A5, A6> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc7<T, A1, A2, A3, A4, A5, A6> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<Void> options)
+      throws OperationException;
 }
