@@ -1,6 +1,7 @@
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.TEMPORAL_RESERVED_PREFIX;
+import static io.temporal.internal.common.InternalUtils.isWorkflowStreamReservedName;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
@@ -43,7 +44,8 @@ class UpdateDispatcher {
         updateCallbacks.get(updateName);
     Object[] args;
     HandlerUnfinishedPolicy policy;
-    if (updateName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
+    if (updateName.startsWith(TEMPORAL_RESERVED_PREFIX)
+        && !isWorkflowStreamReservedName(updateName)) {
       throw new IllegalArgumentException(
           "Unknown update name: " + updateName + ", knownTypes=" + updateCallbacks.keySet());
     }

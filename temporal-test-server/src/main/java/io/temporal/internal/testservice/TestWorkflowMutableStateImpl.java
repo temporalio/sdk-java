@@ -1498,7 +1498,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
 
     // This should probably follow the retry logic from
-    // https://github.com/temporalio/temporal/blob/master/service/history/retry.go#L95
+    // https://github.com/temporalio/temporal/blob/main/service/history/retry.go#L95
     Failure failure = d.getFailure();
     WorkflowData data = workflow.getData();
 
@@ -3172,13 +3172,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     public UpdateWorkflowExecutionLifecycleStage getStage() {
-      if (!accepted.isDone()) {
-        return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
-      } else if (!outcome.isDone()) {
+      // A resolved outcome is terminal (a success result or a rejection/failure), so it always
+      // means COMPLETED. Checking it first keeps stage derivation independent of the order in
+      // which the `accepted` and `outcome` futures complete. The `accepted` future only
+      // distinguishes ADMITTED from ACCEPTED.
+      if (outcome.isDone()) {
+        return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+      } else if (accepted.isDone()) {
         return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED;
       }
-      return UpdateWorkflowExecutionLifecycleStage
-          .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+      return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
     }
 
     public String getId() {

@@ -1087,10 +1087,11 @@ public final class Workflow {
    * is going to break determinism. The solution is to have both old code that is used to replay
    * existing workflows as well as the new one that is used when it is executed for the first time.\
    *
-   * <p>{@code getVersion} returns maxSupported version when is executed for the first time. This
+   * <p>{@code getVersion} returns maxSupported version when it is executed for the first time,
+   * unless the worker has a {@link io.temporal.worker.PreferredVersionProvider} configured. This
    * version is recorded into the workflow history as a marker event. Even if maxSupported version
-   * is changed the version that was recorded is returned on replay. DefaultVersion constant
-   * contains version of code that wasn't versioned before.
+   * or the worker preference is changed, the version that was recorded is returned on replay.
+   * DefaultVersion constant contains version of code that wasn't versioned before.
    *
    * <p>For example initially workflow has the following code:
    *

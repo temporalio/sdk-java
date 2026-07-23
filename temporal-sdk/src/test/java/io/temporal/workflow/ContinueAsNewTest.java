@@ -77,6 +77,13 @@ public class ContinueAsNewTest {
         assertEquals(5, Workflow.getInfo().getRetryOptions().getMaximumAttempts());
         assertEquals("foo1", Workflow.getTypedSearchAttributes().get(CUSTOM_KEYWORD_SA));
       }
+      // The memo is set on every continue-as-new below, so every run after the
+      // first one should observe it once the test server propagates it.
+      if (count <= INITIAL_COUNT - 2) {
+        assertEquals("MyValue", Workflow.getMemo("myKey", String.class));
+      } else {
+        Assert.assertNull(Workflow.getMemo("myKey", String.class));
+      }
       if (count == 0) {
         assertEquals(continueAsNewTaskQueue, taskQueue);
         return 111;
