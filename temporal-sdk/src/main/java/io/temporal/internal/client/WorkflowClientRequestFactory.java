@@ -210,6 +210,10 @@ final class WorkflowClientRequestFactory {
       request.setVersioningOverride(startParameters.getVersioningOverride());
     }
 
+    if (startParameters.hasPriority()) {
+      request.setPriority(startParameters.getPriority());
+    }
+
     return request;
   }
 
