@@ -607,6 +607,8 @@ final class WorkflowWorker implements SuspendableWorker {
               + execution.getWorkflowId()
               + ", RunId="
               + execution.getRunId()
+              + ", WorkflowType="
+              + task.getResponse().getWorkflowType().getName()
               + ", Attempt="
               + task.getResponse().getAttempt(),
           failure);
