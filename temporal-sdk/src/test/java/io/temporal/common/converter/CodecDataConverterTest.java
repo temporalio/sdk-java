@@ -1,8 +1,6 @@
 package io.temporal.common.converter;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
@@ -10,6 +8,8 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.worker.WorkflowTaskPayloadStats;
+import io.temporal.internal.worker.WorkflowTaskPayloadStatsContext;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
 import java.util.Collections;
@@ -117,6 +117,36 @@ public class CodecDataConverterTest {
     assertTrue(isEncoded(data.get().getPayloads(0)));
     RawValue converted = dataConverter.fromPayloads(0, data, RawValue.class, RawValue.class);
     assertEquals(p, converted.getPayload());
+  }
+
+  @Test
+  public void testPayloadStatsAreRecordedForEncodeAndDecode() {
+    WorkflowTaskPayloadStats stats = new WorkflowTaskPayloadStats();
+    WorkflowTaskPayloadStatsContext.set(stats);
+
+    try {
+      Payload payload = Payload.newBuilder().setData(ByteString.copyFromUtf8("test-data")).build();
+
+      List<Payload> encoded = dataConverter.encode(Collections.singletonList(payload));
+
+      dataConverter.decode(encoded);
+
+      String statsOutput = stats.toString();
+
+      assertTrue(statsOutput.contains("uploadedPayloads=1"));
+      assertTrue(statsOutput.contains("downloadedPayloads=1"));
+
+      assertTrue(statsOutput.contains("uploadedBytes="));
+      assertTrue(statsOutput.contains("downloadedBytes="));
+
+      assertFalse(statsOutput.contains("uploadedBytes=0"));
+      assertFalse(statsOutput.contains("downloadedBytes=0"));
+
+      assertTrue(statsOutput.contains("externalStorageUploadTime="));
+      assertTrue(statsOutput.contains("externalStorageDownloadTime="));
+    } finally {
+      WorkflowTaskPayloadStatsContext.clear();
+    }
   }
 
   static boolean isEncoded(Payload payload) {

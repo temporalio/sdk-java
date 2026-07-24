@@ -38,7 +38,8 @@ import org.slf4j.MDC;
 
 final class WorkflowWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
-
+  private static final long SLOW_WFT_INFO_THRESHOLD_MS = 5000;
+  private static final long SLOW_WFT_WARN_THRESHOLD_MS = 10000;
   private final WorkflowRunLockManager runLocks;
 
   private final WorkflowServiceStubs service;
@@ -60,7 +61,6 @@ final class WorkflowWorker implements SuspendableWorker {
   private final NamespaceCapabilities namespaceCapabilities;
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
-
   // TODO this ideally should be volatile or final (and NoopWorker should go away)
   //  Currently the implementation looks safe without volatile, but it's brittle.
   @Nonnull private SuspendableWorker poller = new NoopWorker();
@@ -440,7 +440,13 @@ final class WorkflowWorker implements SuspendableWorker {
           nextWFTResponse = Optional.empty();
           boolean iterationFailed = false;
           try {
+            long workflowTaskStartTime = System.nanoTime();
+            WorkflowTaskPayloadStats payloadStats = new WorkflowTaskPayloadStats();
+
+            WorkflowTaskPayloadStatsContext.set(payloadStats);
             WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
+            long workflowTaskCompletionMillis =
+                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - workflowTaskStartTime);
             WorkflowTaskFailedCause taskFailedCause = null;
             try {
               RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();
@@ -512,6 +518,7 @@ final class WorkflowWorker implements SuspendableWorker {
                   if (result.getApplyPostCompletionMetrics() != null) {
                     result.getApplyPostCompletionMetrics().run();
                   }
+                  logSlowWorkflowTaskCompletion(workflowTaskCompletionMillis, payloadStats);
                 } catch (GrpcMessageTooLargeException e) {
                   // Only fail workflow task on the first attempt, subsequent failures of the same
                   // workflow task should timeout.
@@ -592,10 +599,19 @@ final class WorkflowWorker implements SuspendableWorker {
         MDC.remove(LoggerTag.WORKFLOW_ID);
         MDC.remove(LoggerTag.WORKFLOW_TYPE);
         MDC.remove(LoggerTag.RUN_ID);
-
+        WorkflowTaskPayloadStatsContext.clear();
         if (locked) {
           runLocks.unlock(runId);
         }
+      }
+    }
+
+    private void logSlowWorkflowTaskCompletion(
+        long durationMillis, WorkflowTaskPayloadStats payloadStats) {
+      if (durationMillis > SLOW_WFT_WARN_THRESHOLD_MS) {
+        log.warn("TMPRL1104 Workflow Task completion took {} ms. {}", durationMillis, payloadStats);
+      } else if (durationMillis > SLOW_WFT_INFO_THRESHOLD_MS) {
+        log.info("TMPRL1104 Workflow Task completion took {} ms. {}", durationMillis, payloadStats);
       }
     }
 
