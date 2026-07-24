@@ -136,7 +136,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
   }
 
   /**
-   * Called when a cancel request is received for an activity-execution token (type=4). Override to
+   * Called when a cancel request is received for an activity-execution token (type=2). Override to
    * customize cancel behavior.
    *
    * <p>Default behavior: requests cancellation of the underlying standalone activity execution.
