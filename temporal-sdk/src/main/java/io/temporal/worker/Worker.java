@@ -173,8 +173,7 @@ public final class Worker {
 
     EagerActivityDispatcher eagerActivityDispatcher =
         (activityWorker != null && !this.options.isEagerExecutionDisabled())
-            ? activityWorker.getEagerActivityDispatcher(
-                this.options.getMaxConcurrentEagerActivityExecutionSize())
+            ? activityWorker.getEagerActivityDispatcher()
             : new EagerActivityDispatcher.NoopEagerActivityDispatcher();
 
     SingleWorkerOptions nexusOptions =
@@ -245,6 +244,7 @@ public final class Worker {
             stickyTaskQueueName,
             workflowThreadExecutor,
             eagerActivityDispatcher,
+            this.options.getMaxEagerActivityReservationsPerWorkflowTask(),
             workflowSlotSupplier,
             localActivitySlotSupplier,
             namespaceCapabilities);

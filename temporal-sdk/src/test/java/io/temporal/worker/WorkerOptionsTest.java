@@ -23,6 +23,7 @@ public class WorkerOptionsTest {
   private void verifyBuild(WorkerOptions options) {
     assertEquals(10, options.getMaxConcurrentActivityExecutionSize());
     assertEquals(11, options.getMaxConcurrentLocalActivityExecutionSize());
+    assertEquals(3, options.getMaxEagerActivityReservationsPerWorkflowTask());
     assertNotNull(options.getPreferredVersionProvider());
   }
 
@@ -55,7 +56,7 @@ public class WorkerOptionsTest {
             .setDefaultHeartbeatThrottleInterval(Duration.ofSeconds(7))
             .setStickyQueueScheduleToStartTimeout(Duration.ofSeconds(60))
             .setDisableEagerExecution(false)
-            .setMaxConcurrentEagerActivityExecutionSize(17)
+            .setMaxEagerActivityReservationsPerWorkflowTask(17)
             .setUseBuildIdForVersioning(false)
             .setBuildId("build-id")
             .setStickyTaskQueueDrainTimeout(Duration.ofSeconds(15))
@@ -92,8 +93,8 @@ public class WorkerOptionsTest {
         w1.getStickyQueueScheduleToStartTimeout(), w2.getStickyQueueScheduleToStartTimeout());
     assertEquals(w1.isEagerExecutionDisabled(), w2.isEagerExecutionDisabled());
     assertEquals(
-        w1.getMaxConcurrentEagerActivityExecutionSize(),
-        w2.getMaxConcurrentEagerActivityExecutionSize());
+        w1.getMaxEagerActivityReservationsPerWorkflowTask(),
+        w2.getMaxEagerActivityReservationsPerWorkflowTask());
     assertEquals(w1.isUsingBuildIdForVersioning(), w2.isUsingBuildIdForVersioning());
     assertEquals(w1.getBuildId(), w2.getBuildId());
     assertEquals(w1.getStickyTaskQueueDrainTimeout(), w2.getStickyTaskQueueDrainTimeout());

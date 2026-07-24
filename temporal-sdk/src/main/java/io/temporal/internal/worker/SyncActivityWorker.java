@@ -163,9 +163,8 @@ public class SyncActivityWorker implements SuspendableWorker {
     }
   }
 
-  public EagerActivityDispatcher getEagerActivityDispatcher(
-      int maxConcurrentEagerActivityExecutionSize) {
-    return this.worker.getEagerActivityDispatcher(maxConcurrentEagerActivityExecutionSize);
+  public EagerActivityDispatcher getEagerActivityDispatcher() {
+    return this.worker.getEagerActivityDispatcher();
   }
 
   public boolean isAnyTypeSupported() {
