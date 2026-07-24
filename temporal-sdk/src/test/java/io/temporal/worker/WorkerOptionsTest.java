@@ -55,6 +55,7 @@ public class WorkerOptionsTest {
             .setDefaultHeartbeatThrottleInterval(Duration.ofSeconds(7))
             .setStickyQueueScheduleToStartTimeout(Duration.ofSeconds(60))
             .setDisableEagerExecution(false)
+            .setMaxConcurrentEagerActivityExecutionSize(17)
             .setUseBuildIdForVersioning(false)
             .setBuildId("build-id")
             .setStickyTaskQueueDrainTimeout(Duration.ofSeconds(15))
@@ -90,6 +91,9 @@ public class WorkerOptionsTest {
     assertEquals(
         w1.getStickyQueueScheduleToStartTimeout(), w2.getStickyQueueScheduleToStartTimeout());
     assertEquals(w1.isEagerExecutionDisabled(), w2.isEagerExecutionDisabled());
+    assertEquals(
+        w1.getMaxConcurrentEagerActivityExecutionSize(),
+        w2.getMaxConcurrentEagerActivityExecutionSize());
     assertEquals(w1.isUsingBuildIdForVersioning(), w2.isUsingBuildIdForVersioning());
     assertEquals(w1.getBuildId(), w2.getBuildId());
     assertEquals(w1.getStickyTaskQueueDrainTimeout(), w2.getStickyTaskQueueDrainTimeout());

@@ -218,8 +218,9 @@ final class ActivityWorker implements SuspendableWorker {
     return poller.getLifecycleState();
   }
 
-  public EagerActivityDispatcher getEagerActivityDispatcher() {
-    return new EagerActivityDispatcherImpl();
+  public EagerActivityDispatcher getEagerActivityDispatcher(
+      int maxConcurrentEagerActivityExecutionSize) {
+    return new EagerActivityDispatcherImpl(maxConcurrentEagerActivityExecutionSize);
   }
 
   private PollerOptions getPollerOptions(SingleWorkerOptions options) {
@@ -485,6 +486,13 @@ final class ActivityWorker implements SuspendableWorker {
   }
 
   private final class EagerActivityDispatcherImpl implements EagerActivityDispatcher {
+    private final EagerActivitySlotLimiter eagerActivitySlotLimiter;
+
+    private EagerActivityDispatcherImpl(int maxConcurrentEagerActivityExecutionSize) {
+      this.eagerActivitySlotLimiter =
+          new EagerActivitySlotLimiter(maxConcurrentEagerActivityExecutionSize);
+    }
+
     @Override
     public Optional<SlotPermit> tryReserveActivitySlot(
         ScheduleActivityTaskCommandAttributesOrBuilder commandAttributes) {
@@ -493,15 +501,31 @@ final class ActivityWorker implements SuspendableWorker {
               commandAttributes.getTaskQueue().getName(), ActivityWorker.this.taskQueue)) {
         return Optional.empty();
       }
-      return ActivityWorker.this.slotSupplier.tryReserveSlot(
-          new SlotReservationData(
-              ActivityWorker.this.taskQueue, options.getIdentity(), options.getBuildId()));
+      if (!eagerActivitySlotLimiter.tryReserve()) {
+        return Optional.empty();
+      }
+      Optional<SlotPermit> permit = Optional.empty();
+      try {
+        permit =
+            ActivityWorker.this.slotSupplier.tryReserveSlot(
+                new SlotReservationData(
+                    ActivityWorker.this.taskQueue, options.getIdentity(), options.getBuildId()));
+        return permit;
+      } finally {
+        if (!permit.isPresent()) {
+          eagerActivitySlotLimiter.release();
+        }
+      }
     }
 
     @Override
     public void releaseActivitySlotReservations(Iterable<SlotPermit> permits) {
       for (SlotPermit permit : permits) {
-        ActivityWorker.this.slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
+        try {
+          ActivityWorker.this.slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
+        } finally {
+          eagerActivitySlotLimiter.release();
+        }
       }
     }
 
@@ -511,9 +535,39 @@ final class ActivityWorker implements SuspendableWorker {
           new ActivityTask(
               activity,
               permit,
-              () ->
+              () -> {
+                try {
                   ActivityWorker.this.slotSupplier.releaseSlot(
-                      SlotReleaseReason.taskComplete(), permit)));
+                      SlotReleaseReason.taskComplete(), permit);
+                } finally {
+                  eagerActivitySlotLimiter.release();
+                }
+              }));
+    }
+  }
+
+  static final class EagerActivitySlotLimiter {
+    private final int maxConcurrent;
+    private int heldSlotCount;
+
+    EagerActivitySlotLimiter(int maxConcurrent) {
+      this.maxConcurrent = maxConcurrent;
+    }
+
+    synchronized boolean tryReserve() {
+      if (maxConcurrent > 0 && heldSlotCount >= maxConcurrent) {
+        return false;
+      }
+      heldSlotCount++;
+      return true;
+    }
+
+    synchronized void release() {
+      if (heldSlotCount <= 0) {
+        throw new IllegalStateException(
+            "Trying to release an unreserved eager activity slot. This is an SDK bug.");
+      }
+      heldSlotCount--;
     }
   }
 }
