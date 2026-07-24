@@ -10,12 +10,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 class WorkflowThreadContext {
-  private static final Logger log = LoggerFactory.getLogger(WorkflowThreadContext.class);
-
   // Shared runner lock
   private final Lock runnerLock;
   private final WorkflowThreadScheduler scheduler;
@@ -214,8 +210,8 @@ class WorkflowThreadContext {
   }
 
   /**
-   * @param deadlockDetectionTimeoutMs maximum time in milliseconds the thread can run before
-   *     calling yield. Discarded if {@code TEMPORAL_DEBUG} env variable is set.
+   * @param deadlockDetectionTimeoutMs the maximum time in milliseconds after a thread is scheduled
+   *     until it yields or completes. Discarded if {@code TEMPORAL_DEBUG} env variable is set.
    * @return true if thread made some progress. Which is await was unblocked and some code after it
    *     * was executed.
    */
@@ -241,13 +237,10 @@ class WorkflowThreadContext {
           throw new PotentialDeadlockException(
               currentThread.getName(), this, detectionTimestamp, deadlockDetectionTimeoutMs);
         } else {
-          // This should never happen.
-          // We clear currentThread only after setting the status to DONE.
-          // And we check for it by the status condition check after waking up on the condition
-          // and acquiring the lock back
-          log.warn("Illegal State: WorkflowThreadContext has no currentThread in {} state", status);
+          // We clear currentThread only after setting the status to DONE, so this case should
+          // only happen if the WorkflowThread is starving.
           throw new PotentialDeadlockException(
-              "UnknownThread", this, detectionTimestamp, deadlockDetectionTimeoutMs);
+              this, detectionTimestamp, deadlockDetectionTimeoutMs);
         }
       }
       Preconditions.checkState(
