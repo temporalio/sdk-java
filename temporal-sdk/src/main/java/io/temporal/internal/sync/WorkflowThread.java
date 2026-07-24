@@ -65,8 +65,8 @@ public interface WorkflowThread extends CancellationScope {
   SyncWorkflowContext getWorkflowContext();
 
   /**
-   * @param deadlockDetectionTimeoutMs maximum time in milliseconds the thread can run before
-   *     calling yield.
+   * @param deadlockDetectionTimeoutMs the maximum time in milliseconds after a thread is scheduled
+   *     until it yields or completes.
    * @return true if coroutine made some progress.
    */
   boolean runUntilBlocked(long deadlockDetectionTimeoutMs);
