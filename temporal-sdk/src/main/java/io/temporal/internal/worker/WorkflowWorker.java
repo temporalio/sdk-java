@@ -52,6 +52,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
+  private final int maxEagerActivityReservationsPerWorkflowTask;
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
 
   private final TaskCounter taskCounter = new TaskCounter();
@@ -77,6 +78,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
+      int maxEagerActivityReservationsPerWorkflowTask,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
@@ -92,6 +94,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.eagerActivityDispatcher = eagerActivityDispatcher;
+    this.maxEagerActivityReservationsPerWorkflowTask = maxEagerActivityReservationsPerWorkflowTask;
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
     this.namespaceCapabilities = namespaceCapabilities;
   }
@@ -478,7 +481,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
                         taskCompleted.toBuilder();
                     try (EagerActivitySlotsReservation activitySlotsReservation =
-                        new EagerActivitySlotsReservation(eagerActivityDispatcher)) {
+                        new EagerActivitySlotsReservation(
+                            eagerActivityDispatcher, maxEagerActivityReservationsPerWorkflowTask)) {
                       activitySlotsReservation.applyToRequest(requestBuilder);
                       RespondWorkflowTaskCompletedResponse response =
                           sendTaskCompleted(

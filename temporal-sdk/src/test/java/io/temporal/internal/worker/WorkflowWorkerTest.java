@@ -84,6 +84,7 @@ public class WorkflowWorkerTest {
             cache,
             taskHandler,
             eagerActivityDispatcher,
+            3,
             slotSupplier,
             new NamespaceCapabilities());
 
@@ -255,6 +256,7 @@ public class WorkflowWorkerTest {
             cache,
             taskHandler,
             eagerActivityDispatcher,
+            3,
             slotSupplier,
             new NamespaceCapabilities());
 
@@ -399,6 +401,7 @@ public class WorkflowWorkerTest {
             cache,
             taskHandler,
             eagerActivityDispatcher,
+            3,
             slotSupplier,
             new NamespaceCapabilities());
 

@@ -244,6 +244,7 @@ public final class Worker {
             stickyTaskQueueName,
             workflowThreadExecutor,
             eagerActivityDispatcher,
+            this.options.getMaxEagerActivityReservationsPerWorkflowTask(),
             workflowSlotSupplier,
             localActivitySlotSupplier,
             namespaceCapabilities);

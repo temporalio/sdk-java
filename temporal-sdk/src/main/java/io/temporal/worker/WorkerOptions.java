@@ -4,6 +4,7 @@ import static java.lang.Double.compare;
 
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
+import io.temporal.internal.Config;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.tuning.*;
 import java.time.Duration;
@@ -64,6 +65,7 @@ public final class WorkerOptions {
     private Duration defaultHeartbeatThrottleInterval;
     private Duration stickyQueueScheduleToStartTimeout;
     private boolean disableEagerExecution;
+    private int maxEagerActivityReservationsPerWorkflowTask = Config.EAGER_ACTIVITIES_LIMIT;
     private String buildId;
     private boolean useBuildIdForVersioning;
     private Duration stickyTaskQueueDrainTimeout;
@@ -109,6 +111,8 @@ public final class WorkerOptions {
       this.defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
       this.stickyQueueScheduleToStartTimeout = o.stickyQueueScheduleToStartTimeout;
       this.disableEagerExecution = o.disableEagerExecution;
+      this.maxEagerActivityReservationsPerWorkflowTask =
+          o.maxEagerActivityReservationsPerWorkflowTask;
       this.useBuildIdForVersioning = o.useBuildIdForVersioning;
       this.buildId = o.buildId;
       this.stickyTaskQueueDrainTimeout = o.stickyTaskQueueDrainTimeout;
@@ -401,6 +405,20 @@ public final class WorkerOptions {
     }
 
     /**
+     * Sets the maximum number of activity slots that may be reserved for eager execution when
+     * completing a workflow task.
+     *
+     * <p>The default is 3. The value must be positive. To disable eager activity execution, use
+     * {@link #setDisableEagerExecution(boolean)}.
+     */
+    public Builder setMaxEagerActivityReservationsPerWorkflowTask(
+        int maxEagerActivityReservationsPerWorkflowTask) {
+      this.maxEagerActivityReservationsPerWorkflowTask =
+          maxEagerActivityReservationsPerWorkflowTask;
+      return this;
+    }
+
+    /**
      * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
      * will only receive tasks which it is compatible with.
      *
@@ -623,6 +641,7 @@ public final class WorkerOptions {
           defaultHeartbeatThrottleInterval,
           stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
+          maxEagerActivityReservationsPerWorkflowTask,
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout,
@@ -647,6 +666,10 @@ public final class WorkerOptions {
           maxWorkerActivitiesPerSecond >= 0, "negative maxActivitiesPerSecond");
       Preconditions.checkState(
           maxConcurrentActivityExecutionSize >= 0, "negative maxConcurrentActivityExecutionSize");
+      Preconditions.checkState(
+          maxEagerActivityReservationsPerWorkflowTask > 0,
+          "maxEagerActivityReservationsPerWorkflowTask must be positive; use "
+              + "setDisableEagerExecution(true) to disable eager activity execution");
       Preconditions.checkState(
           maxConcurrentWorkflowTaskExecutionSize >= 0,
           "negative maxConcurrentWorkflowTaskExecutionSize");
@@ -758,6 +781,7 @@ public final class WorkerOptions {
               ? DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT
               : stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
+          maxEagerActivityReservationsPerWorkflowTask,
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout == null
@@ -796,6 +820,7 @@ public final class WorkerOptions {
   private final Duration defaultHeartbeatThrottleInterval;
   private final @Nonnull Duration stickyQueueScheduleToStartTimeout;
   private final boolean disableEagerExecution;
+  private final int maxEagerActivityReservationsPerWorkflowTask;
   private final boolean useBuildIdForVersioning;
   private final String buildId;
   private final Duration stickyTaskQueueDrainTimeout;
@@ -831,6 +856,7 @@ public final class WorkerOptions {
       Duration defaultHeartbeatThrottleInterval,
       @Nonnull Duration stickyQueueScheduleToStartTimeout,
       boolean disableEagerExecution,
+      int maxEagerActivityReservationsPerWorkflowTask,
       boolean useBuildIdForVersioning,
       String buildId,
       Duration stickyTaskQueueDrainTimeout,
@@ -864,6 +890,7 @@ public final class WorkerOptions {
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
     this.disableEagerExecution = maxTaskQueueActivitiesPerSecond > 0 ? true : disableEagerExecution;
+    this.maxEagerActivityReservationsPerWorkflowTask = maxEagerActivityReservationsPerWorkflowTask;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.buildId = buildId;
     this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
@@ -989,6 +1016,10 @@ public final class WorkerOptions {
     return disableEagerExecution;
   }
 
+  public int getMaxEagerActivityReservationsPerWorkflowTask() {
+    return maxEagerActivityReservationsPerWorkflowTask;
+  }
+
   public boolean isUsingBuildIdForVersioning() {
     return useBuildIdForVersioning;
   }
@@ -1070,6 +1101,8 @@ public final class WorkerOptions {
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && disableEagerExecution == that.disableEagerExecution
+        && maxEagerActivityReservationsPerWorkflowTask
+            == that.maxEagerActivityReservationsPerWorkflowTask
         && useBuildIdForVersioning == that.useBuildIdForVersioning
         && Objects.equals(workerTuner, that.workerTuner)
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
@@ -1109,6 +1142,7 @@ public final class WorkerOptions {
         defaultHeartbeatThrottleInterval,
         stickyQueueScheduleToStartTimeout,
         disableEagerExecution,
+        maxEagerActivityReservationsPerWorkflowTask,
         useBuildIdForVersioning,
         buildId,
         stickyTaskQueueDrainTimeout,
@@ -1160,6 +1194,8 @@ public final class WorkerOptions {
         + stickyQueueScheduleToStartTimeout
         + ", disableEagerExecution="
         + disableEagerExecution
+        + ", maxEagerActivityReservationsPerWorkflowTask="
+        + maxEagerActivityReservationsPerWorkflowTask
         + ", useBuildIdForVersioning="
         + useBuildIdForVersioning
         + ", buildId='"

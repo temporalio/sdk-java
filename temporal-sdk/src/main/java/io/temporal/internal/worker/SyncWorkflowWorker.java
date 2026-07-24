@@ -67,6 +67,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       String stickyTaskQueueName,
       @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
+      int maxEagerActivityReservationsPerWorkflowTask,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier,
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
@@ -123,6 +124,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             cache,
             taskHandler,
             eagerActivityDispatcher,
+            maxEagerActivityReservationsPerWorkflowTask,
             slotSupplier,
             namespaceCapabilities);
 
