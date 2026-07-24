@@ -64,6 +64,7 @@ public final class WorkerOptions {
     private Duration defaultHeartbeatThrottleInterval;
     private Duration stickyQueueScheduleToStartTimeout;
     private boolean disableEagerExecution;
+    private int maxConcurrentEagerActivityExecutionSize;
     private String buildId;
     private boolean useBuildIdForVersioning;
     private Duration stickyTaskQueueDrainTimeout;
@@ -109,6 +110,7 @@ public final class WorkerOptions {
       this.defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
       this.stickyQueueScheduleToStartTimeout = o.stickyQueueScheduleToStartTimeout;
       this.disableEagerExecution = o.disableEagerExecution;
+      this.maxConcurrentEagerActivityExecutionSize = o.maxConcurrentEagerActivityExecutionSize;
       this.useBuildIdForVersioning = o.useBuildIdForVersioning;
       this.buildId = o.buildId;
       this.stickyTaskQueueDrainTimeout = o.stickyTaskQueueDrainTimeout;
@@ -401,6 +403,19 @@ public final class WorkerOptions {
     }
 
     /**
+     * Sets the maximum number of eager activities that can be running concurrently.
+     *
+     * <p>When nonzero, eager activity execution will not be requested if it would cause the number
+     * of running eager activities to exceed this value. The default of zero means unlimited and
+     * therefore only bound by the activity slot supplier.
+     */
+    public Builder setMaxConcurrentEagerActivityExecutionSize(
+        int maxConcurrentEagerActivityExecutionSize) {
+      this.maxConcurrentEagerActivityExecutionSize = maxConcurrentEagerActivityExecutionSize;
+      return this;
+    }
+
+    /**
      * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
      * will only receive tasks which it is compatible with.
      *
@@ -623,6 +638,7 @@ public final class WorkerOptions {
           defaultHeartbeatThrottleInterval,
           stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
+          maxConcurrentEagerActivityExecutionSize,
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout,
@@ -647,6 +663,9 @@ public final class WorkerOptions {
           maxWorkerActivitiesPerSecond >= 0, "negative maxActivitiesPerSecond");
       Preconditions.checkState(
           maxConcurrentActivityExecutionSize >= 0, "negative maxConcurrentActivityExecutionSize");
+      Preconditions.checkState(
+          maxConcurrentEagerActivityExecutionSize >= 0,
+          "negative maxConcurrentEagerActivityExecutionSize");
       Preconditions.checkState(
           maxConcurrentWorkflowTaskExecutionSize >= 0,
           "negative maxConcurrentWorkflowTaskExecutionSize");
@@ -758,6 +777,7 @@ public final class WorkerOptions {
               ? DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT
               : stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
+          maxConcurrentEagerActivityExecutionSize,
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout == null
@@ -796,6 +816,7 @@ public final class WorkerOptions {
   private final Duration defaultHeartbeatThrottleInterval;
   private final @Nonnull Duration stickyQueueScheduleToStartTimeout;
   private final boolean disableEagerExecution;
+  private final int maxConcurrentEagerActivityExecutionSize;
   private final boolean useBuildIdForVersioning;
   private final String buildId;
   private final Duration stickyTaskQueueDrainTimeout;
@@ -831,6 +852,7 @@ public final class WorkerOptions {
       Duration defaultHeartbeatThrottleInterval,
       @Nonnull Duration stickyQueueScheduleToStartTimeout,
       boolean disableEagerExecution,
+      int maxConcurrentEagerActivityExecutionSize,
       boolean useBuildIdForVersioning,
       String buildId,
       Duration stickyTaskQueueDrainTimeout,
@@ -864,6 +886,7 @@ public final class WorkerOptions {
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
     this.disableEagerExecution = maxTaskQueueActivitiesPerSecond > 0 ? true : disableEagerExecution;
+    this.maxConcurrentEagerActivityExecutionSize = maxConcurrentEagerActivityExecutionSize;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.buildId = buildId;
     this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
@@ -989,6 +1012,10 @@ public final class WorkerOptions {
     return disableEagerExecution;
   }
 
+  public int getMaxConcurrentEagerActivityExecutionSize() {
+    return maxConcurrentEagerActivityExecutionSize;
+  }
+
   public boolean isUsingBuildIdForVersioning() {
     return useBuildIdForVersioning;
   }
@@ -1070,6 +1097,7 @@ public final class WorkerOptions {
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && disableEagerExecution == that.disableEagerExecution
+        && maxConcurrentEagerActivityExecutionSize == that.maxConcurrentEagerActivityExecutionSize
         && useBuildIdForVersioning == that.useBuildIdForVersioning
         && Objects.equals(workerTuner, that.workerTuner)
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
@@ -1109,6 +1137,7 @@ public final class WorkerOptions {
         defaultHeartbeatThrottleInterval,
         stickyQueueScheduleToStartTimeout,
         disableEagerExecution,
+        maxConcurrentEagerActivityExecutionSize,
         useBuildIdForVersioning,
         buildId,
         stickyTaskQueueDrainTimeout,
@@ -1160,6 +1189,8 @@ public final class WorkerOptions {
         + stickyQueueScheduleToStartTimeout
         + ", disableEagerExecution="
         + disableEagerExecution
+        + ", maxConcurrentEagerActivityExecutionSize="
+        + maxConcurrentEagerActivityExecutionSize
         + ", useBuildIdForVersioning="
         + useBuildIdForVersioning
         + ", buildId='"

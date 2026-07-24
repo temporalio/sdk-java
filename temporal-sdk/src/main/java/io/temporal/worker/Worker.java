@@ -173,7 +173,8 @@ public final class Worker {
 
     EagerActivityDispatcher eagerActivityDispatcher =
         (activityWorker != null && !this.options.isEagerExecutionDisabled())
-            ? activityWorker.getEagerActivityDispatcher()
+            ? activityWorker.getEagerActivityDispatcher(
+                this.options.getMaxConcurrentEagerActivityExecutionSize())
             : new EagerActivityDispatcher.NoopEagerActivityDispatcher();
 
     SingleWorkerOptions nexusOptions =
