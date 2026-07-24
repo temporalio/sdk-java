@@ -408,7 +408,8 @@ public final class WorkerOptions {
      * Sets the maximum number of activity slots that may be reserved for eager execution when
      * completing a workflow task.
      *
-     * <p>The default is 3. Setting this to zero disables eager activity execution.
+     * <p>The default is 3. The value must be positive. To disable eager activity execution, use
+     * {@link #setDisableEagerExecution(boolean)}.
      */
     public Builder setMaxEagerActivityReservationsPerWorkflowTask(
         int maxEagerActivityReservationsPerWorkflowTask) {
@@ -666,8 +667,9 @@ public final class WorkerOptions {
       Preconditions.checkState(
           maxConcurrentActivityExecutionSize >= 0, "negative maxConcurrentActivityExecutionSize");
       Preconditions.checkState(
-          maxEagerActivityReservationsPerWorkflowTask >= 0,
-          "negative maxEagerActivityReservationsPerWorkflowTask");
+          maxEagerActivityReservationsPerWorkflowTask > 0,
+          "maxEagerActivityReservationsPerWorkflowTask must be positive; use "
+              + "setDisableEagerExecution(true) to disable eager activity execution");
       Preconditions.checkState(
           maxConcurrentWorkflowTaskExecutionSize >= 0,
           "negative maxConcurrentWorkflowTaskExecutionSize");

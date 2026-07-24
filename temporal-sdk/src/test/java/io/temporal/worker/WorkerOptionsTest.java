@@ -235,4 +235,21 @@ public class WorkerOptionsTest {
     WorkerOptions w2 = WorkerOptions.newBuilder().setMaxTaskQueueActivitiesPerSecond(2.0).build();
     assertTrue(w2.isEagerExecutionDisabled());
   }
+
+  @Test
+  public void rejectsNonPositiveMaxEagerActivityReservationsPerWorkflowTask() {
+    for (int value : new int[] {0, -1}) {
+      IllegalStateException exception =
+          assertThrows(
+              IllegalStateException.class,
+              () ->
+                  WorkerOptions.newBuilder()
+                      .setMaxEagerActivityReservationsPerWorkflowTask(value)
+                      .validateAndBuildWithDefaults());
+      assertEquals(
+          "maxEagerActivityReservationsPerWorkflowTask must be positive; use "
+              + "setDisableEagerExecution(true) to disable eager activity execution",
+          exception.getMessage());
+    }
+  }
 }
