@@ -3,6 +3,7 @@ package io.temporal.internal.client;
 import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -132,13 +133,15 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             "failed to generate activity operation token",
             e);
       }
-      Callback cb =
-          InternalUtils.buildNexusCallback(
-              nexusOperationMetadata.callbackUrl,
-              nexusOperationMetadata.callbackHeaders,
-              nexusOperationMetadata.operationToken,
-              protoLinks);
-      request.addCompletionCallbacks(cb);
+      if (!Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl)) {
+        Callback cb =
+            InternalUtils.buildNexusCallback(
+                nexusOperationMetadata.callbackUrl,
+                nexusOperationMetadata.callbackHeaders,
+                nexusOperationMetadata.operationToken,
+                protoLinks);
+        request.addCompletionCallbacks(cb);
+      }
     }
 
     StartActivityExecutionResponse response;

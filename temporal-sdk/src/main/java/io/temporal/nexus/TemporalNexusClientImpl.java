@@ -516,16 +516,17 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
                             .build());
                 ActivityClientCallsInterceptor.StartActivityOutput out =
                     ((ActivityClientInternal) activityClient).getInvoker().startActivity(input);
-                // The invoker generated and injected the runId-free token into the callback
-                // headers before the start RPC fired. The header token cannot include a run ID
-                // because the run ID isn't known until after the start RPC returns. The operation
-                // token returned to the Nexus caller can — and should — include it, so it's
-                // regenerated here from the same activity ID + the run ID the start RPC produced.
+                // The invoker generated the runId-free token before the start RPC and injected it
+                // into the callback headers when a callback URL was supplied. That token cannot
+                // include a run ID because the run ID isn't known until after the start RPC
+                // returns. The operation token returned to the Nexus caller can — and should —
+                // include it, so it's regenerated here from the same activity ID + the run ID the
+                // start RPC produced.
                 String headerToken = nexusOperationMetadata.operationToken;
                 if (headerToken == null) {
                   throw new HandlerException(
                       HandlerException.ErrorType.INTERNAL,
-                      "invoker did not return a Nexus operation token for activity start with callback",
+                      "invoker did not generate a Nexus operation token for activity start",
                       new IllegalStateException(
                           "operationToken is null on NexusOperationMetadata after activity start"));
                 }

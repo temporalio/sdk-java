@@ -8,12 +8,20 @@ import java.util.Base64;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class WorkflowRunTokenTest {
+public class OperationTokenTest {
   private static final ObjectWriter ow =
       new ObjectMapper().registerModule(new Jdk8Module()).writer();
   private static final ObjectReader or =
       new ObjectMapper().registerModule(new Jdk8Module()).reader();
   private static final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
+
+  @Test
+  public void operationTokenTypeValues() {
+    Assert.assertEquals(0, OperationTokenType.UNKNOWN.toValue());
+    Assert.assertEquals(1, OperationTokenType.WORKFLOW_RUN.toValue());
+    Assert.assertEquals(2, OperationTokenType.ACTIVITY_EXECUTION.toValue());
+    Assert.assertEquals(3, OperationTokenType.UPDATE_WORKFLOW.toValue());
+  }
 
   @Test
   public void serializeWorkflowRunToken() throws JsonProcessingException {
@@ -140,7 +148,7 @@ public class WorkflowRunTokenTest {
 
   @Test
   public void malformedActivityTokenRejected() {
-    String malformed = "{\"t\":4,\"ns\":\"ns\",\"aid\":\"\"}";
+    String malformed = "{\"t\":2,\"ns\":\"ns\",\"aid\":\"\"}";
     IllegalArgumentException ex =
         Assert.assertThrows(
             IllegalArgumentException.class,

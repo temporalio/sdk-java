@@ -104,6 +104,28 @@ public class RootActivityClientInvokerTest {
   }
 
   @Test
+  public void nexusMetadataWithEmptyCallbackUrlOmitsCompletionCallback() {
+    NexusOperationMetadata metadata =
+        new NexusOperationMetadata(
+            "nexus-request-id", "", Collections.singletonMap("Custom-Header", "value"));
+    nexusContext.setNexusOperationMetadata(metadata);
+    Link link = workflowEventLink();
+    nexusContext.setRequestLinks(Collections.singletonList(link));
+
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    StartActivityExecutionRequest request = captor.getValue();
+    Assert.assertEquals("nexus-request-id", request.getRequestId());
+    Assert.assertEquals(Collections.singletonList(link), request.getLinksList());
+    Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertNotNull(metadata.operationToken);
+    Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
+  }
+
+  @Test
   public void nexusContextWithoutMetadataStartsOrdinaryActivity() {
     nexusContext.setRequestLinks(Collections.singletonList(workflowEventLink()));
 

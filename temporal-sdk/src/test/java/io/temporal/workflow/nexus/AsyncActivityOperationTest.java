@@ -45,7 +45,7 @@ public class AsyncActivityOperationTest extends BaseNexusTest {
   public void testActivityOperationEndToEnd() {
     // The in-process test-server does not implement the StartActivityExecution RPC; the
     // standalone-activity Nexus path requires a real server. Unit-only token assertions stay
-    // active in testActivityOperationTokenRoundTrip below.
+    // active in OperationTokenTest.
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     // Combined (a) caller workflow receives "hello " + input
     //          (b) opToken loads as ACTIVITY_EXECUTION with aid="act-" + requestId
@@ -56,24 +56,12 @@ public class AsyncActivityOperationTest extends BaseNexusTest {
   }
 
   @Test
-  public void testActivityOperationTokenRoundTrip() throws Exception {
-    // (c) generateActivityExecutionOperationToken then loadOperationToken round-trips equal
-    //     aid + ns.
-    String token = OperationTokenUtil.generateActivityExecutionOperationToken("act-123", "test-ns");
-    OperationToken loaded = OperationTokenUtil.loadOperationToken(token);
-    Assert.assertEquals(OperationTokenType.ACTIVITY_EXECUTION, loaded.getType());
-    Assert.assertEquals("act-123", loaded.getActivityId());
-    Assert.assertEquals("test-ns", loaded.getNamespace());
-    Assert.assertNull(loaded.getWorkflowId());
-  }
-
-  @Test
   public void testDoubleStartActivityThrows() {
     // The first start RPC requires StartActivityExecution which is not implemented by the
     // in-process test server; gate this on a real server so the guard at the second call can be
     // observed.
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    // (d) Calling startActivity twice in one handler invocation throws
+    // (c) Calling startActivity twice in one handler invocation throws
     //     HandlerException(BAD_REQUEST).
     TestDoubleStartWorkflow workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestDoubleStartWorkflow.class);
