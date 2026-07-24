@@ -49,9 +49,7 @@ public class PotentialDeadlockException extends RuntimeException {
    * @param timeoutMillis configured deadlock detection timeout in milliseconds
    */
   PotentialDeadlockException(
-      WorkflowThreadContext workflowThreadContext,
-      long detectionTimestamp,
-      long timeoutMillis) {
+      WorkflowThreadContext workflowThreadContext, long detectionTimestamp, long timeoutMillis) {
     super(
         "[TMPRL1101] Potential deadlock detected. Workflow thread could not start executing within "
             + formatTimeout(timeoutMillis)

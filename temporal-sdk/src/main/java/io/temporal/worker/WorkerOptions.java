@@ -327,9 +327,9 @@ public final class WorkerOptions {
     /**
      * @param defaultDeadlockDetectionTimeoutMs time period in ms that will be used to detect
      *     workflows deadlock. Default is 1000ms, which is chosen if set to zero.
-     *     <p>Specifies a time interval in milliseconds within which a workflow task must
-     *     yield (like calling an Activity) or complete. If a workflow task runs longer than
-     *     the specified interval or takes too long to begin running, it will fail automatically.
+     *     <p>Specifies a time interval in milliseconds within which a workflow task must yield
+     *     (like calling an Activity) or complete. If a workflow task runs longer than the specified
+     *     interval or takes too long to begin running, it will fail automatically.
      * @return {@code this}
      * @see io.temporal.internal.sync.PotentialDeadlockException
      */
