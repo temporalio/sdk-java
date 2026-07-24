@@ -842,6 +842,8 @@ public class DeterministicRunnerTest {
             () -> fail("workflow code should not start while the executor thread is occupied"));
 
     try {
+      // Try starting the root workflow thread, but it won't run because the executor is tied up.
+      // We should detect this and throw a PotentialDeadlockException.
       PotentialDeadlockException e =
           Assert.assertThrows(
               PotentialDeadlockException.class, () -> runner.runUntilAllBlocked(10));
