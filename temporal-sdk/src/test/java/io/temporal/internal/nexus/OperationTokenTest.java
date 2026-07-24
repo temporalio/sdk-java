@@ -8,12 +8,20 @@ import java.util.Base64;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class WorkflowRunTokenTest {
+public class OperationTokenTest {
   private static final ObjectWriter ow =
       new ObjectMapper().registerModule(new Jdk8Module()).writer();
   private static final ObjectReader or =
       new ObjectMapper().registerModule(new Jdk8Module()).reader();
   private static final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
+
+  @Test
+  public void operationTokenTypeValues() {
+    Assert.assertEquals(0, OperationTokenType.UNKNOWN.toValue());
+    Assert.assertEquals(1, OperationTokenType.WORKFLOW_RUN.toValue());
+    Assert.assertEquals(2, OperationTokenType.ACTIVITY_EXECUTION.toValue());
+    Assert.assertEquals(3, OperationTokenType.UPDATE_WORKFLOW.toValue());
+  }
 
   @Test
   public void serializeWorkflowRunToken() throws JsonProcessingException {
@@ -90,6 +98,92 @@ public class WorkflowRunTokenTest {
     Assert.assertEquals("ns", token.getNamespace());
     Assert.assertEquals(Integer.valueOf(0), token.getVersion());
     Assert.assertEquals(OperationTokenType.WORKFLOW_RUN, token.getType());
+  }
+
+  @Test
+  public void roundTripActivityExecutionToken() throws JsonProcessingException {
+    String encoded = OperationTokenUtil.generateActivityExecutionOperationToken("act-1", "ns");
+    OperationToken token = OperationTokenUtil.loadOperationToken(encoded);
+    Assert.assertEquals(OperationTokenType.ACTIVITY_EXECUTION, token.getType());
+    Assert.assertEquals("act-1", token.getActivityId());
+    Assert.assertEquals("ns", token.getNamespace());
+    Assert.assertNull(token.getWorkflowId());
+    Assert.assertNull(token.getRunId());
+    Assert.assertNull(token.getVersion());
+
+    // Also exercise the symmetric activityId loader.
+    Assert.assertEquals("act-1", OperationTokenUtil.loadActivityIdFromOperationToken(encoded));
+  }
+
+  @Test
+  public void roundTripActivityExecutionTokenWithRunId() throws JsonProcessingException {
+    String encoded =
+        OperationTokenUtil.generateActivityExecutionOperationToken("act-1", "run-1", "ns");
+    OperationToken token = OperationTokenUtil.loadOperationToken(encoded);
+    Assert.assertEquals(OperationTokenType.ACTIVITY_EXECUTION, token.getType());
+    Assert.assertEquals("act-1", token.getActivityId());
+    Assert.assertEquals("run-1", token.getRunId());
+    Assert.assertEquals("ns", token.getNamespace());
+    Assert.assertNull(token.getWorkflowId());
+    Assert.assertNull(token.getVersion());
+  }
+
+  @Test
+  public void activityExecutionTokenOmitsRunIdWhenNull() throws JsonProcessingException {
+    // The header-token path passes runId=null and must produce a payload byte-identical to the
+    // two-arg overload — the runId-aware overload is the *only* one used in code now.
+    String withRunId =
+        OperationTokenUtil.generateActivityExecutionOperationToken("act-1", null, "ns");
+    String withoutRunId = OperationTokenUtil.generateActivityExecutionOperationToken("act-1", "ns");
+    Assert.assertEquals(withoutRunId, withRunId);
+  }
+
+  @Test
+  public void workflowRunTokenBytesByteIdenticalSnapshot() throws JsonProcessingException {
+    String encoded = OperationTokenUtil.generateWorkflowRunOperationToken("wf-1", "ns");
+    // The encoded token must remain byte-identical for cross-SDK compatibility.
+    // Snapshot captured from the current (pre-aid) SDK output.
+    Assert.assertEquals("eyJ0IjoxLCJucyI6Im5zIiwid2lkIjoid2YtMSJ9", encoded);
+  }
+
+  @Test
+  public void malformedActivityTokenRejected() {
+    String malformed = "{\"t\":2,\"ns\":\"ns\",\"aid\":\"\"}";
+    IllegalArgumentException ex =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                OperationTokenUtil.loadOperationToken(
+                    encoder.encodeToString(malformed.getBytes())));
+    Assert.assertTrue(
+        "expected 'missing activity ID' in message but got: " + ex.getMessage(),
+        ex.getMessage().contains("missing activity ID"));
+  }
+
+  @Test
+  public void unknownOperationTokenTypeRejected() {
+    String unknown = "{\"t\":7,\"ns\":\"ns\",\"wid\":\"x\"}";
+    IllegalArgumentException ex =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                OperationTokenUtil.loadOperationToken(encoder.encodeToString(unknown.getBytes())));
+    Assert.assertTrue(
+        "expected 'unknown operation token type' in message but got: " + ex.getMessage(),
+        ex.getMessage().contains("unknown operation token type"));
+  }
+
+  @Test
+  public void loadWorkflowRunRejectsActivityToken() throws JsonProcessingException {
+    String activityToken =
+        OperationTokenUtil.generateActivityExecutionOperationToken("act-1", "ns");
+    IllegalArgumentException ex =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () -> OperationTokenUtil.loadWorkflowRunOperationToken(activityToken));
+    Assert.assertTrue(
+        "expected 'incorrect operation token type' in message but got: " + ex.getMessage(),
+        ex.getMessage().contains("incorrect operation token type"));
   }
 
   @Test

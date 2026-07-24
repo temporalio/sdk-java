@@ -1,6 +1,8 @@
 package io.temporal.internal.common;
 
+import static io.temporal.internal.common.LinkConverter.activityToNexusLink;
 import static io.temporal.internal.common.LinkConverter.linkToNexusLink;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToActivity;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToLink;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToNexusOperation;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
@@ -467,6 +469,57 @@ public class LinkConverterTest {
   }
 
   @Test
+  public void testConvertActivityToNexus_Valid() {
+    Link.Activity input =
+        Link.Activity.newBuilder()
+            .setNamespace("ns")
+            .setActivityId("act id/with+characters")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link expected =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl(
+                "temporal:///namespaces/ns/activities/act%20id%2Fwith%2Bcharacters/run-id/details")
+            .setType("temporal.api.common.v1.Link.Activity")
+            .build();
+
+    assertEquals(expected, activityToNexusLink(input));
+  }
+
+  @Test
+  public void testConvertNexusToActivity_Valid() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl(
+                "temporal:///namespaces/ns/activities/act%20id%2Fwith%2Bcharacters/run-id/details")
+            .setType("temporal.api.common.v1.Link.Activity")
+            .build();
+
+    Link expected =
+        Link.newBuilder()
+            .setActivity(
+                Link.Activity.newBuilder()
+                    .setNamespace("ns")
+                    .setActivityId("act id/with+characters")
+                    .setRunId("run-id"))
+            .build();
+
+    assertEquals(expected, nexusLinkToActivity(input));
+  }
+
+  @Test
+  public void testConvertNexusToActivity_InvalidPath() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/activities/act-id/run-id")
+            .setType("temporal.api.common.v1.Link.Activity")
+            .build();
+
+    assertNull(nexusLinkToActivity(input));
+  }
+
+  @Test
   public void testNexusLinkToLink_WorkflowEventRoundTrip() {
     Link.WorkflowEvent we =
         Link.WorkflowEvent.newBuilder()
@@ -505,6 +558,19 @@ public class LinkConverterTest {
             .build();
 
     assertEquals(expected, nexusLinkToLink(nexusLink));
+  }
+
+  @Test
+  public void testNexusLinkToLink_ActivityRoundTrip() {
+    Link.Activity activity =
+        Link.Activity.newBuilder()
+            .setNamespace("ns")
+            .setActivityId("act-id")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link nexusLink = activityToNexusLink(activity);
+    assertEquals(Link.newBuilder().setActivity(activity).build(), nexusLinkToLink(nexusLink));
   }
 
   @Test
@@ -548,6 +614,20 @@ public class LinkConverterTest {
     io.temporal.api.nexus.v1.Link actual =
         linkToNexusLink(Link.newBuilder().setNexusOperation(no).build());
     assertEquals(nexusOperationToNexusLink(no), actual);
+  }
+
+  @Test
+  public void testLinkToNexusLink_Activity() {
+    Link.Activity activity =
+        Link.Activity.newBuilder()
+            .setNamespace("ns")
+            .setActivityId("act-id")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link actual =
+        linkToNexusLink(Link.newBuilder().setActivity(activity).build());
+    assertEquals(activityToNexusLink(activity), actual);
   }
 
   @Test

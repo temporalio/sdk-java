@@ -22,6 +22,8 @@ public class LinkConverter {
   private static final String linkPathFormat = "temporal:///namespaces/%s/workflows/%s/%s/history";
   private static final String nexusOperationLinkPathFormat =
       "temporal:///namespaces/%s/nexus-operations/%s/%s/details";
+  private static final String activityLinkPathFormat =
+      "temporal:///namespaces/%s/activities/%s/%s/details";
   private static final String linkReferenceTypeKey = "referenceType";
   private static final String linkEventIDKey = "eventID";
   private static final String linkEventTypeKey = "eventType";
@@ -35,6 +37,7 @@ public class LinkConverter {
       Link.WorkflowEvent.getDescriptor().getFullName();
   private static final String nexusOperationLinkType =
       Link.NexusOperation.getDescriptor().getFullName();
+  private static final String activityLinkType = Link.Activity.getDescriptor().getFullName();
 
   public static io.temporal.api.nexus.v1.Link workflowEventToNexusLink(Link.WorkflowEvent we) {
     try {
@@ -177,6 +180,9 @@ public class LinkConverter {
     if (commonLink.hasNexusOperation()) {
       return nexusOperationToNexusLink(commonLink.getNexusOperation());
     }
+    if (commonLink.hasActivity()) {
+      return activityToNexusLink(commonLink.getActivity());
+    }
     return null;
   }
 
@@ -192,8 +198,77 @@ public class LinkConverter {
     if (nexusOperationLinkType.equals(type)) {
       return nexusLinkToNexusOperation(nexusLink);
     }
+    if (activityLinkType.equals(type)) {
+      return nexusLinkToActivity(nexusLink);
+    }
     log.warn("ignoring unsupported nexus link type: {}", type);
     return null;
+  }
+
+  public static io.temporal.api.nexus.v1.Link activityToNexusLink(Link.Activity activity) {
+    try {
+      String url =
+          String.format(
+              activityLinkPathFormat,
+              URLEncoder.encode(activity.getNamespace(), StandardCharsets.UTF_8.toString()),
+              URLEncoder.encode(activity.getActivityId(), StandardCharsets.UTF_8.toString())
+                  .replace("+", "%20"),
+              URLEncoder.encode(activity.getRunId(), StandardCharsets.UTF_8.toString()));
+      return io.temporal.api.nexus.v1.Link.newBuilder()
+          .setUrl(url)
+          .setType(activityLinkType)
+          .build();
+    } catch (Exception e) {
+      log.error("Failed to encode activity Nexus link URL", e);
+    }
+    return null;
+  }
+
+  public static Link nexusLinkToActivity(io.temporal.api.nexus.v1.Link nexusLink) {
+    if (!activityLinkType.equals(nexusLink.getType())) {
+      log.error(
+          "Failed to parse Nexus link URL: cannot parse link type {} to {}",
+          nexusLink.getType(),
+          activityLinkType);
+      return null;
+    }
+    Link.Builder link = Link.newBuilder();
+    try {
+      URI uri = new URI(nexusLink.getUrl());
+      if (!"temporal".equals(uri.getScheme())) {
+        log.error("Failed to parse Nexus link URL: invalid scheme: {}", uri.getScheme());
+        return null;
+      }
+      StringTokenizer st = new StringTokenizer(uri.getRawPath(), "/");
+      if (!st.hasMoreTokens() || !st.nextToken().equals("namespaces")) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      if (!st.hasMoreTokens() || !st.nextToken().equals("activities")) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      String activityId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      if (!st.hasMoreTokens()) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      String runId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      if (!st.hasMoreTokens() || !st.nextToken().equals("details")) {
+        log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
+        return null;
+      }
+      link.setActivity(
+          Link.Activity.newBuilder()
+              .setNamespace(namespace)
+              .setActivityId(activityId)
+              .setRunId(runId));
+    } catch (Exception e) {
+      log.error("Failed to parse activity Nexus link URL", e);
+      return null;
+    }
+    return link.build();
   }
 
   public static io.temporal.api.nexus.v1.Link nexusOperationToNexusLink(Link.NexusOperation no) {
