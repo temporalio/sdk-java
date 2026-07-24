@@ -272,7 +272,8 @@ public final class RpcRetryOptions {
       setInitialInterval(
           OptionsUtils.merge(initialInterval, o.getInitialInterval(), Duration.class));
       setCongestionInitialInterval(
-          OptionsUtils.merge(congestionInitialInterval, o.getInitialInterval(), Duration.class));
+          OptionsUtils.merge(
+              congestionInitialInterval, o.getCongestionInitialInterval(), Duration.class));
       setExpiration(OptionsUtils.merge(expiration, o.getExpiration(), Duration.class));
       setMaximumInterval(
           OptionsUtils.merge(maximumInterval, o.getMaximumInterval(), Duration.class));
