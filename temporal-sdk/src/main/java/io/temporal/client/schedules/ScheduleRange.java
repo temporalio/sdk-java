@@ -22,7 +22,9 @@ public final class ScheduleRange {
    * Create a inclusive range for a schedule match value.
    *
    * @param start The inclusive start of the range
-   * @param end The inclusive end of the range. Default if unset or less than start is start.
+   * @param end The inclusive end of the range. Must be non-negative. Default if unset or less than
+   *     start is start.
+   * @throws IllegalStateException if start or end is negative
    */
   public ScheduleRange(int start, int end) {
     this(start, end, 0);
@@ -32,11 +34,13 @@ public final class ScheduleRange {
    * Create a inclusive range for a schedule match value.
    *
    * @param start The inclusive start of the range
-   * @param end The inclusive end of the range. Default if unset or less than start is start.
+   * @param end The inclusive end of the range. Must be non-negative. Default if unset or less than
+   *     start is start.
    * @param step The step to take between each value. Default if unset or 0, is 1.
+   * @throws IllegalStateException if start, end, or step is negative
    */
   public ScheduleRange(int start, int end, int step) {
-    Preconditions.checkState(start >= 0 && step >= 0 && step >= 0);
+    Preconditions.checkState(start >= 0 && end >= 0 && step >= 0);
     this.start = start;
     this.end = end;
     this.step = step;
