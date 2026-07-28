@@ -12,6 +12,11 @@ on:
         description: "Git ref from which to release"
         required: true
         default: "main"
+      version:
+        type: string
+        description: "Exact release version without the leading v"
+        required: false
+        default: ""
       upload_artifact:
         type: boolean
         description: "Upload the native test server executable as an artifact"
@@ -21,9 +26,13 @@ on:
     inputs:
       ref:
         type: string
-        description: "Git ref from which to release"
+        description: "Immutable Git commit from which to build"
         required: true
-        default: "main"
+      version:
+        type: string
+        description: "Exact release version without the leading v"
+        required: false
+        default: ""
       upload_artifact:
         type: boolean
         description: "Upload the native test server executable as an artifact"
@@ -31,6 +40,7 @@ on:
         default: false
 env:
   INPUT_REF: ${{ inputs.ref }}
+  RELEASE_VERSION: ${{ inputs.version }}
 
 jobs:
   build_native_images:
@@ -68,6 +78,14 @@ jobs:
           submodules: recursive
           ref: ${{ env.INPUT_REF }}
 
+      - name: Validate release version
+        if: env.RELEASE_VERSION != ''
+        run: |
+          if [[ ! "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]; then
+            echo "::error::Invalid release version: $RELEASE_VERSION"
+            exit 1
+          fi
+
       - name: Set up Java
         if: matrix.os_family != 'linux'
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -82,7 +100,11 @@ jobs:
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'linux'
         run: |
-          ./gradlew -PnativeBuild :temporal-test-server:nativeCompile
+          version_args=()
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            version_args+=("-PreleaseVersion=$RELEASE_VERSION")
+          fi
+          ./gradlew "${version_args[@]}" -PnativeBuild :temporal-test-server:nativeCompile
 
       - name: Build native test server (Docker non-musl)
         if: matrix.os_family == 'linux' && matrix.musl == false
@@ -90,10 +112,14 @@ jobs:
           IMAGE_ID_FILE="$(mktemp)"
           docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
+          version_arg=""
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            version_arg="-PreleaseVersion=$RELEASE_VERSION"
+          fi
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
-            sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeCompile"
+            sh -c "./gradlew $version_arg -PnativeBuild :temporal-test-server:nativeCompile"
 
       - name: Build native test server (Docker musl)
         if: matrix.os_family == 'linux' && matrix.musl == true
@@ -101,18 +127,26 @@ jobs:
           IMAGE_ID_FILE="$(mktemp)"
           docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image-musl
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
+          version_arg=""
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            version_arg="-PreleaseVersion=$RELEASE_VERSION"
+          fi
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
-            sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
+            sh -c "./gradlew $version_arg -PnativeBuild -PnativeBuildMusl :temporal-test-server:nativeCompile"
+
+      - name: Verify build did not modify tracked files
+        run: git diff --exit-code
 
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
         if: ${{ inputs.upload_artifact }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: ${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)}}
+          name: ${{ matrix.musl && format('native-{0}_{1}_musl', matrix.os_family, matrix.arch) || format('native-{0}_{1}', matrix.os_family, matrix.arch)}}
           path: |
             temporal-test-server/build/native/nativeCompile/temporal-test-server*
           if-no-files-found: error
-          retention-days: 1
+          overwrite: true
+          retention-days: 30

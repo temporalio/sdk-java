@@ -1,95 +1,73 @@
 name: Prepare release
+run-name: Prepare release candidate at ${{ github.sha }}
+
 defaults:
   run:
-    shell: bash -euo pipefail -O nullglob {0}
+    shell: bash -euo pipefail {0}
+
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        type: string
-        description: "Release version tag (e.g. v1.2.3)"
-        required: true
-      ref:
-        type: string
-        description: "Git ref from which to release"
-        required: true
-        default: "main"
-      do_build_native_images:
-        type: boolean
-        description: "Native Test Server"
-        required: true
-        default: "true"
-      do_publish_jars:
-        type: boolean
-        description: "Publish Java Artifacts"
-        required: true
-        default: "true"
+  push:
+    branches:
+      - main
+      - "releases/*"
+      - "v[0-9]+.[0-9]+.x"
+      - "[0-9]+.[0-9]+.x"
+      - "release_[0-9]+_[0-9]+_x"
+    paths:
+      - "releases/v*"
 
 permissions:
   contents: read
 
-env:
-  INPUT_REF: ${{ github.event.inputs.ref }}
-  INPUT_TAG: ${{ github.event.inputs.tag }}
-
 jobs:
-  create_draft_release:
-    name: Create Github draft release
+  release_metadata:
+    name: Resolve release metadata
+    if: github.repository == 'temporalio/sdk-java'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      commit: ${{ steps.metadata.outputs.commit }}
+      notes_file: ${{ steps.metadata.outputs.notes_file }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
     steps:
-      - name: Audit gh version
-        run: gh --version
+      - name: Checkout release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
 
-      - name: Check for existing release
-        id: check_release
+      - name: Resolve release metadata
+        id: metadata
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: .github/scripts/release/resolve-release-metadata.sh "$BASE_SHA" "$HEAD_SHA" "$GITHUB_OUTPUT"
+
+      - name: Summarize release candidate
+        env:
+          COMMIT: ${{ steps.metadata.outputs.commit }}
+          TAG: ${{ steps.metadata.outputs.tag }}
         run: |
-          echo "::echo::on"
-          gh release view --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" \
-            && echo "::set-output name=already_exists::true" \
-            || echo "::set-output name=already_exists::false"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          {
+            echo "## Release candidate"
+            echo
+            echo "- Tag: \`$TAG\`"
+            echo "- Commit: \`$COMMIT\`"
+            echo
+            echo "No release will be published until the protected \`release\` environment is approved."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Checkout repo
-        if: steps.check_release.outputs.already_exists == 'false'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ env.INPUT_REF }}
-
-      - name: Create release
-        if: steps.check_release.outputs.already_exists == 'false'
-        run: >
-          gh release create
-          "$INPUT_REF"
-          --draft
-          --repo "$GITHUB_REPOSITORY"
-          --title "$INPUT_TAG"
-          --target "$INPUT_REF"
-          --notes-file releases/"$INPUT_TAG"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish_java_artifacts:
-    name: Publish Java Artifacts
-    if: github.event.inputs.do_publish_jars == 'true'
+  validate_release_version:
+    name: Validate release version
+    needs: release_metadata
     runs-on: ubuntu-latest
-    needs: create_draft_release
     steps:
-      - name: Checkout repo
+      - name: Checkout release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ env.INPUT_REF }}
-
-      # Our custom gradle version sniffing builds the maven release artifact
-      # names out of the git tag ... but the repo isn't tagged (yet) so add a
-      # tag to the _local_ clone just to get the right jar names. This tag
-      # does not get pushed back to the origin. Once the artifacts have been
-      # inspected and verified, the manual act of publishing the draft GH
-      # release creates the tag.
-      - name: Temporary tag
-        run: git tag "$INPUT_TAG"
+          fetch-depth: 0
+          ref: ${{ needs.release_metadata.outputs.commit }}
 
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -100,86 +78,327 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
-      - name: Set up signing key
-        run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
+      - name: Verify Gradle release version
         env:
-          KEY: ${{ secrets.JAR_SIGNING_KEY }}
-
-      # Prefer env variables here rather than inline ${{ secrets.FOO }} to
-      # decrease the likelihood that secrets end up printed to stdout.
-      - name: Set up secret gradle properties
+          RELEASE_COMMIT: ${{ needs.release_metadata.outputs.commit }}
+          RELEASE_VERSION: ${{ needs.release_metadata.outputs.version }}
         run: |
-          mkdir -p "$HOME/.gradle"
-          envsubst >"$HOME/.gradle/gradle.properties" <<EOF
-          signing.keyId = $KEY_ID
-          signing.password = $KEY_PASSWORD
-          signing.secretKeyRingFile = $HOME/.gnupg/secring.gpg
-          ossrhUsername = $RH_USER
-          ossrhPassword = $RH_PASSWORD
-          EOF
-        env:
-          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
-          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
-          RH_USER: ${{ secrets.RH_USER }}
-          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          actual_version="$(
+            ./gradlew --no-daemon -q \
+              "-PreleaseCommit=$RELEASE_COMMIT" \
+              "-PreleaseVersion=$RELEASE_VERSION" \
+              properties \
+              :temporal-sdk:generatePomFileForMavenJavaPublication \
+              | awk -F': ' '$1 == "version" && version == "" { version = $2 } END { print version }'
+          )"
+          if [[ "$actual_version" != "$RELEASE_VERSION" ]]; then
+            echo "::error::Gradle resolved '$actual_version' instead of '$RELEASE_VERSION'."
+            exit 1
+          fi
 
-      - name: Publish
-        run: ./gradlew publishToSonatype closeSonatypeStagingRepository
+          python3 - "$RELEASE_COMMIT" \
+            temporal-sdk/build/publications/mavenJava/pom-default.xml <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          expected_commit, pom_file = sys.argv[1:]
+          try:
+              root = ET.parse(pom_file).getroot()
+          except (ET.ParseError, OSError) as error:
+              print(f"::error::Unable to parse generated Maven POM: {error}")
+              raise SystemExit(1)
+
+          namespace = ""
+          if root.tag.startswith("{"):
+              namespace = root.tag.split("}", 1)[0] + "}"
+          scm = root.find(f"{namespace}scm")
+          tag = None if scm is None else scm.find(f"{namespace}tag")
+          actual_commit = "" if tag is None or tag.text is None else tag.text.strip().lower()
+          if actual_commit != expected_commit.lower():
+              print(
+                  "::error::Generated Maven POM has scm.tag "
+                  f"'{actual_commit}', expected '{expected_commit}'."
+              )
+              raise SystemExit(1)
+          PY
+
+          git diff --exit-code
 
   build_native_images:
     name: Build native test server
-    needs: create_draft_release
-    if: github.event.inputs.do_build_native_images == 'true'
+    needs: release_metadata
     uses: ./.github/workflows/build-native-image.yml
     with:
+      ref: ${{ needs.release_metadata.outputs.commit }}
+      version: ${{ needs.release_metadata.outputs.version }}
       upload_artifact: true
-      ref: ${{ github.event.inputs.ref }}
 
-  attach_to_release:
-    name: Attach native executables to release
-    needs: [build_native_images, create_draft_release]
+  package_native_images:
+    name: Package native test server
+    needs: [release_metadata, build_native_images]
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      actions: write
     steps:
-      - name: Audit gh version
-        run: gh --version
-
-      # when no artifact is specified, all artifacts are downloaded and expanded into CWD
-      - name: Fetch executables
+      - name: Download native executables
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: native-*
+          path: native-artifacts
 
-      # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
-      # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and
-      # the root directory of the contents of the archive.
-      - name: Rename dirs
+      - name: Package native executables
+        env:
+          RELEASE_VERSION: ${{ needs.release_metadata.outputs.version }}
         run: |
-          version="$(sed 's/^v//'<<<"$INPUT_TAG")"
-          for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done
+          expected=(
+            native-linux_amd64_musl
+            native-linux_amd64
+            native-macOS_amd64
+            native-macOS_arm64
+            native-linux_arm64
+            native-windows_amd64
+          )
 
-      - name: Tar (linux, macOS)
-        run: for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
+          actual_count="$(find native-artifacts -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+          if [[ "$actual_count" != "${#expected[@]}" ]]; then
+            echo "::error::Expected ${#expected[@]} native artifacts, found $actual_count."
+            find native-artifacts -mindepth 1 -maxdepth 2 -print
+            exit 1
+          fi
 
-      - name: Zip (windows)
-        run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
+          mkdir release-archives
+          for artifact in "${expected[@]}"; do
+            source_dir="native-artifacts/$artifact"
+            if [[ ! -d "$source_dir" ]]; then
+              echo "::error::Missing native artifact: $artifact"
+              exit 1
+            fi
+
+            platform="${artifact#native-}"
+            binary="$source_dir/temporal-test-server"
+            if [[ "$platform" == windows_* ]]; then
+              binary="${binary}.exe"
+            fi
+            if [[ ! -f "$binary" || -L "$binary" || ! -s "$binary" ]]; then
+              echo "::error::Missing or invalid native executable: $binary"
+              exit 1
+            fi
+
+            unexpected_entry="$(find "$source_dir" -mindepth 1 ! -path "$binary" -print -quit)"
+            if [[ -n "$unexpected_entry" ]]; then
+              echo "::error::Native artifact contains an unexpected entry: $unexpected_entry"
+              exit 1
+            fi
+
+            # Artifact transfer normalizes file modes to 0644. Restore the
+            # executable bit before creating the Unix archives.
+            if [[ "$platform" != windows_* ]]; then
+              chmod 0755 "$binary"
+            fi
+
+            archive_dir="temporal-test-server_${RELEASE_VERSION}_${platform}"
+            mv "$source_dir" "$archive_dir"
+            if [[ "$platform" == windows_* ]]; then
+              zip -qr "release-archives/${archive_dir}.zip" "$archive_dir"
+            else
+              tar -czf "release-archives/${archive_dir}.tar.gz" "$archive_dir"
+            fi
+          done
+
+          (
+            cd release-archives
+            sha256sum ./*.zip ./*.tar.gz > SHA256SUMS
+          )
 
       - name: Upload release archives
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: release-archives
-          path: |
-            *.zip
-            *.tar.gz
+          path: release-archives/*
           if-no-files-found: error
-          retention-days: 1
+          overwrite: true
+          # Protected-environment approvals expire after 30 days. Keeping the
+          # archives longer ensures approval never races artifact expiration.
+          retention-days: 90
 
-      - name: Upload
-        run: |
-          until gh release upload --clobber --repo $GITHUB_REPOSITORY "$INPUT_TAG" *.zip *.tar.gz; do
-            echo "Failed to upload release artifacts. Will retry in 20s"
-            sleep 20
-          done
-        timeout-minutes: 10
+  publish_release:
+    name: Publish release
+    needs: [release_metadata, validate_release_version, package_native_images]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    concurrency:
+      group: java-release-${{ needs.release_metadata.outputs.tag }}
+      cancel-in-progress: false
+    environment:
+      name: release
+      url: ${{ steps.github_release.outputs.url }}
+    permissions:
+      actions: read
+      contents: write
+    env:
+      RELEASE_COMMIT: ${{ needs.release_metadata.outputs.commit }}
+      RELEASE_NOTES_FILE: ${{ needs.release_metadata.outputs.notes_file }}
+      RELEASE_TAG: ${{ needs.release_metadata.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.release_metadata.outputs.version }}
+    steps:
+      - name: Verify protected release environment
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ENVIRONMENT_CONFIGURED: ${{ secrets.RELEASE_ENVIRONMENT_CONFIGURED }}
+        run: |
+          if [[ "$RELEASE_ENVIRONMENT_CONFIGURED" != "true" ]]; then
+            echo "::error::The protected release environment is not configured."
+            echo "::error::See .github/workflows/README.md for the required one-time setup."
+            exit 1
+          fi
+
+      - name: Checkout release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.release_metadata.outputs.commit }}
+
+      - name: Use an isolated Gradle home
+        run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/release-gradle-home" >> "$GITHUB_ENV"
+
+      - name: Download release archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-archives
+          path: release-archives
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: "23"
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+
+      - name: Set up publishing credentials
+        env:
+          KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+        run: |
+          required=(KEY KEY_ID KEY_PASSWORD RH_PASSWORD RH_USER)
+          for variable in "${required[@]}"; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Required release secret '$variable' is not configured."
+              exit 1
+            fi
+          done
+
+          umask 077
+          mkdir -p "$GRADLE_USER_HOME"
+          signing_key="$RUNNER_TEMP/release-secring.gpg"
+          printf '%s' "$KEY" | base64 --decode > "$signing_key"
+          {
+            printf 'signing.keyId = %s\n' "$KEY_ID"
+            printf 'signing.password = %s\n' "$KEY_PASSWORD"
+            printf 'signing.secretKeyRingFile = %s\n' "$signing_key"
+            printf 'ossrhUsername = %s\n' "$RH_USER"
+            printf 'ossrhPassword = %s\n' "$RH_PASSWORD"
+          } > "$GRADLE_USER_HOME/gradle.properties"
+
+      - name: Check for an existing Maven Central release
+        id: maven
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          published=false
+          if [[ "$RUN_ATTEMPT" -eq 1 ]]; then
+            if .github/scripts/release/wait-for-maven-central.sh "$RELEASE_VERSION" 5 10; then
+              echo "::error::Maven Central already contains $RELEASE_VERSION on the first workflow attempt."
+              echo "::error::Refusing to associate existing immutable coordinates with this release."
+              exit 1
+            else
+              status=$?
+              if [[ "$status" != 1 ]]; then
+                exit "$status"
+              fi
+            fi
+          else
+            # A previous attempt may have completed the irreversible Central
+            # publication before losing its response. Accept it only when the
+            # published POM proves that it came from this exact commit.
+            if .github/scripts/release/wait-for-maven-central.sh \
+              "$RELEASE_VERSION" 45 20 "$RELEASE_COMMIT"; then
+              published=true
+            else
+              status=$?
+              if [[ "$status" != 1 ]]; then
+                exit "$status"
+              fi
+            fi
+          fi
+
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+
+      - name: Publish signed artifacts to Maven Central
+        if: steps.maven.outputs.published != 'true'
+        run: |
+          set +e
+          ./gradlew --no-daemon \
+            "-PreleaseVersion=$RELEASE_VERSION" \
+            "-PreleaseCommit=$RELEASE_COMMIT" \
+            publishToSonatype \
+            closeAndReleaseSonatypeStagingRepository
+          gradle_status=$?
+          set -e
+
+          if [[ "$gradle_status" -ne 0 ]]; then
+            echo "::warning::Gradle exited with status $gradle_status; checking whether publication completed remotely."
+            if .github/scripts/release/wait-for-maven-central.sh \
+              "$RELEASE_VERSION" 45 20 "$RELEASE_COMMIT"; then
+              echo "Maven Central became visible despite the lost or failed Gradle response."
+              exit 0
+            else
+              central_status=$?
+              if [[ "$central_status" -ne 1 ]]; then
+                exit "$central_status"
+              fi
+            fi
+
+            exit "$gradle_status"
+          fi
+
+      - name: Wait for Maven Central
+        if: steps.maven.outputs.published != 'true'
+        run: >
+          .github/scripts/release/wait-for-maven-central.sh
+          "$RELEASE_VERSION"
+          90
+          20
+          "$RELEASE_COMMIT"
+
+      - name: Publish GitHub release
+        id: github_release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          .github/scripts/release/publish-github-release.sh
+          "$RELEASE_TAG"
+          "$RELEASE_COMMIT"
+          "$RELEASE_NOTES_FILE"
+          release-archives
+          "$GITHUB_OUTPUT"
+
+      - name: Summarize published release
+        env:
+          RELEASE_URL: ${{ steps.github_release.outputs.url }}
+        run: |
+          {
+            echo "## Release published"
+            echo
+            echo "- GitHub: $RELEASE_URL"
+            echo "- Maven: https://central.sonatype.com/artifact/io.temporal/temporal-sdk/$RELEASE_VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove publishing credentials
+        if: always()
+        run: |
+          gradle_home="${GRADLE_USER_HOME:-$RUNNER_TEMP/release-gradle-home}"
+          rm -f \
+            "$gradle_home/gradle.properties" \
+            "$RUNNER_TEMP/release-secring.gpg"

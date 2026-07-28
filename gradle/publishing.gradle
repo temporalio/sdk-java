@@ -1,4 +1,18 @@
+import java.time.Duration
+
+def releaseCommit = rootProject.findProperty('releaseCommit')?.toString()?.toLowerCase()
+if (releaseCommit != null && !(releaseCommit ==~ /^[0-9a-f]{40}$/)) {
+    throw new GradleException(
+            "Invalid releaseCommit '${releaseCommit}'. Expected a full 40-character commit SHA.")
+}
+
 nexusPublishing {
+    transitionCheckOptions {
+        // Central transitions can take several minutes. Retry for approximately 30 minutes.
+        maxRetries = 180
+        delayBetween = Duration.ofSeconds(10)
+    }
+
     // to release to sonatype use ./gradlew publishToSonatype
     repositories {
         sonatype {
@@ -53,6 +67,9 @@ subprojects {
                     connection = 'scm:git@github.com:temporalio/sdk-java.git'
                     developerConnection = 'scm:git@github.com:temporalio/sdk-java.git'
                     url = 'https://github.com/temporalio/sdk-java.git'
+                    if (releaseCommit != null) {
+                        tag = releaseCommit
+                    }
                 }
 
                 licenses {
