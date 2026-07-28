@@ -24,6 +24,12 @@ sha256_file() {
   fi
 }
 
+file_size() {
+  local file=$1
+
+  wc -c <"$file" | tr -d '[:space:]'
+}
+
 release_json() {
   local assets_json='[]'
   local asset
@@ -34,7 +40,7 @@ release_json() {
   for asset in "$MOCK_GH_STATE_DIR"/assets/*; do
     [[ -f "$asset" ]] || continue
     name=$(basename -- "$asset")
-    size=$(stat -f '%z' "$asset" 2>/dev/null || stat -c '%s' "$asset")
+    size=$(file_size "$asset")
     digest=$(sha256_file "$asset")
     if [[ -f "$MOCK_GH_STATE_DIR/omit-digest/$name" ]]; then
       assets_json=$(

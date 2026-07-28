@@ -41,6 +41,12 @@ sha256_file() {
   fi
 }
 
+file_size() {
+  local file=$1
+
+  wc -c <"$file" | tr -d '[:space:]'
+}
+
 lowercase() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
@@ -490,7 +496,7 @@ remote_digests=()
 for asset in "${assets[@]}"; do
   asset_name=$(basename -- "$asset")
   expected_names+=("$asset_name")
-  expected_sizes+=("$(stat -f '%z' "$asset" 2>/dev/null || stat -c '%s' "$asset")")
+  expected_sizes+=("$(file_size "$asset")")
   expected_digests+=("$(sha256_file "$asset")")
 done
 validate_checksum_manifest
