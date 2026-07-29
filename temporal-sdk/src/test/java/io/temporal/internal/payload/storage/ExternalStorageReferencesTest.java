@@ -1,14 +1,15 @@
 package io.temporal.internal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.converter.EncodingKeys;
 import io.temporal.payload.storage.StorageDriverClaim;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -25,7 +26,6 @@ public class ExternalStorageReferencesTest {
 
     Payload reference = ExternalStorageReferences.toReferencePayload("driver-1", claim, 4096L);
 
-    assertTrue(ExternalStorageReferences.isReference(reference));
     assertEquals(1, reference.getExternalPayloadsCount());
     assertEquals(4096L, reference.getExternalPayloads(0).getSizeBytes());
     assertEquals(
@@ -33,7 +33,8 @@ public class ExternalStorageReferencesTest {
         reference.getMetadataMap().get(EncodingKeys.METADATA_ENCODING_KEY).toStringUtf8());
 
     ExternalStorageReferences.ParsedReference parsed =
-        ExternalStorageReferences.fromReferencePayload(reference);
+        ExternalStorageReferences.tryParseReference(reference);
+    assertNotNull(parsed);
     assertEquals("driver-1", parsed.driverName);
     assertEquals(claim, parsed.claim);
   }
@@ -45,21 +46,66 @@ public class ExternalStorageReferencesTest {
             .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/plain"))
             .setData(ByteString.copyFromUtf8("\"hello\""))
             .build();
-    assertFalse(ExternalStorageReferences.isReference(inline));
+    assertNull(ExternalStorageReferences.tryParseReference(inline));
   }
 
   @Test
-  public void fromReferencePayloadRejectsNonReference() {
-    Payload inline =
+  public void payloadWithReferenceMessageTypeButNoExternalPayloadsIsNotAReference() {
+    Payload notAReference =
         Payload.newBuilder()
-            .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/plain"))
-            .setData(ByteString.copyFromUtf8("{\"foo\":1}"))
+            .putMetadata(
+                EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/protobuf"))
+            .putMetadata(
+                EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                ByteString.copyFromUtf8(ExternalStorageReference.getDescriptor().getFullName()))
+            .setData(ByteString.copyFromUtf8("{\"driverName\":\"driver-1\"}"))
             .build();
 
-    IllegalArgumentException e =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> ExternalStorageReferences.fromReferencePayload(inline));
-    assertTrue(e.getMessage().contains("not an external storage reference"));
+    assertNull(ExternalStorageReferences.tryParseReference(notAReference));
+  }
+
+  @Test
+  public void payloadWithExternalPayloadsButForeignMessageTypeIsNotAReference() {
+    Payload foreign =
+        Payload.newBuilder()
+            .putMetadata(
+                EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/protobuf"))
+            .putMetadata(
+                EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                ByteString.copyFromUtf8("some.other.sdk.v1.ExternalStorageReference"))
+            .setData(ByteString.copyFromUtf8("{\"foo\":1}"))
+            .addExternalPayloads(
+                Payload.ExternalPayloadDetails.newBuilder().setSizeBytes(4096L).build())
+            .build();
+
+    assertNull(ExternalStorageReferences.tryParseReference(foreign));
+  }
+
+  /**
+   * References written by other SDKs must stay readable, so parsing tolerates snake_case field
+   * names and fields added to the proto after this release.
+   */
+  @Test
+  public void parsesReferenceWrittenByAnotherSdk() {
+    Payload reference =
+        Payload.newBuilder()
+            .putMetadata(
+                EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/protobuf"))
+            .putMetadata(
+                EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                ByteString.copyFromUtf8(ExternalStorageReference.getDescriptor().getFullName()))
+            .setData(
+                ByteString.copyFromUtf8(
+                    "{\"driver_name\":\"driver-1\",\"claim_data\":{\"key\":\"abc123\"},"
+                        + "\"field_added_later\":\"ignored\"}"))
+            .addExternalPayloads(
+                Payload.ExternalPayloadDetails.newBuilder().setSizeBytes(4096L).build())
+            .build();
+
+    ExternalStorageReferences.ParsedReference parsed =
+        ExternalStorageReferences.tryParseReference(reference);
+    assertNotNull(parsed);
+    assertEquals("driver-1", parsed.driverName);
+    assertEquals(new StorageDriverClaim(Collections.singletonMap("key", "abc123")), parsed.claim);
   }
 }

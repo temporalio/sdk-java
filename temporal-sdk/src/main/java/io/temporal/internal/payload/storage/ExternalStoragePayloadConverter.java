@@ -152,11 +152,11 @@ final class ExternalStoragePayloadConverter {
     Map<String, Batch<StorageDriverClaim>> batches = new LinkedHashMap<>();
     for (int i = 0; i < payloads.size(); i++) {
       Payload payload = payloads.get(i);
-      if (!ExternalStorageReferences.isReference(payload)) {
+      ExternalStorageReferences.ParsedReference reference =
+          ExternalStorageReferences.tryParseReference(payload);
+      if (reference == null) {
         continue;
       }
-      ExternalStorageReferences.ParsedReference reference =
-          ExternalStorageReferences.fromReferencePayload(payload);
       StorageDriver driver = driversByName.get(reference.driverName);
       if (driver == null) {
         throw new IllegalStateException(

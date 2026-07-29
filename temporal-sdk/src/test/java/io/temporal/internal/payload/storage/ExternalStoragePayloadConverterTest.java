@@ -2,6 +2,8 @@ package io.temporal.internal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -36,8 +38,8 @@ public class ExternalStoragePayloadConverterTest {
     List<Payload> stored = converter.store(null, input).get();
 
     assertEquals(2, stored.size());
-    assertTrue(ExternalStorageReferences.isReference(stored.get(0)));
-    assertTrue(ExternalStorageReferences.isReference(stored.get(1)));
+    assertNotNull(ExternalStorageReferences.tryParseReference(stored.get(0)));
+    assertNotNull(ExternalStorageReferences.tryParseReference(stored.get(1)));
     assertEquals(Collections.singletonList(2), driver.storeBatchSizes);
     assertEquals(
         input.get(0).getSerializedSize(), stored.get(0).getExternalPayloads(0).getSizeBytes());
@@ -56,9 +58,9 @@ public class ExternalStoragePayloadConverterTest {
 
     List<Payload> stored = converter.store(null, Arrays.asList(small, large)).get();
 
-    assertFalse(ExternalStorageReferences.isReference(stored.get(0)));
+    assertNull(ExternalStorageReferences.tryParseReference(stored.get(0)));
     assertEquals(small, stored.get(0));
-    assertTrue(ExternalStorageReferences.isReference(stored.get(1)));
+    assertNotNull(ExternalStorageReferences.tryParseReference(stored.get(1)));
     assertEquals(Collections.singletonList(1), driver.storeBatchSizes);
   }
 
