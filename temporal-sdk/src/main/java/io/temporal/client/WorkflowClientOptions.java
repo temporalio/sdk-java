@@ -7,6 +7,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.payload.storage.ExternalStorageOptions;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Arrays;
@@ -52,6 +53,7 @@ public final class WorkflowClientOptions {
     private QueryRejectCondition queryRejectCondition;
     private WorkflowClientPlugin[] plugins;
     private Duration workerHeartbeatInterval;
+    private ExternalStorageOptions externalStorage;
 
     private Builder() {}
 
@@ -68,6 +70,7 @@ public final class WorkflowClientOptions {
       queryRejectCondition = options.queryRejectCondition;
       plugins = options.plugins;
       workerHeartbeatInterval = options.workerHeartbeatInterval;
+      externalStorage = options.externalStorage;
     }
 
     public Builder setNamespace(String namespace) {
@@ -170,6 +173,17 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Configures offloading of large payloads to external storage for workflows and activities
+     * created through this client and its workers. When null (the default), external storage is
+     * disabled.
+     */
+    @Experimental
+    public Builder setExternalStorage(ExternalStorageOptions externalStorage) {
+      this.externalStorage = externalStorage;
+      return this;
+    }
+
     public WorkflowClientOptions build() {
       return new WorkflowClientOptions(
           namespace,
@@ -180,7 +194,8 @@ public final class WorkflowClientOptions {
           contextPropagators,
           queryRejectCondition,
           plugins == null ? EMPTY_PLUGINS : plugins,
-          resolveHeartbeatInterval(workerHeartbeatInterval));
+          resolveHeartbeatInterval(workerHeartbeatInterval),
+          externalStorage);
     }
 
     /**
@@ -207,7 +222,8 @@ public final class WorkflowClientOptions {
               ? QueryRejectCondition.QUERY_REJECT_CONDITION_UNSPECIFIED
               : queryRejectCondition,
           plugins == null ? EMPTY_PLUGINS : plugins,
-          resolveHeartbeatInterval(workerHeartbeatInterval));
+          resolveHeartbeatInterval(workerHeartbeatInterval),
+          externalStorage);
     }
 
     private static Duration resolveHeartbeatInterval(Duration raw) {
@@ -250,6 +266,8 @@ public final class WorkflowClientOptions {
 
   private final Duration workerHeartbeatInterval;
 
+  private final ExternalStorageOptions externalStorage;
+
   private WorkflowClientOptions(
       String namespace,
       DataConverter dataConverter,
@@ -259,7 +277,8 @@ public final class WorkflowClientOptions {
       List<ContextPropagator> contextPropagators,
       QueryRejectCondition queryRejectCondition,
       WorkflowClientPlugin[] plugins,
-      Duration workerHeartbeatInterval) {
+      Duration workerHeartbeatInterval,
+      ExternalStorageOptions externalStorage) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
@@ -269,6 +288,7 @@ public final class WorkflowClientOptions {
     this.queryRejectCondition = queryRejectCondition;
     this.plugins = plugins;
     this.workerHeartbeatInterval = workerHeartbeatInterval;
+    this.externalStorage = externalStorage;
   }
 
   /**
@@ -335,6 +355,12 @@ public final class WorkflowClientOptions {
     return workerHeartbeatInterval;
   }
 
+  /** External storage configuration, or null when external storage is disabled. */
+  @Experimental
+  public ExternalStorageOptions getExternalStorage() {
+    return externalStorage;
+  }
+
   @Override
   public String toString() {
     return "WorkflowClientOptions{"
@@ -359,6 +385,8 @@ public final class WorkflowClientOptions {
         + Arrays.toString(plugins)
         + ", workerHeartbeatInterval="
         + workerHeartbeatInterval
+        + ", externalStorage="
+        + externalStorage
         + '}';
   }
 
@@ -376,7 +404,8 @@ public final class WorkflowClientOptions {
         && queryRejectCondition == that.queryRejectCondition
         && Arrays.equals(plugins, that.plugins)
         && com.google.common.base.Objects.equal(
-            workerHeartbeatInterval, that.workerHeartbeatInterval);
+            workerHeartbeatInterval, that.workerHeartbeatInterval)
+        && com.google.common.base.Objects.equal(externalStorage, that.externalStorage);
   }
 
   @Override
@@ -390,6 +419,7 @@ public final class WorkflowClientOptions {
         contextPropagators,
         queryRejectCondition,
         Arrays.hashCode(plugins),
-        workerHeartbeatInterval);
+        workerHeartbeatInterval,
+        externalStorage);
   }
 }

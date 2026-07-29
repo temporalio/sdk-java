@@ -4,6 +4,7 @@ import com.google.protobuf.Message;
 import io.temporal.internal.payload.visitor.PayloadVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
+import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nullable;
@@ -14,9 +15,19 @@ import javax.annotation.Nullable;
  *
  * <p>Search attributes stay inline because the server indexes and validates their payload values.
  */
-final class ExternalStorageMessageConverter {
+public final class ExternalStorageMessageConverter {
   private final ExternalStoragePayloadConverter payloadConverter;
   private final int payloadVisitConcurrency;
+
+  /**
+   * Builds a message converter from user-facing options. {@code payloadVisitConcurrency} bounds the
+   * number of concurrent payload-list visits within a single message walk (at least {@code 1}).
+   */
+  public static ExternalStorageMessageConverter create(
+      ExternalStorageOptions options, int payloadVisitConcurrency) {
+    return new ExternalStorageMessageConverter(
+        ExternalStoragePayloadConverter.fromOptions(options), payloadVisitConcurrency);
+  }
 
   ExternalStorageMessageConverter(
       ExternalStoragePayloadConverter payloadConverter, int payloadVisitConcurrency) {
@@ -24,7 +35,7 @@ final class ExternalStorageMessageConverter {
     this.payloadVisitConcurrency = payloadVisitConcurrency;
   }
 
-  <T extends Message> CompletableFuture<T> store(
+  public <T extends Message> CompletableFuture<T> store(
       T message, @Nullable StorageDriverTargetInfo target) {
     PayloadVisitorOptions<StorageDriverTargetInfo> options =
         PayloadVisitorOptions.<StorageDriverTargetInfo>newBuilder(
@@ -36,7 +47,7 @@ final class ExternalStorageMessageConverter {
     return PayloadVisitors.visit(message, options);
   }
 
-  <T extends Message> CompletableFuture<T> retrieve(T message) {
+  public <T extends Message> CompletableFuture<T> retrieve(T message) {
     PayloadVisitorOptions<Object> options =
         PayloadVisitorOptions.newBuilder(
                 (PayloadVisitor<Object>) (context, payloads) -> payloadConverter.retrieve(payloads))
