@@ -109,7 +109,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
-            heartbeatExecutor);
+            heartbeatExecutor,
+            null);
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),

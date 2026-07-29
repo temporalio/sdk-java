@@ -109,15 +109,15 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getOptions()
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
+    ExternalStorageOptions externalStorage = options.getExternalStorage();
+    ExternalStorageMessageConverter externalStorageConverter =
+        externalStorage == null ? null : ExternalStorageMessageConverter.create(externalStorage, 1);
     GenericWorkflowClient genericClient =
         new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
-    ExternalStorageOptions externalStorage = options.getExternalStorage();
-    if (externalStorage != null) {
+    if (externalStorageConverter != null) {
       genericClient =
           new ExternalStorageGenericWorkflowClient(
-              genericClient,
-              ExternalStorageMessageConverter.create(externalStorage, 1),
-              options.getNamespace());
+              genericClient, externalStorageConverter, options.getNamespace());
     }
     this.genericClient = genericClient;
     this.interceptors = options.getInterceptors();
@@ -127,7 +127,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             workflowServiceStubs,
             options.getNamespace(),
             options.getIdentity(),
-            options.getDataConverter());
+            options.getDataConverter(),
+            externalStorageConverter);
 
     java.time.Duration heartbeatInterval = options.getWorkerHeartbeatInterval();
     if (!heartbeatInterval.isNegative()) {

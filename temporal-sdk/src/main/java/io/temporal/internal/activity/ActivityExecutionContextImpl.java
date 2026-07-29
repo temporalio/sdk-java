@@ -10,6 +10,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -55,7 +57,8 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      Functions.Proc closeCallback) {
+      Functions.Proc closeCallback,
+      @Nullable ExternalStorageMessageConverter externalStorage) {
     this.client = client;
     this.activity = activity;
     this.metricsScope = metricsScope;
@@ -73,7 +76,8 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
             metricsScope,
             identity,
             maxHeartbeatThrottleInterval,
-            defaultHeartbeatThrottleInterval);
+            defaultHeartbeatThrottleInterval,
+            externalStorage);
   }
 
   /**

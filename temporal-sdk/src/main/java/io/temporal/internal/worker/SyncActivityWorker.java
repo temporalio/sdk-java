@@ -59,7 +59,8 @@ public class SyncActivityWorker implements SuspendableWorker {
             options.getMaxHeartbeatThrottleInterval(),
             options.getDefaultHeartbeatThrottleInterval(),
             options.getDataConverter(),
-            heartbeatExecutor);
+            heartbeatExecutor,
+            options.getExternalStorageMessageConverter());
     this.taskHandler =
         new ActivityTaskHandlerImpl(
             namespace,
