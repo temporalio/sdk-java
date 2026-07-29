@@ -1,27 +1,20 @@
 package io.temporal.internal.payload.storage;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.JsonFormat;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.converter.EncodingKeys;
 import io.temporal.payload.storage.StorageDriverClaim;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import javax.annotation.Nonnull;
 
 final class ExternalStorageReferences {
   private static final String ENCODING_PROTOBUF_JSON = "json/protobuf";
-  private static final String ENCODING_LEGACY = "json/external-storage-reference";
   private static final String REFERENCE_MESSAGE_TYPE =
       ExternalStorageReference.getDescriptor().getFullName();
 
   private static final JsonFormat.Printer PRINTER = JsonFormat.printer();
   private static final JsonFormat.Parser PARSER = JsonFormat.parser().ignoringUnknownFields();
-  private static final ObjectMapper LEGACY_MAPPER = new ObjectMapper();
 
   static final class ParsedReference {
     final String driverName;
@@ -34,11 +27,7 @@ final class ExternalStorageReferences {
   }
 
   static boolean isReference(@Nonnull Payload payload) {
-    if (payload.getExternalPayloadsCount() > 0) {
-      return true;
-    }
-    ByteString encoding = payload.getMetadataMap().get(EncodingKeys.METADATA_ENCODING_KEY);
-    return encoding != null && ENCODING_LEGACY.equals(encoding.toStringUtf8());
+    return payload.getExternalPayloadsCount() > 0;
   }
 
   static Payload toReferencePayload(
@@ -70,9 +59,14 @@ final class ExternalStorageReferences {
   }
 
   static ParsedReference fromReferencePayload(@Nonnull Payload payload) {
-    ByteString encoding = payload.getMetadataMap().get(EncodingKeys.METADATA_ENCODING_KEY);
-    if (encoding != null && ENCODING_LEGACY.equals(encoding.toStringUtf8())) {
-      return parseLegacy(payload);
+    ByteString messageType = payload.getMetadataMap().get(EncodingKeys.METADATA_MESSAGE_TYPE_KEY);
+    if (messageType == null || !REFERENCE_MESSAGE_TYPE.equals(messageType.toStringUtf8())) {
+      throw new IllegalArgumentException(
+          "Payload is not an external storage reference; expected messageType '"
+              + REFERENCE_MESSAGE_TYPE
+              + "' but was '"
+              + (messageType == null ? "" : messageType.toStringUtf8())
+              + "'");
     }
     ExternalStorageReference.Builder builder = ExternalStorageReference.newBuilder();
     try {
@@ -83,24 +77,6 @@ final class ExternalStorageReferences {
     ExternalStorageReference reference = builder.build();
     return new ParsedReference(
         reference.getDriverName(), new StorageDriverClaim(reference.getClaimDataMap()));
-  }
-
-  private static ParsedReference parseLegacy(Payload payload) {
-    JsonNode root;
-    try {
-      root = LEGACY_MAPPER.readTree(payload.getData().toByteArray());
-    } catch (Exception e) {
-      throw new IllegalArgumentException("Failed to parse legacy external storage reference", e);
-    }
-    String driverName = root.path("driver_name").asText();
-    JsonNode claimDataNode = root.path("driver_claim").path("claim_data");
-    Map<String, String> claimData = new LinkedHashMap<>();
-    Iterator<Map.Entry<String, JsonNode>> claimDataFields = claimDataNode.fields();
-    while (claimDataFields.hasNext()) {
-      Map.Entry<String, JsonNode> claimDataField = claimDataFields.next();
-      claimData.put(claimDataField.getKey(), claimDataField.getValue().asText());
-    }
-    return new ParsedReference(driverName, new StorageDriverClaim(claimData));
   }
 
   private ExternalStorageReferences() {}
