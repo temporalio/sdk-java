@@ -32,6 +32,7 @@ public class ScheduleTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setTestTimeoutSeconds(30)
           .setWorkflowTypes(ScheduleTest.QuickWorkflowImpl.class)
           .build();
 
