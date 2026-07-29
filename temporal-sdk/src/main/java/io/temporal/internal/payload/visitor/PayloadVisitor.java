@@ -17,6 +17,6 @@ import java.util.concurrent.CompletableFuture;
  * @param <C> type of the contextual value supplied to each visit
  */
 @FunctionalInterface
-interface PayloadVisitor<C> {
+public interface PayloadVisitor<C> {
   CompletableFuture<List<Payload>> visit(C context, List<Payload> payloads);
 }
