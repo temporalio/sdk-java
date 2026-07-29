@@ -3,6 +3,7 @@ package io.temporal.authorization;
 import static org.junit.Assert.*;
 
 import io.grpc.*;
+import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -30,6 +32,7 @@ public class AuthorizationTokenTest {
   private static final String AUTH_TOKEN = "Bearer <token>";
 
   private TestWorkflowEnvironment testEnvironment;
+  private final AtomicInteger authTokenSupplyCount = new AtomicInteger();
 
   @Rule
   public TestWatcher watchman =
@@ -45,6 +48,7 @@ public class AuthorizationTokenTest {
   @Before
   public void setUp() {
     loggedRequests.clear();
+    authTokenSupplyCount.set(0);
     WorkflowServiceStubsOptions stubOptions =
         WorkflowServiceStubsOptions.newBuilder()
             .addGrpcClientInterceptor(
@@ -78,7 +82,12 @@ public class AuthorizationTokenTest {
                     }
                   }
                 })
-            .addGrpcMetadataProvider(new AuthorizationGrpcMetadataProvider(() -> AUTH_TOKEN))
+            .addGrpcMetadataProvider(
+                new AuthorizationGrpcMetadataProvider(
+                    () -> {
+                      authTokenSupplyCount.incrementAndGet();
+                      return AUTH_TOKEN;
+                    }))
             .build();
 
     TestEnvironmentOptions options =
@@ -117,6 +126,16 @@ public class AuthorizationTokenTest {
             testEnvironment.getNamespace(),
             grpcRequest.namespace);
       }
+    }
+  }
+
+  @Test
+  public void operatorServiceRequestsShouldHaveAnAuthToken() {
+    Endpoint endpoint = testEnvironment.createNexusEndpoint("authorization-token-test", TASK_QUEUE);
+    try {
+      assertTrue(authTokenSupplyCount.get() > 0);
+    } finally {
+      testEnvironment.deleteNexusEndpoint(endpoint);
     }
   }
 
