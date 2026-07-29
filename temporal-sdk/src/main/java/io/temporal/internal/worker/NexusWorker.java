@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 import static io.temporal.serviceclient.MetricsTag.TASK_FAILURE_TYPE;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -17,6 +18,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -304,6 +306,7 @@ final class NexusWorker implements SuspendableWorker {
 
     @Override
     public void handle(NexusTask task) {
+      task = retrieveInboundPayloads(task);
       PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       // Extract service and operation from the request and set them as MDC and metrics
       // scope tags. If the request does not have a service or operation, do not set the tags.
@@ -485,12 +488,13 @@ final class NexusWorker implements SuspendableWorker {
           taskResponse = getResponseForOldServer(taskResponse);
         }
         RespondNexusTaskCompletedRequest request =
-            RespondNexusTaskCompletedRequest.newBuilder()
-                .setTaskToken(taskToken)
-                .setIdentity(options.getIdentity())
-                .setNamespace(namespace)
-                .setResponse(taskResponse)
-                .build();
+            storeOutbound(
+                RespondNexusTaskCompletedRequest.newBuilder()
+                    .setTaskToken(taskToken)
+                    .setIdentity(options.getIdentity())
+                    .setNamespace(namespace)
+                    .setResponse(taskResponse)
+                    .build());
 
         grpcRetryer.retry(
             () ->
@@ -512,17 +516,37 @@ final class NexusWorker implements SuspendableWorker {
           } else {
             request.setError(NexusUtil.handlerErrorToNexusError(handlerException, dataConverter));
           }
+          RespondNexusTaskFailedRequest failedRequest = storeOutbound(request.build());
           grpcRetryer.retry(
               () ->
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .respondNexusTaskFailed(request.build()),
+                      .respondNexusTaskFailed(failedRequest),
               replyGrpcRetryerOptions);
         } else {
           throw new IllegalArgumentException("[BUG] Either response or failure must be set");
         }
       }
+    }
+
+    private NexusTask retrieveInboundPayloads(NexusTask task) {
+      ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+      if (converter == null) {
+        return task;
+      }
+      PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
+      PollNexusTaskQueueResponse built =
+          response instanceof PollNexusTaskQueueResponse
+              ? (PollNexusTaskQueueResponse) response
+              : ((PollNexusTaskQueueResponse.Builder) response).build();
+      PollNexusTaskQueueResponse retrieved = converter.retrieveBlocking(built);
+      return new NexusTask(retrieved, task.getPermit(), task.getCompletionCallback());
+    }
+
+    private <T extends Message> T storeOutbound(T request) {
+      ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+      return converter == null ? request : converter.storeBlocking(request, null);
     }
   }
 }
