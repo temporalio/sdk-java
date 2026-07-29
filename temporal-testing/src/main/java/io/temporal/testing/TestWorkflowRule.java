@@ -93,7 +93,10 @@ public class TestWorkflowRule implements TestRule {
       new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          if (!useExternalService) {
+            System.err.println(
+                "WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          }
         }
       };
 
@@ -403,9 +406,12 @@ public class TestWorkflowRule implements TestRule {
         new Statement() {
           @Override
           public void evaluate() throws Throwable {
-            start();
-            base.evaluate();
-            shutdown();
+            try {
+              start();
+              base.evaluate();
+            } finally {
+              shutdown();
+            }
           }
         };
 

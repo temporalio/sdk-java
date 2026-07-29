@@ -132,6 +132,7 @@ public class ScheduleWithTypedSearchAttributesTest {
 
   @Test
   public void updateExternalSchedule() {
+    String namespace = testWorkflowRule.getWorkflowClient().getOptions().getNamespace();
     // Create schedule using raw GRPC api to simulate one created from a different SDK
     io.temporal.api.common.v1.SearchAttributes searchAttributes =
         io.temporal.api.common.v1.SearchAttributes.newBuilder()
@@ -159,7 +160,7 @@ public class ScheduleWithTypedSearchAttributesTest {
             .build();
     CreateScheduleRequest request =
         CreateScheduleRequest.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+            .setNamespace(namespace)
             .setIdentity(testWorkflowRule.getWorkflowClient().getOptions().getIdentity())
             .setRequestId(UUID.randomUUID().toString())
             .setScheduleId(scheduleId)
@@ -224,7 +225,7 @@ public class ScheduleWithTypedSearchAttributesTest {
         .blockingStub()
         .deleteSchedule(
             DeleteScheduleRequest.newBuilder()
-                .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                .setNamespace(namespace)
                 .setIdentity(testWorkflowRule.getWorkflowClient().getOptions().getIdentity())
                 .setScheduleId(scheduleId)
                 .build());

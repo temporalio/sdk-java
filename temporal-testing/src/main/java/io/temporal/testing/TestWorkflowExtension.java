@@ -255,8 +255,10 @@ public class TestWorkflowExtension
 
   @Override
   public void testFailed(ExtensionContext context, Throwable cause) {
-    TestWorkflowEnvironment testEnvironment = getTestEnvironment(context);
-    System.err.println("Workflow execution histories:\n" + testEnvironment.getDiagnostics());
+    if (!useExternalService) {
+      TestWorkflowEnvironment testEnvironment = getTestEnvironment(context);
+      System.err.println("Workflow execution histories:\n" + testEnvironment.getDiagnostics());
+    }
   }
 
   private TestWorkflowEnvironment getTestEnvironment(ExtensionContext context) {
