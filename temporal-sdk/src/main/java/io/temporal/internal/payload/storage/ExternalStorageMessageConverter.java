@@ -1,5 +1,6 @@
 package io.temporal.internal.payload.storage;
 
+import com.google.common.base.Throwables;
 import com.google.protobuf.Message;
 import io.temporal.internal.payload.visitor.PayloadVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
@@ -7,6 +8,7 @@ import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import javax.annotation.Nullable;
 
 /**
@@ -55,5 +57,27 @@ public final class ExternalStorageMessageConverter {
             .setSkipSearchAttributes(true)
             .build();
     return PayloadVisitors.visit(message, options);
+  }
+
+  /** Blocking variant of {@link #store}, for synchronous worker call sites. */
+  public <T extends Message> T storeBlocking(T message, @Nullable StorageDriverTargetInfo target) {
+    return join(store(message, target));
+  }
+
+  /** Blocking variant of {@link #retrieve}, for synchronous worker call sites. */
+  public <T extends Message> T retrieveBlocking(T message) {
+    return join(retrieve(message));
+  }
+
+  private static <T> T join(CompletableFuture<T> future) {
+    try {
+      return future.join();
+    } catch (CompletionException e) {
+      Throwable cause = e.getCause();
+      if (cause != null) {
+        Throwables.throwIfUnchecked(cause);
+      }
+      throw e;
+    }
   }
 }

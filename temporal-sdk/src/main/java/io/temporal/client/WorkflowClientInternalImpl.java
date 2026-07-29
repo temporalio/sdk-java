@@ -18,12 +18,15 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.client.external.ExternalStorageGenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
@@ -106,7 +109,17 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getOptions()
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
-    this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    GenericWorkflowClient genericClient =
+        new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    ExternalStorageOptions externalStorage = options.getExternalStorage();
+    if (externalStorage != null) {
+      genericClient =
+          new ExternalStorageGenericWorkflowClient(
+              genericClient,
+              ExternalStorageMessageConverter.create(externalStorage, 1),
+              options.getNamespace());
+    }
+    this.genericClient = genericClient;
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
