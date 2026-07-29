@@ -94,7 +94,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       logWorkflowTaskToBeProcessed(workflowTask, createdNew);
 
       ServiceWorkflowHistoryIterator historyIterator =
-          new ServiceWorkflowHistoryIterator(service, namespace, workflowTask, metricsScope);
+          new ServiceWorkflowHistoryIterator(
+              service,
+              namespace,
+              workflowTask,
+              metricsScope,
+              options.getExternalStorageMessageConverter());
       boolean finalCommand;
       Result result;
 

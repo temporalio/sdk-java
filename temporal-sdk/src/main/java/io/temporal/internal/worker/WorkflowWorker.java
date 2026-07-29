@@ -18,9 +18,12 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -381,6 +384,28 @@ final class WorkflowWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  private PollWorkflowTaskQueueResponse retrieveInboundPayloads(
+      PollWorkflowTaskQueueResponse response) {
+    ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+    return converter == null ? response : converter.retrieveBlocking(response);
+  }
+
+  private RespondWorkflowTaskCompletedRequest storeOutboundPayloads(
+      RespondWorkflowTaskCompletedRequest request, @Nullable StorageDriverTargetInfo target) {
+    ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+    return converter == null ? request : converter.storeBlocking(request, target);
+  }
+
+  @Nullable
+  private StorageDriverTargetInfo workflowStorageTarget(
+      WorkflowExecution execution, String workflowType) {
+    if (options.getExternalStorageMessageConverter() == null) {
+      return null;
+    }
+    return new StorageDriverWorkflowInfo(
+        namespace, execution.getWorkflowId(), execution.getRunId(), workflowType);
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {
 
     final WorkflowTaskHandler handler;
@@ -439,7 +464,8 @@ final class WorkflowWorker implements SuspendableWorker {
 
         Optional<PollWorkflowTaskQueueResponse> nextWFTResponse = Optional.of(workflowTaskResponse);
         do {
-          PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
+          PollWorkflowTaskQueueResponse currentTask =
+              retrieveInboundPayloads(nextWFTResponse.get());
           nextWFTResponse = Optional.empty();
           boolean iterationFailed = false;
           try {
@@ -489,7 +515,8 @@ final class WorkflowWorker implements SuspendableWorker {
                               currentTask.getTaskToken(),
                               requestBuilder,
                               result.getRequestRetryOptions(),
-                              workflowTypeScope);
+                              workflowTypeScope,
+                              workflowStorageTarget(workflowExecution, workflowType));
                       // If we were processing a speculative WFT the server may instruct us that the
                       // task was dropped by resting out event ID.
                       long resetEventId = response.getResetHistoryEventId();
@@ -651,7 +678,8 @@ final class WorkflowWorker implements SuspendableWorker {
         ByteString taskToken,
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
         RpcRetryOptions retryOptions,
-        Scope workflowTypeMetricsScope) {
+        Scope workflowTypeMetricsScope,
+        @Nullable StorageDriverTargetInfo storageTarget) {
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
           new GrpcRetryer.GrpcRetryerOptions(
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
@@ -674,12 +702,14 @@ final class WorkflowWorker implements SuspendableWorker {
         taskCompleted.setBinaryChecksum(options.getBuildId());
       }
 
+      RespondWorkflowTaskCompletedRequest request =
+          storeOutboundPayloads(taskCompleted.build(), storageTarget);
       return grpcRetryer.retryWithResult(
           () ->
               service
                   .blockingStub()
                   .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                  .respondWorkflowTaskCompleted(taskCompleted.build()),
+                  .respondWorkflowTaskCompleted(request),
           grpcRetryOptions);
     }
 

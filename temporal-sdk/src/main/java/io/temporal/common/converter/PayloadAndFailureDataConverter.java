@@ -71,6 +71,13 @@ class PayloadAndFailureDataConverter implements DataConverter {
       return (T) new RawValue(payload);
     }
 
+    if (payload.getExternalPayloadsCount() > 0) {
+      throw new DataConverterException(
+          "[TMPRL-1105] Encountered an external-storage reference payload but external storage is not "
+              + "configured. Configure WorkflowClientOptions.Builder.setExternalStorage(...) with a "
+              + "driver able to retrieve it.");
+    }
+
     try {
       String encoding =
           payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toString(UTF_8);
