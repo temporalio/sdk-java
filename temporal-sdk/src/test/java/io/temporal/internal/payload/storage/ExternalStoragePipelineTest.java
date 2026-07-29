@@ -1,6 +1,7 @@
 package io.temporal.internal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.Activity;
@@ -8,7 +9,10 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -37,7 +41,7 @@ import org.junit.Test;
  */
 public class ExternalStoragePipelineTest {
 
-  private static final InMemoryDriver DRIVER = new InMemoryDriver("test");
+  private final InMemoryDriver driver = new InMemoryDriver("test");
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -48,7 +52,7 @@ public class ExternalStoragePipelineTest {
               WorkflowClientOptions.newBuilder()
                   .setExternalStorage(
                       ExternalStorageOptions.newBuilder()
-                          .setDriver(DRIVER)
+                          .setDriver(driver)
                           .setPayloadSizeThreshold(0)
                           .build())
                   .build())
@@ -62,8 +66,43 @@ public class ExternalStoragePipelineTest {
 
     assertEquals("echo: hello", result);
     assertEquals("echo: hello", workflow.lastResult());
-    assertTrue("expected the driver to have stored payloads", DRIVER.stores.get() > 0);
-    assertTrue("expected the driver to have restored payloads", DRIVER.retrieves.get() > 0);
+    assertTrue("expected the driver to have stored payloads", driver.stores.get() > 0);
+    assertTrue("expected the driver to have restored payloads", driver.retrieves.get() > 0);
+  }
+
+  @Test
+  public void clientWithoutExternalStorageReadingAReferenceFails() {
+    String workflowId = "extstore-not-configured-" + testWorkflowRule.getTaskQueue();
+    EchoWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                EchoWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setWorkflowId(workflowId)
+                    .build());
+    workflow.run("hello");
+
+    WorkflowClient withoutStorage =
+        WorkflowClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            WorkflowClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                .build());
+    WorkflowStub stub = withoutStorage.newUntypedWorkflowStub(workflowId);
+
+    Exception e = assertThrows(Exception.class, () -> stub.getResult(String.class));
+    assertTrue(e.toString(), chainContains(e, "[TMPRL-1105]"));
+  }
+
+  private static boolean chainContains(Throwable t, String needle) {
+    for (Throwable c = t; c != null; c = c.getCause()) {
+      if (c.getMessage() != null && c.getMessage().contains(needle)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @WorkflowInterface
