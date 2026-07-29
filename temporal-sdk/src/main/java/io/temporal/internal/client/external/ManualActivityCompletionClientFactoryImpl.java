@@ -5,6 +5,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
@@ -16,16 +17,19 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
   private final DataConverter dataConverter;
   private final String namespace;
   private final String identity;
+  private final @Nullable ExternalStorageMessageConverter externalStorage;
 
   ManualActivityCompletionClientFactoryImpl(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String identity,
-      @Nonnull DataConverter dataConverter) {
+      @Nonnull DataConverter dataConverter,
+      @Nullable ExternalStorageMessageConverter externalStorage) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.identity = Objects.requireNonNull(identity);
     this.dataConverter = Objects.requireNonNull(dataConverter);
+    this.externalStorage = externalStorage;
   }
 
   @Override
@@ -51,7 +55,8 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
         taskToken,
         null,
         null,
-        activitySerializationContext);
+        activitySerializationContext,
+        externalStorage);
   }
 
   @Override
@@ -80,6 +85,7 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
         null,
         execution,
         activityId,
-        activitySerializationContext);
+        activitySerializationContext,
+        externalStorage);
   }
 }

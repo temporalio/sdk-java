@@ -3,6 +3,7 @@ package io.temporal.internal.payload.storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
@@ -90,6 +91,7 @@ public class ExternalStoragePipelineTest {
   public static class EchoActivityImpl implements EchoActivity {
     @Override
     public String echo(String input) {
+      Activity.getExecutionContext().heartbeat("heartbeat: " + input);
       return "echo: " + input;
     }
   }

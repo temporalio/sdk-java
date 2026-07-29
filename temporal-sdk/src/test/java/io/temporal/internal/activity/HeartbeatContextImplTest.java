@@ -329,7 +329,8 @@ public class HeartbeatContextImplTest {
             Duration.ofSeconds(60),
             Duration.ofSeconds(30),
             GlobalDataConverter.get(),
-            heartbeatExecutor);
+            heartbeatExecutor,
+            null);
 
     ActivityInfoInternal info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
     InternalActivityExecutionContext context =
@@ -363,6 +364,7 @@ public class HeartbeatContextImplTest {
         "test-identity",
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
+        null,
         TEST_BUFFER_MILLIS);
   }
 
