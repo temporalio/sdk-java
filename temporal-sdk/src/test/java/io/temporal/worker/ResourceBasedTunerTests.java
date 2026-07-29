@@ -190,6 +190,6 @@ public class ResourceBasedTunerTests {
         "task_queue",
         testWorkflowRule.getTaskQueue(),
         "namespace",
-        "UnitTest");
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace());
   }
 }

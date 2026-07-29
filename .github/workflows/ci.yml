@@ -194,6 +194,63 @@ jobs:
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
 
+  integration_test_cloud:
+    name: Integration test with Temporal Cloud
+    if: >-
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.user.login != 'dependabot[bot]'
+      )
+    continue-on-error: true
+    runs-on: ubuntu-latest-16-cores
+    timeout-minutes: 60
+    concurrency:
+      group: temporal-cloud-integration-tests
+      cancel-in-progress: false
+    env:
+      USER: unittest
+      USE_EXTERNAL_SERVICE: true
+      # API-key authentication uses the regional data-plane endpoint; the namespace endpoint requires mTLS.
+      TEMPORAL_SERVICE_ADDRESS: ca-central-1.aws.api.temporal.io:7233
+      TEMPORAL_NAMESPACE: sdk-ci.a2dd6
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@9c091bb21b7c1c1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: |
+            11
+            23
+          distribution: "temurin"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+
+      - name: Run integration tests (Java 11)
+        env:
+          TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
+        run: ./gradlew --no-daemon --max-workers=1 test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=11
+
+      - name: Run virtual thread integration tests (Java 21)
+        if: success() || failure()
+        env:
+          TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
+        run: ./gradlew --no-daemon --max-workers=1 :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21
+
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
+        if: success() || failure()
+        with:
+          report_paths: "**/build/test-results/*/TEST-*.xml"
+
   code_format:
     name: Code format
     runs-on: ubuntu-latest

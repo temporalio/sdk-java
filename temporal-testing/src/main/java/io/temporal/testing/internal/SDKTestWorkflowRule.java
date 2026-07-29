@@ -63,7 +63,7 @@ public class SDKTestWorkflowRule implements TestRule {
 
   private static final long BUSY_WAIT_SLEEP_MS = 100;
 
-  public static final String NAMESPACE = "UnitTest";
+  public static final String NAMESPACE = ExternalServiceTestConfigurator.getNamespace();
   public static final String UUID_REGEXP =
       "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
   // Enable to regenerate JsonFiles used for replay testing.
@@ -91,7 +91,9 @@ public class SDKTestWorkflowRule implements TestRule {
             : null;
 
     testWorkflowRule =
-        ExternalServiceTestConfigurator.configure(builder.testWorkflowRuleBuilder).build();
+        ExternalServiceTestConfigurator.configure(
+                builder.testWorkflowRuleBuilder, builder.workflowServiceStubsOptions)
+            .build();
   }
 
   public static Builder newBuilder() {
@@ -104,6 +106,7 @@ public class SDKTestWorkflowRule implements TestRule {
     private boolean workerFactoryOptionsAreSet = false;
     private boolean workerOptionsAreSet = false;
     private final TestWorkflowRule.Builder testWorkflowRuleBuilder;
+    private WorkflowServiceStubsOptions workflowServiceStubsOptions;
 
     public Builder() {
       testWorkflowRuleBuilder = TestWorkflowRule.newBuilder();
@@ -111,6 +114,7 @@ public class SDKTestWorkflowRule implements TestRule {
 
     public Builder setWorkflowServiceStubsOptions(
         WorkflowServiceStubsOptions workflowServiceStubsOptions) {
+      this.workflowServiceStubsOptions = workflowServiceStubsOptions;
       testWorkflowRuleBuilder.setWorkflowServiceStubsOptions(workflowServiceStubsOptions);
       return this;
     }

@@ -16,9 +16,14 @@ public class RegisterTestNamespace {
   private static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+  private static final String existingNamespace = System.getenv("TEMPORAL_NAMESPACE");
 
   public static void main(String[] args) throws InterruptedException {
     if (!useExternalService) {
+      return;
+    }
+    if (existingNamespace != null) {
+      System.out.println("Using pre-registered namespace " + existingNamespace);
       return;
     }
 

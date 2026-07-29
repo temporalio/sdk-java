@@ -78,7 +78,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
 
     ReplayWorkflowRunTaskHandler handler =
         new ReplayWorkflowRunTaskHandler(
-            "UnitTest",
+            testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
             createReplayWorkflow(workflowExecutionHistory),
             wft,
             SingleWorkerOptions.newBuilder().build(),

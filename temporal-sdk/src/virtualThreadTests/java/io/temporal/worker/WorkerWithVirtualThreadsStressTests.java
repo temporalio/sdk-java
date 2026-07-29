@@ -10,7 +10,6 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
@@ -139,9 +138,7 @@ public class WorkerWithVirtualThreadsStressTests {
       if (ExternalServiceTestConfigurator.isUseExternalService()) {
         service =
             WorkflowServiceStubs.newServiceStubs(
-                WorkflowServiceStubsOptions.newBuilder()
-                    .setTarget(ExternalServiceTestConfigurator.getTemporalServiceAddress())
-                    .build());
+                ExternalServiceTestConfigurator.getWorkflowServiceStubsOptions());
         WorkflowClient client = WorkflowClient.newInstance(service, clientOptions);
         factory = WorkerFactory.newInstance(client, options);
       } else {

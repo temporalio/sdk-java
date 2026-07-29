@@ -10,7 +10,7 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
@@ -22,8 +22,7 @@ import org.junit.Test;
 public class WorkerFactoryTests {
 
   private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+      ExternalServiceTestConfigurator.isUseExternalService();
 
   @BeforeClass
   public static void beforeClass() {
@@ -37,8 +36,13 @@ public class WorkerFactoryTests {
   public void setUp() {
     service =
         WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
-    WorkflowClient client = WorkflowClient.newInstance(service);
+            ExternalServiceTestConfigurator.getWorkflowServiceStubsOptions());
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            service,
+            WorkflowClientOptions.newBuilder()
+                .setNamespace(ExternalServiceTestConfigurator.getNamespace())
+                .build());
     factory = WorkerFactory.newInstance(client);
   }
 
@@ -138,7 +142,7 @@ public class WorkerFactoryTests {
   public void startFailsOnNonexistentNamespace() {
     WorkflowServiceStubs serviceLocal =
         WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+            ExternalServiceTestConfigurator.getWorkflowServiceStubsOptions());
     WorkflowClient clientLocal =
         WorkflowClient.newInstance(
             serviceLocal, WorkflowClientOptions.newBuilder().setNamespace("i_dont_exist").build());
