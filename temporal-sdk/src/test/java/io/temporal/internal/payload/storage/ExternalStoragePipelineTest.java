@@ -15,6 +15,7 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
@@ -60,6 +61,7 @@ public class ExternalStoragePipelineTest {
     String result = workflow.run("hello");
 
     assertEquals("echo: hello", result);
+    assertEquals("echo: hello", workflow.lastResult());
     assertTrue("expected the driver to have stored payloads", DRIVER.stores.get() > 0);
     assertTrue("expected the driver to have restored payloads", DRIVER.retrieves.get() > 0);
   }
@@ -68,6 +70,9 @@ public class ExternalStoragePipelineTest {
   public interface EchoWorkflow {
     @WorkflowMethod
     String run(String input);
+
+    @QueryMethod
+    String lastResult();
   }
 
   @ActivityInterface
@@ -81,10 +86,17 @@ public class ExternalStoragePipelineTest {
         Workflow.newActivityStub(
             EchoActivity.class,
             ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
+    private String lastResult = "";
 
     @Override
     public String run(String input) {
-      return activity.echo(input);
+      lastResult = activity.echo(input);
+      return lastResult;
+    }
+
+    @Override
+    public String lastResult() {
+      return lastResult;
     }
   }
 

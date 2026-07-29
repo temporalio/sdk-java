@@ -131,13 +131,13 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public ListWorkflowExecutionsResponse listWorkflowExecutions(
       ListWorkflowExecutionsRequest listRequest) {
-    return next.listWorkflowExecutions(listRequest);
+    return externalStorage.retrieveBlocking(next.listWorkflowExecutions(listRequest));
   }
 
   @Override
   public CompletableFuture<ListWorkflowExecutionsResponse> listWorkflowExecutionsAsync(
       ListWorkflowExecutionsRequest listRequest) {
-    return next.listWorkflowExecutionsAsync(listRequest);
+    return next.listWorkflowExecutionsAsync(listRequest).thenCompose(externalStorage::retrieve);
   }
 
   @Override
@@ -148,17 +148,17 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
 
   @Override
   public CreateScheduleResponse createSchedule(CreateScheduleRequest request) {
-    return next.createSchedule(request);
+    return next.createSchedule(externalStorage.storeBlocking(request, null));
   }
 
   @Override
   public CompletableFuture<ListSchedulesResponse> listSchedulesAsync(ListSchedulesRequest request) {
-    return next.listSchedulesAsync(request);
+    return next.listSchedulesAsync(request).thenCompose(externalStorage::retrieve);
   }
 
   @Override
   public UpdateScheduleResponse updateSchedule(UpdateScheduleRequest request) {
-    return next.updateSchedule(request);
+    return next.updateSchedule(externalStorage.storeBlocking(request, null));
   }
 
   @Override
@@ -173,43 +173,44 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
 
   @Override
   public DescribeScheduleResponse describeSchedule(DescribeScheduleRequest request) {
-    return next.describeSchedule(request);
+    return externalStorage.retrieveBlocking(next.describeSchedule(request));
   }
 
   @Override
   public DescribeWorkflowExecutionResponse describeWorkflowExecution(
       DescribeWorkflowExecutionRequest request) {
-    return next.describeWorkflowExecution(request);
+    return externalStorage.retrieveBlocking(next.describeWorkflowExecution(request));
   }
 
   @Override
   public StartNexusOperationExecutionResponse startNexusOperationExecution(
       @Nonnull StartNexusOperationExecutionRequest request) {
-    return next.startNexusOperationExecution(request);
+    return next.startNexusOperationExecution(externalStorage.storeBlocking(request, null));
   }
 
   @Override
   public DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
       @Nonnull DescribeNexusOperationExecutionRequest request) {
-    return next.describeNexusOperationExecution(request);
+    return externalStorage.retrieveBlocking(next.describeNexusOperationExecution(request));
   }
 
   @Override
   public PollNexusOperationExecutionResponse pollNexusOperationExecution(
       @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
-    return next.pollNexusOperationExecution(request, deadline);
+    return externalStorage.retrieveBlocking(next.pollNexusOperationExecution(request, deadline));
   }
 
   @Override
   public CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
       @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
-    return next.pollNexusOperationExecutionAsync(request, deadline);
+    return next.pollNexusOperationExecutionAsync(request, deadline)
+        .thenCompose(externalStorage::retrieve);
   }
 
   @Override
   public CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
       @Nonnull ListNexusOperationExecutionsRequest request) {
-    return next.listNexusOperationExecutionsAsync(request);
+    return next.listNexusOperationExecutionsAsync(request).thenCompose(externalStorage::retrieve);
   }
 
   @Override
@@ -252,30 +253,30 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
 
   @Override
   public StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request) {
-    return next.startActivity(request);
+    return next.startActivity(externalStorage.storeBlocking(request, null));
   }
 
   @Override
   public PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request) {
-    return next.pollActivity(request);
+    return externalStorage.retrieveBlocking(next.pollActivity(request));
   }
 
   @Override
   public PollActivityExecutionResponse pollActivity(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline) {
-    return next.pollActivity(request, deadline);
+    return externalStorage.retrieveBlocking(next.pollActivity(request, deadline));
   }
 
   @Override
   public CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline) {
-    return next.pollActivityAsync(request, deadline);
+    return next.pollActivityAsync(request, deadline).thenCompose(externalStorage::retrieve);
   }
 
   @Override
   public DescribeActivityExecutionResponse describeActivity(
       DescribeActivityExecutionRequest request) {
-    return next.describeActivity(request);
+    return externalStorage.retrieveBlocking(next.describeActivity(request));
   }
 
   @Override
@@ -290,13 +291,13 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
 
   @Override
   public ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request) {
-    return next.listActivities(request);
+    return externalStorage.retrieveBlocking(next.listActivities(request));
   }
 
   @Override
   public CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(
       ListActivityExecutionsRequest request) {
-    return next.listActivitiesAsync(request);
+    return next.listActivitiesAsync(request).thenCompose(externalStorage::retrieve);
   }
 
   @Override

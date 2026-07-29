@@ -390,8 +390,8 @@ final class WorkflowWorker implements SuspendableWorker {
     return converter == null ? response : converter.retrieveBlocking(response);
   }
 
-  private RespondWorkflowTaskCompletedRequest storeOutboundPayloads(
-      RespondWorkflowTaskCompletedRequest request, @Nullable StorageDriverTargetInfo target) {
+  private <T extends com.google.protobuf.Message> T storeOutboundPayloads(
+      T request, @Nullable StorageDriverTargetInfo target) {
     ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
     return converter == null ? request : converter.storeBlocking(request, target);
   }
@@ -479,7 +479,10 @@ final class WorkflowWorker implements SuspendableWorker {
               if (queryCompleted != null) {
                 try {
                   sendDirectQueryCompletedResponse(
-                      currentTask.getTaskToken(), queryCompleted.toBuilder(), workflowTypeScope);
+                      currentTask.getTaskToken(),
+                      queryCompleted.toBuilder(),
+                      workflowTypeScope,
+                      workflowStorageTarget(workflowExecution, workflowType));
                 } catch (StatusRuntimeException e) {
                   GrpcMessageTooLargeException tooLargeException =
                       GrpcMessageTooLargeException.tryWrap(e);
@@ -499,7 +502,10 @@ final class WorkflowWorker implements SuspendableWorker {
                           .setErrorMessage(failure.getMessage())
                           .setFailure(failure);
                   sendDirectQueryCompletedResponse(
-                      currentTask.getTaskToken(), queryFailedBuilder, workflowTypeScope);
+                      currentTask.getTaskToken(),
+                      queryFailedBuilder,
+                      workflowTypeScope,
+                      workflowStorageTarget(workflowExecution, workflowType));
                 }
               } else {
                 try {
@@ -536,7 +542,8 @@ final class WorkflowWorker implements SuspendableWorker {
                         currentTask.getTaskToken(),
                         taskFailed.toBuilder(),
                         result.getRequestRetryOptions(),
-                        workflowTypeScope);
+                        workflowTypeScope,
+                        workflowStorageTarget(workflowExecution, workflowType));
                   }
 
                   // Apply post-completion metrics only if runnable present and the above succeeded
@@ -573,7 +580,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       currentTask.getTaskToken(),
                       taskFailedBuilder,
                       result.getRequestRetryOptions(),
-                      workflowTypeScope);
+                      workflowTypeScope,
+                      workflowStorageTarget(workflowExecution, workflowType));
                 }
               }
             } catch (Exception e) {
@@ -718,7 +726,8 @@ final class WorkflowWorker implements SuspendableWorker {
         ByteString taskToken,
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
         RpcRetryOptions retryOptions,
-        Scope workflowTypeMetricsScope) {
+        Scope workflowTypeMetricsScope,
+        @Nullable StorageDriverTargetInfo storageTarget) {
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
           new GrpcRetryer.GrpcRetryerOptions(
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
@@ -732,25 +741,30 @@ final class WorkflowWorker implements SuspendableWorker {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 
+      RespondWorkflowTaskFailedRequest request =
+          storeOutboundPayloads(taskFailed.build(), storageTarget);
       grpcRetryer.retry(
           () ->
               service
                   .blockingStub()
                   .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                  .respondWorkflowTaskFailed(taskFailed.build()),
+                  .respondWorkflowTaskFailed(request),
           grpcRetryOptions);
     }
 
     private void sendDirectQueryCompletedResponse(
         ByteString taskToken,
         RespondQueryTaskCompletedRequest.Builder queryCompleted,
-        Scope workflowTypeMetricsScope) {
+        Scope workflowTypeMetricsScope,
+        @Nullable StorageDriverTargetInfo storageTarget) {
       queryCompleted.setTaskToken(taskToken).setNamespace(namespace);
+      RespondQueryTaskCompletedRequest request =
+          storeOutboundPayloads(queryCompleted.build(), storageTarget);
       // Do not retry query response
       service
           .blockingStub()
           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-          .respondQueryTaskCompleted(queryCompleted.build());
+          .respondQueryTaskCompleted(request);
     }
 
     private void logExceptionDuringResultReporting(
