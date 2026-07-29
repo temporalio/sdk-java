@@ -5,12 +5,15 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 
 import io.temporal.api.common.v1.Payload;
+import io.temporal.common.CancellationToken;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
+/** Tests external storage option validation and defaults. */
 public class ExternalStorageOptionsTest {
 
   private static StorageDriverStoreContext storeContext(StorageDriverTargetInfo target) {
@@ -18,6 +21,11 @@ public class ExternalStorageOptionsTest {
       @Override
       public StorageDriverTargetInfo getTarget() {
         return target;
+      }
+
+      @Override
+      public CancellationToken<CancellationException> getCancellationToken() {
+        return CancellationToken.none();
       }
     };
   }

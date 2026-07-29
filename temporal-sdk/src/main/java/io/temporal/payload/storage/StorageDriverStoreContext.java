@@ -1,6 +1,9 @@
 package io.temporal.payload.storage;
 
+import io.temporal.common.CancellationToken;
 import io.temporal.common.Experimental;
+import java.util.concurrent.CancellationException;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -17,4 +20,8 @@ public interface StorageDriverStoreContext {
    */
   @Nullable
   StorageDriverTargetInfo getTarget();
+
+  /** Token cancelled when the SDK abandons this store operation. */
+  @Nonnull
+  CancellationToken<CancellationException> getCancellationToken();
 }
