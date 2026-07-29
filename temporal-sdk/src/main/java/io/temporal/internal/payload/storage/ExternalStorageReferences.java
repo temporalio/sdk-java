@@ -7,6 +7,7 @@ import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.converter.EncodingKeys;
 import io.temporal.payload.storage.StorageDriverClaim;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class ExternalStorageReferences {
   private static final String ENCODING_PROTOBUF_JSON = "json/protobuf";
@@ -24,10 +25,6 @@ final class ExternalStorageReferences {
       this.driverName = driverName;
       this.claim = claim;
     }
-  }
-
-  static boolean isReference(@Nonnull Payload payload) {
-    return payload.getExternalPayloadsCount() > 0;
   }
 
   static Payload toReferencePayload(
@@ -58,15 +55,17 @@ final class ExternalStorageReferences {
         .build();
   }
 
-  static ParsedReference fromReferencePayload(@Nonnull Payload payload) {
+  /**
+   * Returns the reference encoded in {@code payload}, or null if the payload is not an external
+   * storage reference this SDK understands.
+   */
+  static @Nullable ParsedReference tryParseReference(@Nonnull Payload payload) {
+    if (payload.getExternalPayloadsCount() == 0) {
+      return null;
+    }
     ByteString messageType = payload.getMetadataMap().get(EncodingKeys.METADATA_MESSAGE_TYPE_KEY);
     if (messageType == null || !REFERENCE_MESSAGE_TYPE.equals(messageType.toStringUtf8())) {
-      throw new IllegalArgumentException(
-          "Payload is not an external storage reference; expected messageType '"
-              + REFERENCE_MESSAGE_TYPE
-              + "' but was '"
-              + (messageType == null ? "" : messageType.toStringUtf8())
-              + "'");
+      return null;
     }
     ExternalStorageReference.Builder builder = ExternalStorageReference.newBuilder();
     try {

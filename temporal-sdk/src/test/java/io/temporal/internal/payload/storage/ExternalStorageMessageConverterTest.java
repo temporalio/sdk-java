@@ -1,7 +1,8 @@
 package io.temporal.internal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -36,8 +37,8 @@ public class ExternalStorageMessageConverterTest {
 
     Payloads stored = converter.store(message, null).get();
 
-    assertTrue(ExternalStorageReferences.isReference(stored.getPayloads(0)));
-    assertTrue(ExternalStorageReferences.isReference(stored.getPayloads(1)));
+    assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
+    assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(1)));
 
     Payloads retrieved = converter.retrieve(stored).get();
     assertEquals(message, retrieved);
@@ -57,7 +58,7 @@ public class ExternalStorageMessageConverterTest {
     Command stored = converter.store(command, null).get();
 
     Payload nested = stored.getScheduleActivityTaskCommandAttributes().getInput().getPayloads(0);
-    assertTrue(ExternalStorageReferences.isReference(nested));
+    assertNotNull(ExternalStorageReferences.tryParseReference(nested));
     assertEquals(command, converter.retrieve(stored).get());
   }
 
@@ -69,7 +70,7 @@ public class ExternalStorageMessageConverterTest {
 
     Payloads stored = converter.store(message, null).get();
 
-    assertFalse(ExternalStorageReferences.isReference(stored.getPayloads(0)));
+    assertNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
     assertEquals(message, stored);
     assertTrue(driver.storeBatchSizes.isEmpty());
   }
@@ -92,9 +93,9 @@ public class ExternalStorageMessageConverterTest {
 
     StartChildWorkflowExecutionCommandAttributes attrs =
         stored.getStartChildWorkflowExecutionCommandAttributes();
-    assertTrue(ExternalStorageReferences.isReference(attrs.getInput().getPayloads(0)));
+    assertNotNull(ExternalStorageReferences.tryParseReference(attrs.getInput().getPayloads(0)));
     Payload indexed = attrs.getSearchAttributes().getIndexedFieldsOrThrow("k");
-    assertFalse(ExternalStorageReferences.isReference(indexed));
+    assertNull(ExternalStorageReferences.tryParseReference(indexed));
     assertEquals(payload("indexed-value"), indexed);
   }
 
