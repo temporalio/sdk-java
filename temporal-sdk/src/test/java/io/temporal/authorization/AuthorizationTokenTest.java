@@ -4,6 +4,9 @@ import static org.junit.Assert.*;
 
 import io.grpc.*;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -137,6 +140,34 @@ public class AuthorizationTokenTest {
     } finally {
       testEnvironment.deleteNexusEndpoint(endpoint);
     }
+  }
+
+  @Test
+  public void activityClientRequestsShouldHaveNamespaceHeader() {
+    ActivityClient client =
+        ActivityClient.newInstance(
+            testEnvironment.getWorkflowServiceStubs(),
+            ActivityClientOptions.newBuilder()
+                .setNamespace(testEnvironment.getNamespace())
+                .build());
+    try {
+      client.start(
+          "TestActivity",
+          StartActivityOptions.newBuilder()
+              .setId("test-activity")
+              .setTaskQueue(TASK_QUEUE)
+              .setScheduleToCloseTimeout(Duration.ofMinutes(1))
+              .build());
+    } catch (StatusRuntimeException e) {
+      assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
+    }
+
+    GrpcRequest request =
+        loggedRequests.stream()
+            .filter(r -> "StartActivityExecution".equals(r.methodName))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("StartActivityExecution request was not sent"));
+    assertEquals(testEnvironment.getNamespace(), request.namespace);
   }
 
   public static class EmptyWorkflowImpl implements TestWorkflows.TestWorkflow1 {

@@ -513,7 +513,7 @@ public class TestWorkflowRule implements TestRule {
    * @return stubs connected to the test server (in-memory or external)
    */
   public WorkflowServiceStubs getWorkflowServiceStubs() {
-    return testEnvironment.getWorkflowServiceStubs();
+    return getWorkflowClient().getWorkflowServiceStubs();
   }
 
   /**

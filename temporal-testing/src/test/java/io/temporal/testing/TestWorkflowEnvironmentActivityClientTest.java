@@ -2,11 +2,13 @@ package io.temporal.testing;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
+import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Field;
 import java.util.Collections;
@@ -31,7 +33,10 @@ public class TestWorkflowEnvironmentActivityClientTest {
 
       assertEquals("workflow-client-namespace", activityClientOptions.getNamespace());
       assertEquals("workflow-client-identity", activityClientOptions.getIdentity());
-      assertSame(testEnv.getWorkflowServiceStubs(), getWorkflowServiceStubs(activityClient));
+      WorkflowServiceStubs activityClientStubs = getWorkflowServiceStubs(activityClient);
+      assertTrue(activityClientStubs instanceof NamespaceInjectWorkflowServiceStubs);
+      assertSame(
+          testEnv.getWorkflowServiceStubs().getRawChannel(), activityClientStubs.getRawChannel());
     }
   }
 

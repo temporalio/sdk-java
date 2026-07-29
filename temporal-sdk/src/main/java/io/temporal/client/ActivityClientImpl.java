@@ -7,6 +7,7 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityHandleImpl;
+import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
@@ -36,6 +37,7 @@ class ActivityClientImpl implements ActivityClient {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
+    stubs = new NamespaceInjectWorkflowServiceStubs(stubs, options.getNamespace());
     this.stubs = stubs;
     this.options = options;
     this.metricsScope =
