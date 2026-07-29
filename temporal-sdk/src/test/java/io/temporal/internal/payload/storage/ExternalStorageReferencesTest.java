@@ -2,13 +2,13 @@ package io.temporal.internal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.EncodingKeys;
 import io.temporal.payload.storage.StorageDriverClaim;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Test;
@@ -49,22 +49,17 @@ public class ExternalStorageReferencesTest {
   }
 
   @Test
-  public void legacyFormatIsReadable() {
-    String legacyJson =
-        "{\"driver_name\":\"legacy-driver\",\"driver_claim\":{\"claim_data\":{\"key\":\"xyz\"}}}";
-    Payload legacy =
+  public void fromReferencePayloadRejectsNonReference() {
+    Payload inline =
         Payload.newBuilder()
-            .putMetadata(
-                EncodingKeys.METADATA_ENCODING_KEY,
-                ByteString.copyFromUtf8("json/external-storage-reference"))
-            .setData(ByteString.copyFromUtf8(legacyJson))
+            .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/plain"))
+            .setData(ByteString.copyFromUtf8("{\"foo\":1}"))
             .build();
 
-    assertTrue(ExternalStorageReferences.isReference(legacy));
-
-    ExternalStorageReferences.ParsedReference parsed =
-        ExternalStorageReferences.fromReferencePayload(legacy);
-    assertEquals("legacy-driver", parsed.driverName);
-    assertEquals(new StorageDriverClaim(Collections.singletonMap("key", "xyz")), parsed.claim);
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> ExternalStorageReferences.fromReferencePayload(inline));
+    assertTrue(e.getMessage().contains("not an external storage reference"));
   }
 }
