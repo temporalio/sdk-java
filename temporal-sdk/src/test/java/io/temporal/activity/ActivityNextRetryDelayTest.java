@@ -19,6 +19,7 @@ public class ActivityNextRetryDelayTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setTestTimeoutSeconds(30)
           .setWorkflowTypes(TestWorkflowImpl.class)
           .setActivityImplementations(new NextRetryDelayActivityImpl())
           .build();
