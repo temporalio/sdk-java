@@ -46,6 +46,17 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
     return workflowTarget(execution.getWorkflowId(), execution.getRunId(), type);
   }
 
+  @Nullable
+  private StorageDriverTargetInfo multiOperationTarget(ExecuteMultiOperationRequest request) {
+    for (ExecuteMultiOperationRequest.Operation operation : request.getOperationsList()) {
+      if (operation.hasStartWorkflow()) {
+        StartWorkflowExecutionRequest start = operation.getStartWorkflow();
+        return workflowTarget(start.getWorkflowId(), null, start.getWorkflowType().getName());
+      }
+    }
+    return null;
+  }
+
   @Override
   public StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request) {
     return next.start(
@@ -248,7 +259,8 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public ExecuteMultiOperationResponse executeMultiOperation(
       ExecuteMultiOperationRequest request, @Nonnull Deadline deadline) {
-    ExecuteMultiOperationRequest stored = externalStorage.storeBlocking(request, null);
+    ExecuteMultiOperationRequest stored =
+        externalStorage.storeBlocking(request, multiOperationTarget(request));
     return externalStorage.retrieveBlocking(next.executeMultiOperation(stored, deadline));
   }
 
