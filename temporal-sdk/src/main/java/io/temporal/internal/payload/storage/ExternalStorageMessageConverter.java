@@ -9,6 +9,7 @@ import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import javax.annotation.Nullable;
 
 /**
@@ -18,8 +19,15 @@ import javax.annotation.Nullable;
  * <p>Search attributes stay inline because the server indexes and validates their payload values.
  */
 public final class ExternalStorageMessageConverter {
+  private static final int DEFAULT_PAYLOAD_VISIT_CONCURRENCY = 3;
+
   private final ExternalStoragePayloadConverter payloadConverter;
   private final int payloadVisitConcurrency;
+
+  /** Builds a message converter with the default payload-list visit concurrency. */
+  public static ExternalStorageMessageConverter create(ExternalStorageOptions options) {
+    return create(options, DEFAULT_PAYLOAD_VISIT_CONCURRENCY);
+  }
 
   /**
    * Builds a message converter from user-facing options. {@code payloadVisitConcurrency} bounds the
@@ -59,25 +67,35 @@ public final class ExternalStorageMessageConverter {
     return PayloadVisitors.visit(message, options);
   }
 
-  /** Blocking variant of {@link #store}, for synchronous worker call sites. */
+  /**
+   * Blocking variant of {@link #store}. Interruption cancels the conversion future, restores the
+   * thread's interrupt status, and throws a {@link CompletionException}.
+   */
   public <T extends Message> T storeBlocking(T message, @Nullable StorageDriverTargetInfo target) {
     return join(store(message, target));
   }
 
-  /** Blocking variant of {@link #retrieve}, for synchronous worker call sites. */
+  /**
+   * Blocking variant of {@link #retrieve}. Interruption cancels the conversion future, restores the
+   * thread's interrupt status, and throws a {@link CompletionException}.
+   */
   public <T extends Message> T retrieveBlocking(T message) {
     return join(retrieve(message));
   }
 
   private static <T> T join(CompletableFuture<T> future) {
     try {
-      return future.join();
-    } catch (CompletionException e) {
+      return future.get();
+    } catch (InterruptedException e) {
+      future.cancel(true);
+      Thread.currentThread().interrupt();
+      throw new CompletionException(e);
+    } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       if (cause != null) {
         Throwables.throwIfUnchecked(cause);
       }
-      throw e;
+      throw new CompletionException(cause == null ? e : cause);
     }
   }
 }
