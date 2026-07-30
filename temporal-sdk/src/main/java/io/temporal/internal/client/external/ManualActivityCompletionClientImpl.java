@@ -100,8 +100,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setIdentity(identity)
               .setTaskToken(ByteString.copyFrom(taskToken));
       payloads.ifPresent(builder::setResult);
-      RespondActivityTaskCompletedRequest request = storeOutbound(builder.build());
       try {
+        RespondActivityTaskCompletedRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
@@ -123,8 +123,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId());
       payloads.ifPresent(builder::setResult);
-      RespondActivityTaskCompletedByIdRequest request = storeOutbound(builder.build());
       try {
+        RespondActivityTaskCompletedByIdRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
@@ -143,15 +143,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     Preconditions.checkNotNull(exception, "null exception");
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
-      RespondActivityTaskFailedRequest request =
-          storeOutbound(
-              RespondActivityTaskFailedRequest.newBuilder()
-                  .setFailure(
-                      dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
-                  .setNamespace(namespace)
-                  .setTaskToken(ByteString.copyFrom(taskToken))
-                  .build());
+      RespondActivityTaskFailedRequest unstoredRequest =
+          RespondActivityTaskFailedRequest.newBuilder()
+              .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
+              .setNamespace(namespace)
+              .setTaskToken(ByteString.copyFrom(taskToken))
+              .build();
       try {
+        RespondActivityTaskFailedRequest request = storeOutbound(unstoredRequest);
         grpcRetryer.retry(
             () ->
                 service
@@ -171,17 +170,16 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskFailedByIdRequest request =
-          storeOutbound(
-              RespondActivityTaskFailedByIdRequest.newBuilder()
-                  .setFailure(
-                      dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
-                  .setNamespace(namespace)
-                  .setWorkflowId(execution.getWorkflowId())
-                  .setRunId(execution.getRunId())
-                  .setActivityId(activityId)
-                  .build());
+      RespondActivityTaskFailedByIdRequest unstoredRequest =
+          RespondActivityTaskFailedByIdRequest.newBuilder()
+              .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
+              .setNamespace(namespace)
+              .setWorkflowId(execution.getWorkflowId())
+              .setRunId(execution.getRunId())
+              .setActivityId(activityId)
+              .build();
       try {
+        RespondActivityTaskFailedByIdRequest request = storeOutbound(unstoredRequest);
         grpcRetryer.retry(
             () ->
                 service
@@ -251,8 +249,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
       convertedDetails.ifPresent(builder::setDetails);
-      RespondActivityTaskCanceledRequest request = storeOutbound(builder.build());
       try {
+        RespondActivityTaskCanceledRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
@@ -276,8 +274,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setRunId(OptionsUtils.safeGet(execution.getRunId()))
               .setActivityId(activityId);
       convertedDetails.ifPresent(builder::setDetails);
-      RespondActivityTaskCanceledByIdRequest request = storeOutbound(builder.build());
       try {
+        RespondActivityTaskCanceledByIdRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
