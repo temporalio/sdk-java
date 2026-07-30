@@ -5,6 +5,7 @@ import io.grpc.Deadline;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.concurrent.CompletableFuture;
@@ -253,7 +254,14 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
 
   @Override
   public StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request) {
-    return next.startActivity(externalStorage.storeBlocking(request, null));
+    return next.startActivity(
+        externalStorage.storeBlocking(
+            request,
+            new StorageDriverActivityInfo(
+                namespace,
+                Strings.emptyToNull(request.getActivityId()),
+                null,
+                Strings.emptyToNull(request.getActivityType().getName()))));
   }
 
   @Override

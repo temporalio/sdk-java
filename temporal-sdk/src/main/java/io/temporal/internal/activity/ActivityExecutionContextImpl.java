@@ -12,6 +12,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -159,7 +160,14 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
           new ActivitySerializationContext(info);
       return new CompletionAwareManualCompletionClient(
           manualCompletionClientFactory.getClient(
-              info.getTaskToken(), metricsScope, activitySerializationContext),
+              info.getTaskToken(),
+              metricsScope,
+              activitySerializationContext,
+              new StorageDriverActivityInfo(
+                  info.getNamespace(),
+                  info.getActivityId(),
+                  info.getActivityRunId(),
+                  info.getActivityType())),
           completionHandle);
     } finally {
       lock.unlock();

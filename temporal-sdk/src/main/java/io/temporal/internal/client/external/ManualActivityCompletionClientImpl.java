@@ -20,7 +20,6 @@ import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -45,6 +44,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final byte[] taskToken;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
+  private final @Nullable StorageDriverTargetInfo storageTarget;
   private final @Nullable ExternalStorageMessageConverter externalStorage;
 
   ManualActivityCompletionClientImpl(
@@ -57,9 +57,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       @Nullable WorkflowExecution execution,
       @Nullable String activityId,
       @Nullable ActivitySerializationContext context,
+      @Nullable StorageDriverTargetInfo storageTarget,
       @Nullable ExternalStorageMessageConverter externalStorage) {
     this.service = service;
     this.externalStorage = externalStorage;
+    this.storageTarget = storageTarget;
     this.dataConverterWithActivityExecutionContext =
         context != null ? dataConverter.withContext(context) : dataConverter;
     this.namespace = namespace;
@@ -85,12 +87,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private <T extends Message> T storeOutbound(T request) {
     return externalStorage == null
         ? request
-        : externalStorage.storeBlocking(request, activityTarget());
-  }
-
-  private StorageDriverTargetInfo activityTarget() {
-    return new StorageDriverActivityInfo(
-        namespace, activityId, execution != null ? execution.getRunId() : null, null);
+        : externalStorage.storeBlocking(request, storageTarget);
   }
 
   @Override
@@ -211,7 +208,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 dataConverterWithActivityExecutionContext.toPayloads(details),
                 metricsScope,
                 externalStorage,
-                activityTarget());
+                storageTarget);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -230,7 +227,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 dataConverterWithActivityExecutionContext.toPayloads(details),
                 metricsScope,
                 externalStorage,
-                activityTarget());
+                storageTarget);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {

@@ -2,6 +2,7 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
@@ -496,7 +497,7 @@ final class ActivityWorker implements SuspendableWorker {
       return new StorageDriverActivityInfo(
           namespace,
           pollResponse.getActivityId(),
-          pollResponse.getWorkflowExecution().getRunId(),
+          Strings.emptyToNull(pollResponse.getActivityRunId()),
           pollResponse.getActivityType().getName());
     }
 
