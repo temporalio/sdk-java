@@ -384,12 +384,6 @@ final class WorkflowWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
-  private PollWorkflowTaskQueueResponse retrieveInboundPayloads(
-      PollWorkflowTaskQueueResponse response) {
-    ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
-    return converter == null ? response : converter.retrieveBlocking(response);
-  }
-
   private <T extends com.google.protobuf.Message> T storeOutboundPayloads(
       T request, @Nullable StorageDriverTargetInfo target) {
     ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
@@ -464,8 +458,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
         Optional<PollWorkflowTaskQueueResponse> nextWFTResponse = Optional.of(workflowTaskResponse);
         do {
-          PollWorkflowTaskQueueResponse currentTask =
-              retrieveInboundPayloads(nextWFTResponse.get());
+          PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
           nextWFTResponse = Optional.empty();
           boolean iterationFailed = false;
           try {
