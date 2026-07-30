@@ -306,29 +306,30 @@ final class NexusWorker implements SuspendableWorker {
 
     @Override
     public void handle(NexusTask task) {
-      task = retrieveInboundPayloads(task);
-      PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
-      // Extract service and operation from the request and set them as MDC and metrics
-      // scope tags. If the request does not have a service or operation, do not set the tags.
-      // If we don't know how to handle the task, we will fail the task further down the line.
-      Scope metricsScope = workerMetricsScope;
-      String service = getNexusTaskService(pollResponse);
-      if (!service.isEmpty()) {
-        MDC.put(LoggerTag.NEXUS_SERVICE, service);
-        metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
-      }
-      String operation = getNexusTaskOperation(pollResponse);
-      if (!operation.isEmpty()) {
-        MDC.put(LoggerTag.NEXUS_OPERATION, operation);
-        metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
-      }
-      slotSupplier.markSlotUsed(
-          new NexusSlotInfo(
-              service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
-          task.getPermit());
-
       boolean taskFailed = false;
       try {
+        task = retrieveInboundPayloads(task);
+        PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
+        // Extract service and operation from the request and set them as MDC and metrics
+        // scope tags. If the request does not have a service or operation, do not set the tags.
+        // If we don't know how to handle the task, we will fail the task further down the line.
+        Scope metricsScope = workerMetricsScope;
+        String service = getNexusTaskService(pollResponse);
+        if (!service.isEmpty()) {
+          MDC.put(LoggerTag.NEXUS_SERVICE, service);
+          metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
+        }
+        String operation = getNexusTaskOperation(pollResponse);
+        if (!operation.isEmpty()) {
+          MDC.put(LoggerTag.NEXUS_OPERATION, operation);
+          metricsScope =
+              metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
+        }
+        slotSupplier.markSlotUsed(
+            new NexusSlotInfo(
+                service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
+            task.getPermit());
+
         taskFailed = handleNexusTask(task, metricsScope);
       } catch (Throwable e) {
         taskFailed = true;
