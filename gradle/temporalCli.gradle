@@ -1,0 +1,287 @@
+import java.util.concurrent.TimeUnit
+import org.gradle.api.GradleException
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.logging.Logging
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.services.BuildService
+import org.gradle.api.services.BuildServiceParameters
+import org.gradle.api.tasks.JavaExec
+import org.gradle.api.tasks.testing.Test
+
+abstract class TemporalCliServerService
+        implements BuildService<TemporalCliServerService.Parameters>, AutoCloseable {
+    interface Parameters extends BuildServiceParameters {
+        RegularFileProperty getExecutable()
+
+        DirectoryProperty getWorkingDirectory()
+
+        ListProperty<String> getArguments()
+
+        Property<String> getReadinessUrl()
+    }
+
+    private static final def logger = Logging.getLogger(TemporalCliServerService)
+    private Process serverProcess
+
+    synchronized void start() {
+        if (serverProcess != null && serverProcess.isAlive()) {
+            return
+        }
+
+        File executable = parameters.executable.get().asFile
+        File workingDirectory = parameters.workingDirectory.get().asFile
+        workingDirectory.mkdirs()
+        cleanDatabase(workingDirectory)
+        File logFile = new File(workingDirectory, 'server.log')
+        logFile.delete()
+
+        logger.lifecycle("Starting the Temporal CLI dev server. Output: ${logFile}")
+        serverProcess = new ProcessBuilder(
+                [executable.absolutePath] + parameters.arguments.get())
+                .directory(workingDirectory)
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.to(logFile))
+                .start()
+
+        try {
+            waitUntilReady(logFile)
+        } catch (Throwable failure) {
+            stopServer(workingDirectory)
+            throw failure
+        }
+    }
+
+    private void waitUntilReady(File logFile) {
+        Process readinessCheck = new ProcessBuilder(
+                'curl',
+                '--fail', '--silent', '--show-error',
+                '--retry', '60',
+                '--retry-all-errors',
+                '--retry-connrefused',
+                '--retry-delay', '1',
+                '--retry-max-time', '60',
+                '--connect-timeout', '1',
+                '--max-time', '2',
+                parameters.readinessUrl.get())
+                .redirectErrorStream(true)
+                .start()
+        String readinessOutput = readinessCheck.inputStream.getText('UTF-8').trim()
+        if (readinessCheck.waitFor() != 0) {
+            throw readinessFailure(
+                    "Temporal CLI readiness check failed: ${readinessOutput}", logFile)
+        }
+        if (!serverProcess.isAlive()) {
+            throw readinessFailure(
+                    "The Temporal CLI dev server exited with code ${serverProcess.exitValue()}.",
+                    logFile)
+        }
+        logger.lifecycle("Temporal CLI dev server is ready at ${parameters.readinessUrl.get()}.")
+    }
+
+    private static GradleException readinessFailure(String message, File logFile) {
+        String serverOutput = logFile.isFile()
+                ? logFile.readLines('UTF-8').takeRight(200).join(System.lineSeparator())
+                : '<no server output>'
+        return new GradleException(
+                "${message}\nTemporal CLI output (${logFile}):\n${serverOutput}")
+    }
+
+    @Override
+    synchronized void close() {
+        stopServer(parameters.workingDirectory.get().asFile)
+    }
+
+    private void stopServer(File workingDirectory) {
+        if (serverProcess != null && serverProcess.isAlive()) {
+            logger.lifecycle('Stopping the Temporal CLI dev server.')
+            serverProcess.destroy()
+            if (!serverProcess.waitFor(10, TimeUnit.SECONDS)) {
+                serverProcess.destroyForcibly()
+                serverProcess.waitFor(10, TimeUnit.SECONDS)
+            }
+        }
+        serverProcess = null
+        cleanDatabase(workingDirectory)
+    }
+
+    private static void cleanDatabase(File workingDirectory) {
+        ['temporal.sqlite', 'temporal.sqlite-shm', 'temporal.sqlite-wal'].each { name ->
+            File databaseFile = new File(workingDirectory, name)
+            if (databaseFile.exists() && !databaseFile.delete()) {
+                logger.warn("Unable to delete Temporal CLI database file ${databaseFile}.")
+            }
+        }
+    }
+}
+
+ext.temporalCliVersion = '1.7.2-standalone-nexus-operations'
+
+def osName = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+def temporalCliOs = osName.contains('mac') || osName.contains('darwin')
+        ? 'darwin'
+        : osName.contains('windows') ? 'windows' : 'linux'
+def architecture = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+def temporalCliArch = architecture in ['arm64', 'aarch64'] ? 'arm64' : 'amd64'
+def temporalCliExecutableName = temporalCliOs == 'windows' ? 'temporal.exe' : 'temporal'
+def temporalCliArchiveExtension = temporalCliOs == 'windows' ? 'zip' : 'tar.gz'
+def temporalCliClassifier = "${temporalCliOs}_${temporalCliArch}"
+def temporalCliCache = file(
+        "${gradle.gradleUserHomeDir}/caches/temporal-cli/${temporalCliVersion}/${temporalCliClassifier}")
+def temporalCliExecutable = file("${temporalCliCache}/${temporalCliExecutableName}")
+def temporalCliArchive = file(
+        "${temporalCliCache}/temporal_cli_${temporalCliVersion}_${temporalCliClassifier}.${temporalCliArchiveExtension}")
+def temporalCliUrl =
+        "https://github.com/temporalio/cli/releases/download/v${temporalCliVersion}/${temporalCliArchive.name}"
+
+def downloadTemporalCliArchive = tasks.register('downloadTemporalCliArchive', Exec) {
+    onlyIf {
+        !temporalCliExecutable.isFile() && !temporalCliArchive.isFile()
+    }
+    doFirst {
+        if (gradle.startParameter.offline) {
+            throw new GradleException(
+                    "Temporal CLI ${temporalCliVersion} for ${temporalCliClassifier} is not cached "
+                            + "at ${temporalCliExecutable}. Run './gradlew prepareTemporalCliTests' "
+                            + "before using Gradle offline.")
+        }
+        temporalCliCache.mkdirs()
+    }
+    commandLine(
+            'curl', '--fail', '--location', '--retry', '3',
+            '--output', temporalCliArchive.absolutePath, temporalCliUrl)
+    outputs.file(temporalCliArchive)
+}
+
+def extractTemporalCli = tasks.register('extractTemporalCli', Exec) {
+    dependsOn(downloadTemporalCliArchive)
+    onlyIf {
+        !temporalCliExecutable.isFile()
+    }
+    doFirst {
+        temporalCliCache.mkdirs()
+    }
+    commandLine(
+            'tar', '-xf', temporalCliArchive.absolutePath,
+            '-C', temporalCliCache.absolutePath, temporalCliExecutableName)
+    outputs.file(temporalCliExecutable)
+}
+
+def downloadTemporalCli = tasks.register('downloadTemporalCli') {
+    group = 'verification'
+    description = "Downloads and caches Temporal CLI ${temporalCliVersion} for this platform."
+    dependsOn(extractTemporalCli)
+    doLast {
+        if (!temporalCliExecutable.isFile()) {
+            throw new GradleException(
+                    "Temporal CLI archive did not contain ${temporalCliExecutableName}.")
+        }
+        if (temporalCliOs != 'windows' && !temporalCliExecutable.setExecutable(true)) {
+            throw new GradleException("Unable to make ${temporalCliExecutable} executable.")
+        }
+    }
+}
+
+def temporalServiceAddress = 'localhost:7233'
+def temporalCliServerArguments = [
+        'server', 'start-dev',
+        '--headless',
+        '--port', '7233',
+        '--http-port', '7243',
+        '--namespace', 'UnitTest',
+        '--db-filename', 'temporal.sqlite',
+        '--sqlite-pragma', 'journal_mode=WAL',
+        '--sqlite-pragma', 'synchronous=OFF',
+        '--search-attribute', 'CustomKeywordField=Keyword',
+        '--search-attribute', 'CustomStringField=Text',
+        '--search-attribute', 'CustomTextField=Text',
+        '--search-attribute', 'CustomIntField=Int',
+        '--search-attribute', 'CustomDatetimeField=Datetime',
+        '--search-attribute', 'CustomDoubleField=Double',
+        '--search-attribute', 'CustomBoolField=Bool',
+        '--dynamic-config-value', 'system.enableActivityEagerExecution=true',
+        '--dynamic-config-value', 'history.MaxBufferedQueryCount=10000',
+        '--dynamic-config-value', 'frontend.workerVersioningDataAPIs=true',
+        '--dynamic-config-value', 'history.enableRequestIdRefLinks=true',
+        '--dynamic-config-value', 'frontend.WorkerHeartbeatsEnabled=true',
+        '--dynamic-config-value', 'frontend.ListWorkersEnabled=true',
+        '--dynamic-config-value', 'frontend.enableCancelWorkerPollsOnShutdown=true',
+        '--dynamic-config-value',
+        'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]',
+        '--dynamic-config-value',
+        'callback.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]',
+        '--dynamic-config-value', 'frontend.activityAPIsEnabled=true',
+        '--dynamic-config-value', 'activity.enableStandalone=true',
+        '--dynamic-config-value', 'activity.startDelayEnabled=true',
+        '--dynamic-config-value', 'nexusoperation.enableStandalone=true',
+        '--dynamic-config-value', 'history.enableChasm=true',
+        '--dynamic-config-value', 'history.enableCHASMSignalBacklinks=true',
+        '--dynamic-config-value', 'history.enableTransitionHistory=true',
+        '--dynamic-config-value', 'frontend.enableCancelWorkerPollsOnShutdown=true',
+        '--dynamic-config-value', 'frontend.workerCommandsEnabled=true',
+        '--dynamic-config-value', 'system.enableCancelActivityWorkerCommand=true'
+]
+
+def temporalCliServer = gradle.sharedServices.registerIfAbsent(
+        'temporalCliServer', TemporalCliServerService) {
+    parameters.executable.fileValue(temporalCliExecutable)
+    parameters.workingDirectory.set(layout.buildDirectory.dir('temporal-cli/server'))
+    parameters.arguments.set(temporalCliServerArguments)
+    parameters.readinessUrl.set('http://127.0.0.1:7243/api/v1/namespaces/UnitTest')
+}
+
+def prepareTemporalCliTests = tasks.register('prepareTemporalCliTests') {
+    group = 'verification'
+    description =
+            'Caches Temporal CLI and all build inputs required by the CLI-backed test suites.'
+    dependsOn(downloadTemporalCli)
+}
+
+gradle.projectsEvaluated {
+    List<Test> standardTestTasks = subprojects.collect { subproject ->
+        subproject.tasks.findByName('test')
+    }.findAll { task -> task instanceof Test } as List<Test>
+
+    prepareTemporalCliTests.configure {
+        dependsOn standardTestTasks.collect { testTask ->
+            testTask.project.tasks.named('testClasses')
+        }
+        dependsOn project(':temporal-sdk').tasks.named('compileJava17Java')
+        dependsOn project(':temporal-sdk').tasks.named('compileJava21Java')
+        dependsOn project(':temporal-sdk').tasks.named('virtualThreadTestsClasses')
+        doLast {
+            standardTestTasks.each { testTask -> testTask.classpath.files }
+            project(':temporal-sdk').tasks.named('virtualThreadTests', Test).get().classpath.files
+        }
+    }
+
+    if (!project.hasProperty('useTemporalCli')
+            || project.property('useTemporalCli').toString() == 'false') {
+        return
+    }
+
+    allprojects.each { candidateProject ->
+        candidateProject.tasks.withType(Test).configureEach {
+            dependsOn(downloadTemporalCli)
+            usesService(temporalCliServer)
+            environment('TEMPORAL_SERVICE_ADDRESS', temporalServiceAddress)
+            environment('USE_EXTERNAL_SERVICE', 'true')
+            doFirst {
+                temporalCliServer.get().start()
+            }
+        }
+
+        candidateProject.tasks.withType(JavaExec).matching {
+            it.name == 'registerNamespace'
+        }.configureEach {
+            dependsOn(downloadTemporalCli)
+            usesService(temporalCliServer)
+            environment('TEMPORAL_SERVICE_ADDRESS', temporalServiceAddress)
+            environment('USE_EXTERNAL_SERVICE', 'true')
+            doFirst {
+                temporalCliServer.get().start()
+            }
+        }
+    }
+}
