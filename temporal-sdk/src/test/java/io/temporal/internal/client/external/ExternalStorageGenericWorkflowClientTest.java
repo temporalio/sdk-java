@@ -5,11 +5,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import io.grpc.Deadline;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.workflowservice.v1.ExecuteMultiOperationRequest;
+import io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionResponse;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
@@ -18,10 +23,12 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 
 public class ExternalStorageGenericWorkflowClientTest {
@@ -53,6 +60,42 @@ public class ExternalStorageGenericWorkflowClientTest {
     assertEquals(
         Collections.singletonList(
             new StorageDriverActivityInfo("test-namespace", "activity-id", null, "activity-type")),
+        driver.targets);
+  }
+
+  @Test
+  public void multiOperationIncludesWorkflowTargetInfo() {
+    GenericWorkflowClient next = mock(GenericWorkflowClient.class);
+    when(next.executeMultiOperation(any(), any()))
+        .thenReturn(ExecuteMultiOperationResponse.getDefaultInstance());
+    CapturingDriver driver = new CapturingDriver();
+    ExternalStorageGenericWorkflowClient client =
+        new ExternalStorageGenericWorkflowClient(
+            next,
+            ExternalStorageMessageConverter.create(
+                ExternalStorageOptions.newBuilder()
+                    .setDriver(driver)
+                    .setPayloadSizeThreshold(0)
+                    .build(),
+                1),
+            "test-namespace");
+    ExecuteMultiOperationRequest request =
+        ExecuteMultiOperationRequest.newBuilder()
+            .addOperations(
+                ExecuteMultiOperationRequest.Operation.newBuilder()
+                    .setStartWorkflow(
+                        StartWorkflowExecutionRequest.newBuilder()
+                            .setWorkflowId("workflow-id")
+                            .setWorkflowType(WorkflowType.newBuilder().setName("workflow-type"))
+                            .setInput(
+                                Payloads.newBuilder().addPayloads(Payload.getDefaultInstance()))))
+            .build();
+
+    client.executeMultiOperation(request, Deadline.after(1, TimeUnit.SECONDS));
+
+    assertEquals(
+        Collections.singletonList(
+            new StorageDriverWorkflowInfo("test-namespace", "workflow-id", null, "workflow-type")),
         driver.targets);
   }
 
