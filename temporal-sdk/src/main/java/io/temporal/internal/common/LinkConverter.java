@@ -108,7 +108,7 @@ public class LinkConverter {
           .setType(workflowLinkType)
           .build();
     } catch (Exception e) {
-      log.error("Failed to encode Nexus link URL", e);
+      log.error("Failed to convert WorkflowLink {} to NexusLink", w, e);
       return null;
     }
   }
@@ -218,7 +218,7 @@ public class LinkConverter {
               .setWorkflowId(workflowID)
               .setRunId(runID));
     } catch (Exception e) {
-      log.error("Failed to parse Nexus link URL", e);
+      log.error("Failed to convert NexusLink {} to WorkflowLink", nexusLink, e);
       return null;
     }
     return link.build();
