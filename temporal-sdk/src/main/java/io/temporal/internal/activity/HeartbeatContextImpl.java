@@ -341,7 +341,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   private StorageDriverTargetInfo activityStorageTarget() {
     return new StorageDriverActivityInfo(
-        namespace, info.getActivityId(), info.getWorkflowRunId(), info.getActivityType());
+        namespace, info.getActivityId(), info.getActivityRunId(), info.getActivityType());
   }
 
   private void sendHeartbeatRequest(Object details) {

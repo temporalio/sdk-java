@@ -16,9 +16,11 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowReplayer;
@@ -72,6 +74,15 @@ public class ExternalStoragePipelineTest {
     assertEquals("echo: hello", workflow.lastResult());
     assertTrue("expected the driver to have stored payloads", driver.stores.get() > 0);
     assertTrue("expected the driver to have restored payloads", driver.retrieves.get() > 0);
+    assertTrue(
+        "expected an activity storage target",
+        driver.targets.stream().anyMatch(StorageDriverActivityInfo.class::isInstance));
+    assertTrue(
+        "workflow run IDs must not be used as activity run IDs",
+        driver.targets.stream()
+            .filter(StorageDriverActivityInfo.class::isInstance)
+            .map(StorageDriverActivityInfo.class::cast)
+            .allMatch(target -> target.getRunId() == null));
   }
 
   @Test
@@ -195,6 +206,8 @@ public class ExternalStoragePipelineTest {
   private static final class InMemoryDriver implements StorageDriver {
     private final String name;
     private final Map<String, Payload> objects = new ConcurrentHashMap<>();
+    private final List<StorageDriverTargetInfo> targets =
+        Collections.synchronizedList(new ArrayList<>());
     final AtomicInteger stores = new AtomicInteger();
     final AtomicInteger retrieves = new AtomicInteger();
     private final AtomicInteger counter = new AtomicInteger();
@@ -216,6 +229,7 @@ public class ExternalStoragePipelineTest {
     @Override
     public CompletableFuture<List<StorageDriverClaim>> store(
         StorageDriverStoreContext context, List<Payload> payloads) {
+      targets.add(context.getTarget());
       List<StorageDriverClaim> claims = new ArrayList<>(payloads.size());
       for (Payload payload : payloads) {
         stores.incrementAndGet();
