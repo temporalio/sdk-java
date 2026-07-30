@@ -15,6 +15,15 @@ on:
       - "release_[0-9]+_[0-9]+_x"
     paths:
       - "releases/v*"
+  pull_request:
+    branches:
+      - main
+      - "releases/*"
+      - "v[0-9]+.[0-9]+.x"
+      - "[0-9]+.[0-9]+.x"
+      - "release_[0-9]+_[0-9]+_x"
+    paths:
+      - "releases/v*"
 
 permissions:
   contents: read
@@ -40,13 +49,14 @@ jobs:
       - name: Resolve release metadata
         id: metadata
         env:
-          BASE_SHA: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: .github/scripts/release/resolve-release-metadata.sh "$BASE_SHA" "$HEAD_SHA" "$GITHUB_OUTPUT"
 
       - name: Summarize release candidate
         env:
           COMMIT: ${{ steps.metadata.outputs.commit }}
+          EVENT_NAME: ${{ github.event_name }}
           TAG: ${{ steps.metadata.outputs.tag }}
         run: |
           {
@@ -55,7 +65,11 @@ jobs:
             echo "- Tag: \`$TAG\`"
             echo "- Commit: \`$COMMIT\`"
             echo
-            echo "No release will be published until the protected \`release\` environment is approved."
+            if [[ "$EVENT_NAME" == "pull_request" ]]; then
+              echo "This preflight builds and packages the candidate but cannot publish it."
+            else
+              echo "No release will be published until the protected \`release\` environment is approved."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   validate_release_version:
@@ -221,6 +235,7 @@ jobs:
 
   publish_release:
     name: Publish release
+    if: github.event_name == 'push'
     needs: [release_metadata, validate_release_version, package_native_images]
     runs-on: ubuntu-latest
     timeout-minutes: 150

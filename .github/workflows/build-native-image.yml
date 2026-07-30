@@ -100,17 +100,29 @@ jobs:
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'linux'
         run: |
-          version_args=()
           if [[ -n "$RELEASE_VERSION" ]]; then
-            version_args+=("-PreleaseVersion=$RELEASE_VERSION")
+            ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild :temporal-test-server:nativeCompile
+          else
+            ./gradlew -PnativeBuild :temporal-test-server:nativeCompile
           fi
-          ./gradlew "${version_args[@]}" -PnativeBuild :temporal-test-server:nativeCompile
 
       - name: Build native test server (Docker non-musl)
         if: matrix.os_family == 'linux' && matrix.musl == false
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image
+          for attempt in 1 2 3; do
+            : > "$IMAGE_ID_FILE"
+            if docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "::error::Docker build failed after $attempt attempts."
+              exit 1
+            fi
+            delay=$((attempt * 20))
+            echo "::warning::Docker build attempt $attempt failed; retrying in ${delay}s."
+            sleep "$delay"
+          done
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           version_arg=""
           if [[ -n "$RELEASE_VERSION" ]]; then
@@ -125,7 +137,19 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == true
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image-musl
+          for attempt in 1 2 3; do
+            : > "$IMAGE_ID_FILE"
+            if docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image-musl; then
+              break
+            fi
+            if [[ "$attempt" -eq 3 ]]; then
+              echo "::error::Docker build failed after $attempt attempts."
+              exit 1
+            fi
+            delay=$((attempt * 20))
+            echo "::warning::Docker build attempt $attempt failed; retrying in ${delay}s."
+            sleep "$delay"
+          done
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           version_arg=""
           if [[ -n "$RELEASE_VERSION" ]]; then
