@@ -24,6 +24,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 
 /** Tests external storage message conversion. */
@@ -156,6 +162,91 @@ public class ExternalStorageMessageTransformerTest {
         payloads.add(objects.get(claim.getClaimData().get("key")));
       }
       return CompletableFuture.completedFuture(payloads);
+    }
+  }
+
+  private static final class ControlledDriver implements StorageDriver {
+    private final List<PendingStore> pending = new ArrayList<>();
+    private final AtomicInteger started = new AtomicInteger();
+
+    @Override
+    public String getName() {
+      return "controlled";
+    }
+
+    @Override
+    public String getType() {
+      return "test.controlled";
+    }
+
+    @Override
+    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
+        StorageDriverStoreContext context, List<Payload> payloads) {
+      started.incrementAndGet();
+      CompletableFuture<List<StorageDriverClaim>> future = new CompletableFuture<>();
+      pending.add(new PendingStore(future, payloads.size()));
+      return future;
+    }
+
+    synchronized int pendingCount() {
+      return pending.size();
+    }
+
+    synchronized void completeNext() {
+      PendingStore store = pending.remove(0);
+      List<StorageDriverClaim> claims = new ArrayList<>(store.payloadCount);
+      for (int i = 0; i < store.payloadCount; i++) {
+        claims.add(new StorageDriverClaim(Collections.emptyMap()));
+      }
+      store.future.complete(claims);
+    }
+
+    @Override
+    public CompletableFuture<List<Payload>> retrieve(
+        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      throw new UnsupportedOperationException();
+    }
+  }
+
+  private static final class PendingStore {
+    private final CompletableFuture<List<StorageDriverClaim>> future;
+    private final int payloadCount;
+
+    private PendingStore(CompletableFuture<List<StorageDriverClaim>> future, int payloadCount) {
+      this.future = future;
+      this.payloadCount = payloadCount;
+    }
+  }
+
+  private static final class InterruptibleDriver implements StorageDriver {
+    private final CountDownLatch started = new CountDownLatch(1);
+    private final CompletableFuture<List<StorageDriverClaim>> future = new CompletableFuture<>();
+
+    @Override
+    public String getName() {
+      return "interruptible";
+    }
+
+    @Override
+    public String getType() {
+      return "test.interruptible";
+    }
+
+    @Override
+    public CompletableFuture<List<StorageDriverClaim>> store(
+        StorageDriverStoreContext context, List<Payload> payloads) {
+      started.countDown();
+      return future;
+    }
+
+    void complete() {
+      future.complete(Collections.singletonList(new StorageDriverClaim(Collections.emptyMap())));
+    }
+
+    @Override
+    public CompletableFuture<List<Payload>> retrieve(
+        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      throw new UnsupportedOperationException();
     }
   }
 }
