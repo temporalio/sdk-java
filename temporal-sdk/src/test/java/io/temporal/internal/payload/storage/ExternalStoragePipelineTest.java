@@ -13,11 +13,15 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
+import io.temporal.testing.TestEnvironmentOptions;
+import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
@@ -94,6 +98,47 @@ public class ExternalStoragePipelineTest {
 
     Exception e = assertThrows(Exception.class, () -> stub.getResult(String.class));
     assertTrue(e.toString(), chainContains(e, "[TMPRL-1105]"));
+  }
+
+  @Test
+  public void offlineReplayerResolvesReferences() throws Exception {
+    String workflowId = "extstore-replay-" + testWorkflowRule.getTaskQueue();
+    EchoWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                EchoWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setWorkflowId(workflowId)
+                    .build());
+    workflow.run("hello");
+
+    WorkflowClient withoutStorage =
+        WorkflowClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            WorkflowClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                .build());
+    WorkflowExecutionHistory rawHistory = withoutStorage.fetchHistory(workflowId);
+
+    TestWorkflowEnvironment replayEnv =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setWorkflowClientOptions(
+                    WorkflowClientOptions.newBuilder()
+                        .setExternalStorage(
+                            ExternalStorageOptions.newBuilder()
+                                .setDriver(driver)
+                                .setPayloadSizeThreshold(0)
+                                .build())
+                        .build())
+                .build());
+    try {
+      WorkflowReplayer.replayWorkflowExecution(rawHistory, replayEnv, EchoWorkflowImpl.class);
+    } finally {
+      replayEnv.close();
+    }
   }
 
   private static boolean chainContains(Throwable t, String needle) {
