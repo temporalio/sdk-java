@@ -8,6 +8,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -72,10 +73,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
     }
 
     if (payload.getExternalPayloadsCount() > 0) {
-      throw new DataConverterException(
-          "[TMPRL-1105] Encountered an external-storage reference payload but external storage is not "
-              + "configured. Configure WorkflowClientOptions.Builder.setExternalStorage(...) with a "
-              + "driver able to retrieve it.");
+      throw new ExternalStorageNotConfiguredException();
     }
 
     try {
