@@ -22,6 +22,7 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.common.NexusUtil;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.internal.worker.ShutdownManager;
@@ -136,8 +137,18 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               (Throwable) null);
       }
     } catch (HandlerException e) {
+      ExternalStorageNotConfiguredException externalStorageFailure =
+          ExternalStorageNotConfiguredException.find(e);
+      if (externalStorageFailure != null) {
+        throw externalStorageFailure;
+      }
       return new Result(e);
     } catch (Throwable e) {
+      ExternalStorageNotConfiguredException externalStorageFailure =
+          ExternalStorageNotConfiguredException.find(e);
+      if (externalStorageFailure != null) {
+        throw externalStorageFailure;
+      }
       return new Result(
           new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e));
     } finally {

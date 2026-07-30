@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import org.junit.Test;
 
 /**
@@ -27,11 +28,12 @@ public class ExternalStorageReferenceGuardTest {
                 Payload.ExternalPayloadDetails.newBuilder().setSizeBytes(1024).build())
             .build();
 
-    DataConverterException e =
+    ExternalStorageNotConfiguredException e =
         assertThrows(
-            DataConverterException.class,
+            ExternalStorageNotConfiguredException.class,
             () -> dataConverter.fromPayload(reference, String.class, String.class));
     assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL-1105]"));
+    assertTrue(ExternalStorageNotConfiguredException.find(new RuntimeException(e)) == e);
   }
 
   @Test

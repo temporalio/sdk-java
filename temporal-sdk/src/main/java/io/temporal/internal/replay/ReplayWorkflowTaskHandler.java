@@ -24,6 +24,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.worker.*;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
@@ -159,6 +160,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         if (!isFullHistory(workflowTask)) {
           resetStickyTaskQueue(execution);
         }
+      }
+
+      ExternalStorageNotConfiguredException externalStorageFailure =
+          ExternalStorageNotConfiguredException.find(e);
+      if (externalStorageFailure != null) {
+        throw externalStorageFailure;
       }
 
       if (directQuery) {
