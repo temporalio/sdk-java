@@ -395,6 +395,12 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(3, desc.getPriority().getPriorityKey());
     // start_delay isn't surfaced by ActivityExecutionDescription today; read via raw info.
     assertEquals(500, desc.getRawInfo().getStartDelay().getSeconds());
+    // execution_time (api#807 + temporal#11017): reflects the updated start_delay. Server
+    // recomputes it on UpdateActivityOptions, so it lands at schedule_time + 500s (the new value),
+    // not schedule_time + 300s (the value at start).
+    assertEquals(
+        desc.getScheduledTime().plus(Duration.ofSeconds(500)).getEpochSecond(),
+        desc.getExecutionTime().getEpochSecond());
 
     handle.terminate("cleanup");
   }

@@ -126,6 +126,17 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         : null;
   }
 
+  /**
+   * Time the first activity task was made available for dispatch. Computed as {@code schedule_time
+   * + start_delay}; equals {@code schedule_time} when no start delay is set.
+   */
+  @Nullable
+  public Instant getExecutionTime() {
+    return info.hasExecutionTime()
+        ? ProtobufTimeUtils.toJavaInstant(info.getExecutionTime())
+        : null;
+  }
+
   /** Failure details from the last failed attempt. {@code null} if no failure has occurred. */
   @Nullable
   public Exception getLastFailure() {
