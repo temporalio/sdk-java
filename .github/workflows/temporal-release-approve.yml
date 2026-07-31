@@ -1,0 +1,58 @@
+name: Approve Temporal-backed release
+run-name: Approve the exact pending sdk-java release candidate
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+  TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+  RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+
+jobs:
+  approve:
+    name: Submit approval Update
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate trusted automation pin
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify trusted checkout
+        run: '[[ "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Approve the only exact pending release
+        id: approve
+        env:
+          # This token can read the fixed release-manager team and Actions runs. It cannot publish.
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+        run: ./gradlew -p .github/release-automation run --args="approve"
+      - name: Summarize approval
+        env:
+          RELEASE_DIGEST: ${{ steps.approve.outputs.release_digest }}
+          RELEASE_TAG: ${{ steps.approve.outputs.tag }}
+          RUN_ID: ${{ steps.approve.outputs.run_id }}
+          WORKFLOW_ID: ${{ steps.approve.outputs.workflow_id }}
+        run: |
+          {
+            echo "## Release approved"
+            echo
+            echo "- Tag: \`$RELEASE_TAG\`"
+            echo "- Release digest: \`$RELEASE_DIGEST\`"
+            echo "- Temporal Workflow: \`$WORKFLOW_ID\`"
+            echo "- Temporal Run: \`$RUN_ID\`"
+          } >>"$GITHUB_STEP_SUMMARY"

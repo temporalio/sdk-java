@@ -1,0 +1,174 @@
+name: Start Temporal-backed release candidate
+run-name: Prepare sdk-java release candidate at ${{ github.sha }}
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  push:
+    branches:
+      - main
+      - "releases/*"
+      - "v[0-9]+.[0-9]+.x"
+      - "[0-9]+.[0-9]+.x"
+      - "release_[0-9]+_[0-9]+_x"
+    paths:
+      - "releases/v*"
+
+permissions:
+  contents: read
+
+env:
+  TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+  TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
+
+jobs:
+  start:
+    name: Freeze identity and start Candidate Workflow
+    runs-on: ubuntu-latest
+    outputs:
+      candidate_digest: ${{ steps.start.outputs.candidate_digest }}
+      commit: ${{ steps.metadata.outputs.commit }}
+      task_queue: ${{ steps.start.outputs.task_queue }}
+    steps:
+      - name: Validate trusted automation pin
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
+
+      - name: Checkout immutable release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ github.sha }}
+
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+
+      - name: Verify trusted checkout
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+
+      - name: Resolve immutable candidate
+        id: metadata
+        working-directory: source
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          RELEASE_COMMIT: ${{ github.sha }}
+        run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+
+      - name: Start or attach to Candidate Workflow
+        id: start
+        working-directory: automation
+        env:
+          CANDIDATE_FILE: ${{ steps.metadata.outputs.candidate_file }}
+        run: ./gradlew -p .github/release-automation run --args="start-candidate $CANDIDATE_FILE"
+
+  candidate_worker:
+    name: Candidate orchestrator Worker
+    needs: start
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify trusted checkout
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Poll only this candidate's Workflow Task Queue
+        env:
+          TASK_QUEUE: ${{ needs.start.outputs.task_queue }}
+        run: ./gradlew -p .github/release-automation run --args="worker candidate $TASK_QUEUE"
+
+  build_workers:
+    name: Build Worker (${{ matrix.platform }})
+    needs: start
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-amd64-musl
+            runner: ubuntu-latest
+            distribution: temurin
+          - platform: linux-amd64
+            runner: ubuntu-latest
+            distribution: temurin
+          - platform: macos-amd64
+            runner: macos-15-intel
+            distribution: graalvm
+          - platform: macos-arm64
+            runner: macos-latest
+            distribution: graalvm
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+            distribution: temurin
+          - platform: windows-amd64
+            runner: windows-latest
+            distribution: graalvm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout immutable release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ needs.start.outputs.commit }}
+          submodules: recursive
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify trusted checkout
+        working-directory: automation
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: ${{ matrix.distribution }}
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Obtain artifact-store credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
+      - name: Poll only this candidate's platform Task Queue
+        working-directory: automation
+        env:
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
+        run: |
+          digest="${{ needs.start.outputs.candidate_digest }}"
+          TASK_QUEUE="sdk-java-release-candidate-${digest:0:32}-build-${{ matrix.platform }}"
+          ./gradlew -p .github/release-automation run --args="worker build $TASK_QUEUE"
