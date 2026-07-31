@@ -17,6 +17,8 @@ dependencies {
     api project(':temporal-sdk')
     api project(':temporal-test-server')
 
+    implementation 'org.apache.commons:commons-compress:1.28.0'
+
     // This dependency is included in temporal-sdk module as optional with compileOnly scope.
     // To make things easier for users, it's helpful for the testing module to bring this dependency
     // transitively as most users work with history jsons in tests.

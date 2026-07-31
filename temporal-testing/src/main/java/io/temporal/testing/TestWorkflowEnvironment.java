@@ -5,6 +5,7 @@ import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.OperatorServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -86,6 +87,77 @@ public interface TestWorkflowEnvironment extends Closeable {
   /** Creates the environment with supplied {@code options}. */
   static TestWorkflowEnvironment newInstance(TestEnvironmentOptions options) {
     return new TestWorkflowEnvironmentInternal(options);
+  }
+
+  /**
+   * Starts a local Temporal dev server and returns an environment that owns it.
+   *
+   * <p>Unlike the in-memory test server, a local dev-server environment does not support time
+   * skipping.
+   *
+   * <pre>{@code
+   * try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.startLocal()) {
+   *   Worker worker = environment.newWorker("test-task-queue");
+   *   // Register implementations and run workflows against the local dev server.
+   * }
+   * }</pre>
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal() {
+    return startLocal(
+        TestEnvironmentOptions.getDefaultInstance(), TemporalDevServerOptions.getDefaultInstance());
+  }
+
+  /**
+   * Starts a local Temporal dev server using the environment namespace and returns an environment
+   * that owns it. Local dev-server environments do not support time skipping.
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal(TestEnvironmentOptions testOptions) {
+    return startLocal(testOptions, TemporalDevServerOptions.getDefaultInstance());
+  }
+
+  /**
+   * Starts a local Temporal dev server with the supplied server options. Local dev-server
+   * environments do not support time skipping.
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal(TemporalDevServerOptions serverOptions) {
+    return startLocal(TestEnvironmentOptions.getDefaultInstance(), serverOptions);
+  }
+
+  /**
+   * Starts a local Temporal dev server and returns an environment that owns it.
+   *
+   * <p>The namespace in {@code testOptions} is authoritative and is created by the dev server.
+   * Local dev-server environments do not support time skipping.
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal(
+      TestEnvironmentOptions testOptions, TemporalDevServerOptions serverOptions) {
+    if (testOptions == null) {
+      testOptions = TestEnvironmentOptions.getDefaultInstance();
+    }
+    TestEnvironmentOptions validated =
+        TestEnvironmentOptions.newBuilder(testOptions).validateAndBuildWithDefaults();
+    String namespace = validated.getWorkflowClientOptions().getNamespace();
+    TemporalDevServer server = TemporalDevServer.start(namespace, serverOptions);
+    try {
+      TestEnvironmentOptions localOptions =
+          TestEnvironmentOptions.newBuilder(validated)
+              .setUseExternalService(true)
+              .setUseTimeskipping(false)
+              .setTarget(server.getTarget())
+              .build();
+      return new TestWorkflowEnvironmentInternal(localOptions, server);
+    } catch (RuntimeException | Error failure) {
+      try {
+        server.close();
+      } catch (RuntimeException | Error cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
+    }
   }
 
   /**

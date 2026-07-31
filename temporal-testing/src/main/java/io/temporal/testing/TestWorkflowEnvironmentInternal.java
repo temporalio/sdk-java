@@ -49,8 +49,16 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final WorkerFactory workerFactory;
   private final @Nullable TimeLockingInterceptor timeLockingInterceptor;
   private final IdempotentTimeLocker constructorTimeLock;
+  private final @Nullable TemporalDevServer ownedDevServer;
 
   public TestWorkflowEnvironmentInternal(@Nullable TestEnvironmentOptions testEnvironmentOptions) {
+    this(testEnvironmentOptions, null);
+  }
+
+  TestWorkflowEnvironmentInternal(
+      @Nullable TestEnvironmentOptions testEnvironmentOptions,
+      @Nullable TemporalDevServer ownedDevServer) {
+    this.ownedDevServer = ownedDevServer;
     if (testEnvironmentOptions == null) {
       testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     }
@@ -299,24 +307,49 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public void close() {
-    if (testServiceStubs != null) {
-      testServiceStubs.shutdownNow();
+    RuntimeException failure = null;
+    try {
+      if (testServiceStubs != null) {
+        failure = runCleanup(failure, testServiceStubs::shutdownNow);
+      }
+      failure = runCleanup(failure, operatorServiceStubs::shutdownNow);
+      failure = runCleanup(failure, workerFactory::shutdownNow);
+      failure = runCleanup(failure, () -> workerFactory.awaitTermination(10, TimeUnit.SECONDS));
+      if (constructorTimeLock != null) {
+        failure = runCleanup(failure, constructorTimeLock::unlockTimeSkipping);
+      }
+      failure = runCleanup(failure, workflowServiceStubs::shutdownNow);
+      if (testServiceStubs != null) {
+        failure = runCleanup(failure, () -> testServiceStubs.awaitTermination(1, TimeUnit.SECONDS));
+      }
+      failure =
+          runCleanup(failure, () -> operatorServiceStubs.awaitTermination(1, TimeUnit.SECONDS));
+      failure =
+          runCleanup(failure, () -> workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS));
+      if (inProcessServer != null) {
+        failure = runCleanup(failure, inProcessServer::close);
+      }
+    } finally {
+      if (ownedDevServer != null) {
+        failure = runCleanup(failure, ownedDevServer::close);
+      }
     }
-    operatorServiceStubs.shutdownNow();
-    workerFactory.shutdownNow();
-    workerFactory.awaitTermination(10, TimeUnit.SECONDS);
-    if (constructorTimeLock != null) {
-      constructorTimeLock.unlockTimeSkipping();
+    if (failure != null) {
+      throw failure;
     }
-    workflowServiceStubs.shutdownNow();
-    if (testServiceStubs != null) {
-      testServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+  }
+
+  private static RuntimeException runCleanup(
+      @Nullable RuntimeException previousFailure, Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (RuntimeException failure) {
+      if (previousFailure == null) {
+        return failure;
+      }
+      previousFailure.addSuppressed(failure);
     }
-    operatorServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
-    workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
-    if (inProcessServer != null) {
-      inProcessServer.close();
-    }
+    return previousFailure;
   }
 
   @Override

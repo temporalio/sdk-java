@@ -82,8 +82,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
-      - name: Prepare CLI-backed tests
-        run: ./gradlew --no-daemon prepareTemporalCliTests -x spotlessCheck -x spotlessApply -x spotlessJava
+      - name: Prepare dev-server tests
+        run: ./gradlew --no-daemon prepareDevServerTests
 
       # Can't actually run tests against Java 8 because Mockito 5 requires Java 11+.
       # We therefore have to rely on the fact that the code has been compiled with
@@ -92,7 +92,7 @@ jobs:
       - name: Run unit tests (Java 11)
         env:
           USER: unittest
-        run: ./gradlew --no-daemon --offline test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=11 -PuseTemporalCli
+        run: ./gradlew --no-daemon --offline test -PtestJavaVersion=11 -PtestServer=dev-server
 
       - name: Run Jackson 3 converter tests (Java 17)
         env:
@@ -103,7 +103,7 @@ jobs:
       - name: Run virtual thread tests (Java 21)
         env:
           USER: unittest
-        run: ./gradlew --no-daemon --offline :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21 -PuseTemporalCli
+        run: ./gradlew --no-daemon --offline :temporal-sdk:virtualThreadTests -PtestJavaVersion=21 -PtestServer=dev-server
 
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6

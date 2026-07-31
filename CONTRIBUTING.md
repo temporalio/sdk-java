@@ -79,30 +79,20 @@ skipped. Gradle can download the pinned Temporal CLI, start a correctly configur
 dev server, wait for it to become ready, configure the tests to use it, and stop it
 when the test invocation finishes.
 
-Prepare the CLI-backed tests with:
+Run the suite against a managed local Temporal dev server with:
 
 ```bash
-./gradlew prepareTemporalCliTests
+./gradlew test -PtestJavaVersion=11 -PtestServer=dev-server
 ```
 
-This caches the platform-specific CLI under the Gradle user home and resolves the
-build and test dependencies needed by the Java 11 unit tests and Java 21
-virtual-thread tests. Run the CLI-backed CI coverage with:
+Normal Gradle test filtering works, so a single dev-server-backed test can be run with:
 
 ```bash
-./gradlew test -PtestJavaVersion=11 -PuseTemporalCli
-./gradlew :temporal-sdk:virtualThreadTests -PtestJavaVersion=21 -PuseTemporalCli
-```
-
-Normal Gradle test filtering works, so a single CLI-backed test can be reproduced:
-
-```bash
-./gradlew :temporal-sdk:test -PtestJavaVersion=11 -PuseTemporalCli \
+./gradlew :temporal-sdk:test -PtestJavaVersion=11 -PtestServer=dev-server \
   --tests "io.temporal.activity.ActivityPauseTest.activityPause"
 ```
 
-Java 11 and Java 21 installations must be available to Gradle for the corresponding
-commands. Server output is written to `build/temporal-cli/server/server.log`.
+Java 11 must be available to Gradle for these commands.
 
 ## Things to Avoid
 
