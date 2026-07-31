@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 BASE_SHA HEAD_SHA GITHUB_OUTPUT" >&2
+  echo "Usage: $0 BASE_SHA HEAD_SHA" >&2
 }
 
 fail() {
@@ -11,14 +11,14 @@ fail() {
   exit 1
 }
 
-if [[ $# -ne 3 ]]; then
+if [[ $# -ne 2 ]]; then
   usage
   exit 2
 fi
 
 base_ref=$1
 head_ref=$2
-github_output=$3
+readonly github_output=$GITHUB_OUTPUT
 
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
   fail "The current directory is not a Git worktree."
@@ -76,20 +76,8 @@ if git show-ref --verify --quiet "refs/tags/${tag}"; then
   fail "The release tag already exists: ${tag}."
 fi
 
-if [[ "$tag" == *-RC* ]]; then
-  prerelease=true
-else
-  prerelease=false
-fi
-
-output_dir=$(dirname -- "$github_output")
-[[ -d "$output_dir" ]] ||
-  fail "The GitHub output directory does not exist: ${output_dir}."
-
 {
   printf 'tag=%s\n' "$tag"
   printf 'version=%s\n' "$version"
-  printf 'notes_file=%s\n' "$notes_file"
   printf 'commit=%s\n' "$head_sha"
-  printf 'prerelease=%s\n' "$prerelease"
 } >>"$github_output"

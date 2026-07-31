@@ -3,16 +3,12 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 TAG SHA NOTES_FILE ASSET_DIR GITHUB_OUTPUT" >&2
+  echo "Usage: $0 TAG SHA" >&2
 }
 
 fail() {
   echo "publish-github-release: $*" >&2
   exit 1
-}
-
-is_nonnegative_integer() {
-  [[ "$1" =~ ^[0-9]+$ ]]
 }
 
 sleep_before_retry() {
@@ -417,45 +413,36 @@ write_release_url() {
   printf 'url=%s\n' "$release_url" >>"$github_output"
 }
 
-if [[ $# -ne 5 ]]; then
+if [[ $# -ne 2 ]]; then
   usage
   exit 2
 fi
 
 tag=$1
 commit_sha=$(lowercase "$2")
-notes_file=$3
-asset_dir=$4
-github_output=$5
 
-repository=${GITHUB_REPOSITORY:-}
-gh_bin=${GH_BIN:-gh}
-max_attempts=${RELEASE_MAX_ATTEMPTS:-10}
-retry_delay_seconds=${RELEASE_RETRY_DELAY_SECONDS:-10}
+readonly repository=temporalio/sdk-java
+readonly gh_bin=gh
+readonly max_attempts=10
+readonly retry_delay_seconds=10
+readonly notes_file="releases/${tag}"
+readonly asset_dir=release-archives
+readonly github_output=$GITHUB_OUTPUT
 
 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] ||
   fail "The release tag is invalid: ${tag}."
 [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] ||
   fail "SHA must be a full 40-character commit SHA."
-[[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] ||
-  fail "GITHUB_REPOSITORY must have the form OWNER/REPOSITORY."
 [[ -f "$notes_file" && ! -L "$notes_file" && -s "$notes_file" ]] ||
   fail "The release notes file must be a nonempty regular file: ${notes_file}."
 [[ -d "$asset_dir" ]] ||
   fail "The asset directory does not exist: ${asset_dir}."
-is_nonnegative_integer "$max_attempts" && [[ "$max_attempts" -gt 0 ]] ||
-  fail "RELEASE_MAX_ATTEMPTS must be a positive integer."
-is_nonnegative_integer "$retry_delay_seconds" ||
-  fail "RELEASE_RETRY_DELAY_SECONDS must be a nonnegative integer."
 command -v "$gh_bin" >/dev/null 2>&1 ||
   fail "The GitHub CLI is not available: ${gh_bin}."
 command -v jq >/dev/null 2>&1 ||
   fail "jq is required."
 
 expected_notes=$(tr -d '\r' <"$notes_file")
-output_dir=$(dirname -- "$github_output")
-[[ -d "$output_dir" ]] ||
-  fail "The GitHub output directory does not exist: ${output_dir}."
 
 if [[ "$tag" == *-RC* ]]; then
   expected_prerelease=true
@@ -466,26 +453,32 @@ fi
 LC_ALL=C
 export LC_ALL
 shopt -s dotglob nullglob
+version=${tag#v}
+expected_names=(
+  SHA256SUMS
+  "temporal-test-server_${version}_linux_amd64.tar.gz"
+  "temporal-test-server_${version}_linux_amd64_musl.tar.gz"
+  "temporal-test-server_${version}_linux_arm64.tar.gz"
+  "temporal-test-server_${version}_macOS_amd64.tar.gz"
+  "temporal-test-server_${version}_macOS_arm64.tar.gz"
+  "temporal-test-server_${version}_windows_amd64.zip"
+)
 assets=()
-asset_count=0
 
-for entry in "$asset_dir"/*; do
+for asset_name in "${expected_names[@]}"; do
+  entry="${asset_dir}/${asset_name}"
   [[ -f "$entry" && ! -L "$entry" ]] ||
-    fail "The asset directory may contain only regular files: ${entry}."
+    fail "The expected release asset is not a regular file: ${entry}."
   [[ -s "$entry" ]] ||
     fail "Release assets must not be empty: ${entry}."
-
-  asset_name=$(basename -- "$entry")
-  [[ "$asset_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] ||
-    fail "The asset filename is unsupported: ${asset_name}."
-  assets[$asset_count]=$entry
-  asset_count=$((asset_count + 1))
+  assets+=("$entry")
 done
 
-[[ "$asset_count" -gt 0 ]] ||
-  fail "The asset directory must contain at least one asset."
+asset_count=${#assets[@]}
+asset_entries=("$asset_dir"/*)
+[[ ${#asset_entries[@]} -eq "$asset_count" ]] ||
+  fail "The asset directory must contain exactly the ${asset_count} expected sdk-java release files."
 
-expected_names=()
 expected_sizes=()
 expected_digests=()
 remote_names=()
@@ -494,8 +487,6 @@ remote_states=()
 remote_digests=()
 
 for asset in "${assets[@]}"; do
-  asset_name=$(basename -- "$asset")
-  expected_names+=("$asset_name")
   expected_sizes+=("$(file_size "$asset")")
   expected_digests+=("$(sha256_file "$asset")")
 done

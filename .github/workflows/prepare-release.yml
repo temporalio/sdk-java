@@ -35,8 +35,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       commit: ${{ steps.metadata.outputs.commit }}
-      notes_file: ${{ steps.metadata.outputs.notes_file }}
-      prerelease: ${{ steps.metadata.outputs.prerelease }}
       tag: ${{ steps.metadata.outputs.tag }}
       version: ${{ steps.metadata.outputs.version }}
     steps:
@@ -51,7 +49,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
-        run: .github/scripts/release/resolve-release-metadata.sh "$BASE_SHA" "$HEAD_SHA" "$GITHUB_OUTPUT"
+        run: .github/scripts/release/resolve-release-metadata.sh "$BASE_SHA" "$HEAD_SHA"
 
       - name: Summarize release candidate
         env:
@@ -250,7 +248,6 @@ jobs:
       contents: write
     env:
       RELEASE_COMMIT: ${{ needs.release_metadata.outputs.commit }}
-      RELEASE_NOTES_FILE: ${{ needs.release_metadata.outputs.notes_file }}
       RELEASE_TAG: ${{ needs.release_metadata.outputs.tag }}
       RELEASE_VERSION: ${{ needs.release_metadata.outputs.version }}
     steps:
@@ -323,7 +320,7 @@ jobs:
         run: |
           published=false
           if [[ "$RUN_ATTEMPT" -eq 1 ]]; then
-            if .github/scripts/release/wait-for-maven-central.sh "$RELEASE_VERSION" 5 10; then
+            if .github/scripts/release/wait-for-maven-central.sh check-absent "$RELEASE_VERSION"; then
               echo "::error::Maven Central already contains $RELEASE_VERSION on the first workflow attempt."
               echo "::error::Refusing to associate existing immutable coordinates with this release."
               exit 1
@@ -338,7 +335,7 @@ jobs:
             # publication before losing its response. Accept it only when the
             # published POM proves that it came from this exact commit.
             if .github/scripts/release/wait-for-maven-central.sh \
-              "$RELEASE_VERSION" 45 20 "$RELEASE_COMMIT"; then
+              wait-visible "$RELEASE_VERSION" "$RELEASE_COMMIT"; then
               published=true
             else
               status=$?
@@ -365,7 +362,7 @@ jobs:
           if [[ "$gradle_status" -ne 0 ]]; then
             echo "::warning::Gradle exited with status $gradle_status; checking whether publication completed remotely."
             if .github/scripts/release/wait-for-maven-central.sh \
-              "$RELEASE_VERSION" 45 20 "$RELEASE_COMMIT"; then
+              wait-visible "$RELEASE_VERSION" "$RELEASE_COMMIT"; then
               echo "Maven Central became visible despite the lost or failed Gradle response."
               exit 0
             else
@@ -382,9 +379,8 @@ jobs:
         if: steps.maven.outputs.published != 'true'
         run: >
           .github/scripts/release/wait-for-maven-central.sh
+          wait-visible
           "$RELEASE_VERSION"
-          90
-          20
           "$RELEASE_COMMIT"
 
       - name: Publish GitHub release
@@ -395,9 +391,6 @@ jobs:
           .github/scripts/release/publish-github-release.sh
           "$RELEASE_TAG"
           "$RELEASE_COMMIT"
-          "$RELEASE_NOTES_FILE"
-          release-archives
-          "$GITHUB_OUTPUT"
 
       - name: Summarize published release
         env:
@@ -413,7 +406,6 @@ jobs:
       - name: Remove publishing credentials
         if: always()
         run: |
-          gradle_home="${GRADLE_USER_HOME:-$RUNNER_TEMP/release-gradle-home}"
           rm -f \
-            "$gradle_home/gradle.properties" \
+            "$RUNNER_TEMP/release-gradle-home/gradle.properties" \
             "$RUNNER_TEMP/release-secring.gpg"

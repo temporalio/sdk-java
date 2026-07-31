@@ -4,19 +4,16 @@ set -euo pipefail
 
 # Exit status 0 means the artifact is visible. Exit status 1 is reserved for a
 # bounded poll whose final response was a definitive 404. Exit status 2 means
-# the result is ambiguous or the request/configuration is invalid.
+# the result is ambiguous or the release identity is invalid.
 
 usage() {
-  echo "Usage: $0 VERSION ATTEMPTS DELAY_SECONDS [EXPECTED_COMMIT]" >&2
+  echo "Usage: $0 check-absent VERSION" >&2
+  echo "       $0 wait-visible VERSION EXPECTED_COMMIT" >&2
 }
 
 fail() {
   echo "wait-for-maven-central: $*" >&2
   exit 2
-}
-
-is_nonnegative_integer() {
-  [[ "$1" =~ ^[0-9]+$ ]]
 }
 
 read_pom_commit() {
@@ -44,22 +41,42 @@ print(tag.text.strip())
 PY
 }
 
-if [[ $# -lt 3 || $# -gt 4 ]]; then
+if [[ $# -lt 2 || $# -gt 3 ]]; then
   usage
   exit 2
 fi
 
-version=$1
-attempts=$2
-delay_seconds=$3
-expected_commit=${4:-}
+mode=$1
+version=$2
+expected_commit=
+
+readonly central_base_url=https://repo1.maven.org/maven2
+readonly connect_timeout=10
+readonly request_timeout=30
+
+case "$mode" in
+  check-absent)
+    [[ $# -eq 2 ]] || fail "check-absent requires VERSION."
+    # A new release only needs a short absence check before publication.
+    readonly attempts=5
+    readonly delay_seconds=10
+    ;;
+  wait-visible)
+    [[ $# -eq 3 ]] || fail "wait-visible requires VERSION and EXPECTED_COMMIT."
+    expected_commit=$3
+    # Publication and propagation may have completed after a runner lost the
+    # response. Give Central up to 30 minutes to expose the exact POM before a
+    # caller considers another publication attempt.
+    readonly attempts=90
+    readonly delay_seconds=20
+    ;;
+  *)
+    fail "Unknown operation: ${mode}."
+    ;;
+esac
 
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] ||
   fail "The version is invalid: ${version}."
-is_nonnegative_integer "$attempts" && [[ "$attempts" -gt 0 ]] ||
-  fail "ATTEMPTS must be a positive integer."
-is_nonnegative_integer "$delay_seconds" ||
-  fail "DELAY_SECONDS must be a nonnegative integer."
 if [[ -n "$expected_commit" ]]; then
   expected_commit=$(printf '%s' "$expected_commit" | tr '[:upper:]' '[:lower:]')
   [[ "$expected_commit" =~ ^[0-9a-f]{40}$ ]] ||
@@ -67,18 +84,6 @@ if [[ -n "$expected_commit" ]]; then
   command -v python3 >/dev/null 2>&1 ||
     fail "python3 is required to verify Maven POM provenance."
 fi
-
-curl_bin=${CURL_BIN:-curl}
-central_base_url=${MAVEN_CENTRAL_BASE_URL:-https://repo1.maven.org/maven2}
-connect_timeout=${MAVEN_CONNECT_TIMEOUT_SECONDS:-10}
-request_timeout=${MAVEN_REQUEST_TIMEOUT_SECONDS:-30}
-
-is_nonnegative_integer "$connect_timeout" && [[ "$connect_timeout" -gt 0 ]] ||
-  fail "MAVEN_CONNECT_TIMEOUT_SECONDS must be a positive integer."
-is_nonnegative_integer "$request_timeout" && [[ "$request_timeout" -gt 0 ]] ||
-  fail "MAVEN_REQUEST_TIMEOUT_SECONDS must be a positive integer."
-command -v "$curl_bin" >/dev/null 2>&1 ||
-  fail "curl is not available: ${curl_bin}."
 
 artifact_url="${central_base_url%/}/io/temporal/temporal-sdk/${version}/temporal-sdk-${version}.pom"
 response_file=$(mktemp)
@@ -89,7 +94,7 @@ for ((attempt = 1; attempt <= attempts; attempt++)); do
   curl_exit=0
 
   if http_status=$(
-    "$curl_bin" \
+    curl \
       --silent \
       --show-error \
       --location \
