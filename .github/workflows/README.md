@@ -1,5 +1,13 @@
 # sdk-java Github Workflows
 
+## Temporal-backed release automation
+
+The separate Temporal Cloud-backed design, security boundary, setup, approval
+path, retries, and exact-state reconciliation are documented in
+[`../release-automation/README.md`](../release-automation/README.md). It remains
+separate from the legacy workflow below until production cutover is explicitly
+completed.
+
 ## Prepare Release (prepare-release.yml)
 
 This is a [manually triggered](https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow) workflow that uses the gradle build files already present in the sdk-java repository to prepare release artifacts for publication.  This workflow takes a tag string and a git ref to use in peparing a release.  There is an expectation that if preparing a given release (e.g. v1.2.3) then there exists a file in the repository, releases/<tag> (i.e. releases/v1.2.3) containing release notes. This file must be present on the ref passed to the workflow invocation.

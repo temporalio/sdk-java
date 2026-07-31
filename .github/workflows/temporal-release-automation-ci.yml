@@ -1,0 +1,44 @@
+name: Temporal release automation CI
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  pull_request:
+    paths:
+      - ".github/release-automation/**"
+      - ".github/scripts/temporal-release/**"
+      - ".github/workflows/temporal-release-*.yml"
+      - "gradle/publishing.gradle"
+      - "gradle/versioning.gradle"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/release-automation/**"
+      - ".github/scripts/temporal-release/**"
+      - ".github/workflows/temporal-release-*.yml"
+      - "gradle/publishing.gradle"
+      - "gradle/versioning.gradle"
+
+permissions:
+  contents: read
+
+jobs:
+  local_only:
+    name: Format, compile, and run local tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Check shell syntax
+        run: bash -n .github/scripts/temporal-release/*.sh
+      - name: Verify formatting and local tests
+        run: ./gradlew -p .github/release-automation spotlessCheck test

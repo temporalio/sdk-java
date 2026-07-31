@@ -1,0 +1,121 @@
+name: Publish approved Temporal-backed release
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  workflow_run:
+    workflows:
+      - Approve Temporal-backed release
+    types:
+      - completed
+  schedule:
+    - cron: "10,25,40,55 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+
+jobs:
+  discover:
+    name: Discover approved publication queues
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      count: ${{ steps.discover.outputs.count }}
+      matrix: ${{ steps.discover.outputs.matrix }}
+    steps:
+      - name: Validate trusted automation pin
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Query approved Temporal releases
+        id: discover
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
+        run: ./gradlew -p .github/release-automation run --args="discover publication"
+
+  publish:
+    name: Publication Worker (${{ matrix.tag }})
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: temporal-release-${{ matrix.releaseDigest }}-publication
+      cancel-in-progress: false
+    environment: release-publication
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout immutable release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ matrix.commitSha }}
+          submodules: recursive
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify trusted checkout
+        working-directory: automation
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Obtain publication artifact-store credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
+      - name: Poll only the approved publication Task Queue
+        working-directory: automation
+        env:
+          EXPECTED_APPROVAL_ACTOR: ${{ matrix.approvalActor }}
+          EXPECTED_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
+          EXPECTED_COMMIT_SHA: ${{ matrix.commitSha }}
+          EXPECTED_MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
+          EXPECTED_NOTES_SHA256: ${{ matrix.notesSha256 }}
+          EXPECTED_RELEASE_DIGEST: ${{ matrix.releaseDigest }}
+          EXPECTED_REPOSITORY: temporalio/sdk-java
+          EXPECTED_RUN_ID: ${{ matrix.runId }}
+          EXPECTED_TAG: ${{ matrix.tag }}
+          EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+          TASK_QUEUE: ${{ matrix.taskQueue }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
+          TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: ./gradlew -p .github/release-automation run --args="worker publication $TASK_QUEUE"
