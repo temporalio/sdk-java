@@ -228,6 +228,10 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
         activityOptions.setPriority(ProtoConverters.toProto(options.getPriority()));
         maskPaths.add("priority");
       }
+      if (options.getStartDelay() != null) {
+        activityOptions.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
+        maskPaths.add("start_delay");
+      }
     }
 
     FieldMask updateMask = FieldMask.newBuilder().addAllPaths(maskPaths).build();
@@ -260,6 +264,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
             ? ProtobufTimeUtils.toJavaDuration(proto.getHeartbeatTimeout())
             : null,
         proto.hasRetryPolicy() ? RetryOptionsUtils.toRetryOptions(proto.getRetryPolicy()) : null,
-        proto.hasPriority() ? ProtoConverters.fromProto(proto.getPriority()) : null);
+        proto.hasPriority() ? ProtoConverters.fromProto(proto.getPriority()) : null,
+        proto.hasStartDelay() ? ProtobufTimeUtils.toJavaDuration(proto.getStartDelay()) : null);
   }
 }

@@ -37,6 +37,7 @@ public final class UpdateActivityOptions {
     private @Nullable Duration heartbeatTimeout;
     private @Nullable RetryOptions retryOptions;
     private @Nullable Priority priority;
+    private @Nullable Duration startDelay;
     private boolean restoreOriginal;
 
     private Builder() {}
@@ -52,6 +53,7 @@ public final class UpdateActivityOptions {
       this.heartbeatTimeout = options.heartbeatTimeout;
       this.retryOptions = options.retryOptions;
       this.priority = options.priority;
+      this.startDelay = options.startDelay;
       this.restoreOriginal = options.restoreOriginal;
     }
 
@@ -97,6 +99,12 @@ public final class UpdateActivityOptions {
       return this;
     }
 
+    /** New start delay for the first attempt. */
+    public Builder setStartDelay(@Nullable Duration startDelay) {
+      this.startDelay = startDelay;
+      return this;
+    }
+
     /**
      * If set, the activity options are restored to the originals the activity was created with.
      * This flag cannot be combined with any other field.
@@ -115,7 +123,8 @@ public final class UpdateActivityOptions {
                 && startToCloseTimeout == null
                 && heartbeatTimeout == null
                 && retryOptions == null
-                && priority == null,
+                && priority == null
+                && startDelay == null,
             "restoreOriginal cannot be combined with any other option");
       } else {
         Preconditions.checkArgument(
@@ -125,7 +134,8 @@ public final class UpdateActivityOptions {
                 || startToCloseTimeout != null
                 || heartbeatTimeout != null
                 || retryOptions != null
-                || priority != null,
+                || priority != null
+                || startDelay != null,
             "At least one option must be set, or restoreOriginal must be used");
       }
       return new UpdateActivityOptions(this);
@@ -139,6 +149,7 @@ public final class UpdateActivityOptions {
   private final @Nullable Duration heartbeatTimeout;
   private final @Nullable RetryOptions retryOptions;
   private final @Nullable Priority priority;
+  private final @Nullable Duration startDelay;
   private final boolean restoreOriginal;
 
   private UpdateActivityOptions(Builder builder) {
@@ -149,6 +160,7 @@ public final class UpdateActivityOptions {
     this.heartbeatTimeout = builder.heartbeatTimeout;
     this.retryOptions = builder.retryOptions;
     this.priority = builder.priority;
+    this.startDelay = builder.startDelay;
     this.restoreOriginal = builder.restoreOriginal;
   }
 
@@ -191,6 +203,11 @@ public final class UpdateActivityOptions {
     return priority;
   }
 
+  @Nullable
+  public Duration getStartDelay() {
+    return startDelay;
+  }
+
   public boolean isRestoreOriginal() {
     return restoreOriginal;
   }
@@ -207,7 +224,8 @@ public final class UpdateActivityOptions {
         && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equals(heartbeatTimeout, that.heartbeatTimeout)
         && Objects.equals(retryOptions, that.retryOptions)
-        && Objects.equals(priority, that.priority);
+        && Objects.equals(priority, that.priority)
+        && Objects.equals(startDelay, that.startDelay);
   }
 
   @Override
@@ -220,6 +238,7 @@ public final class UpdateActivityOptions {
         heartbeatTimeout,
         retryOptions,
         priority,
+        startDelay,
         restoreOriginal);
   }
 
@@ -240,6 +259,8 @@ public final class UpdateActivityOptions {
         + retryOptions
         + ", priority="
         + priority
+        + ", startDelay="
+        + startDelay
         + ", restoreOriginal="
         + restoreOriginal
         + '}';

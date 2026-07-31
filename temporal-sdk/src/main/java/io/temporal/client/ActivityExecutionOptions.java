@@ -23,6 +23,7 @@ public final class ActivityExecutionOptions {
   private final @Nullable Duration heartbeatTimeout;
   private final @Nullable RetryOptions retryOptions;
   private final @Nullable Priority priority;
+  private final @Nullable Duration startDelay;
 
   public ActivityExecutionOptions(
       @Nullable String taskQueue,
@@ -31,7 +32,8 @@ public final class ActivityExecutionOptions {
       @Nullable Duration startToCloseTimeout,
       @Nullable Duration heartbeatTimeout,
       @Nullable RetryOptions retryOptions,
-      @Nullable Priority priority) {
+      @Nullable Priority priority,
+      @Nullable Duration startDelay) {
     this.taskQueue = taskQueue;
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
@@ -39,6 +41,7 @@ public final class ActivityExecutionOptions {
     this.heartbeatTimeout = heartbeatTimeout;
     this.retryOptions = retryOptions;
     this.priority = priority;
+    this.startDelay = startDelay;
   }
 
   @Nullable
@@ -76,6 +79,11 @@ public final class ActivityExecutionOptions {
     return priority;
   }
 
+  @Nullable
+  public Duration getStartDelay() {
+    return startDelay;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -87,7 +95,8 @@ public final class ActivityExecutionOptions {
         && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equals(heartbeatTimeout, that.heartbeatTimeout)
         && Objects.equals(retryOptions, that.retryOptions)
-        && Objects.equals(priority, that.priority);
+        && Objects.equals(priority, that.priority)
+        && Objects.equals(startDelay, that.startDelay);
   }
 
   @Override
@@ -99,7 +108,8 @@ public final class ActivityExecutionOptions {
         startToCloseTimeout,
         heartbeatTimeout,
         retryOptions,
-        priority);
+        priority,
+        startDelay);
   }
 
   @Override
@@ -119,6 +129,8 @@ public final class ActivityExecutionOptions {
         + retryOptions
         + ", priority="
         + priority
+        + ", startDelay="
+        + startDelay
         + '}';
   }
 }

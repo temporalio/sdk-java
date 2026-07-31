@@ -371,6 +371,7 @@ public class StandaloneActivityOperatorCommandsTest {
                         .setMaximumAttempts(7)
                         .build())
                 .setPriority(Priority.newBuilder().setPriorityKey(3).build())
+                .setStartDelay(Duration.ofSeconds(500))
                 .build());
 
     // Every field is settable and lands: the returned options reflect each new value.
@@ -381,6 +382,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(Duration.ofSeconds(25), updated.getHeartbeatTimeout());
     assertEquals(7, updated.getRetryOptions().getMaximumAttempts());
     assertEquals(3, updated.getPriority().getPriorityKey());
+    assertEquals(Duration.ofSeconds(500), updated.getStartDelay());
 
     // And describe reflects them server-side.
     ActivityExecutionDescription desc = handle.describe();
@@ -391,6 +393,8 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(Duration.ofSeconds(25), desc.getHeartbeatTimeout());
     assertEquals(7, desc.getRetryOptions().getMaximumAttempts());
     assertEquals(3, desc.getPriority().getPriorityKey());
+    // start_delay isn't surfaced by ActivityExecutionDescription today; read via raw info.
+    assertEquals(500, desc.getRawInfo().getStartDelay().getSeconds());
 
     handle.terminate("cleanup");
   }
