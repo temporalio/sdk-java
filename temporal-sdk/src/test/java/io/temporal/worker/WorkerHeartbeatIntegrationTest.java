@@ -65,7 +65,6 @@ public class WorkerHeartbeatIntegrationTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setUseExternalService(true)
           .setTestTimeoutSeconds(15)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()

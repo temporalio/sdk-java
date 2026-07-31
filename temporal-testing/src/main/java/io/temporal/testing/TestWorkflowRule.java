@@ -450,11 +450,22 @@ public class TestWorkflowRule implements TestRule {
         new Statement() {
           @Override
           public void evaluate() throws Throwable {
+            Throwable testFailure = null;
             try {
               start();
               base.evaluate();
+            } catch (Throwable failure) {
+              testFailure = failure;
+              throw failure;
             } finally {
-              shutdown();
+              try {
+                shutdown();
+              } catch (Throwable cleanupFailure) {
+                if (testFailure == null) {
+                  throw cleanupFailure;
+                }
+                testFailure.addSuppressed(cleanupFailure);
+              }
             }
           }
         };

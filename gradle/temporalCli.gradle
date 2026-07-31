@@ -2,23 +2,87 @@ import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
-abstract class TemporalDevServerTestSemaphore
-        implements BuildService<BuildServiceParameters.None>, AutoCloseable {
+import java.util.concurrent.TimeUnit
+
+abstract class TemporalDevServerTestService
+        implements BuildService<TemporalDevServerTestService.Parameters>, AutoCloseable {
+    interface Parameters extends BuildServiceParameters {
+        ListProperty<String> getClasspath()
+
+        RegularFileProperty getJavaExecutable()
+    }
+
+    private Process process
+
+    synchronized void start() {
+        if (process != null) {
+            if (!process.isAlive()) {
+                throw new GradleException(
+                        "Temporal dev-server owner exited with code ${process.exitValue()}")
+            }
+            return
+        }
+
+        List<String> command = [
+                parameters.javaExecutable.get().asFile.absolutePath,
+                '-cp',
+                parameters.classpath.get().join(File.pathSeparator),
+                'io.temporal.testing.internal.DevServerTestProcess',
+        ].collect { it.toString() }
+
+        process = new ProcessBuilder(command)
+                .redirectError(ProcessBuilder.Redirect.INHERIT)
+                .start()
+        String ready = process.inputStream.newReader('UTF-8').readLine()
+        if (ready != 'READY') {
+            stop()
+            throw new GradleException(
+                    'Temporal dev-server owner exited before readiness; ' +
+                            'see build/temporal-cli/server/server.log')
+        }
+    }
+
     @Override
-    void close() {}
+    synchronized void close() {
+        stop()
+    }
+
+    private void stop() {
+        if (process == null) {
+            return
+        }
+        try {
+            process.outputStream.close()
+            if (!process.waitFor(30, TimeUnit.SECONDS)) {
+                process.destroyForcibly()
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt()
+            process.destroyForcibly()
+        } catch (IOException e) {
+            process.destroyForcibly()
+        } finally {
+            process = null
+        }
+    }
 }
 
 def devServerProfile = providers.gradleProperty('testServer')
         .map { it == 'dev-server' }
         .orElse(false)
-def devServerCache =
-        file("${gradle.gradleUserHomeDir}/caches/temporal-dev-server")
-def devServerWorkingDirectory = layout.buildDirectory.dir('temporal-cli/server')
-
-def devServerSemaphore = gradle.sharedServices.registerIfAbsent(
-        'temporalDevServerTestSemaphore', TemporalDevServerTestSemaphore) {
-    maxParallelUsages.set(1)
+def devServerJavaLauncher = project(':temporal-testing').javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(JavaVersion.current().majorVersion as int)
+}
+def devServerService = gradle.sharedServices.registerIfAbsent(
+        'temporalDevServerTestService', TemporalDevServerTestService) {
+    parameters.javaExecutable.set(devServerJavaLauncher.map { it.executablePath })
+    parameters.classpath.set(providers.provider {
+        project(':temporal-testing').sourceSets.main.runtimeClasspath.files.collect {
+            it.absolutePath
+        }
+    })
 }
 
 def prepareDevServerTests = tasks.register('prepareDevServerTests', JavaExec) {
@@ -26,12 +90,6 @@ def prepareDevServerTests = tasks.register('prepareDevServerTests', JavaExec) {
     description =
             'Caches the repository dev server and resolves inputs required by dev-server tests.'
     getMainClass().set('io.temporal.testing.internal.DevServerTestPreparation')
-    systemProperty(
-            'io.temporal.testing.internal.devServerDownloadDestination',
-            devServerCache.absolutePath)
-    systemProperty(
-            'io.temporal.testing.internal.devServerDownloadEnabled',
-            'true')
 }
 
 gradle.projectsEvaluated {
@@ -60,23 +118,16 @@ gradle.projectsEvaluated {
 
     allprojects.each { candidateProject ->
         candidateProject.tasks.withType(Test).configureEach {
-            usesService(devServerSemaphore)
-            forkEvery = 0
-            maxParallelForks = 1
+            dependsOn project(':temporal-testing').tasks.named('classes')
+            usesService(devServerService)
+            doFirst {
+                devServerService.get().start()
+            }
             environment('USE_EXTERNAL_SERVICE', 'true')
             environment('TEMPORAL_SERVICE_ADDRESS', 'localhost:7233')
             systemProperty(
                     'io.temporal.testing.internal.devServerProfile',
                     'true')
-            systemProperty(
-                    'io.temporal.testing.internal.devServerDownloadDestination',
-                    devServerCache.absolutePath)
-            systemProperty(
-                    'io.temporal.testing.internal.devServerDownloadEnabled',
-                    (!gradle.startParameter.offline).toString())
-            systemProperty(
-                    'io.temporal.testing.internal.devServerWorkingDirectory',
-                    devServerWorkingDirectory.get().asFile.absolutePath)
         }
 
         candidateProject.tasks.withType(JavaExec).matching {

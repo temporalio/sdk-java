@@ -7,15 +7,9 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
-/** JVM-wide dev server used only by sdk-java's Gradle test profile. */
+/** Configuration and lifecycle used only by sdk-java's Gradle test profile. */
 public final class SdkJavaTestServerProfile {
   public static final String ACTIVE_PROPERTY = "io.temporal.testing.internal.devServerProfile";
-  public static final String DOWNLOAD_DESTINATION_PROPERTY =
-      "io.temporal.testing.internal.devServerDownloadDestination";
-  public static final String DOWNLOAD_ENABLED_PROPERTY =
-      "io.temporal.testing.internal.devServerDownloadEnabled";
-  public static final String WORKING_DIRECTORY_PROPERTY =
-      "io.temporal.testing.internal.devServerWorkingDirectory";
 
   // This is intentionally the sole Temporal CLI version used by sdk-java repository tests.
   private static final String TEST_CLI_VERSION = "1.7.2-standalone-nexus-operations";
@@ -31,10 +25,14 @@ public final class SdkJavaTestServerProfile {
     return Boolean.parseBoolean(System.getProperty(ACTIVE_PROPERTY, "false"));
   }
 
-  public static synchronized String getTarget() {
+  public static String getTarget() {
     if (!isActive()) {
       return null;
     }
+    return "localhost:7233";
+  }
+
+  public static synchronized String start() {
     if (server == null) {
       File workingDirectory = workingDirectory();
       cleanDatabase(workingDirectory);
@@ -79,16 +77,7 @@ public final class SdkJavaTestServerProfile {
   }
 
   private static TemporalDevServerOptions downloadOptions() {
-    TemporalDevServerOptions.Builder builder =
-        TemporalDevServerOptions.newBuilder()
-            .setDownloadVersion("v" + TEST_CLI_VERSION)
-            .setDownloadEnabled(
-                Boolean.parseBoolean(System.getProperty(DOWNLOAD_ENABLED_PROPERTY, "true")));
-    String destination = System.getProperty(DOWNLOAD_DESTINATION_PROPERTY);
-    if (destination != null) {
-      builder.setDownloadDestination(destination);
-    }
-    return builder.build();
+    return TemporalDevServerOptions.newBuilder().setDownloadVersion("v" + TEST_CLI_VERSION).build();
   }
 
   private static List<String> repositoryServerArguments() {
@@ -154,9 +143,7 @@ public final class SdkJavaTestServerProfile {
   }
 
   private static File workingDirectory() {
-    return new File(
-        System.getProperty(
-            WORKING_DIRECTORY_PROPERTY, new File("build", "temporal-cli/server").getPath()));
+    return new File("build", "temporal-cli/server");
   }
 
   private static void cleanDatabase(File workingDirectory) {
