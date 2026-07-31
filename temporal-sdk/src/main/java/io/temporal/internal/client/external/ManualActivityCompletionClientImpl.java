@@ -179,13 +179,16 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     try {
       if (taskToken != null) {
         RecordActivityTaskHeartbeatResponse status =
-            ActivityClientHelper.sendHeartbeatRequest(
-                service,
-                namespace,
-                identity,
-                taskToken,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope);
+            grpcRetryer.retryWithResult(
+                () ->
+                    ActivityClientHelper.sendHeartbeatRequest(
+                        service,
+                        namespace,
+                        identity,
+                        taskToken,
+                        dataConverterWithActivityExecutionContext.toPayloads(details),
+                        metricsScope),
+                replyGrpcRetryerOptions);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -195,14 +198,17 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         }
       } else {
         RecordActivityTaskHeartbeatByIdResponse status =
-            ActivityClientHelper.recordActivityTaskHeartbeatById(
-                service,
-                namespace,
-                identity,
-                execution,
-                activityId,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope);
+            grpcRetryer.retryWithResult(
+                () ->
+                    ActivityClientHelper.recordActivityTaskHeartbeatById(
+                        service,
+                        namespace,
+                        identity,
+                        execution,
+                        activityId,
+                        dataConverterWithActivityExecutionContext.toPayloads(details),
+                        metricsScope),
+                replyGrpcRetryerOptions);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -211,6 +217,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           throw new ActivityPausedException();
         }
       }
+    } catch (ActivityCompletionException e) {
+      throw e;
     } catch (Exception e) {
       processException(e);
     }
