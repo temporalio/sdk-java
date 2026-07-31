@@ -467,7 +467,6 @@ public interface ActivityClientCallsInterceptor {
   final class ResetActivityInput {
     private final String id;
     private final @Nullable String runId;
-    private final boolean resetHeartbeat;
     private final boolean keepPaused;
     private final @Nullable Duration jitter;
     private final boolean restoreOriginalOptions;
@@ -475,13 +474,11 @@ public interface ActivityClientCallsInterceptor {
     public ResetActivityInput(
         String id,
         @Nullable String runId,
-        boolean resetHeartbeat,
         boolean keepPaused,
         @Nullable Duration jitter,
         boolean restoreOriginalOptions) {
       this.id = id;
       this.runId = runId;
-      this.resetHeartbeat = resetHeartbeat;
       this.keepPaused = keepPaused;
       this.jitter = jitter;
       this.restoreOriginalOptions = restoreOriginalOptions;
@@ -494,10 +491,6 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getRunId() {
       return runId;
-    }
-
-    public boolean isResetHeartbeat() {
-      return resetHeartbeat;
     }
 
     public boolean isKeepPaused() {

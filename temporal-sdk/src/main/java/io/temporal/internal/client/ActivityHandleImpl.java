@@ -184,7 +184,6 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
         new ActivityClientCallsInterceptor.ResetActivityInput(
             activityId,
             activityRunId,
-            options.isResetHeartbeat(),
             options.isKeepPaused(),
             options.getJitter(),
             options.isRestoreOriginalOptions()));

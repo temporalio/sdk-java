@@ -560,23 +560,22 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   @Test(timeout = 60_000)
-  public void resetResetsHeartbeat() {
+  public void resetClearsHeartbeatByDefault() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startBackedOffHeartbeatActivity();
 
     handle.pause("hold");
     assertEventuallyPaused(handle);
 
-    // keep_paused so no new attempt runs to re-record details; reset_heartbeat clears them in
-    // place.
-    handle.reset(
-        ResetActivityOptions.newBuilder().setResetHeartbeat(true).setKeepPaused(true).build());
+    // reset always clears heartbeat details (there is no opt-in flag as of api#820);
+    // keep_paused so no new attempt runs to re-record them.
+    handle.reset(ResetActivityOptions.newBuilder().setKeepPaused(true).build());
 
     assertEventually(
         Duration.ofSeconds(30),
         () ->
             assertFalse(
-                "heartbeat details should be cleared after reset(reset_heartbeat, keep_paused)",
+                "heartbeat details should be cleared after reset(keep_paused)",
                 handle.describe().hasHeartbeatDetails()));
     handle.terminate("cleanup");
   }

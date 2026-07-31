@@ -2,16 +2,21 @@ package io.temporal.internal.client;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.temporal.api.workflowservice.v1.PauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.ResetActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UnpauseActivityExecutionRequest;
+import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
+import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
+import io.temporal.client.UpdateActivityOptions;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import java.time.Duration;
 import org.junit.Test;
@@ -35,6 +40,10 @@ public class ActivityHandleOperatorCommandsTest {
 
   @Test
   public void unobservableRequestFields() {
+    // updateActivityOptions returns a non-void response; stub so handle.updateOptions doesn't NPE.
+    when(genericClient.updateActivityOptions(any()))
+        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+
     UntypedActivityHandle handle = newHandle();
 
     handle.pause("because");
@@ -44,23 +53,30 @@ public class ActivityHandleOperatorCommandsTest {
             .setJitter(Duration.ofSeconds(5))
             .build());
     handle.reset(ResetActivityOptions.newBuilder().setJitter(Duration.ofSeconds(2)).build());
+    handle.updateOptions(UpdateActivityOptions.newBuilder().setRestoreOriginal(true).build());
 
     // pause carries the reason and an auto-generated dedup request_id; neither is returned by
     // describe.
     PauseActivityExecutionRequest pauseReq = capturePause();
     assertEquals("because", pauseReq.getReason());
-    assertTrue("request_id should be set", !pauseReq.getRequestId().isEmpty());
+    assertTrue("pause request_id should be set", !pauseReq.getRequestId().isEmpty());
 
-    // unpause carries the reason and jitter; neither is observable on the server.
+    // unpause carries the reason, jitter, and an auto-generated dedup request_id (api#844).
     UnpauseActivityExecutionRequest unpauseReq = captureUnpause();
     assertEquals("go", unpauseReq.getReason());
     assertEquals(5, unpauseReq.getJitter().getSeconds());
     assertEquals(0, unpauseReq.getJitter().getNanos());
+    assertTrue("unpause request_id should be set", !unpauseReq.getRequestId().isEmpty());
 
-    // reset carries the jitter.
+    // reset carries jitter and an auto-generated dedup request_id (api#844).
     ResetActivityExecutionRequest resetReq = captureReset();
     assertEquals(2, resetReq.getJitter().getSeconds());
     assertEquals(0, resetReq.getJitter().getNanos());
+    assertTrue("reset request_id should be set", !resetReq.getRequestId().isEmpty());
+
+    // updateOptions carries an auto-generated dedup request_id (api#844).
+    UpdateActivityExecutionOptionsRequest updateReq = captureUpdate();
+    assertTrue("updateOptions request_id should be set", !updateReq.getRequestId().isEmpty());
   }
 
   private PauseActivityExecutionRequest capturePause() {
@@ -81,6 +97,13 @@ public class ActivityHandleOperatorCommandsTest {
     ArgumentCaptor<ResetActivityExecutionRequest> captor =
         ArgumentCaptor.forClass(ResetActivityExecutionRequest.class);
     verify(genericClient).resetActivity(captor.capture());
+    return captor.getValue();
+  }
+
+  private UpdateActivityExecutionOptionsRequest captureUpdate() {
+    ArgumentCaptor<UpdateActivityExecutionOptionsRequest> captor =
+        ArgumentCaptor.forClass(UpdateActivityExecutionOptionsRequest.class);
+    verify(genericClient).updateActivityOptions(captor.capture());
     return captor.getValue();
   }
 }
