@@ -27,10 +27,23 @@ jobs:
         with:
           path: automation
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Validate immutable candidate metadata and prerequisites
+        id: candidate
         working-directory: source
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           RELEASE_COMMIT: ${{ github.event.pull_request.head.sha }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
         run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
+      - name: Validate trusted Gradle hooks and exact generated POM provenance
+        working-directory: source
+        env:
+          RELEASE_CANDIDATE_FILE: ${{ steps.candidate.outputs.candidate_file }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: ../automation/.github/scripts/temporal-release/validate-publication-model.sh

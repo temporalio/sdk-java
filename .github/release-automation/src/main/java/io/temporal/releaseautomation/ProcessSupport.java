@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 final class ProcessSupport {
   private ProcessSupport() {}
@@ -29,7 +30,33 @@ final class ProcessSupport {
     ProcessBuilder builder = new ProcessBuilder(command);
     builder.directory(workingDirectory.toFile());
     builder.redirectError(ProcessBuilder.Redirect.INHERIT);
-    builder.environment().putAll(env);
+    Map<String, String> processEnvironment = builder.environment();
+    Map<String, String> inheritedEnvironment = new java.util.HashMap<>(processEnvironment);
+    processEnvironment.clear();
+    for (String name :
+        Arrays.asList(
+            "PATH",
+            "Path",
+            "SystemRoot",
+            "COMSPEC",
+            "PATHEXT",
+            "HOME",
+            "USERPROFILE",
+            "TMPDIR",
+            "TMP",
+            "TEMP",
+            "LANG",
+            "LC_ALL",
+            "JAVA_HOME",
+            "GRAALVM_HOME",
+            "CI",
+            "SystemDrive")) {
+      String value = inheritedEnvironment.get(name);
+      if (value != null) {
+        processEnvironment.put(name, value);
+      }
+    }
+    processEnvironment.putAll(env);
     ScheduledExecutorService heartbeat = Executors.newSingleThreadScheduledExecutor();
     try {
       ActivityExecutionContext activityContext = Activity.getExecutionContext();
@@ -41,10 +68,7 @@ final class ProcessSupport {
               activityContext.heartbeat("External release command is running.");
             } catch (ActivityCompletionException e) {
               cancellation.compareAndSet(null, e);
-              process.destroy();
-              if (process.isAlive()) {
-                process.destroyForcibly();
-              }
+              terminateProcessTree(process);
             }
           },
           15,
@@ -78,6 +102,38 @@ final class ProcessSupport {
         heartbeat.awaitTermination(Duration.ofSeconds(5).toMillis(), TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+      }
+    }
+  }
+
+  private static void terminateProcessTree(Process process) {
+    List<ProcessHandle> descendants = process.descendants().collect(Collectors.toList());
+    for (int index = descendants.size() - 1; index >= 0; index--) {
+      descendants.get(index).destroy();
+    }
+    process.destroy();
+    waitForExit(process, descendants, 5);
+    for (int index = descendants.size() - 1; index >= 0; index--) {
+      ProcessHandle descendant = descendants.get(index);
+      if (descendant.isAlive()) {
+        descendant.destroyForcibly();
+      }
+    }
+    if (process.isAlive()) {
+      process.destroyForcibly();
+    }
+    waitForExit(process, descendants, 5);
+  }
+
+  private static void waitForExit(Process process, List<ProcessHandle> descendants, int seconds) {
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(seconds);
+    while (System.nanoTime() < deadline
+        && (process.isAlive() || descendants.stream().anyMatch(ProcessHandle::isAlive))) {
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
       }
     }
   }

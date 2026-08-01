@@ -6,6 +6,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import org.junit.Test;
 
@@ -44,6 +45,31 @@ public class ReleaseIdentityTest {
   }
 
   @Test
+  public void emergencyReplacementManifestCannotMixBuildAttempts() {
+    ReleaseIdentity original = ReleaseFixtures.release();
+    String replacement = String.format("%064x", 99);
+    ArrayList<ArtifactEntry> emergency = new ArrayList<>();
+    for (ArtifactEntry artifact : original.manifest.artifacts) {
+      emergency.add(
+          new ArtifactEntry(
+              artifact.name,
+              artifact.sha256,
+              artifact.size,
+              "sdk-java/emergency-artifacts/"
+                  + original.candidate.digest()
+                  + "/"
+                  + replacement
+                  + "/"
+                  + artifact.name));
+    }
+    new ReleaseIdentity(original.candidate, new ArtifactManifest(emergency)).validate();
+    emergency.get(0).storageKey = original.manifest.artifacts.get(0).storageKey;
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new ReleaseIdentity(original.candidate, new ArtifactManifest(emergency)));
+  }
+
+  @Test
   public void repositoryIsNotConfigurable() {
     CandidateIdentity candidate = ReleaseFixtures.candidate();
     candidate.repository = "someone/else";
@@ -57,6 +83,18 @@ public class ReleaseIdentityTest {
     assertEquals("https://repo1.maven.org/maven2", ReleasePolicy.MAVEN_CENTRAL_BASE);
     assertTrue(ReleasePolicy.MAVEN_ARTIFACTS.contains("temporal-sdk"));
     assertTrue(ReleasePolicy.MAVEN_ARTIFACTS.contains("temporal-workflowstreams"));
+    for (String policy :
+        Arrays.asList(
+            ReleasePolicy.MAVEN_POLICY_CURRENT,
+            ReleasePolicy.MAVEN_POLICY_CLASSIC,
+            ReleasePolicy.MAVEN_POLICY_CLASSIC_ALPHA,
+            ReleasePolicy.MAVEN_POLICY_CLASSIC_ALPHA_LITE)) {
+      assertEquals(
+          policy, ReleasePolicy.mavenPolicyForProjects(ReleasePolicy.mavenArtifacts(policy)));
+    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> ReleasePolicy.mavenPolicyForProjects(Collections.singletonList("temporal-sdk")));
   }
 
   @Test
@@ -99,7 +137,19 @@ public class ReleaseIdentityTest {
             "ISSUE_node_43",
             "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
             release.candidate.trustedAutomationCommit);
+    ApprovalRequest retriedRequest =
+        new ApprovalRequest(
+            CandidateIdentity.REPOSITORY,
+            release.digest(),
+            workflowId,
+            runId,
+            101,
+            42,
+            "ISSUE_node_42",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            release.candidate.trustedAutomationCommit);
     assertTrue(request.matches(exact));
     assertTrue(!request.matches(replay));
+    assertTrue(request.sameIssue(retriedRequest));
   }
 }

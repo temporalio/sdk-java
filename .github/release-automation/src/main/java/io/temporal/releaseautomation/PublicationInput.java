@@ -12,6 +12,7 @@ public final class PublicationInput {
   public java.util.List<String> mavenArtifacts = new ArrayList<>();
   public boolean emergencyHandoff;
   public ControlEvidence handoff;
+  public int mavenSubmissionGeneration;
 
   public PublicationInput() {}
 
@@ -23,13 +24,14 @@ public final class PublicationInput {
     this.runId = runId;
     this.mavenGroup = ReleasePolicy.MAVEN_GROUP;
     this.mavenCentralBase = ReleasePolicy.MAVEN_CENTRAL_BASE;
-    this.mavenArtifacts = new ArrayList<>(ReleasePolicy.MAVEN_ARTIFACTS);
+    this.mavenArtifacts =
+        new ArrayList<>(ReleasePolicy.mavenArtifacts(release.candidate.mavenPolicy));
   }
 
   public void validatePolicy() {
     if (!ReleasePolicy.MAVEN_GROUP.equals(mavenGroup)
         || !ReleasePolicy.MAVEN_CENTRAL_BASE.equals(mavenCentralBase)
-        || !ReleasePolicy.MAVEN_ARTIFACTS.equals(mavenArtifacts)) {
+        || !ReleasePolicy.mavenArtifacts(release.candidate.mavenPolicy).equals(mavenArtifacts)) {
       throw new IllegalArgumentException(
           "Publication input does not contain fixed sdk-java policy.");
     }

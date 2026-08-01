@@ -49,7 +49,13 @@ if [[ $RELEASE_PLATFORM == windows-amd64 ]]; then
 else
   artifact_name=${archive_root}.tar.gz
 fi
-storage_key="sdk-java/$RELEASE_CANDIDATE_DIGEST/$artifact_name"
+if [[ ${RELEASE_MODE:-temporal} == emergency ]]; then
+  [[ ${EMERGENCY_BUILD_ATTEMPT:-} =~ ^[0-9a-f]{64}$ ]] ||
+    fail "The immutable emergency build attempt is missing."
+  storage_key="sdk-java/emergency-artifacts/$RELEASE_CANDIDATE_DIGEST/$EMERGENCY_BUILD_ATTEMPT/$artifact_name"
+else
+  storage_key="sdk-java/$RELEASE_CANDIDATE_DIGEST/$artifact_name"
+fi
 
 # Activity completion can be lost after upload. Reuse an already committed immutable object
 # before rebuilding timestamp-bearing native binaries or archives.
@@ -127,8 +133,15 @@ if aws s3api head-object \
   --key "$storage_key" >"$head_object" 2>/dev/null; then
   stored_hash=$(jq -r '.Metadata.sha256 // ""' "$head_object")
   stored_size=$(jq -r '.ContentLength' "$head_object")
-  [[ $stored_hash == "$sha256" && $stored_size == "$size" ]] ||
-    conflict "$storage_key already contains different bytes."
+  existing=$(mktemp)
+  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$storage_key" "$existing" --no-progress >/dev/null ||
+    fail "Unable to read the concurrently committed candidate artifact."
+  [[ $stored_hash =~ ^[0-9a-f]{64}$ && $stored_size =~ ^[1-9][0-9]*$ &&
+    $(sha256_file "$existing") == "$stored_hash" &&
+    $(wc -c <"$existing" | tr -d ' ') == "$stored_size" ]] ||
+    conflict "$storage_key has invalid immutable bytes or metadata."
+  printf '%s\t%s\t%s\t%s\n' "$artifact_name" "$stored_hash" "$stored_size" "$storage_key"
+  exit 0
 else
   if ! aws s3api put-object \
     --bucket "$RELEASE_ARTIFACT_BUCKET" \
@@ -141,8 +154,15 @@ else
       --key "$storage_key" >"$head_object" || fail "Unable to reconcile the S3 upload."
     stored_hash=$(jq -r '.Metadata.sha256 // ""' "$head_object")
     stored_size=$(jq -r '.ContentLength' "$head_object")
-    [[ $stored_hash == "$sha256" && $stored_size == "$size" ]] ||
-      conflict "$storage_key won a race with different bytes."
+    existing=$(mktemp)
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$storage_key" "$existing" --no-progress >/dev/null ||
+      fail "Unable to read the candidate artifact that won the upload race."
+    [[ $stored_hash =~ ^[0-9a-f]{64}$ && $stored_size =~ ^[1-9][0-9]*$ &&
+      $(sha256_file "$existing") == "$stored_hash" &&
+      $(wc -c <"$existing" | tr -d ' ') == "$stored_size" ]] ||
+      conflict "$storage_key won the race with invalid bytes or metadata."
+    printf '%s\t%s\t%s\t%s\n' "$artifact_name" "$stored_hash" "$stored_size" "$storage_key"
+    exit 0
   fi
 fi
 

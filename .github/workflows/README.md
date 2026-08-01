@@ -10,7 +10,9 @@ completed.
 
 ## Prepare Release (prepare-release.yml)
 
-This is a [manually triggered](https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow) workflow that uses the gradle build files already present in the sdk-java repository to prepare release artifacts for publication.  This workflow takes a tag string and a git ref to use in peparing a release.  There is an expectation that if preparing a given release (e.g. v1.2.3) then there exists a file in the repository, releases/<tag> (i.e. releases/v1.2.3) containing release notes. This file must be present on the ref passed to the workflow invocation.
+This is the dispatch-only emergency controller for the exact tag and full source SHA. Its fixed
+operations durably build missing native artifacts, perform a read-only inspection, authorize a
+previously inspected manifest for handoff/publication, or resolve an ambiguous Maven intent.
 
 This workflow requires five secrets:
 
@@ -20,26 +22,22 @@ This workflow requires five secrets:
 - `RH_PASSWORD`
 - `RH_USER`
 
- The results of running this workflow are
-
- - A *DRAFT* Github release will be created
- - Signed jars *STAGED* to the Sonatype Nexus artifact repository
-
- To complete the release, the releaser should
-
- - Validate and publish the Github release
- - Approve and publish the jars via the Sonatype UI
+The trusted scheduled emergency workflow resumes build or publication after runner loss. Publication
+uses exact Central/POM reconciliation and creates a GitHub draft, verifies all seven assets, then
+makes it public as the final mutation.
 
 ### Testing
 
-This workflow does not publish release artifacts in a way that is externally
-visible and thus it is safe to execute at any time as long as the resulting
-draft release and unpublished jars are cleaned up.
+Do not use this workflow for testing. `handoff-and-publish` authorizes real Maven, tag, asset, and
+GitHub release mutations after the separate `inspect` operation. No release action is safe to test
+against production credentials.
 
 Workflows can also be invoked from the `gh` cli. To invoke this workflow and watch its progress
 
 ```.sh
-$ gh workflow run --repo temporalio/sdk-java --field tag=v1.2.3 prepare-release.yml
+$ gh workflow run --repo temporalio/sdk-java --ref main \
+    --field action=inspect --field tag=v1.2.3 \
+    --field commit_sha=0123456789abcdef0123456789abcdef01234567 prepare-release.yml
 $ gh run list --workflow prepare-release.yml --repo temporalio/sdk-java
 $ # Note ID of your workflow run in the output of the command above
 $ gh run watch --repo temporalio/sdk-java <ID>

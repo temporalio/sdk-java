@@ -17,6 +17,7 @@ public final class CandidateIdentity {
   public String releaseNotesPath;
   public String releaseNotesSha256;
   public String trustedAutomationCommit;
+  public String mavenPolicy;
 
   public CandidateIdentity() {}
 
@@ -27,7 +28,8 @@ public final class CandidateIdentity {
       String commitSha,
       String releaseNotesPath,
       String releaseNotesSha256,
-      String trustedAutomationCommit) {
+      String trustedAutomationCommit,
+      String mavenPolicy) {
     this.repository = repository;
     this.version = version;
     this.tag = tag;
@@ -35,6 +37,7 @@ public final class CandidateIdentity {
     this.releaseNotesPath = releaseNotesPath;
     this.releaseNotesSha256 = releaseNotesSha256.toLowerCase(Locale.ROOT);
     this.trustedAutomationCommit = trustedAutomationCommit.toLowerCase(Locale.ROOT);
+    this.mavenPolicy = mavenPolicy;
     validate();
   }
 
@@ -52,6 +55,7 @@ public final class CandidateIdentity {
     require(
         trustedAutomationCommit != null && SHA.matcher(trustedAutomationCommit).matches(),
         "Trusted automation commit must be a full SHA.");
+    ReleasePolicy.mavenArtifacts(mavenPolicy);
   }
 
   public String canonicalForm() {
@@ -68,7 +72,9 @@ public final class CandidateIdentity {
         + "\n"
         + releaseNotesSha256
         + "\n"
-        + trustedAutomationCommit;
+        + trustedAutomationCommit
+        + "\n"
+        + mavenPolicy;
   }
 
   public String digest() {

@@ -1,9 +1,18 @@
-name: Emergency release handoff
-run-name: Emergency release ${{ inputs.tag }} at ${{ inputs.commit_sha }}
+name: Emergency release control
+run-name: Emergency ${{ inputs.action }} for ${{ inputs.tag }} at ${{ inputs.commit_sha }}
 
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: Fixed emergency release operation
+        required: true
+        type: choice
+        options:
+          - build-artifacts
+          - inspect
+          - handoff-and-publish
+          - authorize-maven-retry
       tag:
         description: Exact release tag, such as v1.2.3
         required: true
@@ -14,25 +23,19 @@ on:
         type: string
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
 
 env:
-  TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
-  TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
-  TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
   RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
   GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
 
 jobs:
-  emergency_release:
-    name: Inspect, claim handoff, and resume exact release
+  control:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 45
     environment: release-publication
-    concurrency:
-      group: sdk-java-release-publication
-      cancel-in-progress: false
     steps:
       - name: Validate exact inputs and trusted pin
         env:
@@ -42,151 +45,242 @@ jobs:
           [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
           [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
-      - name: Checkout trusted release automation
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: bootstrap
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - name: Verify trusted checkout
-        working-directory: bootstrap
-        run: '[[ "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "23"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Inspect exact Temporal state before any mutation
-        id: inspect
-        working-directory: bootstrap
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="inspect ${{ inputs.tag }} ${{ inputs.commit_sha }}"
-      - name: Checkout the release's frozen trusted automation
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ steps.inspect.outputs.automation_commit }}
-      - name: Verify frozen Worker checkout
-        env:
-          FROZEN_AUTOMATION_COMMIT: ${{ steps.inspect.outputs.automation_commit }}
-        run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
-      - name: Show the ownership and immutable identity
-        env:
-          PHASE: ${{ steps.inspect.outputs.phase }}
-          RELEASE_DIGEST: ${{ steps.inspect.outputs.release_digest }}
-          NOTES_SHA256: ${{ steps.inspect.outputs.notes_sha256 }}
-          MANIFEST_SHA256: ${{ steps.inspect.outputs.manifest_sha256 }}
-        run: |
-          {
-            echo "## Emergency release inspection"
-            echo
-            echo "- Existing Temporal phase: \`$PHASE\`"
-            echo "- Release digest: \`$RELEASE_DIGEST\`"
-            echo "- Notes SHA-256: \`$NOTES_SHA256\`"
-            echo "- Manifest SHA-256: \`$MANIFEST_SHA256\`"
-            echo
-            echo "This run will permanently hand this release to the emergency path."
-          } >>"$GITHUB_STEP_SUMMARY"
-      - name: Export immutable identity for read-only external inspection
-        id: inspection_input
-        working-directory: automation
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ steps.inspect.outputs.automation_commit }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="emergency-inspect-export ${{ inputs.tag }} ${{ inputs.commit_sha }}"
-      - name: Checkout immutable release source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           path: source
           ref: ${{ inputs.commit_sha }}
           submodules: recursive
-      - name: Obtain publication artifact-store credentials
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Verify active release manager
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+        run: automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_TRIGGERING_ACTOR"
+      - name: Resolve immutable emergency candidate
+        id: candidate
+        working-directory: source
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: |
+          ../automation/.github/scripts/temporal-release/resolve-emergency-candidate.sh
+          candidate_file=$(awk -F= '$1 == "candidate_file" {print $2}' "$GITHUB_OUTPUT" | tail -1)
+          cd ../automation
+          ./gradlew -p .github/release-automation run --args="candidate-outputs $candidate_file"
+      - name: Obtain durable artifact-state credentials
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
-      - name: Inspect Central, Sonatype, tag, release, and assets without mutation
-        id: external_inspection
+      - name: Create or validate durable emergency request
+        id: request
+        env:
+          ACTION: ${{ inputs.action }}
+          CANDIDATE_DIGEST: ${{ steps.candidate.outputs.candidate_digest }}
+          CANDIDATE_FILE: ${{ steps.candidate.outputs.candidate_file }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          key="sdk-java/emergency/$RELEASE_TAG.json"
+          request="$RUNNER_TEMP/emergency-request.json"
+          existing="$RUNNER_TEMP/existing-emergency-request.json"
+          if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+            >"$RUNNER_TEMP/emergency-request-head.json" 2>/dev/null; then
+            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$existing" --no-progress >/dev/null
+            jq -e --slurpfile candidate "$CANDIDATE_FILE" --arg digest "$CANDIDATE_DIGEST" \
+              '.candidate == $candidate[0] and .candidateDigest == $digest and
+               ((.artifactPrefix == ("sdk-java/" + $digest + "/") and
+                 .replacementAttempt == "") or
+                ((.replacementAttempt | test("^[0-9a-f]{64}$")) and
+                 .artifactPrefix == ("sdk-java/emergency-artifacts/" + $digest +
+                   "/" + .replacementAttempt + "/"))) and
+               (.state == "BUILDING" or .state == "AWAITING_INSPECTION" or
+                .state == "INSPECTED" or .state == "READY" or .state == "COMPLETE" or
+                .state == "BLOCKED")' "$existing" >/dev/null
+            cp "$existing" "$request"
+            request_etag=$(jq -er .ETag "$RUNNER_TEMP/emergency-request-head.json")
+          else
+            [[ "$ACTION" == build-artifacts ]] || {
+              echo "Run build-artifacts first to create the durable emergency request." >&2
+              exit 1
+            }
+            normal_prefix="sdk-java/$CANDIDATE_DIGEST/"
+            normal_count=$(aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
+              --prefix "$normal_prefix" --output json | jq '.Contents // [] | length')
+            if [[ $normal_count -eq 6 ]]; then
+              artifact_prefix=$normal_prefix
+              replacement_attempt=""
+            else
+              replacement_attempt=$(printf '%s' "$CANDIDATE_DIGEST:emergency-replacement-v1" | \
+                sha256sum | awk '{print $1}')
+              artifact_prefix="sdk-java/emergency-artifacts/$CANDIDATE_DIGEST/$replacement_attempt/"
+            fi
+            jq -n --slurpfile candidate "$CANDIDATE_FILE" --arg digest "$CANDIDATE_DIGEST" \
+              --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson runId "$GITHUB_RUN_ID" \
+              --arg artifactPrefix "$artifact_prefix" \
+              --arg replacementAttempt "$replacement_attempt" \
+              '{candidate:$candidate[0],candidateDigest:$digest,state:"BUILDING",
+                requestedBy:$actor,requestedRunId:$runId,mavenSubmissionGeneration:0,
+                artifactPrefix:$artifactPrefix,replacementAttempt:$replacementAttempt}' >"$request"
+            aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+              --body "$request" --if-none-match '*' >/dev/null
+          fi
+          {
+            echo "key=$key"
+            echo "request=$request"
+            echo "state=$(jq -er .state "$request")"
+            echo "generation=$(jq -er .mavenSubmissionGeneration "$request")"
+            echo "artifact_prefix=$(jq -er .artifactPrefix "$request")"
+            echo "replacement_attempt=$(jq -r .replacementAttempt "$request")"
+            echo "etag=${request_etag:-}"
+          } >>"$GITHUB_OUTPUT"
+      - name: Collect the exact durable artifact manifest
+        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
+        id: manifest
+        env:
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_ARTIFACT_PREFIX: ${{ steps.request.outputs.artifact_prefix }}
+          RELEASE_CANDIDATE_DIGEST: ${{ steps.candidate.outputs.candidate_digest }}
+          RELEASE_MANIFEST_FILE: ${{ runner.temp }}/emergency-manifest.tsv
+        run: automation/.github/scripts/temporal-release/collect-artifact-manifest.sh
+      - name: Construct independently durable release identity
+        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
+        id: identity
+        working-directory: automation
+        env:
+          EMERGENCY_APPROVAL_ACTOR: ${{ github.triggering_actor }}
+          EMERGENCY_APPROVAL_RUN_ID: ${{ github.run_id }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          MAVEN_SUBMISSION_GENERATION: ${{ steps.request.outputs.generation }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="emergency-input ${{ steps.candidate.outputs.candidate_file }} ${{ runner.temp }}/emergency-manifest.tsv"
+      - name: Inspect Central, Sonatype, tag, release, and assets without publication mutation
+        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
         working-directory: source
         env:
           EXPECTED_APPROVAL_ACTOR: ${{ github.triggering_actor }}
           EXPECTED_APPROVAL_RUN_ID: ${{ github.run_id }}
           EXPECTED_COMMIT_SHA: ${{ inputs.commit_sha }}
-          EXPECTED_MANIFEST_SHA256: ${{ steps.inspection_input.outputs.manifest_sha256 }}
-          EXPECTED_NOTES_SHA256: ${{ steps.inspection_input.outputs.notes_sha256 }}
-          EXPECTED_RELEASE_DIGEST: ${{ steps.inspection_input.outputs.release_digest }}
+          EXPECTED_MANIFEST_SHA256: ${{ steps.identity.outputs.manifest_sha256 }}
+          EXPECTED_NOTES_SHA256: ${{ steps.identity.outputs.notes_sha256 }}
+          EXPECTED_RELEASE_DIGEST: ${{ steps.identity.outputs.release_digest }}
           EXPECTED_REPOSITORY: temporalio/sdk-java
-          EXPECTED_RUN_ID: ${{ steps.inspection_input.outputs.run_id }}
+          EXPECTED_RUN_ID: ${{ steps.identity.outputs.run_id }}
           EXPECTED_TAG: ${{ inputs.tag }}
-          EXPECTED_WORKFLOW_ID: ${{ steps.inspection_input.outputs.workflow_id }}
+          EXPECTED_WORKFLOW_ID: ${{ steps.identity.outputs.workflow_id }}
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_INPUT_FILE: ${{ steps.inspection_input.outputs.release_input_file }}
+          RELEASE_INPUT_FILE: ${{ steps.identity.outputs.release_input_file }}
           RELEASE_MODE: emergency-inspect
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/emergency-inspection.json
           RELEASE_STAGE: inspect
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ steps.inspect.outputs.automation_commit }}
+          TRUSTED_WORKER_COMMIT: ${{ steps.candidate.outputs.automation_commit }}
         run: |
           bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
           {
+            echo "## Exact emergency release inspection"
             echo
-            echo "### External state before handoff"
+            echo "- Tag: \`${{ inputs.tag }}\`"
+            echo "- Full SHA: \`${{ inputs.commit_sha }}\`"
+            echo "- Release digest: \`${{ steps.identity.outputs.release_digest }}\`"
+            echo "- Manifest SHA-256: \`${{ steps.identity.outputs.manifest_sha256 }}\`"
+            echo
             echo '```json'
             jq . "$RELEASE_OUTPUT_FILE"
             echo '```'
           } >>"$GITHUB_STEP_SUMMARY"
-      - name: Record authenticated durable handoff
-        if: steps.inspect.outputs.phase != 'HANDED_OFF'
-        working-directory: automation
+      - name: Record completed inspection or authorize publication
+        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ steps.inspect.outputs.automation_commit }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="control handoff-manual ${{ inputs.tag }} ${{ inputs.commit_sha }}"
-      - name: Export the handed-off immutable release
-        id: export
-        working-directory: automation
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ steps.inspect.outputs.automation_commit }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="emergency-export ${{ inputs.tag }} ${{ inputs.commit_sha }}"
-      - name: Reconcile from the first unfinished irreversible stage
-        working-directory: source
-        env:
-          EXPECTED_APPROVAL_ACTOR: ${{ github.triggering_actor }}
-          EXPECTED_APPROVAL_RUN_ID: ${{ github.run_id }}
-          EXPECTED_COMMIT_SHA: ${{ inputs.commit_sha }}
-          EXPECTED_MANIFEST_SHA256: ${{ steps.export.outputs.manifest_sha256 }}
-          EXPECTED_NOTES_SHA256: ${{ steps.export.outputs.notes_sha256 }}
-          EXPECTED_RELEASE_DIGEST: ${{ steps.export.outputs.release_digest }}
-          EXPECTED_REPOSITORY: temporalio/sdk-java
-          EXPECTED_RUN_ID: ${{ steps.export.outputs.run_id }}
-          EXPECTED_TAG: ${{ inputs.tag }}
-          EXPECTED_WORKFLOW_ID: ${{ steps.export.outputs.workflow_id }}
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
-          JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
-          JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          ACTION: ${{ inputs.action }}
+          INSPECTION_FILE: ${{ runner.temp }}/emergency-inspection.json
+          MANIFEST_SHA256: ${{ steps.identity.outputs.manifest_sha256 }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_INPUT_FILE: ${{ steps.export.outputs.release_input_file }}
-          RELEASE_MODE: emergency
-          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
-          RH_USER: ${{ secrets.RH_USER }}
-          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ steps.inspect.outputs.automation_commit }}
+          REQUEST_FILE: ${{ steps.request.outputs.request }}
+          REQUEST_KEY: ${{ steps.request.outputs.key }}
         run: |
-          output="$RUNNER_TEMP/emergency-release-output.json"
-          export RELEASE_OUTPUT_FILE=$output
-          for stage in preflight maven github-draft github-publish; do
-            export RELEASE_STAGE=$stage
-            bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
-          done
+          if [[ "$ACTION" == inspect ]]; then
+            current_state=$(jq -r .state "$REQUEST_FILE")
+            [[ "$current_state" == AWAITING_INSPECTION || "$current_state" == INSPECTED ||
+              "$current_state" == BLOCKED ]] || {
+              echo "Inspection is not available from state $current_state." >&2
+              exit 1
+            }
+            [[ "$current_state" == BLOCKED ]] && state=BLOCKED || state=INSPECTED
+          else
+            current_state=$(jq -r .state "$REQUEST_FILE")
+            same_manifest=$(jq -r .manifestSha256 "$REQUEST_FILE")
+            resumable=false
+            if [[ "$current_state" == BLOCKED ]]; then
+              blocked_reason=$(jq -r '.blockedReason // ""' "$REQUEST_FILE")
+              if [[ "$blocked_reason" == MavenSubmissionAmbiguous ]]; then
+                maven_present=$(jq -r '.inspection.mavenPresent // 0' "$REQUEST_FILE")
+                sonatype=$(jq -r '.inspection.sonatype // ""' "$REQUEST_FILE")
+                [[ $maven_present -gt 0 || "$sonatype" == exact-repository-found ]] && resumable=true
+              elif [[ "$blocked_reason" == InvalidApproval ]]; then
+                resumable=true
+              fi
+            fi
+            [[ "$same_manifest" == "$MANIFEST_SHA256" &&
+              ( "$current_state" == INSPECTED || "$resumable" == true ) ]] || {
+              echo "Run inspect for this exact manifest before handoff-and-publish." >&2
+              exit 1
+            }
+            state=READY
+          fi
+          jq --arg state "$state" --arg manifest "$MANIFEST_SHA256" \
+            --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson run "$GITHUB_RUN_ID" \
+            --arg action "$ACTION" --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --slurpfile inspection "$INSPECTION_FILE" \
+            '.state=$state | .manifestSha256=$manifest | .approvedBy=$actor |
+             .approvalRunId=$run | .inspection=$inspection[0] | .inspectionRunId=$run |
+             if $action == "handoff-and-publish" then
+               .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
+                 reason:"Release manager transferred ownership to emergency automation.",
+                 recordedAt:$recordedAt,githubRunId:$run}
+             else . end' \
+            "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
+          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
+            --body "$RUNNER_TEMP/updated-request.json" --if-match '${{ steps.request.outputs.etag }}' \
+            >/dev/null
+      - name: Authorize one new Maven staging generation after manual Sonatype inspection
+        if: inputs.action == 'authorize-maven-retry'
+        env:
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          REQUEST_FILE: ${{ steps.request.outputs.request }}
+          REQUEST_KEY: ${{ steps.request.outputs.key }}
+        run: |
+          [[ $(jq -r .state "$REQUEST_FILE") == BLOCKED &&
+            $(jq -r .blockedReason "$REQUEST_FILE") == MavenSubmissionAmbiguous &&
+            $(jq -r '.inspection.sonatype // ""' "$REQUEST_FILE") == exact-repository-absent &&
+            $(jq -r '.inspection.mavenPresent // -1' "$REQUEST_FILE") == 0 &&
+            $(jq -r '.inspection.mavenSubmissionGeneration // -1' "$REQUEST_FILE") ==
+              $(jq -r .mavenSubmissionGeneration "$REQUEST_FILE") ]] || {
+            echo "The emergency release is not blocked on an ambiguous Maven intent." >&2
+            exit 1
+          }
+          jq --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson run "$GITHUB_RUN_ID" \
+            --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            '.state="READY" | .mavenSubmissionGeneration += 1 |
+             .mavenRetryAuthorizedBy=$actor | .mavenRetryAuthorizationRunId=$run |
+             .approvedBy=$actor | .approvalRunId=$run |
+             .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
+               reason:"Release manager transferred ownership to emergency automation.",
+               recordedAt:$recordedAt,githubRunId:$run} | del(.blockedReason)' \
+            "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
+          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
+            --body "$RUNNER_TEMP/updated-request.json" --if-match '${{ steps.request.outputs.etag }}' \
+            >/dev/null

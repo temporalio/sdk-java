@@ -12,16 +12,19 @@ public final class BuildActivitiesImpl implements BuildActivities {
   private final Path trustedRoot;
   private final Path sourceRoot;
   private final String trustedAutomationCommit;
+  private final Map<String, String> workerEnvironment;
   private final Consumer<Throwable> completion;
 
   public BuildActivitiesImpl(
       Path trustedRoot,
       Path sourceRoot,
       String trustedAutomationCommit,
+      Map<String, String> workerEnvironment,
       Consumer<Throwable> completion) {
     this.trustedRoot = trustedRoot;
     this.sourceRoot = sourceRoot;
     this.trustedAutomationCommit = trustedAutomationCommit;
+    this.workerEnvironment = new HashMap<>(workerEnvironment);
     this.completion = completion;
   }
 
@@ -57,6 +60,12 @@ public final class BuildActivitiesImpl implements BuildActivities {
     environment.put("RELEASE_CANDIDATE_DIGEST", candidate.digest());
     environment.put("RELEASE_PLATFORM", platform);
     environment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
+    copy(environment, "RELEASE_ARTIFACT_BUCKET");
+    copy(environment, "AWS_ACCESS_KEY_ID");
+    copy(environment, "AWS_SECRET_ACCESS_KEY");
+    copy(environment, "AWS_SESSION_TOKEN");
+    copy(environment, "AWS_REGION");
+    copy(environment, "AWS_DEFAULT_REGION");
     try {
       List<String> output =
           ProcessSupport.run(
@@ -85,6 +94,13 @@ public final class BuildActivitiesImpl implements BuildActivities {
             "Durable artifact storage contains conflicting bytes.", "ReleaseIdentityConflict");
       }
       throw e;
+    }
+  }
+
+  private void copy(Map<String, String> commandEnvironment, String name) {
+    String value = workerEnvironment.get(name);
+    if (value != null && !value.isEmpty()) {
+      commandEnvironment.put(name, value);
     }
   }
 }

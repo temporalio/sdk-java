@@ -44,5 +44,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Check shell syntax
         run: bash -n .github/scripts/temporal-release/*.sh
+      - name: Parse workflow YAML
+        run: >-
+          ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each {
+          |workflow| YAML.parse_file(workflow) }'
       - name: Verify formatting and local tests
         run: ./gradlew -p .github/release-automation spotlessCheck test

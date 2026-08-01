@@ -9,6 +9,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionMetadata;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowTargetOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import java.io.IOException;
@@ -26,6 +27,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class ReleaseAutomationMain {
@@ -37,9 +40,24 @@ public final class ReleaseAutomationMain {
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
       throw new IllegalArgumentException(
-          "Expected start-candidate, discover, approval-target, approval-request, approve, control, inspect, emergency-inspect-export, emergency-export, or worker.");
+          "Expected candidate-outputs, maven-policy, emergency-input, start-candidate, discover, approval-target, approval-request, approve, control, inspect, or worker.");
     }
     Map<String, String> environment = System.getenv();
+    if ("candidate-outputs".equals(args[0])) {
+      requireArguments(args, 2);
+      candidateOutputs(read(args[1], CandidateIdentity.class));
+      return;
+    }
+    if ("emergency-input".equals(args[0])) {
+      requireArguments(args, 3);
+      emergencyInput(read(args[1], CandidateIdentity.class), Paths.get(args[2]), environment);
+      return;
+    }
+    if ("maven-policy".equals(args[0])) {
+      requireArguments(args, 2);
+      mavenPolicy(Paths.get(args[1]));
+      return;
+    }
     try (TemporalConnection temporal = TemporalConnection.fromEnvironment(environment)) {
       switch (args[0]) {
         case "start-candidate":
@@ -70,14 +88,6 @@ public final class ReleaseAutomationMain {
           requireArguments(args, 3);
           inspect(temporal.client, args[1], args[2]);
           return;
-        case "emergency-export":
-          requireArguments(args, 3);
-          emergencyExport(temporal.client, environment, args[1], args[2]);
-          return;
-        case "emergency-inspect-export":
-          requireArguments(args, 3);
-          emergencyInspectExport(temporal.client, environment, args[1], args[2]);
-          return;
         case "worker":
           requireArguments(args, 3);
           runWorker(temporal.client, args[1], args[2], environment);
@@ -86,6 +96,93 @@ public final class ReleaseAutomationMain {
           throw new IllegalArgumentException("Unknown command: " + args[0]);
       }
     }
+  }
+
+  private static void candidateOutputs(CandidateIdentity candidate) {
+    candidate.validate();
+    writeOutput("candidate_digest", candidate.digest());
+    writeOutput("automation_commit", candidate.trustedAutomationCommit);
+    writeOutput("commit_sha", candidate.commitSha);
+    writeOutput("notes_sha256", candidate.releaseNotesSha256);
+    writeOutput("tag", candidate.tag);
+    writeOutput("version", candidate.version);
+    writeOutput("maven_policy", candidate.mavenPolicy);
+  }
+
+  private static void mavenPolicy(Path settingsFile) throws IOException {
+    Pattern include = Pattern.compile("^include ['\"]([^'\"]+)['\"]$");
+    List<String> projects = new ArrayList<>();
+    for (String line : Files.readAllLines(settingsFile, StandardCharsets.UTF_8)) {
+      Matcher match = include.matcher(line);
+      if (match.matches()) {
+        projects.add(match.group(1));
+      }
+    }
+    String policy = ReleasePolicy.mavenPolicyForProjects(projects);
+    writeOutput("maven_policy", policy);
+    writeOutput("maven_artifacts_json", GSON.toJson(ReleasePolicy.mavenArtifacts(policy)));
+  }
+
+  private static void emergencyInput(
+      CandidateIdentity candidate, Path manifestPath, Map<String, String> env) throws IOException {
+    candidate.validate();
+    String actor = required(env, "EMERGENCY_APPROVAL_ACTOR");
+    verifyApprover(actor);
+    long githubRunId = Long.parseLong(required(env, "EMERGENCY_APPROVAL_RUN_ID"));
+    List<ArtifactEntry> artifacts = new ArrayList<>();
+    for (String line : Files.readAllLines(manifestPath, StandardCharsets.UTF_8)) {
+      String[] fields = line.split("\\t", -1);
+      if (fields.length != 4) {
+        throw new IllegalArgumentException("Emergency artifact manifest record is invalid.");
+      }
+      artifacts.add(new ArtifactEntry(fields[0], fields[1], Long.parseLong(fields[2]), fields[3]));
+    }
+    ReleaseIdentity identity = new ReleaseIdentity(candidate, new ArtifactManifest(artifacts));
+    String workflowId = QueueNames.releaseWorkflowId(identity);
+    String runId = identity.digest().substring(0, 32);
+    ApprovalEvidence authorization =
+        new ApprovalEvidence(
+            ReleasePolicy.REPOSITORY,
+            identity.digest(),
+            workflowId,
+            runId,
+            githubRunId,
+            actor,
+            githubRunId,
+            "EMERGENCY_" + githubRunId,
+            Digests.sha256("emergency-handoff\n" + identity.digest()),
+            candidate.trustedAutomationCommit);
+    PublicationInput input = new PublicationInput(identity, authorization, workflowId, runId);
+    String submissionGeneration = env.get("MAVEN_SUBMISSION_GENERATION");
+    if (submissionGeneration != null && !submissionGeneration.isEmpty()) {
+      input.mavenSubmissionGeneration = Integer.parseInt(submissionGeneration);
+      if (input.mavenSubmissionGeneration < 0) {
+        throw new IllegalArgumentException("Maven submission generation cannot be negative.");
+      }
+    }
+    input.emergencyHandoff = true;
+    input.handoff =
+        new ControlEvidence(
+            "handoff-manual",
+            ReleasePolicy.REPOSITORY,
+            identity.digest(),
+            workflowId,
+            runId,
+            githubRunId,
+            actor,
+            candidate.tag,
+            candidate.commitSha,
+            "Release manager selected the independently durable emergency path.");
+    input.handoff.recordedAtMillis = System.currentTimeMillis();
+    Path export = Paths.get(required(env, "RUNNER_TEMP")).resolve("sdk-java-emergency-input.json");
+    Files.write(export, GSON.toJson(input).getBytes(StandardCharsets.UTF_8));
+    writeOutput("release_input_file", export.toString());
+    writeOutput("workflow_id", workflowId);
+    writeOutput("run_id", runId);
+    writeOutput("release_digest", identity.digest());
+    writeOutput("manifest_sha256", identity.manifestSha256);
+    writeOutput("notes_sha256", candidate.releaseNotesSha256);
+    writeOutput("automation_commit", candidate.trustedAutomationCommit);
   }
 
   private static void startCandidate(WorkflowClient client, CandidateIdentity candidate) {
@@ -115,8 +212,11 @@ public final class ReleaseAutomationMain {
       jobs = discoverUnprivileged(client);
     } else if ("publication".equals(scope)) {
       jobs = discoverPublication(client);
+    } else if ("approvals".equals(scope)) {
+      jobs = discoverApprovals(client);
     } else {
-      throw new IllegalArgumentException("Discovery scope must be unprivileged or publication.");
+      throw new IllegalArgumentException(
+          "Discovery scope must be unprivileged, publication, or approvals.");
     }
     JsonObject matrix = new JsonObject();
     matrix.add("include", GSON.toJsonTree(jobs));
@@ -159,17 +259,40 @@ public final class ReleaseAutomationMain {
         }
         jobs.add(build);
       }
+      if (candidateStatus != null && candidateStatus.releaseIdentity != null) {
+        ReleaseIdentity releaseIdentity = candidateStatus.releaseIdentity;
+        releaseIdentity.validate();
+        DiscoveryJob release =
+            new DiscoveryJob("release", QueueNames.releaseWorkflow(releaseIdentity));
+        release.automationCommit = candidate.trustedAutomationCommit;
+        release.workflowId = QueueNames.releaseWorkflowId(releaseIdentity);
+        jobs.add(release);
+      }
     }
     for (WorkflowExecutionMetadata execution : openExecutions(client, "ReleaseWorkflow")) {
       ReleaseStatus status = releaseStatus(execution);
-      if (status == null
-          || status.identity == null
-          || "PAUSED".equals(status.phase)
-          || "HANDED_OFF".equals(status.phase)) {
+      ReleaseIdentity releaseIdentity =
+          status == null
+              ? (ReleaseIdentity)
+                  execution.getMemo(ReleaseWorkflowImpl.IDENTITY_MEMO_KEY, ReleaseIdentity.class)
+              : status.identity;
+      if (releaseIdentity == null) {
+        throw new IllegalStateException("Release Workflow has no immutable identity memo.");
+      }
+      releaseIdentity.validate();
+      if (!QueueNames.releaseWorkflowId(releaseIdentity)
+              .equals(execution.getExecution().getWorkflowId())
+          || !QueueNames.releaseWorkflow(releaseIdentity).equals(execution.getTaskQueue())) {
+        throw new IllegalStateException("Release identity memo does not match Workflow routing.");
+      }
+      if (status != null
+          && ("PAUSED".equals(status.phase)
+              || "BLOCKED".equals(status.phase)
+              || "HANDED_OFF".equals(status.phase))) {
         continue;
       }
       DiscoveryJob release = new DiscoveryJob("release", execution.getTaskQueue());
-      release.automationCommit = status.identity.candidate.trustedAutomationCommit;
+      release.automationCommit = releaseIdentity.candidate.trustedAutomationCommit;
       release.workflowId = execution.getExecution().getWorkflowId();
       release.runId = execution.getExecution().getRunId();
       jobs.add(release);
@@ -212,6 +335,32 @@ public final class ReleaseAutomationMain {
       job.approvalIssueBodySha256 = status.approval.githubIssueBodySha256;
       job.automationCommit = identity.candidate.trustedAutomationCommit;
       job.phase = status.phase;
+      jobs.add(job);
+    }
+    return jobs;
+  }
+
+  private static List<DiscoveryJob> discoverApprovals(WorkflowClient client) {
+    List<DiscoveryJob> jobs = new ArrayList<>();
+    for (WorkflowExecutionMetadata execution : openExecutions(client, "ReleaseWorkflow")) {
+      ReleaseStatus status = releaseStatus(execution);
+      if (status == null
+          || status.identity == null
+          || !"AWAITING_APPROVAL".equals(status.phase)
+          || status.approvalRequest != null) {
+        continue;
+      }
+      ReleaseIdentity identity = status.identity;
+      identity.validate();
+      DiscoveryJob job = new DiscoveryJob("approval", execution.getTaskQueue());
+      job.workflowId = execution.getExecution().getWorkflowId();
+      job.runId = execution.getExecution().getRunId();
+      job.tag = identity.candidate.tag;
+      job.commitSha = identity.candidate.commitSha;
+      job.notesSha256 = identity.candidate.releaseNotesSha256;
+      job.manifestSha256 = identity.manifestSha256;
+      job.releaseDigest = identity.digest();
+      job.automationCommit = identity.candidate.trustedAutomationCommit;
       jobs.add(job);
     }
     return jobs;
@@ -268,19 +417,19 @@ public final class ReleaseAutomationMain {
 
   private static void requestApproval(WorkflowClient client, Map<String, String> env) {
     verifyApprover(required(env, "GITHUB_TRIGGERING_ACTOR"));
+    String expectedWorkflowId = required(env, "EXPECTED_WORKFLOW_ID");
     List<WorkflowExecutionMetadata> pending =
         openExecutions(client, "ReleaseWorkflow").stream()
             .filter(
                 execution -> {
                   ReleaseStatus status = releaseStatus(execution);
                   return status != null
-                      && "AWAITING_APPROVAL".equals(status.phase)
-                      && status.approvalRequest == null;
+                      && expectedWorkflowId.equals(execution.getExecution().getWorkflowId());
                 })
             .collect(Collectors.toList());
     if (pending.size() != 1) {
       throw new IllegalStateException(
-          "Approval request requires exactly one unrequested release; found "
+          "Approval request does not identify exactly one open release; found "
               + pending.size()
               + ".");
     }
@@ -303,32 +452,19 @@ public final class ReleaseAutomationMain {
                   required(env, "APPROVAL_ISSUE_NODE_ID"),
                   required(env, "APPROVAL_ISSUE_BODY_SHA256"),
                   identity.candidate.trustedAutomationCommit);
-          workflow.requestApproval(request);
-          writeIdentityOutputs(metadata, identity, "AWAITING_APPROVAL");
+          if (status.approvalRequest == null) {
+            workflow.requestApproval(request);
+          } else if (!status.approvalRequest.sameIssue(request)) {
+            throw new IllegalStateException(
+                "The release already has a different immutable approval issue.");
+          }
+          writeIdentityOutputs(metadata, identity, status.phase);
         });
   }
 
   private static void approvalTarget(WorkflowClient client, Map<String, String> env) {
-    WorkflowExecutionMetadata target;
-    String issueNumber = env.get("APPROVAL_ISSUE_NUMBER");
-    if (issueNumber == null || issueNumber.isEmpty() || "0".equals(issueNumber)) {
-      List<WorkflowExecutionMetadata> pending =
-          openExecutions(client, "ReleaseWorkflow").stream()
-              .filter(
-                  execution -> {
-                    ReleaseStatus status = releaseStatus(execution);
-                    return status != null
-                        && "AWAITING_APPROVAL".equals(status.phase)
-                        && status.approvalRequest == null;
-                  })
-              .collect(Collectors.toList());
-      if (pending.size() != 1) {
-        throw new IllegalStateException("There is not exactly one unrequested release approval.");
-      }
-      target = pending.get(0);
-    } else {
-      target = findApprovalIssue(client, Long.parseLong(issueNumber));
-    }
+    WorkflowExecutionMetadata target =
+        findApprovalIssue(client, Long.parseLong(required(env, "APPROVAL_ISSUE_NUMBER")));
     ReleaseStatus status = releaseStatus(target);
     writeIdentityOutputs(target, status.identity, status.phase);
   }
@@ -345,20 +481,25 @@ public final class ReleaseAutomationMain {
           ReleaseStatus status = workflow.status();
           ReleaseIdentity identity = status.identity;
           requireTrustedCommit(identity, env);
-          ControlEvidence evidence =
-              new ControlEvidence(
-                  action,
-                  ReleasePolicy.REPOSITORY,
-                  identity.digest(),
-                  metadata.getExecution().getWorkflowId(),
-                  metadata.getExecution().getRunId(),
-                  Long.parseLong(required(env, "GITHUB_RUN_ID")),
-                  actor,
-                  tag,
-                  commitSha,
-                  fixedControlReason(action));
+          ControlEvidence evidence = new ControlEvidence();
+          evidence.action = action;
+          evidence.repository = ReleasePolicy.REPOSITORY;
+          evidence.releaseDigest = identity.digest();
+          evidence.workflowId = metadata.getExecution().getWorkflowId();
+          evidence.runId = metadata.getExecution().getRunId();
+          evidence.githubRunId = Long.parseLong(required(env, "GITHUB_RUN_ID"));
+          evidence.githubActor = actor;
+          evidence.tag = tag;
+          evidence.commitSha = commitSha;
+          evidence.reason = fixedControlReason(action);
+          if ("manual-complete".equals(action)) {
+            evidence.githubReleaseUrl = required(env, "MANUAL_GITHUB_RELEASE_URL");
+            evidence.mavenCentralUrl = required(env, "MANUAL_MAVEN_CENTRAL_URL");
+          }
+          evidence.validate();
           ReleaseStatus updated = workflow.control(evidence);
           writeIdentityOutputs(metadata, identity, updated.phase);
+          writeStatusOutputs(updated);
           if ("handoff-manual".equals(action)) {
             Path handoff =
                 Paths.get(required(env, "RUNNER_TEMP")).resolve("sdk-java-release-handoff.json");
@@ -373,67 +514,10 @@ public final class ReleaseAutomationMain {
   }
 
   private static void inspect(WorkflowClient client, String tag, String commitSha) {
-    WorkflowExecutionMetadata metadata = findRelease(client, tag, commitSha);
+    WorkflowExecutionMetadata metadata = findReleaseIncludingClosed(client, tag, commitSha);
     ReleaseStatus status = releaseStatus(metadata);
     writeIdentityOutputs(metadata, status.identity, status.phase);
-  }
-
-  private static void emergencyExport(
-      WorkflowClient client, Map<String, String> env, String tag, String commitSha) {
-    exportEmergencyInput(client, env, tag, commitSha, true);
-  }
-
-  private static void emergencyInspectExport(
-      WorkflowClient client, Map<String, String> env, String tag, String commitSha) {
-    exportEmergencyInput(client, env, tag, commitSha, false);
-  }
-
-  private static void exportEmergencyInput(
-      WorkflowClient client,
-      Map<String, String> env,
-      String tag,
-      String commitSha,
-      boolean requireHandoff) {
-    String actor = required(env, "GITHUB_TRIGGERING_ACTOR");
-    verifyApprover(actor);
-    WorkflowExecutionMetadata metadata = findRelease(client, tag, commitSha);
-    ReleaseStatus status = releaseStatus(metadata);
-    if (requireHandoff
-        && (!"HANDED_OFF".equals(status.phase)
-            || status.control == null
-            || !"handoff-manual".equals(status.control.action))) {
-      throw new IllegalStateException("Emergency export requires a durable manual handoff.");
-    }
-    ReleaseIdentity identity = status.identity;
-    requireTrustedCommit(identity, env);
-    ApprovalEvidence emergencyAuthorization =
-        new ApprovalEvidence(
-            ReleasePolicy.REPOSITORY,
-            identity.digest(),
-            metadata.getExecution().getWorkflowId(),
-            metadata.getExecution().getRunId(),
-            Long.parseLong(required(env, "GITHUB_RUN_ID")),
-            actor,
-            Long.parseLong(required(env, "GITHUB_RUN_ID")),
-            "EMERGENCY_" + required(env, "GITHUB_RUN_ID"),
-            Digests.sha256("emergency-handoff\n" + identity.digest()),
-            identity.candidate.trustedAutomationCommit);
-    PublicationInput input =
-        new PublicationInput(
-            identity,
-            emergencyAuthorization,
-            metadata.getExecution().getWorkflowId(),
-            metadata.getExecution().getRunId());
-    input.emergencyHandoff = "HANDED_OFF".equals(status.phase);
-    input.handoff = status.control;
-    Path export = Paths.get(required(env, "RUNNER_TEMP")).resolve("sdk-java-emergency-input.json");
-    try {
-      Files.write(export, GSON.toJson(input).getBytes(StandardCharsets.UTF_8));
-    } catch (IOException e) {
-      throw new IllegalStateException("Unable to write emergency release input.", e);
-    }
-    writeIdentityOutputs(metadata, identity, status.phase);
-    writeOutput("release_input_file", export.toString());
+    writeStatusOutputs(status);
   }
 
   private static void runWorker(
@@ -464,6 +548,7 @@ public final class ReleaseAutomationMain {
                 REPOSITORY_ROOT,
                 sourceRoot(env),
                 required(env, "RELEASE_AUTOMATION_REF"),
+                env,
                 recordActivityCompletion));
         break;
       case "publication":
@@ -488,9 +573,16 @@ public final class ReleaseAutomationMain {
     factory.shutdown();
     factory.awaitTermination(10, java.util.concurrent.TimeUnit.MINUTES);
     if (activityFailure.get() != null) {
+      Throwable failure = activityFailure.get();
+      if (failure instanceof ApplicationFailure
+          && ((ApplicationFailure) failure).isNonRetryable()) {
+        throw new IllegalStateException(
+            "The release Activity reached a durable non-retryable failure.", failure);
+      }
+      writeOutput("worker_outcome", "activity-attempt-failed-temporal-will-retry");
       throw new IllegalStateException(
-          "The release Activity attempt failed; Temporal retained its retry state.",
-          activityFailure.get());
+          "The release Activity attempt failed; Temporal retained its durable retry state and scheduled recovery.",
+          failure);
     }
   }
 
@@ -554,8 +646,26 @@ public final class ReleaseAutomationMain {
 
   private static WorkflowExecutionMetadata findRelease(
       WorkflowClient client, String tag, String commitSha) {
+    return findRelease(openExecutions(client, "ReleaseWorkflow"), tag, commitSha);
+  }
+
+  private static WorkflowExecutionMetadata findReleaseIncludingClosed(
+      WorkflowClient client, String tag, String commitSha) {
+    List<WorkflowExecutionMetadata> open = openExecutions(client, "ReleaseWorkflow");
+    try {
+      return findRelease(open, tag, commitSha);
+    } catch (IllegalStateException ignored) {
+      return findRelease(
+          client.listExecutions("WorkflowType = 'ReleaseWorkflow'").collect(Collectors.toList()),
+          tag,
+          commitSha);
+    }
+  }
+
+  private static WorkflowExecutionMetadata findRelease(
+      List<WorkflowExecutionMetadata> executions, String tag, String commitSha) {
     List<WorkflowExecutionMetadata> matches =
-        openExecutions(client, "ReleaseWorkflow").stream()
+        executions.stream()
             .filter(
                 execution -> {
                   ReleaseStatus status = releaseStatus(execution);
@@ -566,7 +676,7 @@ public final class ReleaseAutomationMain {
                 })
             .collect(Collectors.toList());
     if (matches.size() != 1) {
-      throw new IllegalStateException("Tag and SHA do not identify exactly one open release.");
+      throw new IllegalStateException("Tag and SHA do not identify exactly one release execution.");
     }
     return matches.get(0);
   }
@@ -608,6 +718,24 @@ public final class ReleaseAutomationMain {
     writeOutput("phase", phase);
   }
 
+  private static void writeStatusOutputs(ReleaseStatus status) {
+    writeOutput("last_completed_stage", value(status.lastCompletedStage));
+    writeOutput("last_error", value(status.lastError));
+    writeOutput("blocked_at_millis", Long.toString(status.blockedAtMillis));
+    writeOutput("maven_central_url", value(status.mavenCentralUrl));
+    writeOutput("sonatype_repository_id", value(status.sonatypeRepositoryId));
+    writeOutput("github_draft_url", value(status.githubDraftUrl));
+    writeOutput("github_release_url", value(status.githubReleaseUrl));
+    writeOutput("maven_submission_generation", Integer.toString(status.mavenSubmissionGeneration));
+    writeOutput("stage_attempt", Integer.toString(status.stageAttempt));
+    writeOutput("stage_started_at_millis", Long.toString(status.stageStartedAtMillis));
+    writeOutput("next_retry_at_millis", Long.toString(status.nextRetryAtMillis));
+  }
+
+  private static String value(String value) {
+    return value == null ? "" : value.replace('\n', ' ');
+  }
+
   private static String fixedControlReason(String action) {
     switch (action) {
       case "pause":
@@ -616,6 +744,10 @@ public final class ReleaseAutomationMain {
         return "Release manager resumed Temporal publication.";
       case "handoff-manual":
         return "Release manager transferred ownership to the emergency workflow.";
+      case "retry-maven-submission":
+        return "Release manager inspected Sonatype and authorized one new staging generation.";
+      case "manual-complete":
+        return "Emergency automation reconciled every immutable publication side effect.";
       default:
         throw new IllegalArgumentException("Unknown release control action.");
     }
@@ -672,8 +804,13 @@ public final class ReleaseAutomationMain {
             .directory(REPOSITORY_ROOT.toFile())
             .inheritIO();
     try {
-      if (process.start().waitFor() != 0) {
+      int status = process.start().waitFor();
+      if (status == 43) {
         throw new IllegalArgumentException("GitHub actor is not an sdk-java release manager.");
+      }
+      if (status != 0) {
+        throw new IllegalStateException(
+            "GitHub release-manager membership is temporarily unavailable.");
       }
     } catch (IOException e) {
       throw new IllegalStateException("Unable to run the fixed approver check.", e);

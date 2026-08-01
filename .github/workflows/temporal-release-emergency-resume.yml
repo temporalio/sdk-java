@@ -1,0 +1,443 @@
+name: Resume durable emergency releases
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  schedule:
+    - cron: "13,28,43,58 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  discover:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release-publication
+    outputs:
+      build_count: ${{ steps.matrix.outputs.build_count }}
+      build_matrix: ${{ steps.matrix.outputs.build_matrix }}
+      publish_count: ${{ steps.matrix.outputs.publish_count }}
+      publish_matrix: ${{ steps.matrix.outputs.publish_matrix }}
+      sync_count: ${{ steps.matrix.outputs.sync_count }}
+      sync_matrix: ${{ steps.matrix.outputs.sync_matrix }}
+    steps:
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
+      - name: Discover exact durable emergency requests
+        id: matrix
+        env:
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/requests"
+          aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
+            --prefix sdk-java/emergency/ --output json >"$RUNNER_TEMP/requests.json"
+          : >"$RUNNER_TEMP/build.jsonl"
+          : >"$RUNNER_TEMP/publish.jsonl"
+          : >"$RUNNER_TEMP/sync.jsonl"
+          while IFS= read -r key; do
+            file="$RUNNER_TEMP/requests/$(basename "$key")"
+            request_head=$(aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key")
+            request_etag=$(jq -er .ETag <<<"$request_head")
+            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$file" --no-progress >/dev/null
+            [[ "$key" == "sdk-java/emergency/$(jq -er .candidate.tag "$file").json" ]]
+            jq -e '.candidate.repository == "temporalio/sdk-java" and
+              (.candidate.commitSha | test("^[0-9a-f]{40}$")) and
+              (.candidate.trustedAutomationCommit | test("^[0-9a-f]{40}$")) and
+              (.candidateDigest | test("^[0-9a-f]{64}$")) and
+              ((.artifactPrefix == ("sdk-java/" + .candidateDigest + "/") and
+                .replacementAttempt == "") or
+               ((.replacementAttempt | test("^[0-9a-f]{64}$")) and
+                .artifactPrefix == ("sdk-java/emergency-artifacts/" +
+                  .candidateDigest + "/" + .replacementAttempt + "/"))) and
+              (.state == "BUILDING" or .state == "AWAITING_INSPECTION" or
+               .state == "INSPECTED" or .state == "READY" or .state == "BLOCKED" or
+               .state == "COMPLETE") and
+              (if .state == "READY" or .state == "BLOCKED" or .state == "COMPLETE" then
+                 .handoff.actor == .approvedBy and .handoff.githubRunId == .approvalRunId and
+                 .handoff.tag == .candidate.tag and
+                 .handoff.commitSha == .candidate.commitSha and
+                 .handoff.reason ==
+                   "Release manager transferred ownership to emergency automation." and
+                 (.handoff.recordedAt | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T"))
+               else true end)' "$file" >/dev/null
+            state=$(jq -er .state "$file")
+            if [[ $state == BUILDING ]]; then
+              candidate_digest=$(jq -er .candidateDigest "$file")
+              artifact_prefix=$(jq -er .artifactPrefix "$file")
+              artifact_count=$(aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
+                --prefix "$artifact_prefix" --output json | jq '.Contents // [] | length')
+              if [[ $artifact_count -eq 6 ]]; then
+                jq '.state="AWAITING_INSPECTION"' "$file" >"$file.updated"
+                aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+                  --body "$file.updated" --if-match "$request_etag" >/dev/null
+                continue
+              fi
+              for platform in linux-amd64-musl linux-amd64 macos-amd64 macos-arm64 linux-arm64 windows-amd64; do
+                runner=ubuntu-latest
+                distribution=temurin
+                [[ $platform == macos-amd64 ]] && runner=macos-15-intel
+                [[ $platform == macos-arm64 ]] && runner=macos-latest
+                [[ $platform == linux-arm64 ]] && runner=ubuntu-24.04-arm
+                if [[ $platform == windows-amd64 ]]; then runner=windows-latest; fi
+                [[ $platform == macos-* || $platform == windows-* ]] && distribution=graalvm
+                jq -cn --argjson request "$(cat "$file")" --arg key "$key" \
+                  --arg platform "$platform" --arg runner "$runner" \
+                  --arg distribution "$distribution" \
+                  '{requestKey:$key,platform:$platform,runner:$runner,
+                    distribution:$distribution,candidate:$request.candidate,
+                    candidateDigest:$request.candidateDigest,
+                    artifactPrefix:$request.artifactPrefix,
+                    replacementAttempt:$request.replacementAttempt}' >>"$RUNNER_TEMP/build.jsonl"
+              done
+            elif [[ $state == READY ]]; then
+              jq -cn --argjson request "$(cat "$file")" --arg key "$key" \
+                '{requestKey:$key,candidate:$request.candidate,
+                  candidateDigest:$request.candidateDigest,approvedBy:$request.approvedBy,
+                  approvalRunId:$request.approvalRunId,
+                  manifestSha256:$request.manifestSha256,
+                  artifactPrefix:$request.artifactPrefix,
+                  mavenSubmissionGeneration:$request.mavenSubmissionGeneration}' \
+                >>"$RUNNER_TEMP/publish.jsonl"
+            elif [[ $state == COMPLETE && $(jq -r '.temporalComplete // false' "$file") != true ]]; then
+              jq -cn --argjson request "$(cat "$file")" --arg key "$key" \
+                '{requestKey:$key,candidate:$request.candidate,approvedBy:$request.approvedBy,
+                  result:$request.result}' >>"$RUNNER_TEMP/sync.jsonl"
+            fi
+          done < <(jq -r '.Contents // [] | .[].Key' "$RUNNER_TEMP/requests.json")
+          build_matrix=$(jq -sc '{include:.}' "$RUNNER_TEMP/build.jsonl")
+          publish_matrix=$(jq -sc '{include:.}' "$RUNNER_TEMP/publish.jsonl")
+          sync_matrix=$(jq -sc '{include:.}' "$RUNNER_TEMP/sync.jsonl")
+          {
+            echo "build_count=$(jq '.include | length' <<<"$build_matrix")"
+            echo "build_matrix=$build_matrix"
+            echo "publish_count=$(jq '.include | length' <<<"$publish_matrix")"
+            echo "publish_matrix=$publish_matrix"
+            echo "sync_count=$(jq '.include | length' <<<"$sync_matrix")"
+            echo "sync_matrix=$sync_matrix"
+          } >>"$GITHUB_OUTPUT"
+
+  build:
+    name: Emergency build ${{ matrix.platform }} for ${{ matrix.candidate.tag }}
+    needs: discover
+    if: needs.discover.outputs.build_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.build_matrix) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    concurrency:
+      group: emergency-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ matrix.candidate.commitSha }}
+          submodules: recursive
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: ${{ matrix.distribution }}
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
+      - name: Build or adopt the immutable native artifact
+        working-directory: source
+        env:
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
+          RELEASE_COMMIT: ${{ matrix.candidate.commitSha }}
+          RELEASE_NOTES_FILE: ${{ matrix.candidate.releaseNotesPath }}
+          RELEASE_NOTES_SHA256: ${{ matrix.candidate.releaseNotesSha256 }}
+          RELEASE_PLATFORM: ${{ matrix.platform }}
+          RELEASE_MODE: emergency
+          RELEASE_TAG: ${{ matrix.candidate.tag }}
+          RELEASE_VERSION: ${{ matrix.candidate.version }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+          EMERGENCY_BUILD_ATTEMPT: ${{ matrix.replacementAttempt }}
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-native-and-store.sh"
+
+  publish:
+    name: Emergency publication for ${{ matrix.candidate.tag }}
+    needs: discover
+    if: needs.discover.outputs.publish_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.publish_matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    environment: release-publication
+    concurrency:
+      group: sdk-java-release-publication
+      cancel-in-progress: false
+    env:
+      EXPECTED_APPROVAL_ACTOR: ${{ matrix.approvedBy }}
+      EXPECTED_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
+      EXPECTED_COMMIT_SHA: ${{ matrix.candidate.commitSha }}
+      EXPECTED_MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
+      EXPECTED_NOTES_SHA256: ${{ matrix.candidate.releaseNotesSha256 }}
+      EXPECTED_REPOSITORY: temporalio/sdk-java
+      EXPECTED_TAG: ${{ matrix.candidate.tag }}
+      RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+      RELEASE_MODE: emergency
+      TRUSTED_WORKER_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ matrix.candidate.commitSha }}
+          submodules: recursive
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
+      - name: Reload and validate the durable request
+        env:
+          REQUEST_KEY: ${{ matrix.requestKey }}
+        run: |
+          request_head=$(aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+            --key "$REQUEST_KEY")
+          echo "REQUEST_ETAG=$(jq -er .ETag <<<"$request_head")" >>"$GITHUB_ENV"
+          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$REQUEST_KEY" \
+            "$RUNNER_TEMP/emergency-request.json" --no-progress >/dev/null
+          jq -e --arg commit "$EXPECTED_COMMIT_SHA" --arg tag "$EXPECTED_TAG" \
+            --arg manifest "$EXPECTED_MANIFEST_SHA256" \
+            --arg actor '${{ matrix.approvedBy }}' \
+            --argjson approvalRunId '${{ matrix.approvalRunId }}' \
+            --arg digest '${{ matrix.candidateDigest }}' \
+            --arg prefix '${{ matrix.artifactPrefix }}' \
+            --argjson generation '${{ matrix.mavenSubmissionGeneration }}' \
+            '.state == "READY" and .candidate.commitSha == $commit and
+             .candidate.tag == $tag and .manifestSha256 == $manifest and
+             .approvedBy == $actor and .approvalRunId == $approvalRunId and
+             .candidateDigest == $digest and .artifactPrefix == $prefix and
+             .mavenSubmissionGeneration == $generation and
+             .handoff.actor == $actor and .handoff.githubRunId == $approvalRunId and
+             .handoff.tag == $tag and .handoff.commitSha == $commit' \
+            "$RUNNER_TEMP/emergency-request.json" >/dev/null
+      - name: Collect exact manifest
+        env:
+          RELEASE_ARTIFACT_PREFIX: ${{ matrix.artifactPrefix }}
+          RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
+          RELEASE_MANIFEST_FILE: ${{ runner.temp }}/emergency-manifest.tsv
+        run: automation/.github/scripts/temporal-release/collect-artifact-manifest.sh
+      - name: Construct exact emergency release input
+        id: identity
+        working-directory: automation
+        env:
+          EMERGENCY_APPROVAL_ACTOR: ${{ matrix.approvedBy }}
+          EMERGENCY_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          MAVEN_SUBMISSION_GENERATION: ${{ matrix.mavenSubmissionGeneration }}
+        run: |
+          jq .candidate "$RUNNER_TEMP/emergency-request.json" >"$RUNNER_TEMP/candidate.json"
+          ./gradlew -p .github/release-automation run \
+            --args="emergency-input $RUNNER_TEMP/candidate.json $RUNNER_TEMP/emergency-manifest.tsv"
+      - name: Bind exact generated identity
+        run: |
+          [[ "${{ steps.identity.outputs.manifest_sha256 }}" == "$EXPECTED_MANIFEST_SHA256" ]]
+          {
+            echo "EXPECTED_RELEASE_DIGEST=${{ steps.identity.outputs.release_digest }}"
+            echo "EXPECTED_RUN_ID=${{ steps.identity.outputs.run_id }}"
+            echo "EXPECTED_WORKFLOW_ID=${{ steps.identity.outputs.workflow_id }}"
+            echo "RELEASE_INPUT_FILE=${{ steps.identity.outputs.release_input_file }}"
+            echo "TRUSTED_AUTOMATION_ROOT=$GITHUB_WORKSPACE/automation"
+            echo "RELEASE_FAILURE_FILE=$RUNNER_TEMP/emergency-failure.json"
+          } >>"$GITHUB_ENV"
+      - name: Reconcile read-only external state immediately before handoff
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/inspection.json
+          RELEASE_MODE: emergency-inspect
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" inspect
+      - name: Quiesce Temporal if the exact Workflow is available
+        id: temporal
+        continue-on-error: true
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+        run: |
+          inspect_output="$RUNNER_TEMP/temporal-inspect-output"
+          GITHUB_OUTPUT="$inspect_output" ./gradlew -p .github/release-automation run \
+            --args="inspect $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+          phase=$(awk -F= '$1 == "phase" {print $2}' "$inspect_output" | tail -1)
+          if [[ "$phase" != HANDED_OFF && "$phase" != MANUAL_COMPLETE ]]; then
+            ./gradlew -p .github/release-automation run \
+              --args="control handoff-manual $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+          fi
+      - name: Claim durable manual ownership
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/handoff.json
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" handoff
+      - name: Reconcile preflight
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/preflight.json
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" preflight
+      - name: Reconcile Maven publication with automatic fixed backoff
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/maven.json
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" maven
+      - name: Reconcile exact GitHub draft and assets
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/github-draft.json
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" github-draft
+      - name: Publish GitHub release as the final mutation
+        working-directory: source
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/release-result.json
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" github-publish
+      - name: Persist immutable conflict or ambiguity for manager resolution
+        if: failure()
+        env:
+          REQUEST_KEY: ${{ matrix.requestKey }}
+        run: |
+          [[ -s "$RELEASE_FAILURE_FILE" ]] || exit 0
+          status=$(jq -er .status "$RELEASE_FAILURE_FILE")
+          reason=ExternalIdentityConflict
+          [[ $status == 43 ]] && reason=InvalidApproval
+          [[ $status == 44 ]] && reason=MavenSubmissionAmbiguous
+          jq --arg reason "$reason" '.state="BLOCKED" | .blockedReason=$reason' \
+            "$RUNNER_TEMP/emergency-request.json" >"$RUNNER_TEMP/blocked-request.json"
+          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
+            --body "$RUNNER_TEMP/blocked-request.json" --if-match "$REQUEST_ETAG" >/dev/null
+      - name: Persist durable manual completion receipt
+        if: success()
+        env:
+          REQUEST_KEY: ${{ matrix.requestKey }}
+        run: |
+          jq -s '.[0] + {completed:true}' "$RUNNER_TEMP/release-result.json" \
+            >"$RUNNER_TEMP/manual-complete.json"
+          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+            --key "sdk-java/${{ steps.identity.outputs.release_digest }}/state/manual-complete.json" \
+            --body "$RUNNER_TEMP/manual-complete.json" --if-none-match '*' >/dev/null || {
+              aws s3 cp \
+                "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/${{ steps.identity.outputs.release_digest }}/state/manual-complete.json" \
+                "$RUNNER_TEMP/existing-manual-complete.json" --no-progress >/dev/null
+              cmp -s "$RUNNER_TEMP/manual-complete.json" "$RUNNER_TEMP/existing-manual-complete.json"
+            }
+          jq --slurpfile result "$RUNNER_TEMP/release-result.json" \
+            '.state="COMPLETE" | .result=$result[0] | del(.blockedReason)' \
+            "$RUNNER_TEMP/emergency-request.json" >"$RUNNER_TEMP/complete-request.json"
+          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
+            --body "$RUNNER_TEMP/complete-request.json" --if-match "$REQUEST_ETAG" >/dev/null
+      - name: Record MANUAL_COMPLETE in Temporal when available
+        if: success() && steps.temporal.outcome == 'success'
+        continue-on-error: true
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+        run: |
+          export MANUAL_GITHUB_RELEASE_URL=$(jq -er .githubReleaseUrl "$RUNNER_TEMP/release-result.json")
+          export MANUAL_MAVEN_CENTRAL_URL=$(jq -er .mavenCentralUrl "$RUNNER_TEMP/release-result.json")
+          ./gradlew -p .github/release-automation run \
+            --args="control manual-complete $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+
+  sync_temporal_completion:
+    name: Sync MANUAL_COMPLETE for ${{ matrix.candidate.tag }}
+    needs: discover
+    if: needs.discover.outputs.sync_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.sync_matrix) }}
+    runs-on: ubuntu-latest
+    environment: release-control
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
+      - name: Record exact manual completion in the open Workflow
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
+          MANUAL_GITHUB_RELEASE_URL: ${{ matrix.result.githubReleaseUrl }}
+          MANUAL_MAVEN_CENTRAL_URL: ${{ matrix.result.mavenCentralUrl }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+        run: |
+          output="$RUNNER_TEMP/temporal-status"
+          GITHUB_OUTPUT="$output" ./gradlew -p .github/release-automation run \
+            --args="inspect ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
+          phase=$(awk -F= '$1 == "phase" {print $2}' "$output" | tail -1)
+          if [[ "$phase" != HANDED_OFF && "$phase" != MANUAL_COMPLETE && "$phase" != PUBLISHED ]]; then
+            ./gradlew -p .github/release-automation run \
+              --args="control handoff-manual ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
+            phase=HANDED_OFF
+          fi
+          if [[ "$phase" == HANDED_OFF ]]; then
+            ./gradlew -p .github/release-automation run \
+              --args="control manual-complete ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
+          elif [[ "$phase" != MANUAL_COMPLETE && "$phase" != PUBLISHED ]]; then
+            echo "Temporal release is not durably handed off." >&2
+            exit 1
+          fi
+          request_head=$(aws s3api head-object --bucket "${{ vars.RELEASE_ARTIFACT_BUCKET }}" \
+            --key "${{ matrix.requestKey }}")
+          request_etag=$(jq -er .ETag <<<"$request_head")
+          aws s3 cp "s3://${{ vars.RELEASE_ARTIFACT_BUCKET }}/${{ matrix.requestKey }}" \
+            "$RUNNER_TEMP/request.json" --no-progress >/dev/null
+          jq '.temporalComplete=true' "$RUNNER_TEMP/request.json" >"$RUNNER_TEMP/synced.json"
+          aws s3api put-object --bucket "${{ vars.RELEASE_ARTIFACT_BUCKET }}" \
+            --key "${{ matrix.requestKey }}" --body "$RUNNER_TEMP/synced.json" \
+            --if-match "$request_etag" >/dev/null

@@ -67,4 +67,17 @@ public final class ApprovalRequest {
         && githubIssueBodySha256.equals(evidence.githubIssueBodySha256)
         && trustedWorkerCommit.equals(evidence.trustedWorkerCommit);
   }
+
+  public boolean sameIssue(ApprovalRequest other) {
+    validate();
+    other.validate();
+    return repository.equals(other.repository)
+        && releaseDigest.equals(other.releaseDigest)
+        && workflowId.equals(other.workflowId)
+        && runId.equals(other.runId)
+        && githubIssueNumber == other.githubIssueNumber
+        && githubIssueNodeId.equals(other.githubIssueNodeId)
+        && githubIssueBodySha256.equals(other.githubIssueBodySha256)
+        && trustedWorkerCommit.equals(other.trustedWorkerCommit);
+  }
 }

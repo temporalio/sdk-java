@@ -5,6 +5,7 @@ set -euo pipefail
 fail() { echo "reconcile-publication: $*" >&2; exit 1; }
 conflict() { echo "reconcile-publication: immutable release conflict: $*" >&2; exit 42; }
 invalid_approval() { echo "reconcile-publication: invalid approval: $*" >&2; exit 43; }
+maven_ambiguous() { echo "reconcile-publication: ambiguous Maven submission: $*" >&2; exit 44; }
 
 required=(
   EXPECTED_APPROVAL_ACTOR EXPECTED_APPROVAL_RUN_ID EXPECTED_COMMIT_SHA
@@ -30,6 +31,7 @@ commit=$(jq -er '.release.candidate.commitSha' "$RELEASE_INPUT_FILE")
 notes_file=$(jq -er '.release.candidate.releaseNotesPath' "$RELEASE_INPUT_FILE")
 notes_hash=$(jq -er '.release.candidate.releaseNotesSha256' "$RELEASE_INPUT_FILE")
 trusted_commit=$(jq -er '.release.candidate.trustedAutomationCommit' "$RELEASE_INPUT_FILE")
+maven_policy=$(jq -er '.release.candidate.mavenPolicy' "$RELEASE_INPUT_FILE")
 manifest_hash=$(jq -er '.release.manifestSha256' "$RELEASE_INPUT_FILE")
 release_digest=$(jq -er '.approval.releaseDigest' "$RELEASE_INPUT_FILE")
 workflow_id=$(jq -er '.workflowId' "$RELEASE_INPUT_FILE")
@@ -70,24 +72,91 @@ ownership_key="sdk-java/ownership/$tag.json"
 ownership="$work/ownership.json"
 jq -n --arg tag "$tag" --arg commitSha "$commit" --arg releaseDigest "$release_digest" \
   --arg owner temporal '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest,owner:$owner}' >"$ownership"
+manual_ownership="$work/manual-ownership.json"
+jq -n --arg tag "$tag" --arg commitSha "$commit" --arg releaseDigest "$release_digest" \
+  --arg owner manual '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest,owner:$owner}' \
+  >"$manual_ownership"
+
+validate_ownership_identity() {
+  jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
+    '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
+     (.owner == "temporal" or .owner == "manual")' "$1" >/dev/null ||
+    conflict "the tag/version ownership key belongs to another release or SHA."
+}
+
+validate_ownership_tag_and_sha() {
+  jq -e --arg tag "$tag" --arg commit "$commit" \
+    '.tag == $tag and .commitSha == $commit and
+     (.owner == "temporal" or .owner == "manual")' "$1" >/dev/null ||
+    conflict "the tag/version ownership key belongs to another tag or SHA."
+}
 
 ensure_ownership() {
+  expected_ownership=$ownership
+  [[ ${RELEASE_MODE:-temporal} == emergency ]] && expected_ownership=$manual_ownership
+  if [[ ${RELEASE_MODE:-temporal} == temporal ]] &&
+    aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+      --key "sdk-java/emergency/$tag.json" >/dev/null 2>&1; then
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/emergency/$tag.json" \
+      "$work/emergency-request.json" --no-progress >/dev/null ||
+      fail "Unable to inspect the durable emergency request."
+    emergency_state=$(jq -er '.state' "$work/emergency-request.json")
+    case "$emergency_state" in
+      READY | BLOCKED | COMPLETE)
+        conflict "durable ownership has been transferred to emergency automation."
+        ;;
+    esac
+  fi
   if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
-    --body "$ownership" --if-none-match '*' >/dev/null 2>&1; then
+    --body "$expected_ownership" --if-none-match '*' >/dev/null 2>&1; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
       --no-progress >/dev/null || fail "Unable to read the durable tag ownership key."
-    cmp -s "$ownership" "$work/existing-ownership.json" ||
+    cmp -s "$expected_ownership" "$work/existing-ownership.json" ||
       conflict "the tag/version ownership key belongs to another controller or SHA."
   fi
 }
 
 inspect_ownership() {
+  ownership_state=absent
   if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
     >/dev/null 2>&1; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
       --no-progress >/dev/null || fail "Unable to inspect the durable tag ownership key."
-    cmp -s "$ownership" "$work/existing-ownership.json" ||
-      conflict "the tag/version ownership key belongs to another controller or SHA."
+    if [[ ${RELEASE_MODE:-temporal} == emergency-inspect ]]; then
+      validate_ownership_tag_and_sha "$work/existing-ownership.json"
+    else
+      validate_ownership_identity "$work/existing-ownership.json"
+    fi
+    ownership_state=$(jq -er .owner "$work/existing-ownership.json")
+  fi
+}
+
+claim_manual_ownership() {
+  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
+    >"$work/ownership-head.json" 2>/dev/null; then
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
+      --no-progress >/dev/null || fail "Unable to read the durable tag ownership key."
+    validate_ownership_tag_and_sha "$work/existing-ownership.json"
+    existing_owner=$(jq -er .owner "$work/existing-ownership.json")
+    if [[ $existing_owner == manual ]]; then
+      validate_ownership_identity "$work/existing-ownership.json"
+    elif jq -e --arg digest "$release_digest" '.releaseDigest != $digest' \
+      "$work/existing-ownership.json" >/dev/null; then
+      jq -e '.release.manifest.artifacts | all(.storageKey |
+        startswith("sdk-java/emergency-artifacts/"))' "$RELEASE_INPUT_FILE" >/dev/null ||
+        conflict "a Temporal-owned release can change digest only to one replacement manifest."
+    fi
+    if cmp -s "$manual_ownership" "$work/existing-ownership.json"; then
+      return
+    fi
+    etag=$(jq -er '.ETag' "$work/ownership-head.json")
+    aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
+      --body "$manual_ownership" --if-match "$etag" >/dev/null ||
+      fail "The ownership key changed while manual handoff was being claimed."
+  else
+    aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
+      --body "$manual_ownership" --if-none-match '*' >/dev/null ||
+      fail "Unable to claim durable manual ownership."
   fi
 }
 
@@ -157,7 +226,8 @@ materialize_assets() {
   while IFS=$'\t' read -r name sha size storage_key; do
     [[ $name =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $sha =~ ^[0-9a-f]{64}$ &&
       $size =~ ^[1-9][0-9]*$ ]] || conflict "the artifact manifest contains an invalid record."
-    [[ $storage_key =~ ^sdk-java/[0-9a-f]{64}/$name$ ]] ||
+    [[ $storage_key =~ ^sdk-java/[0-9a-f]{64}/$name$ ||
+      $storage_key =~ ^sdk-java/emergency-artifacts/[0-9a-f]{64}/[0-9a-f]{64}/$name$ ]] ||
       conflict "the artifact manifest contains an invalid storage key."
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$storage_key" "$work/assets/$name" \
       --no-progress >/dev/null
@@ -167,6 +237,19 @@ materialize_assets() {
       conflict "$name has the wrong checksum in durable storage."
   done <"$manifest"
   awk -F '\t' '{print $2 "  " $1}' "$manifest" >"$work/assets/SHA256SUMS"
+}
+
+verify_source_maven_policy() {
+  mapfile -t source_projects < <(
+    sed -n -E "s/^include ['\"]([^'\"]+)['\"]$/\1/p" settings.gradle | sort
+  )
+  mapfile -t policy_projects < <(jq -er '.mavenArtifacts[]' "$RELEASE_INPUT_FILE" | sort)
+  [[ ${source_projects[*]} == "${policy_projects[*]}" ]] ||
+    conflict "the immutable source projects differ from the approved Maven policy."
+  case "$maven_policy:${#policy_projects[@]}" in
+    current:17 | classic:11 | classic-alpha:11 | classic-alpha-lite:9) ;;
+    *) conflict "the immutable Maven policy is not a reviewed sdk-java profile." ;;
+  esac
 }
 
 configure_gradle() {
@@ -192,7 +275,7 @@ central_state() {
   present=0
   missing=0
   mapfile -t maven_artifacts < <(jq -er '.mavenArtifacts[]' "$RELEASE_INPUT_FILE")
-  [[ ${#maven_artifacts[@]} -eq 17 ]] || conflict "the fixed Maven artifact policy is incomplete."
+  verify_source_maven_policy
   for artifact in "${maven_artifacts[@]}"; do
     pom="$work/$artifact.pom"
     central_url="$central_base/io/temporal/$artifact/$version/$artifact-$version.pom"
@@ -200,17 +283,26 @@ central_state() {
       --write-out '%{http_code}' "$central_url")
     case "$central_status" in
       200)
-        published_commit=$(python3 - "$pom" <<'PY'
+        published_identity=$(python3 - "$pom" <<'PY'
 import sys
 import xml.etree.ElementTree as ET
 root = ET.parse(sys.argv[1]).getroot()
 ns = root.tag.partition("}")[0] + "}" if root.tag.startswith("{") else ""
 tag = root.find(f"{ns}scm/{ns}tag")
-print("" if tag is None or tag.text is None else tag.text.strip().lower())
+values = [
+    root.findtext(f"{ns}groupId", "").strip(),
+    root.findtext(f"{ns}artifactId", "").strip(),
+    root.findtext(f"{ns}version", "").strip(),
+    "" if tag is None or tag.text is None else tag.text.strip().lower(),
+]
+print("\t".join(values))
 PY
 )
-        [[ $published_commit == "$commit" ]] ||
-          conflict "$artifact coordinates belong to another commit."
+        IFS=$'\t' read -r published_group published_artifact published_version \
+          published_commit <<<"$published_identity"
+        [[ $published_group == "$maven_group" && $published_artifact == "$artifact" &&
+          $published_version == "$version" && $published_commit == "$commit" ]] ||
+          conflict "$artifact coordinates contain another immutable Maven identity."
         present=$((present + 1))
         ;;
       404) missing=$((missing + 1)) ;;
@@ -222,61 +314,147 @@ PY
 reconcile_maven() {
   central_state
   if [[ $present -eq ${#maven_artifacts[@]} ]]; then
-    jq -n --arg value "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/$version" \
-      '$value' >"$RELEASE_OUTPUT_FILE"
+    repository_id=""
+    intent_key="sdk-java/$release_digest/state/maven-intent.json"
+    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
+      >/dev/null 2>&1; then
+      aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$work/completed-intent.json" \
+        --no-progress >/dev/null || fail "Unable to read the completed Maven intent."
+      current_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
+      jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
+        --argjson currentGeneration "$current_generation" \
+        '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
+         (.generation | type == "number") and .generation <= $currentGeneration and
+         (.description | type == "string")' "$work/completed-intent.json" >/dev/null ||
+        conflict "the completed Maven intent differs."
+      completed_generation=$(jq -er .generation "$work/completed-intent.json")
+      completed_description=$(jq -er .description "$work/completed-intent.json")
+      [[ $completed_description == "sdk-java:$release_digest:$completed_generation" ]] ||
+        conflict "the completed Maven intent description differs."
+      repository_id=$(jq -r '.repositoryId // ""' "$work/completed-intent.json")
+    fi
+    jq -n --arg mavenCentralUrl \
+      "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/$version" \
+      --arg sonatypeRepositoryId "$repository_id" \
+      '{mavenCentralUrl:$mavenCentralUrl,sonatypeRepositoryId:$sonatypeRepositoryId}' \
+      >"$RELEASE_OUTPUT_FILE"
     return
   fi
   [[ $present -eq 0 ]] || fail "Maven publication is partially visible; Temporal will retry."
 
   intent_key="sdk-java/$release_digest/state/maven-intent.json"
   intent="$work/maven-intent.json"
+  submission_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
+  [[ $submission_generation =~ ^[0-9]+$ ]] || conflict "invalid Maven submission generation."
+  staging_description="sdk-java:$release_digest:$submission_generation"
   jq -n --arg tag "$tag" --arg commitSha "$commit" --arg releaseDigest "$release_digest" \
-    '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest}' >"$intent"
-  intent_created=false
+    --arg description "$staging_description" --argjson generation "$submission_generation" \
+    '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest,
+      description:$description,generation:$generation}' >"$intent"
+  may_create_repository=false
   if aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
     --body "$intent" --if-none-match '*' >/dev/null 2>&1; then
-    intent_created=true
+    may_create_repository=true
   else
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$work/existing-intent.json" \
       --no-progress >/dev/null || fail "Unable to reconcile the Maven submission intent."
-    cmp -s "$intent" "$work/existing-intent.json" || conflict "the Maven intent differs."
+    jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
+      '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
+       (.generation | type == "number") and (.description | type == "string")' \
+      "$work/existing-intent.json" >/dev/null || conflict "the Maven intent differs."
+    stored_generation=$(jq -er '.generation' "$work/existing-intent.json")
+    stored_description=$(jq -er .description "$work/existing-intent.json")
+    [[ $stored_description == "sdk-java:$release_digest:$stored_generation" ]] ||
+      conflict "the Maven intent description differs."
+    if (( submission_generation == stored_generation + 1 )); then
+      # This generation is reachable only through the authenticated Workflow control Update.
+      aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
+        --body "$intent" >/dev/null
+      may_create_repository=true
+    elif (( submission_generation != stored_generation )); then
+      conflict "the Maven submission generation is not the durable next generation."
+    else
+      cp "$work/existing-intent.json" "$intent"
+      staging_description=$(jq -er '.description' "$intent")
+    fi
   fi
 
   configure_gradle
-  if [[ $intent_created == true ]]; then
-    ./gradlew --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
-      publishToSonatype closeAndReleaseSonatypeStagingRepository >&2
-    fail "Maven publication was submitted; Temporal will check Central after backoff."
-  fi
-
   staging="$work/staging.json"
   curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
     --header 'Accept: application/json' \
     'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
     >"$staging" || fail "Unable to inspect Sonatype after an ambiguous submission."
-  mapfile -t repository_ids < <(jq -r '(.data // .profileRepositories // [])[] |
-    select((.type // .state // "") != "released") | .repositoryId // .id' "$staging")
-  matches=()
-  for repository_id in "${repository_ids[@]}"; do
-    staged_pom="$work/$repository_id.pom"
-    url="https://ossrh-staging-api.central.sonatype.com/service/local/repositories/$repository_id/content/io/temporal/temporal-sdk/$version/temporal-sdk-$version.pom"
-    status=$(curl --silent --show-error --user "$RH_USER:$RH_PASSWORD" --output "$staged_pom" \
-      --write-out '%{http_code}' "$url")
-    [[ $status == 404 ]] && continue
-    [[ $status == 200 ]] || fail "Sonatype returned HTTP $status for staging repository $repository_id."
-    grep -Fq "<tag>$commit</tag>" "$staged_pom" && matches+=("$repository_id")
-  done
+  mapfile -t matches < <(jq -r --arg description "$staging_description" \
+    '(.data // .profileRepositories // [])[] |
+     select(.description == $description) | .repositoryId // .id' "$staging")
   [[ ${#matches[@]} -le 1 ]] || conflict "multiple Sonatype repositories match the immutable release."
-  [[ ${#matches[@]} -eq 1 ]] ||
-    fail "Maven submission is ambiguous; no duplicate submission will be attempted."
+  if [[ ${#matches[@]} -eq 0 ]]; then
+    [[ $may_create_repository == true ]] ||
+      maven_ambiguous "intent exists but its exact described repository is absent."
+    initialize_log="$work/initialize-sonatype.log"
+    ./gradlew --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
+      "-PreleaseDigest=$release_digest" \
+      "-PmavenSubmissionGeneration=$submission_generation" \
+      initializeSonatypeStagingRepository 2>&1 | tee "$initialize_log" >&2
+    repository_id=$(sed -n -E "s/.*Created staging repository '([^']+)'.*/\1/p" \
+      "$initialize_log" | tail -1)
+    [[ -n $repository_id ]] || fail "Unable to capture the created Sonatype repository ID."
+    matches=("$repository_id")
+  fi
+
+  repository_id=${matches[0]}
+  jq --arg repositoryId "$repository_id" '.repositoryId = $repositoryId' "$intent" \
+    >"$work/intent-with-repository.json"
+  aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
+    --body "$work/intent-with-repository.json" >/dev/null
+
   ./gradlew --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
-    "-PsonatypeStagingRepositoryId=${matches[0]}" closeAndReleaseSonatypeStagingRepository >&2
-  fail "The recovered Sonatype repository was released; Temporal will check Central after backoff."
+    "-PreleaseDigest=$release_digest" \
+    "-PmavenSubmissionGeneration=$submission_generation" \
+    findSonatypeStagingRepository publishToSonatype \
+    closeAndReleaseSonatypeStagingRepository >&2
+  fail "Sonatype repository $repository_id was reconciled; Temporal will check Central after backoff."
 }
 
 release_json() {
-  gh api 'repos/temporalio/sdk-java/releases?per_page=100' 2>/dev/null |
-    jq -c --arg tag "$tag" 'map(select(.tag_name == $tag)) | first // empty' || true
+  local releases
+  releases=$(gh api --paginate --slurp 'repos/temporalio/sdk-java/releases?per_page=100') ||
+    fail "GitHub releases are temporarily unavailable."
+  jq -c --arg tag "$tag" '[.[][]] | map(select(.tag_name == $tag)) | first // empty' \
+    <<<"$releases"
+}
+
+github_optional_get() {
+  local path=$1 output=$2 status
+  status=$(curl --silent --show-error --location --output "$output" --write-out '%{http_code}' \
+    --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/vnd.github+json' \
+    --header 'X-GitHub-Api-Version: 2022-11-28' "https://api.github.com/$path") ||
+    fail "GitHub is temporarily unavailable while reading $path."
+  case "$status" in
+    200) return 0 ;;
+    404) : >"$output"; return 1 ;;
+    *) fail "GitHub returned HTTP $status while reading $path." ;;
+  esac
+}
+
+ensure_exact_tag() {
+  local tag_file="$work/tag.json"
+  if github_optional_get "repos/temporalio/sdk-java/git/ref/tags/$tag" "$tag_file"; then
+    [[ $(jq -r '.object.type' "$tag_file") == commit &&
+      $(jq -r '.object.sha' "$tag_file") == "$commit" ]] ||
+      conflict "the Git tag points at another object."
+    return
+  fi
+  if ! gh api --method POST repos/temporalio/sdk-java/git/refs \
+    --raw-field ref="refs/tags/$tag" --raw-field sha="$commit" >/dev/null; then
+    # A concurrent creator may have won. A fresh authoritative read decides whether it is exact.
+    github_optional_get "repos/temporalio/sdk-java/git/ref/tags/$tag" "$tag_file" ||
+      fail "The exact Git tag could not be created or reconciled."
+    [[ $(jq -r '.object.type' "$tag_file") == commit &&
+      $(jq -r '.object.sha' "$tag_file") == "$commit" ]] ||
+      conflict "the concurrently created Git tag points at another object."
+  fi
 }
 
 verify_release_metadata() {
@@ -291,12 +469,7 @@ verify_release_metadata() {
 
 reconcile_github_draft() {
   materialize_assets
-  tag_ref=$(gh api "repos/temporalio/sdk-java/git/ref/tags/$tag" 2>/dev/null || true)
-  if [[ -n $tag_ref ]]; then
-    [[ $(jq -r '.object.type' <<<"$tag_ref") == commit &&
-      $(jq -r '.object.sha' <<<"$tag_ref") == "$commit" ]] ||
-      conflict "the Git tag points at another object."
-  fi
+  ensure_exact_tag
   release=$(release_json)
   if [[ -z $release ]]; then
     create_args=(release create "$tag" --repo temporalio/sdk-java --draft --target "$commit"
@@ -304,6 +477,7 @@ reconcile_github_draft() {
     [[ $tag == *-RC* ]] && create_args+=(--prerelease)
     gh "${create_args[@]}" >/dev/null
     release=$(release_json)
+    [[ -n $release ]] || fail "The new GitHub draft is not visible yet."
   fi
   draft=$(jq -r '.draft' <<<"$release")
   [[ $draft == true || $draft == false ]] || conflict "GitHub returned an invalid release state."
@@ -328,9 +502,14 @@ reconcile_github_draft() {
     fi
   done
   release=$(release_json)
+  [[ -n $release ]] || fail "The GitHub draft is temporarily unavailable."
   mapfile -t final_assets < <(jq -r '.assets[].name' <<<"$release" | sort)
+  for final_name in "${final_assets[@]}"; do
+    printf '%s\n' "${expected_assets[@]}" | grep -Fxq "$final_name" ||
+      conflict "the GitHub release gained unexpected asset $final_name."
+  done
   [[ ${final_assets[*]} == "${expected_assets[*]}" ]] ||
-    conflict "the final GitHub asset set is not exact."
+    fail "The uploaded GitHub asset set is not fully visible yet."
   jq -n --arg value "$(jq -er '.html_url' <<<"$release")" '$value' >"$RELEASE_OUTPUT_FILE"
 }
 
@@ -341,14 +520,16 @@ publish_github_release() {
   [[ -n $release ]] || conflict "the verified GitHub draft disappeared."
   if [[ $(jq -r '.draft' <<<"$release") == true ]]; then
     verify_release_metadata "$release" true
+    # This is the last check before the public mutation; creation happens earlier and is immutable.
+    ensure_exact_tag
     gh release edit "$tag" --repo temporalio/sdk-java --draft=false >/dev/null
   fi
   release=$(release_json)
+  [[ -n $release ]] || fail "The published GitHub release is not visible yet."
+  [[ $(jq -r '.draft' <<<"$release") == false ]] ||
+    fail "GitHub has not made the release public yet."
   verify_release_metadata "$release" false
-  tag_ref=$(gh api "repos/temporalio/sdk-java/git/ref/tags/$tag")
-  [[ $(jq -r '.object.type' <<<"$tag_ref") == commit &&
-    $(jq -r '.object.sha' <<<"$tag_ref") == "$commit" ]] ||
-    conflict "the published tag does not point at the approved commit."
+  ensure_exact_tag
   release_url=$(jq -er '.html_url' <<<"$release")
   jq -n --arg releaseDigest "$release_digest" --arg githubReleaseUrl "$release_url" \
     --arg mavenCentralUrl "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/$version" \
@@ -363,22 +544,48 @@ inspect_external_state() {
 
   intent_key="sdk-java/$release_digest/state/maven-intent.json"
   sonatype_state=not-submitted
+  sonatype_repository_id=""
   if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
     >/dev/null 2>&1; then
     sonatype_state=intent-recorded
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$work/inspection-intent.json" \
+      --no-progress >/dev/null || fail "Unable to inspect the Maven intent."
+    current_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
+    jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
+      --argjson generation "$current_generation" \
+      '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
+       (.generation | type == "number") and .generation <= $generation and
+       (.description | type == "string")' \
+      "$work/inspection-intent.json" >/dev/null || conflict "the Maven intent differs."
+    intent_generation=$(jq -er .generation "$work/inspection-intent.json")
+    sonatype_description=$(jq -er .description "$work/inspection-intent.json")
+    [[ $sonatype_description == "sdk-java:$release_digest:$intent_generation" ]] ||
+      conflict "the Maven intent description differs."
     curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
       --header 'Accept: application/json' \
       'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
       >"$work/staging-inspection.json" || fail "Unable to inspect Sonatype staging state."
     jq -e '(.data // .profileRepositories // []) | type == "array"' \
       "$work/staging-inspection.json" >/dev/null || fail "Sonatype returned invalid staging state."
+    mapfile -t inspection_matches < <(jq -r --arg description "$sonatype_description" \
+      '(.data // .profileRepositories // [])[] |
+       select(.description == $description) | .repositoryId // .id' \
+      "$work/staging-inspection.json")
+    [[ ${#inspection_matches[@]} -le 1 ]] ||
+      conflict "multiple Sonatype repositories match the immutable release."
+    if [[ ${#inspection_matches[@]} -eq 1 ]]; then
+      sonatype_state=exact-repository-found
+      sonatype_repository_id=${inspection_matches[0]}
+    else
+      sonatype_state=exact-repository-absent
+      sonatype_repository_id=$(jq -r '.repositoryId // ""' "$work/inspection-intent.json")
+    fi
   fi
 
   tag_state=absent
-  tag_ref=$(gh api "repos/temporalio/sdk-java/git/ref/tags/$tag" 2>/dev/null || true)
-  if [[ -n $tag_ref ]]; then
-    [[ $(jq -r '.object.type' <<<"$tag_ref") == commit &&
-      $(jq -r '.object.sha' <<<"$tag_ref") == "$commit" ]] ||
+  if github_optional_get "repos/temporalio/sdk-java/git/ref/tags/$tag" "$work/inspect-tag.json"; then
+    [[ $(jq -r '.object.type' "$work/inspect-tag.json") == commit &&
+      $(jq -r '.object.sha' "$work/inspect-tag.json") == "$commit" ]] ||
       conflict "the Git tag points at another object."
     tag_state=exact
   fi
@@ -403,14 +610,23 @@ inspect_external_state() {
   fi
 
   jq -n --argjson mavenPresent "$present" --argjson mavenMissing "$missing" \
-    --arg sonatype "$sonatype_state" --arg tag "$tag_state" --arg release "$release_state" \
+    --arg sonatype "$sonatype_state" --arg sonatypeRepositoryId "$sonatype_repository_id" \
+    --argjson mavenSubmissionGeneration \
+      "$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")" \
+    --argjson mavenIntentGeneration "${intent_generation:--1}" \
+    --arg ownership "$ownership_state" --arg tag "$tag_state" --arg release "$release_state" \
     '{mavenPresent:$mavenPresent,mavenMissing:$mavenMissing,sonatype:$sonatype,
-      tag:$tag,release:$release}' >"$RELEASE_OUTPUT_FILE"
+      sonatypeRepositoryId:$sonatypeRepositoryId,
+      mavenSubmissionGeneration:$mavenSubmissionGeneration,
+      mavenIntentGeneration:$mavenIntentGeneration,ownership:$ownership,
+      tag:$tag,release:$release}' \
+    >"$RELEASE_OUTPUT_FILE"
 }
 
 verify_approval
 case "$RELEASE_STAGE" in
   inspect) inspect_external_state ;;
+  handoff) claim_manual_ownership ;;
   preflight)
     ensure_ownership
     materialize_assets
