@@ -1,0 +1,9 @@
+FROM ghcr.io/graalvm/native-image-community:17
+USER root
+RUN microdnf install -y git gcc gcc-c++ curl ca-certificates binutils make tar gzip && \
+    microdnf clean all
+COPY install-musl.sh /opt/install-musl.sh
+RUN chmod +x /opt/install-musl.sh && cd /opt && ./install-musl.sh
+ENV MUSL_HOME=/opt/musl-toolchain
+ENV PATH="/opt/musl-toolchain/bin:${PATH}"
+RUN git config --global --add safe.directory '*'

@@ -1,0 +1,4 @@
+FROM ghcr.io/graalvm/native-image-community:17
+USER root
+RUN microdnf install -y git gcc gcc-c++ zlib-devel && microdnf clean all
+RUN git config --global --add safe.directory '*'

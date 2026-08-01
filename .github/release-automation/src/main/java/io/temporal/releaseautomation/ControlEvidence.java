@@ -14,6 +14,8 @@ public final class ControlEvidence {
   public long recordedAtMillis;
   public String githubReleaseUrl;
   public String mavenCentralUrl;
+  public int mavenSubmissionGeneration = -1;
+  public String authorizationSha256;
 
   public ControlEvidence() {}
 
@@ -73,6 +75,13 @@ public final class ControlEvidence {
                 && mavenCentralUrl.startsWith(
                     "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/")))) {
       throw new IllegalArgumentException("Manual completion URLs are invalid.");
+    }
+    if ("retry-maven-submission".equals(action)
+        && (mavenSubmissionGeneration <= 0
+            || authorizationSha256 == null
+            || !authorizationSha256.matches("[0-9a-f]{64}"))) {
+      throw new IllegalArgumentException(
+          "Maven retry control requires an externally authorized generation receipt.");
     }
   }
 }

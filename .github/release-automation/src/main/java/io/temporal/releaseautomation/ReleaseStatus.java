@@ -12,9 +12,11 @@ public final class ReleaseStatus {
   public long blockedAtMillis;
   public String mavenCentralUrl;
   public String sonatypeRepositoryId;
+  public String portalDeploymentId;
   public String githubDraftUrl;
   public String githubReleaseUrl;
   public int mavenSubmissionGeneration;
+  public ControlEvidence mavenRetryAuthorization;
   public int stageAttempt;
   public long stageStartedAtMillis;
   public long nextRetryAtMillis;
@@ -33,9 +35,11 @@ public final class ReleaseStatus {
       long blockedAtMillis,
       String mavenCentralUrl,
       String sonatypeRepositoryId,
+      String portalDeploymentId,
       String githubDraftUrl,
       String githubReleaseUrl,
       int mavenSubmissionGeneration,
+      ControlEvidence mavenRetryAuthorization,
       int stageAttempt,
       long stageStartedAtMillis,
       long nextRetryAtMillis) {
@@ -50,9 +54,11 @@ public final class ReleaseStatus {
     this.blockedAtMillis = blockedAtMillis;
     this.mavenCentralUrl = mavenCentralUrl;
     this.sonatypeRepositoryId = sonatypeRepositoryId;
+    this.portalDeploymentId = portalDeploymentId;
     this.githubDraftUrl = githubDraftUrl;
     this.githubReleaseUrl = githubReleaseUrl;
     this.mavenSubmissionGeneration = mavenSubmissionGeneration;
+    this.mavenRetryAuthorization = mavenRetryAuthorization;
     this.stageAttempt = stageAttempt;
     this.stageStartedAtMillis = stageStartedAtMillis;
     this.nextRetryAtMillis = nextRetryAtMillis;

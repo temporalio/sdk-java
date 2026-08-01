@@ -5,6 +5,25 @@ defaults:
   run:
     shell: bash -euo pipefail -O nullglob {0}
 on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        type: string
+        description: "Exact full 40-character release commit SHA"
+        required: true
+      tag:
+        type: string
+        description: "Exact release tag"
+        required: true
+      notes_sha256:
+        type: string
+        description: "Exact release-note SHA-256"
+        required: true
+      upload_artifact:
+        type: boolean
+        description: "Upload the native test server executable as an artifact"
+        required: true
+        default: true
   workflow_call:
     inputs:
       ref:
@@ -79,12 +98,24 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$INPUT_REF" ]]
           [[ -s "releases/$INPUT_TAG" && ! -L "releases/$INPUT_TAG" ]]
           [[ "$(sha256sum "releases/$INPUT_TAG" | awk '{print $1}')" == "$INPUT_NOTES_SHA256" ]]
+          if git rev-parse --verify "refs/tags/$INPUT_TAG" >/dev/null 2>&1; then
+            [[ "$(git rev-list -n1 "$INPUT_TAG")" == "$INPUT_REF" ]]
+          else
+            git tag "$INPUT_TAG" "$INPUT_REF"
+          fi
+
+      - name: Checkout frozen fallback build containers
+        if: matrix.os_family == 'linux'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: manual-tools
+          ref: ${{ github.workflow_sha }}
 
       - name: Set up Java
         if: matrix.os_family != 'linux'
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
-          java-version: 23
+          java-version: 17
           distribution: "graalvm"
 
       - name: Set up Gradle
@@ -102,7 +133,10 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == false
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image
+          docker_context=./docker/native-image
+          [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
+            docker_context=manual-tools/.github/release-automation/docker/native-image-java17
+          docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           release_args=()
           [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
@@ -115,7 +149,10 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == true
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image-musl
+          docker_context=./docker/native-image-musl
+          [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
+            docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java17
+          docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           release_args=()
           [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")

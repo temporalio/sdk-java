@@ -18,7 +18,7 @@ while true; do
   set -e
   [[ $status -eq 0 ]] && exit 0
   case "$status" in
-    42 | 43 | 44)
+    42 | 43 | 44 | 45)
       if [[ -n ${RELEASE_FAILURE_FILE:-} ]]; then
         printf '{"stage":"%s","status":%s}\n' "$stage" "$status" >"$RELEASE_FAILURE_FILE"
       fi

@@ -24,7 +24,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           jq -e '.workflow_run.name == "Start Temporal-backed release candidate" and
-            .workflow_run.event == "push" and
+            (.workflow_run.event == "push" or .workflow_run.event == "workflow_run") and
             .workflow_run.head_repository.full_name == "temporalio/sdk-java" and
             (.workflow_run.head_sha | test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH" >/dev/null
           gh api --method POST \

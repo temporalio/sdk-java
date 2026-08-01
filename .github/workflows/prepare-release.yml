@@ -1,20 +1,18 @@
-name: Emergency release control
-run-name: Emergency ${{ inputs.action }} for ${{ inputs.tag }} at ${{ inputs.commit_sha }}
+name: Independent manual release fallback
+run-name: Manual ${{ inputs.action }} for ${{ inputs.tag }} at ${{ inputs.commit_sha }}
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: Fixed emergency release operation
+        description: Fixed manual fallback operation
         required: true
         type: choice
         options:
-          - build-artifacts
           - inspect
-          - handoff-and-publish
-          - authorize-maven-retry
+          - resume
       tag:
-        description: Exact release tag, such as v1.2.3
+        description: Exact release tag
         required: true
         type: string
       commit_sha:
@@ -24,263 +22,219 @@ on:
 
 permissions:
   contents: read
-  id-token: write
-
-env:
-  RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-  GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
 
 jobs:
-  control:
+  authorize:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
     environment: release-publication
+    outputs:
+      controller_sha: ${{ steps.identity.outputs.controller_sha }}
+      notes_sha256: ${{ steps.identity.outputs.notes_sha256 }}
     steps:
-      - name: Validate exact inputs and trusted pin
+      - name: Validate exact immutable inputs
         env:
-          COMMIT_SHA: ${{ inputs.commit_sha }}
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
-          [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          fetch-depth: 0
+          ref: ${{ inputs.commit_sha }}
+      - name: Verify exact source, notes, and release manager
+        id: identity
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
+          [[ -s "releases/$RELEASE_TAG" && ! -L "releases/$RELEASE_TAG" ]]
+          membership=$(gh api \
+            "orgs/temporalio/teams/sdk-java-release-managers/memberships/$GITHUB_TRIGGERING_ACTOR")
+          jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
+            <<<"$membership" >/dev/null
+          title="[sdk-java manual release ownership] $RELEASE_TAG"
+          issues=$(gh api --paginate --slurp \
+            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
+          matches=$(jq -c --arg title "$title" \
+            '[.[][] | select((has("pull_request") | not) and .title == $title)]' <<<"$issues")
+          [[ $(jq 'length' <<<"$matches") -le 1 ]]
+          if [[ $(jq 'length' <<<"$matches") == 1 ]]; then
+            body=$(jq -r '.[0].body' <<<"$matches")
+            [[ "$body" == *"- Full SHA: \`$RELEASE_COMMIT\`"* ]]
+            controller_sha=$(sed -n -E \
+              's/^- Controller SHA: `([0-9a-f]{40})`$/\1/p' <<<"$body" | tail -1)
+            [[ "$controller_sha" == "$GITHUB_WORKFLOW_SHA" ]]
+          else
+            controller_sha=$GITHUB_WORKFLOW_SHA
+          fi
+          {
+            echo "controller_sha=$controller_sha"
+            echo "notes_sha256=$(sha256sum "releases/$RELEASE_TAG" | awk '{print $1}')"
+          } >>"$GITHUB_OUTPUT"
+
+  native:
+    needs: authorize
+    if: inputs.action == 'resume'
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      ref: ${{ inputs.commit_sha }}
+      tag: ${{ inputs.tag }}
+      notes_sha256: ${{ needs.authorize.outputs.notes_sha256 }}
+      upload_artifact: true
+
+  inspect:
+    needs: authorize
+    if: inputs.action == 'inspect'
+    runs-on: ubuntu-latest
+    environment: release-publication
+    concurrency:
+      group: sdk-java-release-publication
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: manual-tools
+          ref: ${{ needs.authorize.outputs.controller_sha }}
+      - name: Verify immutable manual controller
+        run: '[[ "$(git -C manual-tools rev-parse HEAD)" == "${{ needs.authorize.outputs.controller_sha }}" ]]'
+      - name: Inspect exact external state without mutation
+        working-directory: source
+        env:
+          EXPECTED_NOTES_SHA256: ${{ needs.authorize.outputs.notes_sha256 }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          MANUAL_INSPECTION_FILE: ${{ runner.temp }}/manual-inspection.json
+          MANUAL_RELEASE_ACTION: inspect
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+        run: |
+          bash "$GITHUB_WORKSPACE/manual-tools/.github/scripts/manual-release.sh"
+          {
+            echo "## Independent exact-state inspection"
+            echo
+            echo '```json'
+            jq . "$MANUAL_INSPECTION_FILE"
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  resume:
+    needs: [authorize, native]
+    if: inputs.action == 'resume'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    environment: release-publication
+    permissions:
+      contents: write
+      issues: write
+    concurrency:
+      group: sdk-java-release-publication
+      cancel-in-progress: false
+      queue: max
+    steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           path: source
           ref: ${{ inputs.commit_sha }}
           submodules: recursive
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: manual-tools
+          ref: ${{ needs.authorize.outputs.controller_sha }}
+      - name: Verify immutable manual controller
+        run: '[[ "$(git -C manual-tools rev-parse HEAD)" == "${{ needs.authorize.outputs.controller_sha }}" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Verify active release manager
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: ${{ runner.temp }}/native
+      - name: Construct the fixed seven-asset set
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-        run: automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_TRIGGERING_ACTOR"
-      - name: Resolve immutable emergency candidate
-        id: candidate
-        working-directory: source
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          version=${RELEASE_TAG#v}
+          assets="$RUNNER_TEMP/manual-assets"
+          stage="$RUNNER_TEMP/manual-stage"
+          mkdir -p "$assets" "$stage"
+          for platform in linux_amd64_musl linux_amd64 macOS_amd64 macOS_arm64 linux_arm64 windows_amd64; do
+            source_dir="$RUNNER_TEMP/native/$platform"
+            [[ -d "$source_dir" ]]
+            binary=$(find "$source_dir" -maxdepth 1 -type f -name 'temporal-test-server*')
+            [[ -n "$binary" && $(wc -l <<<"$binary" | tr -d ' ') == 1 ]]
+            root="temporal-test-server_${version}_${platform}"
+            mkdir "$stage/$root"
+            cp "$binary" "$stage/$root/$(basename "$binary")"
+            if [[ $platform == windows_amd64 ]]; then
+              touch -t 198001010000 "$stage/$root" "$stage/$root/$(basename "$binary")"
+              (cd "$stage" && zip -Xqr "$assets/$root.zip" "$root")
+            else
+              chmod 0755 "$stage/$root/$(basename "$binary")"
+              tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+                -C "$stage" -czf "$assets/$root.tar.gz" "$root"
+            fi
+            rm -r "$stage/$root"
+          done
+          (cd "$assets" && sha256sum temporal-test-server_* >SHA256SUMS)
+          echo "MANUAL_ASSET_DIR=$assets" >>"$GITHUB_ENV"
+      - name: Record independent tag-level ownership
         env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          MANUAL_CONTROLLER_SHA: ${{ needs.authorize.outputs.controller_sha }}
           RELEASE_COMMIT: ${{ inputs.commit_sha }}
           RELEASE_TAG: ${{ inputs.tag }}
-          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
         run: |
-          ../automation/.github/scripts/temporal-release/resolve-emergency-candidate.sh
-          candidate_file=$(awk -F= '$1 == "candidate_file" {print $2}' "$GITHUB_OUTPUT" | tail -1)
-          cd ../automation
-          ./gradlew -p .github/release-automation run --args="candidate-outputs $candidate_file"
-      - name: Obtain durable artifact-state credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
-      - name: Create or validate durable emergency request
-        id: request
-        env:
-          ACTION: ${{ inputs.action }}
-          CANDIDATE_DIGEST: ${{ steps.candidate.outputs.candidate_digest }}
-          CANDIDATE_FILE: ${{ steps.candidate.outputs.candidate_file }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          key="sdk-java/emergency/$RELEASE_TAG.json"
-          request="$RUNNER_TEMP/emergency-request.json"
-          existing="$RUNNER_TEMP/existing-emergency-request.json"
-          if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
-            >"$RUNNER_TEMP/emergency-request-head.json" 2>/dev/null; then
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$existing" --no-progress >/dev/null
-            jq -e --slurpfile candidate "$CANDIDATE_FILE" --arg digest "$CANDIDATE_DIGEST" \
-              '.candidate == $candidate[0] and .candidateDigest == $digest and
-               ((.artifactPrefix == ("sdk-java/" + $digest + "/") and
-                 .replacementAttempt == "") or
-                ((.replacementAttempt | test("^[0-9a-f]{64}$")) and
-                 .artifactPrefix == ("sdk-java/emergency-artifacts/" + $digest +
-                   "/" + .replacementAttempt + "/"))) and
-               (.state == "BUILDING" or .state == "AWAITING_INSPECTION" or
-                .state == "INSPECTED" or .state == "READY" or .state == "COMPLETE" or
-                .state == "BLOCKED")' "$existing" >/dev/null
-            cp "$existing" "$request"
-            request_etag=$(jq -er .ETag "$RUNNER_TEMP/emergency-request-head.json")
+          title="[sdk-java manual release ownership] $RELEASE_TAG"
+          body=$(printf '%s\n' \
+            '## Independent manual release ownership' '' \
+            "- Tag: \`$RELEASE_TAG\`" "- Full SHA: \`$RELEASE_COMMIT\`" \
+            "- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`" \
+            "- Actor: \`$GITHUB_TRIGGERING_ACTOR\`" "- Actions run: \`$GITHUB_RUN_ID\`" '' \
+            'Temporal automation must not mutate this tag while this locked issue remains open.')
+          issues=$(gh api --paginate --slurp \
+            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
+          matches=$(jq -c --arg title "$title" \
+            '[.[][] | select((has("pull_request") | not) and .title == $title)]' <<<"$issues")
+          [[ $(jq 'length' <<<"$matches") -le 1 ]]
+          if [[ $(jq 'length' <<<"$matches") == 0 ]]; then
+            issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
+              --raw-field title="$title" --raw-field body="$body")
           else
-            [[ "$ACTION" == build-artifacts ]] || {
-              echo "Run build-artifacts first to create the durable emergency request." >&2
-              exit 1
-            }
-            normal_prefix="sdk-java/$CANDIDATE_DIGEST/"
-            normal_count=$(aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
-              --prefix "$normal_prefix" --output json | jq '.Contents // [] | length')
-            if [[ $normal_count -eq 6 ]]; then
-              artifact_prefix=$normal_prefix
-              replacement_attempt=""
-            else
-              replacement_attempt=$(printf '%s' "$CANDIDATE_DIGEST:emergency-replacement-v1" | \
-                sha256sum | awk '{print $1}')
-              artifact_prefix="sdk-java/emergency-artifacts/$CANDIDATE_DIGEST/$replacement_attempt/"
-            fi
-            jq -n --slurpfile candidate "$CANDIDATE_FILE" --arg digest "$CANDIDATE_DIGEST" \
-              --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson runId "$GITHUB_RUN_ID" \
-              --arg artifactPrefix "$artifact_prefix" \
-              --arg replacementAttempt "$replacement_attempt" \
-              '{candidate:$candidate[0],candidateDigest:$digest,state:"BUILDING",
-                requestedBy:$actor,requestedRunId:$runId,mavenSubmissionGeneration:0,
-                artifactPrefix:$artifactPrefix,replacementAttempt:$replacementAttempt}' >"$request"
-            aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
-              --body "$request" --if-none-match '*' >/dev/null
+            issue=$(jq -c '.[0]' <<<"$matches")
+            existing_body=$(jq -r .body <<<"$issue")
+            [[ "$existing_body" == *"- Tag: \`$RELEASE_TAG\`"* &&
+              "$existing_body" == *"- Full SHA: \`$RELEASE_COMMIT\`"* &&
+              "$existing_body" == *"- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`"* ]]
           fi
-          {
-            echo "key=$key"
-            echo "request=$request"
-            echo "state=$(jq -er .state "$request")"
-            echo "generation=$(jq -er .mavenSubmissionGeneration "$request")"
-            echo "artifact_prefix=$(jq -er .artifactPrefix "$request")"
-            echo "replacement_attempt=$(jq -r .replacementAttempt "$request")"
-            echo "etag=${request_etag:-}"
-          } >>"$GITHUB_OUTPUT"
-      - name: Collect the exact durable artifact manifest
-        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
-        id: manifest
-        env:
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_ARTIFACT_PREFIX: ${{ steps.request.outputs.artifact_prefix }}
-          RELEASE_CANDIDATE_DIGEST: ${{ steps.candidate.outputs.candidate_digest }}
-          RELEASE_MANIFEST_FILE: ${{ runner.temp }}/emergency-manifest.tsv
-        run: automation/.github/scripts/temporal-release/collect-artifact-manifest.sh
-      - name: Construct independently durable release identity
-        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
-        id: identity
-        working-directory: automation
-        env:
-          EMERGENCY_APPROVAL_ACTOR: ${{ github.triggering_actor }}
-          EMERGENCY_APPROVAL_RUN_ID: ${{ github.run_id }}
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          MAVEN_SUBMISSION_GENERATION: ${{ steps.request.outputs.generation }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="emergency-input ${{ steps.candidate.outputs.candidate_file }} ${{ runner.temp }}/emergency-manifest.tsv"
-      - name: Inspect Central, Sonatype, tag, release, and assets without publication mutation
-        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
+          gh api --method PUT \
+            "repos/temporalio/sdk-java/issues/$(jq -er .number <<<"$issue")/lock"
+          echo "MANUAL_OWNERSHIP_ISSUE=$(jq -er .number <<<"$issue")" >>"$GITHUB_ENV"
+      - name: Resume from exact Maven/GitHub external state
         working-directory: source
         env:
-          EXPECTED_APPROVAL_ACTOR: ${{ github.triggering_actor }}
-          EXPECTED_APPROVAL_RUN_ID: ${{ github.run_id }}
-          EXPECTED_COMMIT_SHA: ${{ inputs.commit_sha }}
-          EXPECTED_MANIFEST_SHA256: ${{ steps.identity.outputs.manifest_sha256 }}
-          EXPECTED_NOTES_SHA256: ${{ steps.identity.outputs.notes_sha256 }}
-          EXPECTED_RELEASE_DIGEST: ${{ steps.identity.outputs.release_digest }}
-          EXPECTED_REPOSITORY: temporalio/sdk-java
-          EXPECTED_RUN_ID: ${{ steps.identity.outputs.run_id }}
-          EXPECTED_TAG: ${{ inputs.tag }}
-          EXPECTED_WORKFLOW_ID: ${{ steps.identity.outputs.workflow_id }}
+          EXPECTED_NOTES_SHA256: ${{ needs.authorize.outputs.notes_sha256 }}
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_INPUT_FILE: ${{ steps.identity.outputs.release_input_file }}
-          RELEASE_MODE: emergency-inspect
-          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/emergency-inspection.json
-          RELEASE_STAGE: inspect
+          JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          MANUAL_INSPECTION_FILE: ${{ runner.temp }}/manual-inspection.json
+          MANUAL_RELEASE_ACTION: resume
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
-          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ steps.candidate.outputs.automation_commit }}
-        run: |
-          bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
-          {
-            echo "## Exact emergency release inspection"
-            echo
-            echo "- Tag: \`${{ inputs.tag }}\`"
-            echo "- Full SHA: \`${{ inputs.commit_sha }}\`"
-            echo "- Release digest: \`${{ steps.identity.outputs.release_digest }}\`"
-            echo "- Manifest SHA-256: \`${{ steps.identity.outputs.manifest_sha256 }}\`"
-            echo
-            echo '```json'
-            jq . "$RELEASE_OUTPUT_FILE"
-            echo '```'
-          } >>"$GITHUB_STEP_SUMMARY"
-      - name: Record completed inspection or authorize publication
-        if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish'
-        env:
-          ACTION: ${{ inputs.action }}
-          INSPECTION_FILE: ${{ runner.temp }}/emergency-inspection.json
-          MANIFEST_SHA256: ${{ steps.identity.outputs.manifest_sha256 }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          REQUEST_FILE: ${{ steps.request.outputs.request }}
-          REQUEST_KEY: ${{ steps.request.outputs.key }}
-        run: |
-          if [[ "$ACTION" == inspect ]]; then
-            current_state=$(jq -r .state "$REQUEST_FILE")
-            [[ "$current_state" == AWAITING_INSPECTION || "$current_state" == INSPECTED ||
-              "$current_state" == BLOCKED ]] || {
-              echo "Inspection is not available from state $current_state." >&2
-              exit 1
-            }
-            [[ "$current_state" == BLOCKED ]] && state=BLOCKED || state=INSPECTED
-          else
-            current_state=$(jq -r .state "$REQUEST_FILE")
-            same_manifest=$(jq -r .manifestSha256 "$REQUEST_FILE")
-            resumable=false
-            if [[ "$current_state" == BLOCKED ]]; then
-              blocked_reason=$(jq -r '.blockedReason // ""' "$REQUEST_FILE")
-              if [[ "$blocked_reason" == MavenSubmissionAmbiguous ]]; then
-                maven_present=$(jq -r '.inspection.mavenPresent // 0' "$REQUEST_FILE")
-                sonatype=$(jq -r '.inspection.sonatype // ""' "$REQUEST_FILE")
-                [[ $maven_present -gt 0 || "$sonatype" == exact-repository-found ]] && resumable=true
-              elif [[ "$blocked_reason" == InvalidApproval ]]; then
-                resumable=true
-              fi
-            fi
-            [[ "$same_manifest" == "$MANIFEST_SHA256" &&
-              ( "$current_state" == INSPECTED || "$resumable" == true ) ]] || {
-              echo "Run inspect for this exact manifest before handoff-and-publish." >&2
-              exit 1
-            }
-            state=READY
-          fi
-          jq --arg state "$state" --arg manifest "$MANIFEST_SHA256" \
-            --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson run "$GITHUB_RUN_ID" \
-            --arg action "$ACTION" --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-            --slurpfile inspection "$INSPECTION_FILE" \
-            '.state=$state | .manifestSha256=$manifest | .approvedBy=$actor |
-             .approvalRunId=$run | .inspection=$inspection[0] | .inspectionRunId=$run |
-             if $action == "handoff-and-publish" then
-               .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
-                 reason:"Release manager transferred ownership to emergency automation.",
-                 recordedAt:$recordedAt,githubRunId:$run}
-             else . end' \
-            "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
-          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
-            --body "$RUNNER_TEMP/updated-request.json" --if-match '${{ steps.request.outputs.etag }}' \
-            >/dev/null
-      - name: Authorize one new Maven staging generation after manual Sonatype inspection
-        if: inputs.action == 'authorize-maven-retry'
-        env:
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          REQUEST_FILE: ${{ steps.request.outputs.request }}
-          REQUEST_KEY: ${{ steps.request.outputs.key }}
-        run: |
-          [[ $(jq -r .state "$REQUEST_FILE") == BLOCKED &&
-            $(jq -r .blockedReason "$REQUEST_FILE") == MavenSubmissionAmbiguous &&
-            $(jq -r '.inspection.sonatype // ""' "$REQUEST_FILE") == exact-repository-absent &&
-            $(jq -r '.inspection.mavenPresent // -1' "$REQUEST_FILE") == 0 &&
-            $(jq -r '.inspection.mavenSubmissionGeneration // -1' "$REQUEST_FILE") ==
-              $(jq -r .mavenSubmissionGeneration "$REQUEST_FILE") ]] || {
-            echo "The emergency release is not blocked on an ambiguous Maven intent." >&2
-            exit 1
-          }
-          jq --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson run "$GITHUB_RUN_ID" \
-            --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-            '.state="READY" | .mavenSubmissionGeneration += 1 |
-             .mavenRetryAuthorizedBy=$actor | .mavenRetryAuthorizationRunId=$run |
-             .approvedBy=$actor | .approvalRunId=$run |
-             .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
-               reason:"Release manager transferred ownership to emergency automation.",
-               recordedAt:$recordedAt,githubRunId:$run} | del(.blockedReason)' \
-            "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
-          aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
-            --body "$RUNNER_TEMP/updated-request.json" --if-match '${{ steps.request.outputs.etag }}' \
-            >/dev/null
+        run: bash "$GITHUB_WORKSPACE/manual-tools/.github/scripts/manual-release.sh"

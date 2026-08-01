@@ -13,6 +13,7 @@ public final class PublicationInput {
   public boolean emergencyHandoff;
   public ControlEvidence handoff;
   public int mavenSubmissionGeneration;
+  public ControlEvidence mavenRetryAuthorization;
 
   public PublicationInput() {}
 

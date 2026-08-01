@@ -106,7 +106,7 @@ final class ProcessSupport {
     }
   }
 
-  private static void terminateProcessTree(Process process) {
+  static void terminateProcessTree(Process process) {
     List<ProcessHandle> descendants = process.descendants().collect(Collectors.toList());
     for (int index = descendants.size() - 1; index >= 0; index--) {
       descendants.get(index).destroy();

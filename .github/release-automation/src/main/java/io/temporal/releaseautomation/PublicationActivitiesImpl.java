@@ -17,15 +17,18 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
   private final Path sourceRoot;
   private final Map<String, String> environment;
   private final Consumer<Throwable> completion;
+  private final Runnable started;
 
   public PublicationActivitiesImpl(
       Path trustedRoot,
       Path sourceRoot,
       Map<String, String> environment,
+      Runnable started,
       Consumer<Throwable> completion) {
     this.trustedRoot = trustedRoot;
     this.sourceRoot = sourceRoot;
     this.environment = new HashMap<>(environment);
+    this.started = started;
     this.completion = completion;
   }
 
@@ -50,6 +53,7 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
   }
 
   private <T> T run(PublicationInput input, String stage, Class<T> resultType) {
+    started.run();
     try {
       T result = runCommand(input, stage, resultType);
       completion.accept(null);
@@ -79,6 +83,26 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
       commandEnvironment.put("RELEASE_STAGE", stage);
       commandEnvironment.put("EXPECTED_APPROVAL_ACTOR", input.approval.githubActor);
       commandEnvironment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
+      for (String name :
+          new String[] {
+            "EXPECTED_APPROVAL_ISSUE_NUMBER",
+            "EXPECTED_APPROVAL_ISSUE_NODE_ID",
+            "EXPECTED_APPROVAL_ISSUE_BODY_SHA256",
+            "EXPECTED_APPROVAL_RUN_ID",
+            "EXPECTED_COMMIT_SHA",
+            "EXPECTED_MANIFEST_SHA256",
+            "EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256",
+            "EXPECTED_MAVEN_SUBMISSION_GENERATION",
+            "EXPECTED_NOTES_SHA256",
+            "EXPECTED_RELEASE_DIGEST",
+            "EXPECTED_REPOSITORY",
+            "EXPECTED_RUN_ID",
+            "EXPECTED_TAG",
+            "EXPECTED_WORKFLOW_ID",
+            "TRUSTED_WORKER_COMMIT"
+          }) {
+        copy(commandEnvironment, name);
+      }
       copy(commandEnvironment, "GH_TOKEN");
       copy(commandEnvironment, "RELEASE_ARTIFACT_BUCKET");
       copy(commandEnvironment, "AWS_ACCESS_KEY_ID");
@@ -123,6 +147,10 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
         throw ApplicationFailure.newNonRetryableFailure(
             "A durable Maven intent has no discoverable Sonatype repository; an authenticated release manager must inspect Sonatype before authorizing another submission generation.",
             "MavenSubmissionAmbiguous");
+      }
+      if (e.getStatus() == 45) {
+        throw ApplicationFailure.newNonRetryableFailure(
+            "The exact Publisher Portal deployment failed validation.", "MavenDeploymentFailed");
       }
       throw e;
     } catch (IOException e) {
