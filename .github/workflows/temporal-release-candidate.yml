@@ -29,6 +29,7 @@ jobs:
     name: Freeze identity and start Candidate Workflow
     runs-on: ubuntu-latest
     outputs:
+      automation_commit: ${{ steps.metadata.outputs.automation_commit }}
       candidate_digest: ${{ steps.start.outputs.candidate_digest }}
       commit: ${{ steps.metadata.outputs.commit }}
       task_queue: ${{ steps.start.outputs.task_queue }}
@@ -56,15 +57,6 @@ jobs:
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: '[[ "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
 
-      - name: Resolve immutable candidate
-        id: metadata
-        working-directory: source
-        env:
-          BASE_SHA: ${{ github.event.before }}
-          RELEASE_COMMIT: ${{ github.sha }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
-
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
@@ -73,6 +65,16 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+
+      - name: Resolve immutable candidate
+        id: metadata
+        working-directory: source
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
 
       - name: Start or attach to Candidate Workflow
         id: start
@@ -90,10 +92,10 @@ jobs:
       - name: Checkout trusted release automation
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ needs.start.outputs.automation_commit }}
       - name: Verify trusted checkout
         env:
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ needs.start.outputs.automation_commit }}
         run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:

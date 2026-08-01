@@ -1,4 +1,4 @@
-name: Emergency native image builder (called only)
+name: Native image builder (reusable)
 permissions:
   contents: read
 defaults:
@@ -14,11 +14,13 @@ on:
       tag:
         type: string
         description: "Exact release tag"
-        required: true
+        required: false
+        default: ""
       notes_sha256:
         type: string
         description: "Exact release-note SHA-256"
-        required: true
+        required: false
+        default: ""
       upload_artifact:
         type: boolean
         description: "Upload the native test server executable as an artifact"
@@ -61,8 +63,10 @@ jobs:
       - name: Validate exact immutable inputs
         run: |
           [[ "$INPUT_REF" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
-          [[ "$INPUT_NOTES_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          if [[ -n "$INPUT_TAG" || -n "$INPUT_NOTES_SHA256" ]]; then
+            [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
+            [[ "$INPUT_NOTES_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          fi
       - name: Checkout repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -70,6 +74,7 @@ jobs:
           submodules: recursive
           ref: ${{ env.INPUT_REF }}
       - name: Verify checkout and release-note identity
+        if: inputs.tag != ''
         run: |
           [[ "$(git rev-parse HEAD)" == "$INPUT_REF" ]]
           [[ -s "releases/$INPUT_TAG" && ! -L "releases/$INPUT_TAG" ]]
@@ -89,7 +94,9 @@ jobs:
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'linux'
         run: |
-          ./gradlew "-PreleaseVersion=${INPUT_TAG#v}" -PnativeBuild :temporal-test-server:nativeCompile
+          release_args=()
+          [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
+          ./gradlew "${release_args[@]}" -PnativeBuild :temporal-test-server:nativeCompile
 
       - name: Build native test server (Docker non-musl)
         if: matrix.os_family == 'linux' && matrix.musl == false
@@ -97,10 +104,12 @@ jobs:
           IMAGE_ID_FILE="$(mktemp)"
           docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
+          release_args=()
+          [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            "$IMAGE_ID" \
-            sh -c "./gradlew '-PreleaseVersion=${INPUT_TAG#v}' -PnativeBuild :temporal-test-server:nativeCompile"
+            "$IMAGE_ID" ./gradlew "${release_args[@]}" -PnativeBuild \
+            :temporal-test-server:nativeCompile
 
       - name: Build native test server (Docker musl)
         if: matrix.os_family == 'linux' && matrix.musl == true
@@ -108,10 +117,12 @@ jobs:
           IMAGE_ID_FILE="$(mktemp)"
           docker build --iidfile "$IMAGE_ID_FILE" ./docker/native-image-musl
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
+          release_args=()
+          [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            "$IMAGE_ID" \
-            sh -c "./gradlew '-PreleaseVersion=${INPUT_TAG#v}' -PnativeBuild -PnativeBuildMusl :temporal-test-server:nativeCompile"
+            "$IMAGE_ID" ./gradlew "${release_args[@]}" -PnativeBuild -PnativeBuildMusl \
+            :temporal-test-server:nativeCompile
 
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow

@@ -1,10 +1,23 @@
 def releaseCommit = rootProject.findProperty('releaseCommit')?.toString()?.toLowerCase()
+def releaseDigest = rootProject.findProperty('releaseDigest')?.toString()?.toLowerCase()
+def mavenSubmissionGeneration = rootProject.findProperty('mavenSubmissionGeneration')?.toString()
 if (releaseCommit != null && !(releaseCommit ==~ /^[0-9a-f]{40}$/)) {
     throw new GradleException(
             "Invalid releaseCommit '${releaseCommit}'. Expected a full 40-character commit SHA.")
 }
+if (releaseDigest != null && !(releaseDigest ==~ /^[0-9a-f]{64}$/)) {
+    throw new GradleException('Invalid releaseDigest. Expected a SHA-256 digest.')
+}
+if (mavenSubmissionGeneration != null && !(mavenSubmissionGeneration ==~ /^[0-9]+$/)) {
+    throw new GradleException('Invalid mavenSubmissionGeneration.')
+}
+def stagingDescription = releaseDigest == null ? null :
+        "sdk-java:${releaseDigest}:${mavenSubmissionGeneration ?: '0'}"
 
 nexusPublishing {
+    if (stagingDescription != null) {
+        repositoryDescription = stagingDescription
+    }
     if (releaseCommit != null) {
         transitionCheckOptions {
             // Network calls inside Gradle are bounded. Temporal owns cross-attempt retry and backoff.
@@ -20,6 +33,12 @@ nexusPublishing {
             nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
             snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
         }
+    }
+}
+
+if (stagingDescription != null) {
+    tasks.named('findSonatypeStagingRepository') {
+        descriptionRegex = '^' + java.util.regex.Pattern.quote(stagingDescription) + '$'
     }
 }
 

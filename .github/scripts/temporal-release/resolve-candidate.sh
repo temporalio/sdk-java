@@ -14,6 +14,8 @@ fail() {
   fail "RELEASE_COMMIT must be a full commit SHA."
 [[ ${RELEASE_AUTOMATION_REF:-} =~ ^[0-9a-f]{40}$ ]] ||
   fail "RELEASE_AUTOMATION_REF must be a full commit SHA."
+[[ ${TRUSTED_AUTOMATION_ROOT:-} && -d $TRUSTED_AUTOMATION_ROOT ]] ||
+  fail "The trusted automation checkout is missing."
 [[ -n ${GITHUB_OUTPUT:-} && -n ${RUNNER_TEMP:-} ]] || fail "GitHub Actions paths are missing."
 
 git merge-base --is-ancestor "$BASE_SHA" "$RELEASE_COMMIT" ||
@@ -40,6 +42,13 @@ read -r mode type _ < <(git ls-tree "$RELEASE_COMMIT" -- "$notes_file")
 [[ -s $notes_file && ! -L $notes_file ]] || fail "Release notes must be nonempty and not a symlink."
 notes_sha256=$(sha256sum "$notes_file" | awk '{print $1}')
 
+policy_output=$(mktemp)
+GITHUB_OUTPUT=$policy_output "$TRUSTED_AUTOMATION_ROOT/gradlew" \
+  -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --no-daemon run \
+  --args="maven-policy $PWD/settings.gradle" >/dev/null
+maven_policy=$(awk -F= '$1 == "maven_policy" {print $2}' "$policy_output" | tail -1)
+[[ -n $maven_policy ]] || fail "The fixed Java Maven policy did not classify this source."
+
 set +e
 git ls-remote --exit-code --tags https://github.com/temporalio/sdk-java.git \
   "refs/tags/$tag" >/dev/null 2>&1
@@ -60,9 +69,10 @@ jq -n \
   --arg releaseNotesPath "$notes_file" \
   --arg releaseNotesSha256 "$notes_sha256" \
   --arg trustedAutomationCommit "$RELEASE_AUTOMATION_REF" \
+  --arg mavenPolicy "$maven_policy" \
   '{repository: $repository, version: $version, tag: $tag, commitSha: $commitSha,
     releaseNotesPath: $releaseNotesPath, releaseNotesSha256: $releaseNotesSha256,
-    trustedAutomationCommit: $trustedAutomationCommit}' \
+    trustedAutomationCommit: $trustedAutomationCommit, mavenPolicy: $mavenPolicy}' \
   >"$candidate_file"
 
 {
@@ -71,4 +81,6 @@ jq -n \
   printf 'version=%s\n' "$version"
   printf 'commit=%s\n' "$RELEASE_COMMIT"
   printf 'notes_sha256=%s\n' "$notes_sha256"
+  printf 'automation_commit=%s\n' "$RELEASE_AUTOMATION_REF"
+  printf 'maven_policy=%s\n' "$maven_policy"
 } >>"$GITHUB_OUTPUT"

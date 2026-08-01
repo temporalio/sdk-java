@@ -3,6 +3,7 @@ package io.temporal.releaseautomation;
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.UpdateValidatorMethod;
 import io.temporal.workflow.Workflow;
@@ -11,6 +12,7 @@ import java.util.Collections;
 
 public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   static final String STATUS_MEMO_KEY = "ReleaseStatus";
+  static final String IDENTITY_MEMO_KEY = "ReleaseIdentity";
   private ReleaseIdentity identity;
   private ApprovalRequest approvalRequest;
   private ApprovalEvidence approval;
@@ -18,6 +20,16 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   private String phase = "INITIALIZING";
   private String pausedFrom;
   private String lastCompletedStage;
+  private String lastError;
+  private long blockedAtMillis;
+  private String mavenCentralUrl;
+  private String sonatypeRepositoryId;
+  private String githubDraftUrl;
+  private String githubReleaseUrl;
+  private int mavenSubmissionGeneration;
+  private int stageAttempt;
+  private long stageStartedAtMillis;
+  private long nextRetryAtMillis;
   private boolean pauseRequested;
   private boolean handoffRequested;
   private CancellationScope activeActivity;
@@ -29,8 +41,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     awaitApproval();
     if (handoffRequested) {
       enterHandedOff();
-      Workflow.await(() -> false);
-      return null;
+      return awaitManualCompletion();
     }
 
     PublicationActivities activities =
@@ -45,26 +56,30 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
                     RetryOptions.newBuilder()
                         .setInitialInterval(Duration.ofMinutes(2))
                         .setMaximumInterval(Duration.ofMinutes(15))
+                        .setMaximumAttempts(1)
                         .setDoNotRetry("ReleaseIdentityConflict", "InvalidApproval")
                         .build())
                 .build());
-    PublicationInput input =
-        new PublicationInput(
-            identity, approval, Workflow.getInfo().getWorkflowId(), Workflow.getInfo().getRunId());
-    runStage("PREFLIGHT", () -> activities.preflight(input));
-    final String[] mavenCentralUrl = new String[1];
-    runStage("MAVEN", () -> mavenCentralUrl[0] = activities.reconcileMaven(input));
-    runStage("GITHUB_DRAFT", () -> activities.reconcileGithubDraft(input));
+    runStage("PREFLIGHT", () -> activities.preflight(publicationInput()));
+    runStage(
+        "MAVEN",
+        () -> {
+          MavenReceipt receipt = activities.reconcileMaven(publicationInput());
+          mavenCentralUrl = receipt.mavenCentralUrl;
+          sonatypeRepositoryId = receipt.sonatypeRepositoryId;
+        });
+    runStage(
+        "GITHUB_DRAFT", () -> githubDraftUrl = activities.reconcileGithubDraft(publicationInput()));
     final ReleaseResult[] result = new ReleaseResult[1];
     runStage(
         "PUBLISH_GITHUB",
-        () -> result[0] = activities.publishGithubRelease(input, mavenCentralUrl[0]));
+        () -> result[0] = activities.publishGithubRelease(publicationInput(), mavenCentralUrl));
     if (handoffRequested) {
       enterHandedOff();
-      Workflow.await(() -> false);
-      return null;
+      return awaitManualCompletion();
     }
     phase = "PUBLISHED";
+    githubReleaseUrl = result[0].githubReleaseUrl;
     upsertStatus();
     return result[0];
   }
@@ -118,16 +133,33 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     control.recordedAtMillis = Workflow.currentTimeMillis();
     if ("pause".equals(evidence.action)) {
       pauseRequested = true;
+      beginQuiescing();
       cancelActiveActivity();
       Workflow.await(() -> "PAUSED".equals(phase) || "HANDED_OFF".equals(phase));
     } else if ("resume".equals(evidence.action)) {
       pauseRequested = false;
       phase = pausedFrom;
       pausedFrom = null;
+      lastError = null;
+      blockedAtMillis = 0;
+    } else if ("retry-maven-submission".equals(evidence.action)) {
+      mavenSubmissionGeneration++;
+      phase = pausedFrom;
+      pausedFrom = null;
+      lastError = null;
+      blockedAtMillis = 0;
+    } else if ("manual-complete".equals(evidence.action)) {
+      githubReleaseUrl = evidence.githubReleaseUrl;
+      mavenCentralUrl = evidence.mavenCentralUrl;
+      phase = "MANUAL_COMPLETE";
     } else {
       handoffRequested = true;
       pauseRequested = false;
+      beginQuiescing();
       cancelActiveActivity();
+      if (activeActivity == null) {
+        enterHandedOff();
+      }
       Workflow.await(() -> "HANDED_OFF".equals(phase));
     }
     upsertStatus();
@@ -136,7 +168,10 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
 
   @UpdateValidatorMethod(updateName = "control")
   public void validateControl(ControlEvidence evidence) {
-    if (identity == null || "PUBLISHED".equals(phase) || "HANDED_OFF".equals(phase)) {
+    if (identity == null
+        || "PUBLISHED".equals(phase)
+        || "MANUAL_COMPLETE".equals(phase)
+        || ("HANDED_OFF".equals(phase) && !"manual-complete".equals(evidence.action))) {
       throw new IllegalStateException("The release is not controllable.");
     }
     evidence.validate();
@@ -146,15 +181,42 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
         || !identity.candidate.commitSha.equals(evidence.commitSha)) {
       throw new IllegalArgumentException("Control evidence does not match the exact tag and SHA.");
     }
-    if ("resume".equals(evidence.action) && !"PAUSED".equals(phase)) {
-      throw new IllegalStateException("Only a paused release can resume.");
+    if ("resume".equals(evidence.action) && !("PAUSED".equals(phase) || "BLOCKED".equals(phase))) {
+      throw new IllegalStateException("Only a paused or blocked release can resume.");
+    }
+    if ("retry-maven-submission".equals(evidence.action)
+        && !("BLOCKED".equals(phase)
+            && "MAVEN".equals(pausedFrom)
+            && lastError != null
+            && lastError.contains("MavenSubmissionAmbiguous"))) {
+      throw new IllegalStateException(
+          "A Maven retry can only resolve an ambiguous pre-repository submission.");
+    }
+    if ("manual-complete".equals(evidence.action) && !"HANDED_OFF".equals(phase)) {
+      throw new IllegalStateException("Only a handed-off release can record manual completion.");
     }
   }
 
   @Override
   public ReleaseStatus status() {
     return new ReleaseStatus(
-        phase, identity, approvalRequest, approval, control, pausedFrom, lastCompletedStage);
+        phase,
+        identity,
+        approvalRequest,
+        approval,
+        control,
+        pausedFrom,
+        lastCompletedStage,
+        lastError,
+        blockedAtMillis,
+        mavenCentralUrl,
+        sonatypeRepositoryId,
+        githubDraftUrl,
+        githubReleaseUrl,
+        mavenSubmissionGeneration,
+        stageAttempt,
+        stageStartedAtMillis,
+        nextRetryAtMillis);
   }
 
   private void awaitApproval() {
@@ -167,24 +229,49 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   }
 
   private void runStage(String stage, Runnable action) {
+    int retry = 0;
     while (!handoffRequested) {
       handlePause(stage);
       if (handoffRequested) {
         return;
       }
       phase = stage;
+      stageAttempt++;
+      stageStartedAtMillis = Workflow.currentTimeMillis();
+      nextRetryAtMillis = 0;
       upsertStatus();
       activeActivity = Workflow.newCancellationScope(action);
       try {
         activeActivity.run();
         activeActivity = null;
         lastCompletedStage = stage;
+        lastError = null;
+        blockedAtMillis = 0;
+        nextRetryAtMillis = 0;
         upsertStatus();
         return;
       } catch (RuntimeException e) {
         activeActivity = null;
-        if (!pauseRequested && !handoffRequested) {
-          throw e;
+        if (handoffRequested) {
+          enterHandedOff();
+          return;
+        }
+        if (!pauseRequested && isNonRetryable(e)) {
+          pausedFrom = stage;
+          phase = "BLOCKED";
+          lastError = safeFailure(e);
+          blockedAtMillis = Workflow.currentTimeMillis();
+          upsertStatus();
+          Workflow.await(() -> !"BLOCKED".equals(phase) || handoffRequested);
+        } else if (!pauseRequested) {
+          lastError = safeFailure(e);
+          long delayMinutes = Math.min(15, 2L << Math.min(retry, 3));
+          retry++;
+          nextRetryAtMillis =
+              Workflow.currentTimeMillis() + Duration.ofMinutes(delayMinutes).toMillis();
+          upsertStatus();
+          Workflow.await(
+              Duration.ofMinutes(delayMinutes), () -> pauseRequested || handoffRequested);
         }
       }
     }
@@ -211,10 +298,70 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     upsertStatus();
   }
 
+  private void beginQuiescing() {
+    if (activeActivity != null) {
+      if (pausedFrom == null) {
+        pausedFrom = phase;
+      }
+      phase = "QUIESCING";
+      upsertStatus();
+    } else if (handoffRequested) {
+      enterHandedOff();
+    } else if (!"PAUSED".equals(phase)) {
+      pausedFrom = phase;
+      phase = "PAUSED";
+      upsertStatus();
+    }
+  }
+
+  private static String safeFailure(RuntimeException failure) {
+    Throwable current = failure;
+    while (current != null) {
+      if (current instanceof ApplicationFailure) {
+        ApplicationFailure applicationFailure = (ApplicationFailure) current;
+        return applicationFailure.getType() + ": " + value(applicationFailure);
+      }
+      current = current.getCause();
+    }
+    return failure.getClass().getSimpleName() + ": " + value(failure);
+  }
+
+  private static String value(Throwable failure) {
+    String message = failure.getMessage();
+    if (message == null || message.isEmpty()) {
+      return failure.getClass().getSimpleName();
+    }
+    return message;
+  }
+
+  private static boolean isNonRetryable(Throwable failure) {
+    Throwable current = failure;
+    while (current != null) {
+      if (current instanceof ApplicationFailure) {
+        return ((ApplicationFailure) current).isNonRetryable();
+      }
+      current = current.getCause();
+    }
+    return false;
+  }
+
   private void cancelActiveActivity() {
     if (activeActivity != null) {
       activeActivity.cancel("Authenticated release control requested cancellation.");
     }
+  }
+
+  private PublicationInput publicationInput() {
+    PublicationInput input =
+        new PublicationInput(
+            identity, approval, Workflow.getInfo().getWorkflowId(), Workflow.getInfo().getRunId());
+    input.mavenSubmissionGeneration = mavenSubmissionGeneration;
+    return input;
+  }
+
+  private ReleaseResult awaitManualCompletion() {
+    Workflow.await(() -> "MANUAL_COMPLETE".equals(phase));
+    return new ReleaseResult(identity.digest(), githubReleaseUrl, mavenCentralUrl);
   }
 
   private void validateExecutionIdentity(

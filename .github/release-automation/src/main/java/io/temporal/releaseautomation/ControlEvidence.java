@@ -12,6 +12,8 @@ public final class ControlEvidence {
   public String commitSha;
   public String reason;
   public long recordedAtMillis;
+  public String githubReleaseUrl;
+  public String mavenCentralUrl;
 
   public ControlEvidence() {}
 
@@ -40,7 +42,11 @@ public final class ControlEvidence {
   }
 
   public void validate() {
-    if (!("pause".equals(action) || "resume".equals(action) || "handoff-manual".equals(action))
+    if (!("pause".equals(action)
+            || "resume".equals(action)
+            || "handoff-manual".equals(action)
+            || "retry-maven-submission".equals(action)
+            || "manual-complete".equals(action))
         || !ReleasePolicy.REPOSITORY.equals(repository)
         || releaseDigest == null
         || !releaseDigest.matches("[0-9a-f]{64}")
@@ -58,6 +64,15 @@ public final class ControlEvidence {
         || reason == null
         || reason.isEmpty()) {
       throw new IllegalArgumentException("Invalid authenticated release control evidence.");
+    }
+    if ("manual-complete".equals(action)
+        && (!(githubReleaseUrl != null
+                && githubReleaseUrl.matches(
+                    "https://github\\.com/temporalio/sdk-java/releases/tag/v.+"))
+            || !(mavenCentralUrl != null
+                && mavenCentralUrl.startsWith(
+                    "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/")))) {
+      throw new IllegalArgumentException("Manual completion URLs are invalid.");
     }
   }
 }

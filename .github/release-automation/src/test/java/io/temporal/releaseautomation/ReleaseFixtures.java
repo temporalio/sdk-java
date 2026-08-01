@@ -14,7 +14,8 @@ final class ReleaseFixtures {
         "0123456789abcdef0123456789abcdef01234567",
         "releases/v1.2.3",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        "abcdefabcdefabcdefabcdefabcdefabcdefabcd");
+        "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
+        ReleasePolicy.MAVEN_POLICY_CURRENT);
   }
 
   static ReleaseIdentity release() {

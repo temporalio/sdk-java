@@ -24,8 +24,11 @@ env:
 jobs:
   discover:
     name: Discover approved publication queues
-    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
     runs-on: ubuntu-latest
+    environment: release-control
     outputs:
       count: ${{ steps.discover.outputs.count }}
       matrix: ${{ steps.discover.outputs.matrix }}

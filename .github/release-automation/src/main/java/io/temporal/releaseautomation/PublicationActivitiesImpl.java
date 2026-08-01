@@ -35,8 +35,8 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
   }
 
   @Override
-  public String reconcileMaven(PublicationInput input) {
-    return run(input, "maven", String.class);
+  public MavenReceipt reconcileMaven(PublicationInput input) {
+    return run(input, "maven", MavenReceipt.class);
   }
 
   @Override
@@ -79,6 +79,22 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
       commandEnvironment.put("RELEASE_STAGE", stage);
       commandEnvironment.put("EXPECTED_APPROVAL_ACTOR", input.approval.githubActor);
       commandEnvironment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
+      copy(commandEnvironment, "GH_TOKEN");
+      copy(commandEnvironment, "RELEASE_ARTIFACT_BUCKET");
+      copy(commandEnvironment, "AWS_ACCESS_KEY_ID");
+      copy(commandEnvironment, "AWS_SECRET_ACCESS_KEY");
+      copy(commandEnvironment, "AWS_SESSION_TOKEN");
+      copy(commandEnvironment, "AWS_REGION");
+      copy(commandEnvironment, "AWS_DEFAULT_REGION");
+      if ("maven".equals(stage) || "inspect".equals(stage)) {
+        copy(commandEnvironment, "RH_USER");
+        copy(commandEnvironment, "RH_PASSWORD");
+      }
+      if ("maven".equals(stage)) {
+        copy(commandEnvironment, "JAR_SIGNING_KEY");
+        copy(commandEnvironment, "JAR_SIGNING_KEY_ID");
+        copy(commandEnvironment, "JAR_SIGNING_KEY_PASSWORD");
+      }
       List<String> output =
           ProcessSupport.run(
               sourceRoot,
@@ -103,12 +119,24 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
         throw ApplicationFailure.newNonRetryableFailure(
             "GitHub approval evidence is invalid.", "InvalidApproval");
       }
+      if (e.getStatus() == 44) {
+        throw ApplicationFailure.newNonRetryableFailure(
+            "A durable Maven intent has no discoverable Sonatype repository; an authenticated release manager must inspect Sonatype before authorizing another submission generation.",
+            "MavenSubmissionAmbiguous");
+      }
       throw e;
     } catch (IOException e) {
       throw new IllegalStateException("Unable to exchange publication state with the script.", e);
     } finally {
       delete(inputFile);
       delete(outputFile);
+    }
+  }
+
+  private void copy(Map<String, String> commandEnvironment, String name) {
+    String value = environment.get(name);
+    if (value != null && !value.isEmpty()) {
+      commandEnvironment.put(name, value);
     }
   }
 

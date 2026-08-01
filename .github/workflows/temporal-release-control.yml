@@ -9,9 +9,11 @@ on:
         required: true
         type: choice
         options:
+          - inspect
           - pause
           - resume
           - handoff-manual
+          - retry-maven-submission
       tag:
         description: Exact release tag
         required: true
@@ -33,7 +35,9 @@ env:
 
 jobs:
   control:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: release-control
     steps:
       - name: Validate exact inputs and trusted automation pin
         env:
@@ -61,15 +65,18 @@ jobs:
           ./gradlew -p .github/release-automation run
           --args="inspect ${{ inputs.tag }} ${{ inputs.commit_sha }}"
       - name: Checkout frozen trusted automation
+        if: inputs.action != 'inspect'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
           ref: ${{ steps.target.outputs.automation_commit }}
       - name: Verify frozen Worker checkout
+        if: inputs.action != 'inspect'
         env:
           FROZEN_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
         run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - name: Submit authenticated release-specific Update
+        if: inputs.action != 'inspect'
         id: control
         working-directory: automation
         env:
@@ -80,12 +87,32 @@ jobs:
           --args="control ${{ inputs.action }} ${{ inputs.tag }} ${{ inputs.commit_sha }}"
       - name: Record durable result
         env:
-          PHASE: ${{ steps.control.outputs.phase }}
-          RELEASE_DIGEST: ${{ steps.control.outputs.release_digest }}
+          BLOCKED_AT: ${{ inputs.action == 'inspect' && steps.target.outputs.blocked_at_millis || steps.control.outputs.blocked_at_millis }}
+          GITHUB_DRAFT_URL: ${{ inputs.action == 'inspect' && steps.target.outputs.github_draft_url || steps.control.outputs.github_draft_url }}
+          GITHUB_RELEASE_URL: ${{ inputs.action == 'inspect' && steps.target.outputs.github_release_url || steps.control.outputs.github_release_url }}
+          LAST_COMPLETED_STAGE: ${{ inputs.action == 'inspect' && steps.target.outputs.last_completed_stage || steps.control.outputs.last_completed_stage }}
+          LAST_ERROR: ${{ inputs.action == 'inspect' && steps.target.outputs.last_error || steps.control.outputs.last_error }}
+          MAVEN_CENTRAL_URL: ${{ inputs.action == 'inspect' && steps.target.outputs.maven_central_url || steps.control.outputs.maven_central_url }}
+          NEXT_RETRY_AT: ${{ inputs.action == 'inspect' && steps.target.outputs.next_retry_at_millis || steps.control.outputs.next_retry_at_millis }}
+          PHASE: ${{ inputs.action == 'inspect' && steps.target.outputs.phase || steps.control.outputs.phase }}
+          RELEASE_DIGEST: ${{ inputs.action == 'inspect' && steps.target.outputs.release_digest || steps.control.outputs.release_digest }}
+          SONATYPE_REPOSITORY_ID: ${{ inputs.action == 'inspect' && steps.target.outputs.sonatype_repository_id || steps.control.outputs.sonatype_repository_id }}
+          STAGE_ATTEMPT: ${{ inputs.action == 'inspect' && steps.target.outputs.stage_attempt || steps.control.outputs.stage_attempt }}
+          STAGE_STARTED_AT: ${{ inputs.action == 'inspect' && steps.target.outputs.stage_started_at_millis || steps.control.outputs.stage_started_at_millis }}
         run: |
           {
-            echo "## Release control accepted"
+            echo "## Durable release state"
             echo
             echo "- Durable phase: \`$PHASE\`"
             echo "- Release digest: \`$RELEASE_DIGEST\`"
+            echo "- Last completed stage: \`${LAST_COMPLETED_STAGE:-none}\`"
+            echo "- Stage attempt: \`${STAGE_ATTEMPT:-0}\`"
+            echo "- Stage started (epoch ms): \`${STAGE_STARTED_AT:-0}\`"
+            echo "- Next retry (epoch ms): \`${NEXT_RETRY_AT:-0}\`"
+            echo "- Blocked at (epoch ms): \`${BLOCKED_AT:-0}\`"
+            echo "- Last error: \`${LAST_ERROR:-none}\`"
+            echo "- Sonatype repository: \`${SONATYPE_REPOSITORY_ID:-none}\`"
+            echo "- Maven Central: ${MAVEN_CENTRAL_URL:-not-yet-visible}"
+            echo "- GitHub draft: ${GITHUB_DRAFT_URL:-not-yet-created}"
+            echo "- GitHub release: ${GITHUB_RELEASE_URL:-not-yet-published}"
           } >>"$GITHUB_STEP_SUMMARY"

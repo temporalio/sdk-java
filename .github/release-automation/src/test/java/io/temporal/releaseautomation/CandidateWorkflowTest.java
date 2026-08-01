@@ -9,7 +9,7 @@ import org.junit.Test;
 
 public class CandidateWorkflowTest {
   @Test
-  public void parentWaitsUntilDetachedReleaseChildIsStarted() {
+  public void parentCompletesAfterChildStartWithoutAReleaseWorker() {
     CandidateIdentity candidate = ReleaseFixtures.candidate();
     try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.newInstance()) {
       Worker candidateWorker = environment.newWorker(QueueNames.candidateWorkflow(candidate));
@@ -30,8 +30,6 @@ public class CandidateWorkflowTest {
                 });
       }
       ReleaseIdentity expected = ReleaseFixtures.release();
-      Worker releaseWorker = environment.newWorker(QueueNames.releaseWorkflow(expected));
-      releaseWorker.registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
       environment.start();
 
       CandidateWorkflow workflow =
@@ -45,12 +43,6 @@ public class CandidateWorkflowTest {
                       .build());
       ReleaseIdentity actual = workflow.prepare(candidate);
       assertEquals(expected.digest(), actual.digest());
-
-      ReleaseWorkflow child =
-          environment
-              .getWorkflowClient()
-              .newWorkflowStub(ReleaseWorkflow.class, QueueNames.releaseWorkflowId(actual));
-      assertEquals("AWAITING_APPROVAL", child.status().phase);
     }
   }
 }

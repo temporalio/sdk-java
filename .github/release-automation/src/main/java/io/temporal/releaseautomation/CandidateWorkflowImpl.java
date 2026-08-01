@@ -21,7 +21,7 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
     candidateIdentity.validate();
     candidate = candidateIdentity;
     List<String> pendingPlatforms = new ArrayList<>(ReleasePolicy.NATIVE_PLATFORMS);
-    upsertStatus(pendingPlatforms);
+    upsertStatus(pendingPlatforms, null);
     List<Promise<ArtifactEntry>> builds = new ArrayList<>();
     for (String platform : ReleasePolicy.NATIVE_PLATFORMS) {
       BuildActivities activities =
@@ -43,7 +43,7 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
               .thenApply(
                   artifact -> {
                     pendingPlatforms.remove(platform);
-                    upsertStatus(pendingPlatforms);
+                    upsertStatus(pendingPlatforms, null);
                     return artifact;
                   });
       builds.add(build);
@@ -56,12 +56,16 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
     }
     ReleaseIdentity identity =
         new ReleaseIdentity(candidateIdentity, new ArtifactManifest(artifacts));
+    // Visibility can now discover and start a Worker for the child queue before the child's
+    // first Workflow Task has written its own status memo.
+    upsertStatus(pendingPlatforms, identity);
     ReleaseWorkflow child =
         Workflow.newChildWorkflowStub(
             ReleaseWorkflow.class,
             ChildWorkflowOptions.newBuilder()
                 .setWorkflowId(QueueNames.releaseWorkflowId(identity))
                 .setTaskQueue(QueueNames.releaseWorkflow(identity))
+                .setMemo(Collections.singletonMap(ReleaseWorkflowImpl.IDENTITY_MEMO_KEY, identity))
                 .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
                 .build());
     Async.function(child::release, identity);
@@ -74,9 +78,9 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
     return candidate;
   }
 
-  private void upsertStatus(List<String> pendingPlatforms) {
+  private void upsertStatus(List<String> pendingPlatforms, ReleaseIdentity releaseIdentity) {
     Workflow.upsertMemo(
         Collections.singletonMap(
-            STATUS_MEMO_KEY, new CandidateStatus(candidate, pendingPlatforms)));
+            STATUS_MEMO_KEY, new CandidateStatus(candidate, pendingPlatforms, releaseIdentity)));
   }
 }
