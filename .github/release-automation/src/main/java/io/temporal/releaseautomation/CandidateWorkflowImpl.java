@@ -9,15 +9,19 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public final class CandidateWorkflowImpl implements CandidateWorkflow {
+  static final String STATUS_MEMO_KEY = "CandidateStatus";
   private CandidateIdentity candidate;
 
   @Override
   public ReleaseIdentity prepare(CandidateIdentity candidateIdentity) {
     candidateIdentity.validate();
     candidate = candidateIdentity;
+    List<String> pendingPlatforms = new ArrayList<>(ReleasePolicy.NATIVE_PLATFORMS);
+    upsertStatus(pendingPlatforms);
     List<Promise<ArtifactEntry>> builds = new ArrayList<>();
     for (String platform : ReleasePolicy.NATIVE_PLATFORMS) {
       BuildActivities activities =
@@ -26,6 +30,7 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
               ActivityOptions.newBuilder()
                   .setTaskQueue(QueueNames.build(candidateIdentity, platform))
                   .setStartToCloseTimeout(Duration.ofMinutes(90))
+                  .setHeartbeatTimeout(Duration.ofMinutes(1))
                   .setRetryOptions(
                       RetryOptions.newBuilder()
                           .setInitialInterval(Duration.ofSeconds(20))
@@ -33,7 +38,15 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
                           .setDoNotRetry("ReleaseIdentityConflict")
                           .build())
                   .build());
-      builds.add(Async.function(activities::buildAndStore, candidateIdentity, platform));
+      Promise<ArtifactEntry> build =
+          Async.function(activities::buildAndStore, candidateIdentity, platform)
+              .thenApply(
+                  artifact -> {
+                    pendingPlatforms.remove(platform);
+                    upsertStatus(pendingPlatforms);
+                    return artifact;
+                  });
+      builds.add(build);
     }
 
     Promise.allOf(builds).get();
@@ -52,11 +65,18 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
                 .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
                 .build());
     Async.function(child::release, identity);
+    Workflow.getWorkflowExecution(child).get();
     return identity;
   }
 
   @Override
   public CandidateIdentity candidate() {
     return candidate;
+  }
+
+  private void upsertStatus(List<String> pendingPlatforms) {
+    Workflow.upsertMemo(
+        Collections.singletonMap(
+            STATUS_MEMO_KEY, new CandidateStatus(candidate, pendingPlatforms)));
   }
 }

@@ -7,25 +7,60 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public final class PublicationActivitiesImpl implements PublicationActivities {
   private final Path trustedRoot;
   private final Path sourceRoot;
   private final Map<String, String> environment;
+  private final Consumer<Throwable> completion;
 
   public PublicationActivitiesImpl(
-      Path trustedRoot, Path sourceRoot, Map<String, String> environment) {
+      Path trustedRoot,
+      Path sourceRoot,
+      Map<String, String> environment,
+      Consumer<Throwable> completion) {
     this.trustedRoot = trustedRoot;
     this.sourceRoot = sourceRoot;
     this.environment = new HashMap<>(environment);
+    this.completion = completion;
   }
 
   @Override
-  public ReleaseResult reconcileAndPublish(PublicationInput input) {
+  public void preflight(PublicationInput input) {
+    run(input, "preflight", Void.class);
+  }
+
+  @Override
+  public String reconcileMaven(PublicationInput input) {
+    return run(input, "maven", String.class);
+  }
+
+  @Override
+  public String reconcileGithubDraft(PublicationInput input) {
+    return run(input, "github-draft", String.class);
+  }
+
+  @Override
+  public ReleaseResult publishGithubRelease(PublicationInput input, String mavenCentralUrl) {
+    return run(input, "github-publish", ReleaseResult.class);
+  }
+
+  private <T> T run(PublicationInput input, String stage, Class<T> resultType) {
+    try {
+      T result = runCommand(input, stage, resultType);
+      completion.accept(null);
+      return result;
+    } catch (Throwable failure) {
+      completion.accept(failure);
+      throw failure;
+    }
+  }
+
+  private <T> T runCommand(PublicationInput input, String stage, Class<T> resultType) {
     try {
       PublicationGuard.validate(input, Activity.getExecutionContext().getInfo(), environment);
     } catch (IllegalArgumentException e) {
@@ -41,22 +76,23 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
       Map<String, String> commandEnvironment = new HashMap<>();
       commandEnvironment.put("RELEASE_INPUT_FILE", inputFile.toString());
       commandEnvironment.put("RELEASE_OUTPUT_FILE", outputFile.toString());
+      commandEnvironment.put("RELEASE_STAGE", stage);
       commandEnvironment.put("EXPECTED_APPROVAL_ACTOR", input.approval.githubActor);
+      commandEnvironment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
       List<String> output =
           ProcessSupport.run(
               sourceRoot,
-              Arrays.asList(
-                  trustedRoot
-                      .resolve(".github/scripts/temporal-release/reconcile-publication.sh")
-                      .toString()),
+              ProcessSupport.bash(
+                  trustedRoot.resolve(".github/scripts/temporal-release/reconcile-publication.sh")),
               commandEnvironment);
       if (!output.isEmpty()) {
         throw new IllegalStateException("Publication command wrote unexpected standard output.");
       }
+      if (Void.class.equals(resultType)) {
+        return null;
+      }
       return new Gson()
-          .fromJson(
-              new String(Files.readAllBytes(outputFile), StandardCharsets.UTF_8),
-              ReleaseResult.class);
+          .fromJson(new String(Files.readAllBytes(outputFile), StandardCharsets.UTF_8), resultType);
     } catch (ProcessSupport.CommandFailedException e) {
       if (e.getStatus() == 42) {
         throw ApplicationFailure.newNonRetryableFailure(

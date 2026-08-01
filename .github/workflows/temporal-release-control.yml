@@ -1,0 +1,91 @@
+name: Control Temporal-backed release
+run-name: ${{ inputs.action }} ${{ inputs.tag }} at ${{ inputs.commit_sha }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Authenticated control operation
+        required: true
+        type: choice
+        options:
+          - pause
+          - resume
+          - handoff-manual
+      tag:
+        description: Exact release tag
+        required: true
+        type: string
+      commit_sha:
+        description: Exact full 40-character release commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+  TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+  RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+  GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate exact inputs and trusted automation pin
+        env:
+          COMMIT_SHA: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: bootstrap
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify discovery checkout
+        run: '[[ "$(git -C bootstrap rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "23"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Resolve the release's frozen Worker version
+        id: target
+        working-directory: bootstrap
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="inspect ${{ inputs.tag }} ${{ inputs.commit_sha }}"
+      - name: Checkout frozen trusted automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ steps.target.outputs.automation_commit }}
+      - name: Verify frozen Worker checkout
+        env:
+          FROZEN_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
+        run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+      - name: Submit authenticated release-specific Update
+        id: control
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="control ${{ inputs.action }} ${{ inputs.tag }} ${{ inputs.commit_sha }}"
+      - name: Record durable result
+        env:
+          PHASE: ${{ steps.control.outputs.phase }}
+          RELEASE_DIGEST: ${{ steps.control.outputs.release_digest }}
+        run: |
+          {
+            echo "## Release control accepted"
+            echo
+            echo "- Durable phase: \`$PHASE\`"
+            echo "- Release digest: \`$RELEASE_DIGEST\`"
+          } >>"$GITHUB_STEP_SUMMARY"

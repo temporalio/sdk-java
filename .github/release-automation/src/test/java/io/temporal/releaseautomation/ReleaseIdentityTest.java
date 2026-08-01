@@ -58,4 +58,48 @@ public class ReleaseIdentityTest {
     assertTrue(ReleasePolicy.MAVEN_ARTIFACTS.contains("temporal-sdk"));
     assertTrue(ReleasePolicy.MAVEN_ARTIFACTS.contains("temporal-workflowstreams"));
   }
+
+  @Test
+  public void approvalIsBoundToTheRecordedGithubIssue() {
+    ReleaseIdentity release = ReleaseFixtures.release();
+    String workflowId = QueueNames.releaseWorkflowId(release);
+    String runId = "11111111-2222-3333-4444-555555555555";
+    ApprovalRequest request =
+        new ApprovalRequest(
+            CandidateIdentity.REPOSITORY,
+            release.digest(),
+            workflowId,
+            runId,
+            100,
+            42,
+            "ISSUE_node_42",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            release.candidate.trustedAutomationCommit);
+    ApprovalEvidence exact =
+        new ApprovalEvidence(
+            CandidateIdentity.REPOSITORY,
+            release.digest(),
+            workflowId,
+            runId,
+            100,
+            "release-manager",
+            42,
+            "ISSUE_node_42",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            release.candidate.trustedAutomationCommit);
+    ApprovalEvidence replay =
+        new ApprovalEvidence(
+            CandidateIdentity.REPOSITORY,
+            release.digest(),
+            workflowId,
+            runId,
+            99,
+            "release-manager",
+            43,
+            "ISSUE_node_43",
+            "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+            release.candidate.trustedAutomationCommit);
+    assertTrue(request.matches(exact));
+    assertTrue(!request.matches(replay));
+  }
 }

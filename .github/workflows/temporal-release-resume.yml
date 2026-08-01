@@ -50,7 +50,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: read
       id-token: write
@@ -62,11 +62,11 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ matrix.automationCommit }}
       - name: Verify trusted checkout
         working-directory: automation
         env:
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
         run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - name: Checkout immutable release source
         if: matrix.role == 'build'

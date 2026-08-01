@@ -10,6 +10,8 @@ on:
       - ".github/release-automation/**"
       - ".github/scripts/temporal-release/**"
       - ".github/workflows/temporal-release-*.yml"
+      - ".github/workflows/prepare-release.yml"
+      - ".github/workflows/build-native-image.yml"
       - "gradle/publishing.gradle"
       - "gradle/versioning.gradle"
   push:
@@ -19,6 +21,8 @@ on:
       - ".github/release-automation/**"
       - ".github/scripts/temporal-release/**"
       - ".github/workflows/temporal-release-*.yml"
+      - ".github/workflows/prepare-release.yml"
+      - ".github/workflows/build-native-image.yml"
       - "gradle/publishing.gradle"
       - "gradle/versioning.gradle"
 

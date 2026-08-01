@@ -13,7 +13,8 @@ final class ReleaseFixtures {
         "v1.2.3",
         "0123456789abcdef0123456789abcdef01234567",
         "releases/v1.2.3",
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "abcdefabcdefabcdefabcdefabcdefabcdefabcd");
   }
 
   static ReleaseIdentity release() {

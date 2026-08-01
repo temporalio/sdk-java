@@ -12,6 +12,8 @@ fail() {
 [[ ${BASE_SHA:-} =~ ^[0-9a-f]{40}$ ]] || fail "BASE_SHA must be a full commit SHA."
 [[ ${RELEASE_COMMIT:-} =~ ^[0-9a-f]{40}$ ]] ||
   fail "RELEASE_COMMIT must be a full commit SHA."
+[[ ${RELEASE_AUTOMATION_REF:-} =~ ^[0-9a-f]{40}$ ]] ||
+  fail "RELEASE_AUTOMATION_REF must be a full commit SHA."
 [[ -n ${GITHUB_OUTPUT:-} && -n ${RUNNER_TEMP:-} ]] || fail "GitHub Actions paths are missing."
 
 git merge-base --is-ancestor "$BASE_SHA" "$RELEASE_COMMIT" ||
@@ -39,7 +41,8 @@ read -r mode type _ < <(git ls-tree "$RELEASE_COMMIT" -- "$notes_file")
 notes_sha256=$(sha256sum "$notes_file" | awk '{print $1}')
 
 set +e
-git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1
+git ls-remote --exit-code --tags https://github.com/temporalio/sdk-java.git \
+  "refs/tags/$tag" >/dev/null 2>&1
 tag_status=$?
 set -e
 case "$tag_status" in
@@ -56,8 +59,10 @@ jq -n \
   --arg commitSha "$RELEASE_COMMIT" \
   --arg releaseNotesPath "$notes_file" \
   --arg releaseNotesSha256 "$notes_sha256" \
+  --arg trustedAutomationCommit "$RELEASE_AUTOMATION_REF" \
   '{repository: $repository, version: $version, tag: $tag, commitSha: $commitSha,
-    releaseNotesPath: $releaseNotesPath, releaseNotesSha256: $releaseNotesSha256}' \
+    releaseNotesPath: $releaseNotesPath, releaseNotesSha256: $releaseNotesSha256,
+    trustedAutomationCommit: $trustedAutomationCommit}' \
   >"$candidate_file"
 
 {

@@ -15,6 +15,9 @@ public final class ApprovalEvidence {
   public String runId;
   public long githubApprovalRunId;
   public String githubActor;
+  public long githubIssueNumber;
+  public String githubIssueNodeId;
+  public String githubIssueBodySha256;
   public String trustedWorkerCommit;
 
   public ApprovalEvidence() {}
@@ -26,6 +29,9 @@ public final class ApprovalEvidence {
       String runId,
       long githubApprovalRunId,
       String githubActor,
+      long githubIssueNumber,
+      String githubIssueNodeId,
+      String githubIssueBodySha256,
       String trustedWorkerCommit) {
     this.repository = repository;
     this.releaseDigest = releaseDigest.toLowerCase(Locale.ROOT);
@@ -33,6 +39,9 @@ public final class ApprovalEvidence {
     this.runId = runId;
     this.githubApprovalRunId = githubApprovalRunId;
     this.githubActor = githubActor;
+    this.githubIssueNumber = githubIssueNumber;
+    this.githubIssueNodeId = githubIssueNodeId;
+    this.githubIssueBodySha256 = githubIssueBodySha256;
     this.trustedWorkerCommit = trustedWorkerCommit.toLowerCase(Locale.ROOT);
     validate();
   }
@@ -55,6 +64,13 @@ public final class ApprovalEvidence {
     }
     if (githubActor == null || !ACTOR.matcher(githubActor).matches()) {
       throw new IllegalArgumentException("GitHub approval actor is invalid.");
+    }
+    if (githubIssueNumber <= 0
+        || githubIssueNodeId == null
+        || !githubIssueNodeId.matches("[A-Za-z0-9_=-]{8,128}")
+        || githubIssueBodySha256 == null
+        || !githubIssueBodySha256.matches("[0-9a-f]{64}")) {
+      throw new IllegalArgumentException("GitHub approval issue identity is invalid.");
     }
     if (trustedWorkerCommit == null || !SHA.matcher(trustedWorkerCommit).matches()) {
       throw new IllegalArgumentException("Trusted worker commit must be a full SHA.");

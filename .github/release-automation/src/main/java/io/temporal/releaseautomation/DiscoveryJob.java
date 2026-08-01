@@ -15,6 +15,11 @@ final class DiscoveryJob {
   String releaseDigest;
   String approvalRunId;
   String approvalActor;
+  String approvalIssueNumber;
+  String approvalIssueNodeId;
+  String approvalIssueBodySha256;
+  String automationCommit;
+  String phase;
 
   DiscoveryJob(String role, String taskQueue) {
     this.role = role;

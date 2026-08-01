@@ -1,58 +1,155 @@
 name: Approve Temporal-backed release
-run-name: Approve the exact pending sdk-java release candidate
-
-defaults:
-  run:
-    shell: bash
+run-name: ${{ github.event_name == 'workflow_dispatch' && 'Create exact release approval request' || 'Approve exact release by closing its locked issue' }}
 
 on:
   workflow_dispatch:
+  issues:
+    types:
+      - closed
 
 permissions:
   contents: read
+  issues: read
 
 env:
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
   TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
   RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+  GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+  APPROVAL_ISSUE_NUMBER: ${{ github.event.issue.number || 0 }}
 
 jobs:
-  approve:
-    name: Submit approval Update
+  approval:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, '[sdk-java release approval]')
     runs-on: ubuntu-latest
     steps:
       - name: Validate trusted automation pin
         run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
-      - name: Checkout trusted release automation
+      - name: Checkout current trusted discovery code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          path: bootstrap
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - name: Verify trusted checkout
-        run: '[[ "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+      - name: Verify discovery checkout
+        run: '[[ "$(git -C bootstrap rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
           java-version: "23"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Approve the only exact pending release
-        id: approve
+      - name: Resolve the exact release and its frozen Worker version
+        id: target
+        working-directory: bootstrap
+        run: ./gradlew -p .github/release-automation run --args="approval-target"
+      - name: Checkout the release's frozen trusted automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ steps.target.outputs.automation_commit }}
+      - name: Verify frozen Worker checkout
         env:
-          # This token can read the fixed release-manager team and Actions runs. It cannot publish.
+          FROZEN_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
+        run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+      - name: Create immutable approval issue
+        if: github.event_name == 'workflow_dispatch'
+        id: issue
+        env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ steps.target.outputs.commit_sha }}
+          MANIFEST_SHA256: ${{ steps.target.outputs.manifest_sha256 }}
+          NOTES_SHA256: ${{ steps.target.outputs.notes_sha256 }}
+          RELEASE_DIGEST: ${{ steps.target.outputs.release_digest }}
+          RELEASE_TAG: ${{ steps.target.outputs.tag }}
+          RUN_ID: ${{ steps.target.outputs.run_id }}
+          WORKFLOW_ID: ${{ steps.target.outputs.workflow_id }}
+        run: |
+          body=$(printf '%s\n' \
+            '## Exact sdk-java release approval' \
+            '' \
+            "- Tag: \`$RELEASE_TAG\`" \
+            "- Full commit SHA: \`$COMMIT_SHA\`" \
+            "- Release-note SHA-256: \`$NOTES_SHA256\`" \
+            "- Artifact-manifest SHA-256: \`$MANIFEST_SHA256\`" \
+            "- Release digest: \`$RELEASE_DIGEST\`" \
+            "- Temporal Workflow: \`$WORKFLOW_ID\`" \
+            "- Temporal Run: \`$RUN_ID\`" \
+            '' \
+            'An active sdk-java release manager approves this exact identity by clicking **Close issue**. Do not edit this issue.')
+          printf '%s' "$body" >"$RUNNER_TEMP/approval-body.md"
+          issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
+            --raw-field title="[sdk-java release approval] $RELEASE_TAG at $COMMIT_SHA" \
+            --raw-field body="$body")
+          number=$(jq -er .number <<<"$issue")
+          node_id=$(jq -er .node_id <<<"$issue")
+          body_hash=$(sha256sum "$RUNNER_TEMP/approval-body.md" | awk '{print $1}')
+          {
+            echo "number=$number"
+            echo "node_id=$node_id"
+            echo "body_sha256=$body_hash"
+            echo "url=$(jq -er .html_url <<<"$issue")"
+          } >>"$GITHUB_OUTPUT"
+      - name: Read exact closed-issue event identity
+        if: github.event_name == 'issues'
+        id: event
+        run: |
+          python3 - "$GITHUB_EVENT_PATH" "$GITHUB_OUTPUT" <<'PY'
+          import hashlib, json, sys
+          event = json.load(open(sys.argv[1], encoding="utf-8"))
+          issue = event["issue"]
+          with open(sys.argv[2], "a", encoding="utf-8") as output:
+              output.write(f"number={issue['number']}\n")
+              output.write(f"node_id={issue['node_id']}\n")
+              output.write(f"body_sha256={hashlib.sha256(issue['body'].encode()).hexdigest()}\n")
+          PY
+      - name: Lock recorded approval issue against comments
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+        run: gh api --method PUT "repos/temporalio/sdk-java/issues/$ISSUE_NUMBER/lock"
+      - name: Record release-specific approval request
+        if: github.event_name == 'workflow_dispatch'
+        working-directory: automation
+        env:
+          APPROVAL_ISSUE_BODY_SHA256: ${{ steps.issue.outputs.body_sha256 }}
+          APPROVAL_ISSUE_NODE_ID: ${{ steps.issue.outputs.node_id }}
+          APPROVAL_ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
+        run: ./gradlew -p .github/release-automation run --args="approval-request"
+      - name: Submit approval Update for the exact closed issue
+        if: github.event_name == 'issues'
+        id: approve
+        working-directory: automation
+        env:
+          APPROVAL_ISSUE_BODY_SHA256: ${{ steps.event.outputs.body_sha256 }}
+          APPROVAL_ISSUE_NODE_ID: ${{ steps.event.outputs.node_id }}
+          APPROVAL_ISSUE_NUMBER: ${{ steps.event.outputs.number }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
         run: ./gradlew -p .github/release-automation run --args="approve"
-      - name: Summarize approval
+      - name: Summarize approval request
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          APPROVAL_URL: ${{ steps.issue.outputs.url }}
+        run: |
+          {
+            echo "## Exact approval requested"
+            echo
+            echo "Inspect the immutable identity in [$APPROVAL_URL]($APPROVAL_URL), then approve by clicking **Close issue**."
+            echo "The locked issue does not expire and requires no text input."
+          } >>"$GITHUB_STEP_SUMMARY"
+      - name: Summarize accepted approval
+        if: github.event_name == 'issues'
         env:
           RELEASE_DIGEST: ${{ steps.approve.outputs.release_digest }}
           RELEASE_TAG: ${{ steps.approve.outputs.tag }}
-          RUN_ID: ${{ steps.approve.outputs.run_id }}
-          WORKFLOW_ID: ${{ steps.approve.outputs.workflow_id }}
         run: |
           {
             echo "## Release approved"
             echo
             echo "- Tag: \`$RELEASE_TAG\`"
             echo "- Release digest: \`$RELEASE_DIGEST\`"
-            echo "- Temporal Workflow: \`$WORKFLOW_ID\`"
-            echo "- Temporal Run: \`$RUN_ID\`"
+            echo "- Approval issue: \`#$APPROVAL_ISSUE_NUMBER\`"
           } >>"$GITHUB_STEP_SUMMARY"

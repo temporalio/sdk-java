@@ -1,29 +1,24 @@
-name: Build native image
+name: Emergency native image builder (called only)
 permissions:
   contents: read
 defaults:
   run:
     shell: bash -euo pipefail -O nullglob {0}
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        type: string
-        description: "Git ref from which to release"
-        required: true
-        default: "main"
-      upload_artifact:
-        type: boolean
-        description: "Upload the native test server executable as an artifact"
-        required: false
-        default: false
   workflow_call:
     inputs:
       ref:
         type: string
-        description: "Git ref from which to release"
+        description: "Exact full 40-character release commit SHA"
         required: true
-        default: "main"
+      tag:
+        type: string
+        description: "Exact release tag"
+        required: true
+      notes_sha256:
+        type: string
+        description: "Exact release-note SHA-256"
+        required: true
       upload_artifact:
         type: boolean
         description: "Upload the native test server executable as an artifact"
@@ -31,6 +26,8 @@ on:
         default: false
 env:
   INPUT_REF: ${{ inputs.ref }}
+  INPUT_TAG: ${{ inputs.tag }}
+  INPUT_NOTES_SHA256: ${{ inputs.notes_sha256 }}
 
 jobs:
   build_native_images:
@@ -61,12 +58,22 @@ jobs:
             arch: amd64
     runs-on: ${{ matrix.runner }}
     steps:
+      - name: Validate exact immutable inputs
+        run: |
+          [[ "$INPUT_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
+          [[ "$INPUT_NOTES_SHA256" =~ ^[0-9a-f]{64}$ ]]
       - name: Checkout repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           submodules: recursive
           ref: ${{ env.INPUT_REF }}
+      - name: Verify checkout and release-note identity
+        run: |
+          [[ "$(git rev-parse HEAD)" == "$INPUT_REF" ]]
+          [[ -s "releases/$INPUT_TAG" && ! -L "releases/$INPUT_TAG" ]]
+          [[ "$(sha256sum "releases/$INPUT_TAG" | awk '{print $1}')" == "$INPUT_NOTES_SHA256" ]]
 
       - name: Set up Java
         if: matrix.os_family != 'linux'
@@ -82,7 +89,7 @@ jobs:
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'linux'
         run: |
-          ./gradlew -PnativeBuild :temporal-test-server:nativeCompile
+          ./gradlew "-PreleaseVersion=${INPUT_TAG#v}" -PnativeBuild :temporal-test-server:nativeCompile
 
       - name: Build native test server (Docker non-musl)
         if: matrix.os_family == 'linux' && matrix.musl == false
@@ -93,7 +100,7 @@ jobs:
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
-            sh -c "./gradlew -PnativeBuild :temporal-test-server:nativeCompile"
+            sh -c "./gradlew '-PreleaseVersion=${INPUT_TAG#v}' -PnativeBuild :temporal-test-server:nativeCompile"
 
       - name: Build native test server (Docker musl)
         if: matrix.os_family == 'linux' && matrix.musl == true
@@ -104,7 +111,7 @@ jobs:
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
             "$IMAGE_ID" \
-            sh -c "./gradlew -PnativeBuild -PnativeBuildMusl  :temporal-test-server:nativeCompile"
+            sh -c "./gradlew '-PreleaseVersion=${INPUT_TAG#v}' -PnativeBuild -PnativeBuildMusl :temporal-test-server:nativeCompile"
 
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
