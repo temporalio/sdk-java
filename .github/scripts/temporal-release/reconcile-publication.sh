@@ -10,6 +10,7 @@ maven_ambiguous() { echo "reconcile-publication: ambiguous Maven submission: $*"
 required=(
   EXPECTED_APPROVAL_ACTOR EXPECTED_APPROVAL_RUN_ID EXPECTED_COMMIT_SHA
   EXPECTED_MANIFEST_SHA256 EXPECTED_NOTES_SHA256 EXPECTED_RELEASE_DIGEST
+  EXPECTED_MAVEN_SUBMISSION_GENERATION
   EXPECTED_REPOSITORY EXPECTED_RUN_ID EXPECTED_TAG EXPECTED_WORKFLOW_ID
   GH_TOKEN
   RELEASE_ARTIFACT_BUCKET RELEASE_INPUT_FILE RELEASE_OUTPUT_FILE RELEASE_STAGE
@@ -42,6 +43,7 @@ approval_issue_number=$(jq -er '.approval.githubIssueNumber' "$RELEASE_INPUT_FIL
 approval_issue_node_id=$(jq -er '.approval.githubIssueNodeId' "$RELEASE_INPUT_FILE")
 approval_issue_body_hash=$(jq -er '.approval.githubIssueBodySha256' "$RELEASE_INPUT_FILE")
 approval_trusted_commit=$(jq -er '.approval.trustedWorkerCommit' "$RELEASE_INPUT_FILE")
+maven_submission_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
 maven_group=$(jq -er '.mavenGroup' "$RELEASE_INPUT_FILE")
 central_base=$(jq -er '.mavenCentralBase' "$RELEASE_INPUT_FILE")
 
@@ -51,6 +53,7 @@ central_base=$(jq -er '.mavenCentralBase' "$RELEASE_INPUT_FILE")
   $release_digest == "$EXPECTED_RELEASE_DIGEST" && $workflow_id == "$EXPECTED_WORKFLOW_ID" &&
   $run_id == "$EXPECTED_RUN_ID" && $approval_run_id == "$EXPECTED_APPROVAL_RUN_ID" &&
   $approval_actor == "$EXPECTED_APPROVAL_ACTOR" && $trusted_commit == "$TRUSTED_WORKER_COMMIT" &&
+  $maven_submission_generation == "$EXPECTED_MAVEN_SUBMISSION_GENERATION" &&
   $approval_trusted_commit == "$TRUSTED_WORKER_COMMIT" && $maven_group == io.temporal &&
   $central_base == https://repo1.maven.org/maven2 ]] ||
   conflict "the Activity input differs from the privileged Actions run."
@@ -65,7 +68,7 @@ central_base=$(jq -er '.mavenCentralBase' "$RELEASE_INPUT_FILE")
 work=$(mktemp -d)
 gradle_home="$work/gradle-home"
 signing_key="$work/release-secring.gpg"
-trap 'if [[ -f $work/versioning.gradle.original ]]; then cp "$work/versioning.gradle.original" gradle/versioning.gradle; cp "$work/publishing.gradle.original" gradle/publishing.gradle; fi; rm -rf "$work"' EXIT
+trap 'if [[ -f $work/versioning.gradle.original ]]; then cp "$work/versioning.gradle.original" gradle/versioning.gradle; cp "$work/publishing.gradle.original" gradle/publishing.gradle; cp "$work/build.gradle.original" build.gradle; fi; rm -rf "$work"' EXIT
 mkdir -p "$work/assets" "$work/existing" "$gradle_home"
 
 ownership_key="sdk-java/ownership/$tag.json"
@@ -92,6 +95,22 @@ validate_ownership_tag_and_sha() {
 }
 
 ensure_ownership() {
+  manual_title="[sdk-java manual release ownership] $tag"
+  manual_issues=$(gh api --paginate --slurp \
+    'repos/temporalio/sdk-java/issues?state=open&per_page=100') ||
+    fail "Unable to inspect independent manual ownership."
+  manual_matches=$(jq -c --arg title "$manual_title" \
+    '[.[][] | select((has("pull_request") | not) and .title == $title)]' \
+    <<<"$manual_issues")
+  [[ $(jq 'length' <<<"$manual_matches") -le 1 ]] ||
+    conflict "multiple independent manual ownership records exist."
+  if [[ $(jq 'length' <<<"$manual_matches") -eq 1 ]]; then
+    manual_body=$(jq -r '.[0].body' <<<"$manual_matches")
+    [[ $manual_body == *"- Tag: \`$tag\`"* &&
+      $manual_body == *"- Full SHA: \`$commit\`"* ]] ||
+      conflict "independent manual ownership identifies another SHA."
+    conflict "independent manual ownership is active for this tag."
+  fi
   expected_ownership=$ownership
   [[ ${RELEASE_MODE:-temporal} == emergency ]] && expected_ownership=$manual_ownership
   if [[ ${RELEASE_MODE:-temporal} == temporal ]] &&
@@ -173,7 +192,8 @@ verify_approval() {
   fi
   if [[ ${RELEASE_MODE:-temporal} == emergency || ${RELEASE_MODE:-temporal} == emergency-inspect ]]; then
     jq -e --arg actor "$approval_actor" \
-      '.event == "workflow_dispatch" and .path == ".github/workflows/prepare-release.yml" and
+      '.event == "workflow_dispatch" and
+       .path == ".github/workflows/temporal-release-emergency-control.yml" and
        (.status == "in_progress" or (.status == "completed" and .conclusion == "success")) and
        .triggering_actor.login == $actor' <<<"$approval_run" >/dev/null ||
       invalid_approval "the emergency run is not the exact authenticated handoff owner."
@@ -184,9 +204,10 @@ verify_approval() {
         invalid_approval "durable Temporal handoff evidence is missing."
     fi
   elif ! jq -e --arg actor "$approval_actor" \
-    '.status == "completed" and .conclusion == "success" and .event == "issues" and
+    '.status == "completed" and .conclusion == "success" and
      .path == ".github/workflows/temporal-release-approve.yml" and
-     .triggering_actor.login == $actor' <<<"$approval_run" >/dev/null; then
+     ((.event == "issues" and .triggering_actor.login == $actor) or .event == "schedule")' \
+    <<<"$approval_run" >/dev/null; then
     if jq -e '.status != "completed"' <<<"$approval_run" >/dev/null; then
       fail "the exact approval run has not completed yet."
     fi
@@ -267,8 +288,19 @@ configure_gradle() {
   # Frozen trusted hooks provide releaseVersion/releaseCommit support to older maintenance SHAs.
   cp gradle/versioning.gradle "$work/versioning.gradle.original"
   cp gradle/publishing.gradle "$work/publishing.gradle.original"
+  cp build.gradle "$work/build.gradle.original"
   cp "$TRUSTED_AUTOMATION_ROOT/gradle/versioning.gradle" gradle/versioning.gradle
   cp "$TRUSTED_AUTOMATION_ROOT/gradle/publishing.gradle" gradle/publishing.gradle
+  python3 - build.gradle <<'PY'
+import pathlib, re, sys
+path = pathlib.Path(sys.argv[1])
+source = path.read_text()
+matches = list(re.finditer(r"id ['\"]io\.github\.gradle-nexus\.publish-plugin['\"] version ['\"][^'\"]+['\"]", source))
+if len(matches) != 1:
+    raise SystemExit("Expected exactly one Gradle Nexus publish plugin declaration")
+source = source[:matches[0].start()] + "id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'" + source[matches[0].end():]
+path.write_text(source)
+PY
 }
 
 central_state() {
@@ -311,110 +343,306 @@ PY
   done
 }
 
+put_immutable_receipt() {
+  local key=$1 receipt=$2 existing="$work/existing-$(basename "$receipt")"
+  if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+    --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$existing" --no-progress >/dev/null ||
+      fail "Unable to read immutable receipt $key."
+    cmp -s "$receipt" "$existing" || conflict "immutable receipt $key differs."
+  fi
+}
+
+sonatype_snapshot() {
+  curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
+    --header 'Accept: application/json' \
+    'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
+    >"$work/profile-repositories.json" || fail "Unable to inspect Sonatype repositories."
+  portal_token=$(printf '%s:%s' "$RH_USER" "$RH_PASSWORD" | base64 | tr -d '\n')
+  curl --silent --show-error --fail --header "Authorization: Bearer $portal_token" \
+    --header 'Accept: application/json' \
+    'https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any&profile_id=io.temporal' \
+    >"$work/manual-repositories.json" || fail "Unable to inspect Portal compatibility state."
+  jq -e '(.repositories // []) | type == "array"' "$work/manual-repositories.json" >/dev/null ||
+    fail "Sonatype returned invalid repository state."
+}
+
+validate_retry_authorization() {
+  (( submission_generation > 0 )) || return
+  local key="sdk-java/$release_digest/state/maven/retry-authorizations/$submission_generation.json"
+  local receipt="$work/retry-authorization.json"
+  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$receipt" --no-progress >/dev/null ||
+    conflict "the protected Maven retry authorization receipt is absent."
+  expected_authorization=$(jq -er '.mavenRetryAuthorization.authorizationSha256' "$RELEASE_INPUT_FILE")
+  [[ $(sha256sum "$receipt" | awk '{print $1}') == "$expected_authorization" ]] ||
+    conflict "the Maven retry authorization checksum differs."
+  jq -e --arg repository "$repository" --arg tag "$tag" --arg commit "$commit" \
+    --arg digest "$release_digest" --arg workflow "$workflow_id" --arg run "$run_id" \
+    --argjson generation "$submission_generation" \
+    '.repository == $repository and .tag == $tag and .commitSha == $commit and
+     .releaseDigest == $digest and .workflowId == $workflow and .runId == $run and
+     .authorizedGeneration == $generation and .freshInspection == true and
+     (.githubRunId | type == "number") and (.githubActor | type == "string")' \
+    "$receipt" >/dev/null || conflict "the Maven retry authorization identity differs."
+  jq -e --slurpfile receipt "$receipt" \
+    '.mavenRetryAuthorization.action == "retry-maven-submission" and
+     .mavenRetryAuthorization.mavenSubmissionGeneration == $receipt[0].authorizedGeneration and
+     .mavenRetryAuthorization.githubRunId == $receipt[0].githubRunId and
+     .mavenRetryAuthorization.githubActor == $receipt[0].githubActor' \
+    "$RELEASE_INPUT_FILE" >/dev/null ||
+    conflict "the Workflow retry Update is not bound to the protected authorization."
+}
+
+prepare_maven_payload() {
+  payload_root="$work/maven-local"
+  mkdir -p "$payload_root"
+  ./gradlew --no-daemon "-Dmaven.repo.local=$payload_root" \
+    "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
+    "-PreleaseDigest=$release_digest" \
+    "-PmavenSubmissionGeneration=$submission_generation" publishToMavenLocal >&2
+  payload_manifest="$work/maven-payload.tsv"
+  : >"$payload_manifest"
+  for artifact in "${maven_artifacts[@]}"; do
+    artifact_dir="$payload_root/io/temporal/$artifact/$version"
+    [[ -d $artifact_dir ]] || conflict "Gradle did not generate $artifact Maven payload."
+    [[ -s "$artifact_dir/$artifact-$version.pom" ]] ||
+      conflict "Gradle did not generate the exact $artifact POM."
+    [[ -s "$artifact_dir/$artifact-$version.pom.asc" ]] ||
+      conflict "Gradle did not sign the exact $artifact POM."
+    if ! python3 - "$artifact_dir/$artifact-$version.pom" "$artifact" "$version" "$commit" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+path, artifact, version, commit = sys.argv[1:]
+root = ET.parse(path).getroot()
+ns = root.tag.partition("}")[0] + "}" if root.tag.startswith("{") else ""
+values = (
+    root.findtext(f"{ns}groupId", "").strip(),
+    root.findtext(f"{ns}artifactId", "").strip(),
+    root.findtext(f"{ns}version", "").strip(),
+    root.findtext(f"{ns}scm/{ns}tag", "").strip().lower(),
+)
+if values != ("io.temporal", artifact, version, commit):
+    raise SystemExit("generated POM has another immutable identity")
+PY
+    then
+      conflict "the generated $artifact POM has another immutable identity."
+    fi
+  done
+  while IFS= read -r -d '' payload; do
+    relative=${payload#"$payload_root/"}
+    printf '%s\t%s\t%s\n' "$relative" \
+      "$(sha256sum "$payload" | awk '{print $1}')" \
+      "$(wc -c <"$payload" | tr -d ' ')" >>"$payload_manifest"
+  done < <(find "$payload_root/io/temporal" -type f -print0 | sort -z)
+  [[ -s $payload_manifest ]] || conflict "Gradle generated an empty Maven payload."
+}
+
+inspect_staging_payload() {
+  remote_missing="$work/remote-missing.tsv"
+  : >"$remote_missing"
+  while IFS=$'\t' read -r relative sha size; do
+    remote="$work/remote-$(printf '%s' "$relative" | sha256sum | awk '{print $1}')"
+    status=$(curl --silent --show-error --location --output "$remote" --write-out '%{http_code}' \
+      --user "$RH_USER:$RH_PASSWORD" \
+      "https://ossrh-staging-api.central.sonatype.com/service/local/repositories/$repository_id/content/$relative") ||
+      fail "Unable to inspect staged Maven file $relative."
+    case "$status" in
+      200)
+        [[ $(sha256sum "$remote" | awk '{print $1}') == "$sha" &&
+          $(wc -c <"$remote" | tr -d ' ') == "$size" ]] ||
+          conflict "staged Maven file $relative has different bytes."
+        ;;
+      404) printf '%s\t%s\t%s\n' "$relative" "$sha" "$size" >>"$remote_missing" ;;
+      *) fail "Sonatype returned HTTP $status for staged Maven file $relative." ;;
+    esac
+  done <"$payload_manifest"
+}
+
+upload_missing_payload() {
+  while IFS=$'\t' read -r relative _ _; do
+    [[ -n $relative ]] || continue
+    curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
+      --upload-file "$payload_root/$relative" \
+      "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deployByRepositoryId/$repository_id/$relative" \
+      >/dev/null || fail "Unable to upload staged Maven file $relative."
+  done <"$remote_missing"
+}
+
+portal_status() {
+  local deployment_id=$1
+  curl --silent --show-error --fail --request POST \
+    --header "Authorization: Bearer $portal_token" --header 'Accept: application/json' \
+    "https://central.sonatype.com/api/v1/publisher/status?id=$deployment_id" \
+    >"$work/portal-status.json" || fail "Unable to inspect exact Portal deployment."
+  jq -er --arg id "$deployment_id" '.deploymentId == $id and .deploymentState' \
+    "$work/portal-status.json"
+}
+
 reconcile_maven() {
   central_state
+  submission_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
+  [[ $submission_generation =~ ^[0-9]+$ ]] || conflict "invalid Maven submission generation."
+  generation_prefix="sdk-java/$release_digest/state/maven/generations/$submission_generation"
+  staging_description="sdk-java:$release_digest:$submission_generation"
   if [[ $present -eq ${#maven_artifacts[@]} ]]; then
     repository_id=""
-    intent_key="sdk-java/$release_digest/state/maven-intent.json"
-    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
-      >/dev/null 2>&1; then
-      aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$work/completed-intent.json" \
-        --no-progress >/dev/null || fail "Unable to read the completed Maven intent."
-      current_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
-      jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
-        --argjson currentGeneration "$current_generation" \
-        '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
-         (.generation | type == "number") and .generation <= $currentGeneration and
-         (.description | type == "string")' "$work/completed-intent.json" >/dev/null ||
-        conflict "the completed Maven intent differs."
-      completed_generation=$(jq -er .generation "$work/completed-intent.json")
-      completed_description=$(jq -er .description "$work/completed-intent.json")
-      [[ $completed_description == "sdk-java:$release_digest:$completed_generation" ]] ||
-        conflict "the completed Maven intent description differs."
-      repository_id=$(jq -r '.repositoryId // ""' "$work/completed-intent.json")
+    portal_deployment_id=""
+    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+      --key "$generation_prefix/repository.json" >/dev/null 2>&1; then
+      aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/repository.json" \
+        "$work/completed-repository.json" --no-progress >/dev/null
+      repository_id=$(jq -er .repositoryId "$work/completed-repository.json")
+    fi
+    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+      --key "$generation_prefix/portal.json" >/dev/null 2>&1; then
+      aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/portal.json" \
+        "$work/completed-portal.json" --no-progress >/dev/null
+      portal_deployment_id=$(jq -er .portalDeploymentId "$work/completed-portal.json")
     fi
     jq -n --arg mavenCentralUrl \
       "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/$version" \
       --arg sonatypeRepositoryId "$repository_id" \
-      '{mavenCentralUrl:$mavenCentralUrl,sonatypeRepositoryId:$sonatypeRepositoryId}' \
+      --arg portalDeploymentId "$portal_deployment_id" \
+      '{mavenCentralUrl:$mavenCentralUrl,sonatypeRepositoryId:$sonatypeRepositoryId,
+        portalDeploymentId:$portalDeploymentId}' \
       >"$RELEASE_OUTPUT_FILE"
     return
   fi
   [[ $present -eq 0 ]] || fail "Maven publication is partially visible; Temporal will retry."
 
-  intent_key="sdk-java/$release_digest/state/maven-intent.json"
+  # Local signing setup and authoritative remote reads happen before recording mutation intent.
+  configure_gradle
+  verify_source_maven_policy
+  sonatype_snapshot
+  validate_retry_authorization
+  prepare_maven_payload
+
   intent="$work/maven-intent.json"
-  submission_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
-  [[ $submission_generation =~ ^[0-9]+$ ]] || conflict "invalid Maven submission generation."
-  staging_description="sdk-java:$release_digest:$submission_generation"
   jq -n --arg tag "$tag" --arg commitSha "$commit" --arg releaseDigest "$release_digest" \
     --arg description "$staging_description" --argjson generation "$submission_generation" \
     '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest,
       description:$description,generation:$generation}' >"$intent"
-  may_create_repository=false
-  if aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
-    --body "$intent" --if-none-match '*' >/dev/null 2>&1; then
-    may_create_repository=true
+  intent_key="$generation_prefix/intent.json"
+  new_intent=false
+  if ! aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
+    >/dev/null 2>&1; then
+    put_immutable_receipt "$intent_key" "$intent"
+    new_intent=true
   else
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$work/existing-intent.json" \
-      --no-progress >/dev/null || fail "Unable to reconcile the Maven submission intent."
-    jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
-      '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
-       (.generation | type == "number") and (.description | type == "string")' \
-      "$work/existing-intent.json" >/dev/null || conflict "the Maven intent differs."
-    stored_generation=$(jq -er '.generation' "$work/existing-intent.json")
-    stored_description=$(jq -er .description "$work/existing-intent.json")
-    [[ $stored_description == "sdk-java:$release_digest:$stored_generation" ]] ||
-      conflict "the Maven intent description differs."
-    if (( submission_generation == stored_generation + 1 )); then
-      # This generation is reachable only through the authenticated Workflow control Update.
-      aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
-        --body "$intent" >/dev/null
-      may_create_repository=true
-    elif (( submission_generation != stored_generation )); then
-      conflict "the Maven submission generation is not the durable next generation."
+      --no-progress >/dev/null || fail "Unable to read the Maven generation intent."
+    cmp -s "$intent" "$work/existing-intent.json" || conflict "the Maven generation intent differs."
+  fi
+
+  repository_receipt="$work/maven-repository.json"
+  repository_key="$generation_prefix/repository.json"
+  repository_id=""
+  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$repository_key" \
+    >/dev/null 2>&1; then
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$repository_key" "$repository_receipt" \
+      --no-progress >/dev/null || fail "Unable to read the repository receipt."
+    repository_id=$(jq -er --arg description "$staging_description" \
+      '.description == $description and .repositoryId' "$repository_receipt") ||
+      conflict "the Maven repository receipt differs."
+  else
+    mapfile -t matches < <(jq -r --arg description "$staging_description" \
+      '(.data // .profileRepositories // [])[] |
+       select(.description == $description) | .repositoryId // .id' \
+      "$work/profile-repositories.json")
+    [[ ${#matches[@]} -le 1 ]] ||
+      conflict "multiple Sonatype repositories match the immutable generation."
+    if [[ ${#matches[@]} -eq 1 ]]; then
+      repository_id=${matches[0]}
+    elif [[ $new_intent == true ]]; then
+      initialize_log="$work/initialize-sonatype.log"
+      ./gradlew --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
+        "-PreleaseDigest=$release_digest" \
+        "-PmavenSubmissionGeneration=$submission_generation" \
+        initializeSonatypeStagingRepository 2>&1 | tee "$initialize_log" >&2
+      repository_id=$(sed -n -E "s/.*Created staging repository '([^']+)'.*/\1/p" \
+        "$initialize_log" | tail -1)
+      [[ -n $repository_id ]] || fail "Unable to capture the created Sonatype repository ID."
     else
-      cp "$work/existing-intent.json" "$intent"
-      staging_description=$(jq -er '.description' "$intent")
+      maven_ambiguous "intent exists but its exact repository is absent."
     fi
+    jq -n --arg description "$staging_description" --arg repositoryId "$repository_id" \
+      --argjson generation "$submission_generation" \
+      '{generation:$generation,description:$description,repositoryId:$repositoryId}' \
+      >"$repository_receipt"
+    put_immutable_receipt "$repository_key" "$repository_receipt"
   fi
 
-  configure_gradle
-  staging="$work/staging.json"
-  curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
-    --header 'Accept: application/json' \
-    'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
-    >"$staging" || fail "Unable to inspect Sonatype after an ambiguous submission."
-  mapfile -t matches < <(jq -r --arg description "$staging_description" \
-    '(.data // .profileRepositories // [])[] |
-     select(.description == $description) | .repositoryId // .id' "$staging")
-  [[ ${#matches[@]} -le 1 ]] || conflict "multiple Sonatype repositories match the immutable release."
-  if [[ ${#matches[@]} -eq 0 ]]; then
-    [[ $may_create_repository == true ]] ||
-      maven_ambiguous "intent exists but its exact described repository is absent."
-    initialize_log="$work/initialize-sonatype.log"
-    ./gradlew --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
-      "-PreleaseDigest=$release_digest" \
-      "-PmavenSubmissionGeneration=$submission_generation" \
-      initializeSonatypeStagingRepository 2>&1 | tee "$initialize_log" >&2
-    repository_id=$(sed -n -E "s/.*Created staging repository '([^']+)'.*/\1/p" \
-      "$initialize_log" | tail -1)
-    [[ -n $repository_id ]] || fail "Unable to capture the created Sonatype repository ID."
-    matches=("$repository_id")
+  # A persisted ID is authoritative; descriptions may disappear after the compatibility close.
+  profile_description=$(jq -r --arg id "$repository_id" \
+    '[((.data // .profileRepositories // [])[]) |
+      select((.repositoryId // .id) == $id) | .description] | first // ""' \
+    "$work/profile-repositories.json")
+  [[ -z $profile_description || $profile_description == "$staging_description" ]] ||
+    conflict "the persisted Sonatype repository ID has another description."
+  manual_repository_count=$(jq --arg id "$repository_id" \
+    '[.repositories[] | select(.key == $id)] | length' "$work/manual-repositories.json")
+  if [[ $manual_repository_count -eq 0 ]]; then
+    [[ -n $profile_description ]] ||
+      maven_ambiguous "the receipted repository is absent from both Sonatype state APIs."
+    repository_state=open
+  else
+    repository_state=$(jq -r --arg id "$repository_id" \
+      '[.repositories[] | select(.key == $id) | .state] | first' \
+      "$work/manual-repositories.json")
   fi
+  portal_deployment_id=$(jq -r --arg id "$repository_id" \
+    '[.repositories[] | select(.key == $id) | .portal_deployment_id] | first // ""' \
+    "$work/manual-repositories.json")
 
-  repository_id=${matches[0]}
-  jq --arg repositoryId "$repository_id" '.repositoryId = $repositoryId' "$intent" \
-    >"$work/intent-with-repository.json"
-  aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
-    --body "$work/intent-with-repository.json" >/dev/null
-
-  ./gradlew --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
-    "-PreleaseDigest=$release_digest" \
-    "-PmavenSubmissionGeneration=$submission_generation" \
-    findSonatypeStagingRepository publishToSonatype \
-    closeAndReleaseSonatypeStagingRepository >&2
-  fail "Sonatype repository $repository_id was reconciled; Temporal will check Central after backoff."
+  if [[ $repository_state == open ]]; then
+    inspect_staging_payload
+    upload_missing_payload
+    inspect_staging_payload
+    [[ ! -s $remote_missing ]] || fail "The exact staged Maven payload is not complete yet."
+    close_body="$work/close-repository.json"
+    jq -n --arg id "$repository_id" --arg description "$staging_description" \
+      '{data:{stagedRepositoryIds:[$id],description:$description}}' >"$close_body"
+    close_status=$(curl --silent --show-error --output "$work/close-response" \
+      --write-out '%{http_code}' --request POST --user "$RH_USER:$RH_PASSWORD" \
+      --header 'Content-Type: application/json' --data-binary "@$close_body" \
+      'https://ossrh-staging-api.central.sonatype.com/service/local/staging/bulk/close') ||
+      fail "Unable to close the exact Sonatype repository."
+    case "$close_status" in 200 | 201 | 202 | 204) ;; *)
+      fail "Sonatype returned HTTP $close_status while closing the exact repository." ;;
+    esac
+    fail "Sonatype accepted the exact repository close; Temporal will observe its Portal deployment."
+  fi
+  [[ $repository_state == closed || $repository_state == released ]] ||
+    conflict "Sonatype returned unsupported repository state $repository_state."
+  [[ $portal_deployment_id =~ ^[0-9a-fA-F-]{16,64}$ ]] ||
+    fail "The closed repository has no Portal deployment ID yet."
+  portal_receipt="$work/maven-portal.json"
+  jq -n --arg repositoryId "$repository_id" --arg portalDeploymentId "$portal_deployment_id" \
+    --argjson generation "$submission_generation" \
+    '{generation:$generation,repositoryId:$repositoryId,
+      portalDeploymentId:$portalDeploymentId}' >"$portal_receipt"
+  put_immutable_receipt "$generation_prefix/portal.json" "$portal_receipt"
+  deployment_state=$(portal_status "$portal_deployment_id")
+  case "$deployment_state" in
+    VALIDATED)
+      publish_status=$(curl --silent --show-error --output "$work/portal-publish-response" \
+        --write-out '%{http_code}' --request POST \
+        --header "Authorization: Bearer $portal_token" \
+        "https://central.sonatype.com/api/v1/publisher/deployment/$portal_deployment_id") ||
+        fail "Unable to publish the exact validated Portal deployment."
+      [[ $publish_status == 204 ]] ||
+        fail "Portal returned HTTP $publish_status while publishing the exact deployment."
+      fail "Portal accepted the exact deployment publication; Temporal will poll its state."
+      ;;
+    PENDING | VALIDATING | PUBLISHING | PUBLISHED)
+      fail "Exact Portal deployment is $deployment_state; Temporal will reconcile again."
+      ;;
+    FAILED)
+      echo "reconcile-publication: exact Portal deployment failed validation." >&2
+      exit 45
+      ;;
+    *) conflict "Portal returned unsupported deployment state $deployment_state." ;;
+  esac
 }
 
 release_json() {
@@ -489,6 +717,17 @@ reconcile_github_draft() {
     printf '%s\n' "${expected_assets[@]}" | grep -Fxq "$remote_name" ||
       conflict "the GitHub release has unexpected asset $remote_name."
   done
+  while IFS=$'\t' read -r asset_id asset_name asset_state asset_size; do
+    [[ -n $asset_id ]] || continue
+    if [[ $asset_state == starter && $asset_size == 0 && $draft == true ]]; then
+      gh api --method DELETE "repos/temporalio/sdk-java/releases/assets/$asset_id" >/dev/null ||
+        fail "Unable to remove interrupted starter asset $asset_name."
+    elif [[ $asset_state != uploaded ]]; then
+      conflict "GitHub asset $asset_name has unsupported state $asset_state."
+    fi
+  done < <(jq -r '.assets[] | [.id,.name,.state,.size] | @tsv' <<<"$release")
+  release=$(release_json)
+  mapfile -t remote_assets < <(jq -r '.assets[].name' <<<"$release" | sort)
   for name in "${expected_assets[@]}"; do
     if printf '%s\n' "${remote_assets[@]}" | grep -Fxq "$name"; then
       gh release download "$tag" --repo temporalio/sdk-java --pattern "$name" \
@@ -542,45 +781,86 @@ inspect_external_state() {
   materialize_assets
   central_state
 
-  intent_key="sdk-java/$release_digest/state/maven-intent.json"
   sonatype_state=not-submitted
   sonatype_repository_id=""
-  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
-    >/dev/null 2>&1; then
-    sonatype_state=intent-recorded
-    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$work/inspection-intent.json" \
-      --no-progress >/dev/null || fail "Unable to inspect the Maven intent."
-    current_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
+  portal_deployment_id=""
+  portal_deployment_state=""
+  current_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
+  intent_generation=-1
+  : >"$work/maven-generations.jsonl"
+  sonatype_snapshot
+  aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
+    --prefix "sdk-java/$release_digest/state/maven/generations/" --output json \
+    >"$work/generation-list.json" || fail "Unable to list durable Maven generation receipts."
+  mapfile -t intent_keys < <(jq -r '.Contents // [] | .[].Key | select(endswith("/intent.json"))' \
+    "$work/generation-list.json" | sort)
+  for intent_key in "${intent_keys[@]}"; do
+    generation=$(sed -n -E 's#^.*/generations/([0-9]+)/intent.json$#\1#p' <<<"$intent_key")
+    [[ $generation =~ ^[0-9]+$ && $generation -le $current_generation ]] ||
+      conflict "a durable Maven generation is outside the Workflow state."
+    generation_prefix="sdk-java/$release_digest/state/maven/generations/$generation"
+    intent="$work/inspection-intent-$generation.json"
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" "$intent" --no-progress >/dev/null ||
+      fail "Unable to inspect Maven generation $generation."
+    description="sdk-java:$release_digest:$generation"
     jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
-      --argjson generation "$current_generation" \
+      --arg description "$description" --argjson generation "$generation" \
       '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
-       (.generation | type == "number") and .generation <= $generation and
-       (.description | type == "string")' \
-      "$work/inspection-intent.json" >/dev/null || conflict "the Maven intent differs."
-    intent_generation=$(jq -er .generation "$work/inspection-intent.json")
-    sonatype_description=$(jq -er .description "$work/inspection-intent.json")
-    [[ $sonatype_description == "sdk-java:$release_digest:$intent_generation" ]] ||
-      conflict "the Maven intent description differs."
-    curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
-      --header 'Accept: application/json' \
-      'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
-      >"$work/staging-inspection.json" || fail "Unable to inspect Sonatype staging state."
-    jq -e '(.data // .profileRepositories // []) | type == "array"' \
-      "$work/staging-inspection.json" >/dev/null || fail "Sonatype returned invalid staging state."
-    mapfile -t inspection_matches < <(jq -r --arg description "$sonatype_description" \
-      '(.data // .profileRepositories // [])[] |
-       select(.description == $description) | .repositoryId // .id' \
-      "$work/staging-inspection.json")
-    [[ ${#inspection_matches[@]} -le 1 ]] ||
-      conflict "multiple Sonatype repositories match the immutable release."
-    if [[ ${#inspection_matches[@]} -eq 1 ]]; then
-      sonatype_state=exact-repository-found
-      sonatype_repository_id=${inspection_matches[0]}
+       .generation == $generation and .description == $description' "$intent" >/dev/null ||
+      conflict "Maven generation $generation has another immutable identity."
+    repository_id=""
+    repository_state=absent
+    deployment_id=""
+    deployment_state=""
+    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+      --key "$generation_prefix/repository.json" >/dev/null 2>&1; then
+      aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/repository.json" \
+        "$work/inspection-repository-$generation.json" --no-progress >/dev/null
+      repository_id=$(jq -er --arg description "$description" \
+        '.description == $description and .repositoryId' \
+        "$work/inspection-repository-$generation.json") ||
+        conflict "Maven generation $generation repository receipt differs."
+      repository_state=$(jq -r --arg id "$repository_id" \
+        '[.repositories[] | select(.key == $id) | .state] | first // "unavailable"' \
+        "$work/manual-repositories.json")
     else
-      sonatype_state=exact-repository-absent
-      sonatype_repository_id=$(jq -r '.repositoryId // ""' "$work/inspection-intent.json")
+      mapfile -t inspection_matches < <(jq -r --arg description "$description" \
+        '(.data // .profileRepositories // [])[] |
+         select(.description == $description) | .repositoryId // .id' \
+        "$work/profile-repositories.json")
+      [[ ${#inspection_matches[@]} -le 1 ]] ||
+        conflict "multiple Sonatype repositories match Maven generation $generation."
+      if [[ ${#inspection_matches[@]} -eq 1 ]]; then
+        repository_id=${inspection_matches[0]}
+        repository_state=unreceipted
+      fi
     fi
-  fi
+    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+      --key "$generation_prefix/portal.json" >/dev/null 2>&1; then
+      aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/portal.json" \
+        "$work/inspection-portal-$generation.json" --no-progress >/dev/null
+      deployment_id=$(jq -er --arg repository "$repository_id" \
+        '.repositoryId == $repository and .portalDeploymentId' \
+        "$work/inspection-portal-$generation.json") ||
+        conflict "Maven generation $generation Portal receipt differs."
+      deployment_state=$(portal_status "$deployment_id")
+    fi
+    jq -cn --argjson generation "$generation" --arg repositoryId "$repository_id" \
+      --arg repositoryState "$repository_state" --arg portalDeploymentId "$deployment_id" \
+      --arg portalDeploymentState "$deployment_state" \
+      '{generation:$generation,repositoryId:$repositoryId,repositoryState:$repositoryState,
+        portalDeploymentId:$portalDeploymentId,portalDeploymentState:$portalDeploymentState}' \
+      >>"$work/maven-generations.jsonl"
+    if (( generation == current_generation )); then
+      intent_generation=$generation
+      sonatype_repository_id=$repository_id
+      portal_deployment_id=$deployment_id
+      portal_deployment_state=$deployment_state
+      if [[ -n $repository_id ]]; then sonatype_state=exact-repository-found
+      else sonatype_state=exact-repository-absent; fi
+    fi
+  done
+  maven_generations=$(jq -sc '.' "$work/maven-generations.jsonl")
 
   tag_state=absent
   if github_optional_get "repos/temporalio/sdk-java/git/ref/tags/$tag" "$work/inspect-tag.json"; then
@@ -595,7 +875,7 @@ inspect_external_state() {
   if [[ -n $release ]]; then
     draft=$(jq -r '.draft' <<<"$release")
     verify_release_metadata "$release" "$draft"
-    release_state=$([[ $draft == true ]] && echo exact-draft || echo exact-public)
+    release_state=$([[ $draft == true ]] && echo draft-empty || echo public-incomplete)
     mapfile -t expected_assets < <(find "$work/assets" -mindepth 1 -maxdepth 1 -type f -exec basename {} \; | sort)
     mapfile -t remote_assets < <(jq -r '.assets[].name' <<<"$release" | sort)
     for remote_name in "${remote_assets[@]}"; do
@@ -607,16 +887,26 @@ inspect_external_state() {
         $(sha256sum "$work/assets/$remote_name" | awk '{print $1}') ]] ||
         conflict "existing GitHub asset $remote_name has different bytes."
     done
+    if [[ ${remote_assets[*]} == "${expected_assets[*]}" ]]; then
+      release_state=$([[ $draft == true ]] && echo exact-draft || echo exact-public)
+    elif [[ ${#remote_assets[@]} -gt 0 ]]; then
+      release_state=$([[ $draft == true ]] && echo draft-partial || echo public-incomplete)
+    fi
   fi
 
   jq -n --argjson mavenPresent "$present" --argjson mavenMissing "$missing" \
     --arg sonatype "$sonatype_state" --arg sonatypeRepositoryId "$sonatype_repository_id" \
+    --arg portalDeploymentId "$portal_deployment_id" \
+    --arg portalDeploymentState "$portal_deployment_state" \
+    --argjson mavenGenerations "$maven_generations" \
     --argjson mavenSubmissionGeneration \
       "$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")" \
     --argjson mavenIntentGeneration "${intent_generation:--1}" \
     --arg ownership "$ownership_state" --arg tag "$tag_state" --arg release "$release_state" \
     '{mavenPresent:$mavenPresent,mavenMissing:$mavenMissing,sonatype:$sonatype,
       sonatypeRepositoryId:$sonatypeRepositoryId,
+      portalDeploymentId:$portalDeploymentId,
+      portalDeploymentState:$portalDeploymentState,mavenGenerations:$mavenGenerations,
       mavenSubmissionGeneration:$mavenSubmissionGeneration,
       mavenIntentGeneration:$mavenIntentGeneration,ownership:$ownership,
       tag:$tag,release:$release}' \

@@ -39,6 +39,53 @@ public class PublicationGuardTest {
     assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
   }
 
+  @Test
+  public void mavenRetryRequiresTheProtectedAuthorizationBinding() {
+    ReleaseIdentity release = ReleaseFixtures.release();
+    String workflowId = QueueNames.releaseWorkflowId(release);
+    String runId = "11111111-2222-3333-4444-555555555555";
+    ApprovalEvidence approval =
+        new ApprovalEvidence(
+            CandidateIdentity.REPOSITORY,
+            release.digest(),
+            workflowId,
+            runId,
+            1234,
+            "release-manager",
+            42,
+            "ISSUE_node_42",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            release.candidate.trustedAutomationCommit);
+    PublicationInput input = new PublicationInput(release, approval, workflowId, runId);
+    input.mavenSubmissionGeneration = 1;
+    ControlEvidence authorization = new ControlEvidence();
+    authorization.action = "retry-maven-submission";
+    authorization.repository = CandidateIdentity.REPOSITORY;
+    authorization.releaseDigest = release.digest();
+    authorization.workflowId = workflowId;
+    authorization.runId = runId;
+    authorization.githubRunId = 5678;
+    authorization.githubActor = "release-manager";
+    authorization.tag = release.candidate.tag;
+    authorization.commitSha = release.candidate.commitSha;
+    authorization.reason = "Protected test authorization.";
+    authorization.mavenSubmissionGeneration = 1;
+    authorization.authorizationSha256 =
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    input.mavenRetryAuthorization = authorization;
+    ActivityInfo info = mock(ActivityInfo.class);
+    when(info.getWorkflowId()).thenReturn(workflowId);
+    when(info.getWorkflowRunId()).thenReturn(runId);
+    when(info.getActivityTaskQueue()).thenReturn(QueueNames.publication(release));
+    Map<String, String> env = expectations(input);
+    env.put("EXPECTED_MAVEN_SUBMISSION_GENERATION", "1");
+    env.put("EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256", authorization.authorizationSha256);
+    PublicationGuard.validate(input, info, env);
+
+    input.mavenRetryAuthorization = null;
+    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
+  }
+
   private static Map<String, String> expectations(PublicationInput input) {
     Map<String, String> env = new HashMap<>();
     env.put("EXPECTED_WORKFLOW_ID", input.workflowId);
@@ -55,6 +102,7 @@ public class PublicationGuardTest {
     env.put("EXPECTED_APPROVAL_ISSUE_NODE_ID", input.approval.githubIssueNodeId);
     env.put("EXPECTED_APPROVAL_ISSUE_BODY_SHA256", input.approval.githubIssueBodySha256);
     env.put("TRUSTED_WORKER_COMMIT", input.approval.trustedWorkerCommit);
+    env.put("EXPECTED_MAVEN_SUBMISSION_GENERATION", "0");
     return env;
   }
 }

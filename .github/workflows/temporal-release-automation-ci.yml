@@ -40,13 +40,37 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Check shell syntax
-        run: bash -n .github/scripts/temporal-release/*.sh
+        run: >-
+          bash -n .github/scripts/manual-release.sh
+          .github/scripts/temporal-release/*.sh
+          .github/release-automation/docker/native-image-musl-java17/install-musl.sh
       - name: Parse workflow YAML
         run: >-
           ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each {
           |workflow| YAML.parse_file(workflow) }'
       - name: Verify formatting and local tests
         run: ./gradlew -p .github/release-automation spotlessCheck test
+
+  process_portability:
+    name: Trusted process launch (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Verify explicit Bash process construction
+        run: >-
+          ./gradlew -p .github/release-automation test
+          --tests io.temporal.releaseautomation.ProcessSupportTest

@@ -222,8 +222,7 @@ public class ReleaseWorkflowTest {
       assertEquals("MAVEN", blocked.pausedFrom);
       assertTrue(blocked.lastError.contains("MavenSubmissionAmbiguous"));
       ReleaseStatus retried =
-          started.workflow.control(
-              control("retry-maven-submission", started.runId, release, 401, "release-manager"));
+          started.workflow.control(mavenRetry(started.runId, release, 401, "release-manager"));
       assertEquals(1, retried.mavenSubmissionGeneration);
       WorkflowStub.fromTyped(started.workflow).getResult(ReleaseResult.class);
       assertEquals(2, mavenAttempts.get());
@@ -311,6 +310,26 @@ public class ReleaseWorkflowTest {
     evidence.mavenCentralUrl =
         "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/"
             + release.candidate.version;
+    evidence.validate();
+    return evidence;
+  }
+
+  private static ControlEvidence mavenRetry(
+      String runId, ReleaseIdentity release, long githubRunId, String actor) {
+    ControlEvidence evidence = new ControlEvidence();
+    evidence.action = "retry-maven-submission";
+    evidence.repository = CandidateIdentity.REPOSITORY;
+    evidence.releaseDigest = release.digest();
+    evidence.workflowId = QueueNames.releaseWorkflowId(release);
+    evidence.runId = runId;
+    evidence.githubRunId = githubRunId;
+    evidence.githubActor = actor;
+    evidence.tag = release.candidate.tag;
+    evidence.commitSha = release.candidate.commitSha;
+    evidence.reason = "Test retry authorization.";
+    evidence.mavenSubmissionGeneration = 1;
+    evidence.authorizationSha256 =
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
     evidence.validate();
     return evidence;
   }

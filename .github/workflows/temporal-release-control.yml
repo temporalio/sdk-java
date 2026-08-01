@@ -34,10 +34,14 @@ env:
   GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
 
 jobs:
-  control:
+  resolve:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release-control
+    outputs:
+      automation_commit: ${{ steps.target.outputs.automation_commit }}
+      phase: ${{ steps.target.outputs.phase }}
+      release_digest: ${{ steps.target.outputs.release_digest }}
     steps:
       - name: Validate exact inputs and trusted automation pin
         env:
@@ -51,12 +55,12 @@ jobs:
         with:
           path: bootstrap
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - name: Verify discovery checkout
+      - name: Verify bootstrap checkout
         run: '[[ "$(git -C bootstrap rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Resolve the release's frozen Worker version
         id: target
@@ -64,55 +68,180 @@ jobs:
         run: >-
           ./gradlew -p .github/release-automation run
           --args="inspect ${{ inputs.tag }} ${{ inputs.commit_sha }}"
-      - name: Checkout frozen trusted automation
-        if: inputs.action != 'inspect'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: automation
-          ref: ${{ steps.target.outputs.automation_commit }}
-      - name: Verify frozen Worker checkout
-        if: inputs.action != 'inspect'
+      - name: Summarize durable state
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
-        run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
-      - name: Submit authenticated release-specific Update
-        if: inputs.action != 'inspect'
-        id: control
-        working-directory: automation
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="control ${{ inputs.action }} ${{ inputs.tag }} ${{ inputs.commit_sha }}"
-      - name: Record durable result
-        env:
-          BLOCKED_AT: ${{ inputs.action == 'inspect' && steps.target.outputs.blocked_at_millis || steps.control.outputs.blocked_at_millis }}
-          GITHUB_DRAFT_URL: ${{ inputs.action == 'inspect' && steps.target.outputs.github_draft_url || steps.control.outputs.github_draft_url }}
-          GITHUB_RELEASE_URL: ${{ inputs.action == 'inspect' && steps.target.outputs.github_release_url || steps.control.outputs.github_release_url }}
-          LAST_COMPLETED_STAGE: ${{ inputs.action == 'inspect' && steps.target.outputs.last_completed_stage || steps.control.outputs.last_completed_stage }}
-          LAST_ERROR: ${{ inputs.action == 'inspect' && steps.target.outputs.last_error || steps.control.outputs.last_error }}
-          MAVEN_CENTRAL_URL: ${{ inputs.action == 'inspect' && steps.target.outputs.maven_central_url || steps.control.outputs.maven_central_url }}
-          NEXT_RETRY_AT: ${{ inputs.action == 'inspect' && steps.target.outputs.next_retry_at_millis || steps.control.outputs.next_retry_at_millis }}
-          PHASE: ${{ inputs.action == 'inspect' && steps.target.outputs.phase || steps.control.outputs.phase }}
-          RELEASE_DIGEST: ${{ inputs.action == 'inspect' && steps.target.outputs.release_digest || steps.control.outputs.release_digest }}
-          SONATYPE_REPOSITORY_ID: ${{ inputs.action == 'inspect' && steps.target.outputs.sonatype_repository_id || steps.control.outputs.sonatype_repository_id }}
-          STAGE_ATTEMPT: ${{ inputs.action == 'inspect' && steps.target.outputs.stage_attempt || steps.control.outputs.stage_attempt }}
-          STAGE_STARTED_AT: ${{ inputs.action == 'inspect' && steps.target.outputs.stage_started_at_millis || steps.control.outputs.stage_started_at_millis }}
+          PHASE: ${{ steps.target.outputs.phase }}
+          RELEASE_DIGEST: ${{ steps.target.outputs.release_digest }}
+          LAST_ERROR: ${{ steps.target.outputs.last_error }}
+          SONATYPE_REPOSITORY_ID: ${{ steps.target.outputs.sonatype_repository_id }}
+          PORTAL_DEPLOYMENT_ID: ${{ steps.target.outputs.portal_deployment_id }}
         run: |
           {
             echo "## Durable release state"
             echo
-            echo "- Durable phase: \`$PHASE\`"
+            echo "- Phase: \`$PHASE\`"
             echo "- Release digest: \`$RELEASE_DIGEST\`"
-            echo "- Last completed stage: \`${LAST_COMPLETED_STAGE:-none}\`"
-            echo "- Stage attempt: \`${STAGE_ATTEMPT:-0}\`"
-            echo "- Stage started (epoch ms): \`${STAGE_STARTED_AT:-0}\`"
-            echo "- Next retry (epoch ms): \`${NEXT_RETRY_AT:-0}\`"
-            echo "- Blocked at (epoch ms): \`${BLOCKED_AT:-0}\`"
             echo "- Last error: \`${LAST_ERROR:-none}\`"
             echo "- Sonatype repository: \`${SONATYPE_REPOSITORY_ID:-none}\`"
-            echo "- Maven Central: ${MAVEN_CENTRAL_URL:-not-yet-visible}"
-            echo "- GitHub draft: ${GITHUB_DRAFT_URL:-not-yet-created}"
-            echo "- GitHub release: ${GITHUB_RELEASE_URL:-not-yet-published}"
+            echo "- Portal deployment: \`${PORTAL_DEPLOYMENT_ID:-none}\`"
           } >>"$GITHUB_STEP_SUMMARY"
+
+  control:
+    needs: resolve
+    if: inputs.action != 'inspect' && inputs.action != 'retry-maven-submission'
+    runs-on: ubuntu-latest
+    environment: release-control
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.resolve.outputs.automation_commit }}
+      - name: Verify frozen Worker checkout
+        env:
+          FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
+        run: '[[ "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Submit authenticated release-specific Update
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="control ${{ inputs.action }} ${{ inputs.tag }} ${{ inputs.commit_sha }}"
+
+  authorize_maven_retry:
+    needs: resolve
+    if: inputs.action == 'retry-maven-submission'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: release-publication
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: sdk-java-release-publication
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ inputs.commit_sha }}
+          submodules: recursive
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ needs.resolve.outputs.automation_commit }}
+      - name: Verify frozen Worker checkout
+        env:
+          FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
+        run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
+      - name: Export the exact approved publication input
+        id: input
+        working-directory: automation
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="publication-input ${{ inputs.tag }} ${{ inputs.commit_sha }} ${{ runner.temp }}/publication-input.json"
+      - name: Perform a fresh exact external inspection
+        working-directory: source
+        env:
+          EXPECTED_APPROVAL_ACTOR: ${{ steps.input.outputs.approval_actor }}
+          EXPECTED_APPROVAL_ISSUE_NUMBER: ${{ steps.input.outputs.approval_issue_number }}
+          EXPECTED_APPROVAL_ISSUE_NODE_ID: ${{ steps.input.outputs.approval_issue_node_id }}
+          EXPECTED_APPROVAL_ISSUE_BODY_SHA256: ${{ steps.input.outputs.approval_issue_body_sha256 }}
+          EXPECTED_APPROVAL_RUN_ID: ${{ steps.input.outputs.approval_run_id }}
+          EXPECTED_COMMIT_SHA: ${{ inputs.commit_sha }}
+          EXPECTED_MANIFEST_SHA256: ${{ steps.input.outputs.manifest_sha256 }}
+          EXPECTED_MAVEN_SUBMISSION_GENERATION: ${{ steps.input.outputs.maven_submission_generation }}
+          EXPECTED_NOTES_SHA256: ${{ steps.input.outputs.notes_sha256 }}
+          EXPECTED_RELEASE_DIGEST: ${{ steps.input.outputs.release_digest }}
+          EXPECTED_REPOSITORY: temporalio/sdk-java
+          EXPECTED_RUN_ID: ${{ steps.input.outputs.run_id }}
+          EXPECTED_TAG: ${{ inputs.tag }}
+          EXPECTED_WORKFLOW_ID: ${{ steps.input.outputs.workflow_id }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_INPUT_FILE: ${{ runner.temp }}/publication-input.json
+          RELEASE_OUTPUT_FILE: ${{ runner.temp }}/fresh-inspection.json
+          RELEASE_STAGE: inspect
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+          TRUSTED_WORKER_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
+      - name: Record protected authorization for exactly one next generation
+        id: authorization
+        env:
+          CURRENT_GENERATION: ${{ steps.input.outputs.maven_submission_generation }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_DIGEST: ${{ steps.input.outputs.release_digest }}
+          RUN_ID: ${{ steps.input.outputs.run_id }}
+          WORKFLOW_ID: ${{ steps.input.outputs.workflow_id }}
+        run: |
+          current=$(jq -c --argjson generation "$CURRENT_GENERATION" \
+            '.mavenGenerations[]? | select(.generation == $generation)' \
+            "$RUNNER_TEMP/fresh-inspection.json")
+          [[ $(jq -r .mavenPresent "$RUNNER_TEMP/fresh-inspection.json") == 0 ]]
+          if [[ -n "$current" ]]; then
+            repository_state=$(jq -r .repositoryState <<<"$current")
+            portal_state=$(jq -r .portalDeploymentState <<<"$current")
+            [[ "$repository_state" == absent || "$repository_state" == unavailable ||
+              "$portal_state" == FAILED ]]
+          fi
+          generation=$((CURRENT_GENERATION + 1))
+          receipt="$RUNNER_TEMP/maven-retry-authorization.json"
+          jq -cn --arg repository temporalio/sdk-java --arg tag '${{ inputs.tag }}' \
+            --arg commitSha '${{ inputs.commit_sha }}' --arg releaseDigest "$RELEASE_DIGEST" \
+            --arg workflowId "$WORKFLOW_ID" --arg runId "$RUN_ID" \
+            --arg githubActor "$GITHUB_TRIGGERING_ACTOR" --argjson githubRunId "$GITHUB_RUN_ID" \
+            --argjson authorizedGeneration "$generation" \
+            '{repository:$repository,tag:$tag,commitSha:$commitSha,
+              releaseDigest:$releaseDigest,workflowId:$workflowId,runId:$runId,
+              githubActor:$githubActor,githubRunId:$githubRunId,
+              authorizedGeneration:$authorizedGeneration,freshInspection:true}' >"$receipt"
+          key="sdk-java/$RELEASE_DIGEST/state/maven/retry-authorizations/$generation.json"
+          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+            --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
+            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" \
+              "$RUNNER_TEMP/existing-authorization.json" --no-progress >/dev/null
+            jq -e --arg repository temporalio/sdk-java --arg tag '${{ inputs.tag }}' \
+              --arg commit '${{ inputs.commit_sha }}' --arg digest "$RELEASE_DIGEST" \
+              --arg workflow "$WORKFLOW_ID" --arg run "$RUN_ID" \
+              --argjson generation "$generation" \
+              '.repository == $repository and .tag == $tag and .commitSha == $commit and
+               .releaseDigest == $digest and .workflowId == $workflow and .runId == $run and
+               .authorizedGeneration == $generation and .freshInspection == true' \
+              "$RUNNER_TEMP/existing-authorization.json" >/dev/null
+            cp "$RUNNER_TEMP/existing-authorization.json" "$receipt"
+          fi
+          {
+            echo "generation=$generation"
+            echo "sha256=$(sha256sum "$receipt" | awk '{print $1}')"
+            echo "actor=$(jq -er .githubActor "$receipt")"
+            echo "run_id=$(jq -er .githubRunId "$receipt")"
+          } >>"$GITHUB_OUTPUT"
+      - name: Submit Update bound to the protected inspection receipt
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          CONTROL_GITHUB_ACTOR: ${{ steps.authorization.outputs.actor }}
+          CONTROL_GITHUB_RUN_ID: ${{ steps.authorization.outputs.run_id }}
+          MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ steps.authorization.outputs.sha256 }}
+          MAVEN_RETRY_GENERATION: ${{ steps.authorization.outputs.generation }}
+          RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="control retry-maven-submission ${{ inputs.tag }} ${{ inputs.commit_sha }}"

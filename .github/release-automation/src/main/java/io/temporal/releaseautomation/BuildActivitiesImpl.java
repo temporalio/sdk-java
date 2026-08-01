@@ -14,22 +14,26 @@ public final class BuildActivitiesImpl implements BuildActivities {
   private final String trustedAutomationCommit;
   private final Map<String, String> workerEnvironment;
   private final Consumer<Throwable> completion;
+  private final Runnable started;
 
   public BuildActivitiesImpl(
       Path trustedRoot,
       Path sourceRoot,
       String trustedAutomationCommit,
       Map<String, String> workerEnvironment,
+      Runnable started,
       Consumer<Throwable> completion) {
     this.trustedRoot = trustedRoot;
     this.sourceRoot = sourceRoot;
     this.trustedAutomationCommit = trustedAutomationCommit;
     this.workerEnvironment = new HashMap<>(workerEnvironment);
+    this.started = started;
     this.completion = completion;
   }
 
   @Override
   public ArtifactEntry buildAndStore(CandidateIdentity candidate, String platform) {
+    started.run();
     try {
       ArtifactEntry artifact = build(candidate, platform);
       completion.accept(null);

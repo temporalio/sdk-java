@@ -69,6 +69,24 @@ final class PublicationGuard {
         "publication Task Queue",
         QueueNames.publication(input.release),
         activity.getActivityTaskQueue());
+    requireEqual(
+        "Maven submission generation",
+        Integer.toString(input.mavenSubmissionGeneration),
+        required(env, "EXPECTED_MAVEN_SUBMISSION_GENERATION"));
+    if (input.mavenSubmissionGeneration > 0) {
+      if (input.mavenRetryAuthorization == null) {
+        throw new IllegalArgumentException("A Maven retry has no external authorization binding.");
+      }
+      input.mavenRetryAuthorization.validate();
+      requireEqual(
+          "Maven retry generation",
+          Integer.toString(input.mavenSubmissionGeneration),
+          Integer.toString(input.mavenRetryAuthorization.mavenSubmissionGeneration));
+      requireEqual(
+          "Maven retry authorization",
+          input.mavenRetryAuthorization.authorizationSha256,
+          required(env, "EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256"));
+    }
   }
 
   private static String required(Map<String, String> env, String name) {

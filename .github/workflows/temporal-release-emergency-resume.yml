@@ -26,6 +26,9 @@ jobs:
       sync_count: ${{ steps.matrix.outputs.sync_count }}
       sync_matrix: ${{ steps.matrix.outputs.sync_matrix }}
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: scheduler
       - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           aws-region: us-west-2
@@ -59,7 +62,8 @@ jobs:
               (.state == "BUILDING" or .state == "AWAITING_INSPECTION" or
                .state == "INSPECTED" or .state == "READY" or .state == "BLOCKED" or
                .state == "COMPLETE") and
-              (if .state == "READY" or .state == "BLOCKED" or .state == "COMPLETE" then
+              (if .state == "READY" or .state == "COMPLETE" or
+                  (.state == "BLOCKED" and (.handoff != null)) then
                  .handoff.actor == .approvedBy and .handoff.githubRunId == .approvalRunId and
                  .handoff.tag == .candidate.tag and
                  .handoff.commitSha == .candidate.commitSha and
@@ -74,7 +78,22 @@ jobs:
               artifact_count=$(aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
                 --prefix "$artifact_prefix" --output json | jq '.Contents // [] | length')
               if [[ $artifact_count -eq 6 ]]; then
-                jq '.state="AWAITING_INSPECTION"' "$file" >"$file.updated"
+                manifest="$RUNNER_TEMP/manifest-$candidate_digest.tsv"
+                if RELEASE_ARTIFACT_PREFIX=$artifact_prefix \
+                  RELEASE_CANDIDATE_DIGEST=$candidate_digest \
+                  RELEASE_MANIFEST_FILE=$manifest \
+                  scheduler/.github/scripts/temporal-release/collect-artifact-manifest.sh &&
+                  [[ $(cut -f1 "$manifest" | sort | tr '\n' ' ') == \
+                    "temporal-test-server_$(jq -r .candidate.version "$file")_linux_amd64.tar.gz temporal-test-server_$(jq -r .candidate.version "$file")_linux_amd64_musl.tar.gz temporal-test-server_$(jq -r .candidate.version "$file")_linux_arm64.tar.gz temporal-test-server_$(jq -r .candidate.version "$file")_macOS_amd64.tar.gz temporal-test-server_$(jq -r .candidate.version "$file")_macOS_arm64.tar.gz temporal-test-server_$(jq -r .candidate.version "$file")_windows_amd64.zip " ]]; then
+                  jq '.state="AWAITING_INSPECTION" | del(.blockedReason,.blockedStage,
+                    .blockedAt,.blockedError)' "$file" >"$file.updated"
+                else
+                  jq --arg blockedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+                    '.state="BLOCKED" | .blockedReason="InvalidArtifacts" |
+                     .blockedStage="ARTIFACTS" | .blockedAt=$blockedAt |
+                     .blockedError="The complete immutable prefix failed exact checksum or asset-set validation."' \
+                    "$file" >"$file.updated"
+                fi
                 aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
                   --body "$file.updated" --if-match "$request_etag" >/dev/null
                 continue
@@ -103,7 +122,10 @@ jobs:
                   approvalRunId:$request.approvalRunId,
                   manifestSha256:$request.manifestSha256,
                   artifactPrefix:$request.artifactPrefix,
-                  mavenSubmissionGeneration:$request.mavenSubmissionGeneration}' \
+                  mavenSubmissionGeneration:$request.mavenSubmissionGeneration,
+                  mavenRetryAuthorizationActor:($request.mavenRetryAuthorizationActor // ""),
+                  mavenRetryAuthorizationRunId:($request.mavenRetryAuthorizationRunId // 0),
+                  mavenRetryAuthorizationSha256:($request.mavenRetryAuthorizationSha256 // "")}' \
                 >>"$RUNNER_TEMP/publish.jsonl"
             elif [[ $state == COMPLETE && $(jq -r '.temporalComplete // false' "$file") != true ]]; then
               jq -cn --argjson request "$(cat "$file")" --arg key "$key" \
@@ -135,6 +157,7 @@ jobs:
     concurrency:
       group: emergency-${{ matrix.candidateDigest }}-${{ matrix.platform }}
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -149,7 +172,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: ${{ matrix.distribution }}
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
@@ -184,11 +207,13 @@ jobs:
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
+      queue: max
     env:
       EXPECTED_APPROVAL_ACTOR: ${{ matrix.approvedBy }}
       EXPECTED_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
       EXPECTED_COMMIT_SHA: ${{ matrix.candidate.commitSha }}
       EXPECTED_MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
+      EXPECTED_MAVEN_SUBMISSION_GENERATION: ${{ matrix.mavenSubmissionGeneration }}
       EXPECTED_NOTES_SHA256: ${{ matrix.candidate.releaseNotesSha256 }}
       EXPECTED_REPOSITORY: temporalio/sdk-java
       EXPECTED_TAG: ${{ matrix.candidate.tag }}
@@ -209,7 +234,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
@@ -253,6 +278,9 @@ jobs:
           EMERGENCY_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
           MAVEN_SUBMISSION_GENERATION: ${{ matrix.mavenSubmissionGeneration }}
+          MAVEN_RETRY_AUTHORIZATION_ACTOR: ${{ matrix.mavenRetryAuthorizationActor }}
+          MAVEN_RETRY_AUTHORIZATION_RUN_ID: ${{ matrix.mavenRetryAuthorizationRunId }}
+          MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ matrix.mavenRetryAuthorizationSha256 }}
         run: |
           jq .candidate "$RUNNER_TEMP/emergency-request.json" >"$RUNNER_TEMP/candidate.json"
           ./gradlew -p .github/release-automation run \
@@ -279,7 +307,6 @@ jobs:
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" inspect
       - name: Quiesce Temporal if the exact Workflow is available
         id: temporal
-        continue-on-error: true
         working-directory: automation
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
@@ -291,7 +318,10 @@ jobs:
         run: |
           inspect_output="$RUNNER_TEMP/temporal-inspect-output"
           GITHUB_OUTPUT="$inspect_output" ./gradlew -p .github/release-automation run \
-            --args="inspect $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+            --args="inspect-if-present $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+          found=$(awk -F= '$1 == "found" {print $2}' "$inspect_output" | tail -1)
+          echo "found=$found" >>"$GITHUB_OUTPUT"
+          [[ "$found" == true ]] || exit 0
           phase=$(awk -F= '$1 == "phase" {print $2}' "$inspect_output" | tail -1)
           if [[ "$phase" != HANDED_OFF && "$phase" != MANUAL_COMPLETE ]]; then
             ./gradlew -p .github/release-automation run \
@@ -342,7 +372,14 @@ jobs:
           reason=ExternalIdentityConflict
           [[ $status == 43 ]] && reason=InvalidApproval
           [[ $status == 44 ]] && reason=MavenSubmissionAmbiguous
-          jq --arg reason "$reason" '.state="BLOCKED" | .blockedReason=$reason' \
+          [[ $status == 45 ]] && reason=MavenDeploymentFailed
+          jq --arg reason "$reason" --arg stage "$(jq -r .stage "$RELEASE_FAILURE_FILE")" \
+            --arg error "Publication stage exited with status $status." \
+            --arg blockedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+            --argjson generation '${{ matrix.mavenSubmissionGeneration }}' \
+            '.state="BLOCKED" | .blockedReason=$reason | .blockedStage=$stage |
+             .blockedError=$error | .blockedAt=$blockedAt |
+             .blockedMavenSubmissionGeneration=$generation' \
             "$RUNNER_TEMP/emergency-request.json" >"$RUNNER_TEMP/blocked-request.json"
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
             --body "$RUNNER_TEMP/blocked-request.json" --if-match "$REQUEST_ETAG" >/dev/null
@@ -367,7 +404,7 @@ jobs:
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
             --body "$RUNNER_TEMP/complete-request.json" --if-match "$REQUEST_ETAG" >/dev/null
       - name: Record MANUAL_COMPLETE in Temporal when available
-        if: success() && steps.temporal.outcome == 'success'
+        if: success() && steps.temporal.outputs.found == 'true'
         continue-on-error: true
         working-directory: automation
         env:
@@ -399,7 +436,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
@@ -418,9 +455,16 @@ jobs:
         run: |
           output="$RUNNER_TEMP/temporal-status"
           GITHUB_OUTPUT="$output" ./gradlew -p .github/release-automation run \
-            --args="inspect ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
-          phase=$(awk -F= '$1 == "phase" {print $2}' "$output" | tail -1)
-          if [[ "$phase" != HANDED_OFF && "$phase" != MANUAL_COMPLETE && "$phase" != PUBLISHED ]]; then
+            --args="inspect-if-present ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
+          found=$(awk -F= '$1 == "found" {print $2}' "$output" | tail -1)
+          if [[ "$found" != true ]]; then
+            phase=NO_WORKFLOW
+          else
+            phase=$(awk -F= '$1 == "phase" {print $2}' "$output" | tail -1)
+          fi
+          if [[ "$phase" == NO_WORKFLOW ]]; then
+            :
+          elif [[ "$phase" != HANDED_OFF && "$phase" != MANUAL_COMPLETE && "$phase" != PUBLISHED ]]; then
             ./gradlew -p .github/release-automation run \
               --args="control handoff-manual ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
             phase=HANDED_OFF
@@ -428,7 +472,7 @@ jobs:
           if [[ "$phase" == HANDED_OFF ]]; then
             ./gradlew -p .github/release-automation run \
               --args="control manual-complete ${{ matrix.candidate.tag }} ${{ matrix.candidate.commitSha }}"
-          elif [[ "$phase" != MANUAL_COMPLETE && "$phase" != PUBLISHED ]]; then
+          elif [[ "$phase" != MANUAL_COMPLETE && "$phase" != PUBLISHED && "$phase" != NO_WORKFLOW ]]; then
             echo "Temporal release is not durably handed off." >&2
             exit 1
           fi

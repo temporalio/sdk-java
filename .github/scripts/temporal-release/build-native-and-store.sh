@@ -87,7 +87,10 @@ trap restore_hook EXIT
 case "$RELEASE_PLATFORM" in
   linux-amd64-musl)
     image_id_file=$(mktemp)
-    docker build --iidfile "$image_id_file" ./docker/native-image-musl 1>&2
+    docker_context=./docker/native-image-musl
+    [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
+      docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-musl-java17"
+    docker build --iidfile "$image_id_file" "$docker_context" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
       ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild -PnativeBuildMusl \
@@ -95,7 +98,10 @@ case "$RELEASE_PLATFORM" in
     ;;
   linux-amd64 | linux-arm64)
     image_id_file=$(mktemp)
-    docker build --iidfile "$image_id_file" ./docker/native-image 1>&2
+    docker_context=./docker/native-image
+    [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
+      docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-java17"
+    docker build --iidfile "$image_id_file" "$docker_context" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
       ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild \

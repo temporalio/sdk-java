@@ -24,9 +24,11 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   private long blockedAtMillis;
   private String mavenCentralUrl;
   private String sonatypeRepositoryId;
+  private String portalDeploymentId;
   private String githubDraftUrl;
   private String githubReleaseUrl;
   private int mavenSubmissionGeneration;
+  private ControlEvidence mavenRetryAuthorization;
   private int stageAttempt;
   private long stageStartedAtMillis;
   private long nextRetryAtMillis;
@@ -67,6 +69,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
           MavenReceipt receipt = activities.reconcileMaven(publicationInput());
           mavenCentralUrl = receipt.mavenCentralUrl;
           sonatypeRepositoryId = receipt.sonatypeRepositoryId;
+          portalDeploymentId = receipt.portalDeploymentId;
         });
     runStage(
         "GITHUB_DRAFT", () -> githubDraftUrl = activities.reconcileGithubDraft(publicationInput()));
@@ -143,7 +146,8 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       lastError = null;
       blockedAtMillis = 0;
     } else if ("retry-maven-submission".equals(evidence.action)) {
-      mavenSubmissionGeneration++;
+      mavenSubmissionGeneration = evidence.mavenSubmissionGeneration;
+      mavenRetryAuthorization = evidence;
       phase = pausedFrom;
       pausedFrom = null;
       lastError = null;
@@ -188,9 +192,14 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
         && !("BLOCKED".equals(phase)
             && "MAVEN".equals(pausedFrom)
             && lastError != null
-            && lastError.contains("MavenSubmissionAmbiguous"))) {
+            && (lastError.contains("MavenSubmissionAmbiguous")
+                || lastError.contains("MavenDeploymentFailed")))) {
       throw new IllegalStateException(
           "A Maven retry can only resolve an ambiguous pre-repository submission.");
+    }
+    if ("retry-maven-submission".equals(evidence.action)
+        && evidence.mavenSubmissionGeneration != mavenSubmissionGeneration + 1) {
+      throw new IllegalStateException("Maven retry authorization is not the next generation.");
     }
     if ("manual-complete".equals(evidence.action) && !"HANDED_OFF".equals(phase)) {
       throw new IllegalStateException("Only a handed-off release can record manual completion.");
@@ -211,9 +220,11 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
         blockedAtMillis,
         mavenCentralUrl,
         sonatypeRepositoryId,
+        portalDeploymentId,
         githubDraftUrl,
         githubReleaseUrl,
         mavenSubmissionGeneration,
+        mavenRetryAuthorization,
         stageAttempt,
         stageStartedAtMillis,
         nextRetryAtMillis);
@@ -356,6 +367,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
         new PublicationInput(
             identity, approval, Workflow.getInfo().getWorkflowId(), Workflow.getInfo().getRunId());
     input.mavenSubmissionGeneration = mavenSubmissionGeneration;
+    input.mavenRetryAuthorization = mavenRetryAuthorization;
     return input;
   }
 

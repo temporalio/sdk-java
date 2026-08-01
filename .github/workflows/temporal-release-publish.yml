@@ -44,7 +44,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Query approved Temporal releases
         id: discover
@@ -64,6 +64,7 @@ jobs:
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
+      queue: max
     environment: release-publication
     permissions:
       contents: write
@@ -90,7 +91,7 @@ jobs:
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: ${{ matrix.javaVersion }}
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Obtain publication artifact-store credentials
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
@@ -107,6 +108,8 @@ jobs:
           EXPECTED_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
           EXPECTED_COMMIT_SHA: ${{ matrix.commitSha }}
           EXPECTED_MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
+          EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ matrix.mavenRetryAuthorizationSha256 }}
+          EXPECTED_MAVEN_SUBMISSION_GENERATION: ${{ matrix.mavenSubmissionGeneration }}
           EXPECTED_NOTES_SHA256: ${{ matrix.notesSha256 }}
           EXPECTED_RELEASE_DIGEST: ${{ matrix.releaseDigest }}
           EXPECTED_REPOSITORY: temporalio/sdk-java

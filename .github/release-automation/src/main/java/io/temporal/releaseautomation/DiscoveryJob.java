@@ -20,11 +20,16 @@ final class DiscoveryJob {
   String approvalIssueBodySha256;
   String automationCommit;
   String phase;
+  String javaVersion;
+  long nextRetryAtMillis;
+  int mavenSubmissionGeneration;
+  String mavenRetryAuthorizationSha256;
 
   DiscoveryJob(String role, String taskQueue) {
     this.role = role;
     this.taskQueue = taskQueue;
     this.runner = "ubuntu-latest";
     this.distribution = "temurin";
+    this.javaVersion = "17";
   }
 }

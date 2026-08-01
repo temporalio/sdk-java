@@ -29,8 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: release-control
     outputs:
-      count: ${{ steps.discover.outputs.count }}
-      matrix: ${{ steps.discover.outputs.matrix }}
+      request_count: ${{ steps.split.outputs.request_count }}
+      request_matrix: ${{ steps.split.outputs.request_matrix }}
+      recovery_count: ${{ steps.split.outputs.recovery_count }}
+      recovery_matrix: ${{ steps.split.outputs.recovery_matrix }}
     steps:
       - name: Validate trusted automation pin
         run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
@@ -42,24 +44,40 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Discover every unrequested exact release
         id: discover
         run: ./gradlew -p .github/release-automation run --args="discover approvals"
+      - name: Split new requests from closed-issue recovery
+        id: split
+        env:
+          DISCOVERY_MATRIX: ${{ steps.discover.outputs.matrix }}
+        run: |
+          request=$(jq -c '{include:[.include[] | select(.role == "approval")]}' \
+            <<<"$DISCOVERY_MATRIX")
+          recovery=$(jq -c '{include:[.include[] | select(.role == "approval-recovery")]}' \
+            <<<"$DISCOVERY_MATRIX")
+          {
+            echo "request_count=$(jq '.include | length' <<<"$request")"
+            echo "request_matrix=$request"
+            echo "recovery_count=$(jq '.include | length' <<<"$recovery")"
+            echo "recovery_matrix=$recovery"
+          } >>"$GITHUB_OUTPUT"
 
   request:
     name: Request approval for ${{ matrix.tag }}
     needs: discover_requests
-    if: needs.discover_requests.outputs.count != '0'
+    if: needs.discover_requests.outputs.request_count != '0'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.discover_requests.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.discover_requests.outputs.request_matrix) }}
     runs-on: ubuntu-latest
     environment: release-control
     concurrency:
       group: approval-request-${{ matrix.workflowId }}
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -71,7 +89,7 @@ jobs:
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Create immutable approval issue
         id: issue
@@ -139,6 +157,65 @@ jobs:
             echo "The locked issue does not expire and requires no text input."
           } >>"$GITHUB_STEP_SUMMARY"
 
+  recover_closed_issue:
+    name: Recover approval for ${{ matrix.tag }}
+    needs: discover_requests
+    if: needs.discover_requests.outputs.recovery_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover_requests.outputs.recovery_matrix) }}
+    runs-on: ubuntu-latest
+    environment: release-control
+    concurrency:
+      group: approval-request-${{ matrix.workflowId }}
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ matrix.automationCommit }}
+      - name: Verify frozen Worker checkout
+        env:
+          FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+        run: '[[ "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Inspect the exact bound issue
+        id: issue
+        env:
+          EXPECTED_BODY_SHA256: ${{ matrix.approvalIssueBodySha256 }}
+          EXPECTED_NODE_ID: ${{ matrix.approvalIssueNodeId }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ matrix.approvalIssueNumber }}
+        run: |
+          issue=$(gh api "repos/temporalio/sdk-java/issues/$ISSUE_NUMBER")
+          [[ $(jq -r .state <<<"$issue") == closed ]] || exit 0
+          body=$(jq -r .body <<<"$issue")
+          body_sha256=$(printf '%s' "$body" | sha256sum | awk '{print $1}')
+          jq -e --arg node "$EXPECTED_NODE_ID" \
+            '.node_id == $node and .locked == true and
+             (.closed_by.login | test("^[A-Za-z0-9-]{1,39}$"))' <<<"$issue" >/dev/null
+          [[ "$body_sha256" == "$EXPECTED_BODY_SHA256" ]]
+          {
+            echo "closed=true"
+            echo "actor=$(jq -er .closed_by.login <<<"$issue")"
+            echo "body_sha256=$body_sha256"
+          } >>"$GITHUB_OUTPUT"
+      - name: Recover the approval Update from the durable closed issue
+        if: steps.issue.outputs.closed == 'true'
+        env:
+          APPROVAL_ISSUE_BODY_SHA256: ${{ steps.issue.outputs.body_sha256 }}
+          APPROVAL_ISSUE_NODE_ID: ${{ matrix.approvalIssueNodeId }}
+          APPROVAL_ISSUE_NUMBER: ${{ matrix.approvalIssueNumber }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_EVENT_NAME: schedule
+          GITHUB_TRIGGERING_ACTOR: ${{ steps.issue.outputs.actor }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
+        run: ./gradlew -p .github/release-automation run --args="approve"
+
   approve:
     if: >-
       github.event_name == 'issues' && github.ref == 'refs/heads/main' &&
@@ -150,10 +227,14 @@ jobs:
         with:
           path: bootstrap
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify bootstrap checkout
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git -C bootstrap rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
-          java-version: "23"
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Resolve the release bound to this issue
         id: target
