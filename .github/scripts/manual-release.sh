@@ -7,6 +7,11 @@ set -euo pipefail
 fail() { echo "manual-release: $*" >&2; exit 1; }
 conflict() { echo "manual-release: immutable conflict: $*" >&2; exit 42; }
 
+run_source_gradle() {
+  env -u GH_TOKEN -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+    -u AWS_REGION -u AWS_DEFAULT_REGION GRADLE_USER_HOME="$gradle_home" ./gradlew "$@"
+}
+
 for name in GH_TOKEN MANUAL_RELEASE_ACTION RELEASE_COMMIT RELEASE_TAG; do
   [[ -n ${!name:-} ]] || fail "$name is required."
 done
@@ -22,22 +27,26 @@ notes="releases/$RELEASE_TAG"
 notes_sha256=$(sha256sum "$notes" | awk '{print $1}')
 [[ -z ${EXPECTED_NOTES_SHA256:-} || $notes_sha256 == "$EXPECTED_NOTES_SHA256" ]] ||
   conflict "the release-note checksum differs."
-if [[ -z ${MANUAL_OWNERSHIP_ISSUE:-} ]]; then
-  ownership_title="[sdk-java manual release ownership] $RELEASE_TAG"
-  ownership_issues=$(gh api --paginate --slurp \
-    'repos/temporalio/sdk-java/issues?state=open&per_page=100') ||
-    fail "Unable to inspect independent ownership."
-  ownership_matches=$(jq -c --arg title "$ownership_title" \
-    '[.[][] | select((has("pull_request") | not) and .title == $title)]' \
-    <<<"$ownership_issues")
-  [[ $(jq 'length' <<<"$ownership_matches") -le 1 ]] ||
-    conflict "multiple independent ownership records exist."
-  if [[ $(jq 'length' <<<"$ownership_matches") -eq 1 ]]; then
-    ownership_body=$(jq -r '.[0].body' <<<"$ownership_matches")
-    [[ $ownership_body == *"- Full SHA: \`$RELEASE_COMMIT\`"* ]] ||
-      conflict "independent ownership records another SHA."
-    MANUAL_OWNERSHIP_ISSUE=$(jq -er '.[0].number' <<<"$ownership_matches")
-  fi
+if [[ $MANUAL_RELEASE_ACTION == resume ]]; then
+  for name in MANUAL_CONTROLLER_SHA MANUAL_ISSUE_CREATOR MANUAL_OWNER_ACTOR \
+    MANUAL_OWNER_RUN_ID MANUAL_OWNERSHIP_ISSUE; do
+    [[ -n ${!name:-} ]] || fail "$name is required for fallback publication."
+  done
+  ownership_issue=$(gh api "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE") ||
+    fail "Unable to inspect the exact independent ownership issue."
+  ownership_body=$(jq -r .body <<<"$ownership_issue")
+  expected_ownership_body=$(printf '%s\n' \
+    '## Independent manual release ownership' '' \
+    "- Tag: \`$RELEASE_TAG\`" "- Full SHA: \`$RELEASE_COMMIT\`" \
+    "- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`" \
+    "- Actor: \`$MANUAL_OWNER_ACTOR\`" "- Actions run: \`$MANUAL_OWNER_RUN_ID\`" '' \
+    'Temporal automation must not mutate this tag while this locked issue remains open.')
+  [[ $ownership_body == "$expected_ownership_body" ]] ||
+    conflict "the independent ownership body is not the fixed exact receipt."
+  jq -e --arg creator "$MANUAL_ISSUE_CREATOR" \
+    '.state == "open" and .locked == true and .user.login == $creator and
+     (has("pull_request") | not)' <<<"$ownership_issue" >/dev/null ||
+    conflict "the independent ownership issue is not the trusted locked record."
 fi
 
 work=$(mktemp -d)
@@ -45,39 +54,6 @@ trap 'rm -rf "$work"' EXIT
 central_base=https://repo1.maven.org/maven2
 staging_base=https://ossrh-staging-api.central.sonatype.com
 manual_description="sdk-java-manual:$RELEASE_TAG:$RELEASE_COMMIT"
-
-record_ownership_receipt() {
-  [[ -n ${MANUAL_OWNERSHIP_ISSUE:-} ]] || return
-  local repository_id=$1 deployment_id=${2:-} issue body
-  issue=$(gh api "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE") ||
-    fail "Unable to read independent ownership receipt."
-  body=$(jq -r .body <<<"$issue" | sed \
-    -e '/^- Sonatype repository: `/d' -e '/^- Portal deployment: `/d')
-  body+=$'\n'"- Sonatype repository: \`$repository_id\`"
-  [[ -z $deployment_id ]] || body+=$'\n'"- Portal deployment: \`$deployment_id\`"
-  gh api --method PATCH "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE" \
-    --raw-field body="$body" >/dev/null || fail "Unable to persist independent Maven receipt."
-}
-
-record_ownership_asset_manifest() {
-  [[ -n ${MANUAL_OWNERSHIP_ISSUE:-} ]] ||
-    fail "Independent ownership must exist before freezing artifacts."
-  local manifest_sha256=$1 issue body persisted
-  issue=$(gh api "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE") ||
-    fail "Unable to read independent ownership before freezing artifacts."
-  body=$(jq -r .body <<<"$issue")
-  persisted=$(sed -n -E 's/^- Asset manifest SHA-256: `([0-9a-f]{64})`$/\1/p' \
-    <<<"$body" | tail -1)
-  if [[ -n $persisted ]]; then
-    [[ $persisted == "$manifest_sha256" ]] ||
-      conflict "the independently frozen artifact manifest differs."
-    return
-  fi
-  body+=$'\n'"- Asset manifest SHA-256: \`$manifest_sha256\`"
-  gh api --method PATCH "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE" \
-    --raw-field body="$body" >/dev/null ||
-    fail "Unable to freeze the independent artifact manifest."
-}
 
 mapfile -t projects < <(sed -n -E "s/^include ['\"]([^'\"]+)['\"]$/\1/p" settings.gradle | sort)
 current=(temporal-aws-lambda temporal-bom temporal-envconfig temporal-kotlin temporal-opentelemetry
@@ -150,27 +126,75 @@ sonatype_state() {
     --header 'Accept: application/json' \
     "$staging_base/service/local/staging/profile_repositories" \
     >"$work/profile-repositories.json" || fail "Sonatype is temporarily unavailable."
-  persisted_repository_id=""
-  if [[ -n ${MANUAL_OWNERSHIP_ISSUE:-} ]]; then
-    ownership_body=$(gh api "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE" \
-      --jq .body) || fail "Unable to read the independent ownership receipt."
-    persisted_repository_id=$(sed -n -E 's/^- Sonatype repository: `([^`]+)`$/\1/p' \
-      <<<"$ownership_body" | tail -1)
-  fi
-  mapfile -t matches < <(jq -r --arg description "$manual_description" \
-    '(.data // .profileRepositories // [])[] | select(.description == $description) |
-     .repositoryId // .id' "$work/profile-repositories.json")
-  [[ ${#matches[@]} -le 1 ]] || conflict "multiple fallback repositories match this release."
-  [[ ${#matches[@]} -eq 0 ]] || exact_repository_id=${matches[0]}
-  if [[ -n $persisted_repository_id ]]; then
-    [[ -z $exact_repository_id || $exact_repository_id == "$persisted_repository_id" ]] ||
-      conflict "the fallback repository description and durable receipt disagree."
-    exact_repository_id=$persisted_repository_id
-  fi
+  jq -e '((.data // .profileRepositories) | type == "array") and
+    ((.data // .profileRepositories) | all(
+      ((.repositoryId // .id) | type == "string" and length > 0) and
+      (.description | type == "string")))' "$work/profile-repositories.json" >/dev/null ||
+    fail "Sonatype returned an invalid profile-repository schema."
   portal_token=$(printf '%s:%s' "$RH_USER" "$RH_PASSWORD" | base64 | tr -d '\n')
   curl --silent --show-error --fail --header "Authorization: Bearer $portal_token" \
     "$staging_base/manual/search/repositories?ip=any&profile_id=io.temporal" \
     >"$work/manual-repositories.json" || fail "Portal compatibility state is unavailable."
+  jq -e '(.repositories | type == "array") and
+    (.repositories | all(.key | type == "string" and length > 0))' \
+    "$work/manual-repositories.json" >/dev/null ||
+    fail "Portal returned an invalid repository schema."
+  {
+    jq -r '(.data // .profileRepositories)[] | .repositoryId // .id' \
+      "$work/profile-repositories.json"
+    jq -r '.repositories[].key' "$work/manual-repositories.json"
+  } | sort -u >"$work/sonatype-repository-ids.txt"
+  : >"$work/exact-repository-ids.txt"
+  unknown_automated_repository=false
+  while IFS= read -r candidate_repository; do
+    [[ -n $candidate_repository ]] || continue
+    description=$(jq -r --arg id "$candidate_repository" \
+      '[(.data // .profileRepositories)[] |
+        select((.repositoryId // .id) == $id) | .description] | first // ""' \
+      "$work/profile-repositories.json")
+    candidate_pom="$work/repository-$candidate_repository.pom"
+    candidate_status=$(curl --silent --show-error --location --output "$candidate_pom" \
+      --write-out '%{http_code}' --user "$RH_USER:$RH_PASSWORD" \
+      "$staging_base/service/local/repositories/$candidate_repository/content/io/temporal/temporal-sdk/$version/temporal-sdk-$version.pom") ||
+      fail "Unable to inspect Sonatype repository $candidate_repository."
+    case "$candidate_status" in
+      200)
+        candidate_identity=$(python3 - "$candidate_pom" <<'PY'
+import sys, xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+ns = root.tag.partition("}")[0] + "}" if root.tag.startswith("{") else ""
+print("\t".join((root.findtext(f"{ns}groupId", "").strip(),
+                 root.findtext(f"{ns}artifactId", "").strip(),
+                 root.findtext(f"{ns}version", "").strip(),
+                 root.findtext(f"{ns}scm/{ns}tag", "").strip().lower())))
+PY
+)
+        IFS=$'\t' read -r candidate_group candidate_artifact candidate_version \
+          candidate_commit <<<"$candidate_identity"
+        if [[ $candidate_group == io.temporal && $candidate_artifact == temporal-sdk &&
+          $candidate_version == "$version" ]]; then
+          [[ $candidate_commit == "$RELEASE_COMMIT" ]] ||
+            conflict "an active Sonatype repository contains this version for another SHA."
+          printf '%s\n' "$candidate_repository" >>"$work/exact-repository-ids.txt"
+        fi
+        ;;
+      404)
+        if [[ $description == "$manual_description" ]]; then
+          printf '%s\n' "$candidate_repository" >>"$work/exact-repository-ids.txt"
+        elif [[ $description == sdk-java:* ]]; then
+          unknown_automated_repository=true
+        fi
+        ;;
+      *) fail "Sonatype returned HTTP $candidate_status for repository inspection." ;;
+    esac
+  done <"$work/sonatype-repository-ids.txt"
+  mapfile -t matches < <(sort -u "$work/exact-repository-ids.txt")
+  [[ ${#matches[@]} -le 1 ]] ||
+    conflict "multiple Sonatype repositories contain the exact release coordinates."
+  [[ ${#matches[@]} -eq 0 ]] || exact_repository_id=${matches[0]}
+  if [[ -z $exact_repository_id && $unknown_automated_repository == true && $missing -gt 0 ]]; then
+    fail "An automated sdk-java repository is still active but not yet identifiable; fallback submission is blocked."
+  fi
   if [[ -n $exact_repository_id ]]; then
     exact_repository_state=$(jq -r --arg id "$exact_repository_id" \
       '[.repositories[] | select(.key == $id) | .state] | first // "open"' \
@@ -178,8 +202,6 @@ sonatype_state() {
     portal_deployment_id=$(jq -r --arg id "$exact_repository_id" \
       '[.repositories[] | select(.key == $id) | .portal_deployment_id] | first // ""' \
       "$work/manual-repositories.json")
-    [[ $MANUAL_RELEASE_ACTION != resume || -z $portal_deployment_id ]] ||
-      record_ownership_receipt "$exact_repository_id" "$portal_deployment_id"
   fi
 }
 
@@ -236,26 +258,42 @@ for name in JAR_SIGNING_KEY JAR_SIGNING_KEY_ID JAR_SIGNING_KEY_PASSWORD RH_USER 
   [[ -n ${!name:-} ]] || fail "$name is required for fallback publication."
 done
 
+[[ -n ${MANUAL_ASSET_DIR:-} && -d $MANUAL_ASSET_DIR ]] ||
+  fail "The independent seven-asset directory is missing."
+mapfile -t expected_assets < <(find "$MANUAL_ASSET_DIR" -mindepth 1 -maxdepth 1 -type f \
+  -exec basename {} \; | sort)
+[[ ${#expected_assets[@]} -eq 7 && "${expected_assets[*]}" == *"SHA256SUMS"* ]] ||
+  conflict "the fallback did not produce the fixed seven-asset set."
+asset_manifest="$work/manual-assets.tsv"
+: >"$asset_manifest"
+for asset in "${expected_assets[@]}"; do
+  printf '%s\t%s\t%s\n' "$(sha256sum "$MANUAL_ASSET_DIR/$asset" | awk '{print $1}')" \
+    "$(wc -c <"$MANUAL_ASSET_DIR/$asset" | tr -d ' ')" "$asset" >>"$asset_manifest"
+done
+asset_manifest_sha256=$(sha256sum "$asset_manifest" | awk '{print $1}')
+if [[ -n $release ]]; then
+  while IFS=$'\t' read -r remote_name remote_state remote_size; do
+    printf '%s\n' "${expected_assets[@]}" | grep -Fxq "$remote_name" ||
+      conflict "the existing release contains unexpected asset $remote_name."
+    if [[ $draft == true && $remote_state == starter && $remote_size == 0 ]]; then
+      continue
+    fi
+    gh release download "$RELEASE_TAG" --repo temporalio/sdk-java --pattern "$remote_name" \
+      --dir "$work" --clobber >/dev/null ||
+      fail "Unable to inspect existing fallback asset $remote_name."
+    cmp -s "$work/$remote_name" "$MANUAL_ASSET_DIR/$remote_name" ||
+      conflict "the existing release asset $remote_name differs from the frozen set."
+  done < <(jq -r '.assets[] | [.name,.state,.size] | @tsv' <<<"$release")
+  if [[ $draft == false && $(jq '.assets | length' <<<"$release") -ne 7 ]]; then
+    conflict "the public fallback release is incomplete."
+  fi
+fi
+
 if (( missing > 0 )); then
-  if [[ -n $portal_deployment_id ]]; then
-    deployment_state=$(curl --silent --show-error --fail --request POST \
-      --header "Authorization: Bearer $portal_token" \
-      "https://central.sonatype.com/api/v1/publisher/status?id=$portal_deployment_id" |
-      jq -er .deploymentState)
-    case "$deployment_state" in
-      VALIDATED)
-        curl --silent --show-error --fail --request POST \
-          --header "Authorization: Bearer $portal_token" \
-          "https://central.sonatype.com/api/v1/publisher/deployment/$portal_deployment_id" \
-          >/dev/null
-        ;;
-      PENDING | VALIDATING | PUBLISHING | PUBLISHED) ;;
-      FAILED) conflict "the exact fallback Portal deployment failed validation." ;;
-      *) conflict "Portal returned unsupported state $deployment_state." ;;
-    esac
-  elif [[ -n $exact_repository_id ]]; then
-    fail "The exact fallback staging repository exists without a Portal deployment. Inspect it manually; this fallback will not resubmit or guess that it is complete."
-  else
+  if [[ -z $portal_deployment_id && -n $exact_repository_id ]]; then
+    [[ $exact_repository_state == closed || $exact_repository_state == released ]] ||
+      fail "The exact fallback repository is still open; reconcile its frozen payload before continuing."
+  elif [[ -z $portal_deployment_id ]]; then
     build_backup="$work/build.gradle"
     publishing_backup="$work/publishing.gradle"
     cp build.gradle "$build_backup"
@@ -306,23 +344,110 @@ PY
       printf 'ossrhUsername = %s\n' "$RH_USER"
       printf 'ossrhPassword = %s\n' "$RH_PASSWORD"
     } >"$gradle_home/gradle.properties"
-    publish_log="$work/manual-publish.log"
-    set +e
-    GRADLE_USER_HOME=$gradle_home ./gradlew --no-daemon \
-      "-PreleaseVersion=$version" "-PreleaseCommit=$RELEASE_COMMIT" publishToSonatype \
-      closeAndReleaseSonatypeStagingRepository 2>&1 | tee "$publish_log" >&2
-    publish_status=${PIPESTATUS[0]}
-    set -e
+    generated_payload_root="$work/manual-generated-maven-local"
+    payload_root="$work/manual-maven-payload"
+    mkdir -p "$generated_payload_root" "$payload_root/io/temporal"
+    run_source_gradle --no-daemon "-Dmaven.repo.local=$generated_payload_root" \
+      "-PreleaseVersion=$version" "-PreleaseCommit=$RELEASE_COMMIT" publishToMavenLocal >&2
+    for artifact in "${maven_artifacts[@]}"; do
+      generated_artifact="$generated_payload_root/io/temporal/$artifact/$version"
+      [[ -d $generated_artifact ]] ||
+        conflict "Gradle did not generate fallback payload for $artifact."
+      mkdir -p "$payload_root/io/temporal/$artifact"
+      cp -R "$generated_artifact" "$payload_root/io/temporal/$artifact/$version"
+    done
+    printf '%s\n' "${maven_artifacts[@]}" >"$work/approved-manual-artifacts.txt"
+    python3 - "$payload_root" "$work/approved-manual-artifacts.txt" "$version" \
+      "$RELEASE_COMMIT" <<'PY'
+import pathlib, re, sys, xml.etree.ElementTree as ET
+root = pathlib.Path(sys.argv[1])
+approved = set(pathlib.Path(sys.argv[2]).read_text().splitlines())
+version, commit = sys.argv[3:]
+seen = set()
+for path in root.rglob("*"):
+    if not path.is_file():
+        continue
+    relative = path.relative_to(root).parts
+    if len(relative) != 5 or relative[:2] != ("io", "temporal"):
+        raise SystemExit("manual Maven payload escaped fixed coordinates")
+    artifact, found_version, filename = relative[2:]
+    if artifact not in approved or found_version != version:
+        raise SystemExit("manual Maven payload contains an unapproved coordinate")
+    escaped = re.escape(f"{artifact}-{version}")
+    if not re.fullmatch(escaped + r"(?:-(?:sources|javadoc))?\.(?:jar|pom|module)(?:\.asc)?", filename):
+        raise SystemExit("manual Maven payload contains an unapproved filename")
+    seen.add(artifact)
+if seen != approved:
+    raise SystemExit("manual Maven payload does not contain the fixed module set")
+for artifact in approved:
+    directory = root / "io" / "temporal" / artifact / version
+    pom = directory / f"{artifact}-{version}.pom"
+    signature = directory / f"{artifact}-{version}.pom.asc"
+    if not pom.is_file() or not signature.is_file():
+        raise SystemExit(f"manual Maven payload lacks signed POM for {artifact}")
+    document = ET.parse(pom).getroot()
+    ns = document.tag.partition("}")[0] + "}" if document.tag.startswith("{") else ""
+    values = (document.findtext(f"{ns}groupId", "").strip(),
+              document.findtext(f"{ns}artifactId", "").strip(),
+              document.findtext(f"{ns}version", "").strip(),
+              document.findtext(f"{ns}scm/{ns}tag", "").strip().lower())
+    if values != ("io.temporal", artifact, version, commit):
+        raise SystemExit(f"manual generated POM identity differs for {artifact}")
+PY
+    publish_log="$work/manual-initialize.log"
+    run_source_gradle --no-daemon \
+      "-PreleaseVersion=$version" "-PreleaseCommit=$RELEASE_COMMIT" \
+      initializeSonatypeStagingRepository 2>&1 | tee "$publish_log" >&2
     created_repository=$(sed -n -E "s/.*Created staging repository '([^']+)'.*/\1/p" \
       "$publish_log" | tail -1)
     [[ -n $created_repository ]] ||
       fail "Unable to capture the independent Sonatype repository ID."
-    record_ownership_receipt "$created_repository"
-    [[ $publish_status -eq 0 ]] ||
-      fail "The independent Gradle publication failed after its repository was receipted."
+    while IFS= read -r -d '' payload; do
+      relative=${payload#"$payload_root/"}
+      curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
+        --upload-file "$payload" \
+        "$staging_base/service/local/staging/deployByRepositoryId/$created_repository/$relative" \
+        >/dev/null || fail "Unable to upload fixed fallback payload $relative."
+    done < <(find "$payload_root/io/temporal" -type f -print0 | sort -z)
+    close_body="$work/manual-close.json"
+    jq -n --arg id "$created_repository" --arg description "$manual_description" \
+      '{data:{stagedRepositoryIds:[$id],description:$description}}' >"$close_body"
+    close_status=$(curl --silent --show-error --output "$work/manual-close-response" \
+      --write-out '%{http_code}' --request POST --user "$RH_USER:$RH_PASSWORD" \
+      --header 'Content-Type: application/json' --data-binary "@$close_body" \
+      "$staging_base/service/local/staging/bulk/close") ||
+      fail "Unable to close the exact fallback repository."
+    case "$close_status" in 200 | 201 | 202 | 204) ;; *)
+      fail "Sonatype returned HTTP $close_status while closing the fallback repository." ;;
+    esac
+    exact_repository_id=$created_repository
     restore_source
     trap 'rm -rf "$work"' EXIT
   fi
+  if [[ -z $portal_deployment_id ]]; then
+    for _ in {1..90}; do
+      sonatype_state
+      [[ -n $portal_deployment_id ]] && break
+      sleep 20
+    done
+    [[ -n $portal_deployment_id ]] ||
+      fail "The exact fallback repository has no Portal deployment yet; resume without resubmitting."
+  fi
+  deployment_state=$(curl --silent --show-error --fail --request POST \
+    --header "Authorization: Bearer $portal_token" \
+    "https://central.sonatype.com/api/v1/publisher/status?id=$portal_deployment_id" |
+    jq -er .deploymentState)
+  case "$deployment_state" in
+    VALIDATED)
+      curl --silent --show-error --fail --request POST \
+        --header "Authorization: Bearer $portal_token" \
+        "https://central.sonatype.com/api/v1/publisher/deployment/$portal_deployment_id" \
+        >/dev/null
+      ;;
+    PENDING | VALIDATING | PUBLISHING | PUBLISHED) ;;
+    FAILED) conflict "the exact fallback Portal deployment failed validation." ;;
+    *) conflict "Portal returned unsupported state $deployment_state." ;;
+  esac
   for _ in {1..90}; do
     central_state
     (( missing == 0 )) && break
@@ -330,21 +455,6 @@ PY
   done
   (( missing == 0 )) || fail "Maven Central is not fully visible; resume later without resubmitting."
 fi
-
-[[ -n ${MANUAL_ASSET_DIR:-} && -d $MANUAL_ASSET_DIR ]] ||
-  fail "The independent seven-asset directory is missing."
-mapfile -t expected_assets < <(find "$MANUAL_ASSET_DIR" -mindepth 1 -maxdepth 1 -type f \
-  -exec basename {} \; | sort)
-[[ ${#expected_assets[@]} -eq 7 && "${expected_assets[*]}" == *"SHA256SUMS"* ]] ||
-  conflict "the fallback did not produce the fixed seven-asset set."
-asset_manifest="$work/manual-assets.tsv"
-: >"$asset_manifest"
-for asset in "${expected_assets[@]}"; do
-  printf '%s\t%s\t%s\n' "$(sha256sum "$MANUAL_ASSET_DIR/$asset" | awk '{print $1}')" \
-    "$(wc -c <"$MANUAL_ASSET_DIR/$asset" | tr -d ' ')" "$asset" >>"$asset_manifest"
-done
-asset_manifest_sha256=$(sha256sum "$asset_manifest" | awk '{print $1}')
-record_ownership_asset_manifest "$asset_manifest_sha256"
 
 verify_remote_assets() {
   local download="$work/existing-assets"
@@ -388,20 +498,19 @@ if [[ $release_is_draft == false ]]; then
   verify_remote_assets
   exit 0
 fi
-if [[ ${#remote_assets[@]} -ne 0 && ${#remote_assets[@]} -ne 7 ]]; then
-  while IFS= read -r id; do
+while IFS=$'\t' read -r id state size; do
+  if [[ $state == starter && $size == 0 ]]; then
     gh api --method DELETE "repos/temporalio/sdk-java/releases/assets/$id" >/dev/null
-  done < <(jq -r '.assets[].id' <<<"$release")
-  remote_assets=()
-fi
-if [[ ${#remote_assets[@]} -eq 0 ]]; then
-  for asset in "${expected_assets[@]}"; do
+  fi
+done < <(jq -r '.assets[] | [.id,.state,.size] | @tsv' <<<"$release")
+github_state
+mapfile -t remote_assets < <(jq -r '.assets[].name' <<<"$release" | sort)
+for asset in "${expected_assets[@]}"; do
+  if ! printf '%s\n' "${remote_assets[@]}" | grep -Fxq "$asset"; then
     gh release upload "$RELEASE_TAG" "$MANUAL_ASSET_DIR/$asset" \
       --repo temporalio/sdk-java >/dev/null
-  done
-else
-  verify_remote_assets
-fi
+  fi
+done
 github_state
 [[ $(jq '.assets | length' <<<"$release") == 7 ]] ||
   fail "The exact seven assets are not visible yet."

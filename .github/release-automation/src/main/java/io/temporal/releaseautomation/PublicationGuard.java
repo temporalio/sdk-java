@@ -67,7 +67,7 @@ final class PublicationGuard {
         required(env, "TRUSTED_WORKER_COMMIT"));
     requireEqual(
         "publication Task Queue",
-        QueueNames.publication(input.release),
+        QueueNames.publication(input.release, input.mavenSubmissionGeneration),
         activity.getActivityTaskQueue());
     requireEqual(
         "Maven submission generation",

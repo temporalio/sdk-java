@@ -16,8 +16,9 @@ public class ReleaseIdentityTest {
     ReleaseIdentity release = ReleaseFixtures.release();
     assertEquals(64, release.digest().length());
     assertEquals(
-        "sdk-java-release-" + release.digest().substring(0, 32) + "-publication",
+        "sdk-java-release-" + release.digest().substring(0, 32) + "-publication-g0",
         QueueNames.publication(release));
+    assertNotEquals(QueueNames.publication(release, 0), QueueNames.publication(release, 1));
     assertNotEquals(
         QueueNames.candidateWorkflow(release.candidate), QueueNames.releaseWorkflow(release));
     assertTrue(

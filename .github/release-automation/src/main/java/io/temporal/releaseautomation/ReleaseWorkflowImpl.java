@@ -46,37 +46,24 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       return awaitManualCompletion();
     }
 
-    PublicationActivities activities =
-        Workflow.newActivityStub(
-            PublicationActivities.class,
-            ActivityOptions.newBuilder()
-                .setTaskQueue(QueueNames.publication(identity))
-                .setStartToCloseTimeout(Duration.ofMinutes(90))
-                .setHeartbeatTimeout(Duration.ofMinutes(1))
-                .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
-                .setRetryOptions(
-                    RetryOptions.newBuilder()
-                        .setInitialInterval(Duration.ofMinutes(2))
-                        .setMaximumInterval(Duration.ofMinutes(15))
-                        .setMaximumAttempts(1)
-                        .setDoNotRetry("ReleaseIdentityConflict", "InvalidApproval")
-                        .build())
-                .build());
-    runStage("PREFLIGHT", () -> activities.preflight(publicationInput()));
+    runStage("PREFLIGHT", () -> publicationActivities().preflight(publicationInput()));
     runStage(
         "MAVEN",
         () -> {
-          MavenReceipt receipt = activities.reconcileMaven(publicationInput());
+          MavenReceipt receipt = publicationActivities().reconcileMaven(publicationInput());
           mavenCentralUrl = receipt.mavenCentralUrl;
           sonatypeRepositoryId = receipt.sonatypeRepositoryId;
           portalDeploymentId = receipt.portalDeploymentId;
         });
     runStage(
-        "GITHUB_DRAFT", () -> githubDraftUrl = activities.reconcileGithubDraft(publicationInput()));
+        "GITHUB_DRAFT",
+        () -> githubDraftUrl = publicationActivities().reconcileGithubDraft(publicationInput()));
     final ReleaseResult[] result = new ReleaseResult[1];
     runStage(
         "PUBLISH_GITHUB",
-        () -> result[0] = activities.publishGithubRelease(publicationInput(), mavenCentralUrl));
+        () ->
+            result[0] =
+                publicationActivities().publishGithubRelease(publicationInput(), mavenCentralUrl));
     if (handoffRequested) {
       enterHandedOff();
       return awaitManualCompletion();
@@ -369,6 +356,24 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     input.mavenSubmissionGeneration = mavenSubmissionGeneration;
     input.mavenRetryAuthorization = mavenRetryAuthorization;
     return input;
+  }
+
+  private PublicationActivities publicationActivities() {
+    return Workflow.newActivityStub(
+        PublicationActivities.class,
+        ActivityOptions.newBuilder()
+            .setTaskQueue(QueueNames.publication(identity, mavenSubmissionGeneration))
+            .setStartToCloseTimeout(Duration.ofMinutes(90))
+            .setHeartbeatTimeout(Duration.ofMinutes(1))
+            .setCancellationType(ActivityCancellationType.WAIT_CANCELLATION_COMPLETED)
+            .setRetryOptions(
+                RetryOptions.newBuilder()
+                    .setInitialInterval(Duration.ofMinutes(2))
+                    .setMaximumInterval(Duration.ofMinutes(15))
+                    .setMaximumAttempts(1)
+                    .setDoNotRetry("ReleaseIdentityConflict", "InvalidApproval")
+                    .build())
+            .build());
   }
 
   private ReleaseResult awaitManualCompletion() {

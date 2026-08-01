@@ -22,8 +22,7 @@ public class ReleaseWorkflowTest {
     try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.newInstance()) {
       Worker workflowWorker = environment.newWorker(QueueNames.releaseWorkflow(release));
       workflowWorker.registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
-      Worker publicationWorker = environment.newWorker(QueueNames.publication(release));
-      publicationWorker.registerActivitiesImplementations(
+      PublicationActivities activities =
           new PublicationActivities() {
             @Override
             public void preflight(PublicationInput input) {}
@@ -44,7 +43,9 @@ public class ReleaseWorkflowTest {
               return new ReleaseResult(
                   input.release.digest(), "https://github.example/release", mavenCentralUrl);
             }
-          });
+          };
+      Worker publicationWorker = environment.newWorker(QueueNames.publication(release));
+      publicationWorker.registerActivitiesImplementations(activities);
       environment.start();
 
       String workflowId = QueueNames.releaseWorkflowId(release);
@@ -183,8 +184,7 @@ public class ReleaseWorkflowTest {
     try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.newInstance()) {
       Worker workflowWorker = environment.newWorker(QueueNames.releaseWorkflow(release));
       workflowWorker.registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
-      Worker publicationWorker = environment.newWorker(QueueNames.publication(release));
-      publicationWorker.registerActivitiesImplementations(
+      PublicationActivities activities =
           new PublicationActivities() {
             @Override
             public void preflight(PublicationInput input) {}
@@ -211,7 +211,11 @@ public class ReleaseWorkflowTest {
               return new ReleaseResult(
                   input.release.digest(), "https://github.example/release", mavenCentralUrl);
             }
-          });
+          };
+      Worker publicationWorker = environment.newWorker(QueueNames.publication(release));
+      publicationWorker.registerActivitiesImplementations(activities);
+      Worker retryPublicationWorker = environment.newWorker(QueueNames.publication(release, 1));
+      retryPublicationWorker.registerActivitiesImplementations(activities);
       environment.start();
       StartedRelease started = startRelease(environment, release);
       requestAndApprove(started, release);

@@ -170,4 +170,4 @@ jobs:
           path: |
             temporal-test-server/build/native/nativeCompile/temporal-test-server*
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90

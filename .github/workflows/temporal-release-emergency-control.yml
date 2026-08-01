@@ -74,8 +74,9 @@ jobs:
                .candidate.tag == $tag and .candidate.commitSha == $commit and
                (.candidate.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' \
               "$RUNNER_TEMP/frozen-request.json" >/dev/null
-            automation_commit=$(jq -er .candidate.trustedAutomationCommit \
-              "$RUNNER_TEMP/frozen-request.json")
+            [[ $(jq -er .candidate.trustedAutomationCommit \
+              "$RUNNER_TEMP/frozen-request.json") == "$RELEASE_AUTOMATION_REF" ]]
+            automation_commit=$RELEASE_AUTOMATION_REF
           elif aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
             --key "$candidate_key" >/dev/null 2>&1; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$candidate_key" \
@@ -85,8 +86,9 @@ jobs:
                .commitSha == $commit and
                (.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' \
               "$RUNNER_TEMP/frozen-candidate.json" >/dev/null
-            automation_commit=$(jq -er .trustedAutomationCommit \
-              "$RUNNER_TEMP/frozen-candidate.json")
+            [[ $(jq -er .trustedAutomationCommit \
+              "$RUNNER_TEMP/frozen-candidate.json") == "$RELEASE_AUTOMATION_REF" ]]
+            automation_commit=$RELEASE_AUTOMATION_REF
           fi
           echo "automation_commit=$automation_commit" >>"$GITHUB_OUTPUT"
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -101,6 +103,7 @@ jobs:
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ inputs.commit_sha }}
           submodules: recursive
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -162,6 +165,12 @@ jobs:
               [[ "$state" == BLOCKED || "$state" == AWAITING_INSPECTION ||
                 "$state" == INSPECTED ]] || {
                 echo "Artifact replacement is unavailable from state $state." >&2
+                exit 1
+              }
+              jq -e '(.inspection.mavenPresent // 0) == 0 and
+                ((.inspection.mavenGenerations // []) | length) == 0 and
+                ((.inspection.portalDeploymentId // "") == "")' "$request" >/dev/null || {
+                echo "Artifacts cannot be replaced after any Maven generation or deployment exists." >&2
                 exit 1
               }
               replacement_generation=$(( $(jq -r '.replacementGeneration // 0' "$request") + 1 ))
@@ -281,7 +290,7 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ steps.candidate.outputs.automation_commit }}
+          TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: |
           bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
           {
@@ -337,6 +346,7 @@ jobs:
             --slurpfile inspection "$INSPECTION_FILE" \
             '.state=$state | .manifestSha256=$manifest | .approvedBy=$actor |
              .approvalRunId=$run | .inspection=$inspection[0] | .inspectionRunId=$run |
+             .mavenSubmissionGeneration=$inspection[0].mavenSubmissionGeneration |
              if $action == "handoff-and-publish" then
                .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
                  reason:"Release manager transferred ownership to emergency automation.",
@@ -360,15 +370,16 @@ jobs:
             echo "The emergency release is not blocked on an ambiguous Maven intent." >&2
             exit 1
           }
-          current_generation=$(jq -r .mavenSubmissionGeneration "$REQUEST_FILE")
+          current_generation=$(jq -r .mavenSubmissionGeneration \
+            "$RUNNER_TEMP/emergency-inspection.json")
           current=$(jq -c --argjson generation "$current_generation" \
             '.mavenGenerations[]? | select(.generation == $generation)' \
             "$RUNNER_TEMP/emergency-inspection.json")
           if [[ -n "$current" ]]; then
             repository_state=$(jq -r .repositoryState <<<"$current")
             portal_state=$(jq -r .portalDeploymentState <<<"$current")
-            [[ "$repository_state" == absent || "$repository_state" == unavailable ||
-              "$portal_state" == FAILED ]] || {
+            [[ ( "$repository_state" == absent || "$repository_state" == unavailable ) &&
+              ( -z "$portal_state" || "$portal_state" == FAILED ) ]] || {
               echo "The exact prior repository/deployment still exists; it must be reconciled." >&2
               exit 1
             }

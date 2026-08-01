@@ -94,11 +94,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ needs.resolve.outputs.automation_commit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
-        run: '[[ "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          IDENTITY_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -107,7 +108,7 @@ jobs:
       - name: Submit authenticated release-specific Update
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: >-
           ./gradlew -p .github/release-automation run
           --args="control ${{ inputs.action }} ${{ inputs.tag }} ${{ inputs.commit_sha }}"
@@ -130,16 +131,18 @@ jobs:
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ inputs.commit_sha }}
           submodules: recursive
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ needs.resolve.outputs.automation_commit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
-        run: '[[ "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          IDENTITY_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -149,6 +152,10 @@ jobs:
         with:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
+      - name: Authenticate the retry author before creating durable evidence
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+        run: automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_TRIGGERING_ACTOR"
       - name: Export the exact approved publication input
         id: input
         working-directory: automation
@@ -180,7 +187,7 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
+          TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
       - name: Record protected authorization for exactly one next generation
         id: authorization
@@ -198,8 +205,8 @@ jobs:
           if [[ -n "$current" ]]; then
             repository_state=$(jq -r .repositoryState <<<"$current")
             portal_state=$(jq -r .portalDeploymentState <<<"$current")
-            [[ "$repository_state" == absent || "$repository_state" == unavailable ||
-              "$portal_state" == FAILED ]]
+            [[ ( "$repository_state" == absent || "$repository_state" == unavailable ) &&
+              ( -z "$portal_state" || "$portal_state" == FAILED ) ]]
           fi
           generation=$((CURRENT_GENERATION + 1))
           receipt="$RUNNER_TEMP/maven-retry-authorization.json"
@@ -241,7 +248,7 @@ jobs:
           CONTROL_GITHUB_RUN_ID: ${{ steps.authorization.outputs.run_id }}
           MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ steps.authorization.outputs.sha256 }}
           MAVEN_RETRY_GENERATION: ${{ steps.authorization.outputs.generation }}
-          RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: >-
           ./gradlew -p .github/release-automation run
           --args="control retry-maven-submission ${{ inputs.tag }} ${{ inputs.commit_sha }}"

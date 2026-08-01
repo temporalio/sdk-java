@@ -3,6 +3,7 @@ package io.temporal.releaseautomation;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
@@ -66,7 +67,7 @@ public final class ReleaseAutomationMain {
           return;
         case "discover":
           requireArguments(args, 2);
-          discover(temporal.client, args[1]);
+          discover(temporal.client, args[1], environment);
           return;
         case "approve":
           requireArguments(args, 1);
@@ -231,14 +232,19 @@ public final class ReleaseAutomationMain {
     writeOutput("task_queue", QueueNames.candidateWorkflow(candidate));
   }
 
-  private static void discover(WorkflowClient client, String scope) {
+  private static void discover(
+      WorkflowClient client, String scope, Map<String, String> environment) {
+    String trustedAutomationCommit = required(environment, "RELEASE_AUTOMATION_REF");
+    if (!trustedAutomationCommit.matches("[0-9a-f]{40}")) {
+      throw new IllegalArgumentException("RELEASE_AUTOMATION_REF must be a full commit SHA.");
+    }
     List<DiscoveryJob> jobs;
     if ("unprivileged".equals(scope)) {
-      jobs = discoverUnprivileged(client);
+      jobs = discoverUnprivileged(client, trustedAutomationCommit);
     } else if ("publication".equals(scope)) {
-      jobs = discoverPublication(client);
+      jobs = discoverPublication(client, trustedAutomationCommit);
     } else if ("approvals".equals(scope)) {
-      jobs = discoverApprovals(client);
+      jobs = discoverApprovals(client, trustedAutomationCommit);
     } else {
       throw new IllegalArgumentException(
           "Discovery scope must be unprivileged, publication, or approvals.");
@@ -249,12 +255,13 @@ public final class ReleaseAutomationMain {
     writeOutput("count", Integer.toString(jobs.size()));
   }
 
-  private static List<DiscoveryJob> discoverUnprivileged(WorkflowClient client) {
+  private static List<DiscoveryJob> discoverUnprivileged(
+      WorkflowClient client, String trustedAutomationCommit) {
     List<DiscoveryJob> jobs = new ArrayList<>();
     for (WorkflowExecutionMetadata execution : openExecutions(client, "CandidateWorkflow")) {
       try {
         List<DiscoveryJob> executionJobs = new ArrayList<>();
-        discoverCandidate(execution, executionJobs);
+        discoverCandidate(execution, executionJobs, trustedAutomationCommit);
         jobs.addAll(executionJobs);
       } catch (RuntimeException e) {
         reportSkippedExecution(execution, e);
@@ -263,7 +270,7 @@ public final class ReleaseAutomationMain {
     for (WorkflowExecutionMetadata execution : openExecutions(client, "ReleaseWorkflow")) {
       try {
         List<DiscoveryJob> executionJobs = new ArrayList<>();
-        discoverRelease(execution, executionJobs);
+        discoverRelease(execution, executionJobs, trustedAutomationCommit);
         jobs.addAll(executionJobs);
       } catch (RuntimeException e) {
         reportSkippedExecution(execution, e);
@@ -273,7 +280,9 @@ public final class ReleaseAutomationMain {
   }
 
   private static void discoverCandidate(
-      WorkflowExecutionMetadata execution, List<DiscoveryJob> jobs) {
+      WorkflowExecutionMetadata execution,
+      List<DiscoveryJob> jobs,
+      String trustedAutomationCommit) {
     String workflowId = execution.getExecution().getWorkflowId();
     String prefix = "sdk-java-release-candidate/";
     if (!workflowId.startsWith(prefix)) {
@@ -285,9 +294,13 @@ public final class ReleaseAutomationMain {
     if (candidate == null || !candidate.digest().equals(digest)) {
       throw new IllegalStateException("Candidate memo does not match its Workflow ID.");
     }
+    requireTrustedDiscoveryCommit(candidate.trustedAutomationCommit, trustedAutomationCommit);
     DiscoveryJob candidateJob =
         new DiscoveryJob("candidate", QueueNames.candidateWorkflowFromDigest(digest));
-    candidateJob.automationCommit = candidate.trustedAutomationCommit;
+    candidateJob.automationCommit = trustedAutomationCommit;
+    candidateJob.candidateDigest = digest;
+    candidateJob.workflowId = execution.getExecution().getWorkflowId();
+    candidateJob.runId = execution.getExecution().getRunId();
     jobs.add(candidateJob);
     CandidateStatus candidateStatus =
         (CandidateStatus)
@@ -297,8 +310,10 @@ public final class ReleaseAutomationMain {
     for (String platform : pendingPlatforms) {
       DiscoveryJob build = new DiscoveryJob("build", QueueNames.buildFromDigest(digest, platform));
       build.platform = platform;
+      build.candidateDigest = digest;
+      build.tag = candidate.tag;
       build.commitSha = candidate.commitSha;
-      build.automationCommit = candidate.trustedAutomationCommit;
+      build.automationCommit = trustedAutomationCommit;
       build.runner = runnerFor(platform);
       if (platform.startsWith("macos-") || "windows-amd64".equals(platform)) {
         build.distribution = "graalvm";
@@ -310,14 +325,17 @@ public final class ReleaseAutomationMain {
       releaseIdentity.validate();
       DiscoveryJob release =
           new DiscoveryJob("release", QueueNames.releaseWorkflow(releaseIdentity));
-      release.automationCommit = candidate.trustedAutomationCommit;
+      release.automationCommit = trustedAutomationCommit;
+      release.candidateDigest = candidate.digest();
       release.workflowId = QueueNames.releaseWorkflowId(releaseIdentity);
       jobs.add(release);
     }
   }
 
   private static void discoverRelease(
-      WorkflowExecutionMetadata execution, List<DiscoveryJob> jobs) {
+      WorkflowExecutionMetadata execution,
+      List<DiscoveryJob> jobs,
+      String trustedAutomationCommit) {
     ReleaseStatus status = releaseStatus(execution);
     ReleaseIdentity releaseIdentity =
         status == null
@@ -328,6 +346,8 @@ public final class ReleaseAutomationMain {
       throw new IllegalStateException("Release Workflow has no immutable identity memo.");
     }
     releaseIdentity.validate();
+    requireTrustedDiscoveryCommit(
+        releaseIdentity.candidate.trustedAutomationCommit, trustedAutomationCommit);
     if (!QueueNames.releaseWorkflowId(releaseIdentity)
             .equals(execution.getExecution().getWorkflowId())
         || !QueueNames.releaseWorkflow(releaseIdentity).equals(execution.getTaskQueue())) {
@@ -340,18 +360,19 @@ public final class ReleaseAutomationMain {
       return;
     }
     DiscoveryJob release = new DiscoveryJob("release", execution.getTaskQueue());
-    release.automationCommit = releaseIdentity.candidate.trustedAutomationCommit;
+    release.automationCommit = trustedAutomationCommit;
     release.workflowId = execution.getExecution().getWorkflowId();
     release.runId = execution.getExecution().getRunId();
     jobs.add(release);
   }
 
-  private static List<DiscoveryJob> discoverPublication(WorkflowClient client) {
+  private static List<DiscoveryJob> discoverPublication(
+      WorkflowClient client, String trustedAutomationCommit) {
     List<DiscoveryJob> jobs = new ArrayList<>();
     for (WorkflowExecutionMetadata execution : openExecutions(client, "ReleaseWorkflow")) {
       try {
         List<DiscoveryJob> executionJobs = new ArrayList<>();
-        discoverPublication(execution, executionJobs);
+        discoverPublication(execution, executionJobs, trustedAutomationCommit);
         jobs.addAll(executionJobs);
       } catch (RuntimeException e) {
         reportSkippedExecution(execution, e);
@@ -361,7 +382,9 @@ public final class ReleaseAutomationMain {
   }
 
   private static void discoverPublication(
-      WorkflowExecutionMetadata execution, List<DiscoveryJob> jobs) {
+      WorkflowExecutionMetadata execution,
+      List<DiscoveryJob> jobs,
+      String trustedAutomationCommit) {
     ReleaseStatus status = releaseStatus(execution);
     if (status == null || status.identity == null || status.approval == null) {
       return;
@@ -377,12 +400,16 @@ public final class ReleaseAutomationMain {
     }
     ReleaseIdentity identity = status.identity;
     identity.validate();
+    requireTrustedDiscoveryCommit(
+        identity.candidate.trustedAutomationCommit, trustedAutomationCommit);
     if (!QueueNames.releaseWorkflowId(identity).equals(execution.getExecution().getWorkflowId())
         || !QueueNames.releaseWorkflow(identity).equals(execution.getTaskQueue())
         || !execution.getExecution().getRunId().equals(status.approval.runId)) {
       throw new IllegalStateException("Approved release memo does not match its execution.");
     }
-    DiscoveryJob job = new DiscoveryJob("publication", QueueNames.publication(identity));
+    DiscoveryJob job =
+        new DiscoveryJob(
+            "publication", QueueNames.publication(identity, status.mavenSubmissionGeneration));
     job.workflowId = execution.getExecution().getWorkflowId();
     job.runId = execution.getExecution().getRunId();
     job.tag = identity.candidate.tag;
@@ -390,12 +417,13 @@ public final class ReleaseAutomationMain {
     job.notesSha256 = identity.candidate.releaseNotesSha256;
     job.manifestSha256 = identity.manifestSha256;
     job.releaseDigest = identity.digest();
+    job.candidateDigest = identity.candidate.digest();
     job.approvalRunId = Long.toString(status.approval.githubApprovalRunId);
     job.approvalActor = status.approval.githubActor;
     job.approvalIssueNumber = Long.toString(status.approval.githubIssueNumber);
     job.approvalIssueNodeId = status.approval.githubIssueNodeId;
     job.approvalIssueBodySha256 = status.approval.githubIssueBodySha256;
-    job.automationCommit = identity.candidate.trustedAutomationCommit;
+    job.automationCommit = trustedAutomationCommit;
     job.phase = status.phase;
     job.nextRetryAtMillis = status.nextRetryAtMillis;
     job.mavenSubmissionGeneration = status.mavenSubmissionGeneration;
@@ -405,12 +433,13 @@ public final class ReleaseAutomationMain {
     jobs.add(job);
   }
 
-  private static List<DiscoveryJob> discoverApprovals(WorkflowClient client) {
+  private static List<DiscoveryJob> discoverApprovals(
+      WorkflowClient client, String trustedAutomationCommit) {
     List<DiscoveryJob> jobs = new ArrayList<>();
     for (WorkflowExecutionMetadata execution : openExecutions(client, "ReleaseWorkflow")) {
       try {
         List<DiscoveryJob> executionJobs = new ArrayList<>();
-        discoverApproval(execution, executionJobs);
+        discoverApproval(execution, executionJobs, trustedAutomationCommit);
         jobs.addAll(executionJobs);
       } catch (RuntimeException e) {
         reportSkippedExecution(execution, e);
@@ -420,7 +449,9 @@ public final class ReleaseAutomationMain {
   }
 
   private static void discoverApproval(
-      WorkflowExecutionMetadata execution, List<DiscoveryJob> jobs) {
+      WorkflowExecutionMetadata execution,
+      List<DiscoveryJob> jobs,
+      String trustedAutomationCommit) {
     ReleaseStatus status = releaseStatus(execution);
     if (status == null
         || status.identity == null
@@ -430,6 +461,8 @@ public final class ReleaseAutomationMain {
     }
     ReleaseIdentity identity = status.identity;
     identity.validate();
+    requireTrustedDiscoveryCommit(
+        identity.candidate.trustedAutomationCommit, trustedAutomationCommit);
     DiscoveryJob job =
         new DiscoveryJob(
             status.approvalRequest == null ? "approval" : "approval-recovery",
@@ -441,7 +474,7 @@ public final class ReleaseAutomationMain {
     job.notesSha256 = identity.candidate.releaseNotesSha256;
     job.manifestSha256 = identity.manifestSha256;
     job.releaseDigest = identity.digest();
-    job.automationCommit = identity.candidate.trustedAutomationCommit;
+    job.automationCommit = trustedAutomationCommit;
     if (status.approvalRequest != null) {
       job.approvalIssueNumber = Long.toString(status.approvalRequest.githubIssueNumber);
       job.approvalIssueNodeId = status.approvalRequest.githubIssueNodeId;
@@ -502,7 +535,6 @@ public final class ReleaseAutomationMain {
   }
 
   private static void requestApproval(WorkflowClient client, Map<String, String> env) {
-    verifyApprover(required(env, "GITHUB_TRIGGERING_ACTOR"));
     String expectedWorkflowId = required(env, "EXPECTED_WORKFLOW_ID");
     List<WorkflowExecutionMetadata> pending =
         openExecutions(client, "ReleaseWorkflow").stream()
@@ -725,6 +757,7 @@ public final class ReleaseAutomationMain {
       processed = activityCompleted.await(Duration.ofMinutes(98).toMillis(), TimeUnit.MILLISECONDS);
     } else if (!activityRole) {
       processed = awaitWindow(Duration.ofMinutes(10));
+      failOnUnrecoveredWorkflowTaskFailure(client, env);
     }
     writeOutput(
         "worker_outcome", processed ? "activity-attempt-finished" : "capacity-window-ended");
@@ -747,6 +780,30 @@ public final class ReleaseAutomationMain {
   private static boolean awaitWindow(Duration pollingWindow) throws InterruptedException {
     Thread.sleep(pollingWindow.toMillis());
     return false;
+  }
+
+  private static void failOnUnrecoveredWorkflowTaskFailure(
+      WorkflowClient client, Map<String, String> env) {
+    String workflowId = required(env, "EXPECTED_WORKFLOW_ID");
+    String runId = env.get("EXPECTED_RUN_ID");
+    long lastCompleted = -1;
+    long lastFailed = -1;
+    io.temporal.common.WorkflowExecutionHistory history =
+        runId == null || runId.isEmpty()
+            ? client.fetchHistory(workflowId)
+            : client.fetchHistory(workflowId, runId);
+    for (io.temporal.api.history.v1.HistoryEvent event : history.getEvents()) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
+        lastCompleted = event.getEventId();
+      } else if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
+        lastFailed = event.getEventId();
+      }
+    }
+    if (lastFailed > lastCompleted) {
+      writeOutput("worker_outcome", "workflow-task-failed");
+      throw new IllegalStateException(
+          "The release Workflow has an unrecovered Workflow Task failure.");
+    }
   }
 
   private static List<WorkflowExecutionMetadata> openExecutions(
@@ -869,6 +926,13 @@ public final class ReleaseAutomationMain {
         required(env, "RELEASE_AUTOMATION_REF"))) {
       throw new IllegalStateException(
           "Actions did not check out this release's trusted Worker commit.");
+    }
+  }
+
+  private static void requireTrustedDiscoveryCommit(String actual, String expected) {
+    if (!expected.equals(actual)) {
+      throw new IllegalStateException(
+          "Release identity selects an automation commit outside the protected allowlist.");
     }
   }
 

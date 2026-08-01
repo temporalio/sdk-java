@@ -13,6 +13,7 @@ final class DiscoveryJob {
   String notesSha256;
   String manifestSha256;
   String releaseDigest;
+  String candidateDigest;
   String approvalRunId;
   String approvalActor;
   String approvalIssueNumber;
