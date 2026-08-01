@@ -23,6 +23,9 @@ public class PublicationGuardTest {
             runId,
             1234,
             "release-manager",
+            42,
+            "ISSUE_node_42",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             "abcdefabcdefabcdefabcdefabcdefabcdefabcd");
     PublicationInput input = new PublicationInput(release, approval, workflowId, runId);
     ActivityInfo info = mock(ActivityInfo.class);
@@ -47,6 +50,10 @@ public class PublicationGuardTest {
     env.put("EXPECTED_MANIFEST_SHA256", input.release.manifestSha256);
     env.put("EXPECTED_RELEASE_DIGEST", input.release.digest());
     env.put("EXPECTED_APPROVAL_RUN_ID", Long.toString(input.approval.githubApprovalRunId));
+    env.put("EXPECTED_APPROVAL_ACTOR", input.approval.githubActor);
+    env.put("EXPECTED_APPROVAL_ISSUE_NUMBER", Long.toString(input.approval.githubIssueNumber));
+    env.put("EXPECTED_APPROVAL_ISSUE_NODE_ID", input.approval.githubIssueNodeId);
+    env.put("EXPECTED_APPROVAL_ISSUE_BODY_SHA256", input.approval.githubIssueBodySha256);
     env.put("TRUSTED_WORKER_COMMIT", input.approval.trustedWorkerCommit);
     return env;
   }

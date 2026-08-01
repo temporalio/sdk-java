@@ -2,6 +2,7 @@ package io.temporal.releaseautomation;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.client.ActivityCompletionException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -9,14 +10,20 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 final class ProcessSupport {
   private ProcessSupport() {}
+
+  static List<String> bash(Path script) {
+    return Arrays.asList("bash", script.toAbsolutePath().toString().replace('\\', '/'));
+  }
 
   static List<String> run(Path workingDirectory, List<String> command, Map<String, String> env) {
     ProcessBuilder builder = new ProcessBuilder(command);
@@ -27,8 +34,19 @@ final class ProcessSupport {
     try {
       ActivityExecutionContext activityContext = Activity.getExecutionContext();
       Process process = builder.start();
+      AtomicReference<ActivityCompletionException> cancellation = new AtomicReference<>();
       heartbeat.scheduleAtFixedRate(
-          () -> activityContext.heartbeat("External release command is running."),
+          () -> {
+            try {
+              activityContext.heartbeat("External release command is running.");
+            } catch (ActivityCompletionException e) {
+              cancellation.compareAndSet(null, e);
+              process.destroy();
+              if (process.isAlive()) {
+                process.destroyForcibly();
+              }
+            }
+          },
           15,
           15,
           TimeUnit.SECONDS);
@@ -42,6 +60,9 @@ final class ProcessSupport {
         }
       }
       int status = process.waitFor();
+      if (cancellation.get() != null) {
+        throw cancellation.get();
+      }
       if (status != 0) {
         throw new CommandFailedException(status, command.get(0));
       }

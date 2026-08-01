@@ -26,6 +26,12 @@ application {
 	mainClass = 'io.temporal.releaseautomation.ReleaseAutomationMain'
 }
 
+tasks.named('run') {
+	// The trusted scripts live at repository-relative paths. Do not let Gradle's
+	// application plugin make the standalone build directory the trust root.
+	systemProperty 'releaseAutomation.repositoryRoot', file('../..').canonicalPath
+}
+
 tasks.withType(JavaCompile).configureEach {
 	options.encoding = 'UTF-8'
 	options.compilerArgs.addAll([
@@ -36,6 +42,7 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 tasks.withType(Test).configureEach {
+	systemProperty 'releaseAutomation.repositoryRoot', file('../..').canonicalPath
 	useJUnit()
 	testLogging {
 		events 'passed', 'skipped', 'failed'

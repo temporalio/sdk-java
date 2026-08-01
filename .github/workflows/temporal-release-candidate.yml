@@ -9,10 +9,10 @@ on:
   push:
     branches:
       - main
-      - "releases/*"
-      - "v[0-9]+.[0-9]+.x"
-      - "[0-9]+.[0-9]+.x"
-      - "release_[0-9]+_[0-9]+_x"
+      - "releases/**"
+      - "v*.*.x"
+      - "*.*.x"
+      - "release_*_*_x"
     paths:
       - "releases/v*"
 
@@ -62,6 +62,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.before }}
           RELEASE_COMMIT: ${{ github.sha }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
 
       - name: Set up Java
@@ -103,72 +104,3 @@ jobs:
         env:
           TASK_QUEUE: ${{ needs.start.outputs.task_queue }}
         run: ./gradlew -p .github/release-automation run --args="worker candidate $TASK_QUEUE"
-
-  build_workers:
-    name: Build Worker (${{ matrix.platform }})
-    needs: start
-    timeout-minutes: 60
-    permissions:
-      contents: read
-      id-token: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux-amd64-musl
-            runner: ubuntu-latest
-            distribution: temurin
-          - platform: linux-amd64
-            runner: ubuntu-latest
-            distribution: temurin
-          - platform: macos-amd64
-            runner: macos-15-intel
-            distribution: graalvm
-          - platform: macos-arm64
-            runner: macos-latest
-            distribution: graalvm
-          - platform: linux-arm64
-            runner: ubuntu-24.04-arm
-            distribution: temurin
-          - platform: windows-amd64
-            runner: windows-latest
-            distribution: graalvm
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - name: Checkout immutable release source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          path: source
-          ref: ${{ needs.start.outputs.commit }}
-          submodules: recursive
-      - name: Checkout trusted release automation
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - name: Verify trusted checkout
-        working-directory: automation
-        env:
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
-      - name: Set up Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: ${{ matrix.distribution }}
-          java-version: "23"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Obtain artifact-store credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
-      - name: Poll only this candidate's platform Task Queue
-        working-directory: automation
-        env:
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
-        run: |
-          digest="${{ needs.start.outputs.candidate_digest }}"
-          TASK_QUEUE="sdk-java-release-candidate-${digest:0:32}-build-${{ matrix.platform }}"
-          ./gradlew -p .github/release-automation run --args="worker build $TASK_QUEUE"

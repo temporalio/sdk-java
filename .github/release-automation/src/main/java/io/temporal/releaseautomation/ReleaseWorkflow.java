@@ -11,7 +11,13 @@ public interface ReleaseWorkflow {
   ReleaseResult release(ReleaseIdentity identity);
 
   @UpdateMethod
+  ReleaseStatus requestApproval(ApprovalRequest request);
+
+  @UpdateMethod
   ReleaseStatus approve(ApprovalEvidence evidence);
+
+  @UpdateMethod
+  ReleaseStatus control(ControlEvidence evidence);
 
   @QueryMethod
   ReleaseStatus status();

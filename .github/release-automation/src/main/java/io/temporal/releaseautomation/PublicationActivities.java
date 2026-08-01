@@ -6,5 +6,14 @@ import io.temporal.activity.ActivityMethod;
 @ActivityInterface
 public interface PublicationActivities {
   @ActivityMethod
-  ReleaseResult reconcileAndPublish(PublicationInput input);
+  void preflight(PublicationInput input);
+
+  @ActivityMethod
+  String reconcileMaven(PublicationInput input);
+
+  @ActivityMethod
+  String reconcileGithubDraft(PublicationInput input);
+
+  @ActivityMethod
+  ReleaseResult publishGithubRelease(PublicationInput input, String mavenCentralUrl);
 }

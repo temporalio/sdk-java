@@ -1,0 +1,36 @@
+name: Release-note candidate preflight
+
+on:
+  pull_request:
+    paths:
+      - "releases/v*"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate trusted automation pin
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
+      - name: Checkout immutable proposed source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout trusted release automation
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Validate immutable candidate metadata and prerequisites
+        working-directory: source
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_COMMIT: ${{ github.event.pull_request.head.sha }}
+        run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh

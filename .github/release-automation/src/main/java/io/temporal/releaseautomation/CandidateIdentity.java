@@ -16,6 +16,7 @@ public final class CandidateIdentity {
   public String commitSha;
   public String releaseNotesPath;
   public String releaseNotesSha256;
+  public String trustedAutomationCommit;
 
   public CandidateIdentity() {}
 
@@ -25,13 +26,15 @@ public final class CandidateIdentity {
       String tag,
       String commitSha,
       String releaseNotesPath,
-      String releaseNotesSha256) {
+      String releaseNotesSha256,
+      String trustedAutomationCommit) {
     this.repository = repository;
     this.version = version;
     this.tag = tag;
     this.commitSha = commitSha.toLowerCase(Locale.ROOT);
     this.releaseNotesPath = releaseNotesPath;
     this.releaseNotesSha256 = releaseNotesSha256.toLowerCase(Locale.ROOT);
+    this.trustedAutomationCommit = trustedAutomationCommit.toLowerCase(Locale.ROOT);
     validate();
   }
 
@@ -46,6 +49,9 @@ public final class CandidateIdentity {
     require(
         releaseNotesSha256 != null && HASH.matcher(releaseNotesSha256).matches(),
         "Release notes hash must be SHA-256.");
+    require(
+        trustedAutomationCommit != null && SHA.matcher(trustedAutomationCommit).matches(),
+        "Trusted automation commit must be a full SHA.");
   }
 
   public String canonicalForm() {
@@ -60,7 +66,9 @@ public final class CandidateIdentity {
         + "\n"
         + releaseNotesPath
         + "\n"
-        + releaseNotesSha256;
+        + releaseNotesSha256
+        + "\n"
+        + trustedAutomationCommit;
   }
 
   public String digest() {

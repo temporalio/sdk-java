@@ -9,12 +9,17 @@ final class PublicationGuard {
   static void validate(PublicationInput input, ActivityInfo activity, Map<String, String> env) {
     input.release.validate();
     input.approval.validate();
+    input.validatePolicy();
     requireEqual("Activity Workflow ID", input.workflowId, activity.getWorkflowId());
     requireEqual("Activity run ID", input.runId, activity.getWorkflowRunId());
     requireEqual("approval Workflow ID", input.workflowId, input.approval.workflowId);
     requireEqual("approval run ID", input.runId, input.approval.runId);
     requireEqual("release digest", input.release.digest(), input.approval.releaseDigest);
     requireEqual("repository", input.release.candidate.repository, input.approval.repository);
+    requireEqual(
+        "frozen trusted Worker commit",
+        input.release.candidate.trustedAutomationCommit,
+        input.approval.trustedWorkerCommit);
     requireEqual("expected Workflow ID", input.workflowId, required(env, "EXPECTED_WORKFLOW_ID"));
     requireEqual("expected run ID", input.runId, required(env, "EXPECTED_RUN_ID"));
     requireEqual(
@@ -40,6 +45,22 @@ final class PublicationGuard {
         "expected approval run",
         Long.toString(input.approval.githubApprovalRunId),
         required(env, "EXPECTED_APPROVAL_RUN_ID"));
+    requireEqual(
+        "expected approval actor",
+        input.approval.githubActor,
+        required(env, "EXPECTED_APPROVAL_ACTOR"));
+    requireEqual(
+        "expected approval issue number",
+        Long.toString(input.approval.githubIssueNumber),
+        required(env, "EXPECTED_APPROVAL_ISSUE_NUMBER"));
+    requireEqual(
+        "expected approval issue node",
+        input.approval.githubIssueNodeId,
+        required(env, "EXPECTED_APPROVAL_ISSUE_NODE_ID"));
+    requireEqual(
+        "expected approval issue body hash",
+        input.approval.githubIssueBodySha256,
+        required(env, "EXPECTED_APPROVAL_ISSUE_BODY_SHA256"));
     requireEqual(
         "trusted Worker commit",
         input.approval.trustedWorkerCommit,

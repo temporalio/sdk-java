@@ -1,142 +1,135 @@
 # Temporal-backed sdk-java release automation
 
-This directory contains an opinionated release orchestrator for
-`temporalio/sdk-java`. It is a standalone Gradle build so it is never included
-in the SDK's Maven publication set. It uses the Java SDK from this source tree
-through a composite build.
+This standalone Gradle application is the opinionated release orchestrator for
+`temporalio/sdk-java`. It is excluded from the SDK Maven publication. Repository policy, Maven
+coordinates and endpoints, native platforms and asset names are fixed in trusted Java code.
+Dynamic configuration is limited to Temporal Cloud, durable artifact storage, credentials, the
+frozen trusted Worker commit, and the immutable identity of one release.
 
-The automation is intentionally not a release framework. The repository,
-Maven coordinates, Central endpoint, release-note convention, six native
-platforms, asset names, GitHub workflow paths, and release-manager team are
-fixed in trusted code. Dynamic values are limited to the Temporal Cloud
-deployment, durable artifact-store deployment, credentials, the trusted Worker
-commit, and immutable per-release identity.
+## Normal Temporal path
 
-## Lifecycle
+1. A push adding exactly one `releases/vX.Y.Z[-RCN]` file freezes repository, tag/version, full
+   source SHA, release-note path/hash, and the current reviewed `RELEASE_AUTOMATION_REF`.
+2. One `CandidateWorkflow` schedules the fixed six native builds on digest-derived platform
+   queues. Each Activity either returns a checksum-validated candidate object already in S3 or
+   builds, archives, and create-if-absent uploads it. Temporal history contains metadata, never
+   artifact bytes.
+3. The candidate accepts only the exact fixed manifest, freezes it into the release digest, starts
+   its `ReleaseWorkflow` child, and waits until Temporal acknowledges that the child started.
+4. The release waits indefinitely in `AWAITING_APPROVAL`.
+5. A dispatch of **Approve Temporal-backed release** creates and locks a release-specific issue
+   displaying the exact tag, full SHA, notes hash, manifest hash, Workflow/run IDs, and release
+   digest. A release manager approves without typing identity fields by inspecting it and clicking
+   **Close issue**. The close event has no expiration window. Its issue number, node ID, body hash,
+   actor, Actions run, and exact Temporal execution are bound into the approval Update.
+6. Publication advances through durable `PREFLIGHT`, `MAVEN`, `GITHUB_DRAFT`, and
+   `PUBLISH_GITHUB` stages. Each stage is a separately retryable Activity and is visible in the
+   `ReleaseStatus` memo.
+7. Publication creates or adopts an exact draft, uploads and checksum-verifies the six native
+   archives plus `SHA256SUMS`, and makes the release public only as the final mutation.
 
-1. A push that adds exactly one `releases/vX.Y.Z[-RCN]` file freezes a candidate
-   identity: repository, version/tag, full source SHA, release-note path, and
-   release-note SHA-256.
-2. The starter creates one `CandidateWorkflow`. Its Workflow ID and Workflow
-   and Activity Task Queues are derived from the candidate digest, never an
-   Actions run or attempt.
-3. Six platform Activities build native test-server archives from the immutable
-   source SHA. They upload bytes to the versioned external artifact bucket and
-   return only names, sizes, storage keys, and SHA-256 values to Temporal.
-4. The candidate Workflow accepts exactly the fixed six-platform manifest,
-   freezes a release identity containing that manifest, and starts a
-   `ReleaseWorkflow` whose ID and queues derive from the final release digest.
-5. The release Workflow waits without a timeout. A release manager clicks the
-   no-input **Run workflow** button for `Approve Temporal-backed release`. The
-   workflow fails unless exactly one release is pending and the actor has active
-   membership in `temporalio/sdk-java-release-managers`. It submits an Update
-   addressed to the exact Workflow ID and Run ID.
-6. Only after the Update is accepted can the publication discovery job create a
-   job in the `release-publication` environment. That job receives publication
-   credentials and polls only the release-specific publication queue.
-7. The privileged Activity independently compares its Activity execution,
-   Workflow/Run IDs, tag, source SHA, note hash, manifest hash, release digest,
-   approval run, actor, trusted Worker commit, and Task Queue with the values
-   expected by that Actions job. It also retrieves the completed approval run
-   from GitHub and rechecks team membership.
+Workflow IDs and all Workflow/Activity Task Queues derive from the immutable candidate or release
+digest, never an Actions run or attempt. Workers always check out the automation SHA frozen into
+that release. Task Queue names are routing only; privileged Activities independently validate all
+identity and approval fields against the Actions job.
 
-The scheduled resume workflows are part of the design, not a fallback requiring
-operator intervention. Every 15 minutes they discover open Temporal executions
-and launch short-lived Workers for one exact release queue. A lost runner leaves
-durable Workflow state and pending/retrying Activities in Temporal Cloud; the
-next scheduled run resumes them. Approval is an event, not a pending Actions job,
-so it does not expire and has no approval window.
+## Pause, resume, and emergency handoff
 
-## Security boundary
+**Control Temporal-backed release** exposes authenticated, release-specific `pause`, `resume`, and
+`handoff-manual` Updates. Each operation requires the exact tag and full SHA and verifies the
+triggering actor against `temporalio/sdk-java-release-managers`.
 
-Candidate source and automation source are separate checkouts. Workers and shell
-entrypoints always come from the full commit in `RELEASE_AUTOMATION_REF`; build
-and publication commands run against a second checkout at the immutable release
-SHA. Updating the trusted pin is a security-sensitive, reviewed operation.
+- Pause requests cancellation of an active Activity and waits for cancellation acknowledgement;
+  `ProcessSupport` heartbeats and terminates its subprocess when Temporal delivers cancellation.
+- Resume continues from the durable stage using reconciliation rather than assuming the previous
+  attempt did nothing.
+- Handoff records actor, tag, SHA, fixed reason, Actions run, and Workflow time, transitions to
+  durable `HANDED_OFF`, and leaves the Workflow open but inert. All automatic discovery skips it.
 
-Unprivileged build Workers have no Maven or GitHub publication credentials.
-Approval has a Temporal credential that can submit the Update and a GitHub token
-that can only inspect Actions/team membership. Publication uses a separate
-Temporal credential, GitHub App/PAT credential, signing/Central credentials, and
-artifact-store role in the `release-publication` environment. Temporal API keys
-should be scoped to this namespace and role as narrowly as Temporal Cloud
-permits.
+`prepare-release.yml` is the dispatch-only emergency controller retained through the first
+supervised release. It requires an exact tag and 40-character SHA, performs a read-only Temporal
+inspection followed by read-only reconciliation of Central, Sonatype, tag, release, and asset
+state. Only after that succeeds does it record/adopt `HANDED_OFF`; it then uses the same immutable
+S3 manifest and stage scripts. It cannot mix or rebuild artifacts: if the approved six-object
+manifest is unavailable, it stops for investigation. `build-native-image.yml` remains callable
+only by a reviewed emergency workflow and accepts exact tag/SHA/note-hash inputs; any future
+replacement build must first add a single durable replacement manifest and keep Temporal handed
+off permanently.
 
-Task Queue names provide deterministic routing and runner isolation; they are
-not authorization. `PublicationGuard` and `reconcile-publication.sh` enforce the
-privileged authorization boundary again at Activity execution time.
+Both normal and emergency publication use the repository-wide `sdk-java-release-publication`
+concurrency group, the same release-manager authorization, Maven `releaseVersion`/`releaseCommit`,
+the same durable tag ownership key, and the same draft-first GitHub contract. Handoff—not the lock
+alone—is the ownership transfer.
 
-Temporal history contains identities, hashes, storage keys, status, and approval
-metadata. It never contains credentials or artifact bytes.
+## Maven and external reconciliation
 
-## Retry and reconciliation policy
+External side effects are at-least-once, but immutable conflicts are never retried.
 
-Retry timing lives in Workflow Activity options. Shell scripts make one
-observation of timing-dependent remote state per Activity attempt; they do not
-contain long propagation polling loops. Temporal supplies durable exponential
-backoff and a later transient Worker supplies execution capacity.
+- Before the first Sonatype call, publication create-if-absent writes an exact Maven intent to S3.
+  Only the Activity attempt that creates that intent may submit a new deployment.
+- A later attempt with an existing intent checks all 17 Central POMs. Partial visibility retries.
+  Every visible POM must contain the exact source SHA in `scm.tag`.
+- If Central is empty after an ambiguous attempt, publication inspects Sonatype staging
+  repositories, adopts at most one repository whose `temporal-sdk` POM contains the exact SHA, and
+  closes/releases that repository. It never infers permission to submit again from Central absence.
+- A durable tag-level ownership object prevents two digests or SHAs from controlling one tag.
+- Existing Git tags, release metadata, and assets are accepted only on exact identity/checksum
+  equality. Unexpected state exits with conflict status `42`.
+- Approval API unavailability or an in-progress run is retryable. Only a completed contradictory
+  approval or confirmed inactive/non-member actor exits `43` as non-retryable.
 
-External effects are at-least-once:
+Retry timing lives in Temporal Activity options. Shell scripts perform one remote-state observation
+per attempt; there are no long shell polling loops. Activity heartbeats have a one-minute timeout,
+so lost runners are detected promptly. Activity Workers exit after an Activity attempt rather than
+sleeping through their full capacity window.
 
-- S3 uploads use create-if-absent and reconcile the stored size and checksum.
-- Maven Central is checked at the fixed set of all 17 published sdk-java POM
-  coordinates. Existing coordinates are accepted only when every visible POM's
-  `scm.tag` is the exact release SHA. A durable submission marker separates
-  publication from later single-check propagation attempts. Partial propagation
-  is retried; coordinate/SHA conflicts are non-retryable.
-- The Git tag must be absent or point directly at the exact source commit.
-- GitHub release metadata must exactly match the tag, notes, and prerelease
-  state. Existing assets are downloaded and checksum-verified; unexpected or
-  conflicting assets are non-retryable. Missing assets are uploaded and the
-  final asset set is compared exactly.
+## Recovery and security boundary
 
-Exit status `42` denotes an immutable identity/checksum conflict and `43`
-denotes invalid approval evidence. Activities convert both to non-retryable
-Temporal failures. Network errors and temporary absence remain retryable.
+Scheduled discovery runs every 15 minutes. It reads pending-platform and release-stage memos and
+starts only the release-specific Workers still needed. A runner loss leaves Workflow state and
+pending/retrying Activities in Temporal Cloud; a later runner resumes them. `PAUSED` and
+`HANDED_OFF` executions are never discovered.
 
-## Required repository setup
+Source and automation use separate checkouts. Java resolves scripts from a JVM property set by the
+trusted standalone Gradle build, not from the process working directory, and launches every `.sh`
+through explicit `bash`, including Windows build runners. Older maintenance SHAs receive the
+reviewed releaseVersion/releaseCommit Gradle hooks from the frozen automation checkout for the
+duration of the build, after which their checkout is restored.
 
-Before enabling the workflows, configure:
+Temporal Cloud roles are part of the authorization boundary:
 
-- `RELEASE_AUTOMATION_REF`: a reviewed full 40-character commit containing the
-  trusted Worker and scripts. Protect changes to release automation with
-  CODEOWNERS/branch rules.
-- `TEMPORAL_RELEASE_ADDRESS` and `TEMPORAL_RELEASE_NAMESPACE`.
-- `TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY`,
-  `TEMPORAL_RELEASE_APPROVAL_API_KEY`, and
-  `TEMPORAL_RELEASE_PUBLICATION_API_KEY` with separate least-privilege
-  identities.
-- `RELEASE_ARTIFACT_BUCKET`: a private, versioned/object-locked bucket in
-  `us-west-2`.
-- `RELEASE_ARTIFACT_ROLE_ARN`: OIDC role limited to candidate object creation
-  and exact-object reads/metadata.
-- `RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN`: OIDC role limited to reading approved
-  release objects and writing release state markers.
-- The `sdk-java-release-managers` GitHub team.
-- `RELEASE_APPROVAL_GITHUB_TOKEN`: preferably a GitHub App token limited to
-  reading that team and Actions run metadata.
-- A `release-publication` environment containing
-  `RELEASE_PUBLICATION_GITHUB_TOKEN`, `JAR_SIGNING_KEY`,
-  `JAR_SIGNING_KEY_ID`, `JAR_SIGNING_KEY_PASSWORD`, `RH_USER`, and
-  `RH_PASSWORD`. Restrict the environment to the default/protected release
-  branches. Its GitHub token needs release/tag writes plus approval-run and team
-  reads.
+- The unprivileged key may start/read candidate/release Workflows and poll unprivileged queues, but
+  **must be denied Workflow Update permission** for `ReleaseWorkflow`.
+- The approval key may read exact release state and submit approval/control Updates, but cannot poll
+  publication Activities or publish externally.
+- The publication key may read the exact execution and poll only privileged publication queues; it
+  cannot create approval evidence.
 
-The environment must not add a second required-reviewer gate: the no-input
-approval Workflow is the human gate, and removing a pending environment approval
-window is what permits indefinite waiting and automatic post-approval recovery.
+This RBAC separation is mandatory: Workflow code cannot determine which Temporal API key submitted
+an Update. Publication additionally retrieves the exact successful issue-event Actions run, the
+locked closed issue and its body hash, and rechecks the closing actor's active team membership.
 
-The existing `prepare-release.yml` remains unchanged during evaluation. Disable
-its manual publication path as part of production cutover so there is only one
-authorized release path.
+## Required setup
 
-## Local verification
+Configure reviewed `RELEASE_AUTOMATION_REF`; Temporal address/namespace and three least-privilege
+API keys; a private versioned/object-locked artifact bucket and separate build/publication OIDC
+roles; the `sdk-java-release-managers` team; an approval GitHub token limited to team/Actions reads;
+and the `release-publication` environment containing GitHub release, signing, and Central
+credentials. The approval token also needs issue create/lock plus team/Actions reads. The
+publication token needs issue/Actions reads. The environment must not add an expiring second
+reviewer gate.
 
-Tests use `TestWorkflowEnvironment` and mocks only:
+Protect both mutation workflows with branch rules/CODEOWNERS. Keep both enabled through the first
+observed release and postmortem, then explicitly decide whether the emergency path remains.
+
+## Verification
+
+Release automation CI performs shell syntax checks and runs only local Temporal test facilities:
 
 ```bash
-./gradlew -p .github/release-automation spotlessApply test
+bash -n .github/scripts/temporal-release/*.sh
+./gradlew -p .github/release-automation spotlessCheck test
 ```
 
-Never exercise publication scripts as a release test. Validate them with shell
-syntax checks and mocked command fixtures only.
+Never validate this automation by publishing a test release, pushing a tag, or creating a GitHub
+release.
