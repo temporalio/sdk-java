@@ -35,7 +35,17 @@ public final class QueueNames {
   }
 
   public static String publication(ReleaseIdentity identity) {
-    return "sdk-java-release-" + shortDigest(identity.digest()) + "-publication";
+    return publication(identity, 0);
+  }
+
+  public static String publication(ReleaseIdentity identity, int mavenSubmissionGeneration) {
+    if (mavenSubmissionGeneration < 0) {
+      throw new IllegalArgumentException("Maven submission generation cannot be negative.");
+    }
+    return "sdk-java-release-"
+        + shortDigest(identity.digest())
+        + "-publication-g"
+        + mavenSubmissionGeneration;
   }
 
   public static String candidateWorkflowId(CandidateIdentity identity) {

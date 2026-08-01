@@ -37,6 +37,7 @@ jobs:
         id: matrix
         env:
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: |
           mkdir -p "$RUNNER_TEMP/requests"
           aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
@@ -50,9 +51,10 @@ jobs:
             request_etag=$(jq -er .ETag <<<"$request_head")
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$file" --no-progress >/dev/null
             [[ "$key" == "sdk-java/emergency/$(jq -er .candidate.tag "$file").json" ]]
-            jq -e '.candidate.repository == "temporalio/sdk-java" and
+            jq -e --arg automation "$RELEASE_AUTOMATION_REF" \
+              '.candidate.repository == "temporalio/sdk-java" and
               (.candidate.commitSha | test("^[0-9a-f]{40}$")) and
-              (.candidate.trustedAutomationCommit | test("^[0-9a-f]{40}$")) and
+              .candidate.trustedAutomationCommit == $automation and
               (.candidateDigest | test("^[0-9a-f]{64}$")) and
               ((.artifactPrefix == ("sdk-java/" + .candidateDigest + "/") and
                 .replacementAttempt == "") or
@@ -94,6 +96,16 @@ jobs:
                      .blockedError="The complete immutable prefix failed exact checksum or asset-set validation."' \
                     "$file" >"$file.updated"
                 fi
+                aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+                  --body "$file.updated" --if-match "$request_etag" >/dev/null
+                continue
+              fi
+              if [[ $artifact_count -gt 6 ]]; then
+                jq --arg blockedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+                  '.state="BLOCKED" | .blockedReason="InvalidArtifacts" |
+                   .blockedStage="ARTIFACTS" | .blockedAt=$blockedAt |
+                   .blockedError="The immutable artifact prefix contains more than the fixed six native archives."' \
+                  "$file" >"$file.updated"
                 aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
                   --body "$file.updated" --if-match "$request_etag" >/dev/null
                 continue
@@ -163,12 +175,18 @@ jobs:
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ matrix.candidate.commitSha }}
           submodules: recursive
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify protected automation identity
+        env:
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: ${{ matrix.distribution }}
@@ -219,18 +237,24 @@ jobs:
       EXPECTED_TAG: ${{ matrix.candidate.tag }}
       RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
       RELEASE_MODE: emergency
-      TRUSTED_WORKER_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+      TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ matrix.candidate.commitSha }}
           submodules: recursive
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify protected automation identity
+        env:
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -311,14 +335,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
           GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
         run: |
           inspect_output="$RUNNER_TEMP/temporal-inspect-output"
-          GITHUB_OUTPUT="$inspect_output" ./gradlew -p .github/release-automation run \
-            --args="inspect-if-present $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+          if ! GITHUB_OUTPUT="$inspect_output" ./gradlew -p .github/release-automation run \
+            --args="inspect-if-present $EXPECTED_TAG $EXPECTED_COMMIT_SHA"; then
+            echo "found=unavailable" >>"$GITHUB_OUTPUT"
+            echo "Temporal is unavailable; the durable S3 ownership transfer will fence recovered publication Workers." >&2
+            exit 0
+          fi
           found=$(awk -F= '$1 == "found" {print $2}' "$inspect_output" | tail -1)
           echo "found=$found" >>"$GITHUB_OUTPUT"
           [[ "$found" == true ]] || exit 0
@@ -410,7 +438,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
           GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
@@ -432,7 +460,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify protected automation identity
+        env:
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -448,7 +481,7 @@ jobs:
           GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
           MANUAL_GITHUB_RELEASE_URL: ${{ matrix.result.githubReleaseUrl }}
           MANUAL_MAVEN_CENTRAL_URL: ${{ matrix.result.mavenCentralUrl }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}

@@ -74,6 +74,9 @@ jobs:
       matrix: ${{ fromJSON(needs.discover_requests.outputs.request_matrix) }}
     runs-on: ubuntu-latest
     environment: release-control
+    permissions:
+      contents: read
+      id-token: write
     concurrency:
       group: approval-request-${{ matrix.workflowId }}
       cancel-in-progress: false
@@ -81,16 +84,22 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
-        run: '[[ "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Obtain immutable approval-receipt credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_CONTROL_ARTIFACT_ROLE_ARN }}
       - name: Create immutable approval issue
         id: issue
         env:
@@ -99,8 +108,10 @@ jobs:
           MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
           NOTES_SHA256: ${{ matrix.notesSha256 }}
           RELEASE_DIGEST: ${{ matrix.releaseDigest }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ matrix.tag }}
           RUN_ID: ${{ matrix.runId }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
           WORKFLOW_ID: ${{ matrix.workflowId }}
         run: |
           body=$(printf '%s\n' \
@@ -117,10 +128,12 @@ jobs:
             'An active sdk-java release manager approves this exact identity by clicking **Close issue**. Do not edit this issue.')
           printf '%s' "$body" >"$RUNNER_TEMP/approval-body.md"
           title="[sdk-java release approval] $RELEASE_TAG at $COMMIT_SHA"
+          approval_creator=$(gh api user --jq .login)
           issues=$(gh api --paginate --slurp \
-            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
-          matches=$(jq -c --arg title "$title" --arg body "$body" \
-            '[.[][] | select((has("pull_request") | not) and .title == $title and .body == $body)]' \
+            'repos/temporalio/sdk-java/issues?state=all&per_page=100')
+          matches=$(jq -c --arg title "$title" --arg body "$body" --arg creator "$approval_creator" \
+            '[.[][] | select((has("pull_request") | not) and .title == $title and
+              .body == $body and .user.login == $creator)]' \
             <<<"$issues")
           [[ $(jq 'length' <<<"$matches") -le 1 ]]
           if [[ $(jq 'length' <<<"$matches") -eq 1 ]]; then
@@ -130,13 +143,34 @@ jobs:
               --raw-field title="$title" --raw-field body="$body")
           fi
           number=$(jq -er .number <<<"$issue")
+          node_id=$(jq -er .node_id <<<"$issue")
+          body_sha256=$(sha256sum "$RUNNER_TEMP/approval-body.md" | awk '{print $1}')
+          gh api --method PUT "repos/temporalio/sdk-java/issues/$number/lock"
+          receipt="$RUNNER_TEMP/approval-request.json"
+          jq -cn --arg repository temporalio/sdk-java --arg releaseDigest "$RELEASE_DIGEST" \
+            --arg workflowId "$WORKFLOW_ID" --arg runId "$RUN_ID" \
+            --argjson issueNumber "$number" \
+            --arg issueNodeId "$node_id" --arg issueBodySha256 "$body_sha256" \
+            --arg issueCreator "$approval_creator" \
+            --arg trustedAutomationCommit "$TRUSTED_AUTOMATION_COMMIT" \
+            '{repository:$repository,releaseDigest:$releaseDigest,workflowId:$workflowId,
+              runId:$runId,issueNumber:$issueNumber,
+              issueNodeId:$issueNodeId,issueBodySha256:$issueBodySha256,
+              issueCreator:$issueCreator,trustedAutomationCommit:$trustedAutomationCommit}' \
+            >"$receipt"
+          receipt_key="sdk-java/$RELEASE_DIGEST/state/approval-request.json"
+          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+            --key "$receipt_key" --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
+            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$receipt_key" \
+              "$RUNNER_TEMP/existing-approval-request.json" --no-progress >/dev/null
+            cmp -s "$receipt" "$RUNNER_TEMP/existing-approval-request.json"
+          fi
           {
             echo "number=$number"
-            echo "node_id=$(jq -er .node_id <<<"$issue")"
-            echo "body_sha256=$(sha256sum "$RUNNER_TEMP/approval-body.md" | awk '{print $1}')"
+            echo "node_id=$node_id"
+            echo "body_sha256=$body_sha256"
             echo "url=$(jq -er .html_url <<<"$issue")"
           } >>"$GITHUB_OUTPUT"
-          gh api --method PUT "repos/temporalio/sdk-java/issues/$number/lock"
       - name: Record release-specific approval request
         env:
           APPROVAL_ISSUE_BODY_SHA256: ${{ steps.issue.outputs.body_sha256 }}
@@ -144,7 +178,7 @@ jobs:
           APPROVAL_ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: ./gradlew -p .github/release-automation run --args="approval-request"
       - name: Summarize approval request
         env:
@@ -173,11 +207,12 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
-        run: '[[ "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
+          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -213,7 +248,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
           GITHUB_EVENT_NAME: schedule
           GITHUB_TRIGGERING_ACTOR: ${{ steps.issue.outputs.actor }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: ./gradlew -p .github/release-automation run --args="approve"
 
   approve:
@@ -243,7 +278,12 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ steps.target.outputs.automation_commit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - name: Verify protected automation identity
+        env:
+          IDENTITY_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - name: Read exact closed-issue event identity
         id: event
         run: |
@@ -263,7 +303,7 @@ jobs:
           APPROVAL_ISSUE_NODE_ID: ${{ steps.event.outputs.node_id }}
           APPROVAL_ISSUE_NUMBER: ${{ steps.event.outputs.number }}
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: ./gradlew -p .github/release-automation run --args="approve"
       - name: Summarize accepted approval
         env:

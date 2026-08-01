@@ -47,31 +47,18 @@ jobs:
         id: identity
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           RELEASE_COMMIT: ${{ inputs.commit_sha }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
+          [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
           [[ -s "releases/$RELEASE_TAG" && ! -L "releases/$RELEASE_TAG" ]]
           membership=$(gh api \
             "orgs/temporalio/teams/sdk-java-release-managers/memberships/$GITHUB_TRIGGERING_ACTOR")
           jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
             <<<"$membership" >/dev/null
-          title="[sdk-java manual release ownership] $RELEASE_TAG"
-          issues=$(gh api --paginate --slurp \
-            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
-          matches=$(jq -c --arg title "$title" \
-            '[.[][] | select((has("pull_request") | not) and .title == $title)]' <<<"$issues")
-          [[ $(jq 'length' <<<"$matches") -le 1 ]]
-          if [[ $(jq 'length' <<<"$matches") == 1 ]]; then
-            body=$(jq -r '.[0].body' <<<"$matches")
-            [[ "$body" == *"- Full SHA: \`$RELEASE_COMMIT\`"* ]]
-            controller_sha=$(sed -n -E \
-              's/^- Controller SHA: `([0-9a-f]{40})`$/\1/p' <<<"$body" | tail -1)
-            [[ "$controller_sha" == "$GITHUB_WORKFLOW_SHA" ]]
-          else
-            controller_sha=$GITHUB_WORKFLOW_SHA
-          fi
+          controller_sha=$RELEASE_AUTOMATION_REF
           {
             echo "controller_sha=$controller_sha"
             echo "notes_sha256=$(sha256sum "releases/$RELEASE_TAG" | awk '{print $1}')"
@@ -101,6 +88,7 @@ jobs:
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ inputs.commit_sha }}
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -147,6 +135,7 @@ jobs:
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ inputs.commit_sha }}
           submodules: recursive
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -160,9 +149,66 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          path: ${{ runner.temp }}/native
+      - name: Record independent tag-level ownership
+        env:
+          APPROVAL_GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          MANUAL_CONTROLLER_SHA: ${{ needs.authorize.outputs.controller_sha }}
+          RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          title="[sdk-java manual release ownership] $RELEASE_TAG"
+          ownership_body() {
+            printf '%s\n' \
+            '## Independent manual release ownership' '' \
+            "- Tag: \`$RELEASE_TAG\`" "- Full SHA: \`$RELEASE_COMMIT\`" \
+            "- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`" \
+              "- Actor: \`$1\`" "- Actions run: \`$2\`" '' \
+              'Temporal automation must not mutate this tag while this locked issue remains open.'
+          }
+          trusted_bot=$(gh api user --jq .login)
+          issues=$(gh api --paginate --slurp \
+            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
+          matches=$(jq -c --arg title "$title" --arg creator "$trusted_bot" \
+            '[.[][] | select((has("pull_request") | not) and .title == $title and
+              .user.login == $creator)]' <<<"$issues")
+          [[ $(jq 'length' <<<"$matches") -le 1 ]]
+          if [[ $(jq 'length' <<<"$matches") == 0 ]]; then
+            owner_actor=$GITHUB_TRIGGERING_ACTOR
+            owner_run=$GITHUB_RUN_ID
+            body=$(ownership_body "$owner_actor" "$owner_run")
+            issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
+              --raw-field title="$title" --raw-field body="$body")
+          else
+            issue=$(jq -c '.[0]' <<<"$matches")
+            existing_body=$(jq -r .body <<<"$issue")
+            owner_actor=$(sed -n -E 's/^- Actor: `([^`]+)`$/\1/p' <<<"$existing_body")
+            owner_run=$(sed -n -E 's/^- Actions run: `([0-9]+)`$/\1/p' <<<"$existing_body")
+            [[ "$existing_body" == "$(ownership_body "$owner_actor" "$owner_run")" ]]
+          fi
+          jq -e --arg creator "$trusted_bot" \
+            '.user.login == $creator and (has("pull_request") | not)' <<<"$issue" >/dev/null
+          owner_run_json=$(gh api "repos/temporalio/sdk-java/actions/runs/$owner_run")
+          jq -e --arg actor "$owner_actor" \
+            '.path == ".github/workflows/prepare-release.yml" and
+             .event == "workflow_dispatch" and .actor.login == $actor and
+             (.status == "in_progress" or .status == "completed")' \
+            <<<"$owner_run_json" >/dev/null
+          GH_TOKEN=$APPROVAL_GH_TOKEN \
+            manual-tools/.github/scripts/temporal-release/verify-approver.sh "$owner_actor"
+          gh api --method PUT \
+            "repos/temporalio/sdk-java/issues/$(jq -er .number <<<"$issue")/lock"
+          {
+            echo "MANUAL_OWNERSHIP_ISSUE=$(jq -er .number <<<"$issue")"
+            echo "MANUAL_OWNER_ACTOR=$owner_actor"
+            echo "MANUAL_OWNER_RUN_ID=$owner_run"
+            echo "MANUAL_ISSUE_CREATOR=$trusted_bot"
+            echo "MANUAL_CONTROLLER_SHA=$MANUAL_CONTROLLER_SHA"
+          } >>"$GITHUB_ENV"
+      - name: Download the owning run's immutable native artifacts
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+        run: gh run download "$MANUAL_OWNER_RUN_ID" --dir "$RUNNER_TEMP/native"
       - name: Construct the fixed seven-asset set
         env:
           RELEASE_TAG: ${{ inputs.tag }}
@@ -191,38 +237,6 @@ jobs:
           done
           (cd "$assets" && sha256sum temporal-test-server_* >SHA256SUMS)
           echo "MANUAL_ASSET_DIR=$assets" >>"$GITHUB_ENV"
-      - name: Record independent tag-level ownership
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          MANUAL_CONTROLLER_SHA: ${{ needs.authorize.outputs.controller_sha }}
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          title="[sdk-java manual release ownership] $RELEASE_TAG"
-          body=$(printf '%s\n' \
-            '## Independent manual release ownership' '' \
-            "- Tag: \`$RELEASE_TAG\`" "- Full SHA: \`$RELEASE_COMMIT\`" \
-            "- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`" \
-            "- Actor: \`$GITHUB_TRIGGERING_ACTOR\`" "- Actions run: \`$GITHUB_RUN_ID\`" '' \
-            'Temporal automation must not mutate this tag while this locked issue remains open.')
-          issues=$(gh api --paginate --slurp \
-            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
-          matches=$(jq -c --arg title "$title" \
-            '[.[][] | select((has("pull_request") | not) and .title == $title)]' <<<"$issues")
-          [[ $(jq 'length' <<<"$matches") -le 1 ]]
-          if [[ $(jq 'length' <<<"$matches") == 0 ]]; then
-            issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
-              --raw-field title="$title" --raw-field body="$body")
-          else
-            issue=$(jq -c '.[0]' <<<"$matches")
-            existing_body=$(jq -r .body <<<"$issue")
-            [[ "$existing_body" == *"- Tag: \`$RELEASE_TAG\`"* &&
-              "$existing_body" == *"- Full SHA: \`$RELEASE_COMMIT\`"* &&
-              "$existing_body" == *"- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`"* ]]
-          fi
-          gh api --method PUT \
-            "repos/temporalio/sdk-java/issues/$(jq -er .number <<<"$issue")/lock"
-          echo "MANUAL_OWNERSHIP_ISSUE=$(jq -er .number <<<"$issue")" >>"$GITHUB_ENV"
       - name: Resume from exact Maven/GitHub external state
         working-directory: source
         env:

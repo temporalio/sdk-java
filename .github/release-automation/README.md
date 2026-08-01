@@ -22,8 +22,10 @@ release. Tests use local Temporal facilities and mocks only.
    acknowledge that start.
 4. The release waits indefinitely in `AWAITING_APPROVAL`. Scheduled recovery creates and locks an
    issue showing tag, full SHA, notes digest, manifest digest, release digest, Workflow ID, and Run
-   ID. An active release manager approves with no text by closing it. If closure beats the first
-   binding Update, scheduled recovery reads that same locked issue and delivers approval later.
+   ID. The issue node, creator, and body hash are frozen in an immutable S3 approval-request receipt.
+   An active release manager approves with no text by closing it. If closure beats the first binding
+   Update, scheduled recovery adopts that exact bot-created issue and delivers approval later. The
+   durable Update is authoritative even if the runner fails after submitting it.
 5. Publication exposes durable `PREFLIGHT`, `MAVEN`, `GITHUB_DRAFT`, and `PUBLISH_GITHUB` phases.
    Each phase is a separately retryable Activity; Workflow timers own retry/backoff.
 6. GitHub publication creates/adopts an exact draft, reconciles six native archives plus
@@ -31,8 +33,10 @@ release. Tests use local Temporal facilities and mocks only.
    public only as the final mutation.
 
 Workflow IDs and all Workflow/Activity Task Queues derive from immutable candidate/release digests,
-never Actions run IDs. Workers check out the automation commit frozen for that release and poll only
-its queues. Task Queues are routing, not authorization.
+never Actions run IDs. Publication queues also include the append-only Maven generation, preventing
+a stale runner from consuming work authorized for a later generation. Workers check out only the
+current protected `RELEASE_AUTOMATION_REF`; discovery rejects any Temporal identity that names a
+different commit. Task Queues are routing, not authorization.
 
 For maintenance branches that predate these workflow files, default-branch scheduled discovery
 finds an untagged release-note file, resolves the exact commit that added it, and persists the
@@ -56,9 +60,10 @@ container definitions when absent from the source SHA.
 - Handoff records actor/tag/SHA/fixed reason/Actions run/Workflow time, reaches `HANDED_OFF`, and
   becomes inert. Discovery skips paused, blocked, handed-off, and not-yet-due retry work.
 - Maven generation advance is not authorized by a Temporal Update. A protected publication job
-  performs a fresh exact inspection under the shared lock, writes an immutable release/run/generation
-  authorization receipt, and only then submits an Update bound to that receipt. Publication checks
-  the receipt again using publication credentials.
+  authenticates the actor, performs a fresh exact inspection under the shared lock, writes an
+  immutable release/run/generation authorization receipt, and only then submits an Update bound to
+  that receipt. Publication rechecks the receipt and active manager membership using publication
+  credentials. Any live Portal state vetoes generation advancement.
 
 Activity Workers exit after two minutes if they receive no task. This prevents a Worker started
 during durable backoff from holding the shared publication lock for the full job timeout. All
@@ -73,13 +78,18 @@ External side effects are at-least-once; immutable identity/checksum conflicts a
   Sonatype reads happen before any intent is written.
 - Each submission generation has append-only intent, Sonatype repository-ID, and Publisher Portal
   deployment-ID receipts. Advancing a generation never overwrites earlier evidence.
-- The signed Maven payload is generated locally. The Activity checks every expected staged file and
-  uploads only missing bytes to the receipted repository, then closes that exact repository.
+- Before Sonatype mutation, the exact allowlisted signed Maven payload is stored as one
+  content-addressed S3 archive with an immutable generation receipt. Retries download and validate
+  that archive rather than regenerating timestamp-bearing signatures. The Activity checks every
+  expected staged file and uploads only missing bytes to the receipted repository, then closes that
+  exact repository.
 - Closing the compatibility repository transfers it to Publisher Portal. The resulting
   `portal_deployment_id` is persisted and the exact `PENDING`, `VALIDATING`, `VALIDATED`,
   `PUBLISHING`, `PUBLISHED`, or `FAILED` state is reconciled before Central visibility.
 - Every visible Central POM must contain exact `io.temporal` group, expected artifact/version, and
-  full source SHA in `scm.tag`. Partial visibility retries; contradictory identity conflicts.
+  full source SHA in `scm.tag`. Every Central artifact/signature byte must also match the frozen
+  payload. The receipted Portal deployment must reach `PUBLISHED` even if its compatibility
+  repository disappears. Partial visibility retries; contradictory identity conflicts.
 
 The compatibility service cannot atomically create a repository and write its returned ID to an
 external receipt. A runner can still die in that narrow interval. This infeasibility is accepted:
@@ -98,14 +108,17 @@ S3 and records `COMPLETE`; if no Temporal Workflow ever existed, synchronization
 
 `prepare-release.yml` is a separate, dispatch-only manual fallback retained through the first
 supervised release and postmortem. It intentionally does not import the Temporal Java policy,
-Temporal reconciliation script, S3 state, or automation pin. Its separate shell implementation and
-Actions artifacts preserve the prior manual operating model. The controller is checked out at the
-immutable workflow-definition SHA, not loaded from the release candidate. It requires exact tag/SHA,
-release-manager membership, exact POM identity, and a draft-first seven-asset contract. A locked
-GitHub issue is its durable tag/SHA ownership, frozen asset-manifest digest, and Maven
-repository/Portal receipt. Existing draft or public assets must match that frozen manifest byte for
-byte. Normal Temporal publication checks the issue before mutation and blocks if manual ownership
-is active.
+Temporal reconciliation script, or S3 state. Its separate shell implementation and 90-day Actions
+artifacts preserve the prior manual operating model. Its tools are checked out only at the protected
+automation pin, never from candidate or Temporal state. It requires exact tag/SHA, release-manager
+membership, local validation of the fixed signed Maven set, cross-controller Sonatype inspection,
+and a draft-first seven-asset contract. A fixed-body locked GitHub issue created by the publication
+bot binds tag/SHA, protected controller, authenticated actor, and exact Actions run; it is never
+edited into a mutable state store. Recovery always downloads the native artifacts from that owning
+run, so a later rebuild cannot silently replace the selected bytes. Existing draft or public assets
+must match that frozen set.
+Normal Temporal publication independently authenticates that issue and blocks while manual
+ownership is active.
 
 All publication implementations use `sdk-java-release-publication` with `queue: max`, exact
 release-manager authorization, releaseVersion/releaseCommit, tag/SHA ownership, and publish-last
@@ -115,16 +128,19 @@ control.
 ## Security boundary
 
 Temporal Cloud data-plane roles do not separate Workflow polling/starting from Update submission.
-That limitation is explicitly accepted: an unprivileged-key holder could pause, hand off, or poison
-an execution. Malformed executions are isolated during discovery so one cannot abort all recovery.
-An Update cannot independently authorize publication.
+An unprivileged-key holder can still create or poison executions, so malformed executions are
+isolated during discovery. Such state cannot select privileged code or source: discovery requires
+the protected automation pin, and publication independently matches the candidate plus Candidate
+Workflow start against create-if-absent S3 receipts. An Update cannot independently authorize
+publication.
 
 Publication credentials exist only in the protected publication jobs. Before every privileged
-Activity, Java and shell checks independently bind the Activity Workflow ID/run ID, release-specific
-queue, repository, tag, full SHA, notes digest, approved manifest, approval run/actor/locked issue,
-frozen Worker commit, Maven generation, and protected retry receipt to the Actions job. It re-reads
-the completed GitHub run and issue and rechecks active team membership. Stage-specific subprocess
-environments do not pass signing/Sonatype credentials to GitHub-only stages.
+Activity, Java and shell checks independently bind the Activity Workflow ID/run ID, generation-
+specific queue, repository, tag, full SHA, candidate/start receipts, notes digest, approved manifest,
+approval run/actor/issue/immutable request receipt, protected Worker commit, Maven generation, and
+protected retry receipt to the Actions job. It re-reads GitHub evidence and rechecks active team
+membership. Source-controlled Gradle receives signing/Central credentials only for Maven work; the
+wrapper explicitly removes GitHub and AWS credentials.
 
 ## Required setup
 
@@ -135,11 +151,12 @@ Configure:
   and publication API keys.
 - A private versioned/object-locked `RELEASE_ARTIFACT_BUCKET`, plus separate build and publication
   OIDC roles. The build role may create/read candidate identities and artifact prefixes. The
-  publication role may read artifacts and create/read immutable ownership, Maven, authorization,
-  and completion receipts.
+  `RELEASE_CONTROL_ARTIFACT_ROLE_ARN` role may create/read approval-request receipts. The publication
+  role may read artifacts and create/read immutable ownership, Maven, authorization, and completion
+  receipts.
 - The `sdk-java-release-managers` team. `RELEASE_APPROVAL_GITHUB_TOKEN` needs organization
   team-membership read, Actions-run read, and issue create/read/lock. The
-  `RELEASE_PUBLICATION_GITHUB_TOKEN` needs Actions/issue read, issue create/update/lock for manual
+  `RELEASE_PUBLICATION_GITHUB_TOKEN` needs Actions/issue read, issue create/lock for manual
   ownership, and contents write for tags/releases/assets.
 - `JAR_SIGNING_KEY`, `JAR_SIGNING_KEY_ID`, `JAR_SIGNING_KEY_PASSWORD`, and Central Portal user-token
   credentials `RH_USER`/`RH_PASSWORD` only in `release-publication`.

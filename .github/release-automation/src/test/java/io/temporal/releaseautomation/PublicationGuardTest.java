@@ -35,6 +35,10 @@ public class PublicationGuardTest {
     Map<String, String> env = expectations(input);
     PublicationGuard.validate(input, info, env);
 
+    input.candidateDigest = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
+    input.candidateDigest = release.candidate.digest();
+
     env.put("EXPECTED_COMMIT_SHA", "ffffffffffffffffffffffffffffffffffffffff");
     assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
   }
@@ -76,7 +80,7 @@ public class PublicationGuardTest {
     ActivityInfo info = mock(ActivityInfo.class);
     when(info.getWorkflowId()).thenReturn(workflowId);
     when(info.getWorkflowRunId()).thenReturn(runId);
-    when(info.getActivityTaskQueue()).thenReturn(QueueNames.publication(release));
+    when(info.getActivityTaskQueue()).thenReturn(QueueNames.publication(release, 1));
     Map<String, String> env = expectations(input);
     env.put("EXPECTED_MAVEN_SUBMISSION_GENERATION", "1");
     env.put("EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256", authorization.authorizationSha256);

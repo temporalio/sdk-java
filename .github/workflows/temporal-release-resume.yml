@@ -42,6 +42,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Query Temporal Visibility
         id: discover
+        env:
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: ./gradlew -p .github/release-automation run --args="discover unprivileged"
 
   workers:
@@ -65,20 +67,13 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify trusted checkout
         working-directory: automation
         env:
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
-      - name: Checkout immutable release source
-        if: matrix.role == 'build'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          path: source
-          ref: ${{ matrix.commitSha }}
-          submodules: recursive
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
@@ -91,10 +86,49 @@ jobs:
         with:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
+      - name: Validate protected candidate and Workflow-start receipts
+        if: matrix.role == 'build'
+        working-directory: automation
+        env:
+          CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
+          COMMIT_SHA: ${{ matrix.commitSha }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_TAG: ${{ matrix.tag }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: |
+          candidate="$RUNNER_TEMP/protected-candidate.json"
+          outputs="$RUNNER_TEMP/protected-candidate.outputs"
+          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates/$RELEASE_TAG.json" \
+            "$candidate" --no-progress >/dev/null
+          GITHUB_OUTPUT="$outputs" ./gradlew -p .github/release-automation run \
+            --args="candidate-outputs $candidate"
+          read_output() { awk -F= -v name="$1" '$1 == name {print $2}' "$outputs" | tail -1; }
+          [[ $(read_output candidate_digest) == "$CANDIDATE_DIGEST" &&
+            $(read_output commit_sha) == "$COMMIT_SHA" &&
+            $(read_output tag) == "$RELEASE_TAG" &&
+            $(read_output automation_commit) == "$TRUSTED_AUTOMATION_COMMIT" ]]
+          start="$RUNNER_TEMP/protected-candidate-start.json"
+          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates-started/$RELEASE_TAG.json" \
+            "$start" --no-progress >/dev/null
+          jq -e --arg tag "$RELEASE_TAG" --arg digest "$CANDIDATE_DIGEST" \
+            --arg workflow "sdk-java-release-candidate/$CANDIDATE_DIGEST" \
+            '.tag == $tag and .candidateDigest == $digest and .workflowId == $workflow and
+             (.runId | test("^[0-9a-fA-F-]{16,64}$"))' "$start" >/dev/null
+      - name: Checkout receipt-validated release source
+        if: matrix.role == 'build'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+          ref: ${{ matrix.commitSha }}
+          submodules: recursive
       - name: Poll only the discovered release-specific queue
         working-directory: automation
         env:
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
+          EXPECTED_RUN_ID: ${{ matrix.runId }}
+          EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
           ROLE: ${{ matrix.role }}

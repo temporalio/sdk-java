@@ -102,12 +102,12 @@ jobs:
               fi
               file="$RUNNER_TEMP/candidate-$tag.json"
               aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$file" --no-progress >/dev/null
-              jq -e --arg tag "$tag" \
+              jq -e --arg tag "$tag" --arg automation "$RELEASE_AUTOMATION_REF" \
                 '.repository == "temporalio/sdk-java" and .tag == $tag and
                  (.commitSha | test("^[0-9a-f]{40}$")) and
-                 (.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' "$file" >/dev/null
+                 .trustedAutomationCommit == $automation' "$file" >/dev/null
               jq -cn --arg sourceSha "$(jq -er .commitSha "$file")" \
-                --arg automationCommit "$(jq -er .trustedAutomationCommit "$file")" \
+                --arg automationCommit "$RELEASE_AUTOMATION_REF" \
                 --arg candidateKey "$key" \
                 '{mode:"stored",sourceSha:$sourceSha,baseSha:"",
                   automationCommit:$automationCommit,candidateKey:$candidateKey}' \
@@ -120,7 +120,7 @@ jobs:
             gh api --paginate --slurp 'repos/temporalio/sdk-java/branches?per_page=100' \
               >"$RUNNER_TEMP/branches.json"
             while IFS=$'\t' read -r branch head; do
-              if [[ "$branch" != v*.*.x && "$branch" != *.*.x &&
+              if [[ "$branch" != main && "$branch" != v*.*.x && "$branch" != *.*.x &&
                 "$branch" != release_*_*_x && "$branch" != releases/* ]]; then
                 continue
               fi
@@ -171,16 +171,18 @@ jobs:
         with:
           fetch-depth: 0
           path: source
+          persist-credentials: false
           ref: ${{ matrix.sourceSha }}
       - name: Checkout frozen trusted release automation
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify trusted checkout
         env:
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -196,7 +198,7 @@ jobs:
           BASE_SHA: ${{ matrix.baseSha }}
           CANDIDATE_KEY: ${{ matrix.candidateKey }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           RELEASE_COMMIT: ${{ matrix.sourceSha }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
         run: |
@@ -253,5 +255,7 @@ jobs:
       - name: Poll only this candidate's Workflow Task Queue
         working-directory: automation
         env:
+          EXPECTED_RUN_ID: ${{ steps.temporal.outputs.run_id }}
+          EXPECTED_WORKFLOW_ID: ${{ steps.temporal.outputs.workflow_id }}
           TASK_QUEUE: ${{ steps.temporal.outputs.task_queue }}
         run: ./gradlew -p .github/release-automation run --args="worker candidate $TASK_QUEUE"
