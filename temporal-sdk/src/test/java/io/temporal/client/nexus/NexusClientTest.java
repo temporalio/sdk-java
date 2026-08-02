@@ -2,13 +2,30 @@ package io.temporal.client.nexus;
 
 import static org.junit.Assume.assumeTrue;
 
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
+import io.nexusrpc.handler.OperationHandler;
+import io.nexusrpc.handler.OperationImpl;
+import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
+import io.temporal.api.common.v1.Link;
+import io.temporal.api.enums.v1.ActivityExecutionStatus;
+import io.temporal.api.enums.v1.NexusOperationExecutionStatus;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusOperationExecutionCount;
+import io.temporal.client.NexusOperationExecutionDescription;
 import io.temporal.client.NexusOperationExecutionMetadata;
+import io.temporal.client.StartActivityOptions;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
+import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -17,6 +34,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Before;
@@ -25,11 +44,16 @@ import org.junit.Test;
 
 public class NexusClientTest {
 
+  private final AtomicInteger activityInvocationCount = new AtomicInteger();
+  private final AtomicReference<String> observedActivityId = new AtomicReference<>();
+  private final AtomicReference<String> activityRunId = new AtomicReference<>();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(NexusClientTest.PlaceholderWorkflowImpl.class)
-          .setNexusServiceImplementation(new EchoNexusServiceImpl())
+          .setActivityImplementations(new LinkingActivityImpl())
+          .setNexusServiceImplementation(new EchoNexusServiceImpl(), new ActivityNexusServiceImpl())
           .build();
 
   @Before
@@ -110,6 +134,91 @@ public class NexusClientTest {
     Assert.assertEquals("operation", listed.getOperation());
     // Make sure the count went up.
     Assert.assertTrue(countNexusOperations() > initialCount);
+  }
+
+  @Test
+  public void standaloneNexusOperationStartsActivity() throws Exception {
+    Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
+    UntypedNexusServiceClient serviceClient =
+        testWorkflowRule
+            .getNexusClient()
+            .newUntypedNexusServiceClient(
+                endpoint.getSpec().getName(), ActivityNexusService.class.getSimpleName());
+
+    String operationId = "operation-" + UUID.randomUUID();
+    String activityId = "activity-" + UUID.randomUUID();
+    UntypedNexusOperationHandle operationHandle =
+        serviceClient.start(
+            "operation",
+            StartNexusOperationOptions.newBuilder()
+                .setId(operationId)
+                .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+                .build(),
+            activityId);
+    String operationRunId = operationHandle.getNexusOperationRunId();
+    Assert.assertNotNull("expected SANO run id to be populated by start", operationRunId);
+
+    Assert.assertEquals(
+        "completed " + activityId, operationHandle.getResult(30, TimeUnit.SECONDS, String.class));
+    Assert.assertEquals(
+        "the activity should execute exactly once", 1, activityInvocationCount.get());
+    Assert.assertEquals(activityId, observedActivityId.get());
+
+    String capturedActivityRunId = activityRunId.get();
+    Assert.assertNotNull(
+        "expected the activity implementation to observe its run id", capturedActivityRunId);
+    ActivityClient activityClient =
+        ActivityClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            ActivityClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .build());
+    ActivityExecutionDescription activityDescription =
+        activityClient.getHandle(activityId, capturedActivityRunId).describe();
+    Assert.assertEquals(activityId, activityDescription.getActivityId());
+    Assert.assertEquals(capturedActivityRunId, activityDescription.getActivityRunId());
+    Assert.assertEquals(
+        ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_COMPLETED,
+        activityDescription.getStatus());
+    Assert.assertEquals(testWorkflowRule.getTaskQueue(), activityDescription.getTaskQueue());
+
+    Link.NexusOperation forwardLink = null;
+    for (Link link : activityDescription.getRawInfo().getLinksList()) {
+      if (link.hasNexusOperation()) {
+        forwardLink = link.getNexusOperation();
+        break;
+      }
+    }
+    Assert.assertNotNull(
+        "expected Link.NexusOperation on the standalone activity execution", forwardLink);
+    String namespace = testWorkflowRule.getWorkflowClient().getOptions().getNamespace();
+    Assert.assertEquals(namespace, forwardLink.getNamespace());
+    Assert.assertEquals(operationId, forwardLink.getOperationId());
+    Assert.assertEquals(operationRunId, forwardLink.getRunId());
+
+    NexusOperationExecutionDescription operationDescription = operationHandle.describe();
+    Assert.assertEquals(operationId, operationDescription.getOperationId());
+    Assert.assertEquals(operationRunId, operationDescription.getRunId());
+    Assert.assertEquals(endpoint.getSpec().getName(), operationDescription.getEndpoint());
+    Assert.assertEquals(
+        ActivityNexusService.class.getSimpleName(), operationDescription.getService());
+    Assert.assertEquals("operation", operationDescription.getOperation());
+    Assert.assertEquals(
+        NexusOperationExecutionStatus.NEXUS_OPERATION_EXECUTION_STATUS_COMPLETED,
+        operationDescription.getStatus());
+
+    Link.Activity backwardLink = null;
+    for (Link link : operationDescription.getRawInfo().getLinksList()) {
+      if (link.hasActivity() && activityId.equals(link.getActivity().getActivityId())) {
+        backwardLink = link.getActivity();
+        break;
+      }
+    }
+    Assert.assertNotNull(
+        "expected Link.Activity on the standalone Nexus operation execution", backwardLink);
+    Assert.assertEquals(namespace, backwardLink.getNamespace());
+    Assert.assertEquals(activityId, backwardLink.getActivityId());
+    Assert.assertEquals(capturedActivityRunId, backwardLink.getRunId());
   }
 
   @Test
@@ -245,6 +354,46 @@ public class NexusClientTest {
     @Override
     public String execute(String input) {
       return input;
+    }
+  }
+
+  @ActivityInterface
+  public interface LinkingActivity {
+    @ActivityMethod
+    String execute(String activityId);
+  }
+
+  public class LinkingActivityImpl implements LinkingActivity {
+    @Override
+    public String execute(String activityId) {
+      activityInvocationCount.incrementAndGet();
+      observedActivityId.set(Activity.getExecutionContext().getInfo().getActivityId());
+      activityRunId.set(Activity.getExecutionContext().getInfo().getActivityRunId());
+      return "completed " + activityId;
+    }
+  }
+
+  @Service
+  public interface ActivityNexusService {
+    @Operation
+    String operation(String activityId);
+  }
+
+  @ServiceImpl(service = ActivityNexusService.class)
+  public class ActivityNexusServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return TemporalOperationHandler.create(
+          (context, client, activityId) ->
+              client.startActivity(
+                  LinkingActivity.class,
+                  LinkingActivity::execute,
+                  activityId,
+                  StartActivityOptions.newBuilder()
+                      .setId(activityId)
+                      .setTaskQueue(testWorkflowRule.getTaskQueue())
+                      .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+                      .build()));
     }
   }
 }
