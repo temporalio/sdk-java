@@ -121,6 +121,11 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (nexusOperationMetadata != null) {
       List<Link> protoLinks = nexusContext.getRequestLinks();
       request.addAllLinks(protoLinks);
+      request.setOnConflictOptions(
+          io.temporal.api.common.v1.OnConflictOptions.newBuilder()
+              .setAttachRequestId(true)
+              .setAttachLinks(true)
+              .setAttachCompletionCallbacks(true));
       // Generate the operation token from the user-supplied activity ID and namespace so the
       // dual OPERATION_ID + OPERATION_TOKEN headers can be injected before the start RPC fires.
       try {

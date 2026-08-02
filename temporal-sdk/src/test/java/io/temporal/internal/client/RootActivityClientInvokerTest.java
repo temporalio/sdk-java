@@ -89,6 +89,9 @@ public class RootActivityClientInvokerTest {
     Assert.assertEquals("nexus-request-id", request.getRequestId());
     Assert.assertEquals(Collections.singletonList(link), request.getLinksList());
     Assert.assertEquals(1, request.getCompletionCallbacksCount());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachCompletionCallbacks());
     Assert.assertEquals(
         "http://localhost/callback", request.getCompletionCallbacks(0).getNexus().getUrl());
     Assert.assertEquals(
@@ -121,6 +124,9 @@ public class RootActivityClientInvokerTest {
     Assert.assertEquals("nexus-request-id", request.getRequestId());
     Assert.assertEquals(Collections.singletonList(link), request.getLinksList());
     Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachCompletionCallbacks());
     Assert.assertNotNull(metadata.operationToken);
     Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
   }
@@ -138,6 +144,7 @@ public class RootActivityClientInvokerTest {
     Assert.assertFalse(request.getRequestId().isEmpty());
     Assert.assertEquals(0, request.getLinksCount());
     Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertFalse(request.hasOnConflictOptions());
     Assert.assertTrue(nexusContext.getResponseLinks().isEmpty());
   }
 
