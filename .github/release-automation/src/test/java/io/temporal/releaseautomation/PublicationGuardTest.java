@@ -39,6 +39,10 @@ public class PublicationGuardTest {
     assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
     input.candidateDigest = release.candidate.digest();
 
+    env.put("EXPECTED_CANDIDATE_RUN_ID", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
+    env.put("EXPECTED_CANDIDATE_RUN_ID", release.candidateRunId);
+
     env.put("EXPECTED_COMMIT_SHA", "ffffffffffffffffffffffffffffffffffffffff");
     assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
   }
@@ -97,6 +101,7 @@ public class PublicationGuardTest {
     env.put("EXPECTED_REPOSITORY", input.release.candidate.repository);
     env.put("EXPECTED_TAG", input.release.candidate.tag);
     env.put("EXPECTED_COMMIT_SHA", input.release.candidate.commitSha);
+    env.put("EXPECTED_CANDIDATE_RUN_ID", input.release.candidateRunId);
     env.put("EXPECTED_NOTES_SHA256", input.release.candidate.releaseNotesSha256);
     env.put("EXPECTED_MANIFEST_SHA256", input.release.manifestSha256);
     env.put("EXPECTED_RELEASE_DIGEST", input.release.digest());

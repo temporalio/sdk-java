@@ -7,13 +7,20 @@ public final class ReleaseIdentity {
   public CandidateIdentity candidate;
   public ArtifactManifest manifest;
   public String manifestSha256;
+  public String candidateRunId;
 
   public ReleaseIdentity() {}
 
   public ReleaseIdentity(CandidateIdentity candidate, ArtifactManifest manifest) {
+    this(candidate, manifest, "");
+  }
+
+  public ReleaseIdentity(
+      CandidateIdentity candidate, ArtifactManifest manifest, String candidateRunId) {
     this.candidate = candidate;
     this.manifest = manifest;
     this.manifestSha256 = manifest.digest();
+    this.candidateRunId = candidateRunId;
     validate();
   }
 
@@ -23,6 +30,12 @@ public final class ReleaseIdentity {
     }
     candidate.validate();
     manifest.validate();
+    if (candidateRunId == null
+        || (!candidateRunId.isEmpty()
+            && !candidateRunId.matches(
+                "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))) {
+      throw new IllegalArgumentException("Candidate Workflow Run ID is invalid.");
+    }
     if (!manifest.digest().equals(manifestSha256)) {
       throw new IllegalArgumentException("Artifact manifest hash does not match its contents.");
     }

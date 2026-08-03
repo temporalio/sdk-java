@@ -30,6 +30,10 @@ final class PublicationGuard {
     requireEqual(
         "expected commit", input.release.candidate.commitSha, required(env, "EXPECTED_COMMIT_SHA"));
     requireEqual(
+        "expected Candidate Workflow run ID",
+        input.release.candidateRunId,
+        required(env, "EXPECTED_CANDIDATE_RUN_ID"));
+    requireEqual(
         "expected release notes hash",
         input.release.candidate.releaseNotesSha256,
         required(env, "EXPECTED_NOTES_SHA256"));

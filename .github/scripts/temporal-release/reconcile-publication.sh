@@ -91,6 +91,10 @@ verify_candidate_receipts() {
   [[ ${RELEASE_MODE:-temporal} == temporal ]] || return
   [[ $candidate_digest =~ ^[0-9a-f]{64}$ ]] ||
     conflict "the Activity input has an invalid candidate digest."
+  candidate_run=$(jq -er .release.candidateRunId "$RELEASE_INPUT_FILE") ||
+    conflict "the Activity input has no Candidate Workflow Run ID."
+  [[ $candidate_run =~ ^[0-9a-fA-F-]{16,64}$ ]] ||
+    conflict "the Activity input has an invalid Candidate Workflow Run ID."
   candidate_receipt="$work/candidate-receipt.json"
   candidate_from_input="$work/candidate-from-input.json"
   aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates/$tag.json" \
@@ -104,10 +108,10 @@ verify_candidate_receipts() {
   aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates-started/$tag.json" \
     "$start_receipt" --no-progress >/dev/null ||
     fail "the protected Candidate Workflow start receipt is temporarily unavailable."
-  jq -e --arg tag "$tag" --arg digest "$candidate_digest" \
+  jq -e --arg tag "$tag" --arg digest "$candidate_digest" --arg run "$candidate_run" \
     --arg workflow "sdk-java-release-candidate/$candidate_digest" \
     '.tag == $tag and .candidateDigest == $digest and .workflowId == $workflow and
-     (.runId | test("^[0-9a-fA-F-]{16,64}$"))' "$start_receipt" >/dev/null ||
+     .runId == $run' "$start_receipt" >/dev/null ||
     invalid_approval "the protected Candidate Workflow start receipt differs."
 }
 

@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
@@ -192,8 +191,8 @@ jobs:
             echo "sync_matrix=$sync_matrix"
           } >>"$GITHUB_OUTPUT"
 
-  build:
-    name: Emergency build ${{ matrix.platform }} for ${{ matrix.candidate.tag }}
+  compile_native:
+    name: Credential-free emergency compile ${{ matrix.platform }} for ${{ matrix.candidate.tag }}
     needs: discover
     if: needs.discover.outputs.build_count != '0'
     strategy:
@@ -201,6 +200,8 @@ jobs:
       matrix: ${{ fromJSON(needs.discover.outputs.build_matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
+    permissions:
+      contents: read
     concurrency:
       group: emergency-${{ matrix.candidateDigest }}-${{ matrix.platform }}
       cancel-in-progress: false
@@ -215,6 +216,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
+          persist-credentials: false
           ref: ${{ matrix.candidate.trustedAutomationCommit }}
       - name: Verify protected automation identity
         env:
@@ -226,25 +228,84 @@ jobs:
           distribution: ${{ matrix.distribution }}
           java-version: "23"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
-      - name: Build or adopt the immutable native artifact
+      - name: Compile candidate without release credentials
         working-directory: source
         env:
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
           RELEASE_COMMIT: ${{ matrix.candidate.commitSha }}
           RELEASE_NOTES_FILE: ${{ matrix.candidate.releaseNotesPath }}
           RELEASE_NOTES_SHA256: ${{ matrix.candidate.releaseNotesSha256 }}
           RELEASE_PLATFORM: ${{ matrix.platform }}
-          RELEASE_MODE: emergency
+          RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/native-output
           RELEASE_TAG: ${{ matrix.candidate.tag }}
           RELEASE_VERSION: ${{ matrix.candidate.version }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-native-binary.sh"
+      - name: Upload raw native output for trusted storage
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: emergency-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/native-output
+          if-no-files-found: error
+          retention-days: 1
+
+  store_native:
+    name: Store emergency artifact ${{ matrix.platform }} for ${{ matrix.candidate.tag }}
+    needs: [discover, compile_native]
+    if: >-
+      always() && needs.discover.result == 'success' && needs.compile_native.result == 'success' &&
+      needs.discover.outputs.build_count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.build_matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    concurrency:
+      group: emergency-store-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          persist-credentials: false
+          ref: ${{ matrix.candidate.trustedAutomationCommit }}
+      - name: Verify protected automation identity
+        env:
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+        run: '[[ "$(git -C automation rev-parse HEAD)" == "$TRUSTED_AUTOMATION_COMMIT" ]]'
+      - name: Download credential-free native output
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download "$GITHUB_RUN_ID" \
+            --name "emergency-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}-$GITHUB_RUN_ATTEMPT" \
+            --dir "$RUNNER_TEMP/prebuilt-native"
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
+      - name: Validate, package, and store the immutable native artifact
+        working-directory: automation
+        env:
           EMERGENCY_BUILD_ATTEMPT: ${{ matrix.replacementAttempt }}
-        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-native-and-store.sh"
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
+          RELEASE_COMMIT: ${{ matrix.candidate.commitSha }}
+          RELEASE_MODE: emergency
+          RELEASE_NOTES_FILE: ${{ matrix.candidate.releaseNotesPath }}
+          RELEASE_NOTES_SHA256: ${{ matrix.candidate.releaseNotesSha256 }}
+          RELEASE_PLATFORM: ${{ matrix.platform }}
+          RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/prebuilt-native
+          RELEASE_TAG: ${{ matrix.candidate.tag }}
+          RELEASE_VERSION: ${{ matrix.candidate.version }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.candidate.trustedAutomationCommit }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: bash .github/scripts/temporal-release/store-native-artifact.sh
 
   publish:
     name: Emergency publication for ${{ matrix.candidate.tag }}

@@ -38,6 +38,17 @@ public class ReleaseIdentityTest {
   }
 
   @Test
+  public void candidateRunReceiptDoesNotChangeImmutableReleaseDigest() {
+    ReleaseIdentity release = ReleaseFixtures.release();
+    ReleaseIdentity other =
+        new ReleaseIdentity(
+            release.candidate, release.manifest, "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+    assertEquals(release.digest(), other.digest());
+    other.candidateRunId = "not-a-run";
+    assertThrows(IllegalArgumentException.class, other::validate);
+  }
+
+  @Test
   public void fixedPlatformSetIsRequired() {
     ReleaseIdentity release = ReleaseFixtures.release();
     release.manifest.artifacts.remove(0);

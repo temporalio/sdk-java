@@ -123,6 +123,7 @@ jobs:
         working-directory: automation
         env:
           CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
+          CANDIDATE_RUN_ID: ${{ matrix.candidateRunId }}
           COMMIT_SHA: ${{ matrix.commitSha }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ matrix.tag }}
@@ -143,9 +144,10 @@ jobs:
           aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates-started/$RELEASE_TAG.json" \
             "$start" --no-progress >/dev/null
           jq -e --arg tag "$RELEASE_TAG" --arg digest "$CANDIDATE_DIGEST" \
+            --arg run "$CANDIDATE_RUN_ID" \
             --arg workflow "sdk-java-release-candidate/$CANDIDATE_DIGEST" \
             '.tag == $tag and .candidateDigest == $digest and .workflowId == $workflow and
-             (.runId | test("^[0-9a-fA-F-]{16,64}$"))' "$start" >/dev/null
+             .runId == $run' "$start" >/dev/null
       - name: Checkout receipt-validated release source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -162,6 +164,7 @@ jobs:
           EXPECTED_APPROVAL_ISSUE_NODE_ID: ${{ matrix.approvalIssueNodeId }}
           EXPECTED_APPROVAL_ISSUE_BODY_SHA256: ${{ matrix.approvalIssueBodySha256 }}
           EXPECTED_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
+          EXPECTED_CANDIDATE_RUN_ID: ${{ matrix.candidateRunId }}
           EXPECTED_COMMIT_SHA: ${{ matrix.commitSha }}
           EXPECTED_MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
           EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ matrix.mavenRetryAuthorizationSha256 }}

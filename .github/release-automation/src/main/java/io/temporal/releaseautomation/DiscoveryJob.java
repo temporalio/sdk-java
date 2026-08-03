@@ -9,11 +9,13 @@ final class DiscoveryJob {
   String workflowId;
   String runId;
   String tag;
+  String version;
   String commitSha;
   String notesSha256;
   String manifestSha256;
   String releaseDigest;
   String candidateDigest;
+  String candidateRunId;
   String approvalRunId;
   String approvalActor;
   String approvalIssueNumber;

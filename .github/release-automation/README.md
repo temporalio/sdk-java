@@ -14,9 +14,11 @@ release. Tests use local Temporal facilities and mocks only.
 1. A push adding exactly one `releases/vX.Y.Z[-RCN]` freezes repository, version/tag, full source
    SHA, release-note path/hash, Maven policy, and `RELEASE_AUTOMATION_REF`. The candidate identity is
    also stored create-if-absent for recovery independent of Temporal.
-2. `CandidateWorkflow` schedules the fixed six native builds on release-specific queues. Each
-   Activity adopts a checksum-validated existing S3 object before building; otherwise it uploads
-   create-if-absent. Artifact bytes never enter Temporal history.
+2. `CandidateWorkflow` schedules the fixed six native builds on release-specific queues. Actions
+   compiles each candidate in a separate job with no Temporal, AWS, OIDC, publication, or GitHub
+   token. A trusted Ubuntu Activity validates the raw executable and its immutable identity,
+   packages it, adopts a checksum-validated existing S3 object, or uploads create-if-absent.
+   Artifact bytes never enter Temporal history.
 3. The exact six-object manifest becomes part of `ReleaseIdentity`. The candidate records the child
    identity, starts `ReleaseWorkflow` on its release-specific queue, and waits for Temporal to
    acknowledge that start.
@@ -37,11 +39,17 @@ never Actions run IDs. Publication queues also include the append-only Maven gen
 a stale runner from consuming work authorized for a later generation. New candidates freeze the
 current protected `RELEASE_AUTOMATION_REF`; recovery may check out that exact older commit only while
 it remains in `RELEASE_AUTOMATION_COMPATIBLE_REFS`. Task Queues are routing, not authorization.
+S3 HEAD classifies only an explicit `404`/`NoSuchKey`/`NotFound` service response as absence;
+authentication, authorization, throttling, transport, and other service failures remain retryable
+Activity failures.
 
 For maintenance branches that predate these workflow files, default-branch scheduled discovery
 finds an untagged release-note file, resolves the exact commit that added it, and persists the
-candidate before starting Temporal. A separate create-if-absent start receipt lets discovery resume
-a runner loss between those operations without repeatedly opening completed candidates. A
+candidate before starting Temporal. A separate create-if-absent start receipt is written only after
+the returned execution, exact Run ID, memo, Task Queue, and start-event input have been verified.
+The child release records that Candidate Run ID and must have the exact parent/root execution.
+This lets discovery resume a runner loss between those operations without attaching to a poisoned
+same-ID execution or repeatedly opening completed candidates. A
 successful maintenance `Continuous Integration` run can also trigger the same path when that branch
 has a compatible CI workflow. Scheduled default-branch preflight validates open maintenance
 release-note PRs. Source builds run on Java 17; older SHAs receive frozen
@@ -121,7 +129,9 @@ Temporal reconciliation script. Its separate shell implementation and 90-day Act
   Sonatype inspection, and a draft-first seven-asset contract. A fixed-body locked GitHub issue
   created by the publication bot binds tag/SHA, protected controller, authenticated actor, and exact
   Actions run; it is never edited into a mutable state store. Recovery always downloads the native
-  artifacts from that owning run, so a later rebuild cannot silently replace the selected bytes. A
+  artifacts from that owning run, so a later rebuild cannot silently replace the selected bytes.
+  Rerun attempts adopt already-uploaded, non-expired platform artifacts from that run instead of
+  colliding with or overwriting them. A
   locked request issue is created before any publication job enters GitHub's one-pending concurrency
   queue; tag ownership is activated only after the fallback holds the shared lock. Scheduled
   controllers skip all publication while it is open, and interrupted fallback runs retry
@@ -144,8 +154,8 @@ Workflow start against create-if-absent S3 receipts. An Update cannot independen
 publication.
 
 Publication credentials exist only in the protected publication jobs. Before every privileged
-Activity, Java and shell checks independently bind the Activity Workflow ID/run ID, generation-
-specific queue, repository, tag, full SHA, candidate/start receipts, notes digest, approved manifest,
+Activity, Java and shell checks independently bind the Activity Workflow ID/run ID, exact Candidate
+parent Run ID, generation-specific queue, repository, tag, full SHA, candidate/start receipts, notes digest, approved manifest,
 approval run/actor/issue/immutable request receipt, protected Worker commit, Maven generation, and
 protected retry receipt to the Actions job. Completed stage receipts bind the immutable release
 identity, manifest, generation, predecessor, and output but deliberately omit controller run IDs,
@@ -153,7 +163,8 @@ so an authenticated handoff can resume them. The final GitHub mutation independe
 Central byte. It re-reads GitHub evidence and rechecks active team membership. Candidate-controlled
 Gradle runs only in the isolated no-secret build container. Signing and Sonatype repository creation
 run afterward in trusted pinned scripts; candidate code never receives or shares a process namespace
-with those credentials.
+with those credentials. Native candidate Gradle instead runs in a distinct credential-free Actions
+job; only its inert executable and identity metadata cross into the trusted packaging Activity.
 
 ## Required setup
 

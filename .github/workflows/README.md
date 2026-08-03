@@ -32,7 +32,8 @@ this is an accepted operational limitation requiring release-manager inspection,
 submit again.
 
 `build-native-image.yml` is separately dispatchable with exact SHA, tag, and release-note digest.
-It remains reusable for the manual path.
+It remains reusable for the manual path. A retry of the same owning run adopts each already-uploaded
+platform artifact and never overwrites it.
 
 The durable automated emergency controller is
 `temporal-release-emergency-control.yml`; its scheduled continuation is
