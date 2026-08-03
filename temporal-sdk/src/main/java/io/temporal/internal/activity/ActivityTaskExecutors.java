@@ -17,6 +17,7 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -95,6 +96,11 @@ final class ActivityTaskExecutors {
         return this.constructSuccessfulResultValue(info, result, dataConverterWithActivityContext);
       } catch (Throwable e) {
         Throwable ex = CheckedExceptionWrapper.unwrap(e);
+        ExternalStorageNotConfiguredException externalStorageFailure =
+            ExternalStorageNotConfiguredException.find(ex);
+        if (externalStorageFailure != null) {
+          throw externalStorageFailure;
+        }
         boolean local = info.isLocal();
         if (ex instanceof ActivityCanceledException) {
           log.info(

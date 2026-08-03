@@ -7,10 +7,12 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
 import java.util.List;
+import javax.annotation.Nullable;
 
 public final class SingleWorkerOptions {
 
@@ -45,6 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
+    private ExternalStorageMessageConverter externalStorageMessageConverter;
 
     private Builder() {}
 
@@ -73,6 +76,7 @@ public final class SingleWorkerOptions {
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
       this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
       this.preferredVersionProvider = options.getPreferredVersionProvider();
+      this.externalStorageMessageConverter = options.getExternalStorageMessageConverter();
     }
 
     public Builder setIdentity(String identity) {
@@ -185,6 +189,13 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    /** The message converter that offloads/restores external-storage payloads, or null. */
+    public Builder setExternalStorageMessageConverter(
+        ExternalStorageMessageConverter externalStorageMessageConverter) {
+      this.externalStorageMessageConverter = externalStorageMessageConverter;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -227,7 +238,8 @@ public final class SingleWorkerOptions {
           this.workerInstanceKey,
           this.allowActivityHeartbeatDuringShutdown,
           this.workerControlTaskQueue,
-          this.preferredVersionProvider);
+          this.preferredVersionProvider,
+          this.externalStorageMessageConverter);
     }
   }
 
@@ -252,6 +264,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
+  private final ExternalStorageMessageConverter externalStorageMessageConverter;
 
   private SingleWorkerOptions(
       String identity,
@@ -274,7 +287,8 @@ public final class SingleWorkerOptions {
       String workerInstanceKey,
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
-      PreferredVersionProvider preferredVersionProvider) {
+      PreferredVersionProvider preferredVersionProvider,
+      ExternalStorageMessageConverter externalStorageMessageConverter) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -296,6 +310,7 @@ public final class SingleWorkerOptions {
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
     this.workerControlTaskQueue = workerControlTaskQueue;
     this.preferredVersionProvider = preferredVersionProvider;
+    this.externalStorageMessageConverter = externalStorageMessageConverter;
   }
 
   public String getIdentity() {
@@ -391,6 +406,12 @@ public final class SingleWorkerOptions {
 
   public PreferredVersionProvider getPreferredVersionProvider() {
     return preferredVersionProvider;
+  }
+
+  /** The external-storage message converter for this worker, or null when disabled. */
+  @Nullable
+  public ExternalStorageMessageConverter getExternalStorageMessageConverter() {
+    return externalStorageMessageConverter;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

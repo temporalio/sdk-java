@@ -18,12 +18,15 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.client.external.ExternalStorageGenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
@@ -106,7 +109,17 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getOptions()
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
-    this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    ExternalStorageOptions externalStorage = options.getExternalStorage();
+    ExternalStorageMessageConverter externalStorageConverter =
+        externalStorage == null ? null : ExternalStorageMessageConverter.create(externalStorage);
+    GenericWorkflowClient genericClient =
+        new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    if (externalStorageConverter != null) {
+      genericClient =
+          new ExternalStorageGenericWorkflowClient(
+              genericClient, externalStorageConverter, options.getNamespace());
+    }
+    this.genericClient = genericClient;
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
@@ -114,7 +127,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             workflowServiceStubs,
             options.getNamespace(),
             options.getIdentity(),
-            options.getDataConverter());
+            options.getDataConverter(),
+            externalStorageConverter);
 
     java.time.Duration heartbeatInterval = options.getWorkerHeartbeatInterval();
     if (!heartbeatInterval.isNegative()) {

@@ -31,7 +31,8 @@ public interface StorageDriver {
    * order. The returned list must be the same length as {@code payloads}.
    *
    * <p>Drivers should use {@link StorageDriverStoreContext#getCancellationToken()} to abort
-   * in-flight requests.
+   * in-flight requests and configure an appropriate backend timeout. The SDK does not impose a
+   * storage-operation timeout.
    */
   @Nonnull
   CompletableFuture<List<StorageDriverClaim>> store(
@@ -42,7 +43,8 @@ public interface StorageDriver {
    * in the same order. The returned list must be the same length as {@code claims}.
    *
    * <p>Drivers should use {@link StorageDriverRetrieveContext#getCancellationToken()} to abort
-   * in-flight requests.
+   * in-flight requests and configure an appropriate backend timeout. The SDK does not impose a
+   * storage-operation timeout.
    */
   @Nonnull
   CompletableFuture<List<Payload>> retrieve(
