@@ -6,8 +6,10 @@ import static io.temporal.internal.common.LinkConverter.nexusLinkToActivity;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToLink;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToNexusOperation;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowLink;
 import static io.temporal.internal.common.LinkConverter.nexusOperationToNexusLink;
 import static io.temporal.internal.common.LinkConverter.workflowEventToNexusLink;
+import static io.temporal.internal.common.LinkConverter.workflowLinkToNexusLink;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.Link;
@@ -633,5 +635,310 @@ public class LinkConverterTest {
   @Test
   public void testLinkToNexusLink_Empty() {
     assertNull(linkToNexusLink(Link.newBuilder().build()));
+  }
+
+  @Test
+  public void testConvertWorkflowToNexus_Valid() {
+    Link.Workflow input =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf-id")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link expected =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals(expected, workflowLinkToNexusLink(input));
+  }
+
+  @Test
+  public void testConvertWorkflowToNexus_ValidReason() {
+    Link.Workflow input =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf-id")
+            .setRunId("run-id")
+            .setReason("rejected update")
+            .build();
+
+    io.temporal.api.nexus.v1.Link expected =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id?reason=rejected+update")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals(expected, workflowLinkToNexusLink(input));
+  }
+
+  @Test
+  public void testConvertWorkflowToNexus_ValidSlash() {
+    Link.Workflow input =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf/id")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link expected =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf%2Fid/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals(expected, workflowLinkToNexusLink(input));
+  }
+
+  @Test
+  public void testConvertWorkflowToNexus_ValidSpace() throws UnsupportedEncodingException {
+    Link.Workflow input =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf id")
+            .setRunId("run-id")
+            .build();
+
+    io.temporal.api.nexus.v1.Link expected =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf%20id/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    io.temporal.api.nexus.v1.Link actual = workflowLinkToNexusLink(input);
+    assertEquals(expected, actual);
+    // A space in the path has to survive as %20 rather than the '+' that form encoding would
+    // produce, otherwise the link resolves to a different workflow ID.
+    assertEquals(
+        "temporal:///namespaces/ns/workflows/wf id/run-id",
+        URLDecoder.decode(actual.getUrl(), StandardCharsets.UTF_8.toString()));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_Valid() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    Link expected =
+        Link.newBuilder()
+            .setWorkflow(
+                Link.Workflow.newBuilder()
+                    .setNamespace("ns")
+                    .setWorkflowId("wf-id")
+                    .setRunId("run-id"))
+            .build();
+
+    assertEquals(expected, nexusLinkToWorkflowLink(input));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_ValidReason() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id?reason=rejected+update")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    Link expected =
+        Link.newBuilder()
+            .setWorkflow(
+                Link.Workflow.newBuilder()
+                    .setNamespace("ns")
+                    .setWorkflowId("wf-id")
+                    .setRunId("run-id")
+                    .setReason("rejected update"))
+            .build();
+
+    assertEquals(expected, nexusLinkToWorkflowLink(input));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_WrongType() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id")
+            .setType("temporal.api.common.v1.Link.WorkflowEvent")
+            .build();
+
+    assertNull(nexusLinkToWorkflowLink(input));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_InvalidScheme() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("random:///namespaces/ns/workflows/wf-id/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertNull(nexusLinkToWorkflowLink(input));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_InvalidPathTrailingSegment() {
+    // The workflow-event form addresses an event inside the workflow, so it must not be accepted
+    // as a workflow link even when the type says otherwise.
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id/history")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertNull(nexusLinkToWorkflowLink(input));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_ReasonNotFirstQueryParam() {
+    // The reason is located by key, not by position, so unrelated params ahead of it are skipped.
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl(
+                "temporal:///namespaces/ns/workflows/wf-id/run-id?foo=bar&reason=Query+processed")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals("Query processed", nexusLinkToWorkflowLink(input).getWorkflow().getReason());
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_EmptyReasonValue() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id?reason=")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals("", nexusLinkToWorkflowLink(input).getWorkflow().getReason());
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_BareReasonKey() {
+    // A key with no '=' must not blow up on the missing value.
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id?reason")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals("", nexusLinkToWorkflowLink(input).getWorkflow().getReason());
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_ReasonPrefixKeyIgnored() {
+    // "reasonx" must not be treated as "reason".
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id/run-id?reasonx=nope")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals("", nexusLinkToWorkflowLink(input).getWorkflow().getReason());
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_EmptyUrl() {
+    // A URL with no scheme must be reported as an invalid scheme rather than throwing.
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertNull(nexusLinkToWorkflowLink(input));
+  }
+
+  /**
+   * Characterization test, not a statement of intent. {@link java.net.URLDecoder} performs form
+   * decoding, so it turns a literal '+' in a path segment into a space. Other SDKs escape paths
+   * with Go's {@code url.PathEscape}, which leaves '+' literal, so a link they produce for a
+   * workflow ID containing '+' is currently decoded incorrectly here. The same flaw exists in
+   * {@link LinkConverter#nexusLinkToWorkflowEvent} and {@link
+   * LinkConverter#nexusLinkToNexusOperation}. When path decoding is fixed across all three
+   * converters, invert this assertion to expect "a+b".
+   */
+  @Test
+  public void testConvertNexusToWorkflow_LiteralPlusInPathDecodesToSpace() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/a+b/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals("a b", nexusLinkToWorkflowLink(input).getWorkflow().getWorkflowId());
+
+    // A '+' this SDK encoded itself does survive, because URLEncoder emits %2B.
+    Link.Workflow w =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("a+b")
+            .setRunId("run-id")
+            .build();
+    assertEquals(
+        Link.newBuilder().setWorkflow(w).build(),
+        nexusLinkToWorkflowLink(workflowLinkToNexusLink(w)));
+  }
+
+  @Test
+  public void testConvertNexusToWorkflow_InvalidPathMissingRunID() {
+    io.temporal.api.nexus.v1.Link input =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/wf-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertNull(nexusLinkToWorkflowLink(input));
+  }
+
+  @Test
+  public void testWorkflowLinkRoundTrip() {
+    // Reserved characters in every field at once: the path segments are percent-escaped and the
+    // reason is form-encoded, so a reason containing '=' and '&' must not be split as query syntax.
+    Link.Workflow w =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns/with/slash")
+            .setWorkflowId("wf id with space")
+            .setRunId("run-id")
+            .setReason("reason with = and &")
+            .build();
+
+    io.temporal.api.nexus.v1.Link nexusLink = workflowLinkToNexusLink(w);
+    assertEquals("temporal.api.common.v1.Link.Workflow", nexusLink.getType());
+    assertEquals(Link.newBuilder().setWorkflow(w).build(), nexusLinkToWorkflowLink(nexusLink));
+  }
+
+  @Test
+  public void testLinkToNexusLink_Workflow() {
+    Link.Workflow w =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf-id")
+            .setRunId("run-id")
+            .setReason("Query processed")
+            .build();
+
+    io.temporal.api.nexus.v1.Link actual =
+        linkToNexusLink(Link.newBuilder().setWorkflow(w).build());
+    assertEquals(workflowLinkToNexusLink(w), actual);
+  }
+
+  @Test
+  public void testNexusLinkToLink_WorkflowRoundTrip() {
+    Link.Workflow w =
+        Link.Workflow.newBuilder()
+            .setNamespace("ns")
+            .setWorkflowId("wf-id")
+            .setRunId("run-id")
+            .setReason("Query processed")
+            .build();
+
+    io.temporal.api.nexus.v1.Link nexusLink = workflowLinkToNexusLink(w);
+    Link converted = nexusLinkToLink(nexusLink);
+    assertNotNull(converted);
+    assertEquals(Link.newBuilder().setWorkflow(w).build(), converted);
   }
 }
