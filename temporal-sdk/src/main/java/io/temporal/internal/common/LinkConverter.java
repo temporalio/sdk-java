@@ -25,10 +25,12 @@ public class LinkConverter {
       "temporal:///namespaces/%s/nexus-operations/%s/%s/details";
   private static final String activityLinkPathFormat =
       "temporal:///namespaces/%s/activities/%s/%s/details";
+  private static final String workflowLinkPathFormat = "temporal:///namespaces/%s/workflows/%s/%s";
   private static final String linkReferenceTypeKey = "referenceType";
   private static final String linkEventIDKey = "eventID";
   private static final String linkEventTypeKey = "eventType";
   private static final String linkRequestIDKey = "requestID";
+  private static final String linkReasonKey = "reason";
 
   private static final String eventReferenceType =
       Link.WorkflowEvent.EventReference.getDescriptor().getName();
@@ -98,14 +100,28 @@ public class LinkConverter {
     return null;
   }
 
+  /**
+   * Converts a {@link Link.Workflow} to a Nexus link. A workflow link addresses a workflow
+   * execution as a whole rather than one event within it, so the URL uses the workflow path and
+   * carries no event path suffix and no reference query params. It is used when there is no history
+   * event to point at, for example a Query or a rejected Update. The optional {@code reason}
+   * explaining why the link exists is carried as a query param.
+   */
   public static io.temporal.api.nexus.v1.Link workflowLinkToNexusLink(Link.Workflow w) {
     try {
-      String namespace = URLEncoder.encode(w.getNamespace(), StandardCharsets.UTF_8.toString());
-      String workflowId =
-          URLEncoder.encode(w.getWorkflowId(), StandardCharsets.UTF_8.toString())
-              .replace("+", "%20"); // handle workflowIds supporting spaces
-      String runId = URLEncoder.encode(w.getRunId(), StandardCharsets.UTF_8.toString());
-      String url = String.format(linkPathFormat, namespace, workflowId, runId);
+      String url =
+          String.format(
+              workflowLinkPathFormat,
+              encodePathSegment(w.getNamespace()),
+              encodePathSegment(w.getWorkflowId()),
+              encodePathSegment(w.getRunId()));
+      if (!w.getReason().isEmpty()) {
+        url +=
+            "?"
+                + linkReasonKey
+                + "="
+                + URLEncoder.encode(w.getReason(), StandardCharsets.UTF_8.toString());
+      }
       return io.temporal.api.nexus.v1.Link.newBuilder()
           .setUrl(url)
           .setType(workflowLinkType)
@@ -190,16 +206,25 @@ public class LinkConverter {
   }
 
   public static Link nexusLinkToWorkflowLink(io.temporal.api.nexus.v1.Link nexusLink) {
+    if (!workflowLinkType.equals(nexusLink.getType())) {
+      log.error(
+          "Failed to parse Nexus link URL: cannot parse link type {} to {}",
+          nexusLink.getType(),
+          workflowLinkType);
+      return null;
+    }
     Link.Builder link = Link.newBuilder();
     try {
       URI uri = new URI(nexusLink.getUrl());
-      log.debug("Parsing nexus link URL: {}", uri.getRawPath());
-      if (!uri.getScheme().equals(temporalUrlScheme)) {
+
+      // Compared in this order so a URL with no scheme at all reports the invalid scheme rather
+      // than throwing.
+      if (!temporalUrlScheme.equals(uri.getScheme())) {
         log.error("Failed to parse Nexus link URL: invalid scheme: {}", uri.getScheme());
         return null;
       }
+
       StringTokenizer st = new StringTokenizer(uri.getRawPath(), "/");
-      // maybe add constants for "namespaces", "workflows" too
       if (!st.nextToken().equals("namespaces")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
@@ -210,18 +235,28 @@ public class LinkConverter {
         return null;
       }
       String workflowID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      if (!st.hasMoreTokens()) {
+      String runID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      // The run ID ends a workflow link, so anything trailing means this is a different link
+      // shape. In particular this rejects the workflow-event form, which ends in "/history".
+      if (st.hasMoreTokens()) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String runID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      link.setWorkflow(
+
+      Link.Workflow.Builder w =
           Link.Workflow.newBuilder()
               .setNamespace(namespace)
               .setWorkflowId(workflowID)
-              .setRunId(runID));
+              .setRunId(runID);
+      String reason = rawQueryParam(uri, linkReasonKey);
+      if (reason != null) {
+        w.setReason(reason);
+      }
+
+      link.setWorkflow(w);
     } catch (Exception e) {
-      log.error("Failed to convert NexusLink {} to WorkflowLink", nexusLink, e);
+      // Swallow un-parsable links since they are not critical to processing.
+      log.error("Failed to parse Nexus link URL", e);
       return null;
     }
     return link.build();
@@ -404,6 +439,33 @@ public class LinkConverter {
       return null;
     }
     return link.build();
+  }
+
+  /**
+   * Percent-encodes a single URL path segment. {@link URLEncoder} targets form encoding, where a
+   * space becomes '+', so rewrite it to "%20" as required for a path.
+   */
+  private static String encodePathSegment(String value) throws UnsupportedEncodingException {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20");
+  }
+
+  /**
+   * Reads a single param out of the raw, still-encoded query string, or returns null when the param
+   * is absent. Unlike {@link #parseQueryParams} the value is decoded exactly once, so values that
+   * themselves contain '=' or '&' survive the round trip.
+   */
+  private static String rawQueryParam(URI uri, String key) throws UnsupportedEncodingException {
+    final String rawQuery = uri.getRawQuery();
+    if (rawQuery == null || rawQuery.isEmpty()) {
+      return null;
+    }
+    for (String pair : rawQuery.split("&")) {
+      final String[] kv = pair.split("=", 2);
+      if (kv[0].equals(key)) {
+        return kv.length == 2 ? URLDecoder.decode(kv[1], StandardCharsets.UTF_8.toString()) : "";
+      }
+    }
+    return null;
   }
 
   private static Map<String, String> parseQueryParams(URI uri) throws UnsupportedEncodingException {
