@@ -127,9 +127,9 @@ jobs:
       - name: Build native test server (non-Docker)
         if: matrix.os_family != 'linux'
         run: |
-          release_args=()
-          [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
-          ./gradlew "${release_args[@]}" -PnativeBuild :temporal-test-server:nativeCompile
+          gradle_args=(-PnativeBuild :temporal-test-server:nativeCompile)
+          [[ -n "$INPUT_TAG" ]] && gradle_args=("-PreleaseVersion=${INPUT_TAG#v}" "${gradle_args[@]}")
+          ./gradlew "${gradle_args[@]}"
 
       - name: Build native test server (Docker non-musl)
         if: matrix.os_family == 'linux' && matrix.musl == false
@@ -138,12 +138,11 @@ jobs:
           docker_context=manual-tools/.github/release-automation/docker/native-image-java17
           docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
-          release_args=()
-          [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
+          gradle_args=(-PnativeBuild :temporal-test-server:nativeCompile)
+          [[ -n "$INPUT_TAG" ]] && gradle_args=("-PreleaseVersion=${INPUT_TAG#v}" "${gradle_args[@]}")
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            "$IMAGE_ID" ./gradlew "${release_args[@]}" -PnativeBuild \
-            :temporal-test-server:nativeCompile
+            "$IMAGE_ID" ./gradlew "${gradle_args[@]}"
 
       - name: Build native test server (Docker musl)
         if: matrix.os_family == 'linux' && matrix.musl == true
@@ -152,12 +151,11 @@ jobs:
           docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java17
           docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
-          release_args=()
-          [[ -n "$INPUT_TAG" ]] && release_args+=("-PreleaseVersion=${INPUT_TAG#v}")
+          gradle_args=(-PnativeBuild -PnativeBuildMusl :temporal-test-server:nativeCompile)
+          [[ -n "$INPUT_TAG" ]] && gradle_args=("-PreleaseVersion=${INPUT_TAG#v}" "${gradle_args[@]}")
           docker run \
             --rm -w /github/workspace -v "$(pwd):/github/workspace" \
-            "$IMAGE_ID" ./gradlew "${release_args[@]}" -PnativeBuild -PnativeBuildMusl \
-            :temporal-test-server:nativeCompile
+            "$IMAGE_ID" ./gradlew "${gradle_args[@]}"
 
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
