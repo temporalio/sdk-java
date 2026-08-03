@@ -82,6 +82,8 @@ public class ReleaseIdentityTest {
     assertEquals(17, ReleasePolicy.MAVEN_ARTIFACTS.size());
     assertEquals("io.temporal", ReleasePolicy.MAVEN_GROUP);
     assertEquals("https://repo1.maven.org/maven2", ReleasePolicy.MAVEN_CENTRAL_BASE);
+    assertEquals("graalvm-community", ReleasePolicy.NATIVE_JAVA_DISTRIBUTION);
+    assertEquals("23", ReleasePolicy.NATIVE_JAVA_VERSION);
     assertTrue(ReleasePolicy.MAVEN_ARTIFACTS.contains("temporal-sdk"));
     assertTrue(ReleasePolicy.MAVEN_ARTIFACTS.contains("temporal-workflowstreams"));
     for (String policy :

@@ -87,7 +87,7 @@ trap restore_hook EXIT
 case "$RELEASE_PLATFORM" in
   linux-amd64-musl)
     image_id_file=$(mktemp)
-    docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-musl-java17"
+    docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-musl-java23"
     env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
       -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
       -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u GH_TOKEN \
@@ -99,7 +99,7 @@ case "$RELEASE_PLATFORM" in
     ;;
   linux-amd64 | linux-arm64)
     image_id_file=$(mktemp)
-    docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-java17"
+    docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-java23"
     env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
       -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
       -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u GH_TOKEN \
