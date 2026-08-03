@@ -182,7 +182,7 @@ Configure:
   Activity (it does not need bucket listing). The publication
   role may read artifacts and create/read immutable ownership, Maven, authorization, and completion
   receipts.
-- The `sdk-java-release-managers` team. `RELEASE_APPROVAL_GITHUB_TOKEN` needs organization
+- The existing `temporalio/sdk` team. `RELEASE_APPROVAL_GITHUB_TOKEN` needs organization
   team-membership read, Actions-run read, and issue create/read/lock. The
   `RELEASE_PUBLICATION_GITHUB_TOKEN` needs Actions/issue read, issue create/lock for manual
   ownership, and contents write for tags/releases/assets.
