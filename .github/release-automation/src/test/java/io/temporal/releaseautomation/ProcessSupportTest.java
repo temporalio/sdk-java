@@ -28,6 +28,8 @@ public class ProcessSupportTest {
     assertEquals("bash", command.get(0));
     assertTrue(command.get(1).endsWith("trusted/release-script.sh"));
     assertTrue(!command.get(1).contains("\\"));
+    assertEquals(
+        "/d/trusted/release-script.sh", ProcessSupport.bashPath("D:\\trusted\\release-script.sh"));
   }
 
   @Test
