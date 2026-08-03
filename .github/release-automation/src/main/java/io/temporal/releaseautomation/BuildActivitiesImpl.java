@@ -10,7 +10,7 @@ import java.util.function.Consumer;
 
 public final class BuildActivitiesImpl implements BuildActivities {
   private final Path trustedRoot;
-  private final Path sourceRoot;
+  private final Path prebuiltRoot;
   private final String trustedAutomationCommit;
   private final Map<String, String> workerEnvironment;
   private final Consumer<Throwable> completion;
@@ -18,13 +18,13 @@ public final class BuildActivitiesImpl implements BuildActivities {
 
   public BuildActivitiesImpl(
       Path trustedRoot,
-      Path sourceRoot,
+      Path prebuiltRoot,
       String trustedAutomationCommit,
       Map<String, String> workerEnvironment,
       Runnable started,
       Consumer<Throwable> completion) {
     this.trustedRoot = trustedRoot;
-    this.sourceRoot = sourceRoot;
+    this.prebuiltRoot = prebuiltRoot;
     this.trustedAutomationCommit = trustedAutomationCommit;
     this.workerEnvironment = new HashMap<>(workerEnvironment);
     this.started = started;
@@ -63,7 +63,9 @@ public final class BuildActivitiesImpl implements BuildActivities {
     environment.put("RELEASE_NOTES_SHA256", candidate.releaseNotesSha256);
     environment.put("RELEASE_CANDIDATE_DIGEST", candidate.digest());
     environment.put("RELEASE_PLATFORM", platform);
+    environment.put("RELEASE_PREBUILT_NATIVE_DIR", prebuiltRoot.toString());
     environment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
+    environment.put("TRUSTED_AUTOMATION_COMMIT", trustedAutomationCommit);
     copy(environment, "RELEASE_ARTIFACT_BUCKET");
     copy(environment, "AWS_ACCESS_KEY_ID");
     copy(environment, "AWS_SECRET_ACCESS_KEY");
@@ -73,10 +75,9 @@ public final class BuildActivitiesImpl implements BuildActivities {
     try {
       List<String> output =
           ProcessSupport.run(
-              sourceRoot,
+              trustedRoot,
               ProcessSupport.bash(
-                  trustedRoot.resolve(
-                      ".github/scripts/temporal-release/build-native-and-store.sh")),
+                  trustedRoot.resolve(".github/scripts/temporal-release/store-native-artifact.sh")),
               environment);
       if (output.size() != 1) {
         throw new IllegalStateException("Build command must emit exactly one manifest record.");

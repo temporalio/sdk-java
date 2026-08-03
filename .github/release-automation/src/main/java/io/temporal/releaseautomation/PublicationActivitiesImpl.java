@@ -89,6 +89,7 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
             "EXPECTED_APPROVAL_ISSUE_NODE_ID",
             "EXPECTED_APPROVAL_ISSUE_BODY_SHA256",
             "EXPECTED_APPROVAL_RUN_ID",
+            "EXPECTED_CANDIDATE_RUN_ID",
             "EXPECTED_COMMIT_SHA",
             "EXPECTED_MANIFEST_SHA256",
             "EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256",

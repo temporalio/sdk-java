@@ -1,5 +1,6 @@
 name: Native image builder (reusable)
 permissions:
+  actions: read
   contents: read
 defaults:
   run:
@@ -93,7 +94,26 @@ jobs:
             [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
             [[ "$INPUT_NOTES_SHA256" =~ ^[0-9a-f]{64}$ ]]
           fi
+      - name: Adopt an artifact from an earlier attempt of this run
+        id: existing
+        if: inputs.upload_artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          artifact_name='${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch) }}'
+          artifacts=$(gh api --paginate --slurp \
+            "repos/temporalio/sdk-java/actions/runs/$GITHUB_RUN_ID/artifacts?per_page=100")
+          count=$(jq --arg name "$artifact_name" \
+            '[.[].artifacts[] | select(.name == $name and .expired == false)] | length' \
+            <<<"$artifacts")
+          [[ $count -le 1 ]]
+          if [[ $count -eq 1 ]]; then
+            echo "exists=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >>"$GITHUB_OUTPUT"
+          fi
       - name: Checkout repo
+        if: steps.existing.outputs.exists != 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
@@ -101,7 +121,7 @@ jobs:
           submodules: recursive
           ref: ${{ env.INPUT_REF }}
       - name: Verify checkout and release-note identity
-        if: inputs.tag != ''
+        if: inputs.tag != '' && steps.existing.outputs.exists != 'true'
         run: |
           [[ "$(git rev-parse HEAD)" == "$INPUT_REF" ]]
           [[ -s "releases/$INPUT_TAG" && ! -L "releases/$INPUT_TAG" ]]
@@ -113,7 +133,7 @@ jobs:
           fi
 
       - name: Checkout frozen fallback build containers
-        if: matrix.os_family == 'linux'
+        if: matrix.os_family == 'linux' && steps.existing.outputs.exists != 'true'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: manual-tools
@@ -121,29 +141,31 @@ jobs:
           ref: ${{ env.AUTOMATION_REF }}
 
       - name: Verify frozen fallback build containers
-        if: matrix.os_family == 'linux'
+        if: matrix.os_family == 'linux' && steps.existing.outputs.exists != 'true'
         run: '[[ "$(git -C manual-tools rev-parse HEAD)" == "$AUTOMATION_REF" ]]'
 
       - name: Set up Java
-        if: matrix.os_family != 'linux'
+        if: matrix.os_family != 'linux' && steps.existing.outputs.exists != 'true'
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           java-version: "23"
           distribution: "graalvm-community"
 
       - name: Set up Gradle
-        if: matrix.os_family != 'linux'
+        if: matrix.os_family != 'linux' && steps.existing.outputs.exists != 'true'
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Build native test server (non-Docker)
-        if: matrix.os_family != 'linux'
+        if: matrix.os_family != 'linux' && steps.existing.outputs.exists != 'true'
         run: |
           gradle_args=(-PnativeBuild :temporal-test-server:nativeCompile)
           [[ -n "$INPUT_TAG" ]] && gradle_args=("-PreleaseVersion=${INPUT_TAG#v}" "${gradle_args[@]}")
           ./gradlew "${gradle_args[@]}"
 
       - name: Build native test server (Docker non-musl)
-        if: matrix.os_family == 'linux' && matrix.musl == false
+        if: >-
+          matrix.os_family == 'linux' && matrix.musl == false &&
+          steps.existing.outputs.exists != 'true'
         run: |
           IMAGE_ID_FILE="$(mktemp)"
           docker_context=manual-tools/.github/release-automation/docker/native-image-java23
@@ -156,7 +178,9 @@ jobs:
             "$IMAGE_ID" ./gradlew "${gradle_args[@]}"
 
       - name: Build native test server (Docker musl)
-        if: matrix.os_family == 'linux' && matrix.musl == true
+        if: >-
+          matrix.os_family == 'linux' && matrix.musl == true &&
+          steps.existing.outputs.exists != 'true'
         run: |
           IMAGE_ID_FILE="$(mktemp)"
           docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java23
@@ -170,7 +194,7 @@ jobs:
 
       # path ends in a wildcard because on windows the file ends in '.exe'
       - name: Upload executable to workflow
-        if: ${{ inputs.upload_artifact }}
+        if: inputs.upload_artifact && steps.existing.outputs.exists != 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: ${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)}}

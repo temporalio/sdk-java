@@ -55,7 +55,8 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
       artifacts.add(build.get());
     }
     ReleaseIdentity identity =
-        new ReleaseIdentity(candidateIdentity, new ArtifactManifest(artifacts));
+        new ReleaseIdentity(
+            candidateIdentity, new ArtifactManifest(artifacts), Workflow.getInfo().getRunId());
     CandidateStateActivities state =
         Workflow.newActivityStub(
             CandidateStateActivities.class,

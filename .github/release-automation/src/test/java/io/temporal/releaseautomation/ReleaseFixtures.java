@@ -31,6 +31,7 @@ final class ReleaseFixtures {
               1000 + index,
               "sdk-java/" + candidate.digest() + "/" + name));
     }
-    return new ReleaseIdentity(candidate, new ArtifactManifest(artifacts));
+    return new ReleaseIdentity(
+        candidate, new ArtifactManifest(artifacts), "11111111-2222-3333-4444-555555555555");
   }
 }

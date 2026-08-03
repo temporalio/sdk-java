@@ -5,9 +5,12 @@ import com.google.gson.JsonObject;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowExecutionMetadata;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.worker.Worker;
@@ -23,6 +26,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -225,6 +229,27 @@ public final class ReleaseAutomationMain {
                 .setMemo(Collections.singletonMap("CandidateIdentity", candidate))
                 .build());
     WorkflowExecution execution = WorkflowClient.start(workflow::prepare, candidate);
+    WorkflowExecutionMetadata description = WorkflowStub.fromTyped(workflow).describe();
+    List<HistoryEvent> history =
+        client.fetchHistory(execution.getWorkflowId(), execution.getRunId()).getEvents();
+    if (history.isEmpty() || !history.get(0).hasWorkflowExecutionStartedEventAttributes()) {
+      throw new IllegalStateException("Candidate Workflow has no immutable start event.");
+    }
+    WorkflowExecutionStartedEventAttributes started =
+        history.get(0).getWorkflowExecutionStartedEventAttributes();
+    if (started.getInput().getPayloadsCount() != 1) {
+      throw new IllegalStateException("Candidate Workflow start input is not exact.");
+    }
+    CandidateIdentity startedCandidate =
+        client
+            .getOptions()
+            .getDataConverter()
+            .fromPayloads(
+                0,
+                Optional.of(started.getInput()),
+                CandidateIdentity.class,
+                CandidateIdentity.class);
+    validateCandidateStart(execution, description, started, startedCandidate, candidate);
     writeOutput("workflow_id", execution.getWorkflowId());
     writeOutput("run_id", execution.getRunId());
     writeOutput("candidate_digest", candidate.digest());
@@ -317,8 +342,12 @@ public final class ReleaseAutomationMain {
       build.platform = platform;
       build.candidateDigest = digest;
       build.tag = candidate.tag;
+      build.version = candidate.version;
       build.commitSha = candidate.commitSha;
+      build.notesSha256 = candidate.releaseNotesSha256;
       build.automationCommit = candidate.trustedAutomationCommit;
+      build.workflowId = execution.getExecution().getWorkflowId();
+      build.runId = execution.getExecution().getRunId();
       build.runner = runnerFor(platform);
       if (platform.startsWith("macos-") || "windows-amd64".equals(platform)) {
         build.distribution = ReleasePolicy.NATIVE_JAVA_DISTRIBUTION;
@@ -426,6 +455,7 @@ public final class ReleaseAutomationMain {
     job.manifestSha256 = identity.manifestSha256;
     job.releaseDigest = identity.digest();
     job.candidateDigest = identity.candidate.digest();
+    job.candidateRunId = identity.candidateRunId;
     job.approvalRunId = Long.toString(status.approval.githubApprovalRunId);
     job.approvalActor = status.approval.githubActor;
     job.approvalIssueNumber = Long.toString(status.approval.githubIssueNumber);
@@ -483,6 +513,7 @@ public final class ReleaseAutomationMain {
     job.notesSha256 = identity.candidate.releaseNotesSha256;
     job.manifestSha256 = identity.manifestSha256;
     job.releaseDigest = identity.digest();
+    job.candidateRunId = identity.candidateRunId;
     job.automationCommit = identity.candidate.trustedAutomationCommit;
     if (status.approvalRequest != null) {
       job.approvalIssueNumber = Long.toString(status.approvalRequest.githubIssueNumber);
@@ -742,7 +773,7 @@ public final class ReleaseAutomationMain {
         worker.registerActivitiesImplementations(
             new BuildActivitiesImpl(
                 REPOSITORY_ROOT,
-                sourceRoot(env),
+                prebuiltNativeRoot(env),
                 required(env, "RELEASE_AUTOMATION_REF"),
                 env,
                 activityStarted::countDown,
@@ -927,15 +958,18 @@ public final class ReleaseAutomationMain {
     }
   }
 
-  private static void validateReleaseParent(
-      WorkflowExecutionMetadata execution, ReleaseIdentity identity) {
+  static void validateReleaseParent(WorkflowExecutionMetadata execution, ReleaseIdentity identity) {
     WorkflowExecution parent = execution.getParentExecution();
     WorkflowExecution root = execution.getRootExecution();
     String expectedParent = QueueNames.candidateWorkflowId(identity.candidate);
-    if (parent == null
+    if (identity.candidateRunId == null
+        || identity.candidateRunId.isEmpty()
+        || parent == null
         || !expectedParent.equals(parent.getWorkflowId())
+        || !identity.candidateRunId.equals(parent.getRunId())
         || root == null
-        || !expectedParent.equals(root.getWorkflowId())) {
+        || !expectedParent.equals(root.getWorkflowId())
+        || !identity.candidateRunId.equals(root.getRunId())) {
       throw new IllegalStateException(
           "Release execution is not the child of its immutable Candidate Workflow.");
     }
@@ -1119,6 +1153,44 @@ public final class ReleaseAutomationMain {
       throw new IllegalArgumentException("RELEASE_SOURCE_DIR is not a directory.");
     }
     return path;
+  }
+
+  private static Path prebuiltNativeRoot(Map<String, String> env) {
+    Path path =
+        Paths.get(required(env, "RELEASE_PREBUILT_NATIVE_DIR")).toAbsolutePath().normalize();
+    if (!Files.isDirectory(path)) {
+      throw new IllegalArgumentException("RELEASE_PREBUILT_NATIVE_DIR is not a directory.");
+    }
+    return path;
+  }
+
+  static void validateCandidateStart(
+      WorkflowExecution execution,
+      WorkflowExecutionMetadata description,
+      WorkflowExecutionStartedEventAttributes started,
+      CandidateIdentity startedCandidate,
+      CandidateIdentity expected) {
+    expected.validate();
+    startedCandidate.validate();
+    String expectedWorkflowId = QueueNames.candidateWorkflowId(expected);
+    String expectedTaskQueue = QueueNames.candidateWorkflow(expected);
+    CandidateIdentity memo =
+        (CandidateIdentity) description.getMemo("CandidateIdentity", CandidateIdentity.class);
+    if (!execution.equals(description.getExecution())
+        || !expectedWorkflowId.equals(execution.getWorkflowId())
+        || !execution
+            .getRunId()
+            .matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+        || !"CandidateWorkflow".equals(description.getWorkflowType())
+        || !expectedTaskQueue.equals(description.getTaskQueue())
+        || memo == null
+        || !expected.canonicalForm().equals(memo.canonicalForm())
+        || !"CandidateWorkflow".equals(started.getWorkflowType().getName())
+        || !expectedTaskQueue.equals(started.getTaskQueue().getName())
+        || !expected.canonicalForm().equals(startedCandidate.canonicalForm())) {
+      throw new IllegalStateException(
+          "Candidate Workflow start receipt does not match the immutable candidate.");
+    }
   }
 
   private static void verifyApprover(String actor) {
