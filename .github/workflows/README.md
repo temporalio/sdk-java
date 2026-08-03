@@ -7,20 +7,25 @@ setup are documented in [`../release-automation/README.md`](../release-automatio
 
 ## Independent manual fallback (`prepare-release.yml`)
 
-This dispatch-only path is deliberately independent of the Temporal Java application and its S3
-control state. Its shell tools are checked out at the protected automation pin rather than selected
+This dispatch-only path is independent of the Temporal Java application and its control state. Its
+shell tools are checked out at the protected automation pin rather than selected
 by candidate or Temporal state. It is retained through the first supervised release and
 postmortem. It accepts only an exact tag and full 40-character source SHA and has two fixed actions:
 
 - `inspect` reads Central, Sonatype/Publisher Portal, the Git tag, and GitHub release without
   mutation.
 - `resume` runs behind the repository-wide publication lock, verifies the active release manager,
-  records a fixed-body, bot-created locked GitHub issue as authenticated tag/SHA ownership, reuses
+  records a fixed-body, bot-created locked request before publication queuing, activates exact
+  tag/SHA ownership only after acquiring the shared lock, and reuses
   the native artifacts from that exact owning run with 90-day retention, scans both manual and
-  Temporal Sonatype repositories, locally validates the allowlisted signed Maven set before upload,
+  Temporal Sonatype repositories, adopts an exact Temporal frozen Maven payload when present,
+  otherwise builds in an isolated no-secret Gradle container and signs from trusted code, locally
+  validates the allowlisted Maven set before upload,
   rejects any later byte mismatch, and publishes the fully verified draft last.
 
-The fallback deliberately stops instead of guessing when any potentially matching Temporal
+Scheduled publication controllers skip their shared queue while fallback ownership is active, and
+interrupted fallback runs retry automatically. The fallback deliberately stops instead of guessing
+when any potentially matching Temporal
 repository is still unidentifiable or when a fallback repository is open without a Portal
 deployment. The compatibility API cannot make repository creation and receipt recording atomic;
 this is an accepted operational limitation requiring release-manager inspection, not permission to

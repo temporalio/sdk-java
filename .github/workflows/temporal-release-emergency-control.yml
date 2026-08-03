@@ -41,9 +41,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: release-publication
-    concurrency:
-      group: sdk-java-release-publication
-      cancel-in-progress: false
     steps:
       - name: Validate exact inputs and trusted pin
         env:
@@ -65,11 +62,22 @@ jobs:
           RELEASE_COMMIT: ${{ inputs.commit_sha }}
           RELEASE_TAG: ${{ inputs.tag }}
         run: |
+          s3_exists() {
+            local object_key=$1 error="$RUNNER_TEMP/s3-head-error.txt" status
+            set +e
+            aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$object_key" \
+              >"$RUNNER_TEMP/s3-head.json" 2>"$error"
+            status=$?
+            set -e
+            [[ $status -eq 0 ]] && return 0
+            grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error" && return 1
+            cat "$error" >&2
+            exit 1
+          }
           request_key="sdk-java/emergency/$RELEASE_TAG.json"
           candidate_key="sdk-java/candidates/$RELEASE_TAG.json"
           automation_commit=$RELEASE_AUTOMATION_REF
-          if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$request_key" \
-            >/dev/null 2>&1; then
+          if s3_exists "$request_key"; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$request_key" \
               "$RUNNER_TEMP/frozen-request.json" --no-progress >/dev/null
             jq -e --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" \
@@ -81,8 +89,7 @@ jobs:
               "$RUNNER_TEMP/frozen-request.json")
             [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
               *",$automation_commit,"* ]]
-          elif aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-            --key "$candidate_key" >/dev/null 2>&1; then
+          elif s3_exists "$candidate_key"; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$candidate_key" \
               "$RUNNER_TEMP/frozen-candidate.json" --no-progress >/dev/null
             jq -e --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" \
@@ -150,11 +157,22 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
         run: |
+          s3_exists() {
+            local object_key=$1 output=$2 error="$RUNNER_TEMP/s3-head-error.txt" status
+            set +e
+            aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$object_key" \
+              >"$output" 2>"$error"
+            status=$?
+            set -e
+            [[ $status -eq 0 ]] && return 0
+            grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error" && return 1
+            cat "$error" >&2
+            exit 1
+          }
           key="sdk-java/emergency/$RELEASE_TAG.json"
           request="$RUNNER_TEMP/emergency-request.json"
           existing="$RUNNER_TEMP/existing-emergency-request.json"
-          if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
-            >"$RUNNER_TEMP/emergency-request-head.json" 2>/dev/null; then
+          if s3_exists "$key" "$RUNNER_TEMP/emergency-request-head.json"; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$existing" --no-progress >/dev/null
             jq -e --slurpfile candidate "$CANDIDATE_FILE" --arg digest "$CANDIDATE_DIGEST" \
               '.candidate == $candidate[0] and .candidateDigest == $digest and
@@ -175,53 +193,7 @@ jobs:
                 echo "Artifact replacement is unavailable from state $state." >&2
                 exit 1
               }
-              jq -e '(.inspection.mavenPresent // 0) == 0 and
-                ((.inspection.mavenGenerations // []) | length) == 0 and
-                ((.inspection.portalDeploymentId // "") == "")' "$request" >/dev/null || {
-                echo "Artifacts cannot be replaced after any Maven generation or deployment exists." >&2
-                exit 1
-              }
-              # The earlier inspection is advisory only. Reconcile all mutation surfaces again
-              # under the shared publication lock before changing the approved artifact digest.
-              central_status=$(curl --silent --show-error --location --output /dev/null \
-                --write-out '%{http_code}' \
-                "https://repo1.maven.org/maven2/io/temporal/temporal-sdk/${RELEASE_TAG#v}/temporal-sdk-${RELEASE_TAG#v}.pom")
-              [[ "$central_status" == 404 ]] || {
-                echo "Artifacts cannot be replaced after Maven Central has release coordinates." >&2
-                exit 1
-              }
-              portal_token=$(printf '%s:%s' "$RH_USER" "$RH_PASSWORD" | base64 | tr -d '\n')
-              curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
-                --header 'Accept: application/json' \
-                'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
-                >"$RUNNER_TEMP/replacement-profile-repositories.json"
-              curl --silent --show-error --fail --header "Authorization: Bearer $portal_token" \
-                --header 'Accept: application/json' \
-                'https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any&profile_id=io.temporal' \
-                >"$RUNNER_TEMP/replacement-manual-repositories.json"
-              jq -e '[(.data // .profileRepositories // [])[] |
-                select((.description // "") | startswith("sdk-java:"))] | length == 0' \
-                "$RUNNER_TEMP/replacement-profile-repositories.json" >/dev/null
-              jq -e '(.repositories // []) | length == 0' \
-                "$RUNNER_TEMP/replacement-manual-repositories.json" >/dev/null
-              aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
-                --prefix sdk-java/ --output json >"$RUNNER_TEMP/replacement-all-state.json"
-              while IFS= read -r intent_key; do
-                aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" \
-                  "$RUNNER_TEMP/replacement-intent.json" --no-progress >/dev/null
-                if jq -e --arg tag "$RELEASE_TAG" --arg commit "$(jq -er .candidate.commitSha "$request")" \
-                  '.tag == $tag and .commitSha == $commit' \
-                  "$RUNNER_TEMP/replacement-intent.json" >/dev/null; then
-                  echo "Artifacts cannot be replaced after any durable Maven intent exists." >&2
-                  exit 1
-                fi
-              done < <(jq -r '.Contents // [] | .[].Key |
-                select(test("/state/maven/generations/[0-9]+/intent\\.json$"))' \
-                "$RUNNER_TEMP/replacement-all-state.json")
-              gh api "repos/temporalio/sdk-java/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1 && {
-                echo "Artifacts cannot be replaced after the release tag exists." >&2
-                exit 1
-              }
+              automation/.github/scripts/temporal-release/verify-artifact-replacement-safe.sh
               replacement_generation=$(( $(jq -r '.replacementGeneration // 0' "$request") + 1 ))
               replacement_attempt=$(printf '%s' \
                 "$CANDIDATE_DIGEST:emergency-replacement:$replacement_generation" |
@@ -269,6 +241,7 @@ jobs:
               replacement_attempt=""
               replacement_generation=0
             else
+              automation/.github/scripts/temporal-release/verify-artifact-replacement-safe.sh
               replacement_generation=1
               replacement_attempt=$(printf '%s' \
                 "$CANDIDATE_DIGEST:emergency-replacement:$replacement_generation" | \

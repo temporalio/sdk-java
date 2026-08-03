@@ -39,10 +39,14 @@ jobs:
       - name: Discover exact durable emergency requests
         id: matrix
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: |
           mkdir -p "$RUNNER_TEMP/requests"
+          gh api --paginate --slurp \
+            'repos/temporalio/sdk-java/issues?state=open&per_page=100' \
+            >"$RUNNER_TEMP/open-issues.json"
           aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
             --prefix sdk-java/emergency/ --output json >"$RUNNER_TEMP/requests.json"
           : >"$RUNNER_TEMP/build.jsonl"
@@ -150,6 +154,15 @@ jobs:
                     replacementAttempt:$request.replacementAttempt}' >>"$RUNNER_TEMP/build.jsonl"
               done
             elif [[ $state == READY ]]; then
+              if jq -e \
+                '[.[][] | select((has("pull_request") | not) and .locked == true and
+                  .user.login == "github-actions[bot]" and
+                  (.title | startswith("[sdk-java manual release request] ")) and
+                  (.body | startswith("## Independent manual release request\n\n- Tag: `v")))] |
+                 length > 0' "$RUNNER_TEMP/open-issues.json" >/dev/null; then
+                echo "Skipping $tag because the dispatch-only fallback owns publication." >&2
+                continue
+              fi
               jq -cn --argjson request "$(cat "$file")" --arg key "$key" \
                 '{requestKey:$key,candidate:$request.candidate,
                   candidateDigest:$request.candidateDigest,approvedBy:$request.approvedBy,
@@ -286,6 +299,7 @@ jobs:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
       - name: Reload and validate the durable request
+        id: request
         env:
           REQUEST_KEY: ${{ matrix.requestKey }}
         run: |
@@ -294,6 +308,17 @@ jobs:
           echo "REQUEST_ETAG=$(jq -er .ETag <<<"$request_head")" >>"$GITHUB_ENV"
           aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$REQUEST_KEY" \
             "$RUNNER_TEMP/emergency-request.json" --no-progress >/dev/null
+          current_state=$(jq -er .state "$RUNNER_TEMP/emergency-request.json")
+          if [[ "$current_state" == COMPLETE ]]; then
+            jq -e --arg commit "$EXPECTED_COMMIT_SHA" --arg tag "$EXPECTED_TAG" \
+              --arg digest '${{ matrix.candidateDigest }}' \
+              '.candidate.commitSha == $commit and .candidate.tag == $tag and
+               .candidateDigest == $digest and (.result | type == "object")' \
+              "$RUNNER_TEMP/emergency-request.json" >/dev/null
+            echo "already_complete=true" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "already_complete=false" >>"$GITHUB_OUTPUT"
           if ! jq -e --arg commit "$EXPECTED_COMMIT_SHA" --arg tag "$EXPECTED_TAG" \
             --arg manifest "$EXPECTED_MANIFEST_SHA256" \
             --arg actor '${{ matrix.approvedBy }}' \
@@ -313,12 +338,14 @@ jobs:
             exit 42
           fi
       - name: Collect exact manifest
+        if: steps.request.outputs.already_complete != 'true'
         env:
           RELEASE_ARTIFACT_PREFIX: ${{ matrix.artifactPrefix }}
           RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
           RELEASE_MANIFEST_FILE: ${{ runner.temp }}/emergency-manifest.tsv
         run: automation/.github/scripts/temporal-release/collect-artifact-manifest.sh
       - name: Construct exact emergency release input
+        if: steps.request.outputs.already_complete != 'true'
         id: identity
         working-directory: automation
         env:
@@ -334,6 +361,7 @@ jobs:
           ./gradlew -p .github/release-automation run \
             --args="emergency-input $RUNNER_TEMP/candidate.json $RUNNER_TEMP/emergency-manifest.tsv"
       - name: Bind exact generated identity
+        if: steps.request.outputs.already_complete != 'true'
         run: |
           [[ "${{ steps.identity.outputs.manifest_sha256 }}" == "$EXPECTED_MANIFEST_SHA256" ]]
           {
@@ -344,6 +372,7 @@ jobs:
             echo "TRUSTED_AUTOMATION_ROOT=$GITHUB_WORKSPACE/automation"
           } >>"$GITHUB_ENV"
       - name: Reconcile read-only external state immediately before handoff
+        if: steps.request.outputs.already_complete != 'true'
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
@@ -353,6 +382,7 @@ jobs:
           RH_USER: ${{ secrets.RH_USER }}
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" inspect
       - name: Quiesce Temporal if the exact Workflow is available
+        if: steps.request.outputs.already_complete != 'true'
         id: temporal
         working-directory: automation
         env:
@@ -379,18 +409,45 @@ jobs:
               --args="control handoff-manual $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
           fi
       - name: Claim durable manual ownership
+        if: steps.request.outputs.already_complete != 'true'
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/handoff.json
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" handoff
+      - name: Recheck Temporal after the durable ownership fence
+        if: >-
+          steps.request.outputs.already_complete != 'true' &&
+          steps.temporal.outputs.found != 'true'
+        continue-on-error: true
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ matrix.approvedBy }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.candidate.trustedAutomationCommit }}
+          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+        run: |
+          inspect_output="$RUNNER_TEMP/temporal-post-fence-output"
+          GITHUB_OUTPUT="$inspect_output" ./gradlew -p .github/release-automation run \
+            --args="inspect-if-present $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+          [[ $(awk -F= '$1 == "found" {print $2}' "$inspect_output" | tail -1) == true ]] ||
+            exit 0
+          phase=$(awk -F= '$1 == "phase" {print $2}' "$inspect_output" | tail -1)
+          if [[ "$phase" != HANDED_OFF && "$phase" != MANUAL_COMPLETE ]]; then
+            ./gradlew -p .github/release-automation run \
+              --args="control handoff-manual $EXPECTED_TAG $EXPECTED_COMMIT_SHA"
+          fi
       - name: Reconcile preflight
+        if: steps.request.outputs.already_complete != 'true'
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/preflight.json
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" preflight
       - name: Reconcile Maven publication with automatic fixed backoff
+        if: steps.request.outputs.already_complete != 'true'
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
@@ -402,19 +459,21 @@ jobs:
           RH_USER: ${{ secrets.RH_USER }}
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" maven
       - name: Reconcile exact GitHub draft and assets
+        if: steps.request.outputs.already_complete != 'true'
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/github-draft.json
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" github-draft
       - name: Publish GitHub release as the final mutation
+        if: steps.request.outputs.already_complete != 'true'
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/release-result.json
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/run-emergency-stage.sh" github-publish
       - name: Persist immutable conflict or ambiguity for manager resolution
-        if: failure()
+        if: failure() && steps.request.outputs.already_complete != 'true'
         env:
           REQUEST_KEY: ${{ matrix.requestKey }}
         run: |
@@ -429,6 +488,20 @@ jobs:
           [[ $status == 43 ]] && reason=InvalidApproval
           [[ $status == 44 ]] && reason=MavenSubmissionAmbiguous
           [[ $status == 45 ]] && reason=MavenDeploymentFailed
+          current_head=$(aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
+            --key "$REQUEST_KEY")
+          current_etag=$(jq -er .ETag <<<"$current_head")
+          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$REQUEST_KEY" \
+            "$RUNNER_TEMP/current-emergency-request.json" --no-progress >/dev/null
+          jq -e --arg commit '${{ matrix.candidate.commitSha }}' \
+            --arg digest '${{ matrix.candidateDigest }}' \
+            --argjson generation '${{ matrix.mavenSubmissionGeneration }}' \
+            '.state == "READY" and .candidate.commitSha == $commit and
+             .candidateDigest == $digest and .mavenSubmissionGeneration == $generation' \
+            "$RUNNER_TEMP/current-emergency-request.json" >/dev/null || {
+              echo "The durable request advanced; refusing to overwrite its current state." >&2
+              exit 0
+            }
           jq --arg reason "$reason" --arg stage "$stage" \
             --arg error "Publication stage exited with status $status." \
             --arg blockedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
@@ -436,11 +509,11 @@ jobs:
             '.state="BLOCKED" | .blockedReason=$reason | .blockedStage=$stage |
              .blockedError=$error | .blockedAt=$blockedAt |
              .blockedMavenSubmissionGeneration=$generation' \
-            "$RUNNER_TEMP/emergency-request.json" >"$RUNNER_TEMP/blocked-request.json"
+            "$RUNNER_TEMP/current-emergency-request.json" >"$RUNNER_TEMP/blocked-request.json"
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
-            --body "$RUNNER_TEMP/blocked-request.json" --if-match "$REQUEST_ETAG" >/dev/null
+            --body "$RUNNER_TEMP/blocked-request.json" --if-match "$current_etag" >/dev/null
       - name: Persist durable manual completion receipt
-        if: success()
+        if: success() && steps.request.outputs.already_complete != 'true'
         env:
           REQUEST_KEY: ${{ matrix.requestKey }}
         run: |
@@ -460,7 +533,9 @@ jobs:
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
             --body "$RUNNER_TEMP/complete-request.json" --if-match "$REQUEST_ETAG" >/dev/null
       - name: Record MANUAL_COMPLETE in Temporal when available
-        if: success() && steps.temporal.outputs.found == 'true'
+        if: >-
+          success() && steps.request.outputs.already_complete != 'true' &&
+          steps.temporal.outputs.found == 'true'
         continue-on-error: true
         working-directory: automation
         env:

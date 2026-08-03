@@ -26,6 +26,11 @@ on:
         default: true
   workflow_call:
     inputs:
+      automation_ref:
+        type: string
+        description: "Frozen trusted automation commit for release build containers"
+        required: false
+        default: ""
       ref:
         type: string
         description: "Exact full 40-character release commit SHA"
@@ -46,6 +51,7 @@ on:
         required: false
         default: false
 env:
+  AUTOMATION_REF: ${{ github.event_name == 'workflow_dispatch' && vars.RELEASE_AUTOMATION_REF || inputs.automation_ref || github.workflow_sha }}
   INPUT_REF: ${{ inputs.ref }}
   INPUT_TAG: ${{ inputs.tag }}
   INPUT_NOTES_SHA256: ${{ inputs.notes_sha256 }}
@@ -82,6 +88,7 @@ jobs:
       - name: Validate exact immutable inputs
         run: |
           [[ "$INPUT_REF" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
           if [[ -n "$INPUT_TAG" || -n "$INPUT_NOTES_SHA256" ]]; then
             [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
             [[ "$INPUT_NOTES_SHA256" =~ ^[0-9a-f]{64}$ ]]
@@ -111,7 +118,11 @@ jobs:
         with:
           path: manual-tools
           persist-credentials: false
-          ref: ${{ github.workflow_sha }}
+          ref: ${{ env.AUTOMATION_REF }}
+
+      - name: Verify frozen fallback build containers
+        if: matrix.os_family == 'linux'
+        run: '[[ "$(git -C manual-tools rev-parse HEAD)" == "$AUTOMATION_REF" ]]'
 
       - name: Set up Java
         if: matrix.os_family != 'linux'

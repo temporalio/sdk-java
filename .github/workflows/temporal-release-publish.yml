@@ -48,11 +48,33 @@ jobs:
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Query approved Temporal releases
-        id: discover
+        id: temporal
         env:
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
         run: ./gradlew -p .github/release-automation run --args="discover publication"
+      - name: Exclude tags durably owned by the dispatch-only fallback
+        id: discover
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEMPORAL_MATRIX: ${{ steps.temporal.outputs.matrix }}
+        run: |
+          issues=$(gh api --paginate --slurp \
+            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
+          manual_tags=$(jq -c '[.[][] | select((has("pull_request") | not) and
+            .locked == true and .user.login == "github-actions[bot]" and
+            (.title | startswith("[sdk-java manual release request] ")) and
+            (.body | startswith("## Independent manual release request\n\n- Tag: `v"))) |
+            .title]' <<<"$issues")
+          if [[ $(jq 'length' <<<"$manual_tags") -gt 0 ]]; then
+            matrix='{"include":[]}'
+          else
+            matrix=$TEMPORAL_MATRIX
+          fi
+          {
+            echo "count=$(jq '.include | length' <<<"$matrix")"
+            echo "matrix=$matrix"
+          } >>"$GITHUB_OUTPUT"
 
   publish:
     name: Publication Worker (${{ matrix.tag }})

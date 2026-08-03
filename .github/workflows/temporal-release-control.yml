@@ -72,6 +72,16 @@ jobs:
         run: >-
           ./gradlew -p .github/release-automation run
           --args="inspect $RELEASE_TAG $RELEASE_COMMIT"
+      - name: Enforce the protected Worker allowlist
+        env:
+          FROZEN_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
+        run: |
+          [[ "$FROZEN_AUTOMATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          while IFS= read -r compatible; do
+            [[ -z "$compatible" || "$compatible" =~ ^[0-9a-f]{40}$ ]]
+          done < <(tr ',' '\n' <<<"$RELEASE_AUTOMATION_COMPATIBLE_REFS")
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+            *",$FROZEN_AUTOMATION_COMMIT,"* ]]
       - name: Summarize durable state
         env:
           PHASE: ${{ steps.target.outputs.phase }}
@@ -126,9 +136,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    concurrency:
-      group: sdk-java-release-publication
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

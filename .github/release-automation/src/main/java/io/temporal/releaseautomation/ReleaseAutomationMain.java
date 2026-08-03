@@ -352,6 +352,7 @@ public final class ReleaseAutomationMain {
       throw new IllegalStateException("Release Workflow has no immutable identity memo.");
     }
     releaseIdentity.validate();
+    validateReleaseParent(execution, releaseIdentity);
     requireTrustedDiscoveryCommit(
         releaseIdentity.candidate.trustedAutomationCommit, trustedAutomationCommit);
     if (!QueueNames.releaseWorkflowId(releaseIdentity)
@@ -406,6 +407,7 @@ public final class ReleaseAutomationMain {
     }
     ReleaseIdentity identity = status.identity;
     identity.validate();
+    validateReleaseParent(execution, identity);
     requireTrustedDiscoveryCommit(
         identity.candidate.trustedAutomationCommit, trustedAutomationCommit);
     if (!QueueNames.releaseWorkflowId(identity).equals(execution.getExecution().getWorkflowId())
@@ -467,6 +469,7 @@ public final class ReleaseAutomationMain {
     }
     ReleaseIdentity identity = status.identity;
     identity.validate();
+    validateReleaseParent(execution, identity);
     requireTrustedDiscoveryCommit(
         identity.candidate.trustedAutomationCommit, trustedAutomationCommit);
     DiscoveryJob job =
@@ -729,7 +732,8 @@ public final class ReleaseAutomationMain {
       case "candidate":
         worker.registerWorkflowImplementationTypes(CandidateWorkflowImpl.class);
         worker.registerActivitiesImplementations(
-            new CandidateStateActivitiesImpl(REPOSITORY_ROOT, env));
+            new CandidateStateActivitiesImpl(
+                REPOSITORY_ROOT, env, activityStarted::countDown, recordActivityCompletion));
         break;
       case "release":
         worker.registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
@@ -757,13 +761,16 @@ public final class ReleaseAutomationMain {
         throw new IllegalArgumentException("Unknown Worker role: " + role);
     }
     factory.start();
-    boolean activityRole = "build".equals(role) || "publication".equals(role);
+    boolean activityRole =
+        "candidate".equals(role) || "build".equals(role) || "publication".equals(role);
     boolean processed = false;
     if (activityRole
         && activityStarted.await(Duration.ofMinutes(2).toMillis(), TimeUnit.MILLISECONDS)) {
       processed = activityCompleted.await(Duration.ofMinutes(98).toMillis(), TimeUnit.MILLISECONDS);
     } else if (!activityRole) {
       processed = awaitWindow(Duration.ofMinutes(10));
+      failOnUnrecoveredWorkflowTaskFailure(client, env);
+    } else if ("candidate".equals(role)) {
       failOnUnrecoveredWorkflowTaskFailure(client, env);
     }
     writeOutput(
@@ -890,6 +897,7 @@ public final class ReleaseAutomationMain {
       throw new IllegalStateException("Release execution has no immutable status identity.");
     }
     status.identity.validate();
+    validateReleaseParent(execution, status.identity);
     if (!QueueNames.releaseWorkflowId(status.identity)
             .equals(execution.getExecution().getWorkflowId())
         || !QueueNames.releaseWorkflow(status.identity).equals(execution.getTaskQueue())) {
@@ -916,6 +924,20 @@ public final class ReleaseAutomationMain {
     } catch (RuntimeException failure) {
       reportSkippedExecution(execution, failure);
       return null;
+    }
+  }
+
+  private static void validateReleaseParent(
+      WorkflowExecutionMetadata execution, ReleaseIdentity identity) {
+    WorkflowExecution parent = execution.getParentExecution();
+    WorkflowExecution root = execution.getRootExecution();
+    String expectedParent = QueueNames.candidateWorkflowId(identity.candidate);
+    if (parent == null
+        || !expectedParent.equals(parent.getWorkflowId())
+        || root == null
+        || !expectedParent.equals(root.getWorkflowId())) {
+      throw new IllegalStateException(
+          "Release execution is not the child of its immutable Candidate Workflow.");
     }
   }
 
