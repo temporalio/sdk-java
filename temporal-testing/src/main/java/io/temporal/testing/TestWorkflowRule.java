@@ -273,6 +273,11 @@ public class TestWorkflowRule implements TestRule {
     /**
      * Switches between in-memory and external temporal service implementations.
      *
+     * <p>External-service and dev-server modes are mutually exclusive. Calling this method clears
+     * any selection made by {@link #useDevServer()} or {@link
+     * #useDevServer(TemporalDevServerOptions)}; whichever method is called last determines the
+     * service used by the rule.
+     *
      * @param useExternalService use external service if true.
      *     <p>Default is false.
      */
@@ -287,6 +292,10 @@ public class TestWorkflowRule implements TestRule {
      *
      * <p>The rule closes the server during normal teardown. Dev-server tests do not support time
      * skipping.
+     *
+     * <p>Dev-server and external-service modes are mutually exclusive. Calling this method clears
+     * any selection made by {@link #setUseExternalService(boolean)}; whichever method is called
+     * last determines the service used by the rule.
      */
     @Experimental
     public Builder useDevServer() {
@@ -295,6 +304,10 @@ public class TestWorkflowRule implements TestRule {
 
     /**
      * Uses an owned local Temporal dev server with the supplied options.
+     *
+     * <p>Dev-server and external-service modes are mutually exclusive. Calling this method clears
+     * any selection made by {@link #setUseExternalService(boolean)}; whichever method is called
+     * last determines the service used by the rule.
      *
      * <pre>{@code
      * TestWorkflowRule.newBuilder()
