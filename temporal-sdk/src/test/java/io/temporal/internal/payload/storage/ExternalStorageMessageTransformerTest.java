@@ -12,6 +12,7 @@ import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.common.CancellationToken;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -26,28 +27,28 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
 /** Tests external storage message conversion. */
-public class ExternalStorageMessageConverterTest {
+public class ExternalStorageMessageTransformerTest {
 
   @Test
   public void storeAndRetrieveRoundTripsOverAMessage() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageConverter converter = converter(driver, 0);
+    ExternalStorageMessageTransformer transformer = transformer(driver, 0);
     Payloads message =
         Payloads.newBuilder().addPayloads(payload("a")).addPayloads(payload("b")).build();
 
-    Payloads stored = converter.store(message, null).get();
+    Payloads stored = transformer.store(message, null, CancellationToken.none()).get();
 
     assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
     assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(1)));
 
-    Payloads retrieved = converter.retrieve(stored).get();
+    Payloads retrieved = transformer.retrieve(stored, CancellationToken.none()).get();
     assertEquals(message, retrieved);
   }
 
   @Test
   public void walksNestedPayloads() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageConverter converter = converter(driver, 0);
+    ExternalStorageMessageTransformer transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
             .setScheduleActivityTaskCommandAttributes(
@@ -55,20 +56,20 @@ public class ExternalStorageMessageConverterTest {
                     .setInput(Payloads.newBuilder().addPayloads(payload("deep"))))
             .build();
 
-    Command stored = converter.store(command, null).get();
+    Command stored = transformer.store(command, null, CancellationToken.none()).get();
 
     Payload nested = stored.getScheduleActivityTaskCommandAttributes().getInput().getPayloads(0);
     assertNotNull(ExternalStorageReferences.tryParseReference(nested));
-    assertEquals(command, converter.retrieve(stored).get());
+    assertEquals(command, transformer.retrieve(stored, CancellationToken.none()).get());
   }
 
   @Test
   public void payloadBelowThresholdLeavesMessageUnchanged() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageConverter converter = converter(driver, 1024);
+    ExternalStorageMessageTransformer transformer = transformer(driver, 1024);
     Payloads message = Payloads.newBuilder().addPayloads(payload("small")).build();
 
-    Payloads stored = converter.store(message, null).get();
+    Payloads stored = transformer.store(message, null, CancellationToken.none()).get();
 
     assertNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
     assertEquals(message, stored);
@@ -78,7 +79,7 @@ public class ExternalStorageMessageConverterTest {
   @Test
   public void searchAttributesAreNotOffloaded() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageConverter converter = converter(driver, 0);
+    ExternalStorageMessageTransformer transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
             .setStartChildWorkflowExecutionCommandAttributes(
@@ -89,7 +90,7 @@ public class ExternalStorageMessageConverterTest {
                             .putIndexedFields("k", payload("indexed-value"))))
             .build();
 
-    Command stored = converter.store(command, null).get();
+    Command stored = transformer.store(command, null, CancellationToken.none()).get();
 
     StartChildWorkflowExecutionCommandAttributes attrs =
         stored.getStartChildWorkflowExecutionCommandAttributes();
@@ -99,14 +100,15 @@ public class ExternalStorageMessageConverterTest {
     assertEquals(payload("indexed-value"), indexed);
   }
 
-  private static ExternalStorageMessageConverter converter(StorageDriver driver, int threshold) {
-    ExternalStoragePayloadConverter payloadConverter =
-        ExternalStoragePayloadConverter.fromOptions(
+  private static ExternalStorageMessageTransformer transformer(
+      StorageDriver driver, int threshold) {
+    ExternalStoragePayloadTransformer payloadTransformer =
+        ExternalStoragePayloadTransformer.fromOptions(
             ExternalStorageOptions.newBuilder()
                 .setDriver(driver)
                 .setPayloadSizeThreshold(threshold)
                 .build());
-    return new ExternalStorageMessageConverter(payloadConverter, 4);
+    return new ExternalStorageMessageTransformer(payloadTransformer, 4);
   }
 
   private static Payload payload(String data) {

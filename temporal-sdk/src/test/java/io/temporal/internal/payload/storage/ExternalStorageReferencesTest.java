@@ -49,9 +49,13 @@ public class ExternalStorageReferencesTest {
     assertNull(ExternalStorageReferences.tryParseReference(inline));
   }
 
+  /**
+   * {@code external_payloads} records the original size for the server and is not part of the
+   * exchange contract, so a producer that omits it still writes a readable reference.
+   */
   @Test
-  public void payloadWithReferenceMessageTypeButNoExternalPayloadsIsNotAReference() {
-    Payload notAReference =
+  public void referenceWithoutExternalPayloadsIsStillAReference() {
+    Payload reference =
         Payload.newBuilder()
             .putMetadata(
                 EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/protobuf"))
@@ -61,7 +65,26 @@ public class ExternalStorageReferencesTest {
             .setData(ByteString.copyFromUtf8("{\"driverName\":\"driver-1\"}"))
             .build();
 
-    assertNull(ExternalStorageReferences.tryParseReference(notAReference));
+    ExternalStorageReferences.ParsedReference parsed =
+        ExternalStorageReferences.tryParseReference(reference);
+    assertNotNull(parsed);
+    assertEquals("driver-1", parsed.driverName);
+  }
+
+  @Test
+  public void payloadWithReferenceMessageTypeButForeignEncodingIsNotAReference() {
+    Payload foreign =
+        Payload.newBuilder()
+            .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/plain"))
+            .putMetadata(
+                EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                ByteString.copyFromUtf8(ExternalStorageReference.getDescriptor().getFullName()))
+            .setData(ByteString.copyFromUtf8("{\"driverName\":\"driver-1\"}"))
+            .addExternalPayloads(
+                Payload.ExternalPayloadDetails.newBuilder().setSizeBytes(4096L).build())
+            .build();
+
+    assertNull(ExternalStorageReferences.tryParseReference(foreign));
   }
 
   @Test

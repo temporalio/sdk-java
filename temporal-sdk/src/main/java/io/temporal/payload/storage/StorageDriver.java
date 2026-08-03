@@ -30,8 +30,8 @@ public interface StorageDriver {
    * Stores {@code payloads} and returns one {@link StorageDriverClaim} per payload, in the same
    * order. The returned list must be the same length as {@code payloads}.
    *
-   * <p>Drivers should use {@link StorageDriverStoreContext#getCancellationToken()} to abort
-   * in-flight requests.
+   * <p>Observe {@link StorageDriverStoreContext#getCancellationToken()} to learn when the SDK has
+   * abandoned this operation, and abandon in-flight requests accordingly.
    */
   @Nonnull
   CompletableFuture<List<StorageDriverClaim>> store(
@@ -41,8 +41,8 @@ public interface StorageDriver {
    * Retrieves the payloads identified by {@code claims} and returns one {@link Payload} per claim,
    * in the same order. The returned list must be the same length as {@code claims}.
    *
-   * <p>Drivers should use {@link StorageDriverRetrieveContext#getCancellationToken()} to abort
-   * in-flight requests.
+   * <p>Observe {@link StorageDriverRetrieveContext#getCancellationToken()} to learn when the SDK
+   * has abandoned this operation, and abandon in-flight requests accordingly.
    */
   @Nonnull
   CompletableFuture<List<Payload>> retrieve(
