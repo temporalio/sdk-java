@@ -23,7 +23,18 @@ final class ProcessSupport {
   private ProcessSupport() {}
 
   static List<String> bash(Path script) {
-    return Arrays.asList("bash", script.toAbsolutePath().toString().replace('\\', '/'));
+    return Arrays.asList("bash", bashPath(script.toAbsolutePath().toString()));
+  }
+
+  static String bashPath(String path) {
+    String normalized = path.replace('\\', '/');
+    if (normalized.length() >= 3
+        && Character.isLetter(normalized.charAt(0))
+        && normalized.charAt(1) == ':'
+        && normalized.charAt(2) == '/') {
+      return "/" + Character.toLowerCase(normalized.charAt(0)) + normalized.substring(2);
+    }
+    return normalized;
   }
 
   static List<String> run(Path workingDirectory, List<String> command, Map<String, String> env) {
