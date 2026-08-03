@@ -15,7 +15,7 @@ response=$(mktemp)
 set +e
 status=$(curl --silent --show-error --location --output "$response" --write-out '%{http_code}' \
   --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/vnd.github+json' \
-  "https://api.github.com/orgs/temporalio/teams/sdk-java-release-managers/memberships/$1")
+  "https://api.github.com/orgs/temporalio/teams/sdk/memberships/$1")
 curl_status=$?
 set -e
 [[ $curl_status -eq 0 ]] || {
@@ -23,7 +23,7 @@ set -e
   exit 1
 }
 [[ $status != 404 ]] || {
-  echo "verify-approver: $1 is not an sdk-java release manager." >&2
+  echo "verify-approver: $1 is not a temporalio/sdk team member." >&2
   exit 43
 }
 [[ $status == 200 ]] || {
@@ -35,6 +35,6 @@ state=$(jq -er .state "$response") || {
   exit 1
 }
 [[ $state == active ]] || {
-  echo "verify-approver: $1 does not have active release-manager membership." >&2
+  echo "verify-approver: $1 does not have active temporalio/sdk team membership." >&2
   exit 43
 }

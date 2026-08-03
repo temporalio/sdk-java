@@ -63,7 +63,7 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
           [[ -s "releases/$RELEASE_TAG" && ! -L "releases/$RELEASE_TAG" ]]
           membership=$(gh api \
-            "orgs/temporalio/teams/sdk-java-release-managers/memberships/$GITHUB_ACTOR")
+            "orgs/temporalio/teams/sdk/memberships/$GITHUB_ACTOR")
           jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
             <<<"$membership" >/dev/null
           controller_sha=$RELEASE_AUTOMATION_REF
@@ -128,7 +128,7 @@ jobs:
              (.status == "in_progress" or .status == "completed")' \
             <<<"$owner_run_json" >/dev/null
           membership=$(GH_TOKEN=$APPROVAL_GH_TOKEN gh api \
-            "orgs/temporalio/teams/sdk-java-release-managers/memberships/$owner_actor")
+            "orgs/temporalio/teams/sdk/memberships/$owner_actor")
           jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
             <<<"$membership" >/dev/null
           gh api --method PUT \

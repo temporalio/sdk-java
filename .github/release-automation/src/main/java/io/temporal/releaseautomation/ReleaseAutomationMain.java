@@ -1208,11 +1208,11 @@ public final class ReleaseAutomationMain {
     try {
       int status = process.start().waitFor();
       if (status == 43) {
-        throw new IllegalArgumentException("GitHub actor is not an sdk-java release manager.");
+        throw new IllegalArgumentException("GitHub actor is not a temporalio/sdk team member.");
       }
       if (status != 0) {
         throw new IllegalStateException(
-            "GitHub release-manager membership is temporarily unavailable.");
+            "GitHub temporalio/sdk team membership is temporarily unavailable.");
       }
     } catch (IOException e) {
       throw new IllegalStateException("Unable to run the fixed approver check.", e);

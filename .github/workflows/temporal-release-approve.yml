@@ -125,7 +125,7 @@ jobs:
             "- Temporal Workflow: \`$WORKFLOW_ID\`" \
             "- Temporal Run: \`$RUN_ID\`" \
             '' \
-            'An active sdk-java release manager approves this exact identity by clicking **Close issue**. Do not edit this issue.')
+            'An active temporalio/sdk team member approves this exact identity by clicking **Close issue**. Do not edit this issue.')
           printf '%s' "$body" >"$RUNNER_TEMP/approval-body.md"
           title="[sdk-java release approval] $RELEASE_TAG at $COMMIT_SHA"
           approval_creator=$(gh api user --jq .login)
