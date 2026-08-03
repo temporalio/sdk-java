@@ -16,6 +16,7 @@ make -j"$(nproc)"
 make install
 cd ..
 ln -sf "$MUSL_HOME/bin/musl-gcc" "$MUSL_HOME/bin/x86_64-linux-musl-gcc"
+export PATH="$MUSL_HOME/bin:$PATH"
 tar -xzf "zlib-$ZLIB_VERSION.tar.gz"
 cd "zlib-$ZLIB_VERSION"
 CC=musl-gcc ./configure --prefix="$MUSL_HOME" --static

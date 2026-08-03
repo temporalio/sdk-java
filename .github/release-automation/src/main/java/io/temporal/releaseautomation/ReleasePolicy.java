@@ -14,6 +14,8 @@ public final class ReleasePolicy {
   public static final String REPOSITORY = "temporalio/sdk-java";
   public static final String MAVEN_GROUP = "io.temporal";
   public static final String MAVEN_CENTRAL_BASE = "https://repo1.maven.org/maven2";
+  public static final String NATIVE_JAVA_DISTRIBUTION = "graalvm-community";
+  public static final String NATIVE_JAVA_VERSION = "23";
   public static final List<String> NATIVE_PLATFORMS =
       Collections.unmodifiableList(
           Arrays.asList(

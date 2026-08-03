@@ -117,7 +117,7 @@ jobs:
         if: matrix.os_family != 'linux'
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
-          java-version: "17.0.9"
+          java-version: "23"
           distribution: "graalvm-community"
 
       - name: Set up Gradle
@@ -135,7 +135,7 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == false
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker_context=manual-tools/.github/release-automation/docker/native-image-java17
+          docker_context=manual-tools/.github/release-automation/docker/native-image-java23
           docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           gradle_args=(-PnativeBuild :temporal-test-server:nativeCompile)
@@ -148,7 +148,7 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == true
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java17
+          docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java23
           docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           gradle_args=(-PnativeBuild -PnativeBuildMusl :temporal-test-server:nativeCompile)

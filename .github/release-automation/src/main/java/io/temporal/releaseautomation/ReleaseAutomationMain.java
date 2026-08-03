@@ -321,7 +321,8 @@ public final class ReleaseAutomationMain {
       build.automationCommit = candidate.trustedAutomationCommit;
       build.runner = runnerFor(platform);
       if (platform.startsWith("macos-") || "windows-amd64".equals(platform)) {
-        build.distribution = "graalvm-community";
+        build.distribution = ReleasePolicy.NATIVE_JAVA_DISTRIBUTION;
+        build.javaVersion = ReleasePolicy.NATIVE_JAVA_VERSION;
       }
       jobs.add(build);
     }
