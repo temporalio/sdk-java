@@ -18,6 +18,7 @@ permissions:
   contents: read
 
 env:
+  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
 
@@ -65,7 +66,6 @@ jobs:
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
-      queue: max
     environment: release-publication
     permissions:
       contents: write
@@ -75,13 +75,17 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ matrix.automationCommit }}
       - name: Verify trusted checkout
         working-directory: automation
         env:
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+        run: |
+          [[ "$IDENTITY_AUTOMATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+            *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
+          [[ "$(git rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
@@ -100,7 +104,7 @@ jobs:
           COMMIT_SHA: ${{ matrix.commitSha }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ matrix.tag }}
-          TRUSTED_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
         run: |
           candidate="$RUNNER_TEMP/protected-candidate.json"
           outputs="$RUNNER_TEMP/protected-candidate.outputs"
@@ -156,5 +160,6 @@ jobs:
           RH_USER: ${{ secrets.RH_USER }}
           TASK_QUEUE: ${{ matrix.taskQueue }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
-          TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_WORKER_COMMIT: ${{ matrix.automationCommit }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
         run: ./gradlew -p .github/release-automation run --args="worker publication $TASK_QUEUE"

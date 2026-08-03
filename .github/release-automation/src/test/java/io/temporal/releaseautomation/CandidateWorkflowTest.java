@@ -14,6 +14,8 @@ public class CandidateWorkflowTest {
     try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.newInstance()) {
       Worker candidateWorker = environment.newWorker(QueueNames.candidateWorkflow(candidate));
       candidateWorker.registerWorkflowImplementationTypes(CandidateWorkflowImpl.class);
+      candidateWorker.registerActivitiesImplementations(
+          (CandidateStateActivities) ignored -> false);
       for (String platform : ReleasePolicy.NATIVE_PLATFORMS) {
         Worker buildWorker = environment.newWorker(QueueNames.build(candidate, platform));
         buildWorker.registerActivitiesImplementations(

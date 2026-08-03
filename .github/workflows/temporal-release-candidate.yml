@@ -163,7 +163,6 @@ jobs:
     concurrency:
       group: temporal-release-bootstrap-${{ matrix.sourceSha }}
       cancel-in-progress: false
-      queue: max
     steps:
       - name: Checkout immutable release source
         if: matrix.mode == 'source'
@@ -252,10 +251,16 @@ jobs:
               "$RUNNER_TEMP/existing-started.json" --no-progress >/dev/null
             cmp -s "$receipt" "$RUNNER_TEMP/existing-started.json"
           fi
+      - name: Obtain read-only candidate-state credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_CONTROL_ARTIFACT_ROLE_ARN }}
       - name: Poll only this candidate's Workflow Task Queue
         working-directory: automation
         env:
           EXPECTED_RUN_ID: ${{ steps.temporal.outputs.run_id }}
           EXPECTED_WORKFLOW_ID: ${{ steps.temporal.outputs.workflow_id }}
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           TASK_QUEUE: ${{ steps.temporal.outputs.task_queue }}
         run: ./gradlew -p .github/release-automation run --args="worker candidate $TASK_QUEUE"

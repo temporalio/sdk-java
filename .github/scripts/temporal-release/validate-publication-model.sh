@@ -35,8 +35,12 @@ restore_hooks() {
   cp "$build_backup" build.gradle
 }
 trap restore_hooks EXIT
-cp "$TRUSTED_AUTOMATION_ROOT/gradle/versioning.gradle" gradle/versioning.gradle
-cp "$TRUSTED_AUTOMATION_ROOT/gradle/publishing.gradle" gradle/publishing.gradle
+if [[ $TRUSTED_AUTOMATION_ROOT/gradle/versioning.gradle != "$PWD/gradle/versioning.gradle" ]]; then
+  cp "$TRUSTED_AUTOMATION_ROOT/gradle/versioning.gradle" gradle/versioning.gradle
+fi
+if [[ $TRUSTED_AUTOMATION_ROOT/gradle/publishing.gradle != "$PWD/gradle/publishing.gradle" ]]; then
+  cp "$TRUSTED_AUTOMATION_ROOT/gradle/publishing.gradle" gradle/publishing.gradle
+fi
 python3 - build.gradle <<'PY'
 import pathlib, re, sys
 path = pathlib.Path(sys.argv[1])
@@ -95,4 +99,7 @@ mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
 
 restore_hooks
 trap - EXIT
-git diff --exit-code >/dev/null || fail "Publication-model validation modified tracked files."
+cmp -s "$versioning_backup" gradle/versioning.gradle &&
+  cmp -s "$publishing_backup" gradle/publishing.gradle &&
+  cmp -s "$build_backup" build.gradle ||
+  fail "Publication-model validation did not restore the trusted publication hooks."

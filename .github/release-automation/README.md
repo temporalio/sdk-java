@@ -34,9 +34,9 @@ release. Tests use local Temporal facilities and mocks only.
 
 Workflow IDs and all Workflow/Activity Task Queues derive from immutable candidate/release digests,
 never Actions run IDs. Publication queues also include the append-only Maven generation, preventing
-a stale runner from consuming work authorized for a later generation. Workers check out only the
-current protected `RELEASE_AUTOMATION_REF`; discovery rejects any Temporal identity that names a
-different commit. Task Queues are routing, not authorization.
+a stale runner from consuming work authorized for a later generation. New candidates freeze the
+current protected `RELEASE_AUTOMATION_REF`; recovery may check out that exact older commit only while
+it remains in `RELEASE_AUTOMATION_COMPATIBLE_REFS`. Task Queues are routing, not authorization.
 
 For maintenance branches that predate these workflow files, default-branch scheduled discovery
 finds an untagged release-note file, resolves the exact commit that added it, and persists the
@@ -66,9 +66,9 @@ container definitions when absent from the source SHA.
   credentials. Any live Portal state vetoes generation advancement.
 
 Activity Workers exit after two minutes if they receive no task. This prevents a Worker started
-during durable backoff from holding the shared publication lock for the full job timeout. All
-publication concurrency groups use `queue: max`, so a newer scheduled run does not replace a queued
-emergency handoff.
+during durable backoff from holding the shared publication lock for the full job timeout. GitHub's
+shared publication concurrency group queues one pending controller without cancelling an active
+release.
 
 ## Maven reconciliation
 
@@ -79,10 +79,10 @@ External side effects are at-least-once; immutable identity/checksum conflicts a
 - Each submission generation has append-only intent, Sonatype repository-ID, and Publisher Portal
   deployment-ID receipts. Advancing a generation never overwrites earlier evidence.
 - Before Sonatype mutation, the exact allowlisted signed Maven payload is stored as one
-  content-addressed S3 archive with an immutable generation receipt. Retries download and validate
-  that archive rather than regenerating timestamp-bearing signatures. The Activity checks every
-  expected staged file and uploads only missing bytes to the receipted repository, then closes that
-  exact repository.
+  content-addressed S3 archive with an immutable release-wide receipt. Every generation downloads
+  and validates that archive rather than regenerating timestamp-bearing signatures. The Activity
+  checks every expected staged file, rejects unexpected staged paths, and uploads only missing
+  bytes to the receipted repository, then closes that exact repository.
 - Closing the compatibility repository transfers it to Publisher Portal. The resulting
   `portal_deployment_id` is persisted and the exact `PENDING`, `VALIDATING`, `VALIDATED`,
   `PUBLISHING`, `PUBLISHED`, or `FAILED` state is reconciled before Central visibility.
@@ -107,9 +107,10 @@ S3 and records `COMPLETE`; if no Temporal Workflow ever existed, synchronization
 `NO_WORKFLOW` terminally rather than retrying forever.
 
 `prepare-release.yml` is a separate, dispatch-only manual fallback retained through the first
-supervised release and postmortem. It intentionally does not import the Temporal Java policy,
-Temporal reconciliation script, or S3 state. Its separate shell implementation and 90-day Actions
-artifacts preserve the prior manual operating model. Its tools are checked out only at the protected
+supervised release and postmortem. It intentionally does not import the Temporal Java policy or
+Temporal reconciliation script. Its separate shell implementation and 90-day Actions native
+artifacts preserve the prior manual operating model, while its signed Maven payload is frozen in
+durable storage before staging. Its tools are checked out only at the protected
 automation pin, never from candidate or Temporal state. It requires exact tag/SHA, release-manager
 membership, local validation of the fixed signed Maven set, cross-controller Sonatype inspection,
 and a draft-first seven-asset contract. A fixed-body locked GitHub issue created by the publication
@@ -120,7 +121,7 @@ must match that frozen set.
 Normal Temporal publication independently authenticates that issue and blocks while manual
 ownership is active.
 
-All publication implementations use `sdk-java-release-publication` with `queue: max`, exact
+All publication implementations use the `sdk-java-release-publication` concurrency group, exact
 release-manager authorization, releaseVersion/releaseCommit, tag/SHA ownership, and publish-last
 GitHub behavior. The lock provides exclusion; the durable ownership/handoff record transfers
 control.
@@ -138,15 +139,19 @@ Publication credentials exist only in the protected publication jobs. Before eve
 Activity, Java and shell checks independently bind the Activity Workflow ID/run ID, generation-
 specific queue, repository, tag, full SHA, candidate/start receipts, notes digest, approved manifest,
 approval run/actor/issue/immutable request receipt, protected Worker commit, Maven generation, and
-protected retry receipt to the Actions job. It re-reads GitHub evidence and rechecks active team
-membership. Source-controlled Gradle receives signing/Central credentials only for Maven work; the
-wrapper explicitly removes GitHub and AWS credentials.
+protected retry receipt to the Actions job. Every completed privileged stage is chained through an
+immutable protected receipt, and the final GitHub mutation independently rechecks every Central
+byte. It re-reads GitHub evidence and rechecks active team membership. Source-controlled Gradle
+receives either signing credentials or Central credentials in separate homes and invocations; both
+wrappers explicitly remove GitHub, AWS, and OIDC credentials.
 
 ## Required setup
 
 Configure:
 
-- `RELEASE_AUTOMATION_REF` as a reviewed full commit SHA.
+- `RELEASE_AUTOMATION_REF` as the current reviewed full commit SHA. During controlled rotation,
+  list only still-supported older reviewed SHAs in comma-separated
+  `RELEASE_AUTOMATION_COMPATIBLE_REFS` until their open releases finish.
 - `TEMPORAL_RELEASE_ADDRESS`, `TEMPORAL_RELEASE_NAMESPACE`, and separate unprivileged, approval,
   and publication API keys.
 - A private versioned/object-locked `RELEASE_ARTIFACT_BUCKET`, plus separate build and publication

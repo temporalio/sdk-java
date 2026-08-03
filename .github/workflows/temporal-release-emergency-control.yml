@@ -28,8 +28,12 @@ permissions:
   id-token: write
 
 env:
+  EMERGENCY_ACTION: ${{ inputs.action }}
+  RELEASE_COMMIT: ${{ inputs.commit_sha }}
+  RELEASE_TAG: ${{ inputs.tag }}
   RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-  GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
+  GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
 
 jobs:
   control:
@@ -40,7 +44,6 @@ jobs:
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
-      queue: max
     steps:
       - name: Validate exact inputs and trusted pin
         env:
@@ -74,9 +77,10 @@ jobs:
                .candidate.tag == $tag and .candidate.commitSha == $commit and
                (.candidate.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' \
               "$RUNNER_TEMP/frozen-request.json" >/dev/null
-            [[ $(jq -er .candidate.trustedAutomationCommit \
-              "$RUNNER_TEMP/frozen-request.json") == "$RELEASE_AUTOMATION_REF" ]]
-            automation_commit=$RELEASE_AUTOMATION_REF
+            automation_commit=$(jq -er .candidate.trustedAutomationCommit \
+              "$RUNNER_TEMP/frozen-request.json")
+            [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+              *",$automation_commit,"* ]]
           elif aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
             --key "$candidate_key" >/dev/null 2>&1; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$candidate_key" \
@@ -86,9 +90,10 @@ jobs:
                .commitSha == $commit and
                (.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' \
               "$RUNNER_TEMP/frozen-candidate.json" >/dev/null
-            [[ $(jq -er .trustedAutomationCommit \
-              "$RUNNER_TEMP/frozen-candidate.json") == "$RELEASE_AUTOMATION_REF" ]]
-            automation_commit=$RELEASE_AUTOMATION_REF
+            automation_commit=$(jq -er .trustedAutomationCommit \
+              "$RUNNER_TEMP/frozen-candidate.json")
+            [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+              *",$automation_commit,"* ]]
           fi
           echo "automation_commit=$automation_commit" >>"$GITHUB_OUTPUT"
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -139,8 +144,11 @@ jobs:
           ACTION: ${{ inputs.action }}
           CANDIDATE_DIGEST: ${{ steps.candidate.outputs.candidate_digest }}
           CANDIDATE_FILE: ${{ steps.candidate.outputs.candidate_file }}
+          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ inputs.tag }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
         run: |
           key="sdk-java/emergency/$RELEASE_TAG.json"
           request="$RUNNER_TEMP/emergency-request.json"
@@ -173,15 +181,64 @@ jobs:
                 echo "Artifacts cannot be replaced after any Maven generation or deployment exists." >&2
                 exit 1
               }
+              # The earlier inspection is advisory only. Reconcile all mutation surfaces again
+              # under the shared publication lock before changing the approved artifact digest.
+              central_status=$(curl --silent --show-error --location --output /dev/null \
+                --write-out '%{http_code}' \
+                "https://repo1.maven.org/maven2/io/temporal/temporal-sdk/${RELEASE_TAG#v}/temporal-sdk-${RELEASE_TAG#v}.pom")
+              [[ "$central_status" == 404 ]] || {
+                echo "Artifacts cannot be replaced after Maven Central has release coordinates." >&2
+                exit 1
+              }
+              portal_token=$(printf '%s:%s' "$RH_USER" "$RH_PASSWORD" | base64 | tr -d '\n')
+              curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
+                --header 'Accept: application/json' \
+                'https://ossrh-staging-api.central.sonatype.com/service/local/staging/profile_repositories' \
+                >"$RUNNER_TEMP/replacement-profile-repositories.json"
+              curl --silent --show-error --fail --header "Authorization: Bearer $portal_token" \
+                --header 'Accept: application/json' \
+                'https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any&profile_id=io.temporal' \
+                >"$RUNNER_TEMP/replacement-manual-repositories.json"
+              jq -e '[(.data // .profileRepositories // [])[] |
+                select((.description // "") | startswith("sdk-java:"))] | length == 0' \
+                "$RUNNER_TEMP/replacement-profile-repositories.json" >/dev/null
+              jq -e '(.repositories // []) | length == 0' \
+                "$RUNNER_TEMP/replacement-manual-repositories.json" >/dev/null
+              aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
+                --prefix sdk-java/ --output json >"$RUNNER_TEMP/replacement-all-state.json"
+              while IFS= read -r intent_key; do
+                aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$intent_key" \
+                  "$RUNNER_TEMP/replacement-intent.json" --no-progress >/dev/null
+                if jq -e --arg tag "$RELEASE_TAG" --arg commit "$(jq -er .candidate.commitSha "$request")" \
+                  '.tag == $tag and .commitSha == $commit' \
+                  "$RUNNER_TEMP/replacement-intent.json" >/dev/null; then
+                  echo "Artifacts cannot be replaced after any durable Maven intent exists." >&2
+                  exit 1
+                fi
+              done < <(jq -r '.Contents // [] | .[].Key |
+                select(test("/state/maven/generations/[0-9]+/intent\\.json$"))' \
+                "$RUNNER_TEMP/replacement-all-state.json")
+              gh api "repos/temporalio/sdk-java/git/ref/tags/$RELEASE_TAG" >/dev/null 2>&1 && {
+                echo "Artifacts cannot be replaced after the release tag exists." >&2
+                exit 1
+              }
               replacement_generation=$(( $(jq -r '.replacementGeneration // 0' "$request") + 1 ))
               replacement_attempt=$(printf '%s' \
                 "$CANDIDATE_DIGEST:emergency-replacement:$replacement_generation" |
                 sha256sum | awk '{print $1}')
               artifact_prefix="sdk-java/emergency-artifacts/$CANDIDATE_DIGEST/$replacement_attempt/"
               jq --arg prefix "$artifact_prefix" --arg attempt "$replacement_attempt" \
+                --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson run "$GITHUB_RUN_ID" \
+                --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
                 --argjson generation "$replacement_generation" \
                 '.state="BUILDING" | .artifactPrefix=$prefix |
                  .replacementAttempt=$attempt | .replacementGeneration=$generation |
+                 .approvedBy=(.approvedBy // $actor) |
+                 .approvalRunId=(.approvalRunId // $run) |
+                 .handoff=(.handoff // {actor:$actor,tag:.candidate.tag,
+                   commitSha:.candidate.commitSha,
+                   reason:"Release manager transferred ownership to emergency automation.",
+                   recordedAt:$recordedAt,githubRunId:$run}) |
                  del(.manifestSha256,.inspection,.blockedReason,.blockedStage,
                    .blockedAt,.blockedError)' "$request" >"$RUNNER_TEMP/replacement-request.json"
               aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
@@ -256,7 +313,7 @@ jobs:
         id: identity
         working-directory: automation
         env:
-          EMERGENCY_APPROVAL_ACTOR: ${{ github.triggering_actor }}
+          EMERGENCY_APPROVAL_ACTOR: ${{ github.actor }}
           EMERGENCY_APPROVAL_RUN_ID: ${{ github.run_id }}
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
           MAVEN_SUBMISSION_GENERATION: ${{ steps.request.outputs.generation }}
@@ -270,7 +327,7 @@ jobs:
         if: inputs.action == 'inspect' || inputs.action == 'handoff-and-publish' || inputs.action == 'authorize-maven-retry'
         working-directory: source
         env:
-          EXPECTED_APPROVAL_ACTOR: ${{ github.triggering_actor }}
+          EXPECTED_APPROVAL_ACTOR: ${{ github.actor }}
           EXPECTED_APPROVAL_RUN_ID: ${{ github.run_id }}
           EXPECTED_COMMIT_SHA: ${{ inputs.commit_sha }}
           EXPECTED_MANIFEST_SHA256: ${{ steps.identity.outputs.manifest_sha256 }}
@@ -290,14 +347,14 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_WORKER_COMMIT: ${{ steps.frozen.outputs.automation_commit }}
         run: |
           bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
           {
             echo "## Exact emergency release inspection"
             echo
-            echo "- Tag: \`${{ inputs.tag }}\`"
-            echo "- Full SHA: \`${{ inputs.commit_sha }}\`"
+            echo "- Tag: \`$RELEASE_TAG\`"
+            echo "- Full SHA: \`$RELEASE_COMMIT\`"
             echo "- Release digest: \`${{ steps.identity.outputs.release_digest }}\`"
             echo "- Manifest SHA-256: \`${{ steps.identity.outputs.manifest_sha256 }}\`"
             echo
@@ -344,13 +401,16 @@ jobs:
             --arg actor "$GITHUB_TRIGGERING_ACTOR" --argjson run "$GITHUB_RUN_ID" \
             --arg action "$ACTION" --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
             --slurpfile inspection "$INSPECTION_FILE" \
-            '.state=$state | .manifestSha256=$manifest | .approvedBy=$actor |
-             .approvalRunId=$run | .inspection=$inspection[0] | .inspectionRunId=$run |
+            '.state=$state | .manifestSha256=$manifest |
+             .inspection=$inspection[0] | .inspectionRunId=$run |
              .mavenSubmissionGeneration=$inspection[0].mavenSubmissionGeneration |
              if $action == "handoff-and-publish" then
-               .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
+               .approvedBy=(.approvedBy // $actor) |
+               .approvalRunId=(.approvalRunId // $run) |
+               .handoff=(.handoff // {actor:$actor,tag:.candidate.tag,
+                 commitSha:.candidate.commitSha,
                  reason:"Release manager transferred ownership to emergency automation.",
-                 recordedAt:$recordedAt,githubRunId:$run}
+                 recordedAt:$recordedAt,githubRunId:$run})
              else . end' \
             "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
@@ -387,7 +447,7 @@ jobs:
           generation=$((current_generation + 1))
           authorization="$RUNNER_TEMP/emergency-maven-retry-authorization.json"
           jq -cn --arg repository temporalio/sdk-java \
-            --arg tag '${{ inputs.tag }}' --arg commitSha '${{ inputs.commit_sha }}' \
+            --arg tag "$RELEASE_TAG" --arg commitSha "$RELEASE_COMMIT" \
             --arg releaseDigest '${{ steps.identity.outputs.release_digest }}' \
             --arg workflowId '${{ steps.identity.outputs.workflow_id }}' \
             --arg runId '${{ steps.identity.outputs.run_id }}' \
@@ -403,7 +463,7 @@ jobs:
             >/dev/null 2>&1; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$authorization_key" \
               "$RUNNER_TEMP/existing-emergency-authorization.json" --no-progress >/dev/null
-            jq -e --arg tag '${{ inputs.tag }}' --arg commit '${{ inputs.commit_sha }}' \
+            jq -e --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" \
               --arg digest '${{ steps.identity.outputs.release_digest }}' \
               --argjson generation "$generation" \
               '.repository == "temporalio/sdk-java" and .tag == $tag and
@@ -426,10 +486,10 @@ jobs:
              .mavenRetryAuthorizationActor=$authorizationActor |
              .mavenRetryAuthorizationRunId=$authorizationRun |
              .mavenRetryAuthorizationSha256=$authorizationSha256 |
-             .approvedBy=$actor | .approvalRunId=$run |
-             .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
+             .approvedBy=(.approvedBy // $actor) | .approvalRunId=(.approvalRunId // $run) |
+             .handoff=(.handoff // {actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
                reason:"Release manager transferred ownership to emergency automation.",
-               recordedAt:$recordedAt,githubRunId:$run} | del(.blockedReason)' \
+               recordedAt:$recordedAt,githubRunId:$run}) | del(.blockedReason)' \
             "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
             --body "$RUNNER_TEMP/updated-request.json" --if-match '${{ steps.request.outputs.etag }}' \

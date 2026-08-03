@@ -56,6 +56,21 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
     }
     ReleaseIdentity identity =
         new ReleaseIdentity(candidateIdentity, new ArtifactManifest(artifacts));
+    CandidateStateActivities state =
+        Workflow.newActivityStub(
+            CandidateStateActivities.class,
+            ActivityOptions.newBuilder()
+                .setTaskQueue(QueueNames.candidateWorkflow(candidateIdentity))
+                .setStartToCloseTimeout(Duration.ofMinutes(2))
+                .setRetryOptions(
+                    RetryOptions.newBuilder()
+                        .setInitialInterval(Duration.ofSeconds(20))
+                        .setMaximumInterval(Duration.ofMinutes(5))
+                        .build())
+                .build());
+    if (state.manualReleaseComplete(candidateIdentity)) {
+      return identity;
+    }
     // Visibility can now discover and start a Worker for the child queue before the child's
     // first Workflow Task has written its own status memo.
     upsertStatus(pendingPlatforms, identity);

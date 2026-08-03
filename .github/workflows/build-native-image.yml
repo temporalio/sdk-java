@@ -90,6 +90,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+          persist-credentials: false
           submodules: recursive
           ref: ${{ env.INPUT_REF }}
       - name: Verify checkout and release-note identity
@@ -109,14 +110,15 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: manual-tools
+          persist-credentials: false
           ref: ${{ github.workflow_sha }}
 
       - name: Set up Java
         if: matrix.os_family != 'linux'
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
-          java-version: 17
-          distribution: "graalvm"
+          java-version: "17.0.9"
+          distribution: "graalvm-community"
 
       - name: Set up Gradle
         if: matrix.os_family != 'linux'
@@ -133,9 +135,7 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == false
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker_context=./docker/native-image
-          [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
-            docker_context=manual-tools/.github/release-automation/docker/native-image-java17
+          docker_context=manual-tools/.github/release-automation/docker/native-image-java17
           docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           release_args=()
@@ -149,9 +149,7 @@ jobs:
         if: matrix.os_family == 'linux' && matrix.musl == true
         run: |
           IMAGE_ID_FILE="$(mktemp)"
-          docker_context=./docker/native-image-musl
-          [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
-            docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java17
+          docker_context=manual-tools/.github/release-automation/docker/native-image-musl-java17
           docker build --iidfile "$IMAGE_ID_FILE" "$docker_context"
           IMAGE_ID="$(cat "$IMAGE_ID_FILE")"
           release_args=()

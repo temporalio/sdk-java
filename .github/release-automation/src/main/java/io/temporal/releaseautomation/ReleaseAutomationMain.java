@@ -3,7 +3,6 @@ package io.temporal.releaseautomation;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.enums.v1.WorkflowIdReusePolicy;
 import io.temporal.client.WorkflowClient;
@@ -234,17 +233,23 @@ public final class ReleaseAutomationMain {
 
   private static void discover(
       WorkflowClient client, String scope, Map<String, String> environment) {
-    String trustedAutomationCommit = required(environment, "RELEASE_AUTOMATION_REF");
-    if (!trustedAutomationCommit.matches("[0-9a-f]{40}")) {
-      throw new IllegalArgumentException("RELEASE_AUTOMATION_REF must be a full commit SHA.");
+    String trustedAutomationCommits =
+        required(environment, "RELEASE_AUTOMATION_REF")
+            + ","
+            + optional(environment, "RELEASE_AUTOMATION_COMPATIBLE_REFS", "");
+    for (String commit : trustedAutomationCommits.split(",")) {
+      if (!commit.isEmpty() && !commit.matches("[0-9a-f]{40}")) {
+        throw new IllegalArgumentException(
+            "Trusted release-automation refs must be full commit SHAs.");
+      }
     }
     List<DiscoveryJob> jobs;
     if ("unprivileged".equals(scope)) {
-      jobs = discoverUnprivileged(client, trustedAutomationCommit);
+      jobs = discoverUnprivileged(client, trustedAutomationCommits);
     } else if ("publication".equals(scope)) {
-      jobs = discoverPublication(client, trustedAutomationCommit);
+      jobs = discoverPublication(client, trustedAutomationCommits);
     } else if ("approvals".equals(scope)) {
-      jobs = discoverApprovals(client, trustedAutomationCommit);
+      jobs = discoverApprovals(client, trustedAutomationCommits);
     } else {
       throw new IllegalArgumentException(
           "Discovery scope must be unprivileged, publication, or approvals.");
@@ -297,7 +302,7 @@ public final class ReleaseAutomationMain {
     requireTrustedDiscoveryCommit(candidate.trustedAutomationCommit, trustedAutomationCommit);
     DiscoveryJob candidateJob =
         new DiscoveryJob("candidate", QueueNames.candidateWorkflowFromDigest(digest));
-    candidateJob.automationCommit = trustedAutomationCommit;
+    candidateJob.automationCommit = candidate.trustedAutomationCommit;
     candidateJob.candidateDigest = digest;
     candidateJob.workflowId = execution.getExecution().getWorkflowId();
     candidateJob.runId = execution.getExecution().getRunId();
@@ -313,10 +318,10 @@ public final class ReleaseAutomationMain {
       build.candidateDigest = digest;
       build.tag = candidate.tag;
       build.commitSha = candidate.commitSha;
-      build.automationCommit = trustedAutomationCommit;
+      build.automationCommit = candidate.trustedAutomationCommit;
       build.runner = runnerFor(platform);
       if (platform.startsWith("macos-") || "windows-amd64".equals(platform)) {
-        build.distribution = "graalvm";
+        build.distribution = "graalvm-community";
       }
       jobs.add(build);
     }
@@ -325,7 +330,7 @@ public final class ReleaseAutomationMain {
       releaseIdentity.validate();
       DiscoveryJob release =
           new DiscoveryJob("release", QueueNames.releaseWorkflow(releaseIdentity));
-      release.automationCommit = trustedAutomationCommit;
+      release.automationCommit = releaseIdentity.candidate.trustedAutomationCommit;
       release.candidateDigest = candidate.digest();
       release.workflowId = QueueNames.releaseWorkflowId(releaseIdentity);
       jobs.add(release);
@@ -360,7 +365,7 @@ public final class ReleaseAutomationMain {
       return;
     }
     DiscoveryJob release = new DiscoveryJob("release", execution.getTaskQueue());
-    release.automationCommit = trustedAutomationCommit;
+    release.automationCommit = releaseIdentity.candidate.trustedAutomationCommit;
     release.workflowId = execution.getExecution().getWorkflowId();
     release.runId = execution.getExecution().getRunId();
     jobs.add(release);
@@ -423,7 +428,7 @@ public final class ReleaseAutomationMain {
     job.approvalIssueNumber = Long.toString(status.approval.githubIssueNumber);
     job.approvalIssueNodeId = status.approval.githubIssueNodeId;
     job.approvalIssueBodySha256 = status.approval.githubIssueBodySha256;
-    job.automationCommit = trustedAutomationCommit;
+    job.automationCommit = identity.candidate.trustedAutomationCommit;
     job.phase = status.phase;
     job.nextRetryAtMillis = status.nextRetryAtMillis;
     job.mavenSubmissionGeneration = status.mavenSubmissionGeneration;
@@ -474,7 +479,7 @@ public final class ReleaseAutomationMain {
     job.notesSha256 = identity.candidate.releaseNotesSha256;
     job.manifestSha256 = identity.manifestSha256;
     job.releaseDigest = identity.digest();
-    job.automationCommit = trustedAutomationCommit;
+    job.automationCommit = identity.candidate.trustedAutomationCommit;
     if (status.approvalRequest != null) {
       job.approvalIssueNumber = Long.toString(status.approvalRequest.githubIssueNumber);
       job.approvalIssueNodeId = status.approvalRequest.githubIssueNodeId;
@@ -540,7 +545,7 @@ public final class ReleaseAutomationMain {
         openExecutions(client, "ReleaseWorkflow").stream()
             .filter(
                 execution -> {
-                  ReleaseStatus status = releaseStatus(execution);
+                  ReleaseStatus status = validReleaseStatusOrNull(execution);
                   return status != null
                       && expectedWorkflowId.equals(execution.getExecution().getWorkflowId());
                 })
@@ -583,7 +588,7 @@ public final class ReleaseAutomationMain {
   private static void approvalTarget(WorkflowClient client, Map<String, String> env) {
     WorkflowExecutionMetadata target =
         findApprovalIssue(client, Long.parseLong(required(env, "APPROVAL_ISSUE_NUMBER")));
-    ReleaseStatus status = releaseStatus(target);
+    ReleaseStatus status = validatedReleaseStatus(target);
     writeIdentityOutputs(target, status.identity, status.phase);
   }
 
@@ -640,7 +645,7 @@ public final class ReleaseAutomationMain {
 
   private static void inspect(WorkflowClient client, String tag, String commitSha) {
     WorkflowExecutionMetadata metadata = findReleaseIncludingClosed(client, tag, commitSha);
-    ReleaseStatus status = releaseStatus(metadata);
+    ReleaseStatus status = validatedReleaseStatus(metadata);
     writeIdentityOutputs(metadata, status.identity, status.phase);
     writeStatusOutputs(status);
   }
@@ -651,7 +656,7 @@ public final class ReleaseAutomationMain {
             .listExecutions("WorkflowType = 'ReleaseWorkflow'")
             .filter(
                 execution -> {
-                  ReleaseStatus status = releaseStatus(execution);
+                  ReleaseStatus status = validReleaseStatusOrNull(execution);
                   return status != null
                       && status.identity != null
                       && tag.equals(status.identity.candidate.tag)
@@ -666,8 +671,7 @@ public final class ReleaseAutomationMain {
     if (matches.size() != 1) {
       throw new IllegalStateException("Tag and SHA identify multiple release executions.");
     }
-    ReleaseStatus status = releaseStatus(matches.get(0));
-    status.identity.validate();
+    ReleaseStatus status = validatedReleaseStatus(matches.get(0));
     writeIdentityOutputs(matches.get(0), status.identity, status.phase);
     writeStatusOutputs(status);
     writeOutput("found", "true");
@@ -676,7 +680,7 @@ public final class ReleaseAutomationMain {
   private static void publicationInput(
       WorkflowClient client, String tag, String commitSha, Path output) throws IOException {
     WorkflowExecutionMetadata metadata = findRelease(client, tag, commitSha);
-    ReleaseStatus status = releaseStatus(metadata);
+    ReleaseStatus status = validatedReleaseStatus(metadata);
     if (status == null || status.identity == null || status.approval == null) {
       throw new IllegalStateException("The exact release has no approved publication input.");
     }
@@ -723,6 +727,8 @@ public final class ReleaseAutomationMain {
     switch (role) {
       case "candidate":
         worker.registerWorkflowImplementationTypes(CandidateWorkflowImpl.class);
+        worker.registerActivitiesImplementations(
+            new CandidateStateActivitiesImpl(REPOSITORY_ROOT, env));
         break;
       case "release":
         worker.registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
@@ -786,24 +792,53 @@ public final class ReleaseAutomationMain {
       WorkflowClient client, Map<String, String> env) {
     String workflowId = required(env, "EXPECTED_WORKFLOW_ID");
     String runId = env.get("EXPECTED_RUN_ID");
-    long lastCompleted = -1;
-    long lastFailed = -1;
     io.temporal.common.WorkflowExecutionHistory history =
         runId == null || runId.isEmpty()
             ? client.fetchHistory(workflowId)
             : client.fetchHistory(workflowId, runId);
-    for (io.temporal.api.history.v1.HistoryEvent event : history.getEvents()) {
-      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED) {
-        lastCompleted = event.getEventId();
-      } else if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED) {
-        lastFailed = event.getEventId();
+    String failure = unrecoveredWorkflowFailure(history.getEvents());
+    if (failure != null) {
+      writeOutput("worker_outcome", failure);
+      throw new IllegalStateException("The release Workflow failed: " + failure + ".");
+    }
+  }
+
+  static String unrecoveredWorkflowFailure(
+      Iterable<io.temporal.api.history.v1.HistoryEvent> events) {
+    long lastCompletedTask = -1;
+    long lastFailedTask = -1;
+    String terminalFailure = null;
+    for (io.temporal.api.history.v1.HistoryEvent event : events) {
+      switch (event.getEventType()) {
+        case EVENT_TYPE_WORKFLOW_TASK_COMPLETED:
+          lastCompletedTask = event.getEventId();
+          break;
+        case EVENT_TYPE_WORKFLOW_TASK_FAILED:
+          lastFailedTask = event.getEventId();
+          break;
+        case EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT:
+          lastFailedTask = event.getEventId();
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_FAILED:
+          terminalFailure = "workflow-execution-failed";
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT:
+          terminalFailure = "workflow-execution-timed-out";
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_TERMINATED:
+          terminalFailure = "workflow-execution-terminated";
+          break;
+        case EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED:
+          terminalFailure = "workflow-execution-canceled";
+          break;
+        default:
+          break;
       }
     }
-    if (lastFailed > lastCompleted) {
-      writeOutput("worker_outcome", "workflow-task-failed");
-      throw new IllegalStateException(
-          "The release Workflow has an unrecovered Workflow Task failure.");
+    if (terminalFailure != null) {
+      return terminalFailure;
     }
+    return lastFailedTask > lastCompletedTask ? "workflow-task-failed-or-timed-out" : null;
   }
 
   private static List<WorkflowExecutionMetadata> openExecutions(
@@ -848,13 +883,48 @@ public final class ReleaseAutomationMain {
         execution.getMemo(ReleaseWorkflowImpl.STATUS_MEMO_KEY, ReleaseStatus.class);
   }
 
+  private static ReleaseStatus validatedReleaseStatus(WorkflowExecutionMetadata execution) {
+    ReleaseStatus status = releaseStatus(execution);
+    if (status == null || status.identity == null) {
+      throw new IllegalStateException("Release execution has no immutable status identity.");
+    }
+    status.identity.validate();
+    if (!QueueNames.releaseWorkflowId(status.identity)
+            .equals(execution.getExecution().getWorkflowId())
+        || !QueueNames.releaseWorkflow(status.identity).equals(execution.getTaskQueue())) {
+      throw new IllegalStateException("Release status identity does not match Workflow routing.");
+    }
+    if (status.approvalRequest != null) {
+      status.approvalRequest.validate();
+      if (!execution.getExecution().getRunId().equals(status.approvalRequest.runId)) {
+        throw new IllegalStateException("Approval request is bound to another Workflow run.");
+      }
+    }
+    if (status.approval != null) {
+      status.approval.validate();
+      if (!execution.getExecution().getRunId().equals(status.approval.runId)) {
+        throw new IllegalStateException("Approval is bound to another Workflow run.");
+      }
+    }
+    return status;
+  }
+
+  private static ReleaseStatus validReleaseStatusOrNull(WorkflowExecutionMetadata execution) {
+    try {
+      return validatedReleaseStatus(execution);
+    } catch (RuntimeException failure) {
+      reportSkippedExecution(execution, failure);
+      return null;
+    }
+  }
+
   private static WorkflowExecutionMetadata findApprovalIssue(
       WorkflowClient client, long issueNumber) {
     List<WorkflowExecutionMetadata> matches =
         openExecutions(client, "ReleaseWorkflow").stream()
             .filter(
                 execution -> {
-                  ReleaseStatus status = releaseStatus(execution);
+                  ReleaseStatus status = validReleaseStatusOrNull(execution);
                   return status != null
                       && "AWAITING_APPROVAL".equals(status.phase)
                       && status.approvalRequest != null
@@ -892,7 +962,7 @@ public final class ReleaseAutomationMain {
         executions.stream()
             .filter(
                 execution -> {
-                  ReleaseStatus status = releaseStatus(execution);
+                  ReleaseStatus status = validReleaseStatusOrNull(execution);
                   return status != null
                       && status.identity != null
                       && tag.equals(status.identity.candidate.tag)
@@ -929,8 +999,8 @@ public final class ReleaseAutomationMain {
     }
   }
 
-  private static void requireTrustedDiscoveryCommit(String actual, String expected) {
-    if (!expected.equals(actual)) {
+  private static void requireTrustedDiscoveryCommit(String actual, String allowedCommits) {
+    if (!Arrays.asList(allowedCommits.split(",")).contains(actual)) {
       throw new IllegalStateException(
           "Release identity selects an automation commit outside the protected allowlist.");
     }

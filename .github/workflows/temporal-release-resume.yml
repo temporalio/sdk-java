@@ -13,6 +13,7 @@ permissions:
   contents: read
 
 env:
+  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
   TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
@@ -61,19 +62,22 @@ jobs:
     concurrency:
       group: temporal-release-${{ matrix.taskQueue }}
       cancel-in-progress: false
-      queue: max
     steps:
       - name: Checkout trusted release automation
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ matrix.automationCommit }}
       - name: Verify trusted checkout
         working-directory: automation
         env:
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+        run: |
+          [[ "$IDENTITY_AUTOMATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+            *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
+          [[ "$(git rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
       - name: Set up Java
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
@@ -86,6 +90,12 @@ jobs:
         with:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
+      - name: Obtain read-only candidate-state credentials
+        if: matrix.role == 'candidate'
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_CONTROL_ARTIFACT_ROLE_ARN }}
       - name: Validate protected candidate and Workflow-start receipts
         if: matrix.role == 'build'
         working-directory: automation
@@ -94,7 +104,7 @@ jobs:
           COMMIT_SHA: ${{ matrix.commitSha }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ matrix.tag }}
-          TRUSTED_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
         run: |
           candidate="$RUNNER_TEMP/protected-candidate.json"
           outputs="$RUNNER_TEMP/protected-candidate.outputs"
@@ -128,7 +138,7 @@ jobs:
         env:
           EXPECTED_RUN_ID: ${{ matrix.runId }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
           ROLE: ${{ matrix.role }}
