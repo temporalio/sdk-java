@@ -25,7 +25,9 @@ public class ProcessSupportTest {
   @Test
   public void shellScriptsUseExplicitBashAndPortableSeparators() {
     List<String> command = ProcessSupport.bash(Paths.get("trusted\\release-script.sh"));
-    assertEquals("bash", command.get(0));
+    assertEquals(
+        java.io.File.separatorChar == '\\' ? "C:\\Program Files\\Git\\bin\\bash.exe" : "bash",
+        command.get(0));
     assertTrue(command.get(1).endsWith("trusted/release-script.sh"));
     assertTrue(!command.get(1).contains("\\"));
     assertEquals(
