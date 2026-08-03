@@ -1,5 +1,6 @@
 package io.temporal.internal.nexus;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -16,28 +17,34 @@ public class OperationToken {
   private final String namespace;
 
   @JsonProperty("wid")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   private final String workflowId;
+
+  @JsonProperty("aid")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
+  private final String activityId;
 
   @JsonProperty("rid")
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  // only set for updates and activities
   private final String runId;
 
   @JsonProperty("uid")
   @JsonInclude(JsonInclude.Include.NON_NULL)
-  // only set for updates
   private final String updateId;
 
+  @JsonCreator
   public OperationToken(
       @JsonProperty("t") Integer type,
       @JsonProperty("ns") String namespace,
       @JsonProperty("wid") String workflowId,
+      @JsonProperty("aid") String activityId,
       @JsonProperty("rid") String runId,
       @JsonProperty("uid") String updateId,
       @JsonProperty("v") Integer version) {
     this.type = OperationTokenType.fromValue(type);
     this.namespace = namespace;
     this.workflowId = workflowId;
+    this.activityId = activityId;
     this.runId = runId;
     this.updateId = updateId;
     this.version = version;
@@ -48,9 +55,30 @@ public class OperationToken {
     this.type = type;
     this.namespace = namespace;
     this.workflowId = workflowId;
-    this.version = null;
+    this.activityId = null;
     this.runId = null;
     this.updateId = null;
+    this.version = null;
+  }
+
+  public OperationToken(
+      OperationTokenType type, String namespace, String workflowId, String activityId) {
+    this(type, namespace, workflowId, activityId, null);
+  }
+
+  public OperationToken(
+      OperationTokenType type,
+      String namespace,
+      String workflowId,
+      String activityId,
+      String runId) {
+    this.type = type;
+    this.namespace = namespace;
+    this.workflowId = workflowId;
+    this.activityId = activityId;
+    this.runId = runId;
+    this.updateId = null;
+    this.version = null;
   }
 
   /** Generate a token for a workflow update operation */
@@ -58,6 +86,7 @@ public class OperationToken {
     this.type = OperationTokenType.WORKFLOW_UPDATE;
     this.namespace = namespace;
     this.workflowId = workflowId;
+    this.activityId = null;
     this.runId = runId;
     this.updateId = updateId;
     this.version = null;
@@ -83,6 +112,16 @@ public class OperationToken {
     return updateId;
   }
 
+  public String getActivityId() {
+    return activityId;
+  }
+
+  /**
+   * Returns the activity run ID embedded in the token, or {@code null} if absent.
+   *
+   * <p>For activity-execution tokens, the run ID is only present after the start RPC completes.
+   * Workflow-update tokens may also carry a run ID.
+   */
   public String getRunId() {
     return runId;
   }

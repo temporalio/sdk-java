@@ -3,7 +3,7 @@ package io.temporal.internal.nexus;
 import io.temporal.common.Experimental;
 import java.util.Map;
 
-/** Container for an in-flight Nexus operation metadata. */
+/** Container for in-flight Nexus operation metadata. */
 @Experimental
 public final class NexusOperationMetadata {
   public final String requestId;

@@ -542,8 +542,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setRequestId(nexusOperationMetadata.requestId)
             .addCompletionCallbacks(
                 InternalUtils.buildNexusCallback(
-                    nexusOperationMetadata.callbackHeaders,
                     nexusOperationMetadata.callbackUrl,
+                    nexusOperationMetadata.callbackHeaders,
                     nexusOperationMetadata.operationToken,
                     requestLinks))
             .addAllLinks(requestLinks);
