@@ -14,6 +14,7 @@ permissions:
   issues: read
 
 env:
+  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
   TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
@@ -80,14 +81,13 @@ jobs:
     concurrency:
       group: approval-request-${{ matrix.workflowId }}
       cancel-in-progress: false
-      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ matrix.automationCommit }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -111,7 +111,7 @@ jobs:
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ matrix.tag }}
           RUN_ID: ${{ matrix.runId }}
-          TRUSTED_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           WORKFLOW_ID: ${{ matrix.workflowId }}
         run: |
           body=$(printf '%s\n' \
@@ -178,7 +178,7 @@ jobs:
           APPROVAL_ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
         run: ./gradlew -p .github/release-automation run --args="approval-request"
       - name: Summarize approval request
         env:
@@ -203,14 +203,13 @@ jobs:
     concurrency:
       group: approval-request-${{ matrix.workflowId }}
       cancel-in-progress: false
-      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ matrix.automationCommit }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -248,7 +247,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
           GITHUB_EVENT_NAME: schedule
           GITHUB_TRIGGERING_ACTOR: ${{ steps.issue.outputs.actor }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
         run: ./gradlew -p .github/release-automation run --args="approve"
 
   approve:
@@ -278,12 +277,15 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ steps.target.outputs.automation_commit }}
       - name: Verify protected automation identity
         env:
           IDENTITY_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+        run: |
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+            *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
+          [[ "$(git -C automation rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
       - name: Read exact closed-issue event identity
         id: event
         run: |
@@ -303,7 +305,7 @@ jobs:
           APPROVAL_ISSUE_NODE_ID: ${{ steps.event.outputs.node_id }}
           APPROVAL_ISSUE_NUMBER: ${{ steps.event.outputs.number }}
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
         run: ./gradlew -p .github/release-automation run --args="approve"
       - name: Summarize accepted approval
         env:

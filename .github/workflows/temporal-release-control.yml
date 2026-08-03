@@ -27,11 +27,15 @@ permissions:
   contents: read
 
 env:
+  CONTROL_ACTION: ${{ inputs.action }}
+  RELEASE_COMMIT: ${{ inputs.commit_sha }}
+  RELEASE_TAG: ${{ inputs.tag }}
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
   TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
   RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-  GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
+  GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
 
 jobs:
   resolve:
@@ -67,7 +71,7 @@ jobs:
         working-directory: bootstrap
         run: >-
           ./gradlew -p .github/release-automation run
-          --args="inspect ${{ inputs.tag }} ${{ inputs.commit_sha }}"
+          --args="inspect $RELEASE_TAG $RELEASE_COMMIT"
       - name: Summarize durable state
         env:
           PHASE: ${{ steps.target.outputs.phase }}
@@ -94,10 +98,10 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ needs.resolve.outputs.automation_commit }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -108,10 +112,10 @@ jobs:
       - name: Submit authenticated release-specific Update
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
         run: >-
           ./gradlew -p .github/release-automation run
-          --args="control ${{ inputs.action }} ${{ inputs.tag }} ${{ inputs.commit_sha }}"
+          --args="control $CONTROL_ACTION $RELEASE_TAG $RELEASE_COMMIT"
 
   authorize_maven_retry:
     needs: resolve
@@ -125,7 +129,6 @@ jobs:
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
-      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -137,10 +140,10 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ needs.resolve.outputs.automation_commit }}
       - name: Verify frozen Worker checkout
         env:
-          FROZEN_AUTOMATION_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -161,7 +164,7 @@ jobs:
         working-directory: automation
         run: >-
           ./gradlew -p .github/release-automation run
-          --args="publication-input ${{ inputs.tag }} ${{ inputs.commit_sha }} ${{ runner.temp }}/publication-input.json"
+          --args="publication-input $RELEASE_TAG $RELEASE_COMMIT $RUNNER_TEMP/publication-input.json"
       - name: Perform a fresh exact external inspection
         working-directory: source
         env:
@@ -187,7 +190,7 @@ jobs:
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-          TRUSTED_WORKER_COMMIT: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TRUSTED_WORKER_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
       - name: Record protected authorization for exactly one next generation
         id: authorization
@@ -210,8 +213,8 @@ jobs:
           fi
           generation=$((CURRENT_GENERATION + 1))
           receipt="$RUNNER_TEMP/maven-retry-authorization.json"
-          jq -cn --arg repository temporalio/sdk-java --arg tag '${{ inputs.tag }}' \
-            --arg commitSha '${{ inputs.commit_sha }}' --arg releaseDigest "$RELEASE_DIGEST" \
+          jq -cn --arg repository temporalio/sdk-java --arg tag "$RELEASE_TAG" \
+            --arg commitSha "$RELEASE_COMMIT" --arg releaseDigest "$RELEASE_DIGEST" \
             --arg workflowId "$WORKFLOW_ID" --arg runId "$RUN_ID" \
             --arg githubActor "$GITHUB_TRIGGERING_ACTOR" --argjson githubRunId "$GITHUB_RUN_ID" \
             --argjson authorizedGeneration "$generation" \
@@ -224,8 +227,8 @@ jobs:
             --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
             aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" \
               "$RUNNER_TEMP/existing-authorization.json" --no-progress >/dev/null
-            jq -e --arg repository temporalio/sdk-java --arg tag '${{ inputs.tag }}' \
-              --arg commit '${{ inputs.commit_sha }}' --arg digest "$RELEASE_DIGEST" \
+            jq -e --arg repository temporalio/sdk-java --arg tag "$RELEASE_TAG" \
+              --arg commit "$RELEASE_COMMIT" --arg digest "$RELEASE_DIGEST" \
               --arg workflow "$WORKFLOW_ID" --arg run "$RUN_ID" \
               --argjson generation "$generation" \
               '.repository == $repository and .tag == $tag and .commitSha == $commit and
@@ -248,7 +251,7 @@ jobs:
           CONTROL_GITHUB_RUN_ID: ${{ steps.authorization.outputs.run_id }}
           MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ steps.authorization.outputs.sha256 }}
           MAVEN_RETRY_GENERATION: ${{ steps.authorization.outputs.generation }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
         run: >-
           ./gradlew -p .github/release-automation run
-          --args="control retry-maven-submission ${{ inputs.tag }} ${{ inputs.commit_sha }}"
+          --args="control retry-maven-submission $RELEASE_TAG $RELEASE_COMMIT"

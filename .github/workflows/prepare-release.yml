@@ -55,7 +55,7 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
           [[ -s "releases/$RELEASE_TAG" && ! -L "releases/$RELEASE_TAG" ]]
           membership=$(gh api \
-            "orgs/temporalio/teams/sdk-java-release-managers/memberships/$GITHUB_TRIGGERING_ACTOR")
+            "orgs/temporalio/teams/sdk-java-release-managers/memberships/$GITHUB_ACTOR")
           jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
             <<<"$membership" >/dev/null
           controller_sha=$RELEASE_AUTOMATION_REF
@@ -82,7 +82,6 @@ jobs:
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
-      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -125,11 +124,11 @@ jobs:
     environment: release-publication
     permissions:
       contents: write
+      id-token: write
       issues: write
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
-      queue: max
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -149,6 +148,11 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Obtain durable fallback-state credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          aws-region: us-west-2
+          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
       - name: Record independent tag-level ownership
         env:
           APPROVAL_GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
@@ -174,7 +178,7 @@ jobs:
               .user.login == $creator)]' <<<"$issues")
           [[ $(jq 'length' <<<"$matches") -le 1 ]]
           if [[ $(jq 'length' <<<"$matches") == 0 ]]; then
-            owner_actor=$GITHUB_TRIGGERING_ACTOR
+            owner_actor=$GITHUB_ACTOR
             owner_run=$GITHUB_RUN_ID
             body=$(ownership_body "$owner_actor" "$owner_run")
             issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
@@ -247,6 +251,7 @@ jobs:
           JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
           MANUAL_INSPECTION_FILE: ${{ runner.temp }}/manual-inspection.json
           MANUAL_RELEASE_ACTION: resume
+          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_COMMIT: ${{ inputs.commit_sha }}
           RELEASE_TAG: ${{ inputs.tag }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}

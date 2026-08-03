@@ -87,10 +87,11 @@ trap restore_hook EXIT
 case "$RELEASE_PLATFORM" in
   linux-amd64-musl)
     image_id_file=$(mktemp)
-    docker_context=./docker/native-image-musl
-    [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
-      docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-musl-java17"
-    docker build --iidfile "$image_id_file" "$docker_context" 1>&2
+    docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-musl-java17"
+    env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+      -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
+      -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u GH_TOKEN \
+      docker build --iidfile "$image_id_file" "$docker_context" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
       ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild -PnativeBuildMusl \
@@ -98,17 +99,21 @@ case "$RELEASE_PLATFORM" in
     ;;
   linux-amd64 | linux-arm64)
     image_id_file=$(mktemp)
-    docker_context=./docker/native-image
-    [[ -f $docker_context/dockerfile || -f $docker_context/Dockerfile ]] ||
-      docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-java17"
-    docker build --iidfile "$image_id_file" "$docker_context" 1>&2
+    docker_context="$TRUSTED_AUTOMATION_ROOT/.github/release-automation/docker/native-image-java17"
+    env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+      -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
+      -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u GH_TOKEN \
+      docker build --iidfile "$image_id_file" "$docker_context" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
       ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild \
       :temporal-test-server:nativeCompile 1>&2
     ;;
   macos-amd64 | macos-arm64 | windows-amd64)
-    ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild \
+    env -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
+      -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
+      -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u GH_TOKEN \
+      ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild \
       :temporal-test-server:nativeCompile 1>&2
     ;;
 esac
