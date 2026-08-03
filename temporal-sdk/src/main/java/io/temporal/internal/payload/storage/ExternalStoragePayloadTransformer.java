@@ -18,27 +18,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
- * Converts one payload list between inline payloads and external-storage references by routing
+ * Transforms one payload list between inline payloads and external-storage references by routing
  * entries to storage drivers.
  */
-final class ExternalStoragePayloadConverter {
+final class ExternalStoragePayloadTransformer {
   private final Map<String, StorageDriver> driversByName;
   private final StorageDriverSelector selector;
   private final int payloadSizeThreshold;
 
-  static ExternalStoragePayloadConverter fromOptions(ExternalStorageOptions options) {
+  static ExternalStoragePayloadTransformer fromOptions(ExternalStorageOptions options) {
     Map<String, StorageDriver> driversByName = new LinkedHashMap<>();
     for (StorageDriver driver : options.getDrivers()) {
       driversByName.put(driver.getName(), driver);
     }
-    return new ExternalStoragePayloadConverter(
+    return new ExternalStoragePayloadTransformer(
         driversByName, options.getDriverSelector(), options.getPayloadSizeThreshold());
   }
 
-  private ExternalStoragePayloadConverter(
+  private ExternalStoragePayloadTransformer(
       Map<String, StorageDriver> driversByName,
       StorageDriverSelector selector,
       int payloadSizeThreshold) {
@@ -48,9 +49,11 @@ final class ExternalStoragePayloadConverter {
   }
 
   CompletableFuture<List<Payload>> store(
-      @Nullable StorageDriverTargetInfo target, List<Payload> payloads) {
+      List<Payload> payloads,
+      @Nullable StorageDriverTargetInfo target,
+      CancellationToken<CancellationException> cancellationToken) {
     StorageDriverStoreContext context =
-        new StorageDriverStoreContextImpl(target, CancellationToken.none());
+        new StorageDriverStoreContextImpl(target, cancellationToken);
     Map<String, Batch<Payload>> batches;
     try {
       batches = buildStoreBatches(payloads, context);
@@ -60,7 +63,7 @@ final class ExternalStoragePayloadConverter {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runStoreDrivers(batches, target)
+    return runStoreDrivers(batches, target, cancellationToken)
         .thenApply(referencePayloads -> applyPayloadReplacements(payloads, referencePayloads));
   }
 
@@ -88,22 +91,46 @@ final class ExternalStoragePayloadConverter {
   }
 
   private CompletableFuture<List<IndexedValue<Payload>>> runStoreDrivers(
-      Map<String, Batch<Payload>> batches, @Nullable StorageDriverTargetInfo target) {
-    return TaskScope.withScope(
-        (TaskScope<List<IndexedValue<Payload>>> scope) -> {
+      Map<String, Batch<Payload>> batches,
+      @Nullable StorageDriverTargetInfo target,
+      CancellationToken<CancellationException> cancellationToken) {
+    return withDriverScope(
+        cancellationToken,
+        scope -> {
           StorageDriverStoreContext context =
               new StorageDriverStoreContextImpl(target, scope.token());
-          try {
-            for (Batch<Payload> batch : batches.values()) {
-              scope
-                  .attach(batch.driver.store(context, batch.values()))
-                  .map(claims -> createReferencePayloads(batch, claims));
-            }
-          } catch (Throwable t) {
-            scope.cancelAll();
-            return failedFuture(t);
+          for (Batch<Payload> batch : batches.values()) {
+            scope
+                .attach(batch.driver.store(context, batch.values()))
+                .map(claims -> createReferencePayloads(batch, claims));
           }
           return scope.awaitAll(ListUtils::flatten);
+        });
+  }
+
+  /**
+   * Runs {@code body} in a scope that is also cancelled by {@code cancellationToken}, so a caller
+   * abandoning the operation trips the token the drivers observe.
+   */
+  private static CompletableFuture<List<IndexedValue<Payload>>> withDriverScope(
+      CancellationToken<CancellationException> cancellationToken,
+      Function<
+              TaskScope<List<IndexedValue<Payload>>>,
+              CompletableFuture<List<IndexedValue<Payload>>>>
+          body) {
+    return TaskScope.withScope(
+        (TaskScope<List<IndexedValue<Payload>>> scope) -> {
+          CancellationToken.Registration registration =
+              cancellationToken.onCancel(scope::cancelAll);
+          CompletableFuture<List<IndexedValue<Payload>>> result;
+          try {
+            result = body.apply(scope);
+          } catch (Throwable t) {
+            scope.cancelAll();
+            result = failedFuture(t);
+          }
+          // The registration outlives body(), so it is released only once the work settles.
+          return result.whenComplete((ignored, error) -> registration.close());
         });
   }
 
@@ -134,7 +161,8 @@ final class ExternalStoragePayloadConverter {
     return replacements;
   }
 
-  CompletableFuture<List<Payload>> retrieve(List<Payload> payloads) {
+  CompletableFuture<List<Payload>> retrieve(
+      List<Payload> payloads, CancellationToken<CancellationException> cancellationToken) {
     Map<String, Batch<StorageDriverClaim>> batches;
     try {
       batches = buildRetrieveBatches(payloads);
@@ -144,7 +172,7 @@ final class ExternalStoragePayloadConverter {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runRetrieveDrivers(batches)
+    return runRetrieveDrivers(batches, cancellationToken)
         .thenApply(retrievedPayloads -> applyPayloadReplacements(payloads, retrievedPayloads));
   }
 
@@ -170,20 +198,17 @@ final class ExternalStoragePayloadConverter {
   }
 
   private CompletableFuture<List<IndexedValue<Payload>>> runRetrieveDrivers(
-      Map<String, Batch<StorageDriverClaim>> batches) {
-    return TaskScope.withScope(
-        (TaskScope<List<IndexedValue<Payload>>> scope) -> {
+      Map<String, Batch<StorageDriverClaim>> batches,
+      CancellationToken<CancellationException> cancellationToken) {
+    return withDriverScope(
+        cancellationToken,
+        scope -> {
           StorageDriverRetrieveContext context =
               new StorageDriverRetrieveContextImpl(scope.token());
-          try {
-            for (Batch<StorageDriverClaim> batch : batches.values()) {
-              scope
-                  .attach(batch.driver.retrieve(context, batch.values()))
-                  .map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
-            }
-          } catch (Throwable t) {
-            scope.cancelAll();
-            return failedFuture(t);
+          for (Batch<StorageDriverClaim> batch : batches.values()) {
+            scope
+                .attach(batch.driver.retrieve(context, batch.values()))
+                .map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
@@ -262,21 +287,6 @@ final class ExternalStoragePayloadConverter {
         values.add(indexedValue.value);
       }
       return values;
-    }
-  }
-
-  private static final class StorageDriverRetrieveContextImpl
-      implements StorageDriverRetrieveContext {
-    private final CancellationToken<CancellationException> cancellationToken;
-
-    private StorageDriverRetrieveContextImpl(
-        CancellationToken<CancellationException> cancellationToken) {
-      this.cancellationToken = cancellationToken;
-    }
-
-    @Override
-    public CancellationToken<CancellationException> getCancellationToken() {
-      return cancellationToken;
     }
   }
 }

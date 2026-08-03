@@ -9,8 +9,9 @@ import javax.annotation.Nullable;
 /**
  * Context passed to {@link StorageDriver#store} and {@link StorageDriverSelector}.
  *
- * <p>Implemented by the SDK and passed to the driver. Driver authors do not implement this in
- * production code, only when constructing instances for their own tests.
+ * <p>The SDK supplies the instance a driver receives. Members added here in later releases will
+ * carry a default, so an existing driver-side implementation keeps compiling and behaves as though
+ * the new member were absent.
  */
 @Experimental
 public interface StorageDriverStoreContext {
@@ -21,7 +22,12 @@ public interface StorageDriverStoreContext {
   @Nullable
   StorageDriverTargetInfo getTarget();
 
-  /** Token cancelled when the SDK abandons this store operation. */
+  /**
+   * Token cancelled when the SDK abandons this store operation. Defaults to a token that is never
+   * cancelled.
+   */
   @Nonnull
-  CancellationToken<CancellationException> getCancellationToken();
+  default CancellationToken<CancellationException> getCancellationToken() {
+    return CancellationToken.none();
+  }
 }

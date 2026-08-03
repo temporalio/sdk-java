@@ -58,13 +58,14 @@ final class ExternalStorageReferences {
   /**
    * Returns the reference encoded in {@code payload}, or null if the payload is not an external
    * storage reference this SDK understands.
+   *
+   * <p>Only the encoding and message type identify a reference. {@code external_payloads} records
+   * the original size for the server's benefit and is not part of the exchange contract, so a
+   * producer that omits it still yields a readable reference.
    */
   static @Nullable ParsedReference tryParseReference(@Nonnull Payload payload) {
-    if (payload.getExternalPayloadsCount() == 0) {
-      return null;
-    }
-    ByteString messageType = payload.getMetadataMap().get(EncodingKeys.METADATA_MESSAGE_TYPE_KEY);
-    if (messageType == null || !REFERENCE_MESSAGE_TYPE.equals(messageType.toStringUtf8())) {
+    if (!hasMetadata(payload, EncodingKeys.METADATA_ENCODING_KEY, ENCODING_PROTOBUF_JSON)
+        || !hasMetadata(payload, EncodingKeys.METADATA_MESSAGE_TYPE_KEY, REFERENCE_MESSAGE_TYPE)) {
       return null;
     }
     ExternalStorageReference.Builder builder = ExternalStorageReference.newBuilder();
@@ -76,6 +77,11 @@ final class ExternalStorageReferences {
     ExternalStorageReference reference = builder.build();
     return new ParsedReference(
         reference.getDriverName(), new StorageDriverClaim(reference.getClaimDataMap()));
+  }
+
+  private static boolean hasMetadata(Payload payload, String key, String expected) {
+    ByteString value = payload.getMetadataMap().get(key);
+    return value != null && expected.equals(value.toStringUtf8());
   }
 
   private ExternalStorageReferences() {}
