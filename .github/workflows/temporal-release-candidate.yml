@@ -28,6 +28,7 @@ permissions:
   id-token: write
 
 env:
+  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
   TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
@@ -62,6 +63,18 @@ jobs:
           WORKFLOW_RUN_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
           WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
+          s3_exists() {
+            local object_key=$1 error="$RUNNER_TEMP/s3-head-error.txt" status
+            set +e
+            aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$object_key" \
+              >"$RUNNER_TEMP/s3-head.json" 2>"$error"
+            status=$?
+            set -e
+            [[ $status -eq 0 ]] && return 0
+            grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error" && return 1
+            cat "$error" >&2
+            exit 1
+          }
           : >"$RUNNER_TEMP/candidates.jsonl"
           add_source() {
             local source_sha=$1 base_sha=$2
@@ -94,20 +107,32 @@ jobs:
             aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
               --prefix sdk-java/candidates/ --output json >"$RUNNER_TEMP/candidate-objects.json"
             while IFS= read -r key; do
+              [[ "$key" == sdk-java/candidates/*.json ]] || {
+                echo "Skipping malformed candidate key $key." >&2
+                continue
+              }
               tag=$(basename "$key" .json)
               started_key="sdk-java/candidates-started/$tag.json"
-              if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-                --key "$started_key" >/dev/null 2>&1; then
+              if s3_exists "$started_key"; then
                 continue
               fi
               file="$RUNNER_TEMP/candidate-$tag.json"
               aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$file" --no-progress >/dev/null
-              jq -e --arg tag "$tag" --arg automation "$RELEASE_AUTOMATION_REF" \
+              if ! jq -e --arg tag "$tag" \
                 '.repository == "temporalio/sdk-java" and .tag == $tag and
                  (.commitSha | test("^[0-9a-f]{40}$")) and
-                 .trustedAutomationCommit == $automation' "$file" >/dev/null
+                 (.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' "$file" >/dev/null; then
+                echo "Skipping malformed candidate object $key." >&2
+                continue
+              fi
+              candidate_automation=$(jq -er .trustedAutomationCommit "$file")
+              if [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," !=
+                *",$candidate_automation,"* ]]; then
+                echo "Skipping candidate pinned outside the protected allowlist: $key." >&2
+                continue
+              fi
               jq -cn --arg sourceSha "$(jq -er .commitSha "$file")" \
-                --arg automationCommit "$RELEASE_AUTOMATION_REF" \
+                --arg automationCommit "$candidate_automation" \
                 --arg candidateKey "$key" \
                 '{mode:"stored",sourceSha:$sourceSha,baseSha:"",
                   automationCommit:$automationCommit,candidateKey:$candidateKey}' \
@@ -131,8 +156,7 @@ jobs:
                 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] || continue
                 grep -Fxq "refs/tags/$tag" "$RUNNER_TEMP/tag-refs.txt" && continue
                 candidate_key="sdk-java/candidates/$tag.json"
-                aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-                  --key "$candidate_key" >/dev/null 2>&1 && continue
+                s3_exists "$candidate_key" && continue
                 commits=$(gh api --method GET repos/temporalio/sdk-java/commits \
                   -f path="$path" -f sha="$branch" -f per_page=1)
                 source_sha=$(jq -er '.[0].sha' <<<"$commits")
@@ -176,12 +200,16 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ matrix.automationCommit }}
       - name: Verify trusted checkout
         env:
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$IDENTITY_AUTOMATION_COMMIT" == "$RELEASE_AUTOMATION_REF" && "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
+        run: |
+          [[ "$IDENTITY_AUTOMATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+            *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
+          [[ "$(git -C automation rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -197,7 +225,7 @@ jobs:
           BASE_SHA: ${{ matrix.baseSha }}
           CANDIDATE_KEY: ${{ matrix.candidateKey }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
           RELEASE_COMMIT: ${{ matrix.sourceSha }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
         run: |

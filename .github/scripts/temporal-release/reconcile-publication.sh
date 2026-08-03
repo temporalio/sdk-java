@@ -7,18 +7,20 @@ conflict() { echo "reconcile-publication: immutable release conflict: $*" >&2; e
 invalid_approval() { echo "reconcile-publication: invalid approval: $*" >&2; exit 43; }
 maven_ambiguous() { echo "reconcile-publication: ambiguous Maven submission: $*" >&2; exit 44; }
 
-run_signing_gradle() {
-  env -u GH_TOKEN -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
-    -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
-    -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u RH_USER -u RH_PASSWORD \
-    GRADLE_USER_HOME="$signing_gradle_home" ./gradlew "$@"
-}
-
-run_sonatype_gradle() {
-  env -u GH_TOKEN -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
-    -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
-    -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u JAR_SIGNING_KEY -u JAR_SIGNING_KEY_ID \
-    -u JAR_SIGNING_KEY_PASSWORD GRADLE_USER_HOME="$sonatype_gradle_home" ./gradlew "$@"
+s3_object_exists() {
+  local key=$1 output=${2:-$work/s3-head.json} error="$work/s3-head-error.txt" status
+  set +e
+  aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
+    >"$output" 2>"$error"
+  status=$?
+  set -e
+  if [[ $status -eq 0 ]]; then
+    return 0
+  fi
+  if grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error"; then
+    return 1
+  fi
+  fail "durable object state for $key is temporarily unavailable."
 }
 
 required=(
@@ -81,14 +83,9 @@ candidate_digest=$(jq -er '.candidateDigest' "$RELEASE_INPUT_FILE")
   conflict "release notes changed."
 
 work=$(mktemp -d)
-signing_gradle_home="$work/signing-gradle-home"
-sonatype_gradle_home="$work/sonatype-gradle-home"
-signing_key="$work/release-secring.gpg"
 trap 'if [[ -f $work/versioning.gradle.original ]]; then cp "$work/versioning.gradle.original" gradle/versioning.gradle; cp "$work/publishing.gradle.original" gradle/publishing.gradle; cp "$work/build.gradle.original" build.gradle; fi; rm -rf "$work"' EXIT
-mkdir -p "$work/assets" "$work/existing" "$signing_gradle_home" "$sonatype_gradle_home"
+mkdir -p "$work/assets" "$work/existing"
 source_hooks_configured=false
-signing_gradle_configured=false
-sonatype_gradle_configured=false
 
 verify_candidate_receipts() {
   [[ ${RELEASE_MODE:-temporal} == temporal ]] || return
@@ -187,8 +184,7 @@ ensure_ownership() {
   expected_ownership=$ownership
   [[ ${RELEASE_MODE:-temporal} == emergency ]] && expected_ownership=$manual_ownership
   if [[ ${RELEASE_MODE:-temporal} == temporal ]] &&
-    aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-      --key "sdk-java/emergency/$tag.json" >/dev/null 2>&1; then
+    s3_object_exists "sdk-java/emergency/$tag.json"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/emergency/$tag.json" \
       "$work/emergency-request.json" --no-progress >/dev/null ||
       fail "Unable to inspect the durable emergency request."
@@ -213,8 +209,7 @@ ensure_ownership() {
 
 inspect_ownership() {
   ownership_state=absent
-  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
-    >/dev/null 2>&1; then
+  if s3_object_exists "$ownership_key"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
       --no-progress >/dev/null || fail "Unable to inspect the durable tag ownership key."
     if [[ ${RELEASE_MODE:-temporal} == emergency-inspect ]]; then
@@ -227,8 +222,7 @@ inspect_ownership() {
 }
 
 claim_manual_ownership() {
-  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
-    >"$work/ownership-head.json" 2>/dev/null; then
+  if s3_object_exists "$ownership_key" "$work/ownership-head.json"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
       --no-progress >/dev/null || fail "Unable to read the durable tag ownership key."
     validate_ownership_tag_and_sha "$work/existing-ownership.json"
@@ -372,7 +366,7 @@ configure_source_hooks() {
   cp build.gradle "$work/build.gradle.original"
   cp "$TRUSTED_AUTOMATION_ROOT/gradle/versioning.gradle" gradle/versioning.gradle
   cp "$TRUSTED_AUTOMATION_ROOT/gradle/publishing.gradle" gradle/publishing.gradle
-  python3 - build.gradle <<'PY'
+  python3 - build.gradle <<'PY' || conflict "the trusted Gradle hooks do not match fixed sdk-java policy."
 import pathlib, re, sys
 path = pathlib.Path(sys.argv[1])
 source = path.read_text()
@@ -383,30 +377,6 @@ source = source[:matches[0].start()] + "id 'io.github.gradle-nexus.publish-plugi
 path.write_text(source)
 PY
   source_hooks_configured=true
-}
-
-configure_signing_gradle() {
-  [[ $signing_gradle_configured == false ]] || return
-  configure_source_hooks
-  umask 077
-  printf '%s' "$JAR_SIGNING_KEY" | base64 --decode >"$signing_key"
-  {
-    printf 'signing.keyId = %s\n' "$JAR_SIGNING_KEY_ID"
-    printf 'signing.password = %s\n' "$JAR_SIGNING_KEY_PASSWORD"
-    printf 'signing.secretKeyRingFile = %s\n' "$signing_key"
-  } >"$signing_gradle_home/gradle.properties"
-  signing_gradle_configured=true
-}
-
-configure_sonatype_gradle() {
-  [[ $sonatype_gradle_configured == false ]] || return
-  configure_source_hooks
-  umask 077
-  {
-    printf 'ossrhUsername = %s\n' "$RH_USER"
-    printf 'ossrhPassword = %s\n' "$RH_PASSWORD"
-  } >"$sonatype_gradle_home/gradle.properties"
-  sonatype_gradle_configured=true
 }
 
 central_state() {
@@ -435,7 +405,7 @@ values = [
 ]
 print("\t".join(values))
 PY
-)
+) || conflict "$artifact published POM is malformed."
         IFS=$'\t' read -r published_group published_artifact published_version \
           published_commit <<<"$published_identity"
         [[ $published_group == "$maven_group" && $published_artifact == "$artifact" &&
@@ -460,23 +430,27 @@ put_immutable_receipt() {
 }
 
 stage_receipt_key() {
-  printf 'sdk-java/%s/state/stages/%s.json' "$release_digest" "$1"
+  if [[ $1 == maven ]]; then
+    printf 'sdk-java/%s/state/stages/maven-%s.json' \
+      "$release_digest" "$maven_submission_generation"
+  else
+    printf 'sdk-java/%s/state/stages/%s.json' "$release_digest" "$1"
+  fi
 }
 
 read_stage_receipt() {
   local stage=$1 destination=$2 key
   key=$(stage_receipt_key "$stage")
-  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$destination" --no-progress >/dev/null ||
+  s3_object_exists "$key" ||
     conflict "the protected $stage completion receipt is absent."
+  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$destination" --no-progress >/dev/null ||
+    fail "the protected $stage completion receipt is temporarily unavailable."
   jq -e --arg stage "$stage" --arg repository "$repository" --arg tag "$tag" \
     --arg commit "$commit" --arg candidate "$candidate_digest" \
     --arg release "$release_digest" --arg manifest "$manifest_hash" \
-    --arg workflow "$workflow_id" --arg run "$run_id" --arg trusted "$trusted_commit" \
     '.stage == $stage and .repository == $repository and .tag == $tag and
      .commitSha == $commit and .candidateDigest == $candidate and
      .releaseDigest == $release and .manifestSha256 == $manifest and
-     .workflowId == $workflow and .runId == $run and
-     .trustedAutomationCommit == $trusted and
      (.outputSha256 | test("^[0-9a-f]{64}$")) and
      (.predecessorSha256 == "" or
        (.predecessorSha256 | test("^[0-9a-f]{64}$")))' "$destination" >/dev/null ||
@@ -508,14 +482,12 @@ record_stage_receipt() {
   jq -n --arg stage "$stage" --arg repository "$repository" --arg tag "$tag" \
     --arg commitSha "$commit" --arg candidateDigest "$candidate_digest" \
     --arg releaseDigest "$release_digest" --arg manifestSha256 "$manifest_hash" \
-    --arg workflowId "$workflow_id" --arg runId "$run_id" \
-    --arg trustedAutomationCommit "$trusted_commit" --arg outputSha256 "$output_sha" \
+    --arg outputSha256 "$output_sha" \
     --arg predecessorSha256 "$predecessor_sha" \
     --argjson mavenSubmissionGeneration "$maven_submission_generation" \
     '{stage:$stage,repository:$repository,tag:$tag,commitSha:$commitSha,
       candidateDigest:$candidateDigest,releaseDigest:$releaseDigest,
-      manifestSha256:$manifestSha256,workflowId:$workflowId,runId:$runId,
-      trustedAutomationCommit:$trustedAutomationCommit,
+      manifestSha256:$manifestSha256,
       mavenSubmissionGeneration:$mavenSubmissionGeneration,
       predecessorSha256:$predecessorSha256,outputSha256:$outputSha256}' >"$receipt"
   key=$(stage_receipt_key "$stage")
@@ -594,8 +566,7 @@ validate_prior_generations_inactive() {
     prefix="sdk-java/$release_digest/state/maven/generations/$prior_generation"
     description="sdk-java:$release_digest:$prior_generation"
     repository_id=""
-    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-      --key "$prefix/repository.json" >/dev/null 2>&1; then
+    if s3_object_exists "$prefix/repository.json"; then
       aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$prefix/repository.json" \
         "$work/prior-repository-$prior_generation.json" --no-progress >/dev/null ||
         fail "Unable to inspect the earlier Maven repository receipt."
@@ -614,8 +585,7 @@ validate_prior_generations_inactive() {
     fi
 
     portal_id=""
-    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-      --key "$prefix/portal.json" >/dev/null 2>&1; then
+    if s3_object_exists "$prefix/portal.json"; then
       aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$prefix/portal.json" \
         "$work/prior-portal-$prior_generation.json" --no-progress >/dev/null ||
         fail "Unable to inspect the earlier Portal receipt."
@@ -648,8 +618,7 @@ prepare_maven_payload() {
   payload_bundle="$work/maven-payload"
   payload_root="$payload_bundle/repository"
   payload_manifest="$payload_bundle/manifest.tsv"
-  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-    --key "$payload_receipt_key" >/dev/null 2>&1; then
+  if s3_object_exists "$payload_receipt_key"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$payload_receipt_key" \
       "$payload_receipt" --no-progress >/dev/null ||
       fail "Unable to read the frozen Maven payload receipt."
@@ -682,13 +651,12 @@ prepare_maven_payload() {
   else
     (( submission_generation == 0 )) ||
       conflict "the release-wide Maven payload is absent during an authorized retry."
-    configure_signing_gradle
+    configure_source_hooks
     generated="$work/generated-maven-local"
     mkdir -p "$generated" "$payload_root"
-    run_signing_gradle --no-daemon "-Dmaven.repo.local=$generated" \
-      "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
-      "-PreleaseDigest=$release_digest" \
-      "-PmavenSubmissionGeneration=$submission_generation" publishToMavenLocal >&2
+    MAVEN_PAYLOAD_COMMIT=$commit MAVEN_PAYLOAD_OUTPUT=$generated \
+      MAVEN_PAYLOAD_VERSION=$version \
+      "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-and-sign-maven-payload.sh"
     mkdir -p "$payload_root/io/temporal"
     for artifact in "${maven_artifacts[@]}"; do
       generated_artifact="$generated/io/temporal/$artifact/$version"
@@ -707,7 +675,7 @@ prepare_maven_payload() {
   fi
   printf '%s\n' "${maven_artifacts[@]}" >"$work/approved-maven-artifacts.txt"
   python3 - "$payload_root" "$payload_manifest" "$work/approved-maven-artifacts.txt" \
-    "$version" "$commit" <<'PY'
+    "$version" "$commit" <<'PY' || conflict "the frozen Maven payload violates fixed sdk-java policy."
 import hashlib, pathlib, re, sys, xml.etree.ElementTree as ET
 root = pathlib.Path(sys.argv[1]).resolve()
 manifest = pathlib.Path(sys.argv[2])
@@ -723,7 +691,7 @@ for line in manifest.read_text().splitlines():
     if artifact not in approved or found_version != version:
         raise SystemExit("payload contains an unapproved Maven coordinate")
     escaped = re.escape(f"{artifact}-{version}")
-    if not re.fullmatch(escaped + r"(?:-(?:sources|javadoc))?\.(?:jar|pom|module)(?:\.asc)?", filename):
+    if not re.fullmatch(escaped + r"(?:-(?:sources|javadoc))?\.(?:jar|pom|module)(?:\.(?:asc|md5|sha1))?", filename):
         raise SystemExit("payload contains an unapproved Maven filename")
     path = (root / relative).resolve()
     if root not in path.parents or not path.is_file() or path.is_symlink():
@@ -742,21 +710,16 @@ for artifact in approved:
     directory = root / "io" / "temporal" / artifact / version
     pom = directory / f"{artifact}-{version}.pom"
     signature = directory / f"{artifact}-{version}.pom.asc"
-    expected_names = {
-        f"{artifact}-{version}.pom",
-        f"{artifact}-{version}.pom.asc",
-        f"{artifact}-{version}.module",
-        f"{artifact}-{version}.module.asc",
-    }
+    bases = {f"{artifact}-{version}.pom", f"{artifact}-{version}.module"}
     if artifact != "temporal-bom":
-        expected_names.update({
+        bases.update({
             f"{artifact}-{version}.jar",
-            f"{artifact}-{version}.jar.asc",
             f"{artifact}-{version}-sources.jar",
-            f"{artifact}-{version}-sources.jar.asc",
             f"{artifact}-{version}-javadoc.jar",
-            f"{artifact}-{version}-javadoc.jar.asc",
         })
+    expected_names = set(bases)
+    for base in bases:
+        expected_names.update({base + ".asc", base + ".md5", base + ".sha1"})
     actual_names = {path.name for path in directory.iterdir() if path.is_file()}
     if actual_names != expected_names:
         raise SystemExit(f"Maven payload file set differs for {artifact}")
@@ -785,10 +748,12 @@ PY
       cmp -s "$payload_archive" "$work/existing-maven-payload.tar" ||
         conflict "the content-addressed Maven payload differs."
     fi
-    jq -n --arg releaseDigest "$release_digest" \
+    jq -n --arg repository "$repository" --arg tag "$tag" --arg commitSha "$commit" \
+      --arg version "$version" --arg releaseDigest "$release_digest" \
       --arg archiveKey "$payload_archive_key" --arg archiveSha256 "$archive_sha" \
       --arg manifestSha256 "$manifest_sha" \
-      '{releaseDigest:$releaseDigest,archiveKey:$archiveKey,
+      '{repository:$repository,tag:$tag,commitSha:$commitSha,version:$version,
+        releaseDigest:$releaseDigest,archiveKey:$archiveKey,
         archiveSha256:$archiveSha256,manifestSha256:$manifestSha256}' >"$payload_receipt"
     put_immutable_receipt "$payload_receipt_key" "$payload_receipt"
   fi
@@ -817,21 +782,30 @@ inspect_staging_payload() {
 
 verify_staging_file_set() {
   : >"$work/staging-file-set.txt"
-  while IFS= read -r artifact; do
-    relative_directory="io/temporal/$artifact/$version"
-    listing="$work/staging-list-$artifact.json"
+  : >"$work/staging-directories.txt"
+  printf '\n' >>"$work/staging-directories.txt"
+  while IFS= read -r relative_directory; do
+    directory_hash=$(printf '%s' "$relative_directory" | sha256sum | awk '{print $1}')
+    listing="$work/staging-list-$directory_hash.json"
+    suffix="${relative_directory:+$relative_directory/}"
     curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
       --header 'Accept: application/json' \
-      "https://ossrh-staging-api.central.sonatype.com/service/local/repositories/$repository_id/content/$relative_directory/" \
-      >"$listing" || fail "Unable to enumerate staged Maven files for $artifact."
+      "https://ossrh-staging-api.central.sonatype.com/service/local/repositories/$repository_id/content/$suffix" \
+      >"$listing" || fail "Unable to enumerate the complete staged Maven repository."
     jq -e '(.data | type == "array") and
       (.data | all((.leaf | type == "boolean") and (.relativePath | type == "string")))' \
       "$listing" >/dev/null || fail "Sonatype returned an invalid staged content listing."
     jq -r --arg directory "$relative_directory" \
       '.data[] | select(.leaf == true) | .relativePath |
        ltrimstr("/") | if contains("/") then . else ($directory + "/" + .) end' \
-      "$listing" >>"$work/staging-file-set.txt"
-  done <"$work/approved-maven-artifacts.txt"
+      "$listing" | sed 's#^/##; s#^/##' >>"$work/staging-file-set.txt"
+    while IFS= read -r child; do
+      child=${child#/}
+      [[ $child == */* || -z $relative_directory ]] || child="$relative_directory/$child"
+      grep -Fxq "$child" "$work/staging-directories.txt" ||
+        printf '%s\n' "$child" >>"$work/staging-directories.txt"
+    done < <(jq -r '.data[] | select(.leaf == false) | .relativePath' "$listing")
+  done <"$work/staging-directories.txt"
   cut -f1 "$payload_manifest" | sort >"$work/expected-staging-file-set.txt"
   sort -u "$work/staging-file-set.txt" -o "$work/staging-file-set.txt"
   cmp -s "$work/expected-staging-file-set.txt" "$work/staging-file-set.txt" ||
@@ -875,7 +849,8 @@ verify_central_file_sets() {
       sort -u >"$work/central-files-$artifact.txt"
     awk -F'\t' -v prefix="$directory/" '$1 ~ ("^" prefix) {sub("^.*/", "", $1); print $1}' \
       "$payload_manifest" | sort >"$work/central-required-$artifact.txt"
-    python3 - "$work/central-required-$artifact.txt" "$work/central-files-$artifact.txt" <<'PY'
+    python3 - "$work/central-required-$artifact.txt" \
+      "$work/central-files-$artifact.txt" <<'PY' || conflict "Maven Central has a conflicting file set for $artifact."
 import pathlib, sys
 required = set(pathlib.Path(sys.argv[1]).read_text().splitlines())
 actual = set(pathlib.Path(sys.argv[2]).read_text().splitlines())
@@ -896,8 +871,7 @@ verify_published_maven_payload() {
   central_state
   [[ $missing -eq 0 && $present -eq ${#maven_artifacts[@]} ]] ||
     fail "The complete Maven release is not visible immediately before GitHub publication."
-  aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-    --key "sdk-java/$release_digest/state/maven/payload.json" >/dev/null 2>&1 ||
+  s3_object_exists "sdk-java/$release_digest/state/maven/payload.json" ||
     conflict "the release-wide frozen Maven payload receipt is absent."
   prepare_maven_payload
   validate_central_payload
@@ -957,9 +931,7 @@ reconcile_maven() {
   fi
   [[ $present -eq 0 ]] || fail "Maven publication is partially visible; Temporal will retry."
 
-  # Local signing setup and authoritative remote reads happen before recording mutation intent.
-  configure_signing_gradle
-  configure_sonatype_gradle
+  # Isolated payload construction and authoritative remote reads happen before mutation intent.
   verify_source_maven_policy
   sonatype_snapshot
   validate_retry_authorization
@@ -973,8 +945,7 @@ reconcile_maven() {
       description:$description,generation:$generation}' >"$intent"
   intent_key="$generation_prefix/intent.json"
   new_intent=false
-  if ! aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$intent_key" \
-    >/dev/null 2>&1; then
+  if ! s3_object_exists "$intent_key"; then
     put_immutable_receipt "$intent_key" "$intent"
     new_intent=true
   else
@@ -986,8 +957,7 @@ reconcile_maven() {
   repository_receipt="$work/maven-repository.json"
   repository_key="$generation_prefix/repository.json"
   repository_id=""
-  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$repository_key" \
-    >/dev/null 2>&1; then
+  if s3_object_exists "$repository_key"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$repository_key" "$repository_receipt" \
       --no-progress >/dev/null || fail "Unable to read the repository receipt."
     repository_id=$(jq -er --arg description "$staging_description" \
@@ -1003,13 +973,8 @@ reconcile_maven() {
     if [[ ${#matches[@]} -eq 1 ]]; then
       repository_id=${matches[0]}
     elif [[ $new_intent == true ]]; then
-      initialize_log="$work/initialize-sonatype.log"
-      run_sonatype_gradle --no-daemon "-PreleaseVersion=$version" "-PreleaseCommit=$commit" \
-        "-PreleaseDigest=$release_digest" \
-        "-PmavenSubmissionGeneration=$submission_generation" \
-        initializeSonatypeStagingRepository 2>&1 | tee "$initialize_log" >&2
-      repository_id=$(sed -n -E "s/.*Created staging repository '([^']+)'.*/\1/p" \
-        "$initialize_log" | tail -1)
+      repository_id=$(SONATYPE_REPOSITORY_DESCRIPTION=$staging_description \
+        "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/create-sonatype-repository.sh")
       [[ -n $repository_id ]] || fail "Unable to capture the created Sonatype repository ID."
     else
       maven_ambiguous "intent exists but its exact repository is absent."
@@ -1031,8 +996,7 @@ reconcile_maven() {
   manual_repository_count=$(jq --arg id "$repository_id" \
     '[.repositories[] | select(.key == $id)] | length' "$work/manual-repositories.json")
   receipted_portal_deployment_id=""
-  if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-    --key "$generation_prefix/portal.json" >/dev/null 2>&1; then
+  if s3_object_exists "$generation_prefix/portal.json"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/portal.json" \
       "$work/existing-portal.json" --no-progress >/dev/null ||
       fail "Unable to read the existing Portal receipt."
@@ -1339,8 +1303,7 @@ inspect_external_state() {
     repository_state=absent
     deployment_id=""
     deployment_state=""
-    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-      --key "$generation_prefix/repository.json" >/dev/null 2>&1; then
+    if s3_object_exists "$generation_prefix/repository.json"; then
       aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/repository.json" \
         "$work/inspection-repository-$generation.json" --no-progress >/dev/null
       repository_id=$(jq -er --arg description "$description" \
@@ -1368,8 +1331,7 @@ inspect_external_state() {
         repository_state=unreceipted
       fi
     fi
-    if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-      --key "$generation_prefix/portal.json" >/dev/null 2>&1; then
+    if s3_object_exists "$generation_prefix/portal.json"; then
       aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$generation_prefix/portal.json" \
         "$work/inspection-portal-$generation.json" --no-progress >/dev/null
       deployment_id=$(jq -er --arg repository "$repository_id" \

@@ -7,20 +7,6 @@ set -euo pipefail
 fail() { echo "manual-release: $*" >&2; exit 1; }
 conflict() { echo "manual-release: immutable conflict: $*" >&2; exit 42; }
 
-run_signing_gradle() {
-  env -u GH_TOKEN -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
-    -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
-    -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u RH_USER -u RH_PASSWORD \
-    GRADLE_USER_HOME="$signing_gradle_home" ./gradlew "$@"
-}
-
-run_sonatype_gradle() {
-  env -u GH_TOKEN -u AWS_ACCESS_KEY_ID -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
-    -u AWS_REGION -u AWS_DEFAULT_REGION -u ACTIONS_ID_TOKEN_REQUEST_URL \
-    -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u JAR_SIGNING_KEY -u JAR_SIGNING_KEY_ID \
-    -u JAR_SIGNING_KEY_PASSWORD GRADLE_USER_HOME="$sonatype_gradle_home" ./gradlew "$@"
-}
-
 for name in GH_TOKEN MANUAL_RELEASE_ACTION RELEASE_COMMIT RELEASE_TAG; do
   [[ -n ${!name:-} ]] || fail "$name is required."
 done
@@ -38,7 +24,8 @@ notes_sha256=$(sha256sum "$notes" | awk '{print $1}')
   conflict "the release-note checksum differs."
 if [[ $MANUAL_RELEASE_ACTION == resume ]]; then
   for name in MANUAL_CONTROLLER_SHA MANUAL_ISSUE_CREATOR MANUAL_OWNER_ACTOR \
-    MANUAL_OWNER_RUN_ID MANUAL_OWNERSHIP_ISSUE RELEASE_ARTIFACT_BUCKET; do
+    MANUAL_OWNER_RUN_ID MANUAL_OWNERSHIP_ISSUE RELEASE_ARTIFACT_BUCKET \
+    TRUSTED_AUTOMATION_ROOT; do
     [[ -n ${!name:-} ]] || fail "$name is required for fallback publication."
   done
   ownership_issue=$(gh api "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE") ||
@@ -105,7 +92,8 @@ central_state() {
       fail "Maven Central is temporarily unavailable."
     case "$status" in
       200)
-        python3 - "$pom" "$artifact" "$version" "$RELEASE_COMMIT" <<'PY'
+        python3 - "$pom" "$artifact" "$version" "$RELEASE_COMMIT" <<'PY' ||
+          conflict "$artifact published POM is malformed or has another identity."
 import sys, xml.etree.ElementTree as ET
 path, artifact, version, commit = sys.argv[1:]
 root = ET.parse(path).getroot()
@@ -177,7 +165,7 @@ print("\t".join((root.findtext(f"{ns}groupId", "").strip(),
                  root.findtext(f"{ns}version", "").strip(),
                  root.findtext(f"{ns}scm/{ns}tag", "").strip().lower())))
 PY
-)
+) || conflict "Sonatype repository $candidate_repository contains a malformed POM."
         IFS=$'\t' read -r candidate_group candidate_artifact candidate_version \
           candidate_commit <<<"$candidate_identity"
         if [[ $candidate_group == io.temporal && $candidate_artifact == temporal-sdk &&
@@ -265,7 +253,7 @@ jq -n --arg action "$MANUAL_RELEASE_ACTION" --arg tag "$RELEASE_TAG" \
   >"${MANUAL_INSPECTION_FILE:-$work/inspection.json}"
 [[ $MANUAL_RELEASE_ACTION == resume ]] || exit 0
 
-for name in JAR_SIGNING_KEY JAR_SIGNING_KEY_ID JAR_SIGNING_KEY_PASSWORD RH_USER RH_PASSWORD; do
+for name in RH_USER RH_PASSWORD; do
   [[ -n ${!name:-} ]] || fail "$name is required for fallback publication."
 done
 
@@ -289,7 +277,7 @@ payload_root="$work/manual-maven-payload"
 payload_manifest="$work/manual-maven-payload.tsv"
 payload_frozen=false
 if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-  --key "$manual_payload_receipt_key" >/dev/null 2>&1; then
+  --key "$manual_payload_receipt_key" >/dev/null 2>"$work/manual-head-error"; then
   aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$manual_payload_receipt_key" \
     "$manual_payload_receipt" --no-progress >/dev/null
   manual_payload_archive_key=$(jq -er --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" \
@@ -310,6 +298,47 @@ if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
   [[ $actual_manifest_sha == "$expected_manifest_sha" ]] ||
     conflict "the frozen fallback Maven manifest checksum differs."
   payload_frozen=true
+elif ! grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$work/manual-head-error"; then
+  fail "fallback Maven receipt state is temporarily unavailable."
+fi
+if [[ $payload_frozen == false ]]; then
+  aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" --prefix sdk-java/ \
+    --output json >"$work/temporal-payload-list.json" ||
+    fail "Temporal Maven receipt discovery is temporarily unavailable."
+  : >"$work/temporal-payload-matches.txt"
+  while IFS= read -r temporal_key; do
+    receipt="$work/temporal-$(printf '%s' "$temporal_key" | sha256sum | awk '{print $1}').json"
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$temporal_key" "$receipt" --no-progress \
+      >/dev/null || fail "a frozen Temporal Maven receipt is temporarily unavailable."
+    if jq -e --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" --arg version "$version" \
+      '.repository == "temporalio/sdk-java" and .tag == $tag and .commitSha == $commit and
+       .version == $version and (.archiveSha256 | test("^[0-9a-f]{64}$")) and
+       (.manifestSha256 | test("^[0-9a-f]{64}$")) and (.archiveKey | type == "string")' \
+      "$receipt" >/dev/null; then
+      printf '%s\t%s\n' "$temporal_key" "$receipt" >>"$work/temporal-payload-matches.txt"
+    fi
+  done < <(jq -r '.Contents // [] | .[].Key | select(endswith("/state/maven/payload.json"))' \
+    "$work/temporal-payload-list.json")
+  [[ $(wc -l <"$work/temporal-payload-matches.txt" | tr -d ' ') -le 1 ]] ||
+    conflict "multiple Temporal payload receipts claim the exact tag and SHA."
+  if [[ -s $work/temporal-payload-matches.txt ]]; then
+    temporal_receipt=$(cut -f2 "$work/temporal-payload-matches.txt")
+    temporal_archive_key=$(jq -er .archiveKey "$temporal_receipt")
+    temporal_archive="$work/temporal-maven-payload.tar"
+    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$temporal_archive_key" "$temporal_archive" \
+      --no-progress >/dev/null || fail "the frozen Temporal Maven payload is unavailable."
+    [[ $(sha256sum "$temporal_archive" | awk '{print $1}') == \
+      "$(jq -er .archiveSha256 "$temporal_receipt")" ]] ||
+      conflict "the frozen Temporal Maven archive checksum differs."
+    mkdir -p "$work/temporal-payload" "$payload_root"
+    tar -xf "$temporal_archive" -C "$work/temporal-payload"
+    cp -R "$work/temporal-payload/repository/." "$payload_root/"
+    cp "$work/temporal-payload/manifest.tsv" "$payload_manifest"
+    [[ $(sha256sum "$payload_manifest" | awk '{print $1}') == \
+      "$(jq -er .manifestSha256 "$temporal_receipt")" ]] ||
+      conflict "the frozen Temporal Maven manifest checksum differs."
+    payload_frozen=true
+  fi
 fi
 if [[ -n $release ]]; then
   while IFS=$'\t' read -r remote_name remote_state remote_size; do
@@ -341,6 +370,58 @@ verify_frozen_payload_files() {
       $(wc -c <"$payload_root/$relative" | tr -d ' ') == "$size" ]] ||
       conflict "the frozen fallback Maven payload differs at $relative."
   done <"$payload_manifest"
+  printf '%s\n' "${maven_artifacts[@]}" >"$work/fallback-approved-artifacts.txt"
+  python3 - "$payload_root" "$payload_manifest" "$work/fallback-approved-artifacts.txt" \
+    "$version" "$RELEASE_COMMIT" <<'PY' || conflict "the frozen fallback Maven payload violates fixed sdk-java policy."
+import hashlib, pathlib, re, sys, xml.etree.ElementTree as ET
+root = pathlib.Path(sys.argv[1]).resolve()
+manifest = pathlib.Path(sys.argv[2])
+approved = set(pathlib.Path(sys.argv[3]).read_text().splitlines())
+version, commit = sys.argv[4:]
+records = []
+for line in manifest.read_text().splitlines():
+    relative, sha, size = line.split("\t")
+    parts = pathlib.PurePosixPath(relative).parts
+    if len(parts) != 5 or parts[:2] != ("io", "temporal"):
+        raise SystemExit("payload path escaped fixed coordinates")
+    artifact, found_version, filename = parts[2:]
+    escaped = re.escape(f"{artifact}-{version}")
+    if artifact not in approved or found_version != version or not re.fullmatch(
+            escaped + r"(?:-(?:sources|javadoc))?\.(?:jar|pom|module)(?:\.(?:asc|md5|sha1))?",
+            filename):
+        raise SystemExit("payload contains an unapproved coordinate or filename")
+    path = (root / relative).resolve()
+    if root not in path.parents or not path.is_file() or path.is_symlink():
+        raise SystemExit("payload path is not a regular file")
+    data = path.read_bytes()
+    if hashlib.sha256(data).hexdigest() != sha or len(data) != int(size):
+        raise SystemExit("payload checksum differs")
+    records.append(relative)
+actual = sorted(str(path.relative_to(root)).replace("\\", "/")
+                for path in (root / "io" / "temporal").rglob("*") if path.is_file())
+if records != sorted(set(records)) or actual != records:
+    raise SystemExit("payload manifest and archive file sets differ")
+for artifact in approved:
+    directory = root / "io" / "temporal" / artifact / version
+    bases = {f"{artifact}-{version}.pom", f"{artifact}-{version}.module"}
+    if artifact != "temporal-bom":
+        bases.update({f"{artifact}-{version}.jar", f"{artifact}-{version}-sources.jar",
+                      f"{artifact}-{version}-javadoc.jar"})
+    expected = set(bases)
+    for base in bases:
+        expected.update({base + ".asc", base + ".md5", base + ".sha1"})
+    if {path.name for path in directory.iterdir() if path.is_file()} != expected:
+        raise SystemExit(f"payload file set differs for {artifact}")
+    pom = directory / f"{artifact}-{version}.pom"
+    document = ET.parse(pom).getroot()
+    ns = document.tag.partition("}")[0] + "}" if document.tag.startswith("{") else ""
+    values = (document.findtext(f"{ns}groupId", "").strip(),
+              document.findtext(f"{ns}artifactId", "").strip(),
+              document.findtext(f"{ns}version", "").strip(),
+              document.findtext(f"{ns}scm/{ns}tag", "").strip().lower())
+    if values != ("io.temporal", artifact, version, commit):
+        raise SystemExit(f"POM identity differs for {artifact}")
+PY
 }
 
 verify_central_payload_bytes() {
@@ -365,7 +446,7 @@ verify_central_payload_bytes() {
     awk -F'\t' -v prefix="$directory/" '$1 ~ ("^" prefix) {sub("^.*/", "", $1); print $1}' \
       "$payload_manifest" | sort >"$work/manual-central-required-$artifact.txt"
     python3 - "$work/manual-central-required-$artifact.txt" \
-      "$work/manual-central-files-$artifact.txt" <<'PY'
+      "$work/manual-central-files-$artifact.txt" <<'PY' || conflict "Maven Central has a conflicting fallback file set for $artifact."
 import pathlib, sys
 required = set(pathlib.Path(sys.argv[1]).read_text().splitlines())
 actual = set(pathlib.Path(sys.argv[2]).read_text().splitlines())
@@ -380,6 +461,8 @@ PY
 
 verify_staged_fallback_repository() {
   : >"$work/manual-staging-files.txt"
+  : >"$work/manual-staging-directories.txt"
+  printf '\n' >>"$work/manual-staging-directories.txt"
   while IFS=$'\t' read -r relative sha size; do
     remote="$work/manual-staged-$(printf '%s' "$relative" | sha256sum | awk '{print $1}')"
     status=$(curl --silent --show-error --location --output "$remote" --write-out '%{http_code}' \
@@ -390,20 +473,29 @@ verify_staged_fallback_repository() {
       $(wc -c <"$remote" | tr -d ' ') == "$size" ]] ||
       conflict "the staged fallback Maven file $relative differs."
   done <"$payload_manifest"
-  for artifact in "${maven_artifacts[@]}"; do
-    directory="io/temporal/$artifact/$version"
-    listing="$work/manual-staging-list-$artifact.json"
+  while IFS= read -r directory; do
+    directory_hash=$(printf '%s' "$directory" | sha256sum | awk '{print $1}')
+    listing="$work/manual-staging-list-$directory_hash.json"
+    suffix="${directory:+$directory/}"
     curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
       --header 'Accept: application/json' \
-      "$staging_base/service/local/repositories/$exact_repository_id/content/$directory/" \
-      >"$listing" || fail "Unable to enumerate staged fallback files for $artifact."
-    jq -e '(.data | type == "array")' "$listing" >/dev/null ||
+      "$staging_base/service/local/repositories/$exact_repository_id/content/$suffix" \
+      >"$listing" || fail "Unable to enumerate the complete staged fallback repository."
+    jq -e '(.data | type == "array") and
+      (.data | all((.leaf | type == "boolean") and (.relativePath | type == "string")))' \
+      "$listing" >/dev/null ||
       fail "Sonatype returned an invalid staged fallback listing."
     jq -r --arg directory "$directory" \
       '.data[] | select(.leaf == true) | .relativePath | ltrimstr("/") |
        if contains("/") then . else ($directory + "/" + .) end' \
-      "$listing" >>"$work/manual-staging-files.txt"
-  done
+      "$listing" | sed 's#^/##; s#^/##' >>"$work/manual-staging-files.txt"
+    while IFS= read -r child; do
+      child=${child#/}
+      [[ $child == */* || -z $directory ]] || child="$directory/$child"
+      grep -Fxq "$child" "$work/manual-staging-directories.txt" ||
+        printf '%s\n' "$child" >>"$work/manual-staging-directories.txt"
+    done < <(jq -r '.data[] | select(.leaf == false) | .relativePath' "$listing")
+  done <"$work/manual-staging-directories.txt"
   cut -f1 "$payload_manifest" | sort >"$work/manual-staging-required.txt"
   sort -u "$work/manual-staging-files.txt" -o "$work/manual-staging-files.txt"
   cmp -s "$work/manual-staging-required.txt" "$work/manual-staging-files.txt" ||
@@ -454,11 +546,14 @@ if (( missing > 0 )); then
   elif [[ -z $portal_deployment_id ]]; then
     build_backup="$work/build.gradle"
     publishing_backup="$work/publishing.gradle"
+    versioning_backup="$work/versioning.gradle"
     cp build.gradle "$build_backup"
     cp gradle/publishing.gradle "$publishing_backup"
+    cp gradle/versioning.gradle "$versioning_backup"
     restore_source() {
       cp "$build_backup" build.gradle
       cp "$publishing_backup" gradle/publishing.gradle
+      cp "$versioning_backup" gradle/versioning.gradle
     }
     trap 'restore_source; rm -rf "$work"' EXIT
     if git rev-parse --verify "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
@@ -467,49 +562,27 @@ if (( missing > 0 )); then
     else
       git tag "$RELEASE_TAG" "$RELEASE_COMMIT"
     fi
-    python3 - build.gradle gradle/publishing.gradle "$manual_description" "$RELEASE_COMMIT" <<'PY'
+    cp "$TRUSTED_AUTOMATION_ROOT/gradle/publishing.gradle" gradle/publishing.gradle
+    cp "$TRUSTED_AUTOMATION_ROOT/gradle/versioning.gradle" gradle/versioning.gradle
+    python3 - build.gradle <<'PY' || conflict "the trusted fallback Gradle hooks do not match fixed sdk-java policy."
 import pathlib, re, sys
 build = pathlib.Path(sys.argv[1])
-publishing = pathlib.Path(sys.argv[2])
-description = sys.argv[3]
-commit = sys.argv[4]
 source = build.read_text()
 matches = list(re.finditer(r"id ['\"]io\.github\.gradle-nexus\.publish-plugin['\"] version ['\"][^'\"]+['\"]", source))
 if len(matches) != 1:
     raise SystemExit("Expected one Nexus publish plugin declaration")
 source = source[:matches[0].start()] + "id 'io.github.gradle-nexus.publish-plugin' version '1.3.0'" + source[matches[0].end():]
 build.write_text(source)
-source = publishing.read_text()
-source = source.replace("nexusPublishing {", f"nexusPublishing {{\n    repositoryDescription = '{description}'", 1)
-needle = "url = 'https://github.com/temporalio/sdk-java.git'"
-if source.count(needle) != 1:
-    raise SystemExit("Expected one sdk-java SCM URL")
-source = source.replace(needle, needle + f"\n                    tag = '{commit}'", 1)
-password = "password = project.hasProperty('ossrhPassword') ? project.property('ossrhPassword') : ''"
-if source.count(password) != 1:
-    raise SystemExit("Expected one Sonatype password declaration")
-source = source.replace(password, password + "\n            nexusUrl.set(uri('https://ossrh-staging-api.central.sonatype.com/service/local/'))", 1)
-publishing.write_text(source)
 PY
-    signing_gradle_home="$work/signing-gradle-home"
-    sonatype_gradle_home="$work/sonatype-gradle-home"
-    mkdir -p "$signing_gradle_home" "$sonatype_gradle_home" "$work/gnupg"
-    {
-      printf 'ossrhUsername = %s\n' "$RH_USER"
-      printf 'ossrhPassword = %s\n' "$RH_PASSWORD"
-    } >"$sonatype_gradle_home/gradle.properties"
     if [[ $payload_frozen == false ]]; then
-      signing_key="$work/gnupg/secring.gpg"
-      printf '%s' "$JAR_SIGNING_KEY" | base64 --decode >"$signing_key"
-      {
-        printf 'signing.keyId = %s\n' "$JAR_SIGNING_KEY_ID"
-        printf 'signing.password = %s\n' "$JAR_SIGNING_KEY_PASSWORD"
-        printf 'signing.secretKeyRingFile = %s\n' "$signing_key"
-      } >"$signing_gradle_home/gradle.properties"
+      for name in JAR_SIGNING_KEY JAR_SIGNING_KEY_ID JAR_SIGNING_KEY_PASSWORD; do
+        [[ -n ${!name:-} ]] || fail "$name is required to construct a new fallback payload."
+      done
       generated_payload_root="$work/manual-generated-maven-local"
       mkdir -p "$generated_payload_root" "$payload_root/io/temporal"
-      run_signing_gradle --no-daemon "-Dmaven.repo.local=$generated_payload_root" \
-        "-PreleaseVersion=$version" "-PreleaseCommit=$RELEASE_COMMIT" publishToMavenLocal >&2
+      MAVEN_PAYLOAD_COMMIT=$RELEASE_COMMIT MAVEN_PAYLOAD_OUTPUT=$generated_payload_root \
+        MAVEN_PAYLOAD_VERSION=$version \
+        "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-and-sign-maven-payload.sh"
       for artifact in "${maven_artifacts[@]}"; do
         generated_artifact="$generated_payload_root/io/temporal/$artifact/$version"
         [[ -d $generated_artifact ]] ||
@@ -519,7 +592,7 @@ PY
       done
       printf '%s\n' "${maven_artifacts[@]}" >"$work/approved-manual-artifacts.txt"
       python3 - "$payload_root" "$work/approved-manual-artifacts.txt" "$version" \
-        "$RELEASE_COMMIT" <<'PY'
+        "$RELEASE_COMMIT" <<'PY' || conflict "the fallback Maven payload violates fixed sdk-java policy."
 import pathlib, re, sys, xml.etree.ElementTree as ET
 root = pathlib.Path(sys.argv[1])
 approved = set(pathlib.Path(sys.argv[2]).read_text().splitlines())
@@ -535,7 +608,7 @@ for path in root.rglob("*"):
     if artifact not in approved or found_version != version:
         raise SystemExit("manual Maven payload contains an unapproved coordinate")
     escaped = re.escape(f"{artifact}-{version}")
-    if not re.fullmatch(escaped + r"(?:-(?:sources|javadoc))?\.(?:jar|pom|module)(?:\.asc)?", filename):
+    if not re.fullmatch(escaped + r"(?:-(?:sources|javadoc))?\.(?:jar|pom|module)(?:\.(?:asc|md5|sha1))?", filename):
         raise SystemExit("manual Maven payload contains an unapproved filename")
     seen.add(artifact)
 if seen != approved:
@@ -544,14 +617,13 @@ for artifact in approved:
     directory = root / "io" / "temporal" / artifact / version
     pom = directory / f"{artifact}-{version}.pom"
     signature = directory / f"{artifact}-{version}.pom.asc"
-    expected = {f"{artifact}-{version}.pom", f"{artifact}-{version}.pom.asc",
-                f"{artifact}-{version}.module", f"{artifact}-{version}.module.asc"}
+    bases = {f"{artifact}-{version}.pom", f"{artifact}-{version}.module"}
     if artifact != "temporal-bom":
-        expected.update({f"{artifact}-{version}.jar", f"{artifact}-{version}.jar.asc",
-                         f"{artifact}-{version}-sources.jar",
-                         f"{artifact}-{version}-sources.jar.asc",
-                         f"{artifact}-{version}-javadoc.jar",
-                         f"{artifact}-{version}-javadoc.jar.asc"})
+        bases.update({f"{artifact}-{version}.jar", f"{artifact}-{version}-sources.jar",
+                      f"{artifact}-{version}-javadoc.jar"})
+    expected = set(bases)
+    for base in bases:
+        expected.update({base + ".asc", base + ".md5", base + ".sha1"})
     if {path.name for path in directory.iterdir() if path.is_file()} != expected:
         raise SystemExit(f"manual Maven payload file set differs for {artifact}")
     if not pom.is_file() or not signature.is_file():
@@ -600,12 +672,8 @@ PY
       fi
       payload_frozen=true
     fi
-    publish_log="$work/manual-initialize.log"
-    run_sonatype_gradle --no-daemon \
-      "-PreleaseVersion=$version" "-PreleaseCommit=$RELEASE_COMMIT" \
-      initializeSonatypeStagingRepository 2>&1 | tee "$publish_log" >&2
-    created_repository=$(sed -n -E "s/.*Created staging repository '([^']+)'.*/\1/p" \
-      "$publish_log" | tail -1)
+    created_repository=$(SONATYPE_REPOSITORY_DESCRIPTION=$manual_description \
+      "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/create-sonatype-repository.sh")
     [[ -n $created_repository ]] ||
       fail "Unable to capture the independent Sonatype repository ID."
     while IFS= read -r -d '' payload; do

@@ -3,18 +3,26 @@ package io.temporal.releaseautomation;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public final class CandidateStateActivitiesImpl implements CandidateStateActivities {
   private static final Gson GSON = new Gson();
   private final Path trustedRoot;
   private final Map<String, String> environment;
+  private final Runnable started;
+  private final Consumer<Throwable> completion;
 
-  public CandidateStateActivitiesImpl(Path trustedRoot, Map<String, String> workerEnvironment) {
+  public CandidateStateActivitiesImpl(
+      Path trustedRoot,
+      Map<String, String> workerEnvironment,
+      Runnable started,
+      Consumer<Throwable> completion) {
     this.trustedRoot = trustedRoot;
+    this.started = started;
+    this.completion = completion;
     this.environment = new HashMap<>();
     copy(workerEnvironment, "AWS_ACCESS_KEY_ID");
     copy(workerEnvironment, "AWS_SECRET_ACCESS_KEY");
@@ -26,39 +34,30 @@ public final class CandidateStateActivitiesImpl implements CandidateStateActivit
 
   @Override
   public boolean manualReleaseComplete(CandidateIdentity candidate) {
+    started.run();
+    try {
+      boolean complete = readManualReleaseComplete(candidate);
+      completion.accept(null);
+      return complete;
+    } catch (Throwable failure) {
+      completion.accept(failure);
+      throw failure;
+    }
+  }
+
+  private boolean readManualReleaseComplete(CandidateIdentity candidate) {
     candidate.validate();
-    String bucket = required("RELEASE_ARTIFACT_BUCKET");
-    String key = "sdk-java/emergency/" + candidate.tag + ".json";
-    List<String> listing =
-        ProcessSupport.run(
-            trustedRoot,
-            Arrays.asList(
-                "aws",
-                "s3api",
-                "list-objects-v2",
-                "--bucket",
-                bucket,
-                "--prefix",
-                key,
-                "--output",
-                "json"),
-            environment);
-    JsonObject listed = GSON.fromJson(String.join("\n", listing), JsonObject.class);
-    if (listed == null || !listed.has("Contents")) {
-      return false;
-    }
-    boolean exactKey =
-        listed.getAsJsonArray("Contents").asList().stream()
-            .map(element -> element.getAsJsonObject().get("Key").getAsString())
-            .anyMatch(key::equals);
-    if (!exactKey) {
-      return false;
-    }
+    required("RELEASE_ARTIFACT_BUCKET");
+    environment.put("RELEASE_TAG", candidate.tag);
     List<String> request =
         ProcessSupport.run(
             trustedRoot,
-            Arrays.asList("aws", "s3", "cp", "s3://" + bucket + "/" + key, "-", "--no-progress"),
+            ProcessSupport.bash(
+                trustedRoot.resolve(".github/scripts/temporal-release/read-emergency-state.sh")),
             environment);
+    if (request.size() == 1 && "ABSENT".equals(request.get(0))) {
+      return false;
+    }
     JsonObject state = GSON.fromJson(String.join("\n", request), JsonObject.class);
     if (state == null || !state.has("candidate") || !state.has("state")) {
       throw new IllegalStateException("Durable emergency completion state is malformed.");
