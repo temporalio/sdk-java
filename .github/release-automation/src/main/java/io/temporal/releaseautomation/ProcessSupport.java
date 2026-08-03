@@ -20,10 +20,16 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 final class ProcessSupport {
+  private static final String WINDOWS_GIT_BASH = "C:\\Program Files\\Git\\bin\\bash.exe";
+
   private ProcessSupport() {}
 
   static List<String> bash(Path script) {
-    return Arrays.asList("bash", bashPath(script.toAbsolutePath().toString()));
+    return Arrays.asList(bashExecutable(), bashPath(script.toAbsolutePath().toString()));
+  }
+
+  static String bashExecutable() {
+    return java.io.File.separatorChar == '\\' ? WINDOWS_GIT_BASH : "bash";
   }
 
   static String bashPath(String path) {

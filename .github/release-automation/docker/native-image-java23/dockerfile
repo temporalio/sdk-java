@@ -3,10 +3,14 @@ FROM ubuntu:18.04@sha256:152dc042452c496007f07ca9127571cb9c29697f42acbfad72324b2
 ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java23
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 COPY --from=graalvm ${JAVA_HOME} ${JAVA_HOME}
+# Launchpad PPA fingerprint: C8EC952E2A0E1FBDC5090F6A2C277A0A352154E5.
+COPY ubuntu-toolchain-r-test.asc /usr/share/keyrings/ubuntu-toolchain-r-test.asc
 RUN apt-get update --allow-releaseinfo-change && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      software-properties-common && \
-    add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
+      ca-certificates && \
+    printf '%s\n' \
+      'deb [signed-by=/usr/share/keyrings/ubuntu-toolchain-r-test.asc] https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu bionic main' \
+      > /etc/apt/sources.list.d/ubuntu-toolchain-r-test.list && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       git build-essential zlib1g-dev gcc-10 g++-10 && \
