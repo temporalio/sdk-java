@@ -11,6 +11,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
@@ -22,8 +23,9 @@ import org.junit.Test;
 public class WorkerFactoryTests {
 
   private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+      ExternalServiceTestConfigurator.isUseExternalService();
+  private static final String serviceAddress =
+      ExternalServiceTestConfigurator.getTemporalServiceAddress();
 
   @BeforeClass
   public static void beforeClass() {

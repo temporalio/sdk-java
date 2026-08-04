@@ -21,6 +21,7 @@ import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
@@ -52,8 +53,9 @@ import org.slf4j.LoggerFactory;
 public class StickyWorkerTest {
 
   private static final boolean useExternalService =
-      Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
+      ExternalServiceTestConfigurator.isUseExternalService();
+  private static final String serviceAddress =
+      ExternalServiceTestConfigurator.getTemporalServiceAddress();
 
   @Rule public TestName testName = new TestName();
 

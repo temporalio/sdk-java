@@ -68,6 +68,32 @@ Good pull requests are focused and easy to review:
 Run the relevant local checks when practical. CI must pass before a pull request can
 be merged.
 
+## SDK Java Development
+
+Java 21 or later is required to run Gradle, compile the project, and run all tests
+locally.
+
+By default, integration tests run against the built-in time-skipping test server.
+Some tests require features that the built-in server does not support and are
+skipped. Gradle can download the pinned Temporal CLI, start a correctly configured
+dev server, wait for it to become ready, configure the tests to use it, and stop it
+when the test invocation finishes.
+
+Run the suite against a managed local Temporal dev server with:
+
+```bash
+./gradlew test -PtestJavaVersion=11 -PtestServer=dev-server
+```
+
+Normal Gradle test filtering works, so a single dev-server-backed test can be run with:
+
+```bash
+./gradlew :temporal-sdk:test -PtestJavaVersion=11 -PtestServer=dev-server \
+  --tests "io.temporal.activity.ActivityPauseTest.activityPause"
+```
+
+Java 11 must be available to Gradle for these commands.
+
 ## Things to Avoid
 
 Avoid changes that make review harder without improving the contribution:
