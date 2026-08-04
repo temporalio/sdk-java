@@ -126,6 +126,8 @@ public final class SdkJavaTestServerProfile {
         "--dynamic-config-value",
         "activity.enableStandalone=true",
         "--dynamic-config-value",
+        "activity.enableCallbacks=true",
+        "--dynamic-config-value",
         "activity.startDelayEnabled=true",
         "--dynamic-config-value",
         "nexusoperation.enableStandalone=true",
