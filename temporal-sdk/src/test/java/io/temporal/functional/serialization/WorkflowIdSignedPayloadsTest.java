@@ -58,6 +58,7 @@ public class WorkflowIdSignedPayloadsTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setTestTimeoutSeconds(30)
           .setWorkflowTypes(
               SimpleWorkflowWithAnActivity.class,
               TestWorkflowWithCronScheduleImpl.class,

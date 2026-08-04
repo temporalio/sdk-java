@@ -12,7 +12,6 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.worker.SlotReservationData;
 import io.temporal.internal.worker.TrackingSlotSupplier;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
@@ -192,12 +191,13 @@ public class ResourceBasedSlotSupplierNonRecursiveTest {
     // Create connections to real Temporal server
     WorkflowServiceStubs service =
         WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder()
-                .setTarget(ExternalServiceTestConfigurator.getTemporalServiceAddress())
-                .build());
+            ExternalServiceTestConfigurator.getWorkflowServiceStubsOptions());
     WorkflowClient client =
         WorkflowClient.newInstance(
-            service, WorkflowClientOptions.newBuilder().setNamespace("default").build());
+            service,
+            WorkflowClientOptions.newBuilder()
+                .setNamespace(ExternalServiceTestConfigurator.getNamespace())
+                .build());
     WorkerFactory workerFactory = WorkerFactory.newInstance(client);
 
     // Create our own resource controller that we can control

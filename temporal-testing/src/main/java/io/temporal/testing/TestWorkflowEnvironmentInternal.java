@@ -112,6 +112,10 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
         OperatorServiceStubs.newServiceStubs(
             OperatorServiceStubsOptions.newBuilder()
                 .setChannel(workflowServiceStubs.getRawChannel())
+                .setGrpcMetadataProviders(
+                    testEnvironmentOptions
+                        .getWorkflowServiceStubsOptions()
+                        .getGrpcMetadataProviders())
                 .validateAndBuildWithDefaults());
 
     WorkflowClient client =

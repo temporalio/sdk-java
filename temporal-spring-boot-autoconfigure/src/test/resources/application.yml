@@ -230,9 +230,10 @@ spring:
     activate:
       on-profile: worker-versioning
   temporal:
-    namespace: UnitTest
+    namespace: ${TEMPORAL_NAMESPACE:UnitTest}
     connection:
-      target: 127.0.0.1:7233
+      target: ${TEMPORAL_SERVICE_ADDRESS:127.0.0.1:7233}
+      api-key: ${TEMPORAL_CLIENT_CLOUD_API_KEY:}
     test-server:
       enabled: false
     workers-auto-discovery:

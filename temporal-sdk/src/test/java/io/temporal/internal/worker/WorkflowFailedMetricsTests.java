@@ -125,7 +125,7 @@ public class WorkflowFailedMetricsTests {
         "task_queue",
         testWorkflowRule.getTaskQueue(),
         "namespace",
-        "UnitTest",
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
         "workflow_type",
         workflowType);
   }

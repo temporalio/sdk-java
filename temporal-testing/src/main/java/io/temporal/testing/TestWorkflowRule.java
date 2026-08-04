@@ -93,7 +93,10 @@ public class TestWorkflowRule implements TestRule {
       new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          if (!useExternalService) {
+            System.err.println(
+                "WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          }
         }
       };
 
@@ -403,9 +406,12 @@ public class TestWorkflowRule implements TestRule {
         new Statement() {
           @Override
           public void evaluate() throws Throwable {
-            start();
-            base.evaluate();
-            shutdown();
+            try {
+              start();
+              base.evaluate();
+            } finally {
+              shutdown();
+            }
           }
         };
 
@@ -507,7 +513,7 @@ public class TestWorkflowRule implements TestRule {
    * @return stubs connected to the test server (in-memory or external)
    */
   public WorkflowServiceStubs getWorkflowServiceStubs() {
-    return testEnvironment.getWorkflowServiceStubs();
+    return getWorkflowClient().getWorkflowServiceStubs();
   }
 
   /**

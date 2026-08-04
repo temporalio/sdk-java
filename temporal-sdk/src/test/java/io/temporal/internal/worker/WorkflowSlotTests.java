@@ -233,7 +233,7 @@ public class WorkflowSlotTests {
         "task_queue",
         testWorkflowRule.getTaskQueue(),
         "namespace",
-        "UnitTest");
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace());
   }
 
   @Test

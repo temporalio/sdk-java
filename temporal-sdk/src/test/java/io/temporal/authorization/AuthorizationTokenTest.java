@@ -3,6 +3,10 @@ package io.temporal.authorization;
 import static org.junit.Assert.*;
 
 import io.grpc.*;
+import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -16,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -30,6 +35,7 @@ public class AuthorizationTokenTest {
   private static final String AUTH_TOKEN = "Bearer <token>";
 
   private TestWorkflowEnvironment testEnvironment;
+  private final AtomicInteger authTokenSupplyCount = new AtomicInteger();
 
   @Rule
   public TestWatcher watchman =
@@ -45,6 +51,7 @@ public class AuthorizationTokenTest {
   @Before
   public void setUp() {
     loggedRequests.clear();
+    authTokenSupplyCount.set(0);
     WorkflowServiceStubsOptions stubOptions =
         WorkflowServiceStubsOptions.newBuilder()
             .addGrpcClientInterceptor(
@@ -78,7 +85,12 @@ public class AuthorizationTokenTest {
                     }
                   }
                 })
-            .addGrpcMetadataProvider(new AuthorizationGrpcMetadataProvider(() -> AUTH_TOKEN))
+            .addGrpcMetadataProvider(
+                new AuthorizationGrpcMetadataProvider(
+                    () -> {
+                      authTokenSupplyCount.incrementAndGet();
+                      return AUTH_TOKEN;
+                    }))
             .build();
 
     TestEnvironmentOptions options =
@@ -118,6 +130,44 @@ public class AuthorizationTokenTest {
             grpcRequest.namespace);
       }
     }
+  }
+
+  @Test
+  public void operatorServiceRequestsShouldHaveAnAuthToken() {
+    Endpoint endpoint = testEnvironment.createNexusEndpoint("authorization-token-test", TASK_QUEUE);
+    try {
+      assertTrue(authTokenSupplyCount.get() > 0);
+    } finally {
+      testEnvironment.deleteNexusEndpoint(endpoint);
+    }
+  }
+
+  @Test
+  public void activityClientRequestsShouldHaveNamespaceHeader() {
+    ActivityClient client =
+        ActivityClient.newInstance(
+            testEnvironment.getWorkflowServiceStubs(),
+            ActivityClientOptions.newBuilder()
+                .setNamespace(testEnvironment.getNamespace())
+                .build());
+    try {
+      client.start(
+          "TestActivity",
+          StartActivityOptions.newBuilder()
+              .setId("test-activity")
+              .setTaskQueue(TASK_QUEUE)
+              .setScheduleToCloseTimeout(Duration.ofMinutes(1))
+              .build());
+    } catch (StatusRuntimeException e) {
+      assertEquals(Status.Code.UNIMPLEMENTED, e.getStatus().getCode());
+    }
+
+    GrpcRequest request =
+        loggedRequests.stream()
+            .filter(r -> "StartActivityExecution".equals(r.methodName))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("StartActivityExecution request was not sent"));
+    assertEquals(testEnvironment.getNamespace(), request.namespace);
   }
 
   public static class EmptyWorkflowImpl implements TestWorkflows.TestWorkflow1 {

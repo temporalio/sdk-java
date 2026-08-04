@@ -8,7 +8,6 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.enums.v1.NamespaceState;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
-import io.temporal.internal.docker.RegisterTestNamespace;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,13 +23,13 @@ public class DescribeNamespaceTest {
             .blockingStub()
             .describeNamespace(
                 DescribeNamespaceRequest.newBuilder()
-                    .setNamespace(RegisterTestNamespace.NAMESPACE)
+                    .setNamespace(SDKTestWorkflowRule.NAMESPACE)
                     .build());
     assertEquals(
         NamespaceState.NAMESPACE_STATE_REGISTERED,
         describeNamespaceResponse.getNamespaceInfo().getState());
     assertEquals(
-        RegisterTestNamespace.NAMESPACE, describeNamespaceResponse.getNamespaceInfo().getName());
+        SDKTestWorkflowRule.NAMESPACE, describeNamespaceResponse.getNamespaceInfo().getName());
     assertTrue(describeNamespaceResponse.getNamespaceInfo().getId().length() > 0);
   }
 
@@ -46,7 +45,7 @@ public class DescribeNamespaceTest {
             .blockingStub()
             .describeNamespace(
                 DescribeNamespaceRequest.newBuilder()
-                    .setNamespace(RegisterTestNamespace.NAMESPACE)
+                    .setNamespace(SDKTestWorkflowRule.NAMESPACE)
                     .build());
 
     assertTrue(

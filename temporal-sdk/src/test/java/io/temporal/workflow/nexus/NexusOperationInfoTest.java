@@ -27,7 +27,11 @@ public class NexusOperationInfoTest {
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     String expectedEndpoint = testWorkflowRule.getNexusEndpoint().getSpec().getName();
     Assert.assertEquals(
-        "UnitTest:" + testWorkflowRule.getTaskQueue() + ":" + expectedEndpoint,
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace()
+            + ":"
+            + testWorkflowRule.getTaskQueue()
+            + ":"
+            + expectedEndpoint,
         workflowStub.execute(testWorkflowRule.getTaskQueue()));
   }
 
