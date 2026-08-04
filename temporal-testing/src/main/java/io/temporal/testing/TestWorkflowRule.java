@@ -312,7 +312,7 @@ public class TestWorkflowRule implements TestRule {
      * <pre>{@code
      * TestWorkflowRule.newBuilder()
      *     .useDevServer(
-     *         TemporalDevServerOptions.newBuilder().setDownloadVersion("1.7.2").build())
+     *         TemporalDevServerOptions.newBuilder().setDownloadVersion("v1.7.2").build())
      *     .setWorkflowTypes(MyWorkflowImpl.class)
      *     .build();
      * }</pre>
