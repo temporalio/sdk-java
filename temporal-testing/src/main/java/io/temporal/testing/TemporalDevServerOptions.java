@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Options for a {@link TemporalDevServer}. */
@@ -16,7 +17,7 @@ public final class TemporalDevServerOptions {
     return new Builder();
   }
 
-  public static Builder newBuilder(TemporalDevServerOptions options) {
+  public static Builder newBuilder(@Nonnull TemporalDevServerOptions options) {
     return new Builder(options);
   }
 
@@ -44,7 +45,7 @@ public final class TemporalDevServerOptions {
 
     private Builder() {}
 
-    private Builder(TemporalDevServerOptions options) {
+    private Builder(@Nonnull TemporalDevServerOptions options) {
       if (options == null) {
         throw new NullPointerException("options");
       }
@@ -76,7 +77,7 @@ public final class TemporalDevServerOptions {
      * Sets the CLI version to download. {@code "default"} selects the version associated with the
      * running sdk-java version; any other non-empty value is sent to temporal.download unchanged.
      */
-    public Builder setDownloadVersion(String downloadVersion) {
+    public Builder setDownloadVersion(@Nonnull String downloadVersion) {
       this.downloadVersion = downloadVersion;
       return this;
     }
@@ -105,13 +106,13 @@ public final class TemporalDevServerOptions {
     }
 
     /** Sets the IP address on which the dev server listens. */
-    public Builder setIp(String ip) {
+    public Builder setIp(@Nonnull String ip) {
       this.ip = ip;
       return this;
     }
 
     /** Alias for {@link #setIp(String)}. */
-    public Builder setBindIp(String ip) {
+    public Builder setBindIp(@Nonnull String ip) {
       return setIp(ip);
     }
 
@@ -148,13 +149,13 @@ public final class TemporalDevServerOptions {
     }
 
     /** Sets the Temporal CLI log format. Defaults to {@code pretty}. */
-    public Builder setLogFormat(String logFormat) {
+    public Builder setLogFormat(@Nonnull String logFormat) {
       this.logFormat = logFormat;
       return this;
     }
 
     /** Sets the Temporal CLI log level. Defaults to {@code warn}. */
-    public Builder setLogLevel(String logLevel) {
+    public Builder setLogLevel(@Nonnull String logLevel) {
       this.logLevel = logLevel;
       return this;
     }
@@ -172,13 +173,13 @@ public final class TemporalDevServerOptions {
     }
 
     /** Sets the single timeout used for health and namespace readiness checks. */
-    public Builder setStartupTimeout(Duration startupTimeout) {
+    public Builder setStartupTimeout(@Nonnull Duration startupTimeout) {
       this.startupTimeout = startupTimeout;
       return this;
     }
 
     /** Sets additional arguments appended to the generated {@code server start-dev} command. */
-    public Builder setExtraArgs(List<String> extraArgs) {
+    public Builder setExtraArgs(@Nonnull List<String> extraArgs) {
       if (extraArgs == null) {
         throw new NullPointerException("extraArgs");
       }
@@ -187,7 +188,7 @@ public final class TemporalDevServerOptions {
     }
 
     /** Sets additional arguments appended to the generated {@code server start-dev} command. */
-    public Builder setExtraArgs(String... extraArgs) {
+    public Builder setExtraArgs(@Nonnull String... extraArgs) {
       if (extraArgs == null) {
         throw new NullPointerException("extraArgs");
       }
@@ -235,13 +236,13 @@ public final class TemporalDevServerOptions {
       return new TemporalDevServerOptions(this);
     }
 
-    private static void requireNonBlank(String value, String name) {
+    private static void requireNonBlank(@Nullable String value, @Nonnull String name) {
       if (value == null || value.trim().isEmpty()) {
         throw new IllegalArgumentException(name + " cannot be blank");
       }
     }
 
-    private static void validatePort(Integer port, String name) {
+    private static void validatePort(@Nullable Integer port, @Nonnull String name) {
       if (port != null && (port < 1 || port > 65535)) {
         throw new IllegalArgumentException(name + " must be between 1 and 65535");
       }
@@ -265,7 +266,7 @@ public final class TemporalDevServerOptions {
   private final Duration startupTimeout;
   private final List<String> extraArgs;
 
-  private TemporalDevServerOptions(Builder builder) {
+  private TemporalDevServerOptions(@Nonnull Builder builder) {
     this.existingPath = builder.existingPath;
     this.downloadVersion = builder.downloadVersion;
     this.downloadDestination = builder.downloadDestination;

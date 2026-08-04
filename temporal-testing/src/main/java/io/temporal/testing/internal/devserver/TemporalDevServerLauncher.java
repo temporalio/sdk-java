@@ -24,6 +24,8 @@ import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Internal ProcessBuilder-based Temporal dev-server launcher. */
 public final class TemporalDevServerLauncher {
@@ -32,7 +34,8 @@ public final class TemporalDevServerLauncher {
 
   private TemporalDevServerLauncher() {}
 
-  public static RunningServer start(String namespace, TemporalDevServerOptions options) {
+  public static RunningServer start(
+      @Nonnull String namespace, @Nonnull TemporalDevServerOptions options) {
     Path executable = TemporalDevServerDownloader.prepare(options);
     int port = options.getPort() == null ? reservePort(options.getIp()) : options.getPort();
     String target = targetHost(options.getIp()) + ":" + port;
@@ -65,8 +68,8 @@ public final class TemporalDevServerLauncher {
     }
   }
 
-  private static void configureOutput(ProcessBuilder processBuilder, File logFile)
-      throws IOException {
+  private static void configureOutput(
+      @Nonnull ProcessBuilder processBuilder, @Nullable File logFile) throws IOException {
     if (logFile == null) {
       processBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
       return;
@@ -79,7 +82,10 @@ public final class TemporalDevServerLauncher {
   }
 
   static List<String> buildCommand(
-      Path executable, String namespace, TemporalDevServerOptions options, int port) {
+      @Nonnull Path executable,
+      @Nonnull String namespace,
+      @Nonnull TemporalDevServerOptions options,
+      int port) {
     List<String> command = new ArrayList<>();
     command.add(executable.toAbsolutePath().toString());
     command.add("server");
@@ -119,12 +125,12 @@ public final class TemporalDevServerLauncher {
   }
 
   private static void waitUntilReady(
-      Process process,
-      String target,
-      String namespace,
-      TemporalDevServerOptions options,
-      List<String> command,
-      File logFile) {
+      @Nonnull Process process,
+      @Nonnull String target,
+      @Nonnull String namespace,
+      @Nonnull TemporalDevServerOptions options,
+      @Nonnull List<String> command,
+      @Nullable File logFile) {
     long timeoutNanos = options.getStartupTimeout().toNanos();
     long startNanos = System.nanoTime();
     long deadlineNanos =
@@ -186,7 +192,10 @@ public final class TemporalDevServerLauncher {
   }
 
   private static IllegalStateException startupFailure(
-      String message, List<String> command, File logFile, Throwable cause) {
+      @Nonnull String message,
+      @Nonnull List<String> command,
+      @Nullable File logFile,
+      @Nullable Throwable cause) {
     return new IllegalStateException(
         message
             + "\nCommand: "
@@ -196,7 +205,7 @@ public final class TemporalDevServerLauncher {
         cause);
   }
 
-  private static String readOutputTail(File logFile) {
+  private static String readOutputTail(@Nullable File logFile) {
     if (logFile == null) {
       return "<output inherited by parent process>";
     }
@@ -223,7 +232,7 @@ public final class TemporalDevServerLauncher {
     return String.join(System.lineSeparator(), tail);
   }
 
-  private static String renderCommand(List<String> command) {
+  private static String renderCommand(@Nonnull List<String> command) {
     StringBuilder rendered = new StringBuilder();
     for (String part : command) {
       if (rendered.length() > 0) {
@@ -238,7 +247,7 @@ public final class TemporalDevServerLauncher {
     return rendered.toString();
   }
 
-  private static int reservePort(String ip) {
+  private static int reservePort(@Nonnull String ip) {
     try (ServerSocket socket = new ServerSocket(0, 0, InetAddress.getByName(ip))) {
       socket.setReuseAddress(true);
       return socket.getLocalPort();
@@ -247,14 +256,14 @@ public final class TemporalDevServerLauncher {
     }
   }
 
-  private static String targetHost(String ip) {
+  private static String targetHost(@Nonnull String ip) {
     if ("0.0.0.0".equals(ip) || "::".equals(ip) || "0:0:0:0:0:0:0:0".equals(ip)) {
       return "127.0.0.1";
     }
     return ip.indexOf(':') >= 0 ? "[" + ip + "]" : ip;
   }
 
-  private static void stopProcess(Process process) {
+  private static void stopProcess(@Nullable Process process) {
     if (process == null || !process.isAlive()) {
       return;
     }
@@ -275,7 +284,7 @@ public final class TemporalDevServerLauncher {
     private final Process process;
     private final AtomicBoolean closed = new AtomicBoolean();
 
-    private RunningServer(String target, Process process) {
+    private RunningServer(@Nonnull String target, @Nonnull Process process) {
       this.target = target;
       this.process = process;
     }

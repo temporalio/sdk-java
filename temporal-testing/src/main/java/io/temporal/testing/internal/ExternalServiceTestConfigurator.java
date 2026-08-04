@@ -4,6 +4,7 @@ import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.internal.devserver.SdkJavaTestServerProfile;
+import javax.annotation.Nonnull;
 
 public class ExternalServiceTestConfigurator {
   private static boolean USE_EXTERNAL_SERVICE =
@@ -30,7 +31,8 @@ public class ExternalServiceTestConfigurator {
         : null;
   }
 
-  public static TestWorkflowRule.Builder configure(TestWorkflowRule.Builder testWorkflowRule) {
+  public static TestWorkflowRule.Builder configure(
+      @Nonnull TestWorkflowRule.Builder testWorkflowRule) {
     if (isUseExternalService()) {
       testWorkflowRule.setUseExternalService(true);
       String target = getTemporalServiceAddress();
@@ -42,7 +44,7 @@ public class ExternalServiceTestConfigurator {
   }
 
   public static TestEnvironmentOptions.Builder configure(
-      TestEnvironmentOptions.Builder testEnvironmentOptions) {
+      @Nonnull TestEnvironmentOptions.Builder testEnvironmentOptions) {
     if (isUseExternalService()) {
       testEnvironmentOptions.setUseExternalService(true);
       String target = getTemporalServiceAddress();

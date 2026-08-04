@@ -1,12 +1,13 @@
 package io.temporal.testing.internal;
 
 import io.temporal.testing.internal.devserver.SdkJavaTestServerProfile;
+import javax.annotation.Nonnull;
 
 /** Process entry point that owns sdk-java's repository dev server for a Gradle invocation. */
 public final class DevServerTestProcess {
   private DevServerTestProcess() {}
 
-  public static void main(String[] args) throws Exception {
+  public static void main(@Nonnull String[] args) throws Exception {
     try {
       SdkJavaTestServerProfile.start();
       System.out.println("READY");

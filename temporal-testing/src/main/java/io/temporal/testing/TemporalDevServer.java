@@ -2,6 +2,7 @@ package io.temporal.testing;
 
 import io.temporal.common.Experimental;
 import io.temporal.testing.internal.devserver.TemporalDevServerLauncher;
+import javax.annotation.Nonnull;
 
 /**
  * A local Temporal dev server owned by the calling process.
@@ -21,7 +22,8 @@ public final class TemporalDevServer implements AutoCloseable {
   private final String namespace;
   private final AutoCloseable owner;
 
-  private TemporalDevServer(String target, String namespace, AutoCloseable owner) {
+  private TemporalDevServer(
+      @Nonnull String target, @Nonnull String namespace, @Nonnull AutoCloseable owner) {
     this.target = target;
     this.namespace = namespace;
     this.owner = owner;
@@ -33,12 +35,13 @@ public final class TemporalDevServer implements AutoCloseable {
   }
 
   /** Starts a dev server in namespace {@code default} with the supplied options. */
-  public static TemporalDevServer start(TemporalDevServerOptions options) {
+  public static TemporalDevServer start(@Nonnull TemporalDevServerOptions options) {
     return start("default", options);
   }
 
   /** Starts a dev server for the supplied namespace and options. */
-  public static TemporalDevServer start(String namespace, TemporalDevServerOptions options) {
+  public static TemporalDevServer start(
+      @Nonnull String namespace, @Nonnull TemporalDevServerOptions options) {
     if (namespace == null || namespace.trim().isEmpty()) {
       throw new IllegalArgumentException("namespace cannot be blank");
     }

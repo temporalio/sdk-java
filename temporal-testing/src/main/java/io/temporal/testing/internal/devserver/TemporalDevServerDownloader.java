@@ -28,6 +28,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.zip.GZIPInputStream;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.apache.commons.compress.archivers.ArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.archivers.zip.ZipArchiveInputStream;
@@ -42,7 +44,7 @@ public final class TemporalDevServerDownloader {
 
   private TemporalDevServerDownloader() {}
 
-  public static Path prepare(TemporalDevServerOptions options) {
+  public static Path prepare(@Nonnull TemporalDevServerOptions options) {
     String existingPath = options.getExistingPath();
     if (existingPath != null) {
       Path executable = new File(existingPath).toPath().toAbsolutePath().normalize();
@@ -97,7 +99,8 @@ public final class TemporalDevServerDownloader {
     }
   }
 
-  static Path cacheDirectory(TemporalDevServerOptions options, Platform platform) {
+  static Path cacheDirectory(
+      @Nonnull TemporalDevServerOptions options, @Nonnull Platform platform) {
     String destination = options.getDownloadDestination();
     Path root =
         destination == null
@@ -110,7 +113,8 @@ public final class TemporalDevServerDownloader {
     return root.toAbsolutePath().normalize().resolve(version).resolve(platform.classifier());
   }
 
-  private static boolean isUsableCacheEntry(Path executable, Duration ttl) throws IOException {
+  private static boolean isUsableCacheEntry(@Nonnull Path executable, @Nullable Duration ttl)
+      throws IOException {
     if (!Files.isRegularFile(executable)) {
       return false;
     }
@@ -125,8 +129,8 @@ public final class TemporalDevServerDownloader {
     return ageMillis <= ttl.toMillis();
   }
 
-  private static DownloadInfo getDownloadInfo(TemporalDevServerOptions options, Platform platform)
-      throws IOException {
+  private static DownloadInfo getDownloadInfo(
+      @Nonnull TemporalDevServerOptions options, @Nonnull Platform platform) throws IOException {
     String version = encodeQueryValue(options.getDownloadVersion()).replace("+", "%20");
     StringBuilder url =
         new StringBuilder(
@@ -162,7 +166,8 @@ public final class TemporalDevServerDownloader {
     }
   }
 
-  private static void downloadAndExtract(DownloadInfo info, Path executable, Path cacheDirectory)
+  private static void downloadAndExtract(
+      @Nonnull DownloadInfo info, @Nonnull Path executable, @Nonnull Path cacheDirectory)
       throws IOException {
     Path archive =
         cacheDirectory.resolve("archive-" + UUID.randomUUID().toString() + ".downloading");
@@ -196,7 +201,8 @@ public final class TemporalDevServerDownloader {
     }
   }
 
-  static void extractRequestedFile(Path archive, String requestedName, Path destination)
+  static void extractRequestedFile(
+      @Nonnull Path archive, @Nonnull String requestedName, @Nonnull Path destination)
       throws IOException {
     try (BufferedInputStream input =
         new BufferedInputStream(new FileInputStream(archive.toFile()))) {
@@ -217,9 +223,9 @@ public final class TemporalDevServerDownloader {
   }
 
   private static void extractEntry(
-      org.apache.commons.compress.archivers.ArchiveInputStream<?> archive,
-      String requestedName,
-      Path destination)
+      @Nonnull org.apache.commons.compress.archivers.ArchiveInputStream<?> archive,
+      @Nonnull String requestedName,
+      @Nonnull Path destination)
       throws IOException {
     String normalizedRequested = normalizeArchiveName(requestedName);
     ArchiveEntry entry;
@@ -236,7 +242,7 @@ public final class TemporalDevServerDownloader {
     throw new IOException("CLI archive did not contain " + requestedName);
   }
 
-  private static String normalizeArchiveName(String name) {
+  private static String normalizeArchiveName(@Nonnull String name) {
     String normalized = name.replace('\\', '/');
     while (normalized.startsWith("./")) {
       normalized = normalized.substring(2);
@@ -244,7 +250,7 @@ public final class TemporalDevServerDownloader {
     return normalized;
   }
 
-  private static HttpURLConnection openFollowingRedirects(String url) throws IOException {
+  private static HttpURLConnection openFollowingRedirects(@Nonnull String url) throws IOException {
     String next = url;
     for (int redirects = 0; redirects <= 5; redirects++) {
       HttpURLConnection connection = (HttpURLConnection) URI.create(next).toURL().openConnection();
@@ -271,7 +277,8 @@ public final class TemporalDevServerDownloader {
     throw new IOException("Too many redirects downloading " + url);
   }
 
-  private static void atomicMove(Path source, Path destination) throws IOException {
+  private static void atomicMove(@Nonnull Path source, @Nonnull Path destination)
+      throws IOException {
     try {
       Files.move(
           source, destination, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
@@ -280,7 +287,8 @@ public final class TemporalDevServerDownloader {
     }
   }
 
-  private static void copy(InputStream input, OutputStream output) throws IOException {
+  private static void copy(@Nonnull InputStream input, @Nonnull OutputStream output)
+      throws IOException {
     byte[] buffer = new byte[8192];
     int read;
     while ((read = input.read(buffer)) != -1) {
@@ -288,7 +296,7 @@ public final class TemporalDevServerDownloader {
     }
   }
 
-  private static String encodeQueryValue(String value) {
+  private static String encodeQueryValue(@Nonnull String value) {
     try {
       return URLEncoder.encode(value, "UTF-8");
     } catch (java.io.UnsupportedEncodingException e) {
@@ -296,11 +304,11 @@ public final class TemporalDevServerDownloader {
     }
   }
 
-  private static String safePathPart(String value) {
+  private static String safePathPart(@Nonnull String value) {
     return value.replaceAll("[^A-Za-z0-9._-]", "_");
   }
 
-  private static boolean isBlank(String value) {
+  private static boolean isBlank(@Nullable String value) {
     return value == null || value.trim().isEmpty();
   }
 
@@ -318,7 +326,8 @@ public final class TemporalDevServerDownloader {
     private final String architecture;
     private final String executableName;
 
-    private Platform(String platform, String architecture, String executableName) {
+    private Platform(
+        @Nonnull String platform, @Nonnull String architecture, @Nonnull String executableName) {
       this.platform = platform;
       this.architecture = architecture;
       this.executableName = executableName;

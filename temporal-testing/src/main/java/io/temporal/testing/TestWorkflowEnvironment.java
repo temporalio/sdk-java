@@ -16,6 +16,7 @@ import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
@@ -113,7 +114,7 @@ public interface TestWorkflowEnvironment extends Closeable {
    * that owns it. Local dev-server environments do not support time skipping.
    */
   @Experimental
-  static TestWorkflowEnvironment startLocal(TestEnvironmentOptions testOptions) {
+  static TestWorkflowEnvironment startLocal(@Nullable TestEnvironmentOptions testOptions) {
     return startLocal(testOptions, TemporalDevServerOptions.getDefaultInstance());
   }
 
@@ -122,7 +123,7 @@ public interface TestWorkflowEnvironment extends Closeable {
    * environments do not support time skipping.
    */
   @Experimental
-  static TestWorkflowEnvironment startLocal(TemporalDevServerOptions serverOptions) {
+  static TestWorkflowEnvironment startLocal(@Nonnull TemporalDevServerOptions serverOptions) {
     return startLocal(TestEnvironmentOptions.getDefaultInstance(), serverOptions);
   }
 
@@ -134,7 +135,8 @@ public interface TestWorkflowEnvironment extends Closeable {
    */
   @Experimental
   static TestWorkflowEnvironment startLocal(
-      TestEnvironmentOptions testOptions, TemporalDevServerOptions serverOptions) {
+      @Nullable TestEnvironmentOptions testOptions,
+      @Nonnull TemporalDevServerOptions serverOptions) {
     if (testOptions == null) {
       testOptions = TestEnvironmentOptions.getDefaultInstance();
     }

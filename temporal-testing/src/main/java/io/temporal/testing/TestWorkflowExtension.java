@@ -502,7 +502,7 @@ public class TestWorkflowExtension
      * }</pre>
      */
     @Experimental
-    public Builder useDevServer(TemporalDevServerOptions options) {
+    public Builder useDevServer(@Nonnull TemporalDevServerOptions options) {
       if (options == null) {
         throw new NullPointerException("options");
       }

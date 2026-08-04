@@ -6,6 +6,7 @@ import java.io.File;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nonnull;
 
 /** Configuration and lifecycle used only by sdk-java's Gradle test profile. */
 public final class SdkJavaTestServerProfile {
@@ -64,7 +65,7 @@ public final class SdkJavaTestServerProfile {
     cleanDatabase(workingDirectory());
   }
 
-  private static TemporalDevServerOptions serverOptions(File workingDirectory) {
+  private static TemporalDevServerOptions serverOptions(@Nonnull File workingDirectory) {
     return TemporalDevServerOptions.newBuilder(downloadOptions())
         .setIp("127.0.0.1")
         .setPort(7233)
@@ -150,7 +151,7 @@ public final class SdkJavaTestServerProfile {
     return new File("build", "temporal-cli/server");
   }
 
-  private static void cleanDatabase(File workingDirectory) {
+  private static void cleanDatabase(@Nonnull File workingDirectory) {
     for (String name :
         Arrays.asList(DATABASE_FILENAME, DATABASE_FILENAME + "-shm", DATABASE_FILENAME + "-wal")) {
       File file = new File(workingDirectory, name);

@@ -340,7 +340,7 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   }
 
   private static RuntimeException runCleanup(
-      @Nullable RuntimeException previousFailure, Runnable cleanup) {
+      @Nullable RuntimeException previousFailure, @Nonnull Runnable cleanup) {
     try {
       cleanup.run();
     } catch (RuntimeException failure) {
