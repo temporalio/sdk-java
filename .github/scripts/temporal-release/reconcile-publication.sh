@@ -521,29 +521,63 @@ sonatype_snapshot() {
 
 validate_retry_authorization() {
   (( submission_generation > 0 )) || return
-  local key="sdk-java/$release_digest/state/maven/retry-authorizations/$submission_generation.json"
-  local receipt="$work/retry-authorization.json"
-  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$receipt" --no-progress >/dev/null ||
-    conflict "the protected Maven retry authorization receipt is absent."
+  local prefix reservation_key authorization_key reservation authorization
+  local expected_authorization reservation_sha retry_actor retry_run retry_path retry_run_json
+  prefix="sdk-java/$release_digest/state/maven/retry-authorizations/$submission_generation"
+  reservation_key="$prefix/reservation.json"
+  reservation="$work/retry-reservation.json"
+  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$reservation_key" "$reservation" \
+    --no-progress >/dev/null || conflict "the protected Maven retry reservation is absent."
+  jq -e --arg repository "$repository" --arg tag "$tag" --arg commit "$commit" \
+    --arg digest "$release_digest" \
+    --argjson generation "$submission_generation" \
+    'keys == ["commitSha","generation","releaseDigest","repository","tag"] and
+     .repository == $repository and .tag == $tag and .commitSha == $commit and
+     .releaseDigest == $digest and .generation == $generation' "$reservation" >/dev/null ||
+    conflict "the Maven retry generation reservation differs."
+  reservation_sha=$(sha256sum "$reservation" | awk '{print $1}')
+
+  retry_actor=$(jq -er '.mavenRetryAuthorization.githubActor' "$RELEASE_INPUT_FILE")
+  retry_run=$(jq -er '.mavenRetryAuthorization.githubRunId' "$RELEASE_INPUT_FILE")
+  authorization_key="$prefix/runs/$retry_run.json"
+  authorization="$work/retry-authorization.json"
+  aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$authorization_key" "$authorization" \
+    --no-progress >/dev/null || conflict "the protected Maven retry authorization is absent."
   expected_authorization=$(jq -er '.mavenRetryAuthorization.authorizationSha256' "$RELEASE_INPUT_FILE")
-  [[ $(sha256sum "$receipt" | awk '{print $1}') == "$expected_authorization" ]] ||
+  [[ $(sha256sum "$authorization" | awk '{print $1}') == "$expected_authorization" ]] ||
     conflict "the Maven retry authorization checksum differs."
   jq -e --arg repository "$repository" --arg tag "$tag" --arg commit "$commit" \
     --arg digest "$release_digest" --arg workflow "$workflow_id" --arg run "$run_id" \
+    --arg actor "$retry_actor" --arg reservation "$reservation_sha" \
+    --argjson githubRunId "$retry_run" \
     --argjson generation "$submission_generation" \
-    '.repository == $repository and .tag == $tag and .commitSha == $commit and
+    'keys == ["authorizedGeneration","commitSha","freshInspection","githubActor",
+       "githubRunId","releaseDigest","repository","reservationSha256","runId","tag",
+       "workflowId"] and
+     .repository == $repository and .tag == $tag and .commitSha == $commit and
      .releaseDigest == $digest and .workflowId == $workflow and .runId == $run and
      .authorizedGeneration == $generation and .freshInspection == true and
-     (.githubRunId | type == "number") and (.githubActor | type == "string")' \
-    "$receipt" >/dev/null || conflict "the Maven retry authorization identity differs."
-  jq -e --slurpfile receipt "$receipt" \
+     .githubRunId == $githubRunId and .githubActor == $actor and
+     .reservationSha256 == $reservation' \
+    "$authorization" >/dev/null || conflict "the Maven retry authorization identity differs."
+  jq -e --slurpfile authorization "$authorization" \
     '.mavenRetryAuthorization.action == "retry-maven-submission" and
-     .mavenRetryAuthorization.mavenSubmissionGeneration == $receipt[0].authorizedGeneration and
-     .mavenRetryAuthorization.githubRunId == $receipt[0].githubRunId and
-     .mavenRetryAuthorization.githubActor == $receipt[0].githubActor' \
+     .mavenRetryAuthorization.mavenSubmissionGeneration ==
+       $authorization[0].authorizedGeneration and
+     .mavenRetryAuthorization.githubRunId == $authorization[0].githubRunId and
+     .mavenRetryAuthorization.githubActor == $authorization[0].githubActor' \
     "$RELEASE_INPUT_FILE" >/dev/null ||
     conflict "the Workflow retry Update is not bound to the protected authorization."
-  retry_actor=$(jq -er .githubActor "$receipt")
+
+  retry_path=.github/workflows/temporal-release-control.yml
+  [[ ${RELEASE_MODE:-temporal} == emergency ]] &&
+    retry_path=.github/workflows/temporal-release-emergency-control.yml
+  retry_run_json=$(gh api "repos/temporalio/sdk-java/actions/runs/$retry_run") ||
+    fail "the Maven retry authorization run is temporarily unavailable."
+  jq -e --arg actor "$retry_actor" --arg path "$retry_path" \
+    '.event == "workflow_dispatch" and .path == $path and .actor.login == $actor and
+     (.status == "in_progress" or .status == "completed")' <<<"$retry_run_json" >/dev/null ||
+    invalid_approval "the Maven retry authorization is not bound to its exact trusted run."
   set +e
   "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/verify-approver.sh" \
     "$retry_actor" >/dev/null

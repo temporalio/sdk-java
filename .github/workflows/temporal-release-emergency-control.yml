@@ -427,32 +427,12 @@ jobs:
           fi
           generation=$((current_generation + 1))
           authorization="$RUNNER_TEMP/emergency-maven-retry-authorization.json"
-          jq -cn --arg repository temporalio/sdk-java \
-            --arg tag "$RELEASE_TAG" --arg commitSha "$RELEASE_COMMIT" \
-            --arg releaseDigest '${{ steps.identity.outputs.release_digest }}' \
-            --arg workflowId '${{ steps.identity.outputs.workflow_id }}' \
-            --arg runId '${{ steps.identity.outputs.run_id }}' \
-            --arg githubActor "$GITHUB_TRIGGERING_ACTOR" --argjson githubRunId "$GITHUB_RUN_ID" \
-            --argjson authorizedGeneration "$generation" \
-            '{repository:$repository,tag:$tag,commitSha:$commitSha,
-              releaseDigest:$releaseDigest,workflowId:$workflowId,runId:$runId,
-              githubActor:$githubActor,githubRunId:$githubRunId,
-              authorizedGeneration:$authorizedGeneration,freshInspection:true}' >"$authorization"
-          authorization_key="sdk-java/${{ steps.identity.outputs.release_digest }}/state/maven/retry-authorizations/$generation.json"
-          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-            --key "$authorization_key" --body "$authorization" --if-none-match '*' \
-            >/dev/null 2>&1; then
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$authorization_key" \
-              "$RUNNER_TEMP/existing-emergency-authorization.json" --no-progress >/dev/null
-            jq -e --arg tag "$RELEASE_TAG" --arg commit "$RELEASE_COMMIT" \
-              --arg digest '${{ steps.identity.outputs.release_digest }}' \
-              --argjson generation "$generation" \
-              '.repository == "temporalio/sdk-java" and .tag == $tag and
-               .commitSha == $commit and .releaseDigest == $digest and
-               .authorizedGeneration == $generation and .freshInspection == true' \
-              "$RUNNER_TEMP/existing-emergency-authorization.json" >/dev/null
-            cp "$RUNNER_TEMP/existing-emergency-authorization.json" "$authorization"
-          fi
+          RELEASE_AUTHORIZATION_FILE="$authorization" \
+            RELEASE_DIGEST='${{ steps.identity.outputs.release_digest }}' \
+            RELEASE_GENERATION="$generation" \
+            RELEASE_RUN_ID='${{ steps.identity.outputs.run_id }}' \
+            RELEASE_WORKFLOW_ID='${{ steps.identity.outputs.workflow_id }}' \
+            bash automation/.github/scripts/temporal-release/record-maven-retry-authorization.sh
           authorization_sha256=$(sha256sum "$authorization" | awk '{print $1}')
           authorization_actor=$(jq -er .githubActor "$authorization")
           authorization_run=$(jq -er .githubRunId "$authorization")
@@ -463,7 +443,7 @@ jobs:
             --argjson generation "$generation" \
             --arg recordedAt "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
             '.state="READY" | .mavenSubmissionGeneration=$generation |
-             .mavenRetryAuthorizedBy=$actor | .mavenRetryAuthorizationRunId=$run |
+             .mavenRetryAuthorizedBy=$actor |
              .mavenRetryAuthorizationActor=$authorizationActor |
              .mavenRetryAuthorizationRunId=$authorizationRun |
              .mavenRetryAuthorizationSha256=$authorizationSha256 |
