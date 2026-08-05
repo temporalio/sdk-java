@@ -31,8 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: release-control
     outputs:
-      count: ${{ steps.discover.outputs.count }}
-      matrix: ${{ steps.discover.outputs.matrix }}
+      count: ${{ steps.temporal.outputs.count }}
+      matrix: ${{ steps.temporal.outputs.matrix }}
     steps:
       - name: Validate trusted automation pin
         env:
@@ -53,29 +53,6 @@ jobs:
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
         run: ./gradlew -p .github/release-automation run --args="discover publication"
-      - name: Exclude tags durably owned by the dispatch-only fallback
-        id: discover
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TEMPORAL_MATRIX: ${{ steps.temporal.outputs.matrix }}
-        run: |
-          issues=$(gh api --paginate --slurp \
-            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
-          manual_tags=$(jq -c '[.[][] | select((has("pull_request") | not) and
-            .locked == true and .user.login == "github-actions[bot]" and
-            (.title | startswith("[sdk-java manual release request] ")) and
-            (.body | startswith("## Independent manual release request\n\n- Tag: `v"))) |
-            .title]' <<<"$issues")
-          if [[ $(jq 'length' <<<"$manual_tags") -gt 0 ]]; then
-            matrix='{"include":[]}'
-          else
-            matrix=$TEMPORAL_MATRIX
-          fi
-          {
-            echo "count=$(jq '.include | length' <<<"$matrix")"
-            echo "matrix=$matrix"
-          } >>"$GITHUB_OUTPUT"
-
   publish:
     name: Publication Worker (${{ matrix.tag }})
     needs: discover
@@ -119,35 +96,6 @@ jobs:
         with:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
-      - name: Validate protected candidate and Workflow-start receipts
-        working-directory: automation
-        env:
-          CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
-          CANDIDATE_RUN_ID: ${{ matrix.candidateRunId }}
-          COMMIT_SHA: ${{ matrix.commitSha }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_TAG: ${{ matrix.tag }}
-          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
-        run: |
-          candidate="$RUNNER_TEMP/protected-candidate.json"
-          outputs="$RUNNER_TEMP/protected-candidate.outputs"
-          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates/$RELEASE_TAG.json" \
-            "$candidate" --no-progress >/dev/null
-          GITHUB_OUTPUT="$outputs" ./gradlew -p .github/release-automation run \
-            --args="candidate-outputs $candidate"
-          read_output() { awk -F= -v name="$1" '$1 == name {print $2}' "$outputs" | tail -1; }
-          [[ $(read_output candidate_digest) == "$CANDIDATE_DIGEST" &&
-            $(read_output commit_sha) == "$COMMIT_SHA" &&
-            $(read_output tag) == "$RELEASE_TAG" &&
-            $(read_output automation_commit) == "$TRUSTED_AUTOMATION_COMMIT" ]]
-          start="$RUNNER_TEMP/protected-candidate-start.json"
-          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates-started/$RELEASE_TAG.json" \
-            "$start" --no-progress >/dev/null
-          jq -e --arg tag "$RELEASE_TAG" --arg digest "$CANDIDATE_DIGEST" \
-            --arg run "$CANDIDATE_RUN_ID" \
-            --arg workflow "sdk-java-release-candidate/$CANDIDATE_DIGEST" \
-            '.tag == $tag and .candidateDigest == $digest and .workflowId == $workflow and
-             .runId == $run' "$start" >/dev/null
       - name: Checkout receipt-validated release source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -156,30 +104,23 @@ jobs:
           persist-credentials: false
           ref: ${{ matrix.commitSha }}
           submodules: recursive
+      - name: Export the exact approved publication input
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/publication-input.json"
       - name: Poll only the approved publication Task Queue
         working-directory: automation
         env:
-          EXPECTED_APPROVAL_ACTOR: ${{ matrix.approvalActor }}
-          EXPECTED_APPROVAL_ISSUE_NUMBER: ${{ matrix.approvalIssueNumber }}
-          EXPECTED_APPROVAL_ISSUE_NODE_ID: ${{ matrix.approvalIssueNodeId }}
-          EXPECTED_APPROVAL_ISSUE_BODY_SHA256: ${{ matrix.approvalIssueBodySha256 }}
-          EXPECTED_APPROVAL_RUN_ID: ${{ matrix.approvalRunId }}
-          EXPECTED_CANDIDATE_RUN_ID: ${{ matrix.candidateRunId }}
-          EXPECTED_COMMIT_SHA: ${{ matrix.commitSha }}
-          EXPECTED_MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
-          EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ matrix.mavenRetryAuthorizationSha256 }}
-          EXPECTED_MAVEN_SUBMISSION_GENERATION: ${{ matrix.mavenSubmissionGeneration }}
-          EXPECTED_NOTES_SHA256: ${{ matrix.notesSha256 }}
-          EXPECTED_RELEASE_DIGEST: ${{ matrix.releaseDigest }}
-          EXPECTED_REPOSITORY: temporalio/sdk-java
-          EXPECTED_RUN_ID: ${{ matrix.runId }}
-          EXPECTED_TAG: ${{ matrix.tag }}
-          EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
           JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
           JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
+          RELEASE_EXPECTATION_FILE: ${{ runner.temp }}/publication-input.json
           RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}

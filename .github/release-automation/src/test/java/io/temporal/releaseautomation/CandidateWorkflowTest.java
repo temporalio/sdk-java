@@ -22,13 +22,12 @@ public class CandidateWorkflowTest {
             (BuildActivities)
                 (ignored, requestedPlatform) -> {
                   String name =
-                      ReleasePolicy.nativeArtifactName(candidate.version, requestedPlatform);
+                      ReleasePolicy.nativeArtifactName(candidate.version(), requestedPlatform);
                   return new ArtifactEntry(
                       name,
                       String.format(
                           "%064x", ReleasePolicy.NATIVE_PLATFORMS.indexOf(requestedPlatform) + 1),
-                      1002 + ReleasePolicy.NATIVE_PLATFORMS.indexOf(requestedPlatform),
-                      "sdk-java/" + candidate.digest() + "/" + name);
+                      1002 + ReleasePolicy.NATIVE_PLATFORMS.indexOf(requestedPlatform));
                 });
       }
       ReleaseIdentity expected = ReleaseFixtures.release();

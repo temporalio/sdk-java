@@ -43,7 +43,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     awaitApproval();
     if (handoffRequested) {
       enterHandedOff();
-      return awaitManualCompletion();
+      return awaitHandoff();
     }
 
     runStage("PREFLIGHT", () -> publicationActivities().preflight(publicationInput()));
@@ -66,7 +66,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
                 publicationActivities().publishGithubRelease(publicationInput(), mavenCentralUrl));
     if (handoffRequested) {
       enterHandedOff();
-      return awaitManualCompletion();
+      return awaitHandoff();
     }
     phase = "PUBLISHED";
     githubReleaseUrl = result[0].githubReleaseUrl;
@@ -88,8 +88,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       throw new IllegalStateException("The release cannot accept an approval request.");
     }
     request.validate();
-    validateExecutionIdentity(
-        request.repository, request.releaseDigest, request.workflowId, request.runId);
+    validateExecutionIdentity(request.releaseDigest, request.workflowId, request.runId);
     if (!identity.candidate.trustedAutomationCommit.equals(request.trustedWorkerCommit)) {
       throw new IllegalArgumentException("Approval request uses another trusted Worker commit.");
     }
@@ -109,8 +108,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       throw new IllegalStateException("The release is not awaiting approval.");
     }
     evidence.validate();
-    validateExecutionIdentity(
-        evidence.repository, evidence.releaseDigest, evidence.workflowId, evidence.runId);
+    validateExecutionIdentity(evidence.releaseDigest, evidence.workflowId, evidence.runId);
     if (!approvalRequest.matches(evidence)) {
       throw new IllegalArgumentException("Approval does not match the recorded approval request.");
     }
@@ -139,10 +137,6 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       pausedFrom = null;
       lastError = null;
       blockedAtMillis = 0;
-    } else if ("manual-complete".equals(evidence.action)) {
-      githubReleaseUrl = evidence.githubReleaseUrl;
-      mavenCentralUrl = evidence.mavenCentralUrl;
-      phase = "MANUAL_COMPLETE";
     } else {
       handoffRequested = true;
       pauseRequested = false;
@@ -159,15 +153,11 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
 
   @UpdateValidatorMethod(updateName = "control")
   public void validateControl(ControlEvidence evidence) {
-    if (identity == null
-        || "PUBLISHED".equals(phase)
-        || "MANUAL_COMPLETE".equals(phase)
-        || ("HANDED_OFF".equals(phase) && !"manual-complete".equals(evidence.action))) {
+    if (identity == null || "PUBLISHED".equals(phase) || "HANDED_OFF".equals(phase)) {
       throw new IllegalStateException("The release is not controllable.");
     }
     evidence.validate();
-    validateExecutionIdentity(
-        evidence.repository, evidence.releaseDigest, evidence.workflowId, evidence.runId);
+    validateExecutionIdentity(evidence.releaseDigest, evidence.workflowId, evidence.runId);
     if (!identity.candidate.tag.equals(evidence.tag)
         || !identity.candidate.commitSha.equals(evidence.commitSha)) {
       throw new IllegalArgumentException("Control evidence does not match the exact tag and SHA.");
@@ -175,46 +165,51 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     if ("resume".equals(evidence.action) && !("PAUSED".equals(phase) || "BLOCKED".equals(phase))) {
       throw new IllegalStateException("Only a paused or blocked release can resume.");
     }
-    if ("retry-maven-submission".equals(evidence.action)
-        && !("BLOCKED".equals(phase)
-            && "MAVEN".equals(pausedFrom)
-            && lastError != null
-            && (lastError.contains("MavenSubmissionAmbiguous")
-                || lastError.contains("MavenDeploymentFailed")))) {
-      throw new IllegalStateException(
-          "A Maven retry can only resolve an ambiguous pre-repository submission.");
-    }
-    if ("retry-maven-submission".equals(evidence.action)
-        && evidence.mavenSubmissionGeneration != mavenSubmissionGeneration + 1) {
-      throw new IllegalStateException("Maven retry authorization is not the next generation.");
-    }
-    if ("manual-complete".equals(evidence.action) && !"HANDED_OFF".equals(phase)) {
-      throw new IllegalStateException("Only a handed-off release can record manual completion.");
+    if ("retry-maven-submission".equals(evidence.action)) {
+      boolean nextGeneration =
+          "BLOCKED".equals(phase)
+              && "MAVEN".equals(pausedFrom)
+              && lastError != null
+              && (lastError.contains("MavenSubmissionAmbiguous")
+                  || lastError.contains("MavenDeploymentFailed"))
+              && evidence.mavenSubmissionGeneration == mavenSubmissionGeneration + 1;
+      boolean replaceAuthorization =
+          "BLOCKED".equals(phase)
+              && "MAVEN".equals(pausedFrom)
+              && lastError != null
+              && lastError.contains("InvalidApproval")
+              && mavenSubmissionGeneration > 0
+              && evidence.mavenSubmissionGeneration == mavenSubmissionGeneration;
+      if (!(nextGeneration || replaceAuthorization)) {
+        throw new IllegalStateException(
+            "Maven authorization must advance an ambiguous attempt or replace stale evidence.");
+      }
     }
   }
 
   @Override
   public ReleaseStatus status() {
-    return new ReleaseStatus(
-        phase,
-        identity,
-        approvalRequest,
-        approval,
-        control,
-        pausedFrom,
-        lastCompletedStage,
-        lastError,
-        blockedAtMillis,
-        mavenCentralUrl,
-        sonatypeRepositoryId,
-        portalDeploymentId,
-        githubDraftUrl,
-        githubReleaseUrl,
-        mavenSubmissionGeneration,
-        mavenRetryAuthorization,
-        stageAttempt,
-        stageStartedAtMillis,
-        nextRetryAtMillis);
+    ReleaseStatus status = new ReleaseStatus();
+    status.phase = phase;
+    status.identity = identity;
+    status.approvalRequest = approvalRequest;
+    status.approval = approval;
+    status.control = control;
+    status.pausedFrom = pausedFrom;
+    status.lastCompletedStage = lastCompletedStage;
+    status.lastError = lastError;
+    status.blockedAtMillis = blockedAtMillis;
+    status.mavenCentralUrl = mavenCentralUrl;
+    status.sonatypeRepositoryId = sonatypeRepositoryId;
+    status.portalDeploymentId = portalDeploymentId;
+    status.githubDraftUrl = githubDraftUrl;
+    status.githubReleaseUrl = githubReleaseUrl;
+    status.mavenSubmissionGeneration = mavenSubmissionGeneration;
+    status.mavenRetryAuthorization = mavenRetryAuthorization;
+    status.stageAttempt = stageAttempt;
+    status.stageStartedAtMillis = stageStartedAtMillis;
+    status.nextRetryAtMillis = nextRetryAtMillis;
+    return status;
   }
 
   private void awaitApproval() {
@@ -376,15 +371,13 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
             .build());
   }
 
-  private ReleaseResult awaitManualCompletion() {
-    Workflow.await(() -> "MANUAL_COMPLETE".equals(phase));
-    return new ReleaseResult(identity.digest(), githubReleaseUrl, mavenCentralUrl);
+  private ReleaseResult awaitHandoff() {
+    Workflow.await(() -> false);
+    throw new IllegalStateException("A handed-off release cannot resume automatically.");
   }
 
-  private void validateExecutionIdentity(
-      String repository, String releaseDigest, String workflowId, String runId) {
-    if (!identity.candidate.repository.equals(repository)
-        || !identity.digest().equals(releaseDigest)
+  private void validateExecutionIdentity(String releaseDigest, String workflowId, String runId) {
+    if (!identity.digest().equals(releaseDigest)
         || !Workflow.getInfo().getWorkflowId().equals(workflowId)
         || !Workflow.getInfo().getRunId().equals(runId)) {
       throw new IllegalArgumentException("Evidence does not identify this exact release run.");

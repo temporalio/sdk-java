@@ -16,15 +16,16 @@ public final class ReleasePolicy {
   public static final String MAVEN_CENTRAL_BASE = "https://repo1.maven.org/maven2";
   public static final String NATIVE_JAVA_DISTRIBUTION = "graalvm-community";
   public static final String NATIVE_JAVA_VERSION = "23";
-  public static final List<String> NATIVE_PLATFORMS =
+  public static final List<PlatformSpec> PLATFORMS =
       Collections.unmodifiableList(
           Arrays.asList(
-              "linux-amd64-musl",
-              "linux-amd64",
-              "macos-amd64",
-              "macos-arm64",
-              "linux-arm64",
-              "windows-amd64"));
+              new PlatformSpec("linux-amd64-musl", "ubuntu-latest", "linux", "amd64", true),
+              new PlatformSpec("linux-amd64", "ubuntu-latest", "linux", "amd64", false),
+              new PlatformSpec("macos-amd64", "macos-15-intel", "macOS", "amd64", false),
+              new PlatformSpec("macos-arm64", "macos-latest", "macOS", "arm64", false),
+              new PlatformSpec("linux-arm64", "ubuntu-24.04-arm", "linux", "arm64", false),
+              new PlatformSpec("windows-amd64", "windows-latest", "windows", "amd64", false)));
+  public static final List<String> NATIVE_PLATFORMS = platformNames();
   public static final List<String> MAVEN_ARTIFACTS =
       Collections.unmodifiableList(
           Arrays.asList(
@@ -126,12 +127,54 @@ public final class ReleasePolicy {
   }
 
   static String nativeArtifactName(String version, String platform) {
-    if (!NATIVE_PLATFORMS.contains(platform)) {
-      throw new IllegalArgumentException("Unknown sdk-java native release platform.");
+    PlatformSpec spec = platform(platform);
+    return "temporal-test-server_" + version + "_" + spec.assetPlatform + spec.archiveExtension;
+  }
+
+  static PlatformSpec platform(String id) {
+    for (PlatformSpec platform : PLATFORMS) {
+      if (platform.id.equals(id)) {
+        return platform;
+      }
     }
-    String suffix = "windows-amd64".equals(platform) ? ".zip" : ".tar.gz";
-    String assetPlatform =
-        platform.startsWith("macos-") ? "macOS" + platform.substring(5) : platform;
-    return "temporal-test-server_" + version + "_" + assetPlatform.replace('-', '_') + suffix;
+    throw new IllegalArgumentException("Unknown sdk-java native release platform.");
+  }
+
+  private static List<String> platformNames() {
+    String[] names = new String[PLATFORMS.size()];
+    for (int i = 0; i < PLATFORMS.size(); i++) {
+      names[i] = PLATFORMS.get(i).id;
+    }
+    return Collections.unmodifiableList(Arrays.asList(names));
+  }
+
+  public static final class PlatformSpec {
+    public final String id;
+    public final String runner;
+    public final String osFamily;
+    public final String arch;
+    public final boolean musl;
+    public final String artifactLabel;
+    public final String assetPlatform;
+    public final String archiveExtension;
+    public final String binaryName;
+    public final String distribution;
+    public final String javaVersion;
+
+    private PlatformSpec(String id, String runner, String osFamily, String arch, boolean musl) {
+      this.id = id;
+      this.runner = runner;
+      this.osFamily = osFamily;
+      this.arch = arch;
+      this.musl = musl;
+      this.artifactLabel = osFamily + "_" + arch + (musl ? "_musl" : "");
+      this.assetPlatform =
+          (id.startsWith("macos-") ? "macOS" + id.substring(5) : id).replace('-', '_');
+      this.archiveExtension = "windows".equals(osFamily) ? ".zip" : ".tar.gz";
+      this.binaryName =
+          "windows".equals(osFamily) ? "temporal-test-server.exe" : "temporal-test-server";
+      this.distribution = "linux".equals(osFamily) ? "" : NATIVE_JAVA_DISTRIBUTION;
+      this.javaVersion = "linux".equals(osFamily) ? "" : NATIVE_JAVA_VERSION;
+    }
   }
 }

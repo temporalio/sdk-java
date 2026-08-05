@@ -1,7 +1,6 @@
 package io.temporal.releaseautomation;
 
 public final class ApprovalRequest {
-  public String repository;
   public String releaseDigest;
   public String workflowId;
   public String runId;
@@ -14,7 +13,6 @@ public final class ApprovalRequest {
   public ApprovalRequest() {}
 
   public ApprovalRequest(
-      String repository,
       String releaseDigest,
       String workflowId,
       String runId,
@@ -23,7 +21,6 @@ public final class ApprovalRequest {
       String githubIssueNodeId,
       String githubIssueBodySha256,
       String trustedWorkerCommit) {
-    this.repository = repository;
     this.releaseDigest = releaseDigest;
     this.workflowId = workflowId;
     this.runId = runId;
@@ -36,8 +33,7 @@ public final class ApprovalRequest {
   }
 
   public void validate() {
-    if (!ReleasePolicy.REPOSITORY.equals(repository)
-        || releaseDigest == null
+    if (releaseDigest == null
         || !releaseDigest.matches("[0-9a-f]{64}")
         || workflowId == null
         || !workflowId.matches("sdk-java-release/[0-9a-f]{64}")
@@ -58,8 +54,7 @@ public final class ApprovalRequest {
   public boolean matches(ApprovalEvidence evidence) {
     validate();
     evidence.validate();
-    return repository.equals(evidence.repository)
-        && releaseDigest.equals(evidence.releaseDigest)
+    return releaseDigest.equals(evidence.releaseDigest)
         && workflowId.equals(evidence.workflowId)
         && runId.equals(evidence.runId)
         && githubIssueNumber == evidence.githubIssueNumber
@@ -71,8 +66,7 @@ public final class ApprovalRequest {
   public boolean sameIssue(ApprovalRequest other) {
     validate();
     other.validate();
-    return repository.equals(other.repository)
-        && releaseDigest.equals(other.releaseDigest)
+    return releaseDigest.equals(other.releaseDigest)
         && workflowId.equals(other.workflowId)
         && runId.equals(other.runId)
         && githubIssueNumber == other.githubIssueNumber

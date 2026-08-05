@@ -56,12 +56,13 @@ emit_existing() {
   [[ $(sha256_file "$existing") == "$stored_hash" &&
     $(wc -c <"$existing" | tr -d ' ') == "$stored_size" ]] ||
     conflict "$storage_key bytes do not match immutable metadata."
-  printf '%s\t%s\t%s\t%s\n' "$artifact_name" "$stored_hash" "$stored_size" "$storage_key"
+  printf '%s\t%s\t%s\n' "$artifact_name" "$stored_hash" "$stored_size"
 }
 
 required=(
   RELEASE_ARTIFACT_BUCKET RELEASE_CANDIDATE_DIGEST RELEASE_COMMIT RELEASE_NOTES_FILE
   RELEASE_NOTES_SHA256 RELEASE_PLATFORM RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG RELEASE_VERSION
+  RELEASE_ASSET_PLATFORM RELEASE_ARCHIVE_EXTENSION RELEASE_BINARY_NAME
   TRUSTED_AUTOMATION_COMMIT TRUSTED_AUTOMATION_ROOT
 )
 for variable in "${required[@]}"; do
@@ -70,12 +71,7 @@ done
 [[ $(git -C "$TRUSTED_AUTOMATION_ROOT" rev-parse --verify HEAD^{commit}) ==
   "$TRUSTED_AUTOMATION_COMMIT" ]] || conflict "the trusted automation checkout changed."
 
-case "$RELEASE_PLATFORM" in
-  linux-amd64-musl | linux-amd64 | macos-amd64 | macos-arm64 | linux-arm64 | windows-amd64) ;;
-  *) fail "Temporal scheduled an unknown sdk-java release platform." ;;
-esac
-binary_name=temporal-test-server
-[[ $RELEASE_PLATFORM == windows-amd64 ]] && binary_name=temporal-test-server.exe
+binary_name=$RELEASE_BINARY_NAME
 prebuilt="$RELEASE_PREBUILT_NATIVE_DIR"
 [[ -f $prebuilt/$binary_name && ! -L $prebuilt/$binary_name && -s $prebuilt/$binary_name ]] ||
   conflict "the prepared native executable is invalid."
@@ -100,21 +96,9 @@ jq -e \
    .trustedAutomationCommit == $trustedAutomationCommit and .version == $version' \
   "$prebuilt/metadata.json" >/dev/null || conflict "the prepared artifact identity changed."
 
-asset_platform=${RELEASE_PLATFORM//-/_}
-[[ $RELEASE_PLATFORM == macos-* ]] && asset_platform="macOS_${RELEASE_PLATFORM#macos-}"
-archive_root="temporal-test-server_${RELEASE_VERSION}_${asset_platform}"
-if [[ $RELEASE_PLATFORM == windows-amd64 ]]; then
-  artifact_name=${archive_root}.zip
-else
-  artifact_name=${archive_root}.tar.gz
-fi
-if [[ ${RELEASE_MODE:-temporal} == emergency ]]; then
-  [[ ${EMERGENCY_BUILD_ATTEMPT:-} =~ ^[0-9a-f]{64}$ ]] ||
-    fail "The immutable emergency build attempt is missing."
-  storage_key="sdk-java/emergency-artifacts/$RELEASE_CANDIDATE_DIGEST/$EMERGENCY_BUILD_ATTEMPT/$artifact_name"
-else
-  storage_key="sdk-java/$RELEASE_CANDIDATE_DIGEST/$artifact_name"
-fi
+archive_root="temporal-test-server_${RELEASE_VERSION}_${RELEASE_ASSET_PLATFORM}"
+artifact_name=${archive_root}${RELEASE_ARCHIVE_EXTENSION}
+storage_key="sdk-java/$RELEASE_CANDIDATE_DIGEST/$artifact_name"
 
 head_object=$(mktemp)
 head_state=$(s3_head_state "$head_object") || fail "Unable to inspect the candidate artifact."
@@ -155,4 +139,4 @@ if ! aws s3api put-object \
   exit 0
 fi
 
-printf '%s\t%s\t%s\t%s\n' "$artifact_name" "$sha256" "$size" "$storage_key"
+printf '%s\t%s\t%s\n' "$artifact_name" "$sha256" "$size"

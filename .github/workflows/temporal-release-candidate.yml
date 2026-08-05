@@ -123,7 +123,7 @@ jobs:
               file="$RUNNER_TEMP/candidate-$tag.json"
               aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$file" --no-progress >/dev/null
               if ! jq -e --arg tag "$tag" \
-                '.repository == "temporalio/sdk-java" and .tag == $tag and
+                '.tag == $tag and
                  (.commitSha | test("^[0-9a-f]{40}$")) and
                  (.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' "$file" >/dev/null; then
                 echo "Skipping malformed candidate object $key." >&2

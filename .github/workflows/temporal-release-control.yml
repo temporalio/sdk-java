@@ -175,34 +175,29 @@ jobs:
       - name: Perform a fresh exact external inspection
         working-directory: source
         env:
-          EXPECTED_APPROVAL_ACTOR: ${{ steps.input.outputs.approval_actor }}
-          EXPECTED_APPROVAL_ISSUE_NUMBER: ${{ steps.input.outputs.approval_issue_number }}
-          EXPECTED_APPROVAL_ISSUE_NODE_ID: ${{ steps.input.outputs.approval_issue_node_id }}
-          EXPECTED_APPROVAL_ISSUE_BODY_SHA256: ${{ steps.input.outputs.approval_issue_body_sha256 }}
-          EXPECTED_APPROVAL_RUN_ID: ${{ steps.input.outputs.approval_run_id }}
-          EXPECTED_COMMIT_SHA: ${{ inputs.commit_sha }}
-          EXPECTED_MANIFEST_SHA256: ${{ steps.input.outputs.manifest_sha256 }}
-          EXPECTED_MAVEN_SUBMISSION_GENERATION: ${{ steps.input.outputs.maven_submission_generation }}
-          EXPECTED_NOTES_SHA256: ${{ steps.input.outputs.notes_sha256 }}
-          EXPECTED_RELEASE_DIGEST: ${{ steps.input.outputs.release_digest }}
-          EXPECTED_REPOSITORY: temporalio/sdk-java
-          EXPECTED_RUN_ID: ${{ steps.input.outputs.run_id }}
-          EXPECTED_TAG: ${{ inputs.tag }}
-          EXPECTED_WORKFLOW_ID: ${{ steps.input.outputs.workflow_id }}
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_INPUT_FILE: ${{ runner.temp }}/publication-input.json
+          RELEASE_MAVEN_ARTIFACTS_FILE: ${{ runner.temp }}/maven-artifacts.json
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/fresh-inspection.json
           RELEASE_STAGE: inspect
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
           TRUSTED_WORKER_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
-        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
-      - name: Record protected authorization for exactly one next generation
+        run: |
+          outputs="$RUNNER_TEMP/maven-policy.outputs"
+          GITHUB_OUTPUT="$outputs" "$TRUSTED_AUTOMATION_ROOT/gradlew" \
+            -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" run \
+            --args="maven-policy $PWD/settings.gradle" >/dev/null
+          awk -F= '$1 == "maven_artifacts_json" {sub(/^[^=]*=/, ""); print}' \
+            "$outputs" >"$RELEASE_MAVEN_ARTIFACTS_FILE"
+          bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
+      - name: Record current protected Maven authorization
         id: authorization
         env:
           CURRENT_GENERATION: ${{ steps.input.outputs.maven_submission_generation }}
+          LAST_ERROR: ${{ steps.input.outputs.last_error }}
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_DIGEST: ${{ steps.input.outputs.release_digest }}
           RUN_ID: ${{ steps.input.outputs.run_id }}
@@ -211,14 +206,19 @@ jobs:
           current=$(jq -c --argjson generation "$CURRENT_GENERATION" \
             '.mavenGenerations[]? | select(.generation == $generation)' \
             "$RUNNER_TEMP/fresh-inspection.json")
-          [[ $(jq -r .mavenPresent "$RUNNER_TEMP/fresh-inspection.json") == 0 ]]
-          if [[ -n "$current" ]]; then
-            repository_state=$(jq -r .repositoryState <<<"$current")
-            portal_state=$(jq -r .portalDeploymentState <<<"$current")
-            [[ ( "$repository_state" == absent || "$repository_state" == unavailable ) &&
-              ( -z "$portal_state" || "$portal_state" == FAILED ) ]]
+          if [[ "$LAST_ERROR" == *InvalidApproval* &&
+            $CURRENT_GENERATION -gt 0 ]]; then
+            generation=$CURRENT_GENERATION
+          else
+            [[ $(jq -r .mavenPresent "$RUNNER_TEMP/fresh-inspection.json") == 0 ]]
+            if [[ -n "$current" ]]; then
+              repository_state=$(jq -r .repositoryState <<<"$current")
+              portal_state=$(jq -r .portalDeploymentState <<<"$current")
+              [[ ( "$repository_state" == absent || "$repository_state" == unavailable ) &&
+                ( -z "$portal_state" || "$portal_state" == FAILED ) ]]
+            fi
+            generation=$((CURRENT_GENERATION + 1))
           fi
-          generation=$((CURRENT_GENERATION + 1))
           RELEASE_AUTHORIZATION_FILE="$RUNNER_TEMP/maven-retry-authorization.json" \
             RELEASE_GENERATION="$generation" RELEASE_RUN_ID="$RUN_ID" \
             RELEASE_WORKFLOW_ID="$WORKFLOW_ID" \

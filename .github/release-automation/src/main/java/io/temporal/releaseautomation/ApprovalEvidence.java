@@ -9,7 +9,6 @@ public final class ApprovalEvidence {
   private static final Pattern WORKFLOW_ID = Pattern.compile("sdk-java-release/[0-9a-f]{64}");
   private static final Pattern RUN_ID = Pattern.compile("[0-9a-fA-F-]{16,64}");
 
-  public String repository;
   public String releaseDigest;
   public String workflowId;
   public String runId;
@@ -23,7 +22,6 @@ public final class ApprovalEvidence {
   public ApprovalEvidence() {}
 
   public ApprovalEvidence(
-      String repository,
       String releaseDigest,
       String workflowId,
       String runId,
@@ -33,7 +31,6 @@ public final class ApprovalEvidence {
       String githubIssueNodeId,
       String githubIssueBodySha256,
       String trustedWorkerCommit) {
-    this.repository = repository;
     this.releaseDigest = releaseDigest.toLowerCase(Locale.ROOT);
     this.workflowId = workflowId;
     this.runId = runId;
@@ -47,9 +44,6 @@ public final class ApprovalEvidence {
   }
 
   public void validate() {
-    if (repository == null || repository.isEmpty()) {
-      throw new IllegalArgumentException("Approval repository is required.");
-    }
     if (releaseDigest == null || !releaseDigest.matches("[0-9a-f]{64}")) {
       throw new IllegalArgumentException("Approval release digest is invalid.");
     }

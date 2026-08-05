@@ -51,18 +51,22 @@ public final class BuildActivitiesImpl implements BuildActivities {
           "Build Worker code does not match the frozen trusted commit.", "ReleaseIdentityConflict");
     }
     String expectedQueue = QueueNames.build(candidate, platform);
+    ReleasePolicy.PlatformSpec platformSpec = ReleasePolicy.platform(platform);
     if (!expectedQueue.equals(Activity.getExecutionContext().getInfo().getActivityTaskQueue())) {
       throw ApplicationFailure.newNonRetryableFailure(
           "Build Activity was routed to an unexpected Task Queue.", "ReleaseIdentityConflict");
     }
     Map<String, String> environment = new HashMap<>();
-    environment.put("RELEASE_VERSION", candidate.version);
+    environment.put("RELEASE_VERSION", candidate.version());
     environment.put("RELEASE_TAG", candidate.tag);
     environment.put("RELEASE_COMMIT", candidate.commitSha);
-    environment.put("RELEASE_NOTES_FILE", candidate.releaseNotesPath);
+    environment.put("RELEASE_NOTES_FILE", candidate.releaseNotesPath());
     environment.put("RELEASE_NOTES_SHA256", candidate.releaseNotesSha256);
     environment.put("RELEASE_CANDIDATE_DIGEST", candidate.digest());
     environment.put("RELEASE_PLATFORM", platform);
+    environment.put("RELEASE_ASSET_PLATFORM", platformSpec.assetPlatform);
+    environment.put("RELEASE_ARCHIVE_EXTENSION", platformSpec.archiveExtension);
+    environment.put("RELEASE_BINARY_NAME", platformSpec.binaryName);
     environment.put("RELEASE_PREBUILT_NATIVE_DIR", prebuiltRoot.toString());
     environment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
     environment.put("TRUSTED_AUTOMATION_COMMIT", trustedAutomationCommit);
@@ -83,16 +87,10 @@ public final class BuildActivitiesImpl implements BuildActivities {
         throw new IllegalStateException("Build command must emit exactly one manifest record.");
       }
       String[] fields = output.get(0).split("\\t", -1);
-      if (fields.length != 4) {
+      if (fields.length != 3) {
         throw new IllegalStateException("Build command emitted an invalid manifest record.");
       }
-      ArtifactEntry artifact =
-          new ArtifactEntry(fields[0], fields[1], Long.parseLong(fields[2]), fields[3]);
-      String expectedPrefix = "sdk-java/" + candidate.digest() + "/";
-      if (!artifact.storageKey.startsWith(expectedPrefix)) {
-        throw new IllegalStateException("Build command emitted an unexpected storage key.");
-      }
-      return artifact;
+      return new ArtifactEntry(fields[0], fields[1], Long.parseLong(fields[2]));
     } catch (ProcessSupport.CommandFailedException e) {
       if (e.getStatus() == 42) {
         throw ApplicationFailure.newNonRetryableFailure(

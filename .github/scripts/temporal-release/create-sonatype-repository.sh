@@ -8,8 +8,7 @@ conflict() { echo "create-sonatype-repository: immutable conflict: $*" >&2; exit
 for name in RH_PASSWORD RH_USER SONATYPE_REPOSITORY_DESCRIPTION; do
   [[ -n ${!name:-} ]] || fail "$name is required."
 done
-[[ $SONATYPE_REPOSITORY_DESCRIPTION == sdk-java:* ||
-  $SONATYPE_REPOSITORY_DESCRIPTION == sdk-java-manual:* ]] ||
+[[ $SONATYPE_REPOSITORY_DESCRIPTION =~ ^sdk-java:[0-9a-f]{64}:[0-9]+$ ]] ||
   conflict "the repository description is outside sdk-java release policy."
 
 base=https://ossrh-staging-api.central.sonatype.com

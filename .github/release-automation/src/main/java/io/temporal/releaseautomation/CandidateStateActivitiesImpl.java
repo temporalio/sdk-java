@@ -1,7 +1,6 @@
 package io.temporal.releaseautomation;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import io.temporal.failure.ApplicationFailure;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
@@ -9,7 +8,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 
 public final class CandidateStateActivitiesImpl implements CandidateStateActivities {
-  private static final Gson GSON = new Gson();
   private final Path trustedRoot;
   private final Map<String, String> environment;
   private final Runnable started;
@@ -33,41 +31,49 @@ public final class CandidateStateActivitiesImpl implements CandidateStateActivit
   }
 
   @Override
-  public boolean manualReleaseComplete(CandidateIdentity candidate) {
+  public boolean manualReleaseOwns(CandidateIdentity candidate) {
     started.run();
     try {
-      boolean complete = readManualReleaseComplete(candidate);
+      boolean owned = readManualReleaseOwnership(candidate);
       completion.accept(null);
-      return complete;
+      return owned;
     } catch (Throwable failure) {
       completion.accept(failure);
       throw failure;
     }
   }
 
-  private boolean readManualReleaseComplete(CandidateIdentity candidate) {
+  private boolean readManualReleaseOwnership(CandidateIdentity candidate) {
     candidate.validate();
     required("RELEASE_ARTIFACT_BUCKET");
     environment.put("RELEASE_TAG", candidate.tag);
-    List<String> request =
-        ProcessSupport.run(
-            trustedRoot,
-            ProcessSupport.bash(
-                trustedRoot.resolve(".github/scripts/temporal-release/read-emergency-state.sh")),
-            environment);
-    if (request.size() == 1 && "ABSENT".equals(request.get(0))) {
+    environment.put("RELEASE_COMMIT", candidate.commitSha);
+    environment.put("RELEASE_OWNERSHIP_ACTION", "read");
+    List<String> request;
+    try {
+      request =
+          ProcessSupport.run(
+              trustedRoot,
+              ProcessSupport.bash(
+                  trustedRoot.resolve(".github/scripts/temporal-release/manual-ownership.sh")),
+              environment);
+    } catch (ProcessSupport.CommandFailedException e) {
+      if (e.getStatus() == 42) {
+        throw ApplicationFailure.newNonRetryableFailure(
+            "Durable tag ownership conflicts with the candidate.", "ReleaseIdentityConflict");
+      }
+      throw e;
+    }
+    if (request.size() != 1) {
+      throw new IllegalStateException("Durable manual ownership output is malformed.");
+    }
+    if ("ABSENT".equals(request.get(0)) || "TEMPORAL".equals(request.get(0))) {
       return false;
     }
-    JsonObject state = GSON.fromJson(String.join("\n", request), JsonObject.class);
-    if (state == null || !state.has("candidate") || !state.has("state")) {
-      throw new IllegalStateException("Durable emergency completion state is malformed.");
+    if ("MANUAL".equals(request.get(0))) {
+      return true;
     }
-    CandidateIdentity recorded = GSON.fromJson(state.get("candidate"), CandidateIdentity.class);
-    recorded.validate();
-    if (!candidate.digest().equals(recorded.digest())) {
-      throw new IllegalStateException("Durable emergency state belongs to another candidate.");
-    }
-    return "COMPLETE".equals(state.get("state").getAsString());
+    throw new IllegalStateException("Durable manual ownership output is invalid.");
   }
 
   private void copy(Map<String, String> source, String name) {

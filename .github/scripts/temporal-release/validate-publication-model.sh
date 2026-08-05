@@ -9,7 +9,7 @@ fail() { echo "validate-publication-model: $*" >&2; exit 1; }
 [[ ${TRUSTED_AUTOMATION_ROOT:-} && -d $TRUSTED_AUTOMATION_ROOT ]] ||
   fail "TRUSTED_AUTOMATION_ROOT is missing."
 
-version=$(jq -er '.version' "$RELEASE_CANDIDATE_FILE")
+version=$(jq -er '.tag | ltrimstr("v")' "$RELEASE_CANDIDATE_FILE")
 commit=$(jq -er '.commitSha' "$RELEASE_CANDIDATE_FILE")
 maven_policy=$(jq -er '.mavenPolicy' "$RELEASE_CANDIDATE_FILE")
 policy_output=$(mktemp)

@@ -69,7 +69,6 @@ public class ReleaseWorkflowTest {
       assertEquals("AWAITING_APPROVAL", workflow.status().phase);
       workflow.requestApproval(
           new ApprovalRequest(
-              CandidateIdentity.REPOSITORY,
               release.digest(),
               workflowId,
               execution.getRunId(),
@@ -80,7 +79,6 @@ public class ReleaseWorkflowTest {
               release.candidate.trustedAutomationCommit));
       ApprovalEvidence approval =
           new ApprovalEvidence(
-              CandidateIdentity.REPOSITORY,
               release.digest(),
               workflowId,
               execution.getRunId(),
@@ -118,12 +116,6 @@ public class ReleaseWorkflowTest {
               control("handoff-manual", started.runId, release, 202, "release-manager"));
       assertEquals("HANDED_OFF", handedOff.phase);
       assertEquals("HANDED_OFF", workflow.status().phase);
-      ControlEvidence completion = manualCompletion(started.runId, release, 203, "release-manager");
-      ReleaseStatus completed = workflow.control(completion);
-      assertEquals("MANUAL_COMPLETE", completed.phase);
-      ReleaseResult result = WorkflowStub.fromTyped(workflow).getResult(ReleaseResult.class);
-      assertEquals(
-          "https://github.com/temporalio/sdk-java/releases/tag/v1.2.3", result.githubReleaseUrl);
     }
   }
 
@@ -172,13 +164,11 @@ public class ReleaseWorkflowTest {
           started.workflow.control(
               control("handoff-manual", started.runId, release, 301, "release-manager"));
       assertEquals("HANDED_OFF", handedOff.phase);
-      started.workflow.control(manualCompletion(started.runId, release, 302, "release-manager"));
-      WorkflowStub.fromTyped(started.workflow).getResult(ReleaseResult.class);
     }
   }
 
   @Test
-  public void ambiguousMavenSubmissionRequiresOneAuthenticatedGenerationAdvance() {
+  public void staleMavenAuthorizationCanBeReplacedWithoutAnotherGeneration() {
     ReleaseIdentity release = ReleaseFixtures.release();
     AtomicInteger mavenAttempts = new AtomicInteger();
     try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.newInstance()) {
@@ -191,12 +181,19 @@ public class ReleaseWorkflowTest {
 
             @Override
             public MavenReceipt reconcileMaven(PublicationInput input) {
-              if (mavenAttempts.getAndIncrement() == 0) {
+              int attempt = mavenAttempts.getAndIncrement();
+              if (attempt == 0) {
                 assertEquals(0, input.mavenSubmissionGeneration);
                 throw ApplicationFailure.newNonRetryableFailure(
                     "repository creation was ambiguous", "MavenSubmissionAmbiguous");
               }
               assertEquals(1, input.mavenSubmissionGeneration);
+              if (attempt == 1) {
+                assertEquals("first-manager", input.mavenRetryAuthorization.githubActor);
+                throw ApplicationFailure.newNonRetryableFailure(
+                    "the authorizer is no longer active", "InvalidApproval");
+              }
+              assertEquals("current-manager", input.mavenRetryAuthorization.githubActor);
               return new MavenReceipt("https://central.example/artifact", "io-temporal-1001");
             }
 
@@ -226,10 +223,17 @@ public class ReleaseWorkflowTest {
       assertEquals("MAVEN", blocked.pausedFrom);
       assertTrue(blocked.lastError.contains("MavenSubmissionAmbiguous"));
       ReleaseStatus retried =
-          started.workflow.control(mavenRetry(started.runId, release, 401, "release-manager"));
+          started.workflow.control(mavenRetry(started.runId, release, 401, "first-manager"));
       assertEquals(1, retried.mavenSubmissionGeneration);
+      environment.sleep(Duration.ofSeconds(1));
+      ReleaseStatus stale = started.workflow.status();
+      assertEquals("BLOCKED", stale.phase);
+      assertTrue(stale.lastError.contains("InvalidApproval"));
+      ReleaseStatus rebound =
+          started.workflow.control(mavenRetry(started.runId, release, 402, "current-manager"));
+      assertEquals(1, rebound.mavenSubmissionGeneration);
       WorkflowStub.fromTyped(started.workflow).getResult(ReleaseResult.class);
-      assertEquals(2, mavenAttempts.get());
+      assertEquals(3, mavenAttempts.get());
     }
   }
 
@@ -237,7 +241,6 @@ public class ReleaseWorkflowTest {
     String workflowId = QueueNames.releaseWorkflowId(release);
     started.workflow.requestApproval(
         new ApprovalRequest(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             started.runId,
@@ -248,7 +251,6 @@ public class ReleaseWorkflowTest {
             release.candidate.trustedAutomationCommit));
     started.workflow.approve(
         new ApprovalEvidence(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             started.runId,
@@ -285,7 +287,6 @@ public class ReleaseWorkflowTest {
       String action, String runId, ReleaseIdentity release, long githubRunId, String actor) {
     return new ControlEvidence(
         action,
-        CandidateIdentity.REPOSITORY,
         release.digest(),
         QueueNames.releaseWorkflowId(release),
         runId,
@@ -296,33 +297,10 @@ public class ReleaseWorkflowTest {
         "Test control evidence.");
   }
 
-  private static ControlEvidence manualCompletion(
-      String runId, ReleaseIdentity release, long githubRunId, String actor) {
-    ControlEvidence evidence = new ControlEvidence();
-    evidence.action = "manual-complete";
-    evidence.repository = CandidateIdentity.REPOSITORY;
-    evidence.releaseDigest = release.digest();
-    evidence.workflowId = QueueNames.releaseWorkflowId(release);
-    evidence.runId = runId;
-    evidence.githubRunId = githubRunId;
-    evidence.githubActor = actor;
-    evidence.tag = release.candidate.tag;
-    evidence.commitSha = release.candidate.commitSha;
-    evidence.reason = "Test manual completion.";
-    evidence.githubReleaseUrl =
-        "https://github.com/temporalio/sdk-java/releases/tag/" + release.candidate.tag;
-    evidence.mavenCentralUrl =
-        "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/"
-            + release.candidate.version;
-    evidence.validate();
-    return evidence;
-  }
-
   private static ControlEvidence mavenRetry(
       String runId, ReleaseIdentity release, long githubRunId, String actor) {
     ControlEvidence evidence = new ControlEvidence();
     evidence.action = "retry-maven-submission";
-    evidence.repository = CandidateIdentity.REPOSITORY;
     evidence.releaseDigest = release.digest();
     evidence.workflowId = QueueNames.releaseWorkflowId(release);
     evidence.runId = runId;
