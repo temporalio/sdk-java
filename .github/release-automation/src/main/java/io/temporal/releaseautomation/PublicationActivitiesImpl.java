@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,44 +67,44 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
 
   private <T> T runCommand(PublicationInput input, String stage, Class<T> resultType) {
     try {
-      PublicationGuard.validate(input, Activity.getExecutionContext().getInfo(), environment);
+      PublicationInput expected =
+          new Gson()
+              .fromJson(
+                  new String(
+                      Files.readAllBytes(requiredPath("RELEASE_EXPECTATION_FILE")),
+                      StandardCharsets.UTF_8),
+                  PublicationInput.class);
+      PublicationGuard.validate(
+          input,
+          expected,
+          Activity.getExecutionContext().getInfo(),
+          required("TRUSTED_WORKER_COMMIT"));
+    } catch (IOException e) {
+      throw new IllegalStateException("Unable to read the privileged release expectation.", e);
     } catch (IllegalArgumentException e) {
       throw ApplicationFailure.newNonRetryableFailure(e.getMessage(), "InvalidApproval");
     }
 
     Path inputFile = null;
     Path outputFile = null;
+    Path mavenArtifactsFile = null;
     try {
       inputFile = Files.createTempFile("temporal-release-input-", ".json");
       outputFile = Files.createTempFile("temporal-release-output-", ".json");
+      mavenArtifactsFile = Files.createTempFile("temporal-release-maven-artifacts-", ".json");
       Files.write(inputFile, new Gson().toJson(input).getBytes(StandardCharsets.UTF_8));
+      Files.write(
+          mavenArtifactsFile,
+          new Gson()
+              .toJson(ReleasePolicy.mavenArtifacts(input.release.candidate.mavenPolicy))
+              .getBytes(StandardCharsets.UTF_8));
       Map<String, String> commandEnvironment = new HashMap<>();
       commandEnvironment.put("RELEASE_INPUT_FILE", inputFile.toString());
       commandEnvironment.put("RELEASE_OUTPUT_FILE", outputFile.toString());
+      commandEnvironment.put("RELEASE_MAVEN_ARTIFACTS_FILE", mavenArtifactsFile.toString());
       commandEnvironment.put("RELEASE_STAGE", stage);
-      commandEnvironment.put("EXPECTED_APPROVAL_ACTOR", input.approval.githubActor);
       commandEnvironment.put("TRUSTED_AUTOMATION_ROOT", trustedRoot.toString());
-      for (String name :
-          new String[] {
-            "EXPECTED_APPROVAL_ISSUE_NUMBER",
-            "EXPECTED_APPROVAL_ISSUE_NODE_ID",
-            "EXPECTED_APPROVAL_ISSUE_BODY_SHA256",
-            "EXPECTED_APPROVAL_RUN_ID",
-            "EXPECTED_CANDIDATE_RUN_ID",
-            "EXPECTED_COMMIT_SHA",
-            "EXPECTED_MANIFEST_SHA256",
-            "EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256",
-            "EXPECTED_MAVEN_SUBMISSION_GENERATION",
-            "EXPECTED_NOTES_SHA256",
-            "EXPECTED_RELEASE_DIGEST",
-            "EXPECTED_REPOSITORY",
-            "EXPECTED_RUN_ID",
-            "EXPECTED_TAG",
-            "EXPECTED_WORKFLOW_ID",
-            "TRUSTED_WORKER_COMMIT"
-          }) {
-        copy(commandEnvironment, name);
-      }
+      copy(commandEnvironment, "TRUSTED_WORKER_COMMIT");
       copy(commandEnvironment, "GH_TOKEN");
       copy(commandEnvironment, "RELEASE_ARTIFACT_BUCKET");
       copy(commandEnvironment, "AWS_ACCESS_KEY_ID");
@@ -159,6 +160,7 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
     } finally {
       delete(inputFile);
       delete(outputFile);
+      delete(mavenArtifactsFile);
     }
   }
 
@@ -167,6 +169,18 @@ public final class PublicationActivitiesImpl implements PublicationActivities {
     if (value != null && !value.isEmpty()) {
       commandEnvironment.put(name, value);
     }
+  }
+
+  private String required(String name) {
+    String value = environment.get(name);
+    if (value == null || value.isEmpty()) {
+      throw new IllegalArgumentException("Required Worker value is missing: " + name);
+    }
+    return value;
+  }
+
+  private Path requiredPath(String name) {
+    return Paths.get(required(name));
   }
 
   private static void delete(Path path) {

@@ -16,17 +16,11 @@ final class DiscoveryJob {
   String releaseDigest;
   String candidateDigest;
   String candidateRunId;
-  String approvalRunId;
-  String approvalActor;
   String approvalIssueNumber;
   String approvalIssueNodeId;
   String approvalIssueBodySha256;
   String automationCommit;
-  String phase;
   String javaVersion;
-  long nextRetryAtMillis;
-  int mavenSubmissionGeneration;
-  String mavenRetryAuthorizationSha256;
 
   DiscoveryJob(String role, String taskQueue) {
     this.role = role;

@@ -1,329 +1,318 @@
-name: Independent manual release fallback
-run-name: Manual ${{ inputs.action }} for ${{ inputs.tag }} at ${{ inputs.commit_sha }}
+name: Prepare release
+
+defaults:
+  run:
+    shell: bash -euo pipefail -O nullglob {0}
 
 on:
   workflow_dispatch:
     inputs:
-      action:
-        description: Fixed manual fallback operation
-        required: true
-        type: choice
-        options:
-          - inspect
-          - resume
       tag:
-        description: Exact release tag
-        required: true
         type: string
+        description: "Release version tag (e.g. v1.2.3)"
+        required: true
       commit_sha:
-        description: Exact full 40-character source commit SHA
-        required: true
         type: string
+        description: "Exact full 40-character release commit SHA"
+        required: true
+      do_build_native_images:
+        type: boolean
+        description: "Native Test Server"
+        required: true
+        default: true
+      do_publish_jars:
+        type: boolean
+        description: "Publish Java Artifacts"
+        required: true
+        default: true
 
 permissions:
-  actions: read
   contents: read
 
+concurrency:
+  group: sdk-java-release-publication
+  cancel-in-progress: false
+
+env:
+  INPUT_COMMIT: ${{ inputs.commit_sha }}
+  INPUT_TAG: ${{ inputs.tag }}
+  TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+
 jobs:
-  authorize:
+  prepare:
+    name: Validate and take ownership
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release-publication
-    outputs:
-      controller_sha: ${{ steps.identity.outputs.controller_sha }}
-      manual_request_creator: ${{ steps.ownership.outputs.issue_creator }}
-      manual_owner_actor: ${{ steps.ownership.outputs.owner_actor }}
-      manual_owner_run_id: ${{ steps.ownership.outputs.owner_run_id }}
-      manual_request_issue: ${{ steps.ownership.outputs.issue_number }}
-      notes_sha256: ${{ steps.identity.outputs.notes_sha256 }}
     permissions:
       contents: read
-      issues: write
-    steps:
-      - name: Validate exact immutable inputs
-        env:
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          ref: ${{ inputs.commit_sha }}
-      - name: Verify exact source, notes, and release manager
-        id: identity
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$(git rev-parse HEAD)" == "$RELEASE_COMMIT" ]]
-          [[ -s "releases/$RELEASE_TAG" && ! -L "releases/$RELEASE_TAG" ]]
-          membership=$(gh api \
-            "orgs/temporalio/teams/sdk/memberships/$GITHUB_ACTOR")
-          jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
-            <<<"$membership" >/dev/null
-          controller_sha=$RELEASE_AUTOMATION_REF
-          {
-            echo "controller_sha=$controller_sha"
-            echo "notes_sha256=$(sha256sum "releases/$RELEASE_TAG" | awk '{print $1}')"
-          } >>"$GITHUB_OUTPUT"
-      - name: Record durable manual request before publication queuing
-        id: ownership
-        if: inputs.action == 'resume'
-        env:
-          APPROVAL_GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          GH_TOKEN: ${{ github.token }}
-          MANUAL_CONTROLLER_SHA: ${{ steps.identity.outputs.controller_sha }}
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          title="[sdk-java manual release request] $RELEASE_TAG"
-          ownership_body() {
-            printf '%s\n' \
-              '## Independent manual release request' '' \
-              "- Tag: \`$RELEASE_TAG\`" "- Full SHA: \`$RELEASE_COMMIT\`" \
-              "- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`" \
-              "- Actor: \`$1\`" "- Actions run: \`$2\`" '' \
-              'Scheduled publication controllers must not enqueue while this locked request is open.'
-          }
-          trusted_bot=$(gh api user --jq .login)
-          issues=$(gh api --paginate --slurp \
-            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
-          manual_issues=$(jq -c '[.[][] | select((has("pull_request") | not) and
-            ((.title | startswith("[sdk-java manual release request] ")) or
-             (.title | startswith("[sdk-java manual release ownership] "))))]' <<<"$issues")
-          jq -e --arg request "$title" \
-            --arg ownership "[sdk-java manual release ownership] $RELEASE_TAG" \
-            'all(.title == $request or .title == $ownership)' <<<"$manual_issues" >/dev/null || {
-            echo "Another tag already owns the repository-wide fallback controller." >&2
-            exit 1
-          }
-          matches=$(jq -c --arg title "$title" --arg creator "$trusted_bot" \
-            '[.[][] | select((has("pull_request") | not) and .title == $title and
-              .user.login == $creator)]' <<<"$issues")
-          [[ $(jq 'length' <<<"$matches") -le 1 ]]
-          if [[ $(jq 'length' <<<"$matches") == 0 ]]; then
-            owner_actor=$GITHUB_ACTOR
-            owner_run=$GITHUB_RUN_ID
-            body=$(ownership_body "$owner_actor" "$owner_run")
-            issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
-              --raw-field title="$title" --raw-field body="$body")
-          else
-            issue=$(jq -c '.[0]' <<<"$matches")
-            existing_body=$(jq -r .body <<<"$issue")
-            owner_actor=$(sed -n -E 's/^- Actor: `([^`]+)`$/\1/p' <<<"$existing_body")
-            owner_run=$(sed -n -E 's/^- Actions run: `([0-9]+)`$/\1/p' <<<"$existing_body")
-            [[ "$existing_body" == "$(ownership_body "$owner_actor" "$owner_run")" ]]
-          fi
-          jq -e --arg creator "$trusted_bot" \
-            '.user.login == $creator and (has("pull_request") | not)' <<<"$issue" >/dev/null
-          owner_run_json=$(gh api "repos/temporalio/sdk-java/actions/runs/$owner_run")
-          jq -e --arg actor "$owner_actor" \
-            '.path == ".github/workflows/prepare-release.yml" and
-             .event == "workflow_dispatch" and .actor.login == $actor and
-             (.status == "in_progress" or .status == "completed")' \
-            <<<"$owner_run_json" >/dev/null
-          membership=$(GH_TOKEN=$APPROVAL_GH_TOKEN gh api \
-            "orgs/temporalio/teams/sdk/memberships/$owner_actor")
-          jq -e '.state == "active" and (.role == "member" or .role == "maintainer")' \
-            <<<"$membership" >/dev/null
-          gh api --method PUT \
-            "repos/temporalio/sdk-java/issues/$(jq -er .number <<<"$issue")/lock"
-          {
-            echo "issue_creator=$trusted_bot"
-            echo "owner_actor=$owner_actor"
-            echo "owner_run_id=$owner_run"
-            echo "issue_number=$(jq -er .number <<<"$issue")"
-          } >>"$GITHUB_OUTPUT"
-
-  native:
-    needs: authorize
-    if: inputs.action == 'resume'
-    uses: ./.github/workflows/build-native-image.yml
-    with:
-      automation_ref: ${{ needs.authorize.outputs.controller_sha }}
-      ref: ${{ inputs.commit_sha }}
-      tag: ${{ inputs.tag }}
-      notes_sha256: ${{ needs.authorize.outputs.notes_sha256 }}
-      upload_artifact: true
-
-  inspect:
-    needs: authorize
-    if: inputs.action == 'inspect'
-    runs-on: ubuntu-latest
-    environment: release-publication
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
-          path: source
-          persist-credentials: false
-          ref: ${{ inputs.commit_sha }}
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: manual-tools
-          ref: ${{ needs.authorize.outputs.controller_sha }}
-      - name: Verify immutable manual controller
-        run: '[[ "$(git -C manual-tools rev-parse HEAD)" == "${{ needs.authorize.outputs.controller_sha }}" ]]'
-      - name: Inspect exact external state without mutation
-        working-directory: source
-        env:
-          EXPECTED_NOTES_SHA256: ${{ needs.authorize.outputs.notes_sha256 }}
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          MANUAL_INSPECTION_FILE: ${{ runner.temp }}/manual-inspection.json
-          MANUAL_RELEASE_ACTION: inspect
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_TAG: ${{ inputs.tag }}
-          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
-          RH_USER: ${{ secrets.RH_USER }}
-        run: |
-          bash "$GITHUB_WORKSPACE/manual-tools/.github/scripts/manual-release.sh"
-          {
-            echo "## Independent exact-state inspection"
-            echo
-            echo '```json'
-            jq . "$MANUAL_INSPECTION_FILE"
-            echo '```'
-          } >>"$GITHUB_STEP_SUMMARY"
-
-  resume:
-    needs: [authorize, native]
-    if: inputs.action == 'resume'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    environment: release-publication
-    permissions:
-      contents: write
       id-token: write
-      issues: write
-    concurrency:
-      group: sdk-java-release-publication
-      cancel-in-progress: false
+    outputs:
+      automatic_found: ${{ steps.before.outputs.found }}
+      automatic_phase: ${{ steps.before.outputs.phase }}
+      automatic_paused_from: ${{ steps.before.outputs.paused_from }}
+      last_completed_stage: ${{ steps.before.outputs.last_completed_stage }}
+      notes_sha256: ${{ steps.identity.outputs.notes_sha256 }}
+      portal_deployment_id: ${{ steps.before.outputs.portal_deployment_id }}
+      sonatype_repository_id: ${{ steps.before.outputs.sonatype_repository_id }}
+      release_digest: ${{ steps.ownership.outputs.release_digest }}
+      trusted_automation_commit: ${{ steps.identity.outputs.trusted_automation_commit }}
     steps:
+      - name: Validate exact inputs
+        run: |
+          [[ "$INPUT_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
+          [[ '${{ vars.RELEASE_AUTOMATION_REF }}' =~ ^[0-9a-f]{40}$ ]]
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           path: source
           persist-credentials: false
           ref: ${{ inputs.commit_sha }}
-          submodules: recursive
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          path: manual-tools
-          ref: ${{ needs.authorize.outputs.controller_sha }}
-      - name: Verify immutable manual controller
-        run: '[[ "$(git -C manual-tools rev-parse HEAD)" == "${{ needs.authorize.outputs.controller_sha }}" ]]'
+          path: automation
+          persist-credentials: false
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Obtain durable fallback-state credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+      - name: Validate source identity and release manager
+        id: identity
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+        run: |
+          [[ "$(git -C source rev-parse HEAD)" == "$INPUT_COMMIT" ]]
+          [[ -s "source/releases/$INPUT_TAG" && ! -L "source/releases/$INPUT_TAG" ]]
+          automation_commit=$(git -C automation rev-parse HEAD)
+          [[ "$automation_commit" == '${{ vars.RELEASE_AUTOMATION_REF }}' ]]
+          automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_ACTOR"
+          {
+            echo "notes_sha256=$(sha256sum "source/releases/$INPUT_TAG" | awk '{print $1}')"
+            echo "trusted_automation_commit=$automation_commit"
+          } >>"$GITHUB_OUTPUT"
+      - name: Inspect automatic release state
+        id: before
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
+      - name: Validate automatic handoff target
+        if: steps.before.outputs.found == 'true'
+        env:
+          AUTOMATION_COMMIT: ${{ steps.before.outputs.automation_commit }}
+          PHASE: ${{ steps.before.outputs.phase }}
+        run: |
+          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," ==
+            *",$AUTOMATION_COMMIT,"* ]]
+          [[ "$PHASE" != PUBLISHED && "$PHASE" != MANUAL_COMPLETE ]]
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: steps.before.outputs.found == 'true' && steps.before.outputs.phase != 'HANDED_OFF'
+        with:
+          path: handoff-before
+          persist-credentials: false
+          ref: ${{ steps.before.outputs.automation_commit }}
+      - name: Stop automatic release before takeover
+        if: steps.before.outputs.found == 'true' && steps.before.outputs.phase != 'HANDED_OFF'
+        working-directory: handoff-before
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          RELEASE_AUTOMATION_REF: ${{ steps.before.outputs.automation_commit }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="control handoff-manual $INPUT_TAG $INPUT_COMMIT"
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           aws-region: us-west-2
           role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
-      - name: Activate tag-level ownership under the shared publication lock
+      - name: Claim durable tag ownership
+        id: ownership
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          MANUAL_CONTROLLER_SHA: ${{ needs.authorize.outputs.controller_sha }}
-          MANUAL_OWNER_ACTOR: ${{ needs.authorize.outputs.manual_owner_actor }}
-          MANUAL_OWNER_RUN_ID: ${{ needs.authorize.outputs.manual_owner_run_id }}
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          title="[sdk-java manual release ownership] $RELEASE_TAG"
-          body=$(printf '%s\n' \
-            '## Independent manual release ownership' '' \
-            "- Tag: \`$RELEASE_TAG\`" "- Full SHA: \`$RELEASE_COMMIT\`" \
-            "- Controller SHA: \`$MANUAL_CONTROLLER_SHA\`" \
-            "- Actor: \`$MANUAL_OWNER_ACTOR\`" \
-            "- Actions run: \`$MANUAL_OWNER_RUN_ID\`" '' \
-            'Temporal automation must not mutate this tag while this locked issue remains open.')
-          issues=$(gh api --paginate --slurp \
-            'repos/temporalio/sdk-java/issues?state=open&per_page=100')
-          ownership_creator=$(gh api user --jq .login)
-          matches=$(jq -c --arg title "$title" --arg creator "$ownership_creator" \
-            '[.[][] | select((has("pull_request") | not) and .title == $title and
-              .user.login == $creator)]' <<<"$issues")
-          [[ $(jq 'length' <<<"$matches") -le 1 ]]
-          if [[ $(jq 'length' <<<"$matches") == 0 ]]; then
-            issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
-              --raw-field title="$title" --raw-field body="$body")
-          else
-            issue=$(jq -c '.[0]' <<<"$matches")
-            [[ $(jq -r .body <<<"$issue") == "$body" ]]
-          fi
-          issue_number=$(jq -er .number <<<"$issue")
-          gh api --method PUT "repos/temporalio/sdk-java/issues/$issue_number/lock"
-          {
-            echo "MANUAL_CONTROLLER_SHA=$MANUAL_CONTROLLER_SHA"
-            echo "MANUAL_ISSUE_CREATOR=$ownership_creator"
-            echo "MANUAL_OWNER_ACTOR=$MANUAL_OWNER_ACTOR"
-            echo "MANUAL_OWNER_RUN_ID=$MANUAL_OWNER_RUN_ID"
-            echo "MANUAL_OWNERSHIP_ISSUE=$issue_number"
-          } >>"$GITHUB_ENV"
-      - name: Download the owning run's immutable native artifacts
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          MANUAL_OWNER_RUN_ID: ${{ needs.authorize.outputs.manual_owner_run_id }}
-        run: gh run download "$MANUAL_OWNER_RUN_ID" --dir "$RUNNER_TEMP/native"
-      - name: Construct the fixed seven-asset set
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
-        run: |
-          version=${RELEASE_TAG#v}
-          assets="$RUNNER_TEMP/manual-assets"
-          stage="$RUNNER_TEMP/manual-stage"
-          mkdir -p "$assets" "$stage"
-          for platform in linux_amd64_musl linux_amd64 macOS_amd64 macOS_arm64 linux_arm64 windows_amd64; do
-            source_dir="$RUNNER_TEMP/native/$platform"
-            [[ -d "$source_dir" ]]
-            binary=$(find "$source_dir" -maxdepth 1 -type f -name 'temporal-test-server*')
-            [[ -n "$binary" && $(wc -l <<<"$binary" | tr -d ' ') == 1 ]]
-            root="temporal-test-server_${version}_${platform}"
-            mkdir "$stage/$root"
-            cp "$binary" "$stage/$root/$(basename "$binary")"
-            if [[ $platform == windows_amd64 ]]; then
-              touch -t 198001010000 "$stage/$root" "$stage/$root/$(basename "$binary")"
-              (cd "$stage" && zip -Xqr "$assets/$root.zip" "$root")
-            else
-              chmod 0755 "$stage/$root/$(basename "$binary")"
-              tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-                -C "$stage" -czf "$assets/$root.tar.gz" "$root"
-            fi
-            rm -r "$stage/$root"
-          done
-          (cd "$assets" && sha256sum temporal-test-server_* >SHA256SUMS)
-          echo "MANUAL_ASSET_DIR=$assets" >>"$GITHUB_ENV"
-      - name: Resume from exact Maven/GitHub external state
-        working-directory: source
-        env:
-          EXPECTED_NOTES_SHA256: ${{ needs.authorize.outputs.notes_sha256 }}
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
-          JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
-          JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
-          MANUAL_INSPECTION_FILE: ${{ runner.temp }}/manual-inspection.json
-          MANUAL_RELEASE_ACTION: resume
           RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_COMMIT: ${{ inputs.commit_sha }}
+          RELEASE_OWNERSHIP_ACTION: claim
           RELEASE_TAG: ${{ inputs.tag }}
+          TEMPORAL_HANDOFF_CONFIRMED: ${{ steps.before.outputs.found }}
+        run: |
+          export RELEASE_OWNERSHIP_DIGEST
+          RELEASE_OWNERSHIP_DIGEST=$(printf '%s\n%s\n%s' \
+            "$INPUT_TAG" "$INPUT_COMMIT" '${{ steps.identity.outputs.notes_sha256 }}' |
+            sha256sum | awk '{print $1}')
+          release_digest=$(automation/.github/scripts/temporal-release/manual-ownership.sh)
+          echo "release_digest=$release_digest" >>"$GITHUB_OUTPUT"
+      - name: Recheck the automatic release after claiming ownership
+        id: after
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
+      - name: Validate a release that raced with takeover
+        if: steps.after.outputs.found == 'true'
+        env:
+          AUTOMATION_COMMIT: ${{ steps.after.outputs.automation_commit }}
+          PHASE: ${{ steps.after.outputs.phase }}
+        run: |
+          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," ==
+            *",$AUTOMATION_COMMIT,"* ]]
+          [[ "$PHASE" != PUBLISHED ]]
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: steps.after.outputs.found == 'true' && steps.after.outputs.phase != 'HANDED_OFF'
+        with:
+          path: handoff-after
+          persist-credentials: false
+          ref: ${{ steps.after.outputs.automation_commit }}
+      - name: Stop an automatic release that raced with takeover
+        if: steps.after.outputs.found == 'true' && steps.after.outputs.phase != 'HANDED_OFF'
+        working-directory: handoff-after
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          RELEASE_AUTOMATION_REF: ${{ steps.after.outputs.automation_commit }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="control handoff-manual $INPUT_TAG $INPUT_COMMIT"
+  create_draft_release:
+    name: Create GitHub draft release
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.commit_sha }}
+      - name: Create or validate draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if release=$(gh release view --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" \
+            --json body,isDraft,name,targetCommitish 2>/dev/null); then
+            jq -e --arg tag "$INPUT_TAG" --arg commit "$INPUT_COMMIT" \
+              --rawfile notes "releases/$INPUT_TAG" \
+              '.isDraft == true and .name == $tag and .targetCommitish == $commit and
+               .body == $notes' <<<"$release" >/dev/null
+          else
+            gh release create "$INPUT_TAG" --draft --repo "$GITHUB_REPOSITORY" \
+              --title "$INPUT_TAG" --target "$INPUT_COMMIT" --notes-file "releases/$INPUT_TAG"
+          fi
+
+  publish_java_artifacts:
+    name: Publish Java Artifacts
+    if: inputs.do_publish_jars
+    needs: [prepare, create_draft_release]
+    runs-on: ubuntu-latest
+    environment: release-publication
+    steps:
+      - name: Refuse a second Maven controller
+        env:
+          FOUND: ${{ needs.prepare.outputs.automatic_found }}
+          LAST_STAGE: ${{ needs.prepare.outputs.last_completed_stage }}
+          PAUSED_FROM: ${{ needs.prepare.outputs.automatic_paused_from }}
+          PHASE: ${{ needs.prepare.outputs.automatic_phase }}
+          PORTAL_ID: ${{ needs.prepare.outputs.portal_deployment_id }}
+          SONATYPE_ID: ${{ needs.prepare.outputs.sonatype_repository_id }}
+        run: |
+          if [[ "$FOUND" == true && ( "$LAST_STAGE" == MAVEN || "$PAUSED_FROM" == MAVEN ||
+            "$PHASE" == MAVEN || -n "$PORTAL_ID" || -n "$SONATYPE_ID" ) ]]; then
+            echo "Automatic Maven publication already started. Re-run with Publish Java Artifacts disabled." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-release
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      - name: Use trusted exact-version publication hooks
+        run: |
+          cp trusted-release/gradle/versioning.gradle gradle/versioning.gradle
+          cp trusted-release/gradle/publishing.gradle gradle/publishing.gradle
+          [[ "$(git -C trusted-release rev-parse HEAD)" ==
+            '${{ needs.prepare.outputs.trusted_automation_commit }}' ]]
+      - name: Temporary local tag
+        run: git tag "$INPUT_TAG"
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: "23"
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Set up signing key
+        env:
+          KEY: ${{ secrets.JAR_SIGNING_KEY }}
+        run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d >"$HOME/.gnupg/secring.gpg"
+      - name: Set up secret Gradle properties
+        env:
+          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
-          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/manual-tools
-        run: bash "$GITHUB_WORKSPACE/manual-tools/.github/scripts/manual-release.sh"
-      - name: Close completed manual control records
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          MANUAL_REQUEST_ISSUE: ${{ needs.authorize.outputs.manual_request_issue }}
         run: |
-          gh api --method PATCH "repos/temporalio/sdk-java/issues/$MANUAL_OWNERSHIP_ISSUE" \
-            -f state=closed >/dev/null
-          gh api --method PATCH "repos/temporalio/sdk-java/issues/$MANUAL_REQUEST_ISSUE" \
-            -f state=closed >/dev/null
+          mkdir -p "$HOME/.gradle"
+          envsubst >"$HOME/.gradle/gradle.properties" <<EOF
+          signing.keyId = $KEY_ID
+          signing.password = $KEY_PASSWORD
+          signing.secretKeyRingFile = $HOME/.gnupg/secring.gpg
+          ossrhUsername = $RH_USER
+          ossrhPassword = $RH_PASSWORD
+          EOF
+      - name: Publish
+        run: >-
+          ./gradlew "-PreleaseVersion=${INPUT_TAG#v}" "-PreleaseCommit=$INPUT_COMMIT"
+          "-PreleaseDigest=${{ needs.prepare.outputs.release_digest }}"
+          -PmavenSubmissionGeneration=0
+          publishToSonatype closeSonatypeStagingRepository
+
+  build_native_images:
+    name: Build native test server
+    needs: [prepare, create_draft_release]
+    if: inputs.do_build_native_images
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      automation_ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      notes_sha256: ${{ needs.prepare.outputs.notes_sha256 }}
+      ref: ${{ inputs.commit_sha }}
+      tag: ${{ inputs.tag }}
+      upload_artifact: true
+
+  attach_to_release:
+    name: Attach native executables to release
+    needs: [build_native_images, create_draft_release]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      - name: Package release archives
+        run: |
+          version=${INPUT_TAG#v}
+          for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done
+          for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
+          for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
+      - name: Upload missing exact assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir existing
+          for asset in *.zip *.tar.gz; do
+            if gh release download --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" \
+              --pattern "$(basename "$asset")" --dir existing 2>/dev/null; then
+              cmp "$asset" "existing/$(basename "$asset")"
+            else
+              gh release upload --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" "$asset"
+            fi
+          done

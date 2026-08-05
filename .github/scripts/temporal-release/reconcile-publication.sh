@@ -26,12 +26,9 @@ s3_object_exists() {
 }
 
 required=(
-  EXPECTED_APPROVAL_ACTOR EXPECTED_APPROVAL_RUN_ID EXPECTED_COMMIT_SHA
-  EXPECTED_MANIFEST_SHA256 EXPECTED_NOTES_SHA256 EXPECTED_RELEASE_DIGEST
-  EXPECTED_MAVEN_SUBMISSION_GENERATION
-  EXPECTED_REPOSITORY EXPECTED_RUN_ID EXPECTED_TAG EXPECTED_WORKFLOW_ID
   GH_TOKEN
-  RELEASE_ARTIFACT_BUCKET RELEASE_INPUT_FILE RELEASE_OUTPUT_FILE RELEASE_STAGE
+  RELEASE_ARTIFACT_BUCKET RELEASE_INPUT_FILE RELEASE_MAVEN_ARTIFACTS_FILE
+  RELEASE_OUTPUT_FILE RELEASE_STAGE
   TRUSTED_AUTOMATION_ROOT TRUSTED_WORKER_COMMIT
 )
 if [[ ${RELEASE_STAGE:-} == maven ]]; then
@@ -43,11 +40,13 @@ for variable in "${required[@]}"; do
   [[ -n ${!variable:-} ]] || fail "Required value $variable is missing."
 done
 
-repository=$(jq -er '.release.candidate.repository' "$RELEASE_INPUT_FILE")
-version=$(jq -er '.release.candidate.version' "$RELEASE_INPUT_FILE")
+repository=temporalio/sdk-java
+maven_group=io.temporal
+central_base=https://repo1.maven.org/maven2
 tag=$(jq -er '.release.candidate.tag' "$RELEASE_INPUT_FILE")
+version=${tag#v}
 commit=$(jq -er '.release.candidate.commitSha' "$RELEASE_INPUT_FILE")
-notes_file=$(jq -er '.release.candidate.releaseNotesPath' "$RELEASE_INPUT_FILE")
+notes_file="releases/$tag"
 notes_hash=$(jq -er '.release.candidate.releaseNotesSha256' "$RELEASE_INPUT_FILE")
 trusted_commit=$(jq -er '.release.candidate.trustedAutomationCommit' "$RELEASE_INPUT_FILE")
 maven_policy=$(jq -er '.release.candidate.mavenPolicy' "$RELEASE_INPUT_FILE")
@@ -62,20 +61,16 @@ approval_issue_node_id=$(jq -er '.approval.githubIssueNodeId' "$RELEASE_INPUT_FI
 approval_issue_body_hash=$(jq -er '.approval.githubIssueBodySha256' "$RELEASE_INPUT_FILE")
 approval_trusted_commit=$(jq -er '.approval.trustedWorkerCommit' "$RELEASE_INPUT_FILE")
 maven_submission_generation=$(jq -er '.mavenSubmissionGeneration' "$RELEASE_INPUT_FILE")
-maven_group=$(jq -er '.mavenGroup' "$RELEASE_INPUT_FILE")
-central_base=$(jq -er '.mavenCentralBase' "$RELEASE_INPUT_FILE")
-candidate_digest=$(jq -er '.candidateDigest' "$RELEASE_INPUT_FILE")
+storage_prefix=$(jq -er '.release.manifest.storagePrefix' "$RELEASE_INPUT_FILE")
+candidate_digest=${storage_prefix#sdk-java/}
+candidate_digest=${candidate_digest%/}
 
-[[ $repository == temporalio/sdk-java && $repository == "$EXPECTED_REPOSITORY" &&
-  $tag == "$EXPECTED_TAG" && $commit == "$EXPECTED_COMMIT_SHA" &&
-  $notes_hash == "$EXPECTED_NOTES_SHA256" && $manifest_hash == "$EXPECTED_MANIFEST_SHA256" &&
-  $release_digest == "$EXPECTED_RELEASE_DIGEST" && $workflow_id == "$EXPECTED_WORKFLOW_ID" &&
-  $run_id == "$EXPECTED_RUN_ID" && $approval_run_id == "$EXPECTED_APPROVAL_RUN_ID" &&
-  $approval_actor == "$EXPECTED_APPROVAL_ACTOR" && $trusted_commit == "$TRUSTED_WORKER_COMMIT" &&
-  $maven_submission_generation == "$EXPECTED_MAVEN_SUBMISSION_GENERATION" &&
-  $approval_trusted_commit == "$TRUSTED_WORKER_COMMIT" && $maven_group == io.temporal &&
-  $central_base == https://repo1.maven.org/maven2 ]] ||
-  conflict "the Activity input differs from the privileged Actions run."
+[[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ &&
+  $commit =~ ^[0-9a-f]{40}$ && $notes_hash =~ ^[0-9a-f]{64}$ &&
+  $manifest_hash =~ ^[0-9a-f]{64}$ && $release_digest =~ ^[0-9a-f]{64}$ &&
+  $trusted_commit == "$TRUSTED_WORKER_COMMIT" &&
+  $approval_trusted_commit == "$TRUSTED_WORKER_COMMIT" ]] ||
+  conflict "the Activity input violates fixed sdk-java release policy."
 
 [[ $(git rev-parse --verify HEAD^{commit}) == "$commit" ]] ||
   conflict "the source checkout is not the approved commit."
@@ -90,7 +85,6 @@ mkdir -p "$work/assets" "$work/existing"
 source_hooks_configured=false
 
 verify_candidate_receipts() {
-  [[ ${RELEASE_MODE:-temporal} == temporal ]] || return
   [[ $candidate_digest =~ ^[0-9a-f]{64}$ ]] ||
     conflict "the Activity input has an invalid candidate digest."
   candidate_run=$(jq -er .release.candidateRunId "$RELEASE_INPUT_FILE") ||
@@ -121,11 +115,6 @@ ownership_key="sdk-java/ownership/$tag.json"
 ownership="$work/ownership.json"
 jq -n --arg tag "$tag" --arg commitSha "$commit" --arg releaseDigest "$release_digest" \
   --arg owner temporal '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest,owner:$owner}' >"$ownership"
-manual_ownership="$work/manual-ownership.json"
-jq -n --arg tag "$tag" --arg commitSha "$commit" --arg releaseDigest "$release_digest" \
-  --arg owner manual '{tag:$tag,commitSha:$commitSha,releaseDigest:$releaseDigest,owner:$owner}' \
-  >"$manual_ownership"
-
 validate_ownership_identity() {
   jq -e --arg tag "$tag" --arg commit "$commit" --arg digest "$release_digest" \
     '.tag == $tag and .commitSha == $commit and .releaseDigest == $digest and
@@ -133,82 +122,12 @@ validate_ownership_identity() {
     conflict "the tag/version ownership key belongs to another release or SHA."
 }
 
-validate_ownership_tag_and_sha() {
-  jq -e --arg tag "$tag" --arg commit "$commit" \
-    '.tag == $tag and .commitSha == $commit and
-     (.owner == "temporal" or .owner == "manual")' "$1" >/dev/null ||
-    conflict "the tag/version ownership key belongs to another tag or SHA."
-}
-
 ensure_ownership() {
-  manual_title="[sdk-java manual release ownership] $tag"
-  manual_issues=$(gh api --paginate --slurp \
-    'repos/temporalio/sdk-java/issues?state=open&per_page=100') ||
-    fail "Unable to inspect independent manual ownership."
-  manual_creator=$(gh api user --jq .login) ||
-    fail "Unable to identify the trusted publication bot."
-  manual_matches=$(jq -c --arg title "$manual_title" --arg creator "$manual_creator" \
-    '[.[][] | select((has("pull_request") | not) and .title == $title and
-      .user.login == $creator)]' \
-    <<<"$manual_issues")
-  [[ $(jq 'length' <<<"$manual_matches") -le 1 ]] ||
-    conflict "multiple independent manual ownership records exist."
-  if [[ $(jq 'length' <<<"$manual_matches") -eq 1 ]]; then
-    manual_issue=$(jq -c '.[0]' <<<"$manual_matches")
-    manual_body=$(jq -r .body <<<"$manual_issue")
-    [[ $manual_body == *"- Tag: \`$tag\`"* &&
-      $manual_body == *"- Full SHA: \`$commit\`"* &&
-      $manual_body == *"- Controller SHA: \`$TRUSTED_WORKER_COMMIT\`"* ]] ||
-      conflict "independent manual ownership identifies another SHA."
-    manual_actor=$(sed -n -E 's/^- Actor: `([^`]+)`$/\1/p' <<<"$manual_body")
-    manual_run=$(sed -n -E 's/^- Actions run: `([0-9]+)`$/\1/p' <<<"$manual_body")
-    [[ -n $manual_actor && $manual_run =~ ^[0-9]+$ ]] ||
-      conflict "independent manual ownership lacks authenticated run evidence."
-    jq -e --arg creator "$manual_creator" \
-      '.locked == true and .user.login == $creator' <<<"$manual_issue" >/dev/null ||
-      conflict "independent manual ownership was not created by the trusted release bot."
-    manual_run_json=$(gh api "repos/temporalio/sdk-java/actions/runs/$manual_run") ||
-      fail "Unable to inspect the independent ownership Actions run."
-    jq -e --arg actor "$manual_actor" \
-      '.path == ".github/workflows/prepare-release.yml" and
-       .event == "workflow_dispatch" and .actor.login == $actor and
-       (.status == "in_progress" or .status == "completed")' \
-      <<<"$manual_run_json" >/dev/null ||
-      conflict "independent ownership is not bound to the trusted fallback workflow."
-    set +e
-    "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/verify-approver.sh" \
-      "$manual_actor" >/dev/null
-    manual_actor_status=$?
-    set -e
-    if [[ $manual_actor_status -eq 43 ]]; then
-      invalid_approval "the independent fallback owner is not an active release manager."
-    elif [[ $manual_actor_status -ne 0 ]]; then
-      fail "release-manager membership is temporarily unavailable for manual ownership."
-    fi
-    conflict "independent manual ownership is active for this tag."
-  fi
-  expected_ownership=$ownership
-  [[ ${RELEASE_MODE:-temporal} == emergency ]] && expected_ownership=$manual_ownership
-  if [[ ${RELEASE_MODE:-temporal} == temporal ]] &&
-    s3_object_exists "sdk-java/emergency/$tag.json"; then
-    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/emergency/$tag.json" \
-      "$work/emergency-request.json" --no-progress >/dev/null ||
-      fail "Unable to inspect the durable emergency request."
-    emergency_state=$(jq -er '.state' "$work/emergency-request.json")
-    if jq -e '.handoff != null' "$work/emergency-request.json" >/dev/null; then
-      conflict "durable ownership has been transferred to emergency automation."
-    fi
-    case "$emergency_state" in
-      READY | BLOCKED | COMPLETE)
-        conflict "durable ownership has been transferred to emergency automation."
-        ;;
-    esac
-  fi
   if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
-    --body "$expected_ownership" --if-none-match '*' >/dev/null 2>&1; then
+    --body "$ownership" --if-none-match '*' >/dev/null 2>&1; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
       --no-progress >/dev/null || fail "Unable to read the durable tag ownership key."
-    cmp -s "$expected_ownership" "$work/existing-ownership.json" ||
+    cmp -s "$ownership" "$work/existing-ownership.json" ||
       conflict "the tag/version ownership key belongs to another controller or SHA."
   fi
 }
@@ -218,68 +137,17 @@ inspect_ownership() {
   if s3_object_exists "$ownership_key"; then
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
       --no-progress >/dev/null || fail "Unable to inspect the durable tag ownership key."
-    if [[ ${RELEASE_MODE:-temporal} == emergency-inspect ]]; then
-      validate_ownership_tag_and_sha "$work/existing-ownership.json"
-    else
-      validate_ownership_identity "$work/existing-ownership.json"
-    fi
+    validate_ownership_identity "$work/existing-ownership.json"
     ownership_state=$(jq -er .owner "$work/existing-ownership.json")
-  fi
-}
-
-claim_manual_ownership() {
-  if s3_object_exists "$ownership_key" "$work/ownership-head.json"; then
-    aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$ownership_key" "$work/existing-ownership.json" \
-      --no-progress >/dev/null || fail "Unable to read the durable tag ownership key."
-    validate_ownership_tag_and_sha "$work/existing-ownership.json"
-    existing_owner=$(jq -er .owner "$work/existing-ownership.json")
-    if [[ $existing_owner == manual ]]; then
-      validate_ownership_identity "$work/existing-ownership.json"
-    elif jq -e --arg digest "$release_digest" '.releaseDigest != $digest' \
-      "$work/existing-ownership.json" >/dev/null; then
-      jq -e '.release.manifest.artifacts | all(.storageKey |
-        startswith("sdk-java/emergency-artifacts/"))' "$RELEASE_INPUT_FILE" >/dev/null ||
-        conflict "a Temporal-owned release can change digest only to one replacement manifest."
-    fi
-    if cmp -s "$manual_ownership" "$work/existing-ownership.json"; then
-      return
-    fi
-    etag=$(jq -er '.ETag' "$work/ownership-head.json")
-    aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
-      --body "$manual_ownership" --if-match "$etag" >/dev/null ||
-      fail "The ownership key changed while manual handoff was being claimed."
-  else
-    aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$ownership_key" \
-      --body "$manual_ownership" --if-none-match '*' >/dev/null ||
-      fail "Unable to claim durable manual ownership."
   fi
 }
 
 verify_approval() {
   local approval_run
-  if [[ ${RELEASE_MODE:-temporal} != emergency && ${RELEASE_MODE:-temporal} != emergency-inspect ]]; then
-    [[ $approval_issue_number == "${EXPECTED_APPROVAL_ISSUE_NUMBER:-}" &&
-      $approval_issue_node_id == "${EXPECTED_APPROVAL_ISSUE_NODE_ID:-}" &&
-      $approval_issue_body_hash == "${EXPECTED_APPROVAL_ISSUE_BODY_SHA256:-}" ]] ||
-      conflict "the approval issue differs from the privileged Actions run."
-  fi
   if ! approval_run=$(gh api "repos/temporalio/sdk-java/actions/runs/$approval_run_id"); then
     fail "the approval Actions run is temporarily unavailable."
   fi
-  if [[ ${RELEASE_MODE:-temporal} == emergency || ${RELEASE_MODE:-temporal} == emergency-inspect ]]; then
-    jq -e --arg actor "$approval_actor" \
-      '.event == "workflow_dispatch" and
-       .path == ".github/workflows/temporal-release-emergency-control.yml" and
-       (.status == "in_progress" or (.status == "completed" and .conclusion == "success")) and
-       .actor.login == $actor' <<<"$approval_run" >/dev/null ||
-      invalid_approval "the emergency run is not the exact authenticated handoff owner."
-    if [[ ${RELEASE_MODE:-temporal} == emergency ]]; then
-      jq -e --arg tag "$tag" --arg commit "$commit" \
-        '.emergencyHandoff == true and .handoff.action == "handoff-manual" and
-         .handoff.tag == $tag and .handoff.commitSha == $commit' "$RELEASE_INPUT_FILE" >/dev/null ||
-        invalid_approval "durable Temporal handoff evidence is missing."
-    fi
-  elif ! jq -e --arg actor "$approval_actor" \
+  if ! jq -e --arg actor "$approval_actor" \
     '(.status == "in_progress" or .status == "completed") and
      .path == ".github/workflows/temporal-release-approve.yml" and
      ((.event == "issues" and .actor.login == $actor) or .event == "schedule")' \
@@ -331,16 +199,16 @@ verify_approval() {
 materialize_assets() {
   local manifest="$work/manifest.tsv"
   jq -r '.release.manifest.artifacts | sort_by(.name)[] |
-    [.name, .sha256, (.size | tostring), .storageKey] | @tsv' \
+    [.name, .sha256, (.size | tostring)] | @tsv' \
     "$RELEASE_INPUT_FILE" >"$manifest"
   [[ -s $manifest && $(wc -l <"$manifest" | tr -d ' ') -eq 6 ]] ||
     conflict "the approved native artifact manifest is incomplete."
-  while IFS=$'\t' read -r name sha size storage_key; do
+  [[ $storage_prefix == "sdk-java/$candidate_digest/" ]] ||
+    conflict "the artifact manifest has an invalid candidate prefix."
+  while IFS=$'\t' read -r name sha size; do
     [[ $name =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && $sha =~ ^[0-9a-f]{64}$ &&
       $size =~ ^[1-9][0-9]*$ ]] || conflict "the artifact manifest contains an invalid record."
-    [[ $storage_key =~ ^sdk-java/[0-9a-f]{64}/$name$ ||
-      $storage_key =~ ^sdk-java/emergency-artifacts/[0-9a-f]{64}/[0-9a-f]{64}/$name$ ]] ||
-      conflict "the artifact manifest contains an invalid storage key."
+    storage_key="$storage_prefix$name"
     aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$storage_key" "$work/assets/$name" \
       --no-progress >/dev/null
     [[ $(wc -c <"$work/assets/$name" | tr -d ' ') == "$size" ]] ||
@@ -355,7 +223,7 @@ verify_source_maven_policy() {
   mapfile -t source_projects < <(
     sed -n -E "s/^include ['\"]([^'\"]+)['\"]$/\1/p" settings.gradle | sort
   )
-  mapfile -t policy_projects < <(jq -er '.mavenArtifacts[]' "$RELEASE_INPUT_FILE" | sort)
+  mapfile -t policy_projects < <(jq -er '.[]' "$RELEASE_MAVEN_ARTIFACTS_FILE" | sort)
   [[ ${source_projects[*]} == "${policy_projects[*]}" ]] ||
     conflict "the immutable source projects differ from the approved Maven policy."
   case "$maven_policy:${#policy_projects[@]}" in
@@ -388,7 +256,7 @@ PY
 central_state() {
   present=0
   missing=0
-  mapfile -t maven_artifacts < <(jq -er '.mavenArtifacts[]' "$RELEASE_INPUT_FILE")
+  mapfile -t maven_artifacts < <(jq -er '.[]' "$RELEASE_MAVEN_ARTIFACTS_FILE")
   verify_source_maven_policy
   for artifact in "${maven_artifacts[@]}"; do
     pom="$work/$artifact.pom"
@@ -569,14 +437,13 @@ validate_retry_authorization() {
     "$RELEASE_INPUT_FILE" >/dev/null ||
     conflict "the Workflow retry Update is not bound to the protected authorization."
 
-  retry_path=.github/workflows/temporal-release-control.yml
-  [[ ${RELEASE_MODE:-temporal} == emergency ]] &&
-    retry_path=.github/workflows/temporal-release-emergency-control.yml
   retry_run_json=$(gh api "repos/temporalio/sdk-java/actions/runs/$retry_run") ||
     fail "the Maven retry authorization run is temporarily unavailable."
-  jq -e --arg actor "$retry_actor" --arg path "$retry_path" \
+  jq -e --arg actor "$retry_actor" \
+    --arg path .github/workflows/temporal-release-control.yml \
     '.event == "workflow_dispatch" and .path == $path and .actor.login == $actor and
-     (.status == "in_progress" or .status == "completed")' <<<"$retry_run_json" >/dev/null ||
+     (.status == "in_progress" or .status == "completed")' \
+    <<<"$retry_run_json" >/dev/null ||
     invalid_approval "the Maven retry authorization is not bound to its exact trusted run."
   set +e
   "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/verify-approver.sh" \
@@ -1456,7 +1323,6 @@ verify_candidate_receipts
 verify_approval
 case "$RELEASE_STAGE" in
   inspect) inspect_external_state ;;
-  handoff) claim_manual_ownership ;;
   preflight)
     ensure_ownership
     materialize_assets

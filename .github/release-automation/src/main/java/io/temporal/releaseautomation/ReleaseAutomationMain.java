@@ -44,7 +44,7 @@ public final class ReleaseAutomationMain {
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
       throw new IllegalArgumentException(
-          "Expected candidate-outputs, maven-policy, emergency-input, start-candidate, discover, approval-target, approval-request, approve, control, inspect, inspect-if-present, publication-input, or worker.");
+          "Expected candidate-outputs, maven-policy, platform-matrix, start-candidate, discover, approval-target, approval-request, approve, control, inspect, inspect-if-present, publication-input, or worker.");
     }
     Map<String, String> environment = System.getenv();
     if ("candidate-outputs".equals(args[0])) {
@@ -52,14 +52,16 @@ public final class ReleaseAutomationMain {
       candidateOutputs(read(args[1], CandidateIdentity.class));
       return;
     }
-    if ("emergency-input".equals(args[0])) {
-      requireArguments(args, 3);
-      emergencyInput(read(args[1], CandidateIdentity.class), Paths.get(args[2]), environment);
-      return;
-    }
     if ("maven-policy".equals(args[0])) {
       requireArguments(args, 2);
       mavenPolicy(Paths.get(args[1]));
+      return;
+    }
+    if ("platform-matrix".equals(args[0])) {
+      requireArguments(args, 1);
+      JsonObject matrix = new JsonObject();
+      matrix.add("include", GSON.toJsonTree(ReleasePolicy.PLATFORMS));
+      writeOutput("matrix", GSON.toJson(matrix));
       return;
     }
     try (TemporalConnection temporal = TemporalConnection.fromEnvironment(environment)) {
@@ -117,7 +119,7 @@ public final class ReleaseAutomationMain {
     writeOutput("commit_sha", candidate.commitSha);
     writeOutput("notes_sha256", candidate.releaseNotesSha256);
     writeOutput("tag", candidate.tag);
-    writeOutput("version", candidate.version);
+    writeOutput("version", candidate.version());
     writeOutput("maven_policy", candidate.mavenPolicy);
   }
 
@@ -133,85 +135,6 @@ public final class ReleaseAutomationMain {
     String policy = ReleasePolicy.mavenPolicyForProjects(projects);
     writeOutput("maven_policy", policy);
     writeOutput("maven_artifacts_json", GSON.toJson(ReleasePolicy.mavenArtifacts(policy)));
-  }
-
-  private static void emergencyInput(
-      CandidateIdentity candidate, Path manifestPath, Map<String, String> env) throws IOException {
-    candidate.validate();
-    String actor = required(env, "EMERGENCY_APPROVAL_ACTOR");
-    verifyApprover(actor);
-    long githubRunId = Long.parseLong(required(env, "EMERGENCY_APPROVAL_RUN_ID"));
-    List<ArtifactEntry> artifacts = new ArrayList<>();
-    for (String line : Files.readAllLines(manifestPath, StandardCharsets.UTF_8)) {
-      String[] fields = line.split("\\t", -1);
-      if (fields.length != 4) {
-        throw new IllegalArgumentException("Emergency artifact manifest record is invalid.");
-      }
-      artifacts.add(new ArtifactEntry(fields[0], fields[1], Long.parseLong(fields[2]), fields[3]));
-    }
-    ReleaseIdentity identity = new ReleaseIdentity(candidate, new ArtifactManifest(artifacts));
-    String workflowId = QueueNames.releaseWorkflowId(identity);
-    String runId = identity.digest().substring(0, 32);
-    ApprovalEvidence authorization =
-        new ApprovalEvidence(
-            ReleasePolicy.REPOSITORY,
-            identity.digest(),
-            workflowId,
-            runId,
-            githubRunId,
-            actor,
-            githubRunId,
-            "EMERGENCY_" + githubRunId,
-            Digests.sha256("emergency-handoff\n" + identity.digest()),
-            candidate.trustedAutomationCommit);
-    PublicationInput input = new PublicationInput(identity, authorization, workflowId, runId);
-    String submissionGeneration = env.get("MAVEN_SUBMISSION_GENERATION");
-    if (submissionGeneration != null && !submissionGeneration.isEmpty()) {
-      input.mavenSubmissionGeneration = Integer.parseInt(submissionGeneration);
-      if (input.mavenSubmissionGeneration < 0) {
-        throw new IllegalArgumentException("Maven submission generation cannot be negative.");
-      }
-      if (input.mavenSubmissionGeneration > 0) {
-        ControlEvidence retry = new ControlEvidence();
-        retry.action = "retry-maven-submission";
-        retry.repository = ReleasePolicy.REPOSITORY;
-        retry.releaseDigest = identity.digest();
-        retry.workflowId = workflowId;
-        retry.runId = runId;
-        retry.githubRunId = Long.parseLong(required(env, "MAVEN_RETRY_AUTHORIZATION_RUN_ID"));
-        retry.githubActor = required(env, "MAVEN_RETRY_AUTHORIZATION_ACTOR");
-        retry.tag = candidate.tag;
-        retry.commitSha = candidate.commitSha;
-        retry.reason = "Release manager authorized one inspected emergency Maven generation.";
-        retry.mavenSubmissionGeneration = input.mavenSubmissionGeneration;
-        retry.authorizationSha256 = required(env, "MAVEN_RETRY_AUTHORIZATION_SHA256");
-        retry.validate();
-        input.mavenRetryAuthorization = retry;
-      }
-    }
-    input.emergencyHandoff = true;
-    input.handoff =
-        new ControlEvidence(
-            "handoff-manual",
-            ReleasePolicy.REPOSITORY,
-            identity.digest(),
-            workflowId,
-            runId,
-            githubRunId,
-            actor,
-            candidate.tag,
-            candidate.commitSha,
-            "Release manager selected the independently durable emergency path.");
-    input.handoff.recordedAtMillis = System.currentTimeMillis();
-    Path export = Paths.get(required(env, "RUNNER_TEMP")).resolve("sdk-java-emergency-input.json");
-    Files.write(export, GSON.toJson(input).getBytes(StandardCharsets.UTF_8));
-    writeOutput("release_input_file", export.toString());
-    writeOutput("workflow_id", workflowId);
-    writeOutput("run_id", runId);
-    writeOutput("release_digest", identity.digest());
-    writeOutput("manifest_sha256", identity.manifestSha256);
-    writeOutput("notes_sha256", candidate.releaseNotesSha256);
-    writeOutput("automation_commit", candidate.trustedAutomationCommit);
   }
 
   private static void startCandidate(WorkflowClient client, CandidateIdentity candidate) {
@@ -342,16 +265,17 @@ public final class ReleaseAutomationMain {
       build.platform = platform;
       build.candidateDigest = digest;
       build.tag = candidate.tag;
-      build.version = candidate.version;
+      build.version = candidate.version();
       build.commitSha = candidate.commitSha;
       build.notesSha256 = candidate.releaseNotesSha256;
       build.automationCommit = candidate.trustedAutomationCommit;
       build.workflowId = execution.getExecution().getWorkflowId();
       build.runId = execution.getExecution().getRunId();
-      build.runner = runnerFor(platform);
-      if (platform.startsWith("macos-") || "windows-amd64".equals(platform)) {
-        build.distribution = ReleasePolicy.NATIVE_JAVA_DISTRIBUTION;
-        build.javaVersion = ReleasePolicy.NATIVE_JAVA_VERSION;
+      ReleasePolicy.PlatformSpec platformSpec = ReleasePolicy.platform(platform);
+      build.runner = platformSpec.runner;
+      if (!platformSpec.distribution.isEmpty()) {
+        build.distribution = platformSpec.distribution;
+        build.javaVersion = platformSpec.javaVersion;
       }
       jobs.add(build);
     }
@@ -447,27 +371,9 @@ public final class ReleaseAutomationMain {
     DiscoveryJob job =
         new DiscoveryJob(
             "publication", QueueNames.publication(identity, status.mavenSubmissionGeneration));
-    job.workflowId = execution.getExecution().getWorkflowId();
-    job.runId = execution.getExecution().getRunId();
     job.tag = identity.candidate.tag;
     job.commitSha = identity.candidate.commitSha;
-    job.notesSha256 = identity.candidate.releaseNotesSha256;
-    job.manifestSha256 = identity.manifestSha256;
-    job.releaseDigest = identity.digest();
-    job.candidateDigest = identity.candidate.digest();
-    job.candidateRunId = identity.candidateRunId;
-    job.approvalRunId = Long.toString(status.approval.githubApprovalRunId);
-    job.approvalActor = status.approval.githubActor;
-    job.approvalIssueNumber = Long.toString(status.approval.githubIssueNumber);
-    job.approvalIssueNodeId = status.approval.githubIssueNodeId;
-    job.approvalIssueBodySha256 = status.approval.githubIssueBodySha256;
     job.automationCommit = identity.candidate.trustedAutomationCommit;
-    job.phase = status.phase;
-    job.nextRetryAtMillis = status.nextRetryAtMillis;
-    job.mavenSubmissionGeneration = status.mavenSubmissionGeneration;
-    if (status.mavenRetryAuthorization != null) {
-      job.mavenRetryAuthorizationSha256 = status.mavenRetryAuthorization.authorizationSha256;
-    }
     jobs.add(job);
   }
 
@@ -557,7 +463,6 @@ public final class ReleaseAutomationMain {
       }
       ApprovalEvidence evidence =
           new ApprovalEvidence(
-              CandidateIdentity.REPOSITORY,
               identity.digest(),
               execution.getWorkflowId(),
               execution.getRunId(),
@@ -601,7 +506,6 @@ public final class ReleaseAutomationMain {
           requireTrustedCommit(identity, env);
           ApprovalRequest request =
               new ApprovalRequest(
-                  ReleasePolicy.REPOSITORY,
                   identity.digest(),
                   metadata.getExecution().getWorkflowId(),
                   metadata.getExecution().getRunId(),
@@ -643,7 +547,6 @@ public final class ReleaseAutomationMain {
           requireTrustedCommit(identity, env);
           ControlEvidence evidence = new ControlEvidence();
           evidence.action = action;
-          evidence.repository = ReleasePolicy.REPOSITORY;
           evidence.releaseDigest = identity.digest();
           evidence.workflowId = metadata.getExecution().getWorkflowId();
           evidence.runId = metadata.getExecution().getRunId();
@@ -656,10 +559,6 @@ public final class ReleaseAutomationMain {
             evidence.mavenSubmissionGeneration =
                 Integer.parseInt(required(env, "MAVEN_RETRY_GENERATION"));
             evidence.authorizationSha256 = required(env, "MAVEN_RETRY_AUTHORIZATION_SHA256");
-          }
-          if ("manual-complete".equals(action)) {
-            evidence.githubReleaseUrl = required(env, "MANUAL_GITHUB_RELEASE_URL");
-            evidence.mavenCentralUrl = required(env, "MANUAL_MAVEN_CENTRAL_URL");
           }
           evidence.validate();
           ReleaseStatus updated = workflow.control(evidence);
@@ -729,6 +628,7 @@ public final class ReleaseAutomationMain {
     input.mavenRetryAuthorization = status.mavenRetryAuthorization;
     Files.write(output, GSON.toJson(input).getBytes(StandardCharsets.UTF_8));
     writeIdentityOutputs(metadata, status.identity, status.phase);
+    writeStatusOutputs(status);
     writeOutput("approval_run_id", Long.toString(status.approval.githubApprovalRunId));
     writeOutput("approval_actor", status.approval.githubActor);
     writeOutput("approval_issue_number", Long.toString(status.approval.githubIssueNumber));
@@ -894,21 +794,6 @@ public final class ReleaseAutomationMain {
             + execution.getExecution().getWorkflowId()
             + ": "
             + value(failure.getMessage()));
-  }
-
-  private static String runnerFor(String platform) {
-    switch (platform) {
-      case "macos-amd64":
-        return "macos-15-intel";
-      case "macos-arm64":
-        return "macos-latest";
-      case "linux-arm64":
-        return "ubuntu-24.04-arm";
-      case "windows-amd64":
-        return "windows-latest";
-      default:
-        return "ubuntu-latest";
-    }
   }
 
   private static ReleaseWorkflow releaseStub(WorkflowClient client, WorkflowExecution execution) {
@@ -1077,6 +962,7 @@ public final class ReleaseAutomationMain {
   }
 
   private static void writeStatusOutputs(ReleaseStatus status) {
+    writeOutput("paused_from", value(status.pausedFrom));
     writeOutput("last_completed_stage", value(status.lastCompletedStage));
     writeOutput("last_error", value(status.lastError));
     writeOutput("blocked_at_millis", Long.toString(status.blockedAtMillis));
@@ -1107,11 +993,9 @@ public final class ReleaseAutomationMain {
       case "resume":
         return "Release manager resumed Temporal publication.";
       case "handoff-manual":
-        return "Release manager transferred ownership to the emergency workflow.";
+        return "Release manager transferred ownership to the existing manual workflow.";
       case "retry-maven-submission":
         return "Release manager inspected Sonatype and authorized one new staging generation.";
-      case "manual-complete":
-        return "Emergency automation reconciled every immutable publication side effect.";
       default:
         throw new IllegalArgumentException("Unknown release control action.");
     }

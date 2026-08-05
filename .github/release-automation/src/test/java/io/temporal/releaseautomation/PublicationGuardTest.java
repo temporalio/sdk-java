@@ -4,57 +4,52 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.gson.Gson;
 import io.temporal.activity.ActivityInfo;
-import java.util.HashMap;
-import java.util.Map;
 import org.junit.Test;
 
 public class PublicationGuardTest {
   @Test
-  public void validatesEveryPrivilegedExpectation() {
-    ReleaseIdentity release = ReleaseFixtures.release();
-    String workflowId = QueueNames.releaseWorkflowId(release);
-    String runId = "11111111-2222-3333-4444-555555555555";
-    ApprovalEvidence approval =
-        new ApprovalEvidence(
-            CandidateIdentity.REPOSITORY,
-            release.digest(),
-            workflowId,
-            runId,
-            1234,
-            "release-manager",
-            42,
-            "ISSUE_node_42",
-            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-            "abcdefabcdefabcdefabcdefabcdefabcdefabcd");
-    PublicationInput input = new PublicationInput(release, approval, workflowId, runId);
-    ActivityInfo info = mock(ActivityInfo.class);
-    when(info.getWorkflowId()).thenReturn(workflowId);
-    when(info.getWorkflowRunId()).thenReturn(runId);
-    when(info.getActivityTaskQueue()).thenReturn(QueueNames.publication(release));
-    Map<String, String> env = expectations(input);
-    PublicationGuard.validate(input, info, env);
+  public void validatesOneExactPrivilegedInput() {
+    PublicationInput input = input(0);
+    PublicationInput expected = copy(input);
+    ActivityInfo info = activity(input);
 
-    input.candidateDigest = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
-    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
-    input.candidateDigest = release.candidate.digest();
+    PublicationGuard.validate(
+        input, expected, info, input.release.candidate.trustedAutomationCommit);
 
-    env.put("EXPECTED_CANDIDATE_RUN_ID", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
-    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
-    env.put("EXPECTED_CANDIDATE_RUN_ID", release.candidateRunId);
-
-    env.put("EXPECTED_COMMIT_SHA", "ffffffffffffffffffffffffffffffffffffffff");
-    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
+    input.approval.githubActor = "another-manager";
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PublicationGuard.validate(
+                input, expected, info, input.release.candidate.trustedAutomationCommit));
   }
 
   @Test
-  public void mavenRetryRequiresTheProtectedAuthorizationBinding() {
+  public void mavenRetryRequiresTheExactProtectedAuthorization() {
+    PublicationInput input = input(1);
+    input.mavenRetryAuthorization = authorization(input);
+    PublicationInput expected = copy(input);
+    ActivityInfo info = activity(input);
+
+    PublicationGuard.validate(
+        input, expected, info, input.release.candidate.trustedAutomationCommit);
+
+    input.mavenRetryAuthorization = null;
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            PublicationGuard.validate(
+                input, expected, info, input.release.candidate.trustedAutomationCommit));
+  }
+
+  private static PublicationInput input(int generation) {
     ReleaseIdentity release = ReleaseFixtures.release();
     String workflowId = QueueNames.releaseWorkflowId(release);
     String runId = "11111111-2222-3333-4444-555555555555";
     ApprovalEvidence approval =
         new ApprovalEvidence(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             runId,
@@ -65,53 +60,38 @@ public class PublicationGuardTest {
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             release.candidate.trustedAutomationCommit);
     PublicationInput input = new PublicationInput(release, approval, workflowId, runId);
-    input.mavenSubmissionGeneration = 1;
-    ControlEvidence authorization = new ControlEvidence();
-    authorization.action = "retry-maven-submission";
-    authorization.repository = CandidateIdentity.REPOSITORY;
-    authorization.releaseDigest = release.digest();
-    authorization.workflowId = workflowId;
-    authorization.runId = runId;
-    authorization.githubRunId = 5678;
-    authorization.githubActor = "release-manager";
-    authorization.tag = release.candidate.tag;
-    authorization.commitSha = release.candidate.commitSha;
-    authorization.reason = "Protected test authorization.";
-    authorization.mavenSubmissionGeneration = 1;
-    authorization.authorizationSha256 =
-        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
-    input.mavenRetryAuthorization = authorization;
-    ActivityInfo info = mock(ActivityInfo.class);
-    when(info.getWorkflowId()).thenReturn(workflowId);
-    when(info.getWorkflowRunId()).thenReturn(runId);
-    when(info.getActivityTaskQueue()).thenReturn(QueueNames.publication(release, 1));
-    Map<String, String> env = expectations(input);
-    env.put("EXPECTED_MAVEN_SUBMISSION_GENERATION", "1");
-    env.put("EXPECTED_MAVEN_RETRY_AUTHORIZATION_SHA256", authorization.authorizationSha256);
-    PublicationGuard.validate(input, info, env);
-
-    input.mavenRetryAuthorization = null;
-    assertThrows(IllegalArgumentException.class, () -> PublicationGuard.validate(input, info, env));
+    input.mavenSubmissionGeneration = generation;
+    return input;
   }
 
-  private static Map<String, String> expectations(PublicationInput input) {
-    Map<String, String> env = new HashMap<>();
-    env.put("EXPECTED_WORKFLOW_ID", input.workflowId);
-    env.put("EXPECTED_RUN_ID", input.runId);
-    env.put("EXPECTED_REPOSITORY", input.release.candidate.repository);
-    env.put("EXPECTED_TAG", input.release.candidate.tag);
-    env.put("EXPECTED_COMMIT_SHA", input.release.candidate.commitSha);
-    env.put("EXPECTED_CANDIDATE_RUN_ID", input.release.candidateRunId);
-    env.put("EXPECTED_NOTES_SHA256", input.release.candidate.releaseNotesSha256);
-    env.put("EXPECTED_MANIFEST_SHA256", input.release.manifestSha256);
-    env.put("EXPECTED_RELEASE_DIGEST", input.release.digest());
-    env.put("EXPECTED_APPROVAL_RUN_ID", Long.toString(input.approval.githubApprovalRunId));
-    env.put("EXPECTED_APPROVAL_ACTOR", input.approval.githubActor);
-    env.put("EXPECTED_APPROVAL_ISSUE_NUMBER", Long.toString(input.approval.githubIssueNumber));
-    env.put("EXPECTED_APPROVAL_ISSUE_NODE_ID", input.approval.githubIssueNodeId);
-    env.put("EXPECTED_APPROVAL_ISSUE_BODY_SHA256", input.approval.githubIssueBodySha256);
-    env.put("TRUSTED_WORKER_COMMIT", input.approval.trustedWorkerCommit);
-    env.put("EXPECTED_MAVEN_SUBMISSION_GENERATION", "0");
-    return env;
+  private static ControlEvidence authorization(PublicationInput input) {
+    ControlEvidence authorization = new ControlEvidence();
+    authorization.action = "retry-maven-submission";
+    authorization.releaseDigest = input.release.digest();
+    authorization.workflowId = input.workflowId;
+    authorization.runId = input.runId;
+    authorization.githubRunId = 5678;
+    authorization.githubActor = "release-manager";
+    authorization.tag = input.release.candidate.tag;
+    authorization.commitSha = input.release.candidate.commitSha;
+    authorization.reason = "Protected test authorization.";
+    authorization.mavenSubmissionGeneration = input.mavenSubmissionGeneration;
+    authorization.authorizationSha256 =
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+    return authorization;
+  }
+
+  private static ActivityInfo activity(PublicationInput input) {
+    ActivityInfo info = mock(ActivityInfo.class);
+    when(info.getWorkflowId()).thenReturn(input.workflowId);
+    when(info.getWorkflowRunId()).thenReturn(input.runId);
+    when(info.getActivityTaskQueue())
+        .thenReturn(QueueNames.publication(input.release, input.mavenSubmissionGeneration));
+    return info;
+  }
+
+  private static PublicationInput copy(PublicationInput input) {
+    Gson gson = new Gson();
+    return gson.fromJson(gson.toJson(input), PublicationInput.class);
   }
 }

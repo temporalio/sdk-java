@@ -2,7 +2,6 @@ package io.temporal.releaseautomation;
 
 public final class ControlEvidence {
   public String action;
-  public String repository;
   public String releaseDigest;
   public String workflowId;
   public String runId;
@@ -12,8 +11,6 @@ public final class ControlEvidence {
   public String commitSha;
   public String reason;
   public long recordedAtMillis;
-  public String githubReleaseUrl;
-  public String mavenCentralUrl;
   public int mavenSubmissionGeneration = -1;
   public String authorizationSha256;
 
@@ -21,7 +18,6 @@ public final class ControlEvidence {
 
   public ControlEvidence(
       String action,
-      String repository,
       String releaseDigest,
       String workflowId,
       String runId,
@@ -31,7 +27,6 @@ public final class ControlEvidence {
       String commitSha,
       String reason) {
     this.action = action;
-    this.repository = repository;
     this.releaseDigest = releaseDigest;
     this.workflowId = workflowId;
     this.runId = runId;
@@ -47,9 +42,7 @@ public final class ControlEvidence {
     if (!("pause".equals(action)
             || "resume".equals(action)
             || "handoff-manual".equals(action)
-            || "retry-maven-submission".equals(action)
-            || "manual-complete".equals(action))
-        || !ReleasePolicy.REPOSITORY.equals(repository)
+            || "retry-maven-submission".equals(action))
         || releaseDigest == null
         || !releaseDigest.matches("[0-9a-f]{64}")
         || workflowId == null
@@ -66,15 +59,6 @@ public final class ControlEvidence {
         || reason == null
         || reason.isEmpty()) {
       throw new IllegalArgumentException("Invalid authenticated release control evidence.");
-    }
-    if ("manual-complete".equals(action)
-        && (!(githubReleaseUrl != null
-                && githubReleaseUrl.matches(
-                    "https://github\\.com/temporalio/sdk-java/releases/tag/v.+"))
-            || !(mavenCentralUrl != null
-                && mavenCentralUrl.startsWith(
-                    "https://central.sonatype.com/artifact/io.temporal/temporal-sdk/")))) {
-      throw new IllegalArgumentException("Manual completion URLs are invalid.");
     }
     if ("retry-maven-submission".equals(action)
         && (mavenSubmissionGeneration <= 0

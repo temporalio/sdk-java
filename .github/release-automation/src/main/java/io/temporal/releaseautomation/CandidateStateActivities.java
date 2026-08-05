@@ -6,5 +6,5 @@ import io.temporal.activity.ActivityMethod;
 @ActivityInterface
 public interface CandidateStateActivities {
   @ActivityMethod
-  boolean manualReleaseComplete(CandidateIdentity candidate);
+  boolean manualReleaseOwns(CandidateIdentity candidate);
 }

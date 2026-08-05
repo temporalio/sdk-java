@@ -33,7 +33,9 @@ public class ReleaseIdentityTest {
     ArrayList<ArtifactEntry> reversed = new ArrayList<>(release.manifest.artifacts);
     Collections.reverse(reversed);
     ReleaseIdentity other =
-        new ReleaseIdentity(ReleaseFixtures.candidate(), new ArtifactManifest(reversed));
+        new ReleaseIdentity(
+            ReleaseFixtures.candidate(),
+            new ArtifactManifest(release.manifest.storagePrefix, reversed));
     assertEquals(release.digest(), other.digest());
   }
 
@@ -57,35 +59,15 @@ public class ReleaseIdentityTest {
   }
 
   @Test
-  public void emergencyReplacementManifestCannotMixBuildAttempts() {
+  public void artifactPrefixMustMatchCandidate() {
     ReleaseIdentity original = ReleaseFixtures.release();
-    String replacement = String.format("%064x", 99);
-    ArrayList<ArtifactEntry> emergency = new ArrayList<>();
-    for (ArtifactEntry artifact : original.manifest.artifacts) {
-      emergency.add(
-          new ArtifactEntry(
-              artifact.name,
-              artifact.sha256,
-              artifact.size,
-              "sdk-java/emergency-artifacts/"
-                  + original.candidate.digest()
-                  + "/"
-                  + replacement
-                  + "/"
-                  + artifact.name));
-    }
-    new ReleaseIdentity(original.candidate, new ArtifactManifest(emergency)).validate();
-    emergency.get(0).storageKey = original.manifest.artifacts.get(0).storageKey;
     assertThrows(
         IllegalArgumentException.class,
-        () -> new ReleaseIdentity(original.candidate, new ArtifactManifest(emergency)));
-  }
-
-  @Test
-  public void repositoryIsNotConfigurable() {
-    CandidateIdentity candidate = ReleaseFixtures.candidate();
-    candidate.repository = "someone/else";
-    assertThrows(IllegalArgumentException.class, candidate::validate);
+        () ->
+            new ReleaseIdentity(
+                original.candidate,
+                new ArtifactManifest(
+                    "sdk-java/" + String.format("%064x", 99) + "/", original.manifest.artifacts)));
   }
 
   @Test
@@ -118,7 +100,6 @@ public class ReleaseIdentityTest {
     String runId = "11111111-2222-3333-4444-555555555555";
     ApprovalRequest request =
         new ApprovalRequest(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             runId,
@@ -129,7 +110,6 @@ public class ReleaseIdentityTest {
             release.candidate.trustedAutomationCommit);
     ApprovalEvidence exact =
         new ApprovalEvidence(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             runId,
@@ -141,7 +121,6 @@ public class ReleaseIdentityTest {
             release.candidate.trustedAutomationCommit);
     ApprovalEvidence replay =
         new ApprovalEvidence(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             runId,
@@ -153,7 +132,6 @@ public class ReleaseIdentityTest {
             release.candidate.trustedAutomationCommit);
     ApprovalRequest retriedRequest =
         new ApprovalRequest(
-            CandidateIdentity.REPOSITORY,
             release.digest(),
             workflowId,
             runId,

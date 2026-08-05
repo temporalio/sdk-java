@@ -8,11 +8,8 @@ final class ReleaseFixtures {
 
   static CandidateIdentity candidate() {
     return new CandidateIdentity(
-        CandidateIdentity.REPOSITORY,
-        "1.2.3",
         "v1.2.3",
         "0123456789abcdef0123456789abcdef01234567",
-        "releases/v1.2.3",
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         "abcdefabcdefabcdefabcdefabcdefabcdefabcd",
         ReleasePolicy.MAVEN_POLICY_CURRENT);
@@ -23,15 +20,12 @@ final class ReleaseFixtures {
     List<ArtifactEntry> artifacts = new ArrayList<>();
     int index = 1;
     for (String platform : ReleasePolicy.NATIVE_PLATFORMS) {
-      String name = ReleasePolicy.nativeArtifactName(candidate.version, platform);
-      artifacts.add(
-          new ArtifactEntry(
-              name,
-              String.format("%064x", index++),
-              1000 + index,
-              "sdk-java/" + candidate.digest() + "/" + name));
+      String name = ReleasePolicy.nativeArtifactName(candidate.version(), platform);
+      artifacts.add(new ArtifactEntry(name, String.format("%064x", index++), 1000 + index));
     }
     return new ReleaseIdentity(
-        candidate, new ArtifactManifest(artifacts), "11111111-2222-3333-4444-555555555555");
+        candidate,
+        new ArtifactManifest("sdk-java/" + candidate.digest() + "/", artifacts),
+        "11111111-2222-3333-4444-555555555555");
   }
 }

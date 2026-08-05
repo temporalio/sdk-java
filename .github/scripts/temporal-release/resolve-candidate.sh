@@ -35,7 +35,6 @@ notes_file=${fields[1]}
 [[ $notes_file =~ ^releases/(v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?)$ ]] ||
   fail "The release-note filename is invalid."
 tag=${BASH_REMATCH[1]}
-version=${tag#v}
 
 read -r mode type _ < <(git ls-tree "$RELEASE_COMMIT" -- "$notes_file")
 [[ $mode == 100644 && $type == blob ]] || fail "Release notes must be a regular file."
@@ -62,23 +61,19 @@ esac
 
 candidate_file="$RUNNER_TEMP/sdk-java-release-candidate.json"
 jq -n \
-  --arg repository temporalio/sdk-java \
-  --arg version "$version" \
   --arg tag "$tag" \
   --arg commitSha "$RELEASE_COMMIT" \
-  --arg releaseNotesPath "$notes_file" \
   --arg releaseNotesSha256 "$notes_sha256" \
   --arg trustedAutomationCommit "$RELEASE_AUTOMATION_REF" \
   --arg mavenPolicy "$maven_policy" \
-  '{repository: $repository, version: $version, tag: $tag, commitSha: $commitSha,
-    releaseNotesPath: $releaseNotesPath, releaseNotesSha256: $releaseNotesSha256,
+  '{tag: $tag, commitSha: $commitSha, releaseNotesSha256: $releaseNotesSha256,
     trustedAutomationCommit: $trustedAutomationCommit, mavenPolicy: $mavenPolicy}' \
   >"$candidate_file"
 
 {
   printf 'candidate_file=%s\n' "$candidate_file"
   printf 'tag=%s\n' "$tag"
-  printf 'version=%s\n' "$version"
+  printf 'version=%s\n' "${tag#v}"
   printf 'commit=%s\n' "$RELEASE_COMMIT"
   printf 'notes_sha256=%s\n' "$notes_sha256"
   printf 'automation_commit=%s\n' "$RELEASE_AUTOMATION_REF"

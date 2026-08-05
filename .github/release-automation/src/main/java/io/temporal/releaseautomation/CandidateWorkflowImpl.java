@@ -56,7 +56,9 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
     }
     ReleaseIdentity identity =
         new ReleaseIdentity(
-            candidateIdentity, new ArtifactManifest(artifacts), Workflow.getInfo().getRunId());
+            candidateIdentity,
+            new ArtifactManifest("sdk-java/" + candidateIdentity.digest() + "/", artifacts),
+            Workflow.getInfo().getRunId());
     CandidateStateActivities state =
         Workflow.newActivityStub(
             CandidateStateActivities.class,
@@ -69,7 +71,7 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
                         .setMaximumInterval(Duration.ofMinutes(5))
                         .build())
                 .build());
-    if (state.manualReleaseComplete(candidateIdentity)) {
+    if (state.manualReleaseOwns(candidateIdentity)) {
       return identity;
     }
     // Visibility can now discover and start a Worker for the child queue before the child's

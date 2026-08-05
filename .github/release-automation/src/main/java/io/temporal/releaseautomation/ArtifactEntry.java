@@ -10,15 +10,13 @@ public final class ArtifactEntry implements Comparable<ArtifactEntry> {
   public String name;
   public String sha256;
   public long size;
-  public String storageKey;
 
   public ArtifactEntry() {}
 
-  public ArtifactEntry(String name, String sha256, long size, String storageKey) {
+  public ArtifactEntry(String name, String sha256, long size) {
     this.name = name;
     this.sha256 = sha256.toLowerCase(Locale.ROOT);
     this.size = size;
-    this.storageKey = storageKey;
     validate();
   }
 
@@ -32,18 +30,11 @@ public final class ArtifactEntry implements Comparable<ArtifactEntry> {
     if (size <= 0) {
       throw new IllegalArgumentException("Artifact size must be positive.");
     }
-    if (storageKey == null
-        || storageKey.isEmpty()
-        || storageKey.startsWith("/")
-        || storageKey.contains("..")) {
-      throw new IllegalArgumentException(
-          "Artifact storage key must be a relative, traversal-free key.");
-    }
   }
 
   String canonicalForm() {
     validate();
-    return name + "\t" + sha256 + "\t" + size + "\t" + storageKey;
+    return name + "\t" + sha256 + "\t" + size;
   }
 
   @Override
