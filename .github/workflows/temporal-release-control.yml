@@ -219,37 +219,10 @@ jobs:
               ( -z "$portal_state" || "$portal_state" == FAILED ) ]]
           fi
           generation=$((CURRENT_GENERATION + 1))
-          receipt="$RUNNER_TEMP/maven-retry-authorization.json"
-          jq -cn --arg repository temporalio/sdk-java --arg tag "$RELEASE_TAG" \
-            --arg commitSha "$RELEASE_COMMIT" --arg releaseDigest "$RELEASE_DIGEST" \
-            --arg workflowId "$WORKFLOW_ID" --arg runId "$RUN_ID" \
-            --arg githubActor "$GITHUB_TRIGGERING_ACTOR" --argjson githubRunId "$GITHUB_RUN_ID" \
-            --argjson authorizedGeneration "$generation" \
-            '{repository:$repository,tag:$tag,commitSha:$commitSha,
-              releaseDigest:$releaseDigest,workflowId:$workflowId,runId:$runId,
-              githubActor:$githubActor,githubRunId:$githubRunId,
-              authorizedGeneration:$authorizedGeneration,freshInspection:true}' >"$receipt"
-          key="sdk-java/$RELEASE_DIGEST/state/maven/retry-authorizations/$generation.json"
-          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
-            --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" \
-              "$RUNNER_TEMP/existing-authorization.json" --no-progress >/dev/null
-            jq -e --arg repository temporalio/sdk-java --arg tag "$RELEASE_TAG" \
-              --arg commit "$RELEASE_COMMIT" --arg digest "$RELEASE_DIGEST" \
-              --arg workflow "$WORKFLOW_ID" --arg run "$RUN_ID" \
-              --argjson generation "$generation" \
-              '.repository == $repository and .tag == $tag and .commitSha == $commit and
-               .releaseDigest == $digest and .workflowId == $workflow and .runId == $run and
-               .authorizedGeneration == $generation and .freshInspection == true' \
-              "$RUNNER_TEMP/existing-authorization.json" >/dev/null
-            cp "$RUNNER_TEMP/existing-authorization.json" "$receipt"
-          fi
-          {
-            echo "generation=$generation"
-            echo "sha256=$(sha256sum "$receipt" | awk '{print $1}')"
-            echo "actor=$(jq -er .githubActor "$receipt")"
-            echo "run_id=$(jq -er .githubRunId "$receipt")"
-          } >>"$GITHUB_OUTPUT"
+          RELEASE_AUTHORIZATION_FILE="$RUNNER_TEMP/maven-retry-authorization.json" \
+            RELEASE_GENERATION="$generation" RELEASE_RUN_ID="$RUN_ID" \
+            RELEASE_WORKFLOW_ID="$WORKFLOW_ID" \
+            bash automation/.github/scripts/temporal-release/record-maven-retry-authorization.sh
       - name: Submit Update bound to the protected inspection receipt
         working-directory: automation
         env:
