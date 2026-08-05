@@ -24,20 +24,60 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.internal.worker.SuspendableWorker;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.TestEnvironmentOptions;
+import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestNexusServices;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 public class WorkerShutdownTest {
+
+  @Test
+  public void awaitTerminationDoesNotRaceWithWorkerCommandWorkerCleanup() throws Exception {
+    try (TestWorkflowEnvironment env =
+        TestWorkflowEnvironment.newInstance(TestEnvironmentOptions.newBuilder().build())) {
+      WorkerFactory factory = env.getWorkerFactory();
+      SuspendableWorker workerCommandWorker = mock(SuspendableWorker.class);
+      CompletableFuture<Void> shutdownFuture = new CompletableFuture<>();
+      when(workerCommandWorker.shutdown(any(ShutdownManager.class), eq(true)))
+          .thenReturn(shutdownFuture);
+
+      Field field = WorkerFactory.class.getDeclaredField("workerCommandWorker");
+      field.setAccessible(true);
+      field.set(factory, workerCommandWorker);
+
+      factory.shutdown();
+
+      try (MockedStatic<ShutdownManager> shutdownManager = mockStatic(ShutdownManager.class)) {
+        shutdownManager
+            .when(() -> ShutdownManager.runAndGetRemainingTimeoutMs(anyLong(), any(Runnable.class)))
+            .thenAnswer(
+                invocation -> {
+                  // Complete shutdown after awaitTermination passes its null check.
+                  shutdownFuture.complete(null);
+                  invocation.getArgument(1, Runnable.class).run();
+                  return 0L;
+                });
+
+        factory.awaitTermination(1, TimeUnit.SECONDS);
+      }
+
+      verify(workerCommandWorker).awaitTermination(1_000, TimeUnit.MILLISECONDS);
+    }
+  }
 
   @WorkflowInterface
   public interface TestWorkflow {
