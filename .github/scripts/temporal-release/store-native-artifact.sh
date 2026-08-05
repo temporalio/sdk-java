@@ -31,7 +31,8 @@ s3_head_state() {
     status=$?
   fi
   if [[ $status -eq 254 ]] &&
-    grep -Eq 'An error occurred \((404|NoSuchKey|NotFound)\).*HeadObject' "$error_file"; then
+    grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+      "$error_file"; then
     printf 'absent\n'
     return 0
   fi

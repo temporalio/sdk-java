@@ -12,7 +12,9 @@ head_error=$(aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$k
 status=$?
 set -e
 if [[ $status -ne 0 ]]; then
-  if grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' <<<"$head_error"; then
+  if [[ $status -eq 254 ]] &&
+    grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+      <<<"$head_error"; then
     echo ABSENT
     exit 0
   fi

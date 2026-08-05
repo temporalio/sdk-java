@@ -70,7 +70,11 @@ jobs:
             status=$?
             set -e
             [[ $status -eq 0 ]] && return 0
-            grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error" && return 1
+            if [[ $status -eq 254 ]] &&
+              grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+                "$error"; then
+              return 1
+            fi
             cat "$error" >&2
             exit 1
           }
@@ -165,7 +169,11 @@ jobs:
             status=$?
             set -e
             [[ $status -eq 0 ]] && return 0
-            grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error" && return 1
+            if [[ $status -eq 254 ]] &&
+              grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+                "$error"; then
+              return 1
+            fi
             cat "$error" >&2
             exit 1
           }
@@ -378,12 +386,12 @@ jobs:
              .inspection=$inspection[0] | .inspectionRunId=$run |
              .mavenSubmissionGeneration=$inspection[0].mavenSubmissionGeneration |
              if $action == "handoff-and-publish" then
-               .approvedBy=(.approvedBy // $actor) |
-               .approvalRunId=(.approvalRunId // $run) |
-               .handoff=(.handoff // {actor:$actor,tag:.candidate.tag,
+               .approvedBy=$actor |
+               .approvalRunId=$run |
+               .handoff={actor:$actor,tag:.candidate.tag,
                  commitSha:.candidate.commitSha,
                  reason:"Release manager transferred ownership to emergency automation.",
-                 recordedAt:$recordedAt,githubRunId:$run})
+                 recordedAt:$recordedAt,githubRunId:$run}
              else . end' \
             "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
@@ -459,10 +467,10 @@ jobs:
              .mavenRetryAuthorizationActor=$authorizationActor |
              .mavenRetryAuthorizationRunId=$authorizationRun |
              .mavenRetryAuthorizationSha256=$authorizationSha256 |
-             .approvedBy=(.approvedBy // $actor) | .approvalRunId=(.approvalRunId // $run) |
-             .handoff=(.handoff // {actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
+             .approvedBy=$actor | .approvalRunId=$run |
+             .handoff={actor:$actor,tag:.candidate.tag,commitSha:.candidate.commitSha,
                reason:"Release manager transferred ownership to emergency automation.",
-               recordedAt:$recordedAt,githubRunId:$run}) | del(.blockedReason)' \
+               recordedAt:$recordedAt,githubRunId:$run} | del(.blockedReason)' \
             "$REQUEST_FILE" >"$RUNNER_TEMP/updated-request.json"
           aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$REQUEST_KEY" \
             --body "$RUNNER_TEMP/updated-request.json" --if-match '${{ steps.request.outputs.etag }}' \

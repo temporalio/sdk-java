@@ -71,7 +71,11 @@ jobs:
             status=$?
             set -e
             [[ $status -eq 0 ]] && return 0
-            grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error" && return 1
+            if [[ $status -eq 254 ]] &&
+              grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+                "$error"; then
+              return 1
+            fi
             cat "$error" >&2
             exit 1
           }
