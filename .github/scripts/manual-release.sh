@@ -276,6 +276,7 @@ manual_payload_archive="$work/manual-maven-payload.tar"
 payload_root="$work/manual-maven-payload"
 payload_manifest="$work/manual-maven-payload.tsv"
 payload_frozen=false
+manual_head_status=0
 if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
   --key "$manual_payload_receipt_key" >/dev/null 2>"$work/manual-head-error"; then
   aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$manual_payload_receipt_key" \
@@ -298,8 +299,13 @@ if aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
   [[ $actual_manifest_sha == "$expected_manifest_sha" ]] ||
     conflict "the frozen fallback Maven manifest checksum differs."
   payload_frozen=true
-elif ! grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$work/manual-head-error"; then
-  fail "fallback Maven receipt state is temporarily unavailable."
+else
+  manual_head_status=$?
+  if [[ $manual_head_status -ne 254 ]] ||
+    ! grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+      "$work/manual-head-error"; then
+    fail "fallback Maven receipt state is temporarily unavailable."
+  fi
 fi
 if [[ $payload_frozen == false ]]; then
   aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" --prefix sdk-java/ \

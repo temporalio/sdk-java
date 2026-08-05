@@ -47,6 +47,8 @@ jobs:
           bash -n .github/scripts/manual-release.sh
           .github/scripts/temporal-release/*.sh
           .github/release-automation/docker/native-image-musl-java23/install-musl.sh
+      - name: Test S3 absence classification
+        run: bash .github/scripts/temporal-release/test-s3-head-errors.sh
       - name: Parse workflow YAML
         run: >-
           ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each {

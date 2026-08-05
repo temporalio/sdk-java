@@ -17,7 +17,9 @@ s3_object_exists() {
   if [[ $status -eq 0 ]]; then
     return 0
   fi
-  if grep -Eqi '(404|Not Found|NoSuchKey|NotFound)' "$error"; then
+  if [[ $status -eq 254 ]] &&
+    grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
+      "$error"; then
     return 1
   fi
   fail "durable object state for $key is temporarily unavailable."
