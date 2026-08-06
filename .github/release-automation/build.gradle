@@ -1,0 +1,63 @@
+plugins {
+	id 'application'
+	id 'com.diffplug.spotless' version '7.0.2'
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'io.temporal:temporal-envconfig'
+	implementation 'io.temporal:temporal-sdk'
+	implementation 'com.google.code.gson:gson:2.10.1'
+	runtimeOnly 'org.slf4j:slf4j-simple:1.7.36'
+
+	testImplementation 'io.temporal:temporal-testing'
+	testImplementation 'junit:junit:4.13.2'
+	testImplementation 'org.mockito:mockito-core:5.14.2'
+}
+
+java {
+	sourceCompatibility = JavaVersion.VERSION_17
+	targetCompatibility = JavaVersion.VERSION_17
+}
+
+application {
+	mainClass = 'io.temporal.releaseautomation.ReleaseAutomationMain'
+}
+
+tasks.named('run') {
+	// The trusted scripts live at repository-relative paths. Do not let Gradle's
+	// application plugin make the standalone build directory the trust root.
+	systemProperty 'releaseAutomation.repositoryRoot', file('../..').canonicalPath
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.compilerArgs.addAll([
+		'-Xlint:all',
+		'-Werror',
+		'-parameters'
+	])
+}
+
+tasks.withType(Test).configureEach {
+	systemProperty 'releaseAutomation.repositoryRoot', file('../..').canonicalPath
+	useJUnit()
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+		exceptionFormat 'full'
+	}
+}
+
+spotless {
+	java {
+		googleJavaFormat('1.28.0')
+		target 'src/**/*.java'
+	}
+	groovyGradle {
+		greclipse()
+		target '*.gradle'
+	}
+}

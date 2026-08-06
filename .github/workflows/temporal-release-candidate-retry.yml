@@ -1,0 +1,31 @@
+name: Retry failed Temporal release bootstrap
+
+on:
+  workflow_run:
+    workflows:
+      - Start Temporal-backed release candidate
+    types:
+      - completed
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  retry_failed_jobs:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.run_attempt < 6
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate and retry the exact failed push run
+        env:
+          FAILED_RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jq -e '.workflow_run.name == "Start Temporal-backed release candidate" and
+            (.workflow_run.event == "push" or .workflow_run.event == "workflow_run") and
+            .workflow_run.head_repository.full_name == "temporalio/sdk-java" and
+            (.workflow_run.head_sha | test("^[0-9a-f]{40}$"))' "$GITHUB_EVENT_PATH" >/dev/null
+          gh api --method POST \
+            "repos/temporalio/sdk-java/actions/runs/$FAILED_RUN_ID/rerun-failed-jobs"

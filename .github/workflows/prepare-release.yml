@@ -1,7 +1,9 @@
 name: Prepare release
+
 defaults:
   run:
     shell: bash -euo pipefail -O nullglob {0}
+
 on:
   workflow_dispatch:
     inputs:
@@ -9,105 +11,287 @@ on:
         type: string
         description: "Release version tag (e.g. v1.2.3)"
         required: true
-      ref:
+      commit_sha:
         type: string
-        description: "Git ref from which to release"
+        description: "Exact full 40-character release commit SHA"
         required: true
-        default: "main"
       do_build_native_images:
         type: boolean
         description: "Native Test Server"
         required: true
-        default: "true"
+        default: true
       do_publish_jars:
         type: boolean
         description: "Publish Java Artifacts"
         required: true
-        default: "true"
+        default: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: sdk-java-release-publication
+  cancel-in-progress: false
+
 env:
-  INPUT_REF: ${{ github.event.inputs.ref }}
-  INPUT_TAG: ${{ github.event.inputs.tag }}
+  INPUT_COMMIT: ${{ inputs.commit_sha }}
+  INPUT_TAG: ${{ inputs.tag }}
+  TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
 
 jobs:
+  prepare:
+    name: Validate and take ownership
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: release-publication
+    permissions:
+      contents: read
+    outputs:
+      automatic_maven_complete: ${{ steps.final.outputs.maven_complete }}
+      automatic_maven_started: ${{ steps.final.outputs.maven_started }}
+      notes_sha256: ${{ steps.identity.outputs.notes_sha256 }}
+      release_digest: ${{ steps.ownership.outputs.release_digest }}
+      trusted_automation_commit: ${{ steps.identity.outputs.trusted_automation_commit }}
+    steps:
+      - name: Validate exact inputs
+        run: |
+          [[ "$INPUT_COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$INPUT_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]]
+          [[ '${{ vars.RELEASE_AUTOMATION_REF }}' =~ ^[0-9a-f]{40}$ ]]
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          persist-credentials: false
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-members: read
+      - name: Validate source identity and release manager
+        id: identity
+        env:
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+        run: |
+          [[ "$(git -C source rev-parse HEAD)" == "$INPUT_COMMIT" ]]
+          [[ -s "source/releases/$INPUT_TAG" && ! -L "source/releases/$INPUT_TAG" ]]
+          automation_commit=$(git -C automation rev-parse HEAD)
+          [[ "$automation_commit" == '${{ vars.RELEASE_AUTOMATION_REF }}' ]]
+          automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_ACTOR"
+          {
+            echo "notes_sha256=$(sha256sum "source/releases/$INPUT_TAG" | awk '{print $1}')"
+            echo "trusted_automation_commit=$automation_commit"
+          } >>"$GITHUB_OUTPUT"
+      - name: Inspect automatic release state
+        id: before
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
+      - name: Validate automatic handoff target
+        if: steps.before.outputs.found == 'true'
+        env:
+          AUTOMATION_COMMIT: ${{ steps.before.outputs.automation_commit }}
+          MANUAL_MAVEN_REQUESTED: ${{ inputs.do_publish_jars }}
+          PHASE: ${{ steps.before.outputs.phase }}
+        run: |
+          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," == \
+            *",$AUTOMATION_COMMIT,"* ]]
+          [[ "$PHASE" != PUBLISHED ]]
+          if [[ "$MANUAL_MAVEN_REQUESTED" == true && \
+            '${{ steps.before.outputs.maven_started }}' == true ]]; then
+            echo "Automatic Maven publication already started. Do not hand off with Maven enabled." >&2
+            exit 1
+          fi
+          if [[ "$MANUAL_MAVEN_REQUESTED" != true && \
+            '${{ steps.before.outputs.maven_started }}' == true && \
+            '${{ steps.before.outputs.maven_complete }}' != true ]]; then
+            echo "Automatic Maven publication is incomplete. Recover it in Temporal before handoff." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: steps.before.outputs.found == 'true' && steps.before.outputs.phase != 'HANDED_OFF'
+        with:
+          path: handoff-before
+          persist-credentials: false
+          ref: ${{ steps.before.outputs.automation_commit }}
+      - name: Stop automatic release before takeover
+        if: steps.before.outputs.found == 'true' && steps.before.outputs.phase != 'HANDED_OFF'
+        working-directory: handoff-before
+        env:
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          MANUAL_MAVEN_REQUESTED: ${{ inputs.do_publish_jars }}
+          RELEASE_AUTOMATION_REF: ${{ steps.before.outputs.automation_commit }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="control handoff-manual $INPUT_TAG $INPUT_COMMIT"
+      - name: Claim durable tag ownership in Temporal
+        id: ownership
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: |
+          digest='${{ steps.before.outputs.release_digest }}'
+          if [[ -z "$digest" ]]; then
+            digest=$(printf '%s\n%s\n%s' \
+              "$INPUT_TAG" "$INPUT_COMMIT" '${{ steps.identity.outputs.notes_sha256 }}' |
+              sha256sum | awk '{print $1}')
+          fi
+          ./gradlew -p .github/release-automation run \
+            --args="claim-manual-ownership $INPUT_TAG $INPUT_COMMIT $digest \
+            ${{ steps.before.outputs.found == 'true' }}"
+      - name: Read the authoritative post-handoff state
+        id: final
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
+      - name: Validate any automatic release that raced with takeover
+        if: steps.final.outputs.found == 'true'
+        env:
+          AUTOMATION_COMMIT: ${{ steps.final.outputs.automation_commit }}
+          OWNER: ${{ steps.final.outputs.ownership_owner }}
+          PHASE: ${{ steps.final.outputs.phase }}
+        run: |
+          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," == \
+            *",$AUTOMATION_COMMIT,"* ]]
+          [[ "$PHASE" != PUBLISHED ]]
+          [[ "$PHASE" == HANDED_OFF || "$OWNER" == MANUAL ]]
   create_draft_release:
-    name: Create Github draft release
+    name: Create GitHub draft release
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Audit gh version
-        run: gh --version
-
-      - name: Check for existing release
-        id: check_release
-        run: |
-          echo "::echo::on"
-          gh release view --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" \
-            && echo "::set-output name=already_exists::true" \
-            || echo "::set-output name=already_exists::false"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout repo
-        if: steps.check_release.outputs.already_exists == 'false'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ env.INPUT_REF }}
-
-      - name: Create release
-        if: steps.check_release.outputs.already_exists == 'false'
-        run: >
-          gh release create
-          "$INPUT_REF"
-          --draft
-          --repo "$GITHUB_REPOSITORY"
-          --title "$INPUT_TAG"
-          --target "$INPUT_REF"
-          --notes-file releases/"$INPUT_TAG"
+          persist-credentials: false
+          ref: ${{ inputs.commit_sha }}
+      - name: Create or validate draft
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if release=$(gh release view --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" \
+            --json body,isDraft,name,targetCommitish 2>/dev/null); then
+            jq -e --arg tag "$INPUT_TAG" --arg commit "$INPUT_COMMIT" \
+              --rawfile notes "releases/$INPUT_TAG" \
+              '.isDraft == true and .name == $tag and .targetCommitish == $commit and
+               .body == $notes' <<<"$release" >/dev/null
+          else
+            gh release create "$INPUT_TAG" --draft --repo "$GITHUB_REPOSITORY" \
+              --title "$INPUT_TAG" --target "$INPUT_COMMIT" --notes-file "releases/$INPUT_TAG"
+          fi
+
+  start_manual_maven:
+    name: Record the manual Maven attempt
+    if: inputs.do_publish_jars
+    needs: [prepare, create_draft_release]
+    runs-on: ubuntu-latest
+    environment: release-publication
+    permissions:
+      contents: read
+    steps:
+      - name: Refuse a second Maven controller
+        env:
+          MAVEN_STARTED: ${{ needs.prepare.outputs.automatic_maven_started }}
+        run: |
+          if [[ "$MAVEN_STARTED" == true ]]; then
+            echo "Automatic Maven publication already started. Re-run with Publish Java Artifacts disabled." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-members: read
+      - name: Record the single manual Maven attempt before publication
+        env:
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation --no-daemon run
+          --args="start-manual-maven $INPUT_TAG $INPUT_COMMIT
+          ${{ needs.prepare.outputs.release_digest }}"
 
   publish_java_artifacts:
     name: Publish Java Artifacts
-    if: github.event.inputs.do_publish_jars == 'true'
+    if: inputs.do_publish_jars
+    needs: [prepare, create_draft_release, start_manual_maven]
     runs-on: ubuntu-latest
-    needs: create_draft_release
+    environment: release-publication
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ env.INPUT_REF }}
-
-      # Our custom gradle version sniffing builds the maven release artifact
-      # names out of the git tag ... but the repo isn't tagged (yet) so add a
-      # tag to the _local_ clone just to get the right jar names. This tag
-      # does not get pushed back to the origin. Once the artifacts have been
-      # inspected and verified, the manual act of publishing the draft GH
-      # release creates the tag.
-      - name: Temporary tag
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.commit_sha }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: trusted-release
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      - name: Use trusted exact-version publication hooks
+        run: |
+          cp trusted-release/gradle/versioning.gradle gradle/versioning.gradle
+          cp trusted-release/gradle/publishing.gradle gradle/publishing.gradle
+          [[ "$(git -C trusted-release rev-parse HEAD)" == \
+            '${{ needs.prepare.outputs.trusted_automation_commit }}' ]]
+      - name: Temporary local tag
         run: git tag "$INPUT_TAG"
-
-      - name: Set up Java
-        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: "23"
-          distribution: "temurin"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
       - name: Set up signing key
-        run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d > "$HOME/.gnupg/secring.gpg"
         env:
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
-
-      # Prefer env variables here rather than inline ${{ secrets.FOO }} to
-      # decrease the likelihood that secrets end up printed to stdout.
-      - name: Set up secret gradle properties
+        run: mkdir -p "$HOME/.gnupg" && echo -n "$KEY" | base64 -d >"$HOME/.gnupg/secring.gpg"
+      - name: Set up secret Gradle properties
+        env:
+          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
         run: |
           mkdir -p "$HOME/.gradle"
           envsubst >"$HOME/.gradle/gradle.properties" <<EOF
@@ -117,23 +301,61 @@ jobs:
           ossrhUsername = $RH_USER
           ossrhPassword = $RH_PASSWORD
           EOF
-        env:
-          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
-          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
-          RH_USER: ${{ secrets.RH_USER }}
-          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
-
       - name: Publish
-        run: ./gradlew publishToSonatype closeSonatypeStagingRepository
+        run: >-
+          ./gradlew "-PreleaseVersion=${INPUT_TAG#v}" "-PreleaseCommit=$INPUT_COMMIT"
+          "-PreleaseDigest=${{ needs.prepare.outputs.release_digest }}"
+          -PmavenSubmissionGeneration=0
+          publishToSonatype closeSonatypeStagingRepository
+
+  complete_manual_maven:
+    name: Record completed manual Maven publication
+    if: inputs.do_publish_jars
+    needs: [prepare, publish_java_artifacts]
+    runs-on: ubuntu-latest
+    environment: release-publication
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-members: read
+      - name: Record completed manual Maven publication
+        env:
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation --no-daemon run
+          --args="complete-manual-maven $INPUT_TAG $INPUT_COMMIT
+          ${{ needs.prepare.outputs.release_digest }}"
 
   build_native_images:
     name: Build native test server
-    needs: create_draft_release
-    if: github.event.inputs.do_build_native_images == 'true'
+    needs: [prepare, create_draft_release]
+    if: inputs.do_build_native_images
     uses: ./.github/workflows/build-native-image.yml
     with:
+      automation_ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      notes_sha256: ${{ needs.prepare.outputs.notes_sha256 }}
+      ref: ${{ inputs.commit_sha }}
+      tag: ${{ inputs.tag }}
       upload_artifact: true
-      ref: ${{ github.event.inputs.ref }}
 
   attach_to_release:
     name: Attach native executables to release
@@ -141,45 +363,25 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      actions: write
     steps:
-      - name: Audit gh version
-        run: gh --version
-
-      # when no artifact is specified, all artifacts are downloaded and expanded into CWD
-      - name: Fetch executables
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-
-      # example: linux_amd64/ -> temporal-test-server_1.2.3_linux_amd64
-      # the name of the directory created becomes the basename of the archive (*.tar.gz or *.zip) and
-      # the root directory of the contents of the archive.
-      - name: Rename dirs
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+      - name: Package release archives
         run: |
-          version="$(sed 's/^v//'<<<"$INPUT_TAG")"
+          version=${INPUT_TAG#v}
           for dir in *; do mv "$dir" "temporal-test-server_${version}_${dir}"; done
-
-      - name: Tar (linux, macOS)
-        run: for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
-
-      - name: Zip (windows)
-        run: for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
-
-      - name: Upload release archives
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
-        with:
-          name: release-archives
-          path: |
-            *.zip
-            *.tar.gz
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Upload
-        run: |
-          until gh release upload --clobber --repo $GITHUB_REPOSITORY "$INPUT_TAG" *.zip *.tar.gz; do
-            echo "Failed to upload release artifacts. Will retry in 20s"
-            sleep 20
-          done
-        timeout-minutes: 10
+          for dir in *{linux,macOS}*; do tar cvzf "${dir}.tar.gz" "$dir"; done
+          for dir in *windows*; do zip -r "${dir}.zip" "$dir"; done
+          sha256sum *.tar.gz *.zip | sort -k2 >SHA256SUMS
+      - name: Upload missing exact assets
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir existing
+          for asset in SHA256SUMS *.zip *.tar.gz; do
+            if gh release download --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" \
+              --pattern "$(basename "$asset")" --dir existing 2>/dev/null; then
+              cmp "$asset" "existing/$(basename "$asset")"
+            else
+              gh release upload --repo "$GITHUB_REPOSITORY" "$INPUT_TAG" "$asset"
+            fi
+          done

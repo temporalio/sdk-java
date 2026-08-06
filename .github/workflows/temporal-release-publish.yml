@@ -1,0 +1,243 @@
+name: Publish approved Temporal-backed release
+
+defaults:
+  run:
+    shell: bash
+
+on:
+  workflow_run:
+    workflows:
+      - Approve Temporal-backed release
+    types:
+      - completed
+  schedule:
+    - cron: "10,25,40,55 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
+  TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
+
+jobs:
+  discover:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    environment: release-control
+    outputs:
+      count: ${{ steps.temporal.outputs.count }}
+      matrix: ${{ steps.temporal.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Discover approved publication queues
+        id: temporal
+        env:
+          RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
+        run: ./gradlew -p .github/release-automation run --args="discover publication"
+
+  publish:
+    needs: discover
+    if: needs.discover.outputs.count != '0'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    concurrency:
+      group: sdk-java-release-publication
+      cancel-in-progress: false
+    environment: release-publication
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          persist-credentials: false
+          ref: ${{ matrix.automationCommit }}
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          path: source
+          persist-credentials: false
+          ref: ${{ matrix.commitSha }}
+          submodules: recursive
+      - name: Verify frozen automation and source
+        env:
+          RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: |
+          [[ ",${RELEASE_AUTOMATION_REF},${RELEASE_AUTOMATION_COMPATIBLE_REFS}," == \
+            *",${{ matrix.automationCommit }},"* ]]
+          [[ "$(git -C automation rev-parse HEAD)" == "${{ matrix.automationCommit }}" ]]
+          [[ "$(git -C source rev-parse HEAD)" == "${{ matrix.commitSha }}" ]]
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Read durable release state after acquiring publication ownership
+        id: before
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/publication-input-before.json"
+      - name: Refuse stale publication discovery
+        env:
+          OWNER: ${{ steps.before.outputs.ownership_owner }}
+          PHASE: ${{ steps.before.outputs.phase }}
+        run: |
+          [[ "$OWNER" == TEMPORAL ]]
+          [[ "$PHASE" == AWAITING_MAVEN_PAYLOAD || "$PHASE" == PREFLIGHT ||
+            "$PHASE" == MAVEN_REPOSITORY || "$PHASE" == MAVEN_PORTAL ||
+            "$PHASE" == MAVEN_PUBLISH || "$PHASE" == GITHUB_DRAFT ||
+            "$PHASE" == PUBLISH_GITHUB ]]
+      - name: Mint artifact discovery GitHub App token
+        id: discovery-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-actions: read
+      - name: Find an unrecorded Maven payload artifact
+        id: existing
+        if: steps.before.outputs.maven_payload_recorded != 'true'
+        env:
+          GH_TOKEN: ${{ steps.discovery-token.outputs.token }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-maven-${{ matrix.releaseDigest }}
+        run: automation/.github/scripts/temporal-release/find-github-artifact.sh >>"$GITHUB_OUTPUT"
+      - name: Build and sign the frozen Maven payload
+        if: steps.before.outputs.maven_payload_recorded != 'true' && steps.existing.outputs.found != 'true'
+        working-directory: source
+        env:
+          JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          MAVEN_ARTIFACTS_FILE: ${{ runner.temp }}/maven-artifacts.json
+          MAVEN_PAYLOAD_COMMIT: ${{ matrix.commitSha }}
+          MAVEN_PAYLOAD_OUTPUT: ${{ runner.temp }}/maven-artifact
+          MAVEN_PAYLOAD_RELEASE_DIGEST: ${{ matrix.releaseDigest }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: |
+          version=${{ matrix.tag }}
+          export MAVEN_PAYLOAD_VERSION=${version#v}
+          outputs="$RUNNER_TEMP/maven-policy.outputs"
+          GITHUB_OUTPUT="$outputs" "$TRUSTED_AUTOMATION_ROOT/gradlew" \
+            -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" run \
+            --args="maven-policy $PWD/settings.gradle" >/dev/null
+          awk -F= '$1 == "maven_artifacts_json" {sub(/^[^=]*=/, ""); print}' \
+            "$outputs" >"$MAVEN_ARTIFACTS_FILE"
+          "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/prepare-maven-payload.sh"
+      - name: Upload the frozen Maven payload
+        id: upload
+        if: steps.before.outputs.maven_payload_recorded != 'true' && steps.existing.outputs.found != 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: sdk-java-release-maven-${{ matrix.releaseDigest }}
+          path: ${{ runner.temp }}/maven-artifact
+          if-no-files-found: error
+          retention-days: 90
+      - name: Mint artifact inspection GitHub App token
+        id: artifact-token
+        if: steps.before.outputs.maven_payload_recorded != 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-actions: read
+      - name: Download a recovered Maven payload by exact ID
+        if: steps.before.outputs.maven_payload_recorded != 'true' && steps.existing.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ steps.artifact-token.outputs.token }}
+          GITHUB_ARTIFACT_DESTINATION: ${{ runner.temp }}/maven-artifact
+          GITHUB_ARTIFACT_DIGEST: ${{ steps.existing.outputs.github_digest }}
+          GITHUB_ARTIFACT_ID: ${{ steps.existing.outputs.artifact_id }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-maven-${{ matrix.releaseDigest }}
+          GITHUB_ARTIFACT_RUN_ID: ${{ steps.existing.outputs.workflow_run_id }}
+        run: automation/.github/scripts/temporal-release/download-github-artifact.sh
+      - name: Create the Maven artifact receipt
+        if: steps.before.outputs.maven_payload_recorded != 'true'
+        env:
+          GH_TOKEN: ${{ steps.artifact-token.outputs.token }}
+          GITHUB_ARTIFACT_CONTENT_DIR: ${{ runner.temp }}/maven-artifact
+          GITHUB_ARTIFACT_ID: ${{ steps.existing.outputs.artifact_id || steps.upload.outputs.artifact-id }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-maven-${{ matrix.releaseDigest }}
+          GITHUB_ARTIFACT_RECEIPT_FILE: ${{ runner.temp }}/maven-receipt.json
+          GITHUB_ARTIFACT_RUN_ID: ${{ steps.existing.outputs.workflow_run_id || github.run_id }}
+        run: automation/.github/scripts/temporal-release/github-artifact-receipt.sh
+      - name: Record the Maven artifact in Release Workflow state
+        if: steps.before.outputs.maven_payload_recorded != 'true'
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="record-maven-payload ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/maven-receipt.json"
+      - name: Export the exact Activity expectation
+        id: final
+        working-directory: automation
+        env:
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/publication-input.json"
+      - name: Recheck ownership immediately before polling
+        env:
+          OWNER: ${{ steps.final.outputs.ownership_owner }}
+          PHASE: ${{ steps.final.outputs.phase }}
+        run: |
+          [[ "$OWNER" == TEMPORAL ]]
+          [[ "$PHASE" != PAUSED && "$PHASE" != BLOCKED && "$PHASE" != HANDED_OFF &&
+            "$PHASE" != PUBLISHED ]]
+      - name: Mint publication GitHub App token
+        id: publication-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-actions: read
+          permission-contents: write
+          permission-issues: read
+          permission-members: read
+      - name: Poll only the approved publication queue
+        timeout-minutes: 55
+        working-directory: automation
+        env:
+          GH_TOKEN: ${{ steps.publication-token.outputs.token }}
+          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
+          RELEASE_EXPECTATION_FILE: ${{ runner.temp }}/publication-input.json
+          RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
+          RELEASE_TAG: ${{ matrix.tag }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
+          TRUSTED_WORKER_COMMIT: ${{ matrix.automationCommit }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="worker publication ${{ matrix.taskQueue }}"
