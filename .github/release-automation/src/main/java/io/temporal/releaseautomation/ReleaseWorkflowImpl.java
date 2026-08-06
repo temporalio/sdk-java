@@ -256,6 +256,25 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
           }
         }
       }
+    } else if ("handoff-manual".equals(evidence.action)) {
+      validateManualHandoff(mavenGenerations, mavenCentralUrl, evidence.manualMavenRequested);
+    }
+  }
+
+  static void validateManualHandoff(
+      List<MavenGenerationState> generations, String centralUrl, boolean manualMavenRequested) {
+    boolean mavenStarted = false;
+    for (MavenGenerationState generation : generations) {
+      mavenStarted |= generation.submissionStarted;
+    }
+    boolean mavenCompleted = centralUrl != null && !centralUrl.isEmpty();
+    if (manualMavenRequested && mavenStarted) {
+      throw new IllegalStateException(
+          "Manual Maven publication cannot take over after automatic Maven submission started.");
+    }
+    if (!manualMavenRequested && mavenStarted && !mavenCompleted) {
+      throw new IllegalStateException(
+          "Manual non-Maven takeover requires automatic Maven publication to be complete.");
     }
   }
 

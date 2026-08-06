@@ -44,7 +44,10 @@ jobs:
     environment: release-control
     outputs:
       automation_commit: ${{ steps.target.outputs.automation_commit }}
+      maven_complete: ${{ steps.target.outputs.maven_complete }}
+      maven_started: ${{ steps.target.outputs.maven_started }}
       phase: ${{ steps.target.outputs.phase }}
+      paused_from: ${{ steps.target.outputs.paused_from }}
       release_digest: ${{ steps.target.outputs.release_digest }}
     steps:
       - name: Validate exact inputs and trusted automation pin
@@ -87,6 +90,9 @@ jobs:
           PHASE: ${{ steps.target.outputs.phase }}
           RELEASE_DIGEST: ${{ steps.target.outputs.release_digest }}
           LAST_ERROR: ${{ steps.target.outputs.last_error }}
+          MAVEN_COMPLETE: ${{ steps.target.outputs.maven_complete }}
+          MAVEN_STARTED: ${{ steps.target.outputs.maven_started }}
+          PAUSED_FROM: ${{ steps.target.outputs.paused_from }}
           SONATYPE_REPOSITORY_ID: ${{ steps.target.outputs.sonatype_repository_id }}
           PORTAL_DEPLOYMENT_ID: ${{ steps.target.outputs.portal_deployment_id }}
         run: |
@@ -94,6 +100,9 @@ jobs:
             echo "## Durable release state"
             echo
             echo "- Phase: \`$PHASE\`"
+            echo "- Paused from: \`${PAUSED_FROM:-none}\`"
+            echo "- Maven started: \`$MAVEN_STARTED\`"
+            echo "- Maven complete: \`$MAVEN_COMPLETE\`"
             echo "- Release digest: \`$RELEASE_DIGEST\`"
             echo "- Last error: \`${LAST_ERROR:-none}\`"
             echo "- Sonatype repository: \`${SONATYPE_REPOSITORY_ID:-none}\`"

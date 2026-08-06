@@ -46,7 +46,7 @@ public final class OwnershipActivitiesImpl implements OwnershipActivities {
         .status();
   }
 
-  private static ReleaseOwnershipWorkflow stub(WorkflowClient client, String tag) {
+  static ReleaseOwnershipWorkflow stub(WorkflowClient client, String tag) {
     return client.newWorkflowStub(
         ReleaseOwnershipWorkflow.class,
         WorkflowOptions.newBuilder()

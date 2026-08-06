@@ -47,7 +47,7 @@ public final class ReleaseAutomationMain {
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
       throw new IllegalArgumentException(
-          "Expected candidate-outputs, maven-policy, platform-matrix, start-candidate, record-artifact, record-maven-payload, claim-manual-ownership, discover, approval-target, approval-request, approve, control, inspect, inspect-if-present, publication-input, or worker.");
+          "Expected candidate-outputs, maven-policy, platform-matrix, start-candidate, record-artifact, record-maven-payload, claim-manual-ownership, start-manual-maven, complete-manual-maven, discover, approval-target, approval-request, approve, control, inspect, inspect-if-present, publication-input, or worker.");
     }
     Map<String, String> environment = System.getenv();
     if ("candidate-outputs".equals(args[0])) {
@@ -101,6 +101,17 @@ public final class ReleaseAutomationMain {
               args[2],
               "-".equals(args[3]) ? "" : args[3],
               Boolean.parseBoolean(args[4]));
+          return;
+        case "start-manual-maven":
+        case "complete-manual-maven":
+          requireArguments(args, 4);
+          recordManualMaven(
+              temporalClient,
+              environment,
+              args[1],
+              args[2],
+              args[3],
+              "start-manual-maven".equals(args[0]) ? "STARTED" : "COMPLETED");
           return;
         case "discover":
           requireArguments(args, 2);
@@ -319,6 +330,32 @@ public final class ReleaseAutomationMain {
       }
       writeOutput("owner", status.owner);
       writeOutput("release_digest", value(status.releaseDigest));
+      writeOutput("manual_maven_state", value(status.manualMavenState));
+    } finally {
+      factory.shutdown();
+    }
+  }
+
+  private static void recordManualMaven(
+      WorkflowClient client,
+      Map<String, String> env,
+      String tag,
+      String commitSha,
+      String releaseDigest,
+      String state) {
+    String actor = required(env, "GITHUB_TRIGGERING_ACTOR");
+    verifyApprover(actor);
+    long githubRunId = Long.parseLong(required(env, "GITHUB_RUN_ID"));
+    ManualMavenAttempt attempt =
+        new ManualMavenAttempt(state, tag, commitSha, releaseDigest, actor, githubRunId);
+    WorkerFactory factory = WorkerFactory.newInstance(client);
+    factory
+        .newWorker(QueueNames.ownership(tag))
+        .registerWorkflowImplementationTypes(ReleaseOwnershipWorkflowImpl.class);
+    factory.start();
+    try {
+      OwnershipStatus status = OwnershipActivitiesImpl.stub(client, tag).recordManualMaven(attempt);
+      writeOutput("manual_maven_state", status.manualMavenState);
     } finally {
       factory.shutdown();
     }
@@ -702,6 +739,13 @@ public final class ReleaseAutomationMain {
           evidence.tag = tag;
           evidence.commitSha = commitSha;
           evidence.reason = fixedControlReason(action);
+          if ("handoff-manual".equals(action)) {
+            String requested = optional(env, "MANUAL_MAVEN_REQUESTED", "false");
+            if (!("true".equals(requested) || "false".equals(requested))) {
+              throw new IllegalArgumentException("MANUAL_MAVEN_REQUESTED must be true or false.");
+            }
+            evidence.manualMavenRequested = Boolean.parseBoolean(requested);
+          }
           if ("retry-maven-submission".equals(action)) {
             evidence.mavenSubmissionGeneration =
                 Integer.parseInt(required(env, "MAVEN_RETRY_GENERATION"));
@@ -1145,7 +1189,13 @@ public final class ReleaseAutomationMain {
             status.mavenGenerations != null
                 && status.mavenGenerations.stream()
                     .anyMatch(generation -> generation.submissionStarted)));
+    writeOutput(
+        "maven_complete",
+        Boolean.toString(status.mavenCentralUrl != null && !status.mavenCentralUrl.isEmpty()));
     writeOutput("ownership_owner", status.ownership == null ? "" : value(status.ownership.owner));
+    writeOutput(
+        "manual_maven_state",
+        status.ownership == null ? "" : value(status.ownership.manualMavenState));
     writeOutput("maven_payload_recorded", Boolean.toString(status.mavenPayload != null));
   }
 

@@ -62,7 +62,6 @@ jobs:
       matrix: ${{ fromJSON(needs.discover.outputs.build_matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
-    environment: release-control
     permissions:
       actions: read
       contents: read
@@ -146,24 +145,64 @@ jobs:
           path: ${{ runner.temp }}/native-artifact
           if-no-files-found: error
           retention-days: 90
-      - name: Download a recovered artifact by exact ID
-        if: steps.existing.outputs.found == 'true'
+  record_native:
+    needs: [discover, build_native]
+    if: needs.discover.outputs.build_count != '0' && needs.build_native.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.build_matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: release-control
+    permissions:
+      actions: read
+      contents: read
+    concurrency:
+      group: temporal-release-native-record-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          path: automation
+          persist-credentials: false
+          ref: ${{ matrix.automationCommit }}
+      - name: Verify the fresh trusted checkout
+        env:
+          RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: |
+          [[ ",${RELEASE_AUTOMATION_REF},${RELEASE_AUTOMATION_COMPATIBLE_REFS}," == \
+            *",${{ matrix.automationCommit }},"* ]]
+          [[ "$(git -C automation rev-parse HEAD)" == "${{ matrix.automationCommit }}" ]]
+          [[ -z "$(git -C automation status --short)" ]]
+      - name: Find the exact artifact from the credential-free build job
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+        run: |
+          automation/.github/scripts/temporal-release/find-github-artifact.sh >>"$GITHUB_OUTPUT"
+      - name: Require the exact artifact
+        env:
+          FOUND: ${{ steps.artifact.outputs.found }}
+        run: '[[ "$FOUND" == true ]]'
+      - name: Download the artifact safely by exact ID
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_ARTIFACT_DESTINATION: ${{ runner.temp }}/native-artifact
-          GITHUB_ARTIFACT_DIGEST: ${{ steps.existing.outputs.github_digest }}
-          GITHUB_ARTIFACT_ID: ${{ steps.existing.outputs.artifact_id }}
+          GITHUB_ARTIFACT_DIGEST: ${{ steps.artifact.outputs.github_digest }}
+          GITHUB_ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
           GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
-          GITHUB_ARTIFACT_RUN_ID: ${{ steps.existing.outputs.workflow_run_id }}
+          GITHUB_ARTIFACT_RUN_ID: ${{ steps.artifact.outputs.workflow_run_id }}
         run: automation/.github/scripts/temporal-release/download-github-artifact.sh
       - name: Create the exact Temporal artifact receipt
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_ARTIFACT_CONTENT_DIR: ${{ runner.temp }}/native-artifact
-          GITHUB_ARTIFACT_ID: ${{ steps.existing.outputs.artifact_id || steps.upload.outputs.artifact-id }}
+          GITHUB_ARTIFACT_ID: ${{ steps.artifact.outputs.artifact_id }}
           GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
           GITHUB_ARTIFACT_RECEIPT_FILE: ${{ runner.temp }}/native-receipt.json
-          GITHUB_ARTIFACT_RUN_ID: ${{ steps.existing.outputs.workflow_run_id || github.run_id }}
+          GITHUB_ARTIFACT_RUN_ID: ${{ steps.artifact.outputs.workflow_run_id }}
         run: automation/.github/scripts/temporal-release/github-artifact-receipt.sh
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:

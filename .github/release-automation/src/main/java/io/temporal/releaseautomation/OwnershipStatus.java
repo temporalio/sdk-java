@@ -8,6 +8,9 @@ public final class OwnershipStatus {
   public String githubActor;
   public long githubRunId;
   public long recordedAtMillis;
+  public String manualMavenState;
+  public String manualMavenActor;
+  public long manualMavenRunId;
 
   public OwnershipStatus() {}
 
@@ -19,5 +22,6 @@ public final class OwnershipStatus {
     this.githubActor = claim.githubActor;
     this.githubRunId = claim.githubRunId;
     this.recordedAtMillis = recordedAtMillis;
+    this.manualMavenState = "MANUAL".equals(claim.owner) ? "NOT_STARTED" : "";
   }
 }

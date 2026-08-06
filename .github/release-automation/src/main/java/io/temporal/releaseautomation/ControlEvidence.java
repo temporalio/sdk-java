@@ -14,6 +14,7 @@ public final class ControlEvidence {
   public int mavenSubmissionGeneration = -1;
   public String authorizationSha256;
   public MavenInspection mavenInspection;
+  public boolean manualMavenRequested;
 
   public ControlEvidence() {}
 
@@ -75,6 +76,9 @@ public final class ControlEvidence {
           .equals(authorizationSha256)) {
         throw new IllegalArgumentException("Maven retry inspection digest differs.");
       }
+    }
+    if (manualMavenRequested && !"handoff-manual".equals(action)) {
+      throw new IllegalArgumentException("Manual Maven intent is only valid for a manual handoff.");
     }
   }
 }
