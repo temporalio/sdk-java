@@ -101,17 +101,18 @@ jobs:
         if: steps.before.outputs.found == 'true'
         env:
           AUTOMATION_COMMIT: ${{ steps.before.outputs.automation_commit }}
+          MANUAL_MAVEN_REQUESTED: ${{ inputs.do_publish_jars }}
           PHASE: ${{ steps.before.outputs.phase }}
         run: |
           [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," == \
             *",$AUTOMATION_COMMIT,"* ]]
           [[ "$PHASE" != PUBLISHED ]]
-          if [[ '${{ inputs.do_publish_jars }}' == true && \
+          if [[ "$MANUAL_MAVEN_REQUESTED" == true && \
             '${{ steps.before.outputs.maven_started }}' == true ]]; then
             echo "Automatic Maven publication already started. Do not hand off with Maven enabled." >&2
             exit 1
           fi
-          if [[ '${{ inputs.do_publish_jars }}' != true && \
+          if [[ "$MANUAL_MAVEN_REQUESTED" != true && \
             '${{ steps.before.outputs.maven_started }}' == true && \
             '${{ steps.before.outputs.maven_complete }}' != true ]]; then
             echo "Automatic Maven publication is incomplete. Recover it in Temporal before handoff." >&2
