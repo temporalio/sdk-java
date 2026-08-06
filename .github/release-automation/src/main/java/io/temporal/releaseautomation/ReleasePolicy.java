@@ -131,6 +131,17 @@ public final class ReleasePolicy {
     return "temporal-test-server_" + version + "_" + spec.assetPlatform + spec.archiveExtension;
   }
 
+  static String githubNativeArtifactName(CandidateIdentity candidate, String platform) {
+    candidate.validate();
+    platform(platform);
+    return "sdk-java-release-native-" + candidate.digest() + "-" + platform;
+  }
+
+  static String githubMavenArtifactName(ReleaseIdentity release) {
+    release.validate();
+    return "sdk-java-release-maven-" + release.digest();
+  }
+
   static PlatformSpec platform(String id) {
     for (PlatformSpec platform : PLATFORMS) {
       if (platform.id.equals(id)) {

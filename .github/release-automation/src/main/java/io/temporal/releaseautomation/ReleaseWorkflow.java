@@ -17,6 +17,9 @@ public interface ReleaseWorkflow {
   ReleaseStatus approve(ApprovalEvidence evidence);
 
   @UpdateMethod
+  ReleaseStatus recordMavenPayload(GithubArtifactReceipt artifact);
+
+  @UpdateMethod
   ReleaseStatus control(ControlEvidence evidence);
 
   @QueryMethod

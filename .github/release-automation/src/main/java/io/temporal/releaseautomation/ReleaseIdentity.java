@@ -40,18 +40,21 @@ public final class ReleaseIdentity {
       throw new IllegalArgumentException("Artifact manifest hash does not match its contents.");
     }
     Set<String> actual = new HashSet<>();
-    String prefix = "sdk-java/" + candidate.digest() + "/";
-    if (!prefix.equals(manifest.storagePrefix)) {
-      throw new IllegalArgumentException("Artifact storage prefix is not candidate-specific.");
-    }
-    for (ArtifactEntry artifact : manifest.artifacts) {
-      actual.add(artifact.name);
+    Set<String> actualReceipts = new HashSet<>();
+    for (GithubArtifactReceipt artifact : manifest.artifacts) {
+      if (artifact.files.size() != 1) {
+        throw new IllegalArgumentException("Native GitHub artifact identity is invalid.");
+      }
+      actualReceipts.add(artifact.artifactName);
+      actual.add(artifact.files.get(0).name);
     }
     Set<String> expected = new HashSet<>();
+    Set<String> expectedReceipts = new HashSet<>();
     for (String platform : ReleasePolicy.NATIVE_PLATFORMS) {
       expected.add(ReleasePolicy.nativeArtifactName(candidate.version(), platform));
+      expectedReceipts.add(ReleasePolicy.githubNativeArtifactName(candidate, platform));
     }
-    if (!actual.equals(expected)) {
+    if (!actual.equals(expected) || !actualReceipts.equals(expectedReceipts)) {
       throw new IllegalArgumentException(
           "Artifact manifest is not the fixed sdk-java platform set.");
     }

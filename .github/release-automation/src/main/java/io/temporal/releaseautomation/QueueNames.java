@@ -56,6 +56,18 @@ public final class QueueNames {
     return "sdk-java-release/" + identity.digest();
   }
 
+  public static String ownership(String tag) {
+    return "sdk-java-release-ownership-"
+        + shortDigest(Digests.sha256(ReleasePolicy.REPOSITORY + "\n" + tag));
+  }
+
+  public static String ownershipWorkflowId(String tag) {
+    if (tag == null || !tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+(?:-RC[0-9]+)?")) {
+      throw new IllegalArgumentException("Invalid ownership tag.");
+    }
+    return "sdk-java-release-ownership/" + tag;
+  }
+
   private static String shortDigest(String digest) {
     return digest.substring(0, 32);
   }

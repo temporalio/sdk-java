@@ -47,15 +47,9 @@ jobs:
     environment: release-publication
     permissions:
       contents: read
-      id-token: write
     outputs:
-      automatic_found: ${{ steps.before.outputs.found }}
-      automatic_phase: ${{ steps.before.outputs.phase }}
-      automatic_paused_from: ${{ steps.before.outputs.paused_from }}
-      last_completed_stage: ${{ steps.before.outputs.last_completed_stage }}
+      automatic_maven_started: ${{ steps.final.outputs.maven_started }}
       notes_sha256: ${{ steps.identity.outputs.notes_sha256 }}
-      portal_deployment_id: ${{ steps.before.outputs.portal_deployment_id }}
-      sonatype_repository_id: ${{ steps.before.outputs.sonatype_repository_id }}
       release_digest: ${{ steps.ownership.outputs.release_digest }}
       trusted_automation_commit: ${{ steps.identity.outputs.trusted_automation_commit }}
     steps:
@@ -108,7 +102,7 @@ jobs:
           AUTOMATION_COMMIT: ${{ steps.before.outputs.automation_commit }}
           PHASE: ${{ steps.before.outputs.phase }}
         run: |
-          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," ==
+          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," == \
             *",$AUTOMATION_COMMIT,"* ]]
           [[ "$PHASE" != PUBLISHED && "$PHASE" != MANUAL_COMPLETE ]]
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -128,59 +122,42 @@ jobs:
         run: >-
           ./gradlew -p .github/release-automation run
           --args="control handoff-manual $INPUT_TAG $INPUT_COMMIT"
-      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
-      - name: Claim durable tag ownership
+      - name: Claim durable tag ownership in Temporal
         id: ownership
+        working-directory: automation
         env:
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_COMMIT: ${{ inputs.commit_sha }}
-          RELEASE_OWNERSHIP_ACTION: claim
-          RELEASE_TAG: ${{ inputs.tag }}
-          TEMPORAL_HANDOFF_CONFIRMED: ${{ steps.before.outputs.found }}
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: |
-          export RELEASE_OWNERSHIP_DIGEST
-          RELEASE_OWNERSHIP_DIGEST=$(printf '%s\n%s\n%s' \
-            "$INPUT_TAG" "$INPUT_COMMIT" '${{ steps.identity.outputs.notes_sha256 }}' |
-            sha256sum | awk '{print $1}')
-          release_digest=$(automation/.github/scripts/temporal-release/manual-ownership.sh)
-          echo "release_digest=$release_digest" >>"$GITHUB_OUTPUT"
-      - name: Recheck the automatic release after claiming ownership
-        id: after
+          digest='${{ steps.before.outputs.release_digest }}'
+          if [[ -z "$digest" ]]; then
+            digest=$(printf '%s\n%s\n%s' \
+              "$INPUT_TAG" "$INPUT_COMMIT" '${{ steps.identity.outputs.notes_sha256 }}' |
+              sha256sum | awk '{print $1}')
+          fi
+          ./gradlew -p .github/release-automation run \
+            --args="claim-manual-ownership $INPUT_TAG $INPUT_COMMIT $digest \
+            ${{ steps.before.outputs.found == 'true' }}"
+      - name: Read the authoritative post-handoff state
+        id: final
         working-directory: automation
         env:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
           ./gradlew -p .github/release-automation run
           --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
-      - name: Validate a release that raced with takeover
-        if: steps.after.outputs.found == 'true'
+      - name: Validate any automatic release that raced with takeover
+        if: steps.final.outputs.found == 'true'
         env:
-          AUTOMATION_COMMIT: ${{ steps.after.outputs.automation_commit }}
-          PHASE: ${{ steps.after.outputs.phase }}
+          AUTOMATION_COMMIT: ${{ steps.final.outputs.automation_commit }}
+          OWNER: ${{ steps.final.outputs.ownership_owner }}
+          PHASE: ${{ steps.final.outputs.phase }}
         run: |
-          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," ==
+          [[ ",${{ vars.RELEASE_AUTOMATION_REF }},${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}," == \
             *",$AUTOMATION_COMMIT,"* ]]
           [[ "$PHASE" != PUBLISHED ]]
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        if: steps.after.outputs.found == 'true' && steps.after.outputs.phase != 'HANDED_OFF'
-        with:
-          path: handoff-after
-          persist-credentials: false
-          ref: ${{ steps.after.outputs.automation_commit }}
-      - name: Stop an automatic release that raced with takeover
-        if: steps.after.outputs.found == 'true' && steps.after.outputs.phase != 'HANDED_OFF'
-        working-directory: handoff-after
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
-          RELEASE_AUTOMATION_REF: ${{ steps.after.outputs.automation_commit }}
-          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="control handoff-manual $INPUT_TAG $INPUT_COMMIT"
+          [[ "$PHASE" == HANDED_OFF || "$OWNER" == MANUAL ]]
   create_draft_release:
     name: Create GitHub draft release
     needs: prepare
@@ -216,15 +193,9 @@ jobs:
     steps:
       - name: Refuse a second Maven controller
         env:
-          FOUND: ${{ needs.prepare.outputs.automatic_found }}
-          LAST_STAGE: ${{ needs.prepare.outputs.last_completed_stage }}
-          PAUSED_FROM: ${{ needs.prepare.outputs.automatic_paused_from }}
-          PHASE: ${{ needs.prepare.outputs.automatic_phase }}
-          PORTAL_ID: ${{ needs.prepare.outputs.portal_deployment_id }}
-          SONATYPE_ID: ${{ needs.prepare.outputs.sonatype_repository_id }}
+          MAVEN_STARTED: ${{ needs.prepare.outputs.automatic_maven_started }}
         run: |
-          if [[ "$FOUND" == true && ( "$LAST_STAGE" == MAVEN || "$PAUSED_FROM" == MAVEN ||
-            "$PHASE" == MAVEN || -n "$PORTAL_ID" || -n "$SONATYPE_ID" ) ]]; then
+          if [[ "$MAVEN_STARTED" == true ]]; then
             echo "Automatic Maven publication already started. Re-run with Publish Java Artifacts disabled." >&2
             exit 1
           fi
@@ -242,7 +213,7 @@ jobs:
         run: |
           cp trusted-release/gradle/versioning.gradle gradle/versioning.gradle
           cp trusted-release/gradle/publishing.gradle gradle/publishing.gradle
-          [[ "$(git -C trusted-release rev-parse HEAD)" ==
+          [[ "$(git -C trusted-release rev-parse HEAD)" == \
             '${{ needs.prepare.outputs.trusted_automation_commit }}' ]]
       - name: Temporary local tag
         run: git tag "$INPUT_TAG"

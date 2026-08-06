@@ -8,7 +8,9 @@ import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.UpdateValidatorMethod;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   static final String STATUS_MEMO_KEY = "ReleaseStatus";
@@ -19,6 +21,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   private ControlEvidence control;
   private String phase = "INITIALIZING";
   private String pausedFrom;
+  private String handedOffFrom;
   private String lastCompletedStage;
   private String lastError;
   private long blockedAtMillis;
@@ -29,6 +32,9 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   private String githubReleaseUrl;
   private int mavenSubmissionGeneration;
   private ControlEvidence mavenRetryAuthorization;
+  private GithubArtifactReceipt mavenPayload;
+  private final List<MavenGenerationState> mavenGenerations = new ArrayList<>();
+  private OwnershipStatus ownership;
   private int stageAttempt;
   private long stageStartedAtMillis;
   private long nextRetryAtMillis;
@@ -40,21 +46,30 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   public ReleaseResult release(ReleaseIdentity releaseIdentity) {
     releaseIdentity.validate();
     identity = releaseIdentity;
+    ownership = ownershipActivities().claimTemporal(identity);
+    if ("MANUAL".equals(ownership.owner)) {
+      handedOffFrom = "INITIALIZING";
+      enterHandedOff();
+      return awaitHandoff();
+    }
     awaitApproval();
     if (handoffRequested) {
       enterHandedOff();
       return awaitHandoff();
     }
 
+    awaitMavenPayload();
+    if (handoffRequested) {
+      return awaitHandoff();
+    }
     runStage("PREFLIGHT", () -> publicationActivities().preflight(publicationInput()));
-    runStage(
-        "MAVEN",
-        () -> {
-          MavenReceipt receipt = publicationActivities().reconcileMaven(publicationInput());
-          mavenCentralUrl = receipt.mavenCentralUrl;
-          sonatypeRepositoryId = receipt.sonatypeRepositoryId;
-          portalDeploymentId = receipt.portalDeploymentId;
-        });
+    if (handoffRequested) {
+      return awaitHandoff();
+    }
+    runMaven();
+    if (handoffRequested) {
+      return awaitHandoff();
+    }
     runStage(
         "GITHUB_DRAFT",
         () -> githubDraftUrl = publicationActivities().reconcileGithubDraft(publicationInput()));
@@ -115,6 +130,35 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   }
 
   @Override
+  public ReleaseStatus recordMavenPayload(GithubArtifactReceipt artifact) {
+    validateMavenPayload(artifact);
+    if (mavenPayload == null) {
+      mavenPayload = artifact;
+    }
+    upsertStatus();
+    return status();
+  }
+
+  @UpdateValidatorMethod(updateName = "recordMavenPayload")
+  public void validateMavenPayload(GithubArtifactReceipt artifact) {
+    if (identity == null
+        || approval == null
+        || "PUBLISHED".equals(phase)
+        || "HANDED_OFF".equals(phase)) {
+      throw new IllegalStateException("The release cannot accept a Maven payload.");
+    }
+    artifact.validate();
+    if (!ReleasePolicy.githubMavenArtifactName(identity).equals(artifact.artifactName)
+        || artifact.files.size() != 1
+        || !"maven-payload.tar".equals(artifact.files.get(0).name)) {
+      throw new IllegalArgumentException("The Maven GitHub artifact identity is invalid.");
+    }
+    if (mavenPayload != null && !mavenPayload.canonicalForm().equals(artifact.canonicalForm())) {
+      throw new IllegalStateException("The release already recorded another Maven payload.");
+    }
+  }
+
+  @Override
   public ReleaseStatus control(ControlEvidence evidence) {
     validateControl(evidence);
     control = evidence;
@@ -131,9 +175,11 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       lastError = null;
       blockedAtMillis = 0;
     } else if ("retry-maven-submission".equals(evidence.action)) {
+      boolean nextGeneration = evidence.mavenSubmissionGeneration > mavenSubmissionGeneration;
+      adoptInspectedGeneration(evidence.mavenInspection);
       mavenSubmissionGeneration = evidence.mavenSubmissionGeneration;
       mavenRetryAuthorization = evidence;
-      phase = pausedFrom;
+      phase = nextGeneration ? "MAVEN_REPOSITORY" : pausedFrom;
       pausedFrom = null;
       lastError = null;
       blockedAtMillis = 0;
@@ -146,6 +192,10 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
         enterHandedOff();
       }
       Workflow.await(() -> "HANDED_OFF".equals(phase));
+      ownership = ownershipActivities().handoffManual(identity, evidence);
+      if (!"MANUAL".equals(ownership.owner)) {
+        throw new IllegalStateException("Temporal ownership handoff did not complete.");
+      }
     }
     upsertStatus();
     return status();
@@ -166,16 +216,23 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       throw new IllegalStateException("Only a paused or blocked release can resume.");
     }
     if ("retry-maven-submission".equals(evidence.action)) {
+      if (evidence.mavenInspection.centralPresent + evidence.mavenInspection.centralMissing
+          != ReleasePolicy.mavenArtifacts(identity.candidate.mavenPolicy).size()) {
+        throw new IllegalArgumentException("Maven inspection does not match the release policy.");
+      }
+      validateInspectedGenerations(mavenGenerations, evidence.mavenInspection);
       boolean nextGeneration =
           "BLOCKED".equals(phase)
-              && "MAVEN".equals(pausedFrom)
+              && pausedFrom != null
+              && pausedFrom.startsWith("MAVEN_")
               && lastError != null
               && (lastError.contains("MavenSubmissionAmbiguous")
                   || lastError.contains("MavenDeploymentFailed"))
               && evidence.mavenSubmissionGeneration == mavenSubmissionGeneration + 1;
       boolean replaceAuthorization =
           "BLOCKED".equals(phase)
-              && "MAVEN".equals(pausedFrom)
+              && pausedFrom != null
+              && pausedFrom.startsWith("MAVEN_")
               && lastError != null
               && lastError.contains("InvalidApproval")
               && mavenSubmissionGeneration > 0
@@ -183,6 +240,21 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
       if (!(nextGeneration || replaceAuthorization)) {
         throw new IllegalStateException(
             "Maven authorization must advance an ambiguous attempt or replace stale evidence.");
+      }
+      if (nextGeneration && evidence.mavenInspection.centralPresent != 0) {
+        throw new IllegalStateException(
+            "A new Maven generation requires Central to be completely absent.");
+      }
+      if (nextGeneration) {
+        for (MavenGenerationInspection inspected : evidence.mavenInspection.generations) {
+          boolean failedPortal = "FAILED".equals(inspected.portalDeploymentState);
+          if (!("absent".equals(inspected.repositoryState)
+                  || (failedPortal && "released".equals(inspected.repositoryState)))
+              || !(inspected.portalDeploymentState.isEmpty() || failedPortal)) {
+            throw new IllegalStateException(
+                "A new Maven generation requires every earlier attempt to be inactive.");
+          }
+        }
       }
     }
   }
@@ -196,6 +268,7 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     status.approval = approval;
     status.control = control;
     status.pausedFrom = pausedFrom;
+    status.handedOffFrom = handedOffFrom;
     status.lastCompletedStage = lastCompletedStage;
     status.lastError = lastError;
     status.blockedAtMillis = blockedAtMillis;
@@ -206,6 +279,9 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     status.githubReleaseUrl = githubReleaseUrl;
     status.mavenSubmissionGeneration = mavenSubmissionGeneration;
     status.mavenRetryAuthorization = mavenRetryAuthorization;
+    status.mavenPayload = mavenPayload;
+    status.mavenGenerations = new ArrayList<>(mavenGenerations);
+    status.ownership = ownership;
     status.stageAttempt = stageAttempt;
     status.stageStartedAtMillis = stageStartedAtMillis;
     status.nextRetryAtMillis = nextRetryAtMillis;
@@ -218,6 +294,67 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
     while (approval == null && !handoffRequested) {
       handlePause("AWAITING_APPROVAL");
       Workflow.await(() -> approval != null || pauseRequested || handoffRequested);
+    }
+  }
+
+  private void awaitMavenPayload() {
+    while (mavenPayload == null && !handoffRequested) {
+      handlePause("AWAITING_MAVEN_PAYLOAD");
+      phase = "AWAITING_MAVEN_PAYLOAD";
+      upsertStatus();
+      Workflow.await(() -> mavenPayload != null || pauseRequested || handoffRequested);
+    }
+  }
+
+  private void runMaven() {
+    while (!handoffRequested) {
+      runStage(
+          "MAVEN_REPOSITORY",
+          () -> {
+            MavenGenerationState current = currentMavenGeneration();
+            boolean allowCreation = !current.submissionStarted;
+            if (allowCreation) {
+              current.submissionStarted = true;
+              upsertStatus();
+            }
+            current.sonatypeRepositoryId =
+                publicationActivities().reconcileMavenRepository(publicationInput(), allowCreation);
+            sonatypeRepositoryId = current.sonatypeRepositoryId;
+            upsertStatus();
+          });
+      if (handoffRequested) {
+        return;
+      }
+      if (currentMavenGeneration().sonatypeRepositoryId == null) {
+        return;
+      }
+      int generation = mavenSubmissionGeneration;
+      runStage(
+          "MAVEN_PORTAL",
+          () -> {
+            MavenGenerationState current = currentMavenGeneration();
+            current.portalDeploymentId =
+                publicationActivities().reconcileMavenPortal(publicationInput());
+            portalDeploymentId = current.portalDeploymentId;
+            upsertStatus();
+          });
+      if (generation != mavenSubmissionGeneration || handoffRequested) {
+        continue;
+      }
+      if (currentMavenGeneration().portalDeploymentId == null) {
+        return;
+      }
+      runStage(
+          "MAVEN_PUBLISH",
+          () -> {
+            MavenReceipt receipt = publicationActivities().publishMaven(publicationInput());
+            mavenCentralUrl = receipt.mavenCentralUrl;
+            sonatypeRepositoryId = receipt.sonatypeRepositoryId;
+            portalDeploymentId = receipt.portalDeploymentId;
+          });
+      if (generation == mavenSubmissionGeneration) {
+        return;
+      }
     }
   }
 
@@ -256,6 +393,9 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
           blockedAtMillis = Workflow.currentTimeMillis();
           upsertStatus();
           Workflow.await(() -> !"BLOCKED".equals(phase) || handoffRequested);
+          if (!stage.equals(phase)) {
+            return;
+          }
         } else if (!pauseRequested) {
           lastError = safeFailure(e);
           long delayMinutes = Math.min(15, 2L << Math.min(retry, 3));
@@ -286,6 +426,9 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   }
 
   private void enterHandedOff() {
+    if (handedOffFrom == null) {
+      handedOffFrom = pausedFrom == null ? phase : pausedFrom;
+    }
     phase = "HANDED_OFF";
     pausedFrom = null;
     upsertStatus();
@@ -347,10 +490,76 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
   private PublicationInput publicationInput() {
     PublicationInput input =
         new PublicationInput(
-            identity, approval, Workflow.getInfo().getWorkflowId(), Workflow.getInfo().getRunId());
+            identity,
+            approvalRequest,
+            approval,
+            Workflow.getInfo().getWorkflowId(),
+            Workflow.getInfo().getRunId());
     input.mavenSubmissionGeneration = mavenSubmissionGeneration;
     input.mavenRetryAuthorization = mavenRetryAuthorization;
+    input.mavenPayload = mavenPayload;
+    input.mavenGenerations = new ArrayList<>(mavenGenerations);
     return input;
+  }
+
+  private MavenGenerationState currentMavenGeneration() {
+    for (MavenGenerationState generation : mavenGenerations) {
+      if (generation.generation == mavenSubmissionGeneration) {
+        generation.validate(identity.digest());
+        return generation;
+      }
+    }
+    MavenGenerationState generation =
+        new MavenGenerationState(identity.digest(), mavenSubmissionGeneration);
+    mavenGenerations.add(generation);
+    upsertStatus();
+    return generation;
+  }
+
+  private void adoptInspectedGeneration(MavenInspection inspection) {
+    for (MavenGenerationInspection inspected : inspection.generations) {
+      for (MavenGenerationState generation : mavenGenerations) {
+        if (generation.generation == inspected.generation) {
+          if (generation.sonatypeRepositoryId == null
+              || generation.sonatypeRepositoryId.isEmpty()) {
+            generation.sonatypeRepositoryId = inspected.repositoryId;
+          } else if (inspected.repositoryId != null
+              && !inspected.repositoryId.isEmpty()
+              && !generation.sonatypeRepositoryId.equals(inspected.repositoryId)) {
+            throw new IllegalArgumentException("Inspected Sonatype repository ID differs.");
+          }
+          if (generation.portalDeploymentId == null || generation.portalDeploymentId.isEmpty()) {
+            generation.portalDeploymentId = inspected.portalDeploymentId;
+          } else if (inspected.portalDeploymentId != null
+              && !inspected.portalDeploymentId.isEmpty()
+              && !generation.portalDeploymentId.equals(inspected.portalDeploymentId)) {
+            throw new IllegalArgumentException("Inspected Portal deployment ID differs.");
+          }
+          generation.validate(identity.digest());
+        }
+      }
+    }
+  }
+
+  static void validateInspectedGenerations(
+      List<MavenGenerationState> durableGenerations, MavenInspection inspection) {
+    if (inspection.generations.size() != durableGenerations.size()) {
+      throw new IllegalArgumentException(
+          "The Maven inspection does not cover every durable generation.");
+    }
+    for (MavenGenerationState generation : durableGenerations) {
+      boolean found = false;
+      for (MavenGenerationInspection inspected : inspection.generations) {
+        if (generation.generation == inspected.generation) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        throw new IllegalArgumentException(
+            "The Maven inspection does not cover every durable generation.");
+      }
+    }
   }
 
   private PublicationActivities publicationActivities() {
@@ -367,6 +576,20 @@ public final class ReleaseWorkflowImpl implements ReleaseWorkflow {
                     .setMaximumInterval(Duration.ofMinutes(15))
                     .setMaximumAttempts(1)
                     .setDoNotRetry("ReleaseIdentityConflict", "InvalidApproval")
+                    .build())
+            .build());
+  }
+
+  private OwnershipActivities ownershipActivities() {
+    return Workflow.newActivityStub(
+        OwnershipActivities.class,
+        ActivityOptions.newBuilder()
+            .setTaskQueue(QueueNames.ownership(identity.candidate.tag))
+            .setStartToCloseTimeout(Duration.ofMinutes(2))
+            .setRetryOptions(
+                RetryOptions.newBuilder()
+                    .setInitialInterval(Duration.ofSeconds(10))
+                    .setMaximumInterval(Duration.ofMinutes(2))
                     .build())
             .build());
   }

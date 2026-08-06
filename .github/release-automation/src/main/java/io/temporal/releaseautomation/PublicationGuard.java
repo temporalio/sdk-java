@@ -2,6 +2,8 @@ package io.temporal.releaseautomation;
 
 import com.google.gson.Gson;
 import io.temporal.activity.ActivityInfo;
+import java.util.HashSet;
+import java.util.Set;
 
 final class PublicationGuard {
   private static final Gson GSON = new Gson();
@@ -33,11 +35,18 @@ final class PublicationGuard {
   }
 
   private static void validateInput(PublicationInput input) {
-    if (input == null || input.release == null || input.approval == null) {
+    if (input == null
+        || input.release == null
+        || input.approvalRequest == null
+        || input.approval == null) {
       throw new IllegalArgumentException("Publication input is incomplete.");
     }
     input.release.validate();
+    input.approvalRequest.validate();
     input.approval.validate();
+    if (!input.approvalRequest.matches(input.approval)) {
+      throw new IllegalArgumentException("Approval does not match its durable request.");
+    }
     if (input.mavenSubmissionGeneration < 0) {
       throw new IllegalArgumentException("Maven submission generation is invalid.");
     }
@@ -52,6 +61,26 @@ final class PublicationGuard {
       if (input.mavenRetryAuthorization.mavenSubmissionGeneration
           != input.mavenSubmissionGeneration) {
         throw new IllegalArgumentException("Maven retry generation does not match.");
+      }
+    }
+    if (input.mavenPayload == null) {
+      throw new IllegalArgumentException("The frozen Maven payload is missing.");
+    }
+    input.mavenPayload.validate();
+    if (!ReleasePolicy.githubMavenArtifactName(input.release)
+            .equals(input.mavenPayload.artifactName)
+        || input.mavenPayload.files.size() != 1
+        || !"maven-payload.tar".equals(input.mavenPayload.files.get(0).name)) {
+      throw new IllegalArgumentException("The frozen Maven payload identity is invalid.");
+    }
+    if (input.mavenGenerations == null) {
+      throw new IllegalArgumentException("Maven generation state is missing.");
+    }
+    Set<Integer> generations = new HashSet<>();
+    for (MavenGenerationState generation : input.mavenGenerations) {
+      generation.validate(input.release.digest());
+      if (!generations.add(generation.generation)) {
+        throw new IllegalArgumentException("Maven generation state is duplicated.");
       }
     }
   }

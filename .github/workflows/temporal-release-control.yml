@@ -80,7 +80,7 @@ jobs:
           while IFS= read -r compatible; do
             [[ -z "$compatible" || "$compatible" =~ ^[0-9a-f]{40}$ ]]
           done < <(tr ',' '\n' <<<"$RELEASE_AUTOMATION_COMPATIBLE_REFS")
-          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," == \
             *",$FROZEN_AUTOMATION_COMMIT,"* ]]
       - name: Summarize durable state
         env:
@@ -135,7 +135,6 @@ jobs:
     environment: release-publication
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -158,11 +157,7 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_PUBLICATION_ARTIFACT_ROLE_ARN }}
-      - name: Authenticate the retry author before creating durable evidence
+      - name: Authenticate the retry author
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
         run: automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_TRIGGERING_ACTOR"
@@ -176,7 +171,6 @@ jobs:
         working-directory: source
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_INPUT_FILE: ${{ runner.temp }}/publication-input.json
           RELEASE_MAVEN_ARTIFACTS_FILE: ${{ runner.temp }}/maven-artifacts.json
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/fresh-inspection.json
@@ -193,44 +187,26 @@ jobs:
           awk -F= '$1 == "maven_artifacts_json" {sub(/^[^=]*=/, ""); print}' \
             "$outputs" >"$RELEASE_MAVEN_ARTIFACTS_FILE"
           bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
-      - name: Record current protected Maven authorization
+      - name: Select the inspected generation
         id: authorization
         env:
           CURRENT_GENERATION: ${{ steps.input.outputs.maven_submission_generation }}
           LAST_ERROR: ${{ steps.input.outputs.last_error }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_DIGEST: ${{ steps.input.outputs.release_digest }}
-          RUN_ID: ${{ steps.input.outputs.run_id }}
-          WORKFLOW_ID: ${{ steps.input.outputs.workflow_id }}
         run: |
-          current=$(jq -c --argjson generation "$CURRENT_GENERATION" \
-            '.mavenGenerations[]? | select(.generation == $generation)' \
-            "$RUNNER_TEMP/fresh-inspection.json")
           if [[ "$LAST_ERROR" == *InvalidApproval* &&
             $CURRENT_GENERATION -gt 0 ]]; then
             generation=$CURRENT_GENERATION
           else
-            [[ $(jq -r .mavenPresent "$RUNNER_TEMP/fresh-inspection.json") == 0 ]]
-            if [[ -n "$current" ]]; then
-              repository_state=$(jq -r .repositoryState <<<"$current")
-              portal_state=$(jq -r .portalDeploymentState <<<"$current")
-              [[ ( "$repository_state" == absent || "$repository_state" == unavailable ) &&
-                ( -z "$portal_state" || "$portal_state" == FAILED ) ]]
-            fi
+            [[ $(jq -r .centralPresent "$RUNNER_TEMP/fresh-inspection.json") == 0 ]]
             generation=$((CURRENT_GENERATION + 1))
           fi
-          RELEASE_AUTHORIZATION_FILE="$RUNNER_TEMP/maven-retry-authorization.json" \
-            RELEASE_GENERATION="$generation" RELEASE_RUN_ID="$RUN_ID" \
-            RELEASE_WORKFLOW_ID="$WORKFLOW_ID" \
-            bash automation/.github/scripts/temporal-release/record-maven-retry-authorization.sh
-      - name: Submit Update bound to the protected inspection receipt
+          echo "generation=$generation" >>"$GITHUB_OUTPUT"
+      - name: Submit Update bound to the exact inspection
         working-directory: automation
         env:
           GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          CONTROL_GITHUB_ACTOR: ${{ steps.authorization.outputs.actor }}
-          CONTROL_GITHUB_RUN_ID: ${{ steps.authorization.outputs.run_id }}
-          MAVEN_RETRY_AUTHORIZATION_SHA256: ${{ steps.authorization.outputs.sha256 }}
           MAVEN_RETRY_GENERATION: ${{ steps.authorization.outputs.generation }}
+          MAVEN_RETRY_INSPECTION_FILE: ${{ runner.temp }}/fresh-inspection.json
           RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
         run: >-
           ./gradlew -p .github/release-automation run

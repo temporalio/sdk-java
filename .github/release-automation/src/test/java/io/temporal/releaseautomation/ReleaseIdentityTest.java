@@ -24,18 +24,21 @@ public class ReleaseIdentityTest {
     assertTrue(
         release.manifest.artifacts.stream()
             .anyMatch(
-                artifact -> artifact.name.equals("temporal-test-server_1.2.3_macOS_amd64.tar.gz")));
+                artifact ->
+                    artifact
+                        .files
+                        .get(0)
+                        .name
+                        .equals("temporal-test-server_1.2.3_macOS_amd64.tar.gz")));
   }
 
   @Test
   public void artifactOrderDoesNotChangeIdentity() {
     ReleaseIdentity release = ReleaseFixtures.release();
-    ArrayList<ArtifactEntry> reversed = new ArrayList<>(release.manifest.artifacts);
+    ArrayList<GithubArtifactReceipt> reversed = new ArrayList<>(release.manifest.artifacts);
     Collections.reverse(reversed);
     ReleaseIdentity other =
-        new ReleaseIdentity(
-            ReleaseFixtures.candidate(),
-            new ArtifactManifest(release.manifest.storagePrefix, reversed));
+        new ReleaseIdentity(ReleaseFixtures.candidate(), new ArtifactManifest(reversed));
     assertEquals(release.digest(), other.digest());
   }
 
@@ -59,15 +62,11 @@ public class ReleaseIdentityTest {
   }
 
   @Test
-  public void artifactPrefixMustMatchCandidate() {
+  public void githubArtifactRoutingNameMustMatchCandidate() {
     ReleaseIdentity original = ReleaseFixtures.release();
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new ReleaseIdentity(
-                original.candidate,
-                new ArtifactManifest(
-                    "sdk-java/" + String.format("%064x", 99) + "/", original.manifest.artifacts)));
+    original.manifest.artifacts.get(0).artifactName = "another-artifact";
+    original.manifestSha256 = original.manifest.digest();
+    assertThrows(IllegalArgumentException.class, original::validate);
   }
 
   @Test
@@ -107,6 +106,7 @@ public class ReleaseIdentityTest {
             42,
             "ISSUE_node_42",
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "approval-bot",
             release.candidate.trustedAutomationCommit);
     ApprovalEvidence exact =
         new ApprovalEvidence(
@@ -139,6 +139,7 @@ public class ReleaseIdentityTest {
             42,
             "ISSUE_node_42",
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "approval-bot",
             release.candidate.trustedAutomationCommit);
     assertTrue(request.matches(exact));
     assertTrue(!request.matches(replay));

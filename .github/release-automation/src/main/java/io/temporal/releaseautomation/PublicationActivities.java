@@ -9,7 +9,13 @@ public interface PublicationActivities {
   void preflight(PublicationInput input);
 
   @ActivityMethod
-  MavenReceipt reconcileMaven(PublicationInput input);
+  String reconcileMavenRepository(PublicationInput input, boolean allowCreation);
+
+  @ActivityMethod
+  String reconcileMavenPortal(PublicationInput input);
+
+  @ActivityMethod
+  MavenReceipt publishMaven(PublicationInput input);
 
   @ActivityMethod
   String reconcileGithubDraft(PublicationInput input);
