@@ -59,8 +59,20 @@ public class PublicationGuardTest {
             "ISSUE_node_42",
             "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
             release.candidate.trustedAutomationCommit);
-    PublicationInput input = new PublicationInput(release, approval, workflowId, runId);
+    ApprovalRequest request =
+        new ApprovalRequest(
+            release.digest(),
+            workflowId,
+            runId,
+            1200,
+            42,
+            "ISSUE_node_42",
+            "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "approval-bot",
+            release.candidate.trustedAutomationCommit);
+    PublicationInput input = new PublicationInput(release, request, approval, workflowId, runId);
     input.mavenSubmissionGeneration = generation;
+    input.mavenPayload = ReleaseFixtures.mavenArtifact(release);
     return input;
   }
 
@@ -76,8 +88,11 @@ public class PublicationGuardTest {
     authorization.commitSha = input.release.candidate.commitSha;
     authorization.reason = "Protected test authorization.";
     authorization.mavenSubmissionGeneration = input.mavenSubmissionGeneration;
+    authorization.mavenInspection = new MavenInspection();
+    authorization.mavenInspection.centralMissing = ReleasePolicy.MAVEN_ARTIFACTS.size();
     authorization.authorizationSha256 =
-        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd";
+        Digests.sha256(authorization.mavenInspection.canonicalForm(input.release.digest()));
+    authorization.validate();
     return authorization;
   }
 

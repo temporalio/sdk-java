@@ -21,6 +21,9 @@ final class DiscoveryJob {
   String approvalIssueBodySha256;
   String automationCommit;
   String javaVersion;
+  String assetPlatform;
+  String archiveExtension;
+  String binaryName;
 
   DiscoveryJob(String role, String taskQueue) {
     this.role = role;

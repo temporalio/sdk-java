@@ -1,13 +1,10 @@
 package io.temporal.releaseautomation;
 
-import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.ParentClosePolicy;
-import io.temporal.common.RetryOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.Promise;
+import io.temporal.workflow.UpdateValidatorMethod;
 import io.temporal.workflow.Workflow;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -15,80 +12,70 @@ import java.util.List;
 public final class CandidateWorkflowImpl implements CandidateWorkflow {
   static final String STATUS_MEMO_KEY = "CandidateStatus";
   private CandidateIdentity candidate;
+  private final List<GithubArtifactReceipt> artifacts = new ArrayList<>();
+  private final List<String> pendingPlatforms = new ArrayList<>();
+  private ReleaseIdentity releaseIdentity;
 
   @Override
   public ReleaseIdentity prepare(CandidateIdentity candidateIdentity) {
     candidateIdentity.validate();
     candidate = candidateIdentity;
-    List<String> pendingPlatforms = new ArrayList<>(ReleasePolicy.NATIVE_PLATFORMS);
-    upsertStatus(pendingPlatforms, null);
-    List<Promise<ArtifactEntry>> builds = new ArrayList<>();
-    for (String platform : ReleasePolicy.NATIVE_PLATFORMS) {
-      BuildActivities activities =
-          Workflow.newActivityStub(
-              BuildActivities.class,
-              ActivityOptions.newBuilder()
-                  .setTaskQueue(QueueNames.build(candidateIdentity, platform))
-                  .setStartToCloseTimeout(Duration.ofMinutes(90))
-                  .setHeartbeatTimeout(Duration.ofMinutes(1))
-                  .setRetryOptions(
-                      RetryOptions.newBuilder()
-                          .setInitialInterval(Duration.ofSeconds(20))
-                          .setMaximumInterval(Duration.ofMinutes(15))
-                          .setDoNotRetry("ReleaseIdentityConflict")
-                          .build())
-                  .build());
-      Promise<ArtifactEntry> build =
-          Async.function(activities::buildAndStore, candidateIdentity, platform)
-              .thenApply(
-                  artifact -> {
-                    pendingPlatforms.remove(platform);
-                    upsertStatus(pendingPlatforms, null);
-                    return artifact;
-                  });
-      builds.add(build);
-    }
-
-    Promise.allOf(builds).get();
-    List<ArtifactEntry> artifacts = new ArrayList<>();
-    for (Promise<ArtifactEntry> build : builds) {
-      artifacts.add(build.get());
-    }
-    ReleaseIdentity identity =
+    pendingPlatforms.addAll(ReleasePolicy.NATIVE_PLATFORMS);
+    upsertStatus();
+    Workflow.await(() -> pendingPlatforms.isEmpty());
+    releaseIdentity =
         new ReleaseIdentity(
-            candidateIdentity,
-            new ArtifactManifest("sdk-java/" + candidateIdentity.digest() + "/", artifacts),
-            Workflow.getInfo().getRunId());
-    CandidateStateActivities state =
-        Workflow.newActivityStub(
-            CandidateStateActivities.class,
-            ActivityOptions.newBuilder()
-                .setTaskQueue(QueueNames.candidateWorkflow(candidateIdentity))
-                .setStartToCloseTimeout(Duration.ofMinutes(2))
-                .setRetryOptions(
-                    RetryOptions.newBuilder()
-                        .setInitialInterval(Duration.ofSeconds(20))
-                        .setMaximumInterval(Duration.ofMinutes(5))
-                        .build())
-                .build());
-    if (state.manualReleaseOwns(candidateIdentity)) {
-      return identity;
-    }
+            candidateIdentity, new ArtifactManifest(artifacts), Workflow.getInfo().getRunId());
     // Visibility can now discover and start a Worker for the child queue before the child's
     // first Workflow Task has written its own status memo.
-    upsertStatus(pendingPlatforms, identity);
+    upsertStatus();
     ReleaseWorkflow child =
         Workflow.newChildWorkflowStub(
             ReleaseWorkflow.class,
             ChildWorkflowOptions.newBuilder()
-                .setWorkflowId(QueueNames.releaseWorkflowId(identity))
-                .setTaskQueue(QueueNames.releaseWorkflow(identity))
-                .setMemo(Collections.singletonMap(ReleaseWorkflowImpl.IDENTITY_MEMO_KEY, identity))
+                .setWorkflowId(QueueNames.releaseWorkflowId(releaseIdentity))
+                .setTaskQueue(QueueNames.releaseWorkflow(releaseIdentity))
+                .setMemo(
+                    Collections.singletonMap(
+                        ReleaseWorkflowImpl.IDENTITY_MEMO_KEY, releaseIdentity))
                 .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
                 .build());
-    Async.function(child::release, identity);
+    Async.function(child::release, releaseIdentity);
     Workflow.getWorkflowExecution(child).get();
-    return identity;
+    return releaseIdentity;
+  }
+
+  @Override
+  public CandidateStatus recordArtifact(String platform, GithubArtifactReceipt artifact) {
+    validateArtifact(platform, artifact);
+    if (pendingPlatforms.remove(platform)) {
+      artifacts.add(artifact);
+    }
+    upsertStatus();
+    return status();
+  }
+
+  @UpdateValidatorMethod(updateName = "recordArtifact")
+  public void validateArtifact(String platform, GithubArtifactReceipt artifact) {
+    if (candidate == null) {
+      throw new IllegalStateException("Candidate is not waiting for this native platform.");
+    }
+    artifact.validate();
+    String expectedFile = ReleasePolicy.nativeArtifactName(candidate.version(), platform);
+    if (!ReleasePolicy.githubNativeArtifactName(candidate, platform).equals(artifact.artifactName)
+        || artifact.files.size() != 1
+        || !expectedFile.equals(artifact.files.get(0).name)) {
+      throw new IllegalArgumentException("GitHub artifact does not match the native platform.");
+    }
+    if (!pendingPlatforms.contains(platform)) {
+      for (GithubArtifactReceipt existing : artifacts) {
+        if (existing.artifactName.equals(artifact.artifactName)
+            && existing.canonicalForm().equals(artifact.canonicalForm())) {
+          return;
+        }
+      }
+      throw new IllegalStateException("Candidate already recorded another native artifact.");
+    }
   }
 
   @Override
@@ -96,9 +83,11 @@ public final class CandidateWorkflowImpl implements CandidateWorkflow {
     return candidate;
   }
 
-  private void upsertStatus(List<String> pendingPlatforms, ReleaseIdentity releaseIdentity) {
-    Workflow.upsertMemo(
-        Collections.singletonMap(
-            STATUS_MEMO_KEY, new CandidateStatus(candidate, pendingPlatforms, releaseIdentity)));
+  private CandidateStatus status() {
+    return new CandidateStatus(candidate, pendingPlatforms, artifacts, releaseIdentity);
+  }
+
+  private void upsertStatus() {
+    Workflow.upsertMemo(Collections.singletonMap(STATUS_MEMO_KEY, status()));
   }
 }

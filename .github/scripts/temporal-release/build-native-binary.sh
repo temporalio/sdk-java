@@ -38,7 +38,7 @@ for variable in "${required[@]}"; do
 done
 
 for credential in \
-  AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN TEMPORAL_API_KEY GH_TOKEN \
+  TEMPORAL_API_KEY GH_TOKEN \
   ACTIONS_ID_TOKEN_REQUEST_URL ACTIONS_ID_TOKEN_REQUEST_TOKEN; do
   [[ -z ${!credential:-} ]] || fail "Credential $credential must not reach candidate compilation."
 done

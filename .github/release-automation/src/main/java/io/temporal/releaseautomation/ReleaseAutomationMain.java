@@ -47,7 +47,7 @@ public final class ReleaseAutomationMain {
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
       throw new IllegalArgumentException(
-          "Expected candidate-outputs, maven-policy, platform-matrix, start-candidate, discover, approval-target, approval-request, approve, control, inspect, inspect-if-present, publication-input, or worker.");
+          "Expected candidate-outputs, maven-policy, platform-matrix, start-candidate, record-artifact, record-maven-payload, claim-manual-ownership, discover, approval-target, approval-request, approve, control, inspect, inspect-if-present, publication-input, or worker.");
     }
     Map<String, String> environment = System.getenv();
     if ("candidate-outputs".equals(args[0])) {
@@ -77,6 +77,30 @@ public final class ReleaseAutomationMain {
         case "start-candidate":
           requireArguments(args, 2);
           startCandidate(temporalClient, read(args[1], CandidateIdentity.class));
+          return;
+        case "record-artifact":
+          requireArguments(args, 5);
+          recordArtifact(
+              temporalClient,
+              args[1],
+              args[2],
+              args[3],
+              read(args[4], GithubArtifactReceipt.class));
+          return;
+        case "record-maven-payload":
+          requireArguments(args, 4);
+          recordMavenPayload(
+              temporalClient, args[1], args[2], read(args[3], GithubArtifactReceipt.class));
+          return;
+        case "claim-manual-ownership":
+          requireArguments(args, 5);
+          claimManualOwnership(
+              temporalClient,
+              environment,
+              args[1],
+              args[2],
+              "-".equals(args[3]) ? "" : args[3],
+              Boolean.parseBoolean(args[4]));
           return;
         case "discover":
           requireArguments(args, 2);
@@ -171,6 +195,17 @@ public final class ReleaseAutomationMain {
 
   private static void startCandidate(WorkflowClient client, CandidateIdentity candidate) {
     candidate.validate();
+    for (WorkflowExecutionMetadata execution :
+        client.listExecutions("WorkflowType = 'CandidateWorkflow'").collect(Collectors.toList())) {
+      CandidateIdentity existing =
+          (CandidateIdentity) execution.getMemo("CandidateIdentity", CandidateIdentity.class);
+      if (existing != null
+          && candidate.tag.equals(existing.tag)
+          && !candidate.digest().equals(existing.digest())) {
+        throw new IllegalStateException(
+            "The release tag already identifies another immutable candidate.");
+      }
+    }
     CandidateWorkflow workflow =
         client.newWorkflowStub(
             CandidateWorkflow.class,
@@ -209,6 +244,84 @@ public final class ReleaseAutomationMain {
     writeOutput("run_id", execution.getRunId());
     writeOutput("candidate_digest", candidate.digest());
     writeOutput("task_queue", QueueNames.candidateWorkflow(candidate));
+  }
+
+  private static void recordArtifact(
+      WorkflowClient client,
+      String workflowId,
+      String runId,
+      String platform,
+      GithubArtifactReceipt artifact) {
+    if (!workflowId.startsWith("sdk-java-release-candidate/") || runId == null || runId.isEmpty()) {
+      throw new IllegalArgumentException("Candidate Workflow execution is invalid.");
+    }
+    artifact.validate();
+    WorkerFactory factory = WorkerFactory.newInstance(client);
+    factory
+        .newWorker(
+            QueueNames.candidateWorkflowFromDigest(
+                workflowId.substring(workflowId.indexOf('/') + 1)))
+        .registerWorkflowImplementationTypes(CandidateWorkflowImpl.class);
+    factory.start();
+    try {
+      CandidateWorkflow workflow =
+          client.newWorkflowStub(
+              CandidateWorkflow.class,
+              WorkflowTargetOptions.newBuilder()
+                  .setWorkflowExecution(
+                      WorkflowExecution.newBuilder()
+                          .setWorkflowId(workflowId)
+                          .setRunId(runId)
+                          .build())
+                  .build());
+      CandidateStatus status = workflow.recordArtifact(platform, artifact);
+      writeOutput("pending_platforms", Integer.toString(status.pendingPlatforms.size()));
+    } finally {
+      factory.shutdown();
+    }
+  }
+
+  private static void recordMavenPayload(
+      WorkflowClient client, String tag, String commitSha, GithubArtifactReceipt artifact) {
+    WorkflowExecutionMetadata metadata = findRelease(client, tag, commitSha);
+    withReleaseWorker(
+        client,
+        metadata,
+        workflow -> {
+          ReleaseStatus status = workflow.recordMavenPayload(artifact);
+          writeIdentityOutputs(metadata, status.identity, status.phase);
+          writeStatusOutputs(status);
+        });
+  }
+
+  private static void claimManualOwnership(
+      WorkflowClient client,
+      Map<String, String> env,
+      String tag,
+      String commitSha,
+      String releaseDigest,
+      boolean handoffConfirmed) {
+    String actor = required(env, "GITHUB_TRIGGERING_ACTOR");
+    verifyApprover(actor);
+    long githubRunId = Long.parseLong(required(env, "GITHUB_RUN_ID"));
+    OwnershipClaim claim =
+        OwnershipClaim.manual(tag, commitSha, releaseDigest, actor, githubRunId, handoffConfirmed);
+    WorkerFactory factory = WorkerFactory.newInstance(client);
+    factory
+        .newWorker(QueueNames.ownership(tag))
+        .registerWorkflowImplementationTypes(ReleaseOwnershipWorkflowImpl.class);
+    factory.start();
+    try {
+      OwnershipStatus status = OwnershipActivitiesImpl.claim(client, claim);
+      if (!"MANUAL".equals(status.owner)) {
+        throw new IllegalStateException(
+            "The automatic release still owns this tag; complete its handoff first.");
+      }
+      writeOutput("owner", status.owner);
+      writeOutput("release_digest", value(status.releaseDigest));
+    } finally {
+      factory.shutdown();
+    }
   }
 
   private static void discover(
@@ -309,17 +422,10 @@ public final class ReleaseAutomationMain {
         build.distribution = platformSpec.distribution;
         build.javaVersion = platformSpec.javaVersion;
       }
+      build.assetPlatform = platformSpec.assetPlatform;
+      build.archiveExtension = platformSpec.archiveExtension;
+      build.binaryName = platformSpec.binaryName;
       jobs.add(build);
-    }
-    if (candidateStatus != null && candidateStatus.releaseIdentity != null) {
-      ReleaseIdentity releaseIdentity = candidateStatus.releaseIdentity;
-      releaseIdentity.validate();
-      DiscoveryJob release =
-          new DiscoveryJob("release", QueueNames.releaseWorkflow(releaseIdentity));
-      release.automationCommit = releaseIdentity.candidate.trustedAutomationCommit;
-      release.candidateDigest = candidate.digest();
-      release.workflowId = QueueNames.releaseWorkflowId(releaseIdentity);
-      jobs.add(release);
     }
   }
 
@@ -355,6 +461,8 @@ public final class ReleaseAutomationMain {
     release.automationCommit = releaseIdentity.candidate.trustedAutomationCommit;
     release.workflowId = execution.getExecution().getWorkflowId();
     release.runId = execution.getExecution().getRunId();
+    release.tag = releaseIdentity.candidate.tag;
+    release.commitSha = releaseIdentity.candidate.commitSha;
     jobs.add(release);
   }
 
@@ -382,7 +490,10 @@ public final class ReleaseAutomationMain {
       return;
     }
     if (!("PREFLIGHT".equals(status.phase)
-        || "MAVEN".equals(status.phase)
+        || "AWAITING_MAVEN_PAYLOAD".equals(status.phase)
+        || "MAVEN_REPOSITORY".equals(status.phase)
+        || "MAVEN_PORTAL".equals(status.phase)
+        || "MAVEN_PUBLISH".equals(status.phase)
         || "GITHUB_DRAFT".equals(status.phase)
         || "PUBLISH_GITHUB".equals(status.phase))) {
       return;
@@ -406,6 +517,9 @@ public final class ReleaseAutomationMain {
     job.tag = identity.candidate.tag;
     job.commitSha = identity.candidate.commitSha;
     job.automationCommit = identity.candidate.trustedAutomationCommit;
+    job.workflowId = execution.getExecution().getWorkflowId();
+    job.runId = execution.getExecution().getRunId();
+    job.releaseDigest = identity.digest();
     jobs.add(job);
   }
 
@@ -545,6 +659,7 @@ public final class ReleaseAutomationMain {
                   Long.parseLong(required(env, "APPROVAL_ISSUE_NUMBER")),
                   required(env, "APPROVAL_ISSUE_NODE_ID"),
                   required(env, "APPROVAL_ISSUE_BODY_SHA256"),
+                  required(env, "APPROVAL_ISSUE_CREATOR"),
                   identity.candidate.trustedAutomationCommit);
           if (status.approvalRequest == null) {
             workflow.requestApproval(request);
@@ -590,7 +705,14 @@ public final class ReleaseAutomationMain {
           if ("retry-maven-submission".equals(action)) {
             evidence.mavenSubmissionGeneration =
                 Integer.parseInt(required(env, "MAVEN_RETRY_GENERATION"));
-            evidence.authorizationSha256 = required(env, "MAVEN_RETRY_AUTHORIZATION_SHA256");
+            try {
+              evidence.mavenInspection =
+                  read(required(env, "MAVEN_RETRY_INSPECTION_FILE"), MavenInspection.class);
+            } catch (IOException e) {
+              throw new IllegalStateException("Unable to read the exact Maven inspection.", e);
+            }
+            evidence.authorizationSha256 =
+                Digests.sha256(evidence.mavenInspection.canonicalForm(identity.digest()));
           }
           evidence.validate();
           ReleaseStatus updated = workflow.control(evidence);
@@ -653,11 +775,14 @@ public final class ReleaseAutomationMain {
     PublicationInput input =
         new PublicationInput(
             status.identity,
+            status.approvalRequest,
             status.approval,
             metadata.getExecution().getWorkflowId(),
             metadata.getExecution().getRunId());
     input.mavenSubmissionGeneration = status.mavenSubmissionGeneration;
     input.mavenRetryAuthorization = status.mavenRetryAuthorization;
+    input.mavenPayload = status.mavenPayload;
+    input.mavenGenerations = new ArrayList<>(status.mavenGenerations);
     Files.write(output, GSON.toJson(input).getBytes(StandardCharsets.UTF_8));
     writeIdentityOutputs(metadata, status.identity, status.phase);
     writeStatusOutputs(status);
@@ -694,28 +819,18 @@ public final class ReleaseAutomationMain {
     switch (role) {
       case "candidate":
         worker.registerWorkflowImplementationTypes(CandidateWorkflowImpl.class);
-        worker.registerActivitiesImplementations(
-            new CandidateStateActivitiesImpl(
-                REPOSITORY_ROOT, env, activityStarted::countDown, recordActivityCompletion));
         break;
       case "release":
         worker.registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
-        break;
-      case "build":
-        worker.registerActivitiesImplementations(
-            new BuildActivitiesImpl(
-                REPOSITORY_ROOT,
-                prebuiltNativeRoot(env),
-                required(env, "RELEASE_AUTOMATION_REF"),
-                env,
-                activityStarted::countDown,
-                recordActivityCompletion));
+        registerOwnershipWorker(factory, client, required(env, "RELEASE_TAG"), true);
         break;
       case "publication":
+        registerOwnershipWorker(factory, client, required(env, "RELEASE_TAG"), false);
         worker.registerActivitiesImplementations(
             new PublicationActivitiesImpl(
                 REPOSITORY_ROOT,
                 sourceRoot(env),
+                client,
                 env,
                 activityStarted::countDown,
                 recordActivityCompletion));
@@ -724,16 +839,13 @@ public final class ReleaseAutomationMain {
         throw new IllegalArgumentException("Unknown Worker role: " + role);
     }
     factory.start();
-    boolean activityRole =
-        "candidate".equals(role) || "build".equals(role) || "publication".equals(role);
+    boolean activityRole = "publication".equals(role);
     boolean processed = false;
     if (activityRole
         && activityStarted.await(Duration.ofMinutes(2).toMillis(), TimeUnit.MILLISECONDS)) {
       processed = activityCompleted.await(Duration.ofMinutes(98).toMillis(), TimeUnit.MILLISECONDS);
     } else if (!activityRole) {
       processed = awaitWindow(Duration.ofMinutes(10));
-      failOnUnrecoveredWorkflowTaskFailure(client, env);
-    } else if ("candidate".equals(role)) {
       failOnUnrecoveredWorkflowTaskFailure(client, env);
     }
     writeOutput(
@@ -751,6 +863,15 @@ public final class ReleaseAutomationMain {
       throw new IllegalStateException(
           "The release Activity attempt failed; Temporal retained its durable retry state and scheduled recovery.",
           failure);
+    }
+  }
+
+  private static void registerOwnershipWorker(
+      WorkerFactory factory, WorkflowClient client, String tag, boolean registerActivities) {
+    Worker ownershipWorker = factory.newWorker(QueueNames.ownership(tag));
+    ownershipWorker.registerWorkflowImplementationTypes(ReleaseOwnershipWorkflowImpl.class);
+    if (registerActivities) {
+      ownershipWorker.registerActivitiesImplementations(new OwnershipActivitiesImpl(client));
     }
   }
 
@@ -957,6 +1078,16 @@ public final class ReleaseAutomationMain {
     factory
         .newWorker(metadata.getTaskQueue())
         .registerWorkflowImplementationTypes(ReleaseWorkflowImpl.class);
+    ReleaseStatus status = releaseStatus(metadata);
+    ReleaseIdentity identity =
+        status == null
+            ? (ReleaseIdentity)
+                metadata.getMemo(ReleaseWorkflowImpl.IDENTITY_MEMO_KEY, ReleaseIdentity.class)
+            : status.identity;
+    if (identity == null) {
+      throw new IllegalStateException("Release Workflow has no ownership identity.");
+    }
+    registerOwnershipWorker(factory, client, identity.candidate.tag, true);
     factory.start();
     try {
       operation.accept(releaseStub(client, metadata.getExecution()));
@@ -995,6 +1126,7 @@ public final class ReleaseAutomationMain {
 
   private static void writeStatusOutputs(ReleaseStatus status) {
     writeOutput("paused_from", value(status.pausedFrom));
+    writeOutput("handed_off_from", value(status.handedOffFrom));
     writeOutput("last_completed_stage", value(status.lastCompletedStage));
     writeOutput("last_error", value(status.lastError));
     writeOutput("blocked_at_millis", Long.toString(status.blockedAtMillis));
@@ -1007,6 +1139,14 @@ public final class ReleaseAutomationMain {
     writeOutput("stage_attempt", Integer.toString(status.stageAttempt));
     writeOutput("stage_started_at_millis", Long.toString(status.stageStartedAtMillis));
     writeOutput("next_retry_at_millis", Long.toString(status.nextRetryAtMillis));
+    writeOutput(
+        "maven_started",
+        Boolean.toString(
+            status.mavenGenerations != null
+                && status.mavenGenerations.stream()
+                    .anyMatch(generation -> generation.submissionStarted)));
+    writeOutput("ownership_owner", status.ownership == null ? "" : value(status.ownership.owner));
+    writeOutput("maven_payload_recorded", Boolean.toString(status.mavenPayload != null));
   }
 
   private static String value(String value) {
@@ -1067,15 +1207,6 @@ public final class ReleaseAutomationMain {
     Path path = Paths.get(required(env, "RELEASE_SOURCE_DIR")).toAbsolutePath().normalize();
     if (!Files.isDirectory(path)) {
       throw new IllegalArgumentException("RELEASE_SOURCE_DIR is not a directory.");
-    }
-    return path;
-  }
-
-  private static Path prebuiltNativeRoot(Map<String, String> env) {
-    Path path =
-        Paths.get(required(env, "RELEASE_PREBUILT_NATIVE_DIR")).toAbsolutePath().normalize();
-    if (!Files.isDirectory(path)) {
-      throw new IllegalArgumentException("RELEASE_PREBUILT_NATIVE_DIR is not a directory.");
     }
     return path;
   }

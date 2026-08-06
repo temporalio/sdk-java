@@ -6,13 +6,13 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
 @WorkflowInterface
-public interface CandidateWorkflow {
+public interface ReleaseOwnershipWorkflow {
   @WorkflowMethod
-  ReleaseIdentity prepare(CandidateIdentity candidate);
+  void manage(OwnershipClaim initialClaim);
 
   @UpdateMethod
-  CandidateStatus recordArtifact(String platform, GithubArtifactReceipt artifact);
+  OwnershipStatus claim(OwnershipClaim claim);
 
   @QueryMethod
-  CandidateIdentity candidate();
+  OwnershipStatus status();
 }

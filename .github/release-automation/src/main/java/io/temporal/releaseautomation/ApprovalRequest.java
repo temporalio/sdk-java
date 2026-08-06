@@ -8,6 +8,7 @@ public final class ApprovalRequest {
   public long githubIssueNumber;
   public String githubIssueNodeId;
   public String githubIssueBodySha256;
+  public String githubIssueCreator;
   public String trustedWorkerCommit;
 
   public ApprovalRequest() {}
@@ -20,6 +21,7 @@ public final class ApprovalRequest {
       long githubIssueNumber,
       String githubIssueNodeId,
       String githubIssueBodySha256,
+      String githubIssueCreator,
       String trustedWorkerCommit) {
     this.releaseDigest = releaseDigest;
     this.workflowId = workflowId;
@@ -28,6 +30,7 @@ public final class ApprovalRequest {
     this.githubIssueNumber = githubIssueNumber;
     this.githubIssueNodeId = githubIssueNodeId;
     this.githubIssueBodySha256 = githubIssueBodySha256;
+    this.githubIssueCreator = githubIssueCreator;
     this.trustedWorkerCommit = trustedWorkerCommit;
     validate();
   }
@@ -45,6 +48,8 @@ public final class ApprovalRequest {
         || !githubIssueNodeId.matches("[A-Za-z0-9_=-]{8,128}")
         || githubIssueBodySha256 == null
         || !githubIssueBodySha256.matches("[0-9a-f]{64}")
+        || githubIssueCreator == null
+        || !githubIssueCreator.matches("[A-Za-z0-9-]{1,39}")
         || trustedWorkerCommit == null
         || !trustedWorkerCommit.matches("[0-9a-f]{40}")) {
       throw new IllegalArgumentException("Invalid release-specific approval request.");
@@ -72,6 +77,7 @@ public final class ApprovalRequest {
         && githubIssueNumber == other.githubIssueNumber
         && githubIssueNodeId.equals(other.githubIssueNodeId)
         && githubIssueBodySha256.equals(other.githubIssueBodySha256)
+        && githubIssueCreator.equals(other.githubIssueCreator)
         && trustedWorkerCommit.equals(other.trustedWorkerCommit);
   }
 }

@@ -13,6 +13,7 @@ public final class ControlEvidence {
   public long recordedAtMillis;
   public int mavenSubmissionGeneration = -1;
   public String authorizationSha256;
+  public MavenInspection mavenInspection;
 
   public ControlEvidence() {}
 
@@ -63,9 +64,17 @@ public final class ControlEvidence {
     if ("retry-maven-submission".equals(action)
         && (mavenSubmissionGeneration <= 0
             || authorizationSha256 == null
-            || !authorizationSha256.matches("[0-9a-f]{64}"))) {
+            || !authorizationSha256.matches("[0-9a-f]{64}")
+            || mavenInspection == null)) {
       throw new IllegalArgumentException(
-          "Maven retry control requires an externally authorized generation receipt.");
+          "Maven retry control requires an exact authorized inspection.");
+    }
+    if ("retry-maven-submission".equals(action)) {
+      mavenInspection.validate(releaseDigest);
+      if (!Digests.sha256(mavenInspection.canonicalForm(releaseDigest))
+          .equals(authorizationSha256)) {
+        throw new IllegalArgumentException("Maven retry inspection digest differs.");
+      }
     }
   }
 }

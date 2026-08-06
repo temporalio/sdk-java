@@ -12,27 +12,18 @@ on:
 permissions:
   contents: read
 
-env:
-  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
-
 jobs:
   discover:
-    name: Discover open release-specific queues
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: release-control
     outputs:
-      count: ${{ steps.split.outputs.count }}
-      matrix: ${{ steps.split.outputs.matrix }}
       build_count: ${{ steps.split.outputs.build_count }}
       build_matrix: ${{ steps.split.outputs.build_matrix }}
+      worker_count: ${{ steps.split.outputs.worker_count }}
+      worker_matrix: ${{ steps.split.outputs.worker_matrix }}
     steps:
-      - name: Validate trusted automation pin
-        env:
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
-      - name: Checkout trusted release automation
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
@@ -40,34 +31,30 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Query Temporal Visibility
-        id: discover
+      - name: Discover open release queues
+        id: temporal
         env:
+          RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
         run: ./gradlew -p .github/release-automation run --args="discover unprivileged"
-      - name: Separate credential-free compilation from trusted Workers
+      - name: Split builds from Workers
         id: split
         env:
-          DISCOVERED_MATRIX: ${{ steps.discover.outputs.matrix }}
+          MATRIX: ${{ steps.temporal.outputs.matrix }}
         run: |
-          build_matrix=$(jq -c '{include:[.include[] | select(.role == "build")]}' \
-            <<<"$DISCOVERED_MATRIX")
-          worker_matrix=$(jq -c \
-            '{include:[.include[] | if .role == "build" then
-              .runner="ubuntu-latest" | .distribution="temurin" | .javaVersion="17"
-            else . end]}' <<<"$DISCOVERED_MATRIX")
+          builds=$(jq -c '{include:[.include[] | select(.role == "build")]}' <<<"$MATRIX")
+          workers=$(jq -c '{include:[.include[] | select(.role != "build")]}' <<<"$MATRIX")
           {
-            echo "build_count=$(jq '.include | length' <<<"$build_matrix")"
-            echo "build_matrix=$build_matrix"
-            echo "count=$(jq '.include | length' <<<"$worker_matrix")"
-            echo "matrix=$worker_matrix"
+            echo "build_count=$(jq '.include | length' <<<"$builds")"
+            echo "build_matrix=$builds"
+            echo "worker_count=$(jq '.include | length' <<<"$workers")"
+            echo "worker_matrix=$workers"
           } >>"$GITHUB_OUTPUT"
 
-  compile_native:
-    name: Credential-free native compile (${{ matrix.platform }})
+  build_native:
     needs: discover
     if: needs.discover.outputs.build_count != '0'
     strategy:
@@ -75,36 +62,49 @@ jobs:
       matrix: ${{ fromJSON(needs.discover.outputs.build_matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
+    environment: release-control
     permissions:
+      actions: read
       contents: read
     concurrency:
-      group: temporal-release-compile-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+      group: temporal-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
       cancel-in-progress: false
     steps:
-      - name: Checkout immutable release source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           path: source
           persist-credentials: false
           ref: ${{ matrix.commitSha }}
           submodules: recursive
-      - name: Checkout frozen trusted build policy
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
           persist-credentials: false
           ref: ${{ matrix.automationCommit }}
-      - name: Set up native-image Java
-        if: startsWith(matrix.platform, 'macos-') || startsWith(matrix.platform, 'windows-')
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - name: Verify trusted checkout
+        env:
+          RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+        run: |
+          [[ ",${RELEASE_AUTOMATION_REF},${RELEASE_AUTOMATION_COMPATIBLE_REFS}," == \
+            *",${{ matrix.automationCommit }},"* ]]
+          [[ "$(git -C automation rev-parse HEAD)" == "${{ matrix.automationCommit }}" ]]
+      - name: Find an existing exact artifact
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+        run: automation/.github/scripts/temporal-release/find-github-artifact.sh >>"$GITHUB_OUTPUT"
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        if: steps.existing.outputs.found != 'true' && (startsWith(matrix.platform, 'macos-') || startsWith(matrix.platform, 'windows-'))
         with:
           distribution: ${{ matrix.distribution }}
           java-version: ${{ matrix.javaVersion }}
-      - name: Set up Gradle
-        if: startsWith(matrix.platform, 'macos-') || startsWith(matrix.platform, 'windows-')
-        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Compile untrusted candidate without release credentials
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+        if: steps.existing.outputs.found != 'true' && (startsWith(matrix.platform, 'macos-') || startsWith(matrix.platform, 'windows-'))
+      - name: Compile without release credentials
+        if: steps.existing.outputs.found != 'true'
         working-directory: source
         env:
           RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
@@ -118,118 +118,98 @@ jobs:
           TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
         run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-native-binary.sh"
-      - name: Upload raw native output for the trusted store Activity
+      - name: Package the deterministic release archive
+        if: steps.existing.outputs.found != 'true'
+        working-directory: source
+        env:
+          RELEASE_ARCHIVE_EXTENSION: ${{ matrix.archiveExtension }}
+          RELEASE_ASSET_PLATFORM: ${{ matrix.assetPlatform }}
+          RELEASE_BINARY_NAME: ${{ matrix.binaryName }}
+          RELEASE_CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
+          RELEASE_COMMIT: ${{ matrix.commitSha }}
+          RELEASE_NOTES_FILE: releases/${{ matrix.tag }}
+          RELEASE_NOTES_SHA256: ${{ matrix.notesSha256 }}
+          RELEASE_OUTPUT_DIR: ${{ runner.temp }}/native-artifact
+          RELEASE_PLATFORM: ${{ matrix.platform }}
+          RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/native-output
+          RELEASE_TAG: ${{ matrix.tag }}
+          RELEASE_VERSION: ${{ matrix.version }}
+          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
+          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
+        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/package-native-artifact.sh"
+      - name: Upload the exact native archive
+        id: upload
+        if: steps.existing.outputs.found != 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: temporal-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/native-output
+          name: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+          path: ${{ runner.temp }}/native-artifact
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 90
+      - name: Download a recovered artifact by exact ID
+        if: steps.existing.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_ARTIFACT_DESTINATION: ${{ runner.temp }}/native-artifact
+          GITHUB_ARTIFACT_DIGEST: ${{ steps.existing.outputs.github_digest }}
+          GITHUB_ARTIFACT_ID: ${{ steps.existing.outputs.artifact_id }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+          GITHUB_ARTIFACT_RUN_ID: ${{ steps.existing.outputs.workflow_run_id }}
+        run: automation/.github/scripts/temporal-release/download-github-artifact.sh
+      - name: Create the exact Temporal artifact receipt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_ARTIFACT_CONTENT_DIR: ${{ runner.temp }}/native-artifact
+          GITHUB_ARTIFACT_ID: ${{ steps.existing.outputs.artifact_id || steps.upload.outputs.artifact-id }}
+          GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+          GITHUB_ARTIFACT_RECEIPT_FILE: ${{ runner.temp }}/native-receipt.json
+          GITHUB_ARTIFACT_RUN_ID: ${{ steps.existing.outputs.workflow_run_id || github.run_id }}
+        run: automation/.github/scripts/temporal-release/github-artifact-receipt.sh
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Record the exact artifact in Candidate Workflow state
+        working-directory: automation
+        env:
+          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
+          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="record-artifact ${{ matrix.workflowId }} ${{ matrix.runId }}
+          ${{ matrix.platform }} $RUNNER_TEMP/native-receipt.json"
 
   workers:
-    name: ${{ matrix.role }} Worker (${{ matrix.taskQueue }})
-    needs: [discover, compile_native]
-    if: >-
-      always() && needs.discover.result == 'success' &&
-      needs.compile_native.result != 'cancelled' &&
-      needs.discover.outputs.count != '0'
+    needs: discover
+    if: needs.discover.outputs.worker_count != '0'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+      matrix: ${{ fromJSON(needs.discover.outputs.worker_matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     environment: release-control
-    permissions:
-      actions: read
-      contents: read
-      id-token: write
     concurrency:
       group: temporal-release-${{ matrix.taskQueue }}
       cancel-in-progress: false
     steps:
-      - name: Checkout trusted release automation
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          path: automation
           ref: ${{ matrix.automationCommit }}
-      - name: Verify trusted checkout
-        working-directory: automation
-        env:
-          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: |
-          [[ "$IDENTITY_AUTOMATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
-          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
-            *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
-          [[ "$(git rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
-      - name: Set up Java
-        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
-          distribution: ${{ matrix.distribution }}
-          java-version: ${{ matrix.javaVersion }}
+          distribution: temurin
+          java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Obtain artifact-store credentials
-        if: matrix.role == 'build'
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
-      - name: Download the credential-free native output
-        if: matrix.role == 'build'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download "$GITHUB_RUN_ID" \
-            --name "temporal-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}-$GITHUB_RUN_ATTEMPT" \
-            --dir "$RUNNER_TEMP/prebuilt-native"
-      - name: Obtain read-only candidate-state credentials
-        if: matrix.role == 'candidate'
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_CONTROL_ARTIFACT_ROLE_ARN }}
-      - name: Validate protected candidate and Workflow-start receipts
-        if: matrix.role == 'build'
-        working-directory: automation
-        env:
-          CANDIDATE_DIGEST: ${{ matrix.candidateDigest }}
-          COMMIT_SHA: ${{ matrix.commitSha }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_TAG: ${{ matrix.tag }}
-          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
-          CANDIDATE_RUN_ID: ${{ matrix.runId }}
-        run: |
-          candidate="$RUNNER_TEMP/protected-candidate.json"
-          outputs="$RUNNER_TEMP/protected-candidate.outputs"
-          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates/$RELEASE_TAG.json" \
-            "$candidate" --no-progress >/dev/null
-          GITHUB_OUTPUT="$outputs" ./gradlew -p .github/release-automation run \
-            --args="candidate-outputs $candidate"
-          read_output() { awk -F= -v name="$1" '$1 == name {print $2}' "$outputs" | tail -1; }
-          [[ $(read_output candidate_digest) == "$CANDIDATE_DIGEST" &&
-            $(read_output commit_sha) == "$COMMIT_SHA" &&
-            $(read_output tag) == "$RELEASE_TAG" &&
-            $(read_output automation_commit) == "$TRUSTED_AUTOMATION_COMMIT" ]]
-          start="$RUNNER_TEMP/protected-candidate-start.json"
-          aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/sdk-java/candidates-started/$RELEASE_TAG.json" \
-            "$start" --no-progress >/dev/null
-          jq -e --arg tag "$RELEASE_TAG" --arg digest "$CANDIDATE_DIGEST" \
-            --arg run "$CANDIDATE_RUN_ID" \
-            --arg workflow "sdk-java-release-candidate/$CANDIDATE_DIGEST" \
-            '.tag == $tag and .candidateDigest == $digest and .workflowId == $workflow and
-             .runId == $run' "$start" >/dev/null
-      - name: Poll only the discovered release-specific queue
-        working-directory: automation
+      - name: Poll only the release-specific Workflow queue
         env:
           EXPECTED_RUN_ID: ${{ matrix.runId }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/prebuilt-native
-          RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
-          ROLE: ${{ matrix.role }}
-          TASK_QUEUE: ${{ matrix.taskQueue }}
+          RELEASE_TAG: ${{ matrix.tag }}
           TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
-        run: ./gradlew -p .github/release-automation run --args="worker $ROLE $TASK_QUEUE"
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="worker ${{ matrix.role }} ${{ matrix.taskQueue }}"

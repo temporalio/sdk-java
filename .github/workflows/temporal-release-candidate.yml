@@ -25,37 +25,24 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
-  RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
   TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
   TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
 
 jobs:
   discover:
-    name: Discover exact release-note commits
     if: github.event_name != 'schedule' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       count: ${{ steps.matrix.outputs.count }}
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - name: Validate current trusted automation pin
-        env:
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]'
-      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
-      - name: Build immutable candidate matrix
+      - name: Discover exact release-note commits
         id: matrix
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           WORKFLOW_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
           WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
@@ -63,38 +50,20 @@ jobs:
           WORKFLOW_RUN_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
           WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          s3_exists() {
-            local object_key=$1 error="$RUNNER_TEMP/s3-head-error.txt" status
-            set +e
-            aws s3api head-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$object_key" \
-              >"$RUNNER_TEMP/s3-head.json" 2>"$error"
-            status=$?
-            set -e
-            [[ $status -eq 0 ]] && return 0
-            if [[ $status -eq 254 ]] &&
-              grep -Eq '^An error occurred \((404|NoSuchKey|NotFound)\) when calling the HeadObject operation:' \
-                "$error"; then
-              return 1
-            fi
-            cat "$error" >&2
-            exit 1
-          }
+          [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
           : >"$RUNNER_TEMP/candidates.jsonl"
           add_source() {
             local source_sha=$1 base_sha=$2
             [[ "$source_sha" =~ ^[0-9a-f]{40}$ && "$base_sha" =~ ^[0-9a-f]{40}$ ]]
             jq -cn --arg sourceSha "$source_sha" --arg baseSha "$base_sha" \
               --arg automationCommit "$RELEASE_AUTOMATION_REF" \
-              '{mode:"source",sourceSha:$sourceSha,baseSha:$baseSha,
-                automationCommit:$automationCommit,candidateKey:""}' \
+              '{sourceSha:$sourceSha,baseSha:$baseSha,automationCommit:$automationCommit}' \
               >>"$RUNNER_TEMP/candidates.jsonl"
           }
           if [[ "$GITHUB_EVENT_NAME" == push ]]; then
             base_sha='${{ github.event.before }}'
-            if [[ "$base_sha" =~ ^0+$ ]]; then
-              base_sha=$(gh api "repos/temporalio/sdk-java/commits/$GITHUB_SHA" \
-                --jq '.parents[0].sha')
-            fi
+            [[ "$base_sha" =~ ^0+$ ]] && base_sha=$(gh api \
+              "repos/temporalio/sdk-java/commits/$GITHUB_SHA" --jq '.parents[0].sha')
             add_source "$GITHUB_SHA" "$base_sha"
           elif [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
             if [[ "$WORKFLOW_RUN_CONCLUSION" == success && "$WORKFLOW_RUN_EVENT" == push &&
@@ -108,44 +77,8 @@ jobs:
               add_source "$WORKFLOW_RUN_SHA" "$parent"
             fi
           else
-            aws s3api list-objects-v2 --bucket "$RELEASE_ARTIFACT_BUCKET" \
-              --prefix sdk-java/candidates/ --output json >"$RUNNER_TEMP/candidate-objects.json"
-            while IFS= read -r key; do
-              [[ "$key" == sdk-java/candidates/*.json ]] || {
-                echo "Skipping malformed candidate key $key." >&2
-                continue
-              }
-              tag=$(basename "$key" .json)
-              started_key="sdk-java/candidates-started/$tag.json"
-              if s3_exists "$started_key"; then
-                continue
-              fi
-              file="$RUNNER_TEMP/candidate-$tag.json"
-              aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" "$file" --no-progress >/dev/null
-              if ! jq -e --arg tag "$tag" \
-                '.tag == $tag and
-                 (.commitSha | test("^[0-9a-f]{40}$")) and
-                 (.trustedAutomationCommit | test("^[0-9a-f]{40}$"))' "$file" >/dev/null; then
-                echo "Skipping malformed candidate object $key." >&2
-                continue
-              fi
-              candidate_automation=$(jq -er .trustedAutomationCommit "$file")
-              if [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," !=
-                *",$candidate_automation,"* ]]; then
-                echo "Skipping candidate pinned outside the protected allowlist: $key." >&2
-                continue
-              fi
-              jq -cn --arg sourceSha "$(jq -er .commitSha "$file")" \
-                --arg automationCommit "$candidate_automation" \
-                --arg candidateKey "$key" \
-                '{mode:"stored",sourceSha:$sourceSha,baseSha:"",
-                  automationCommit:$automationCommit,candidateKey:$candidateKey}' \
-                >>"$RUNNER_TEMP/candidates.jsonl"
-            done < <(jq -r '.Contents // [] | .[].Key | select(endswith(".json"))' \
-              "$RUNNER_TEMP/candidate-objects.json")
-
-            gh api --paginate --slurp 'repos/temporalio/sdk-java/git/matching-refs/tags/' \
-              | jq -r '.[][] | .ref' | sort -u >"$RUNNER_TEMP/tag-refs.txt"
+            gh api --paginate --slurp 'repos/temporalio/sdk-java/git/matching-refs/tags/' |
+              jq -r '.[][] | .ref' | sort -u >"$RUNNER_TEMP/tag-refs.txt"
             gh api --paginate --slurp 'repos/temporalio/sdk-java/branches?per_page=100' \
               >"$RUNNER_TEMP/branches.json"
             while IFS=$'\t' read -r branch head; do
@@ -159,140 +92,74 @@ jobs:
                 tag=${path#releases/}
                 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] || continue
                 grep -Fxq "refs/tags/$tag" "$RUNNER_TEMP/tag-refs.txt" && continue
-                candidate_key="sdk-java/candidates/$tag.json"
-                s3_exists "$candidate_key" && continue
                 commits=$(gh api --method GET repos/temporalio/sdk-java/commits \
                   -f path="$path" -f sha="$branch" -f per_page=1)
-                source_sha=$(jq -er '.[0].sha' <<<"$commits")
-                base_sha=$(jq -er '.[0].parents[0].sha' <<<"$commits")
-                add_source "$source_sha" "$base_sha"
+                add_source "$(jq -er '.[0].sha' <<<"$commits")" \
+                  "$(jq -er '.[0].parents[0].sha' <<<"$commits")"
               done < <(jq -r '.tree[] | select(.type == "blob") | .path |
                 select(startswith("releases/v"))' "$RUNNER_TEMP/tree.json")
             done < <(jq -r '.[][] | [.name,.commit.sha] | @tsv' "$RUNNER_TEMP/branches.json")
           fi
-          candidates=$(jq -sc 'unique_by(.mode,.sourceSha,.candidateKey)' \
-            "$RUNNER_TEMP/candidates.jsonl")
-          jq -e 'group_by(.sourceSha) | all(length == 1)' <<<"$candidates" >/dev/null
-          matrix=$(jq -c '{include:.}' <<<"$candidates")
+          candidates=$(jq -sc 'unique_by(.sourceSha)' "$RUNNER_TEMP/candidates.jsonl")
           {
             echo "count=$(jq 'length' <<<"$candidates")"
-            echo "matrix=$matrix"
+            echo "matrix=$(jq -c '{include:.}' <<<"$candidates")"
           } >>"$GITHUB_OUTPUT"
 
   start:
-    name: Freeze and start candidate at ${{ matrix.sourceSha }}
     needs: discover
     if: needs.discover.outputs.count != '0'
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
     concurrency:
       group: temporal-release-bootstrap-${{ matrix.sourceSha }}
       cancel-in-progress: false
     steps:
-      - name: Checkout immutable release source
-        if: matrix.mode == 'source'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
           path: source
           persist-credentials: false
           ref: ${{ matrix.sourceSha }}
-      - name: Checkout frozen trusted release automation
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
+          persist-credentials: false
           ref: ${{ matrix.automationCommit }}
       - name: Verify trusted checkout
         env:
-          IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: |
-          [[ "$IDENTITY_AUTOMATION_COMMIT" =~ ^[0-9a-f]{40}$ ]]
-          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
-            *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
-          [[ "$(git -C automation rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
+          [[ "${{ matrix.automationCommit }}" == "$RELEASE_AUTOMATION_REF" ]]
+          [[ "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_ARTIFACT_ROLE_ARN }}
-      - name: Resolve or load immutable candidate
+      - name: Resolve immutable candidate
         id: metadata
+        working-directory: source
         env:
           BASE_SHA: ${{ matrix.baseSha }}
-          CANDIDATE_KEY: ${{ matrix.candidateKey }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
           RELEASE_COMMIT: ${{ matrix.sourceSha }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-        run: |
-          if [[ '${{ matrix.mode }}' == stored ]]; then
-            candidate_file="$RUNNER_TEMP/sdk-java-release-candidate.json"
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$CANDIDATE_KEY" \
-              "$candidate_file" --no-progress >/dev/null
-            GITHUB_OUTPUT="$GITHUB_OUTPUT" ./automation/gradlew \
-              -p automation/.github/release-automation run \
-              --args="candidate-outputs $candidate_file"
-            echo "candidate_file=$candidate_file" >>"$GITHUB_OUTPUT"
-          else
-            cd source
-            ../automation/.github/scripts/temporal-release/resolve-candidate.sh
-          fi
-      - name: Persist the frozen candidate identity for independent recovery
-        env:
-          CANDIDATE_FILE: ${{ steps.metadata.outputs.candidate_file }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
-        run: |
-          key="sdk-java/candidates/$RELEASE_TAG.json"
-          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
-            --body "$CANDIDATE_FILE" --if-none-match '*' >/dev/null 2>&1; then
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" \
-              "$RUNNER_TEMP/existing-candidate.json" --no-progress >/dev/null
-            cmp -s "$CANDIDATE_FILE" "$RUNNER_TEMP/existing-candidate.json"
-          fi
+        run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
       - name: Start or attach to Candidate Workflow
         id: temporal
         working-directory: automation
         env:
           CANDIDATE_FILE: ${{ steps.metadata.outputs.candidate_file }}
         run: ./gradlew -p .github/release-automation run --args="start-candidate $CANDIDATE_FILE"
-      - name: Persist Candidate Workflow start receipt
-        env:
-          CANDIDATE_DIGEST: ${{ steps.temporal.outputs.candidate_digest }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
-          RUN_ID: ${{ steps.temporal.outputs.run_id }}
-          WORKFLOW_ID: ${{ steps.temporal.outputs.workflow_id }}
-        run: |
-          receipt="$RUNNER_TEMP/candidate-started.json"
-          jq -cn --arg tag "$RELEASE_TAG" --arg digest "$CANDIDATE_DIGEST" \
-            --arg workflowId "$WORKFLOW_ID" --arg runId "$RUN_ID" \
-            '{tag:$tag,candidateDigest:$digest,workflowId:$workflowId,runId:$runId}' >"$receipt"
-          key="sdk-java/candidates-started/$RELEASE_TAG.json"
-          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" --key "$key" \
-            --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$key" \
-              "$RUNNER_TEMP/existing-started.json" --no-progress >/dev/null
-            cmp -s "$receipt" "$RUNNER_TEMP/existing-started.json"
-          fi
-      - name: Obtain read-only candidate-state credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_CONTROL_ARTIFACT_ROLE_ARN }}
-      - name: Poll only this candidate's Workflow Task Queue
+      - name: Poll only this candidate Workflow queue
         working-directory: automation
         env:
           EXPECTED_RUN_ID: ${{ steps.temporal.outputs.run_id }}
           EXPECTED_WORKFLOW_ID: ${{ steps.temporal.outputs.workflow_id }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
-          TASK_QUEUE: ${{ steps.temporal.outputs.task_queue }}
-        run: ./gradlew -p .github/release-automation run --args="worker candidate $TASK_QUEUE"
+        run: >-
+          ./gradlew -p .github/release-automation run
+          --args="worker candidate ${{ steps.temporal.outputs.task_queue }}"

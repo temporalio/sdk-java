@@ -77,7 +77,6 @@ jobs:
     environment: release-control
     permissions:
       contents: read
-      id-token: write
     concurrency:
       group: approval-request-${{ matrix.workflowId }}
       cancel-in-progress: false
@@ -95,11 +94,6 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Obtain immutable approval-receipt credentials
-        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
-        with:
-          aws-region: us-west-2
-          role-to-assume: ${{ vars.RELEASE_CONTROL_ARTIFACT_ROLE_ARN }}
       - name: Create immutable approval issue
         id: issue
         env:
@@ -108,7 +102,6 @@ jobs:
           MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
           NOTES_SHA256: ${{ matrix.notesSha256 }}
           RELEASE_DIGEST: ${{ matrix.releaseDigest }}
-          RELEASE_ARTIFACT_BUCKET: ${{ vars.RELEASE_ARTIFACT_BUCKET }}
           RELEASE_TAG: ${{ matrix.tag }}
           RUN_ID: ${{ matrix.runId }}
           TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
@@ -146,34 +139,17 @@ jobs:
           node_id=$(jq -er .node_id <<<"$issue")
           body_sha256=$(sha256sum "$RUNNER_TEMP/approval-body.md" | awk '{print $1}')
           gh api --method PUT "repos/temporalio/sdk-java/issues/$number/lock"
-          receipt="$RUNNER_TEMP/approval-request.json"
-          jq -cn --arg repository temporalio/sdk-java --arg releaseDigest "$RELEASE_DIGEST" \
-            --arg workflowId "$WORKFLOW_ID" --arg runId "$RUN_ID" \
-            --argjson issueNumber "$number" \
-            --arg issueNodeId "$node_id" --arg issueBodySha256 "$body_sha256" \
-            --arg issueCreator "$approval_creator" \
-            --arg trustedAutomationCommit "$TRUSTED_AUTOMATION_COMMIT" \
-            '{repository:$repository,releaseDigest:$releaseDigest,workflowId:$workflowId,
-              runId:$runId,issueNumber:$issueNumber,
-              issueNodeId:$issueNodeId,issueBodySha256:$issueBodySha256,
-              issueCreator:$issueCreator,trustedAutomationCommit:$trustedAutomationCommit}' \
-            >"$receipt"
-          receipt_key="sdk-java/$RELEASE_DIGEST/state/approval-request.json"
-          if ! aws s3api put-object --bucket "$RELEASE_ARTIFACT_BUCKET" \
-            --key "$receipt_key" --body "$receipt" --if-none-match '*' >/dev/null 2>&1; then
-            aws s3 cp "s3://$RELEASE_ARTIFACT_BUCKET/$receipt_key" \
-              "$RUNNER_TEMP/existing-approval-request.json" --no-progress >/dev/null
-            cmp -s "$receipt" "$RUNNER_TEMP/existing-approval-request.json"
-          fi
           {
             echo "number=$number"
             echo "node_id=$node_id"
             echo "body_sha256=$body_sha256"
+            echo "creator=$approval_creator"
             echo "url=$(jq -er .html_url <<<"$issue")"
           } >>"$GITHUB_OUTPUT"
       - name: Record release-specific approval request
         env:
           APPROVAL_ISSUE_BODY_SHA256: ${{ steps.issue.outputs.body_sha256 }}
+          APPROVAL_ISSUE_CREATOR: ${{ steps.issue.outputs.creator }}
           APPROVAL_ISSUE_NODE_ID: ${{ steps.issue.outputs.node_id }}
           APPROVAL_ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
@@ -283,7 +259,7 @@ jobs:
           IDENTITY_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: |
-          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," ==
+          [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," == \
             *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
           [[ "$(git -C automation rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
       - name: Read exact closed-issue event identity
