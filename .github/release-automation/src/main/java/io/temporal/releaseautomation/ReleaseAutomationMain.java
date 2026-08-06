@@ -12,7 +12,10 @@ import io.temporal.client.WorkflowExecutionMetadata;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTargetOptions;
+import io.temporal.envconfig.ClientConfigProfile;
+import io.temporal.envconfig.LoadClientConfigProfileOptions;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import java.io.IOException;
@@ -64,52 +67,81 @@ public final class ReleaseAutomationMain {
       writeOutput("matrix", GSON.toJson(matrix));
       return;
     }
-    try (TemporalConnection temporal = TemporalConnection.fromEnvironment(environment)) {
+    ClientConfigProfile temporalConfig = loadTemporalClientConfig(environment);
+    WorkflowServiceStubs temporalService =
+        WorkflowServiceStubs.newServiceStubs(temporalConfig.toWorkflowServiceStubsOptions());
+    try {
+      WorkflowClient temporalClient =
+          WorkflowClient.newInstance(temporalService, temporalConfig.toWorkflowClientOptions());
       switch (args[0]) {
         case "start-candidate":
           requireArguments(args, 2);
-          startCandidate(temporal.client, read(args[1], CandidateIdentity.class));
+          startCandidate(temporalClient, read(args[1], CandidateIdentity.class));
           return;
         case "discover":
           requireArguments(args, 2);
-          discover(temporal.client, args[1], environment);
+          discover(temporalClient, args[1], environment);
           return;
         case "approve":
           requireArguments(args, 1);
-          approve(temporal.client, environment);
+          approve(temporalClient, environment);
           return;
         case "approval-request":
           requireArguments(args, 1);
-          requestApproval(temporal.client, environment);
+          requestApproval(temporalClient, environment);
           return;
         case "approval-target":
           requireArguments(args, 1);
-          approvalTarget(temporal.client, environment);
+          approvalTarget(temporalClient, environment);
           return;
         case "control":
           requireArguments(args, 4);
-          control(temporal.client, environment, args[1], args[2], args[3]);
+          control(temporalClient, environment, args[1], args[2], args[3]);
           return;
         case "inspect":
           requireArguments(args, 3);
-          inspect(temporal.client, args[1], args[2]);
+          inspect(temporalClient, args[1], args[2]);
           return;
         case "inspect-if-present":
           requireArguments(args, 3);
-          inspectIfPresent(temporal.client, args[1], args[2]);
+          inspectIfPresent(temporalClient, args[1], args[2]);
           return;
         case "publication-input":
           requireArguments(args, 4);
-          publicationInput(temporal.client, args[1], args[2], Paths.get(args[3]));
+          publicationInput(temporalClient, args[1], args[2], Paths.get(args[3]));
           return;
         case "worker":
           requireArguments(args, 3);
-          runWorker(temporal.client, args[1], args[2], environment);
+          runWorker(temporalClient, args[1], args[2], environment);
           return;
         default:
           throw new IllegalArgumentException("Unknown command: " + args[0]);
       }
+    } finally {
+      temporalService.shutdown();
     }
+  }
+
+  static ClientConfigProfile loadTemporalClientConfig(Map<String, String> environment)
+      throws IOException {
+    Map<String, String> temporalEnvironment =
+        Map.of(
+            "TEMPORAL_ADDRESS", requiredTemporalSetting(environment, "TEMPORAL_ADDRESS"),
+            "TEMPORAL_NAMESPACE", requiredTemporalSetting(environment, "TEMPORAL_NAMESPACE"),
+            "TEMPORAL_API_KEY", requiredTemporalSetting(environment, "TEMPORAL_API_KEY"));
+    return ClientConfigProfile.load(
+        LoadClientConfigProfileOptions.newBuilder()
+            .setDisableFile(true)
+            .setEnvOverrides(temporalEnvironment)
+            .build());
+  }
+
+  private static String requiredTemporalSetting(Map<String, String> environment, String name) {
+    String value = environment.get(name);
+    if (value == null || value.isEmpty()) {
+      throw new IllegalArgumentException("Required Temporal Cloud setting is missing: " + name);
+    }
+    return value;
   }
 
   private static void candidateOutputs(CandidateIdentity candidate) {
