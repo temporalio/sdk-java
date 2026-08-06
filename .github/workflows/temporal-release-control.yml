@@ -128,9 +128,18 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-members: read
       - name: Submit authenticated release-specific Update
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
           RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
         run: >-
           ./gradlew -p .github/release-automation run
@@ -166,9 +175,30 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: approval-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-members: read
+      - name: Mint publication inspection GitHub App token
+        id: publication-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-actions: read
+          permission-contents: read
+          permission-issues: read
+          permission-members: read
       - name: Authenticate the retry author
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.approval-token.outputs.token }}
         run: automation/.github/scripts/temporal-release/verify-approver.sh "$GITHUB_TRIGGERING_ACTOR"
       - name: Export the exact approved publication input
         id: input
@@ -179,7 +209,7 @@ jobs:
       - name: Perform a fresh exact external inspection
         working-directory: source
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PUBLICATION_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.publication-token.outputs.token }}
           RELEASE_INPUT_FILE: ${{ runner.temp }}/publication-input.json
           RELEASE_MAVEN_ARTIFACTS_FILE: ${{ runner.temp }}/maven-artifacts.json
           RELEASE_OUTPUT_FILE: ${{ runner.temp }}/fresh-inspection.json
@@ -213,7 +243,7 @@ jobs:
       - name: Submit Update bound to the exact inspection
         working-directory: automation
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.approval-token.outputs.token }}
           MAVEN_RETRY_GENERATION: ${{ steps.authorization.outputs.generation }}
           MAVEN_RETRY_INSPECTION_FILE: ${{ runner.temp }}/fresh-inspection.json
           RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}

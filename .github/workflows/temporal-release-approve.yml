@@ -94,10 +94,20 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-issues: write
       - name: Create immutable approval issue
         id: issue
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
+          GITHUB_APP_SLUG: ${{ steps.github-token.outputs.app-slug }}
           COMMIT_SHA: ${{ matrix.commitSha }}
           MANIFEST_SHA256: ${{ matrix.manifestSha256 }}
           NOTES_SHA256: ${{ matrix.notesSha256 }}
@@ -121,7 +131,8 @@ jobs:
             'An active temporalio/sdk team member approves this exact identity by clicking **Close issue**. Do not edit this issue.')
           printf '%s' "$body" >"$RUNNER_TEMP/approval-body.md"
           title="[sdk-java release approval] $RELEASE_TAG at $COMMIT_SHA"
-          approval_creator=$(gh api user --jq .login)
+          [[ "$GITHUB_APP_SLUG" =~ ^[a-z0-9-]+$ ]]
+          approval_creator="${GITHUB_APP_SLUG}[bot]"
           issues=$(gh api --paginate --slurp \
             'repos/temporalio/sdk-java/issues?state=all&per_page=100')
           matches=$(jq -c --arg title "$title" --arg body "$body" --arg creator "$approval_creator" \
@@ -135,6 +146,7 @@ jobs:
             issue=$(gh api --method POST repos/temporalio/sdk-java/issues \
               --raw-field title="$title" --raw-field body="$body")
           fi
+          [[ $(jq -r .user.login <<<"$issue") == "$approval_creator" ]]
           number=$(jq -er .number <<<"$issue")
           node_id=$(jq -er .node_id <<<"$issue")
           body_sha256=$(sha256sum "$RUNNER_TEMP/approval-body.md" | awk '{print $1}')
@@ -153,7 +165,7 @@ jobs:
           APPROVAL_ISSUE_NODE_ID: ${{ steps.issue.outputs.node_id }}
           APPROVAL_ISSUE_NUMBER: ${{ steps.issue.outputs.number }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
           RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
         run: ./gradlew -p .github/release-automation run --args="approval-request"
       - name: Summarize approval request
@@ -193,12 +205,22 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-issues: read
+          permission-members: read
       - name: Inspect the exact bound issue
         id: issue
         env:
           EXPECTED_BODY_SHA256: ${{ matrix.approvalIssueBodySha256 }}
           EXPECTED_NODE_ID: ${{ matrix.approvalIssueNodeId }}
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
           ISSUE_NUMBER: ${{ matrix.approvalIssueNumber }}
         run: |
           issue=$(gh api "repos/temporalio/sdk-java/issues/$ISSUE_NUMBER")
@@ -220,7 +242,7 @@ jobs:
           APPROVAL_ISSUE_BODY_SHA256: ${{ steps.issue.outputs.body_sha256 }}
           APPROVAL_ISSUE_NODE_ID: ${{ matrix.approvalIssueNodeId }}
           APPROVAL_ISSUE_NUMBER: ${{ matrix.approvalIssueNumber }}
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
           GITHUB_EVENT_NAME: schedule
           GITHUB_TRIGGERING_ACTOR: ${{ steps.issue.outputs.actor }}
           RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
@@ -262,6 +284,15 @@ jobs:
           [[ ",$RELEASE_AUTOMATION_REF,$RELEASE_AUTOMATION_COMPATIBLE_REFS," == \
             *",$IDENTITY_AUTOMATION_COMMIT,"* ]]
           [[ "$(git -C automation rev-parse HEAD)" == "$IDENTITY_AUTOMATION_COMMIT" ]]
+      - name: Mint approval GitHub App token
+        id: github-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: temporalio
+          repositories: sdk-java
+          permission-members: read
       - name: Read exact closed-issue event identity
         id: event
         run: |
@@ -280,7 +311,7 @@ jobs:
           APPROVAL_ISSUE_BODY_SHA256: ${{ steps.event.outputs.body_sha256 }}
           APPROVAL_ISSUE_NODE_ID: ${{ steps.event.outputs.node_id }}
           APPROVAL_ISSUE_NUMBER: ${{ steps.event.outputs.number }}
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.github-token.outputs.token }}
           RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
         run: ./gradlew -p .github/release-automation run --args="approve"
       - name: Summarize accepted approval
