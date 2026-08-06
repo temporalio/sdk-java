@@ -198,12 +198,14 @@ jobs:
               --title "$INPUT_TAG" --target "$INPUT_COMMIT" --notes-file "releases/$INPUT_TAG"
           fi
 
-  publish_java_artifacts:
-    name: Publish Java Artifacts
+  start_manual_maven:
+    name: Record the manual Maven attempt
     if: inputs.do_publish_jars
     needs: [prepare, create_draft_release]
     runs-on: ubuntu-latest
     environment: release-publication
+    permissions:
+      contents: read
     steps:
       - name: Refuse a second Maven controller
         env:
@@ -213,6 +215,32 @@ jobs:
             echo "Automatic Maven publication already started. Re-run with Publish Java Artifacts disabled." >&2
             exit 1
           fi
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
+      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - name: Record the single manual Maven attempt before publication
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
+          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
+        run: >-
+          ./gradlew -p .github/release-automation --no-daemon run
+          --args="start-manual-maven $INPUT_TAG $INPUT_COMMIT
+          ${{ needs.prepare.outputs.release_digest }}"
+
+  publish_java_artifacts:
+    name: Publish Java Artifacts
+    if: inputs.do_publish_jars
+    needs: [prepare, create_draft_release, start_manual_maven]
+    runs-on: ubuntu-latest
+    environment: release-publication
+    steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
@@ -236,16 +264,6 @@ jobs:
           java-version: "23"
           distribution: temurin
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-      - name: Record the single manual Maven attempt before publication
-        working-directory: trusted-release
-        env:
-          GH_TOKEN: ${{ secrets.RELEASE_APPROVAL_GITHUB_TOKEN }}
-          GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
-          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
-        run: >-
-          ./gradlew -p .github/release-automation run
-          --args="start-manual-maven $INPUT_TAG $INPUT_COMMIT
-          ${{ needs.prepare.outputs.release_digest }}"
       - name: Set up signing key
         env:
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
@@ -296,7 +314,7 @@ jobs:
           GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
+          ./gradlew -p .github/release-automation --no-daemon run
           --args="complete-manual-maven $INPUT_TAG $INPUT_COMMIT
           ${{ needs.prepare.outputs.release_digest }}"
 
