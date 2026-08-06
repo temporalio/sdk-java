@@ -3,6 +3,7 @@ package io.temporal.releaseautomation;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -15,11 +16,64 @@ import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.client.WorkflowExecutionMetadata;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.envconfig.ClientConfigProfile;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.Test;
 
 public class ReleaseAutomationMainTest {
+  @Test
+  public void loadsRequiredTemporalCloudEnvironmentWithoutFileFallback() throws Exception {
+    Map<String, String> environment = new HashMap<>();
+    environment.put("TEMPORAL_ADDRESS", "example.tmprl.cloud:7233");
+    environment.put("TEMPORAL_NAMESPACE", "sdk-java.release");
+    environment.put("TEMPORAL_API_KEY", "secret");
+    environment.put("TEMPORAL_CONFIG_FILE", "/does/not/exist");
+    environment.put("TEMPORAL_PROFILE", "must-not-load");
+    environment.put("TEMPORAL_TLS", "false");
+
+    ClientConfigProfile profile = ReleaseAutomationMain.loadTemporalClientConfig(environment);
+
+    assertEquals("example.tmprl.cloud:7233", profile.getAddress());
+    assertEquals("sdk-java.release", profile.getNamespace());
+    assertEquals("secret", profile.getApiKey());
+    WorkflowServiceStubsOptions serviceOptions = profile.toWorkflowServiceStubsOptions();
+    assertEquals("example.tmprl.cloud:7233", serviceOptions.getTarget());
+    assertEquals(1, serviceOptions.getGrpcMetadataProviders().size());
+    assertTrue(serviceOptions.getEnableHttps());
+    assertEquals("sdk-java.release", profile.toWorkflowClientOptions().getNamespace());
+  }
+
+  @Test
+  public void rejectsMissingOrEmptyTemporalCloudEnvironment() {
+    Map<String, String> completeEnvironment = new HashMap<>();
+    completeEnvironment.put("TEMPORAL_ADDRESS", "example.tmprl.cloud:7233");
+    completeEnvironment.put("TEMPORAL_NAMESPACE", "sdk-java.release");
+    completeEnvironment.put("TEMPORAL_API_KEY", "secret");
+
+    for (String name : completeEnvironment.keySet()) {
+      Map<String, String> missing = new HashMap<>(completeEnvironment);
+      missing.remove(name);
+      IllegalArgumentException missingError =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> ReleaseAutomationMain.loadTemporalClientConfig(missing));
+      assertEquals(
+          "Required Temporal Cloud setting is missing: " + name, missingError.getMessage());
+
+      Map<String, String> empty = new HashMap<>(completeEnvironment);
+      empty.put(name, "");
+      IllegalArgumentException emptyError =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> ReleaseAutomationMain.loadTemporalClientConfig(empty));
+      assertEquals("Required Temporal Cloud setting is missing: " + name, emptyError.getMessage());
+    }
+  }
+
   @Test
   public void reportsUnrecoveredWorkflowTaskTimeout() {
     assertEquals(

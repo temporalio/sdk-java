@@ -9,6 +9,7 @@ rootProject.name = 'temporal-release-automation'
 
 includeBuild('../..') {
 	dependencySubstitution {
+		substitute module('io.temporal:temporal-envconfig') using project(':temporal-envconfig')
 		substitute module('io.temporal:temporal-sdk') using project(':temporal-sdk')
 		substitute module('io.temporal:temporal-testing') using project(':temporal-testing')
 	}
