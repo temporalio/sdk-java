@@ -36,9 +36,9 @@ jobs:
         env:
           RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
-          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+          TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
         run: ./gradlew -p .github/release-automation run --args="discover unprivileged"
       - name: Split builds from Workers
         id: split
@@ -212,9 +212,9 @@ jobs:
       - name: Record the exact artifact in Candidate Workflow state
         working-directory: automation
         env:
-          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
-          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+          TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
         run: >-
           ./gradlew -p .github/release-automation run
           --args="record-artifact ${{ matrix.workflowId }} ${{ matrix.runId }}
@@ -246,9 +246,9 @@ jobs:
           EXPECTED_RUN_ID: ${{ matrix.runId }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
           RELEASE_TAG: ${{ matrix.tag }}
-          TEMPORAL_ADDRESS: ${{ secrets.TEMPORAL_RELEASE_ADDRESS }}
+          TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
-          TEMPORAL_NAMESPACE: ${{ secrets.TEMPORAL_RELEASE_NAMESPACE }}
+          TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
         run: >-
           ./gradlew -p .github/release-automation run
           --args="worker ${{ matrix.role }} ${{ matrix.taskQueue }}"
