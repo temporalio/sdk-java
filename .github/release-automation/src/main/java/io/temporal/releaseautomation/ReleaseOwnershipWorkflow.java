@@ -13,6 +13,9 @@ public interface ReleaseOwnershipWorkflow {
   @UpdateMethod
   OwnershipStatus claim(OwnershipClaim claim);
 
+  @UpdateMethod
+  OwnershipStatus recordManualMaven(ManualMavenAttempt attempt);
+
   @QueryMethod
   OwnershipStatus status();
 }

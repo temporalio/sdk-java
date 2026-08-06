@@ -13,6 +13,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
@@ -73,6 +74,32 @@ public class ReleaseWorkflowTest {
                   201,
                   false));
       assertEquals("MANUAL", ownership.owner);
+      ReleaseOwnershipWorkflow ownershipWorkflow =
+          environment
+              .getWorkflowClient()
+              .newWorkflowStub(
+                  ReleaseOwnershipWorkflow.class,
+                  QueueNames.ownershipWorkflowId(release.candidate.tag));
+      OwnershipStatus startedMaven =
+          ownershipWorkflow.recordManualMaven(
+              new ManualMavenAttempt(
+                  "STARTED",
+                  release.candidate.tag,
+                  release.candidate.commitSha,
+                  release.digest(),
+                  "release-manager",
+                  201));
+      assertEquals("STARTED", startedMaven.manualMavenState);
+      OwnershipStatus completedMaven =
+          ownershipWorkflow.recordManualMaven(
+              new ManualMavenAttempt(
+                  "COMPLETED",
+                  release.candidate.tag,
+                  release.candidate.commitSha,
+                  release.digest(),
+                  "release-manager",
+                  201));
+      assertEquals("COMPLETED", completedMaven.manualMavenState);
 
       StartedRelease started = startRelease(environment, release);
       environment.sleep(Duration.ofSeconds(1));
@@ -136,14 +163,14 @@ public class ReleaseWorkflowTest {
   }
 
   @Test
-  public void handoffPreservesThatAutomaticMavenPublicationStarted() {
+  public void handoffAfterAutomaticMavenCompletionPreservesSubmissionState() {
     ReleaseIdentity release = ReleaseFixtures.release();
     PublicationActivities activities =
         new SuccessfulActivities() {
           @Override
-          public String reconcileMavenRepository(PublicationInput input, boolean allowCreation) {
+          public String reconcileGithubDraft(PublicationInput input) {
             throw ApplicationFailure.newNonRetryableFailure(
-                "repository creation was ambiguous", "MavenSubmissionAmbiguous");
+                "draft publication is unavailable", "ReleaseIdentityConflict");
           }
         };
     try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.newInstance()) {
@@ -158,14 +185,30 @@ public class ReleaseWorkflowTest {
       ReleaseStatus blocked = started.workflow.status();
       assertEquals("BLOCKED", blocked.phase);
       assertTrue(blocked.mavenGenerations.get(0).submissionStarted);
+      assertTrue(blocked.mavenCentralUrl != null && !blocked.mavenCentralUrl.isEmpty());
       ReleaseStatus handedOff =
           started.workflow.control(
               control("handoff-manual", started.runId, release, 500, "release-manager"));
       assertEquals("HANDED_OFF", handedOff.phase);
-      assertEquals("MAVEN_REPOSITORY", handedOff.handedOffFrom);
+      assertEquals("GITHUB_DRAFT", handedOff.handedOffFrom);
       assertTrue(handedOff.mavenGenerations.get(0).submissionStarted);
       assertEquals("MANUAL", handedOff.ownership.owner);
     }
+  }
+
+  @Test
+  public void partialAutomaticMavenCannotBeHandedToTheLegacyManualPublisher() {
+    ReleaseIdentity release = ReleaseFixtures.release();
+    MavenGenerationState started = new MavenGenerationState(release.digest(), 0);
+    started.submissionStarted = true;
+    assertThrows(
+        IllegalStateException.class,
+        () -> ReleaseWorkflowImpl.validateManualHandoff(List.of(started), null, false));
+    assertThrows(
+        IllegalStateException.class,
+        () -> ReleaseWorkflowImpl.validateManualHandoff(List.of(started), null, true));
+    ReleaseWorkflowImpl.validateManualHandoff(
+        List.of(started), "https://central.example/artifact", false);
   }
 
   private static void registerReleaseAndOwnership(

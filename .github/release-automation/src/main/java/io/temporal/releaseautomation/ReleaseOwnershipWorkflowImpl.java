@@ -22,9 +22,50 @@ public final class ReleaseOwnershipWorkflowImpl implements ReleaseOwnershipWorkf
     if ("MANUAL".equals(status.owner) && "TEMPORAL".equals(claim.owner)) {
       return status;
     }
-    status = new OwnershipStatus(claim, Workflow.currentTimeMillis());
+    OwnershipStatus updated = new OwnershipStatus(claim, Workflow.currentTimeMillis());
+    if ("MANUAL".equals(status.owner) && "MANUAL".equals(claim.owner)) {
+      updated.manualMavenState = status.manualMavenState;
+      updated.manualMavenActor = status.manualMavenActor;
+      updated.manualMavenRunId = status.manualMavenRunId;
+    }
+    status = updated;
     upsertStatus();
     return status;
+  }
+
+  @Override
+  public OwnershipStatus recordManualMaven(ManualMavenAttempt attempt) {
+    validateManualMaven(attempt);
+    status.manualMavenState = attempt.state;
+    status.manualMavenActor = attempt.githubActor;
+    status.manualMavenRunId = attempt.githubRunId;
+    status.recordedAtMillis = Workflow.currentTimeMillis();
+    upsertStatus();
+    return status;
+  }
+
+  @UpdateValidatorMethod(updateName = "recordManualMaven")
+  public void validateManualMaven(ManualMavenAttempt attempt) {
+    attempt.validate();
+    if (status == null
+        || !"MANUAL".equals(status.owner)
+        || !status.tag.equals(attempt.tag)
+        || !status.commitSha.equals(attempt.commitSha)
+        || !status.releaseDigest.equals(attempt.releaseDigest)) {
+      throw new IllegalArgumentException(
+          "Manual Maven evidence does not match the durable release ownership.");
+    }
+    if ("STARTED".equals(attempt.state)) {
+      if (!"NOT_STARTED".equals(status.manualMavenState)) {
+        throw new IllegalStateException(
+            "Manual Maven publication already started; inspect remote state before continuing.");
+      }
+    } else if (!"STARTED".equals(status.manualMavenState)
+        || !attempt.githubActor.equals(status.manualMavenActor)
+        || attempt.githubRunId != status.manualMavenRunId) {
+      throw new IllegalStateException(
+          "Only the exact GitHub run that started manual Maven publication may complete it.");
+    }
   }
 
   @UpdateValidatorMethod(updateName = "claim")
