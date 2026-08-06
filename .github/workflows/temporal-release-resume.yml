@@ -26,11 +26,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Discover open release queues
         id: temporal
         env:
@@ -39,7 +35,7 @@ jobs:
           TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
-        run: ./gradlew -p .github/release-automation run --args="discover unprivileged"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli discover unprivileged
       - name: Split builds from Workers
         id: split
         env:
@@ -204,11 +200,7 @@ jobs:
           GITHUB_ARTIFACT_RECEIPT_FILE: ${{ runner.temp }}/native-receipt.json
           GITHUB_ARTIFACT_RUN_ID: ${{ steps.artifact.outputs.workflow_run_id }}
         run: automation/.github/scripts/temporal-release/github-artifact-receipt.sh
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./automation/.github/release-automation/setup
       - name: Record the exact artifact in Candidate Workflow state
         working-directory: automation
         env:
@@ -216,9 +208,9 @@ jobs:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="record-artifact ${{ matrix.workflowId }} ${{ matrix.runId }}
-          ${{ matrix.platform }} $RUNNER_TEMP/native-receipt.json"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          record-artifact ${{ matrix.workflowId }} ${{ matrix.runId }}
+          ${{ matrix.platform }} $RUNNER_TEMP/native-receipt.json
 
   workers:
     needs: discover
@@ -236,11 +228,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ matrix.automationCommit }}
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Poll only the release-specific Workflow queue
         env:
           EXPECTED_RUN_ID: ${{ matrix.runId }}
@@ -250,5 +238,5 @@ jobs:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
           TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="worker ${{ matrix.role }} ${{ matrix.taskQueue }}"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          worker ${{ matrix.role }} ${{ matrix.taskQueue }}

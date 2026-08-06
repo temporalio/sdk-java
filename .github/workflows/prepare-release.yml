@@ -70,11 +70,7 @@ jobs:
           path: automation
           persist-credentials: false
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./automation/.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: github-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -104,8 +100,8 @@ jobs:
         env:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          inspect-if-present $INPUT_TAG $INPUT_COMMIT
       - name: Validate automatic handoff target
         if: steps.before.outputs.found == 'true'
         env:
@@ -143,8 +139,8 @@ jobs:
           RELEASE_AUTOMATION_REF: ${{ steps.before.outputs.automation_commit }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="control handoff-manual $INPUT_TAG $INPUT_COMMIT"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          control handoff-manual $INPUT_TAG $INPUT_COMMIT
       - name: Claim durable tag ownership in Temporal
         id: ownership
         working-directory: automation
@@ -159,17 +155,17 @@ jobs:
               "$INPUT_TAG" "$INPUT_COMMIT" '${{ steps.identity.outputs.notes_sha256 }}' |
               sha256sum | awk '{print $1}')
           fi
-          ./gradlew -p .github/release-automation run \
-            --args="claim-manual-ownership $INPUT_TAG $INPUT_COMMIT $digest \
-            ${{ steps.before.outputs.found == 'true' }}"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli \
+            claim-manual-ownership $INPUT_TAG $INPUT_COMMIT $digest \
+            ${{ steps.before.outputs.found == 'true' }}
       - name: Read the authoritative post-handoff state
         id: final
         working-directory: automation
         env:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="inspect-if-present $INPUT_TAG $INPUT_COMMIT"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          inspect-if-present $INPUT_TAG $INPUT_COMMIT
       - name: Validate any automatic release that raced with takeover
         if: steps.final.outputs.found == 'true'
         env:
@@ -228,11 +224,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: github-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -248,9 +240,9 @@ jobs:
           GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation --no-daemon run
-          --args="start-manual-maven $INPUT_TAG $INPUT_COMMIT
-          ${{ needs.prepare.outputs.release_digest }}"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          start-manual-maven $INPUT_TAG $INPUT_COMMIT
+          ${{ needs.prepare.outputs.release_digest }}
 
   publish_java_artifacts:
     name: Publish Java Artifacts
@@ -321,11 +313,7 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ needs.prepare.outputs.trusted_automation_commit }}
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: github-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -341,9 +329,9 @@ jobs:
           GITHUB_TRIGGERING_ACTOR: ${{ github.actor }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_APPROVAL_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation --no-daemon run
-          --args="complete-manual-maven $INPUT_TAG $INPUT_COMMIT
-          ${{ needs.prepare.outputs.release_digest }}"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          complete-manual-maven $INPUT_TAG $INPUT_COMMIT
+          ${{ needs.prepare.outputs.release_digest }}
 
   build_native_images:
     name: Build native test server

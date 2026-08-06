@@ -42,14 +42,10 @@ jobs:
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify trusted checkout
         run: '[[ "$(git rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Discover every unrequested exact release
         id: discover
-        run: ./gradlew -p .github/release-automation run --args="discover approvals"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli discover approvals
       - name: Split new requests from closed-issue recovery
         id: split
         env:
@@ -89,11 +85,7 @@ jobs:
           FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: github-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -167,7 +159,7 @@ jobs:
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
           GH_TOKEN: ${{ steps.github-token.outputs.token }}
           RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
-        run: ./gradlew -p .github/release-automation run --args="approval-request"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli approval-request
       - name: Summarize approval request
         env:
           APPROVAL_URL: ${{ steps.issue.outputs.url }}
@@ -200,11 +192,7 @@ jobs:
           FROZEN_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: github-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -246,7 +234,7 @@ jobs:
           GITHUB_EVENT_NAME: schedule
           GITHUB_TRIGGERING_ACTOR: ${{ steps.issue.outputs.actor }}
           RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
-        run: ./gradlew -p .github/release-automation run --args="approve"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli approve
 
   approve:
     if: >-
@@ -263,15 +251,11 @@ jobs:
         env:
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
         run: '[[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ && "$(git -C bootstrap rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./bootstrap/.github/release-automation/setup
       - name: Resolve the release bound to this issue
         id: target
         working-directory: bootstrap
-        run: ./gradlew -p .github/release-automation run --args="approval-target"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli approval-target
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
@@ -313,7 +297,7 @@ jobs:
           APPROVAL_ISSUE_NUMBER: ${{ steps.event.outputs.number }}
           GH_TOKEN: ${{ steps.github-token.outputs.token }}
           RELEASE_AUTOMATION_REF: ${{ steps.target.outputs.automation_commit }}
-        run: ./gradlew -p .github/release-automation run --args="approve"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli approve
       - name: Summarize accepted approval
         env:
           RELEASE_DIGEST: ${{ steps.approve.outputs.release_digest }}

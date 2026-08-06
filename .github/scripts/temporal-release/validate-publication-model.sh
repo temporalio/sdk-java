@@ -13,9 +13,8 @@ version=$(jq -er '.tag | ltrimstr("v")' "$RELEASE_CANDIDATE_FILE")
 commit=$(jq -er '.commitSha' "$RELEASE_CANDIDATE_FILE")
 maven_policy=$(jq -er '.mavenPolicy' "$RELEASE_CANDIDATE_FILE")
 policy_output=$(mktemp)
-GITHUB_OUTPUT=$policy_output "$TRUSTED_AUTOMATION_ROOT/gradlew" \
-  -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --no-daemon run \
-  --args="maven-policy $PWD/settings.gradle" >/dev/null
+GITHUB_OUTPUT=$policy_output uv run --directory "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --frozen --no-dev \
+  python -m release_automation.cli maven-policy "$PWD/settings.gradle" >/dev/null
 [[ $(awk -F= '$1 == "maven_policy" {print $2}' "$policy_output" | tail -1) == "$maven_policy" ]] ||
   fail "The candidate Maven policy differs from the immutable source."
 mapfile -t expected < <(

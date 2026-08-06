@@ -42,9 +42,8 @@ read -r mode type _ < <(git ls-tree "$RELEASE_COMMIT" -- "$notes_file")
 notes_sha256=$(sha256sum "$notes_file" | awk '{print $1}')
 
 policy_output=$(mktemp)
-GITHUB_OUTPUT=$policy_output "$TRUSTED_AUTOMATION_ROOT/gradlew" \
-  -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --no-daemon run \
-  --args="maven-policy $PWD/settings.gradle" >/dev/null
+GITHUB_OUTPUT=$policy_output uv run --directory "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --frozen --no-dev \
+  python -m release_automation.cli maven-policy "$PWD/settings.gradle" >/dev/null
 maven_policy=$(awk -F= '$1 == "maven_policy" {print $2}' "$policy_output" | tail -1)
 [[ -n $maven_policy ]] || fail "The fixed Java Maven policy did not classify this source."
 

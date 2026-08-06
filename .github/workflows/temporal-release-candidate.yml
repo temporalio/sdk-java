@@ -135,11 +135,7 @@ jobs:
         run: |
           [[ "${{ matrix.automationCommit }}" == "$RELEASE_AUTOMATION_REF" ]]
           [[ "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./automation/.github/release-automation/setup
       - name: Resolve immutable candidate
         id: metadata
         working-directory: source
@@ -154,12 +150,12 @@ jobs:
         working-directory: automation
         env:
           CANDIDATE_FILE: ${{ steps.metadata.outputs.candidate_file }}
-        run: ./gradlew -p .github/release-automation run --args="start-candidate $CANDIDATE_FILE"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli start-candidate $CANDIDATE_FILE
       - name: Poll only this candidate Workflow queue
         working-directory: automation
         env:
           EXPECTED_RUN_ID: ${{ steps.temporal.outputs.run_id }}
           EXPECTED_WORKFLOW_ID: ${{ steps.temporal.outputs.workflow_id }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="worker candidate ${{ steps.temporal.outputs.task_queue }}"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          worker candidate ${{ steps.temporal.outputs.task_queue }}

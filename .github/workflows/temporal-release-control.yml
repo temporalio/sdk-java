@@ -64,17 +64,13 @@ jobs:
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - name: Verify bootstrap checkout
         run: '[[ "$(git -C bootstrap rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./bootstrap/.github/release-automation/setup
       - name: Resolve the release's frozen Worker version
         id: target
         working-directory: bootstrap
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="inspect $RELEASE_TAG $RELEASE_COMMIT"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          inspect $RELEASE_TAG $RELEASE_COMMIT
       - name: Enforce the protected Worker allowlist
         env:
           FROZEN_AUTOMATION_COMMIT: ${{ steps.target.outputs.automation_commit }}
@@ -123,11 +119,7 @@ jobs:
           FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: github-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -142,8 +134,8 @@ jobs:
           GH_TOKEN: ${{ steps.github-token.outputs.token }}
           RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="control $CONTROL_ACTION $RELEASE_TAG $RELEASE_COMMIT"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          control $CONTROL_ACTION $RELEASE_TAG $RELEASE_COMMIT
 
   authorize_maven_retry:
     needs: resolve
@@ -170,11 +162,7 @@ jobs:
           FROZEN_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
           IDENTITY_AUTOMATION_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
         run: '[[ "$IDENTITY_AUTOMATION_COMMIT" == "$FROZEN_AUTOMATION_COMMIT" && "$(git -C automation rev-parse HEAD)" == "$FROZEN_AUTOMATION_COMMIT" ]]'
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./automation/.github/release-automation/setup
       - name: Mint approval GitHub App token
         id: approval-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -204,8 +192,8 @@ jobs:
         id: input
         working-directory: automation
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="publication-input $RELEASE_TAG $RELEASE_COMMIT $RUNNER_TEMP/publication-input.json"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          publication-input $RELEASE_TAG $RELEASE_COMMIT $RUNNER_TEMP/publication-input.json
       - name: Perform a fresh exact external inspection
         working-directory: source
         env:
@@ -220,9 +208,8 @@ jobs:
           TRUSTED_WORKER_COMMIT: ${{ needs.resolve.outputs.automation_commit }}
         run: |
           outputs="$RUNNER_TEMP/maven-policy.outputs"
-          GITHUB_OUTPUT="$outputs" "$TRUSTED_AUTOMATION_ROOT/gradlew" \
-            -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" run \
-            --args="maven-policy $PWD/settings.gradle" >/dev/null
+          GITHUB_OUTPUT="$outputs" uv run --directory "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --frozen --no-dev \
+            python -m release_automation.cli maven-policy "$PWD/settings.gradle" >/dev/null
           awk -F= '$1 == "maven_artifacts_json" {sub(/^[^=]*=/, ""); print}' \
             "$outputs" >"$RELEASE_MAVEN_ARTIFACTS_FILE"
           bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/reconcile-publication.sh"
@@ -248,5 +235,5 @@ jobs:
           MAVEN_RETRY_INSPECTION_FILE: ${{ runner.temp }}/fresh-inspection.json
           RELEASE_AUTOMATION_REF: ${{ needs.resolve.outputs.automation_commit }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="control retry-maven-submission $RELEASE_TAG $RELEASE_COMMIT"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          control retry-maven-submission $RELEASE_TAG $RELEASE_COMMIT

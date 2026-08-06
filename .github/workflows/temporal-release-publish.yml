@@ -35,18 +35,14 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ vars.RELEASE_AUTOMATION_REF }}
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Discover approved publication queues
         id: temporal
         env:
           RELEASE_AUTOMATION_COMPATIBLE_REFS: ${{ vars.RELEASE_AUTOMATION_COMPATIBLE_REFS }}
           RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
-        run: ./gradlew -p .github/release-automation run --args="discover publication"
+        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli discover publication
 
   publish:
     needs: discover
@@ -85,6 +81,7 @@ jobs:
             *",${{ matrix.automationCommit }},"* ]]
           [[ "$(git -C automation rev-parse HEAD)" == "${{ matrix.automationCommit }}" ]]
           [[ "$(git -C source rev-parse HEAD)" == "${{ matrix.commitSha }}" ]]
+      - uses: ./automation/.github/release-automation/setup
       - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           distribution: temurin
@@ -96,9 +93,9 @@ jobs:
         env:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
-          $RUNNER_TEMP/publication-input-before.json"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/publication-input-before.json
       - name: Refuse stale publication discovery
         env:
           OWNER: ${{ steps.before.outputs.ownership_owner }}
@@ -142,9 +139,8 @@ jobs:
           version=${{ matrix.tag }}
           export MAVEN_PAYLOAD_VERSION=${version#v}
           outputs="$RUNNER_TEMP/maven-policy.outputs"
-          GITHUB_OUTPUT="$outputs" "$TRUSTED_AUTOMATION_ROOT/gradlew" \
-            -p "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" run \
-            --args="maven-policy $PWD/settings.gradle" >/dev/null
+          GITHUB_OUTPUT="$outputs" uv run --directory "$TRUSTED_AUTOMATION_ROOT/.github/release-automation" --frozen --no-dev \
+            python -m release_automation.cli maven-policy "$PWD/settings.gradle" >/dev/null
           awk -F= '$1 == "maven_artifacts_json" {sub(/^[^=]*=/, ""); print}' \
             "$outputs" >"$MAVEN_ARTIFACTS_FILE"
           "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/prepare-maven-payload.sh"
@@ -193,18 +189,18 @@ jobs:
         env:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="record-maven-payload ${{ matrix.tag }} ${{ matrix.commitSha }}
-          $RUNNER_TEMP/maven-receipt.json"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          record-maven-payload ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/maven-receipt.json
       - name: Export the exact Activity expectation
         id: final
         working-directory: automation
         env:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
-          $RUNNER_TEMP/publication-input.json"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          publication-input ${{ matrix.tag }} ${{ matrix.commitSha }}
+          $RUNNER_TEMP/publication-input.json
       - name: Recheck ownership immediately before polling
         env:
           OWNER: ${{ steps.final.outputs.ownership_owner }}
@@ -239,5 +235,5 @@ jobs:
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_PUBLICATION_API_KEY }}
           TRUSTED_WORKER_COMMIT: ${{ matrix.automationCommit }}
         run: >-
-          ./gradlew -p .github/release-automation run
-          --args="worker publication ${{ matrix.taskQueue }}"
+          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
+          worker publication ${{ matrix.taskQueue }}

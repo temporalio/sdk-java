@@ -37,11 +37,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Check shell syntax
         run: |
           for script in .github/scripts/temporal-release/*.sh \
@@ -57,7 +53,11 @@ jobs:
           ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each {
           |workflow| YAML.parse_file(workflow) }'
       - name: Verify formatting and local tests
-        run: ./gradlew -p .github/release-automation spotlessCheck test
+        run: |
+          uv run --directory .github/release-automation --frozen ruff format --check release_automation tests
+          uv run --directory .github/release-automation --frozen ruff check release_automation tests
+          uv run --directory .github/release-automation --frozen mypy release_automation
+          uv run --directory .github/release-automation --frozen pytest -q
 
   process_portability:
     name: Trusted process launch (${{ matrix.os }})
@@ -70,12 +70,6 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           submodules: recursive
-      - uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
-        with:
-          distribution: temurin
-          java-version: "21"
-      - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+      - uses: ./.github/release-automation/setup
       - name: Verify explicit Bash process construction
-        run: >-
-          ./gradlew -p .github/release-automation test
-          --tests io.temporal.releaseautomation.ProcessSupportTest
+        run: uv run --directory .github/release-automation --frozen pytest -q tests/test_process.py
