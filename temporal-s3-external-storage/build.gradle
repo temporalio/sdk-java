@@ -1,0 +1,14 @@
+description = '''Temporal S3 External Storage Driver'''
+
+ext {
+    awsSdkVersion = '2.25.0'
+}
+
+dependencies {
+    api project(':temporal-sdk')
+    implementation "software.amazon.awssdk:s3:${awsSdkVersion}"
+
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
