@@ -875,7 +875,7 @@ public interface WorkflowClient {
    * @param arg2 second update method parameter
    * @param arg3 third update method parameter
    * @param arg4 fourth update method parameter
-   * @param arg5 sixth update method parameter
+   * @param arg5 fifth update method parameter
    * @param arg6 sixth update method parameter
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
