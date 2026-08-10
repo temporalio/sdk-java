@@ -7,6 +7,8 @@ on:
       - ".github/scripts/temporal-release/**"
       - ".github/workflows/temporal-release-*.yml"
       - ".github/workflows/build-native-image.yml"
+      - "docker/native-image/**"
+      - "docker/native-image-musl/**"
       - "gradle/publishing.gradle"
       - "gradle/versioning.gradle"
   push:
@@ -17,6 +19,8 @@ on:
       - ".github/scripts/temporal-release/**"
       - ".github/workflows/temporal-release-*.yml"
       - ".github/workflows/build-native-image.yml"
+      - "docker/native-image/**"
+      - "docker/native-image-musl/**"
       - "gradle/publishing.gradle"
       - "gradle/versioning.gradle"
 
@@ -35,7 +39,7 @@ jobs:
       - name: Check shell syntax
         run: |
           for script in .github/scripts/temporal-release/*.sh \
-            .github/release-automation/docker/native-image-musl-java23/install-musl.sh; do
+            docker/native-image-musl/install-musl.sh; do
             bash -n "$script"
           done
       - name: Test exact GitHub artifact handling

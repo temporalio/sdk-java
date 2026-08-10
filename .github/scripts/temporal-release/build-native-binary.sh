@@ -54,7 +54,7 @@ case "$RELEASE_PLATFORM" in
   linux-amd64-musl)
     image_id_file=$(mktemp)
     docker build --iidfile "$image_id_file" \
-      "$trusted_root/.github/release-automation/docker/native-image-musl-java23" 1>&2
+      "$trusted_root/docker/native-image-musl" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
       ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild -PnativeBuildMusl \
@@ -63,7 +63,7 @@ case "$RELEASE_PLATFORM" in
   linux-amd64 | linux-arm64)
     image_id_file=$(mktemp)
     docker build --iidfile "$image_id_file" \
-      "$trusted_root/.github/release-automation/docker/native-image-java23" 1>&2
+      "$trusted_root/docker/native-image" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
       ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild \
