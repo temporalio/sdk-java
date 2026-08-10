@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+# The only trusted producer of release artifacts is the merge-triggered candidate run.
+RELEASE_WORKFLOW_PATH=.github/workflows/temporal-release-candidate.yml
+RELEASE_WORKFLOW_EVENT=push
+RELEASE_WORKFLOW_BRANCH_PATTERN='^(main|releases/.+|[^/]*\.[^/]*\.x|release_[^/]*_[^/]*_x)$'
+
 # Report a transient GitHub or local tooling failure.
 fail() { echo "github-artifact: $*" >&2; exit 1; }
 # Report a durable identity mismatch that retries cannot repair.
@@ -78,8 +83,19 @@ download_artifact() {
   jq -e --argjson id "$artifact_id" --argjson run "$workflow_run_id" --arg name "$artifact_name" \
     --arg digest "$github_digest" \
     '.id == $id and .workflow_run.id == $run and .name == $name and
-     .digest == $digest and .expired == false' "$work/metadata" >/dev/null ||
+     .digest == $digest' "$work/metadata" >/dev/null ||
     conflict "artifact metadata changed."
+  jq -e '.expired == false' "$work/metadata" >/dev/null ||
+    unavailable "artifact $artifact_id has expired."
+  run=$(gh api "repos/temporalio/sdk-java/actions/runs/$workflow_run_id") ||
+    fail "the originating GitHub Actions run is temporarily unavailable."
+  jq -e --argjson id "$workflow_run_id" --arg path "$RELEASE_WORKFLOW_PATH" \
+    --arg event "$RELEASE_WORKFLOW_EVENT" --arg branch "$RELEASE_WORKFLOW_BRANCH_PATTERN" '
+    .id == $id and .path == $path and .event == $event and
+    .head_repository.full_name == "temporalio/sdk-java" and
+    (.head_branch | test($branch)) and
+    (.status == "in_progress" or .status == "completed")' <<<"$run" >/dev/null ||
+    conflict "the artifact originated from another workflow run."
   status=$(curl --silent --show-error --location --output "$work/archive" --write-out '%{http_code}' \
     --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/vnd.github+json' \
     "https://api.github.com/repos/temporalio/sdk-java/actions/artifacts/$artifact_id/zip") ||

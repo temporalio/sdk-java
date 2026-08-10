@@ -12,6 +12,8 @@ cat >"$work/bin/gh" <<'FAKE_GH'
 set -euo pipefail
 if [[ ${FAKE_GH_RESPONSE_FILE:-} && "$*" == *"actions/artifacts -f"* ]]; then
   cat "$FAKE_GH_RESPONSE_FILE"
+elif [[ "$*" == *"actions/runs/"* ]]; then
+  cat "$FAKE_GH_RUN_FILE"
 else
   cat "$FAKE_GH_METADATA_FILE"
 fi
@@ -82,6 +84,10 @@ cat >"$work/metadata.json" <<'JSON'
 "created_at":"2026-08-01T00:00:00Z","expires_at":"2026-10-30T00:00:00Z",
 "workflow_run":{"id":22}}
 JSON
+cat >"$work/run.json" <<'JSON'
+{"id":22,"path":".github/workflows/temporal-release-candidate.yml","event":"push",
+"head_branch":"main","head_repository":{"full_name":"temporalio/sdk-java"},"status":"completed"}
+JSON
 printf 'release bytes' >"$work/content/release.tar.gz"
 (cd "$work/content" && zip -q "$work/artifact.zip" release.tar.gz)
 archive_digest=$(sha256sum "$work/artifact.zip" | awk '{print $1}')
@@ -92,11 +98,22 @@ cat >"$work/download-receipt.json" <<JSON
  "githubDigest":"sha256:$archive_digest","fileName":"release.tar.gz"}
 JSON
 PATH="$work/bin:$PATH" FAKE_CURL_METADATA="$work/download-metadata.json" \
-  FAKE_CURL_ZIP="$work/artifact.zip" GH_TOKEN=test \
+  FAKE_CURL_ZIP="$work/artifact.zip" FAKE_GH_RUN_FILE="$work/run.json" GH_TOKEN=test \
   GITHUB_ARTIFACT_DESTINATION="$work/download" \
   GITHUB_ARTIFACT_RECEIPT_FILE="$work/download-receipt.json" \
   "$root/github-artifact.sh" download
 cmp "$work/content/release.tar.gz" "$work/download/release.tar.gz"
+
+jq '.path = ".github/workflows/temporal-release-resume.yml"' "$work/run.json" >"$work/stale-run.json"
+set +e
+PATH="$work/bin:$PATH" FAKE_CURL_METADATA="$work/download-metadata.json" \
+  FAKE_CURL_ZIP="$work/artifact.zip" FAKE_GH_RUN_FILE="$work/stale-run.json" GH_TOKEN=test \
+  GITHUB_ARTIFACT_DESTINATION="$work/stale-download" \
+  GITHUB_ARTIFACT_RECEIPT_FILE="$work/download-receipt.json" \
+  "$root/github-artifact.sh" download >/dev/null 2>&1
+status=$?
+set -e
+[[ $status -eq 42 ]]
 
 sed "s/sha256:a\{64\}/sha256:$archive_digest/" "$work/live.json" >"$work/live-download.json"
 PATH="$work/bin:$PATH" FAKE_GH_RESPONSE_FILE="$work/live-download.json" \

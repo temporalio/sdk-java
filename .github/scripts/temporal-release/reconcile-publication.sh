@@ -42,22 +42,6 @@ download_receipt() {
     "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/github-artifact.sh" download
 }
 
-# Prove that an artifact came from this repository's scheduled release workflow.
-# Artifact names and digests bind bytes, but origin validation is the trust boundary that
-# prevents an unrelated Actions run from supplying those bytes to privileged publication.
-verify_artifact_origin() {
-  local receipt=$1 run_id run
-  run_id=$(jq -er .workflowRunId "$receipt")
-  run=$(gh api "repos/temporalio/sdk-java/actions/runs/$run_id") ||
-    fail "The originating GitHub Actions run is temporarily unavailable."
-  jq -e --argjson id "$run_id" '
-    .id == $id and .path == ".github/workflows/temporal-release-resume.yml" and
-    .head_repository.full_name == "temporalio/sdk-java" and
-    .head_branch == "main" and .event == "schedule" and
-    (.status == "in_progress" or .status == "completed")' <<<"$run" >/dev/null ||
-    conflict "the artifact originated from another workflow run."
-}
-
 # Download the fixed native matrix and construct its deterministic checksum asset.
 materialize_native_assets() {
   local count index receipt
@@ -65,7 +49,6 @@ materialize_native_assets() {
   for ((index = 0; index < count; index++)); do
     receipt=$work/native-$index.json
     jq ".release.artifacts[$index]" "$RELEASE_INPUT_FILE" >"$receipt"
-    verify_artifact_origin "$receipt"
     mkdir "$work/native-$index"
     download_receipt "$receipt" "$work/native-$index"
     find "$work/native-$index" -mindepth 1 -maxdepth 1 -type f -exec cp {} "$work/assets/" \;
@@ -80,7 +63,6 @@ materialize_maven_payload() {
   local receipt=$work/maven-receipt.json archive=$work/maven-download/maven-payload.tar
   local bundle=$work/maven-bundle
   jq .mavenPayload "$RELEASE_INPUT_FILE" >"$receipt"
-  verify_artifact_origin "$receipt"
   mkdir "$work/maven-download"
   download_receipt "$receipt" "$work/maven-download"
   [[ -s $archive ]] || conflict "the exact Maven payload archive is absent."
@@ -574,5 +556,5 @@ publish_release() {
 case $RELEASE_STAGE in
   all) publish_release ;;
   inspect) inspect_maven ;;
-  *) fail "Temporal scheduled an unknown publication stage." ;;
+  *) fail "Temporal selected an unknown publication stage." ;;
 esac

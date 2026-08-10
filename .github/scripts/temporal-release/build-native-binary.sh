@@ -40,7 +40,7 @@ release_version=${RELEASE_TAG#v}
 
 case "$RELEASE_PLATFORM" in
   linux-amd64-musl | linux-amd64 | macos-amd64 | macos-arm64 | linux-arm64 | windows-amd64) ;;
-  *) fail "Temporal scheduled an unknown sdk-java release platform." ;;
+  *) fail "Temporal selected an unknown sdk-java release platform." ;;
 esac
 
 hook_backup=$(mktemp)

@@ -50,5 +50,5 @@ jobs:
         run: |
           uv run --directory .github/release-automation --frozen ruff format --check release_automation tests
           uv run --directory .github/release-automation --frozen ruff check release_automation tests
-          uv run --directory .github/release-automation --frozen mypy release_automation
+          uv run --directory .github/release-automation --frozen mypy --package release_automation
           uv run --directory .github/release-automation --frozen pytest -q
