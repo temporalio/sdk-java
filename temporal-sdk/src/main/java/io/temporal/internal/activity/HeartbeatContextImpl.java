@@ -1,5 +1,6 @@
 package io.temporal.internal.activity;
 
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -7,6 +8,7 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
 import io.temporal.common.CancellationToken;
@@ -14,7 +16,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -62,7 +64,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
   private final DataConverter dataConverterWithActivityContext;
-  private final @Nullable ExternalStorageMessageConverter externalStorage;
+  private final @Nullable ExternalStorageMessageTransformer externalStorage;
 
   private final Scope metricsScope;
   private final Optional<Payloads> prevAttemptHeartbeatDetails;
@@ -95,7 +97,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      @Nullable ExternalStorageMessageConverter externalStorage) {
+      @Nullable ExternalStorageMessageTransformer externalStorage) {
     this(
         service,
         namespace,
@@ -120,7 +122,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      @Nullable ExternalStorageMessageConverter externalStorage,
+      @Nullable ExternalStorageMessageTransformer externalStorage,
       long localHeartbeatTimeoutBufferMillis) {
     this.service = service;
     this.metricsScope = metricsScope;
@@ -346,16 +348,20 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   private void sendHeartbeatRequest(Object details) {
     try {
+      RecordActivityTaskHeartbeatRequest.Builder builder =
+          RecordActivityTaskHeartbeatRequest.newBuilder()
+              .setTaskToken(ByteString.copyFrom(info.getTaskToken()))
+              .setNamespace(namespace)
+              .setIdentity(identity);
+      dataConverterWithActivityContext.toPayloads(details).ifPresent(builder::setDetails);
+      RecordActivityTaskHeartbeatRequest request = builder.build();
+      if (externalStorage != null) {
+        request =
+            externalStorage.storeBlocking(
+                request, activityStorageTarget(), Duration.ofMillis(heartbeatIntervalMillis));
+      }
       RecordActivityTaskHeartbeatResponse status =
-          ActivityClientHelper.sendHeartbeatRequest(
-              service,
-              namespace,
-              identity,
-              info.getTaskToken(),
-              dataConverterWithActivityContext.toPayloads(details),
-              metricsScope,
-              externalStorage,
-              activityStorageTarget());
+          ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
       if (status.getCancelRequested()) {
         requestCancelLocked();
       } else if (status.getActivityReset()) {

@@ -22,7 +22,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -1082,15 +1082,15 @@ public final class Worker {
     }
 
     ExternalStorageOptions externalStorage = clientOptions.getExternalStorage();
-    ExternalStorageMessageConverter externalStorageMessageConverter =
+    ExternalStorageMessageTransformer externalStorageMessageTransformer =
         externalStorage == null
             ? null
-            : ExternalStorageMessageConverter.create(
+            : ExternalStorageMessageTransformer.create(
                 externalStorage, factoryOptions.getMaxConcurrentExternalStorageVisits());
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
-        .setExternalStorageMessageConverter(externalStorageMessageConverter)
+        .setExternalStorageMessageTransformer(externalStorageMessageTransformer)
         .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())

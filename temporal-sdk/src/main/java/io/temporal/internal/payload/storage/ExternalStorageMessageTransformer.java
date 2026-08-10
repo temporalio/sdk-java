@@ -1,12 +1,20 @@
 package io.temporal.internal.payload.storage;
 
+import com.google.common.base.Throwables;
 import com.google.protobuf.Message;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
+import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import java.time.Duration;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
@@ -18,14 +26,65 @@ import javax.annotation.Nullable;
  * <p>The {@link Message.Builder} overloads transform in place; the {@link Message} overloads copy
  * through a builder and complete with the copy.
  */
-final class ExternalStorageMessageTransformer {
+public final class ExternalStorageMessageTransformer {
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
+
+  public static ExternalStorageMessageTransformer create(ExternalStorageOptions options) {
+    return create(options, 1);
+  }
+
+  public static ExternalStorageMessageTransformer create(
+      ExternalStorageOptions options, int payloadVisitConcurrency) {
+    return new ExternalStorageMessageTransformer(
+        ExternalStoragePayloadTransformer.fromOptions(options), payloadVisitConcurrency);
+  }
 
   ExternalStorageMessageTransformer(
       ExternalStoragePayloadTransformer payloadTransformer, int payloadVisitConcurrency) {
     this.payloadTransformer = payloadTransformer;
     this.payloadVisitConcurrency = payloadVisitConcurrency;
+  }
+
+  public <T extends Message> T storeBlocking(T message, @Nullable StorageDriverTargetInfo target) {
+    return storeBlocking(message, target, null);
+  }
+
+  public <T extends Message> T storeBlocking(
+      T message, @Nullable StorageDriverTargetInfo target, @Nullable Duration timeout) {
+    CancelSource<CancellationException> cancel = new CancelSource<>(CancellationException::new);
+    return await(store(message, target, cancel.token()), cancel, timeout);
+  }
+
+  public <T extends Message> T retrieveBlocking(T message) {
+    CancelSource<CancellationException> cancel = new CancelSource<>(CancellationException::new);
+    return await(retrieve(message, cancel.token()), cancel, null);
+  }
+
+  public <T extends Message> CompletableFuture<T> retrieveAsync(T message) {
+    return retrieve(message, CancellationToken.none());
+  }
+
+  // Cancels the in-flight driver work when the calling thread is interrupted or the timeout
+  // elapses, so external-storage I/O can never wedge the caller (e.g. an activity heartbeat).
+  private static <T> T await(
+      CompletableFuture<T> future,
+      CancelSource<CancellationException> cancel,
+      @Nullable Duration timeout) {
+    try {
+      return timeout == null ? future.get() : future.get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      cancel.cancel();
+      Thread.currentThread().interrupt();
+      throw new CancellationException("External storage operation interrupted");
+    } catch (TimeoutException e) {
+      cancel.cancel();
+      throw new CancellationException("External storage operation timed out after " + timeout);
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause() != null ? e.getCause() : e;
+      Throwables.throwIfUnchecked(cause);
+      throw new CompletionException(cause);
+    }
   }
 
   <T extends Message> CompletableFuture<T> store(

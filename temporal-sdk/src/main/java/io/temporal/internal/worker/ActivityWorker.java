@@ -15,7 +15,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
@@ -469,7 +469,7 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTask retrieveInboundPayloads(ActivityTask task) {
-      ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
       if (converter == null) {
         return task;
       }
@@ -484,14 +484,14 @@ final class ActivityWorker implements SuspendableWorker {
 
     private <T extends Message> T storeOutboundPayloads(
         T request, @Nullable StorageDriverTargetInfo target) {
-      ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
       return converter == null ? request : converter.storeBlocking(request, target);
     }
 
     @Nullable
     private StorageDriverTargetInfo activityStorageTarget(
         PollActivityTaskQueueResponseOrBuilder pollResponse) {
-      if (options.getExternalStorageMessageConverter() == null) {
+      if (options.getExternalStorageMessageTransformer() == null) {
         return null;
       }
       return new StorageDriverActivityInfo(

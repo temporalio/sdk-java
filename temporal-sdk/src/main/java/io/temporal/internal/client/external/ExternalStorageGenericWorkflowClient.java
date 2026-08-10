@@ -4,7 +4,7 @@ import com.google.common.base.Strings;
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
@@ -20,12 +20,12 @@ import javax.annotation.Nullable;
  */
 public final class ExternalStorageGenericWorkflowClient implements GenericWorkflowClient {
   private final GenericWorkflowClient next;
-  private final ExternalStorageMessageConverter externalStorage;
+  private final ExternalStorageMessageTransformer externalStorage;
   private final String namespace;
 
   public ExternalStorageGenericWorkflowClient(
       GenericWorkflowClient next,
-      ExternalStorageMessageConverter externalStorage,
+      ExternalStorageMessageTransformer externalStorage,
       String namespace) {
     this.next = next;
     this.externalStorage = externalStorage;
@@ -106,7 +106,7 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public CompletableFuture<PollWorkflowExecutionUpdateResponse> pollUpdateAsync(
       @Nonnull PollWorkflowExecutionUpdateRequest request, @Nonnull Deadline deadline) {
-    return next.pollUpdateAsync(request, deadline).thenCompose(externalStorage::retrieve);
+    return next.pollUpdateAsync(request, deadline).thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -125,7 +125,7 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> longPollHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request, @Nonnull Deadline deadline) {
-    return next.longPollHistoryAsync(request, deadline).thenCompose(externalStorage::retrieve);
+    return next.longPollHistoryAsync(request, deadline).thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -137,7 +137,8 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public CompletableFuture<GetWorkflowExecutionHistoryResponse> getWorkflowExecutionHistoryAsync(
       @Nonnull GetWorkflowExecutionHistoryRequest request) {
-    return next.getWorkflowExecutionHistoryAsync(request).thenCompose(externalStorage::retrieve);
+    return next.getWorkflowExecutionHistoryAsync(request)
+        .thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -149,7 +150,8 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public CompletableFuture<ListWorkflowExecutionsResponse> listWorkflowExecutionsAsync(
       ListWorkflowExecutionsRequest listRequest) {
-    return next.listWorkflowExecutionsAsync(listRequest).thenCompose(externalStorage::retrieve);
+    return next.listWorkflowExecutionsAsync(listRequest)
+        .thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -165,7 +167,7 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
 
   @Override
   public CompletableFuture<ListSchedulesResponse> listSchedulesAsync(ListSchedulesRequest request) {
-    return next.listSchedulesAsync(request).thenCompose(externalStorage::retrieve);
+    return next.listSchedulesAsync(request).thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -216,13 +218,14 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   public CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
       @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline) {
     return next.pollNexusOperationExecutionAsync(request, deadline)
-        .thenCompose(externalStorage::retrieve);
+        .thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
   public CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
       @Nonnull ListNexusOperationExecutionsRequest request) {
-    return next.listNexusOperationExecutionsAsync(request).thenCompose(externalStorage::retrieve);
+    return next.listNexusOperationExecutionsAsync(request)
+        .thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -290,7 +293,7 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline) {
-    return next.pollActivityAsync(request, deadline).thenCompose(externalStorage::retrieve);
+    return next.pollActivityAsync(request, deadline).thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override
@@ -317,7 +320,7 @@ public final class ExternalStorageGenericWorkflowClient implements GenericWorkfl
   @Override
   public CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(
       ListActivityExecutionsRequest request) {
-    return next.listActivitiesAsync(request).thenCompose(externalStorage::retrieve);
+    return next.listActivitiesAsync(request).thenCompose(externalStorage::retrieveAsync);
   }
 
   @Override

@@ -12,7 +12,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -31,7 +31,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private final GrpcRetryer grpcRetryer;
-  private final @Nullable ExternalStorageMessageConverter externalStorage;
+  private final @Nullable ExternalStorageMessageTransformer externalStorage;
   private Deadline deadline;
   private Iterator<HistoryEvent> current;
   ByteString nextPageToken;
@@ -49,7 +49,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope,
-      @Nullable ExternalStorageMessageConverter externalStorage) {
+      @Nullable ExternalStorageMessageTransformer externalStorage) {
     this.service = service;
     this.namespace = namespace;
     this.task = task;

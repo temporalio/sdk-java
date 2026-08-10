@@ -10,7 +10,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.workflow.Functions;
@@ -59,7 +59,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       Functions.Proc closeCallback,
-      @Nullable ExternalStorageMessageConverter externalStorage) {
+      @Nullable ExternalStorageMessageTransformer externalStorage) {
     this.client = client;
     this.activity = activity;
     this.metricsScope = metricsScope;

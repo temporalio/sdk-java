@@ -17,7 +17,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -45,7 +45,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final @Nullable StorageDriverTargetInfo storageTarget;
-  private final @Nullable ExternalStorageMessageConverter externalStorage;
+  private final @Nullable ExternalStorageMessageTransformer externalStorage;
 
   ManualActivityCompletionClientImpl(
       @Nonnull WorkflowServiceStubs service,
@@ -58,7 +58,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       @Nullable String activityId,
       @Nullable ActivitySerializationContext context,
       @Nullable StorageDriverTargetInfo storageTarget,
-      @Nullable ExternalStorageMessageConverter externalStorage) {
+      @Nullable ExternalStorageMessageTransformer externalStorage) {
     this.service = service;
     this.externalStorage = externalStorage;
     this.storageTarget = storageTarget;
@@ -195,18 +195,18 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void recordHeartbeat(@Nullable Object details) throws CanceledFailure {
+    Optional<Payloads> payloads = dataConverterWithActivityExecutionContext.toPayloads(details);
     try {
       if (taskToken != null) {
+        RecordActivityTaskHeartbeatRequest.Builder builder =
+            RecordActivityTaskHeartbeatRequest.newBuilder()
+                .setNamespace(namespace)
+                .setIdentity(identity)
+                .setTaskToken(ByteString.copyFrom(taskToken));
+        payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatResponse status =
             ActivityClientHelper.sendHeartbeatRequest(
-                service,
-                namespace,
-                identity,
-                taskToken,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope,
-                externalStorage,
-                storageTarget);
+                service, storeOutbound(builder.build()), metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -215,17 +215,17 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           throw new ActivityPausedException();
         }
       } else {
+        RecordActivityTaskHeartbeatByIdRequest.Builder builder =
+            RecordActivityTaskHeartbeatByIdRequest.newBuilder()
+                .setNamespace(namespace)
+                .setIdentity(identity)
+                .setWorkflowId(execution.getWorkflowId())
+                .setRunId(execution.getRunId())
+                .setActivityId(activityId);
+        payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatByIdResponse status =
             ActivityClientHelper.recordActivityTaskHeartbeatById(
-                service,
-                namespace,
-                identity,
-                execution,
-                activityId,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope,
-                externalStorage,
-                storageTarget);
+                service, storeOutbound(builder.build()), metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {

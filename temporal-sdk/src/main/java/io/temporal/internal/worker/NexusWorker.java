@@ -18,7 +18,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -532,7 +532,7 @@ final class NexusWorker implements SuspendableWorker {
     }
 
     private NexusTask retrieveInboundPayloads(NexusTask task) {
-      ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
       if (converter == null) {
         return task;
       }
@@ -546,7 +546,7 @@ final class NexusWorker implements SuspendableWorker {
     }
 
     private <T extends Message> T storeOutbound(T request) {
-      ExternalStorageMessageConverter converter = options.getExternalStorageMessageConverter();
+      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
       return converter == null ? request : converter.storeBlocking(request, null);
     }
   }

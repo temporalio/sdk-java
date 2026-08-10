@@ -14,7 +14,7 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.client.ActivityCompletionFailureException;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
@@ -31,7 +31,7 @@ import org.junit.Test;
 public class ManualActivityCompletionClientImplTest {
   private final RuntimeException storageFailure = new RuntimeException("storage failed");
   private WorkflowServiceStubs service;
-  private ExternalStorageMessageConverter externalStorage;
+  private ExternalStorageMessageTransformer externalStorage;
 
   @Before
   public void setUp() {
@@ -40,7 +40,7 @@ public class ManualActivityCompletionClientImplTest {
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.getDefaultInstance());
     when(service.getOptions()).thenReturn(WorkflowServiceStubsOptions.getDefaultInstance());
     externalStorage =
-        ExternalStorageMessageConverter.create(
+        ExternalStorageMessageTransformer.create(
             ExternalStorageOptions.newBuilder()
                 .setDriver(new FailingDriver())
                 .setPayloadSizeThreshold(0)

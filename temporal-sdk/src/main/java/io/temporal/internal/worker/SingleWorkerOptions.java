@@ -7,7 +7,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.internal.payload.storage.ExternalStorageMessageConverter;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
@@ -47,7 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private ExternalStorageMessageConverter externalStorageMessageConverter;
+    private ExternalStorageMessageTransformer externalStorageMessageTransformer;
 
     private Builder() {}
 
@@ -76,7 +76,7 @@ public final class SingleWorkerOptions {
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
       this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
       this.preferredVersionProvider = options.getPreferredVersionProvider();
-      this.externalStorageMessageConverter = options.getExternalStorageMessageConverter();
+      this.externalStorageMessageTransformer = options.getExternalStorageMessageTransformer();
     }
 
     public Builder setIdentity(String identity) {
@@ -190,9 +190,9 @@ public final class SingleWorkerOptions {
     }
 
     /** The message converter that offloads/restores external-storage payloads, or null. */
-    public Builder setExternalStorageMessageConverter(
-        ExternalStorageMessageConverter externalStorageMessageConverter) {
-      this.externalStorageMessageConverter = externalStorageMessageConverter;
+    public Builder setExternalStorageMessageTransformer(
+        ExternalStorageMessageTransformer externalStorageMessageTransformer) {
+      this.externalStorageMessageTransformer = externalStorageMessageTransformer;
       return this;
     }
 
@@ -239,7 +239,7 @@ public final class SingleWorkerOptions {
           this.allowActivityHeartbeatDuringShutdown,
           this.workerControlTaskQueue,
           this.preferredVersionProvider,
-          this.externalStorageMessageConverter);
+          this.externalStorageMessageTransformer);
     }
   }
 
@@ -264,7 +264,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
-  private final ExternalStorageMessageConverter externalStorageMessageConverter;
+  private final ExternalStorageMessageTransformer externalStorageMessageTransformer;
 
   private SingleWorkerOptions(
       String identity,
@@ -288,7 +288,7 @@ public final class SingleWorkerOptions {
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
-      ExternalStorageMessageConverter externalStorageMessageConverter) {
+      ExternalStorageMessageTransformer externalStorageMessageTransformer) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -310,7 +310,7 @@ public final class SingleWorkerOptions {
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
     this.workerControlTaskQueue = workerControlTaskQueue;
     this.preferredVersionProvider = preferredVersionProvider;
-    this.externalStorageMessageConverter = externalStorageMessageConverter;
+    this.externalStorageMessageTransformer = externalStorageMessageTransformer;
   }
 
   public String getIdentity() {
@@ -410,8 +410,8 @@ public final class SingleWorkerOptions {
 
   /** The external-storage message converter for this worker, or null when disabled. */
   @Nullable
-  public ExternalStorageMessageConverter getExternalStorageMessageConverter() {
-    return externalStorageMessageConverter;
+  public ExternalStorageMessageTransformer getExternalStorageMessageTransformer() {
+    return externalStorageMessageTransformer;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {
