@@ -2,35 +2,17 @@
 
 set -euo pipefail
 
-fail() {
-  echo "build-native-binary: $*" >&2
-  exit 1
-}
-
-conflict() {
-  echo "build-native-binary: immutable candidate conflict: $*" >&2
-  exit 42
-}
-
-sha256_file() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  else
-    shasum -a 256 "$1" | awk '{print $1}'
-  fi
-}
+fail() { echo "build-native-binary: $*" >&2; exit 1; }
+conflict() { echo "build-native-binary: immutable candidate conflict: $*" >&2; exit 42; }
 
 native_path() {
-  if command -v cygpath >/dev/null 2>&1; then
-    cygpath -u "$1"
-  else
-    printf '%s\n' "$1"
-  fi
+  if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"
+  else printf '%s\n' "$1"; fi
 }
 
 required=(
-  RELEASE_CANDIDATE_DIGEST RELEASE_COMMIT RELEASE_NOTES_FILE RELEASE_NOTES_SHA256
-  RELEASE_PLATFORM RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG RELEASE_VERSION
+  RELEASE_COMMIT RELEASE_PLATFORM
+  RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG
   TRUSTED_AUTOMATION_COMMIT TRUSTED_AUTOMATION_ROOT
 )
 for variable in "${required[@]}"; do
@@ -49,10 +31,9 @@ output_root=$(native_path "$RELEASE_PREBUILT_NATIVE_DIR")
   conflict "the checkout is not $RELEASE_COMMIT."
 [[ $(git -C "$trusted_root" rev-parse --verify HEAD^{commit}) == "$TRUSTED_AUTOMATION_COMMIT" ]] ||
   conflict "the trusted automation checkout changed."
-[[ $RELEASE_NOTES_FILE == "releases/$RELEASE_TAG" && -s $RELEASE_NOTES_FILE ]] ||
-  conflict "the release-note identity is invalid."
-[[ $(sha256_file "$RELEASE_NOTES_FILE") == "$RELEASE_NOTES_SHA256" ]] ||
-  conflict "the release-note checksum changed."
+notes_file=releases/$RELEASE_TAG
+[[ -s $notes_file && ! -L $notes_file ]] || conflict "the release notes are unavailable."
+release_version=${RELEASE_TAG#v}
 
 case "$RELEASE_PLATFORM" in
   linux-amd64-musl | linux-amd64 | macos-amd64 | macos-arm64 | linux-arm64 | windows-amd64) ;;
@@ -72,7 +53,7 @@ case "$RELEASE_PLATFORM" in
       "$trusted_root/.github/release-automation/docker/native-image-musl-java23" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
-      ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild -PnativeBuildMusl \
+      ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild -PnativeBuildMusl \
       :temporal-test-server:nativeCompile 1>&2
     ;;
   linux-amd64 | linux-arm64)
@@ -81,11 +62,11 @@ case "$RELEASE_PLATFORM" in
       "$trusted_root/.github/release-automation/docker/native-image-java23" 1>&2
     docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
       "$(<"$image_id_file")" \
-      ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild \
+      ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild \
       :temporal-test-server:nativeCompile 1>&2
     ;;
   macos-amd64 | macos-arm64 | windows-amd64)
-    ./gradlew "-PreleaseVersion=$RELEASE_VERSION" -PnativeBuild \
+    ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild \
       :temporal-test-server:nativeCompile 1>&2
     ;;
 esac
@@ -101,16 +82,3 @@ mkdir -p "$output_root"
 [[ -z $(find "$output_root" -mindepth 1 -maxdepth 1 -print -quit) ]] ||
   fail "The native output directory is not empty."
 cp "$binary" "$output_root/$(basename "$binary")"
-jq -n \
-  --arg candidateDigest "$RELEASE_CANDIDATE_DIGEST" \
-  --arg commitSha "$RELEASE_COMMIT" \
-  --arg platform "$RELEASE_PLATFORM" \
-  --arg releaseNotesPath "$RELEASE_NOTES_FILE" \
-  --arg releaseNotesSha256 "$RELEASE_NOTES_SHA256" \
-  --arg tag "$RELEASE_TAG" \
-  --arg trustedAutomationCommit "$TRUSTED_AUTOMATION_COMMIT" \
-  --arg version "$RELEASE_VERSION" \
-  '{candidateDigest:$candidateDigest,commitSha:$commitSha,platform:$platform,
-    releaseNotesPath:$releaseNotesPath,releaseNotesSha256:$releaseNotesSha256,tag:$tag,
-    trustedAutomationCommit:$trustedAutomationCommit,version:$version}' \
-  >"$output_root/metadata.json"

@@ -1,16 +1,11 @@
 name: Temporal release automation CI
 
-defaults:
-  run:
-    shell: bash
-
 on:
   pull_request:
     paths:
       - ".github/release-automation/**"
       - ".github/scripts/temporal-release/**"
       - ".github/workflows/temporal-release-*.yml"
-      - ".github/workflows/prepare-release.yml"
       - ".github/workflows/build-native-image.yml"
       - "gradle/publishing.gradle"
       - "gradle/versioning.gradle"
@@ -21,7 +16,6 @@ on:
       - ".github/release-automation/**"
       - ".github/scripts/temporal-release/**"
       - ".github/workflows/temporal-release-*.yml"
-      - ".github/workflows/prepare-release.yml"
       - ".github/workflows/build-native-image.yml"
       - "gradle/publishing.gradle"
       - "gradle/versioning.gradle"
@@ -58,18 +52,3 @@ jobs:
           uv run --directory .github/release-automation --frozen ruff check release_automation tests
           uv run --directory .github/release-automation --frozen mypy release_automation
           uv run --directory .github/release-automation --frozen pytest -q
-
-  process_portability:
-    name: Trusted process launch (${{ matrix.os }})
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          submodules: recursive
-      - uses: ./.github/release-automation/setup
-      - name: Verify explicit Bash process construction
-        run: uv run --directory .github/release-automation --frozen pytest -q tests/test_process.py

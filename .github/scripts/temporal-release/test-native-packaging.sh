@@ -7,27 +7,15 @@ script=$root/.github/scripts/temporal-release/package-native-artifact.sh
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 commit=$(git -C "$root" rev-parse HEAD)
-candidate=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-notes=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 
 package() {
   local platform=$1 asset_platform=$2 extension=$3 binary_name=$4 output=$5
   mkdir "$work/prebuilt-$platform" "$output"
   printf 'native executable bytes' >"$work/prebuilt-$platform/$binary_name"
-  jq -n --arg candidateDigest "$candidate" --arg commitSha "$commit" \
-    --arg platform "$platform" --arg releaseNotesPath releases/v1.2.3 \
-    --arg releaseNotesSha256 "$notes" --arg tag v1.2.3 \
-    --arg trustedAutomationCommit "$commit" --arg version 1.2.3 \
-    '{candidateDigest:$candidateDigest,commitSha:$commitSha,platform:$platform,
-      releaseNotesPath:$releaseNotesPath,releaseNotesSha256:$releaseNotesSha256,tag:$tag,
-      trustedAutomationCommit:$trustedAutomationCommit,version:$version}' \
-    >"$work/prebuilt-$platform/metadata.json"
   RELEASE_ASSET_PLATFORM=$asset_platform RELEASE_ARCHIVE_EXTENSION=$extension \
-    RELEASE_BINARY_NAME=$binary_name RELEASE_CANDIDATE_DIGEST=$candidate \
-    RELEASE_COMMIT=$commit RELEASE_NOTES_FILE=releases/v1.2.3 RELEASE_NOTES_SHA256=$notes \
-    RELEASE_OUTPUT_DIR=$output RELEASE_PLATFORM=$platform \
-    RELEASE_PREBUILT_NATIVE_DIR="$work/prebuilt-$platform" RELEASE_TAG=v1.2.3 \
-    RELEASE_VERSION=1.2.3 TRUSTED_AUTOMATION_COMMIT=$commit TRUSTED_AUTOMATION_ROOT=$root \
+    RELEASE_BINARY_NAME=$binary_name RELEASE_OUTPUT_DIR=$output RELEASE_PLATFORM=$platform \
+    RELEASE_PREBUILT_NATIVE_DIR="$work/prebuilt-$platform" \
+    RELEASE_TAG=v1.2.3 TRUSTED_AUTOMATION_COMMIT=$commit TRUSTED_AUTOMATION_ROOT=$root \
     "$script" >/dev/null
 }
 

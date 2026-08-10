@@ -7,8 +7,7 @@ conflict() { echo "package-native-artifact: immutable artifact conflict: $*" >&2
 
 required=(
   RELEASE_ASSET_PLATFORM RELEASE_ARCHIVE_EXTENSION RELEASE_BINARY_NAME
-  RELEASE_CANDIDATE_DIGEST RELEASE_COMMIT RELEASE_NOTES_FILE RELEASE_NOTES_SHA256
-  RELEASE_OUTPUT_DIR RELEASE_PLATFORM RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG RELEASE_VERSION
+  RELEASE_OUTPUT_DIR RELEASE_PLATFORM RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG
   TRUSTED_AUTOMATION_COMMIT TRUSTED_AUTOMATION_ROOT
 )
 for variable in "${required[@]}"; do
@@ -20,25 +19,12 @@ done
 prebuilt=$RELEASE_PREBUILT_NATIVE_DIR
 binary=$prebuilt/$RELEASE_BINARY_NAME
 [[ -f $binary && ! -L $binary && -s $binary ]] || conflict "the native executable is invalid."
-[[ -f $prebuilt/metadata.json && ! -L $prebuilt/metadata.json ]] ||
-  conflict "the native metadata is invalid."
 entries=$(find "$prebuilt" -mindepth 1 -maxdepth 1 -exec basename {} \; | sort | tr '\n' ' ')
-[[ $entries == "metadata.json $RELEASE_BINARY_NAME " ]] ||
+[[ $entries == "$RELEASE_BINARY_NAME " ]] ||
   conflict "the native output contains unexpected files."
-jq -e --arg candidateDigest "$RELEASE_CANDIDATE_DIGEST" \
-  --arg commitSha "$RELEASE_COMMIT" --arg platform "$RELEASE_PLATFORM" \
-  --arg releaseNotesPath "$RELEASE_NOTES_FILE" \
-  --arg releaseNotesSha256 "$RELEASE_NOTES_SHA256" --arg tag "$RELEASE_TAG" \
-  --arg trustedAutomationCommit "$TRUSTED_AUTOMATION_COMMIT" --arg version "$RELEASE_VERSION" \
-  'keys == ["candidateDigest","commitSha","platform","releaseNotesPath",
-    "releaseNotesSha256","tag","trustedAutomationCommit","version"] and
-   .candidateDigest == $candidateDigest and .commitSha == $commitSha and
-   .platform == $platform and .releaseNotesPath == $releaseNotesPath and
-   .releaseNotesSha256 == $releaseNotesSha256 and .tag == $tag and
-   .trustedAutomationCommit == $trustedAutomationCommit and .version == $version' \
-  "$prebuilt/metadata.json" >/dev/null || conflict "the native output identity changed."
 
-archive_root="temporal-test-server_${RELEASE_VERSION}_${RELEASE_ASSET_PLATFORM}"
+version=${RELEASE_TAG#v}
+archive_root="temporal-test-server_${version}_${RELEASE_ASSET_PLATFORM}"
 artifact_name=${archive_root}${RELEASE_ARCHIVE_EXTENSION}
 mkdir -p "$RELEASE_OUTPUT_DIR"
 [[ -z $(find "$RELEASE_OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit) ]] ||

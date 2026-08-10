@@ -1,27 +1,9 @@
-name: Start Temporal-backed release candidate
-
-defaults:
-  run:
-    shell: bash
+name: Start Temporal-backed release
 
 on:
   push:
-    branches:
-      - main
-      - "releases/**"
-      - "v*.*.x"
-      - "*.*.x"
-      - "release_*_*_x"
-    paths:
-      - "releases/v*"
-  workflow_run:
-    workflows:
-      - Continuous Integration
-    types:
-      - completed
-  schedule:
-    - cron: "1,16,31,46 * * * *"
-  workflow_dispatch:
+    branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
+    paths: ["releases/v*"]
 
 permissions:
   contents: read
@@ -29,93 +11,13 @@ permissions:
 env:
   TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
-  TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_UNPRIVILEGED_API_KEY }}
 
 jobs:
-  discover:
-    if: github.event_name != 'schedule' || github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    outputs:
-      count: ${{ steps.matrix.outputs.count }}
-      matrix: ${{ steps.matrix.outputs.matrix }}
-    steps:
-      - name: Discover exact release-note commits
-        id: matrix
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-          WORKFLOW_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
-          WORKFLOW_RUN_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
-          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
-        run: |
-          [[ "$RELEASE_AUTOMATION_REF" =~ ^[0-9a-f]{40}$ ]]
-          : >"$RUNNER_TEMP/candidates.jsonl"
-          add_source() {
-            local source_sha=$1 base_sha=$2
-            [[ "$source_sha" =~ ^[0-9a-f]{40}$ && "$base_sha" =~ ^[0-9a-f]{40}$ ]]
-            jq -cn --arg sourceSha "$source_sha" --arg baseSha "$base_sha" \
-              --arg automationCommit "$RELEASE_AUTOMATION_REF" \
-              '{sourceSha:$sourceSha,baseSha:$baseSha,automationCommit:$automationCommit}' \
-              >>"$RUNNER_TEMP/candidates.jsonl"
-          }
-          if [[ "$GITHUB_EVENT_NAME" == push ]]; then
-            base_sha='${{ github.event.before }}'
-            [[ "$base_sha" =~ ^0+$ ]] && base_sha=$(gh api \
-              "repos/temporalio/sdk-java/commits/$GITHUB_SHA" --jq '.parents[0].sha')
-            add_source "$GITHUB_SHA" "$base_sha"
-          elif [[ "$GITHUB_EVENT_NAME" == workflow_run ]]; then
-            if [[ "$WORKFLOW_RUN_CONCLUSION" == success && "$WORKFLOW_RUN_EVENT" == push &&
-              "$WORKFLOW_RUN_REPOSITORY" == temporalio/sdk-java &&
-              "$WORKFLOW_RUN_BRANCH" != main &&
-              ( "$WORKFLOW_RUN_BRANCH" == v*.*.x || "$WORKFLOW_RUN_BRANCH" == *.*.x ||
-                "$WORKFLOW_RUN_BRANCH" == release_*_*_x ||
-                "$WORKFLOW_RUN_BRANCH" == releases/* ) ]]; then
-              parent=$(gh api "repos/temporalio/sdk-java/commits/$WORKFLOW_RUN_SHA" \
-                --jq '.parents[0].sha')
-              add_source "$WORKFLOW_RUN_SHA" "$parent"
-            fi
-          else
-            gh api --paginate --slurp 'repos/temporalio/sdk-java/git/matching-refs/tags/' |
-              jq -r '.[][] | .ref' | sort -u >"$RUNNER_TEMP/tag-refs.txt"
-            gh api --paginate --slurp 'repos/temporalio/sdk-java/branches?per_page=100' \
-              >"$RUNNER_TEMP/branches.json"
-            while IFS=$'\t' read -r branch head; do
-              if [[ "$branch" != main && "$branch" != v*.*.x && "$branch" != *.*.x &&
-                "$branch" != release_*_*_x && "$branch" != releases/* ]]; then
-                continue
-              fi
-              gh api "repos/temporalio/sdk-java/git/trees/$head?recursive=1" \
-                >"$RUNNER_TEMP/tree.json"
-              while IFS= read -r path; do
-                tag=${path#releases/}
-                [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] || continue
-                grep -Fxq "refs/tags/$tag" "$RUNNER_TEMP/tag-refs.txt" && continue
-                commits=$(gh api --method GET repos/temporalio/sdk-java/commits \
-                  -f path="$path" -f sha="$branch" -f per_page=1)
-                add_source "$(jq -er '.[0].sha' <<<"$commits")" \
-                  "$(jq -er '.[0].parents[0].sha' <<<"$commits")"
-              done < <(jq -r '.tree[] | select(.type == "blob") | .path |
-                select(startswith("releases/v"))' "$RUNNER_TEMP/tree.json")
-            done < <(jq -r '.[][] | [.name,.commit.sha] | @tsv' "$RUNNER_TEMP/branches.json")
-          fi
-          candidates=$(jq -sc 'unique_by(.sourceSha)' "$RUNNER_TEMP/candidates.jsonl")
-          {
-            echo "count=$(jq 'length' <<<"$candidates")"
-            echo "matrix=$(jq -c '{include:.}' <<<"$candidates")"
-          } >>"$GITHUB_OUTPUT"
-
   start:
-    needs: discover
-    if: needs.discover.outputs.count != '0'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
-      group: temporal-release-bootstrap-${{ matrix.sourceSha }}
+      group: temporal-release-bootstrap-${{ github.sha }}
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -123,39 +25,18 @@ jobs:
           fetch-depth: 0
           path: source
           persist-credentials: false
-          ref: ${{ matrix.sourceSha }}
+          ref: ${{ github.sha }}
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           path: automation
           persist-credentials: false
-          ref: ${{ matrix.automationCommit }}
-      - name: Verify trusted checkout
-        env:
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
-        run: |
-          [[ "${{ matrix.automationCommit }}" == "$RELEASE_AUTOMATION_REF" ]]
-          [[ "$(git -C automation rev-parse HEAD)" == "$RELEASE_AUTOMATION_REF" ]]
+          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
       - uses: ./automation/.github/release-automation/setup
-      - name: Resolve immutable candidate
-        id: metadata
+      - name: Start the release Workflow
         working-directory: source
         env:
-          BASE_SHA: ${{ matrix.baseSha }}
-          RELEASE_AUTOMATION_REF: ${{ matrix.automationCommit }}
-          RELEASE_COMMIT: ${{ matrix.sourceSha }}
-          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-        run: ../automation/.github/scripts/temporal-release/resolve-candidate.sh
-      - name: Start or attach to Candidate Workflow
-        id: temporal
-        working-directory: automation
-        env:
-          CANDIDATE_FILE: ${{ steps.metadata.outputs.candidate_file }}
-        run: uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli start-candidate $CANDIDATE_FILE
-      - name: Poll only this candidate Workflow queue
-        working-directory: automation
-        env:
-          EXPECTED_RUN_ID: ${{ steps.temporal.outputs.run_id }}
-          EXPECTED_WORKFLOW_ID: ${{ steps.temporal.outputs.workflow_id }}
-        run: >-
-          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
-          worker candidate ${{ steps.temporal.outputs.task_queue }}
+          BASE_SHA: ${{ github.event.before }}
+          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
+        run: uv run --directory ../automation/.github/release-automation --frozen --no-dev python -m release_automation.cli start
