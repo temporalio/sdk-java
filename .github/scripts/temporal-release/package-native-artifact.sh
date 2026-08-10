@@ -9,15 +9,15 @@ conflict() { echo "package-native-artifact: immutable artifact conflict: $*" >&2
 
 required=(
   RELEASE_ASSET_PLATFORM RELEASE_ARCHIVE_EXTENSION RELEASE_BINARY_NAME
-  RELEASE_OUTPUT_DIR RELEASE_PLATFORM RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG
-  TRUSTED_AUTOMATION_COMMIT TRUSTED_AUTOMATION_ROOT
+  RELEASE_COMMIT RELEASE_OUTPUT_DIR RELEASE_PLATFORM RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG
+  TRUSTED_AUTOMATION_ROOT
 )
 for variable in "${required[@]}"; do
   [[ -n ${!variable:-} ]] || fail "Required value $variable is missing."
 done
 
 [[ $(git -C "$TRUSTED_AUTOMATION_ROOT" rev-parse --verify HEAD^{commit}) == \
-  "$TRUSTED_AUTOMATION_COMMIT" ]] || conflict "the trusted automation checkout changed."
+  "$RELEASE_COMMIT" ]] || conflict "the trusted automation checkout changed."
 prebuilt=$RELEASE_PREBUILT_NATIVE_DIR
 binary=$prebuilt/$RELEASE_BINARY_NAME
 [[ -f $binary && ! -L $binary && -s $binary ]] || conflict "the native executable is invalid."

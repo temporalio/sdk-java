@@ -16,7 +16,7 @@ package() {
   RELEASE_ASSET_PLATFORM=$asset_platform RELEASE_ARCHIVE_EXTENSION=$extension \
     RELEASE_BINARY_NAME=$binary_name RELEASE_OUTPUT_DIR=$output RELEASE_PLATFORM=$platform \
     RELEASE_PREBUILT_NATIVE_DIR="$work/prebuilt-$platform" \
-    RELEASE_TAG=v1.2.3 TRUSTED_AUTOMATION_COMMIT=$commit TRUSTED_AUTOMATION_ROOT=$root \
+    RELEASE_COMMIT=$commit RELEASE_TAG=v1.2.3 TRUSTED_AUTOMATION_ROOT=$root \
     "$script" >/dev/null
 }
 

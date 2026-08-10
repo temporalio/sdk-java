@@ -89,18 +89,18 @@ def candidate_from_push(env: Mapping[str, str]) -> CandidateIdentity:
     """Authorize a candidate from one newly added release-note file.
 
     The push workflow is the approval boundary. This function binds that approval to
-    exact source and automation commits, verifies ancestry, and refuses ambiguous or
+    the exact merged commit, verifies ancestry, and refuses ambiguous or
     non-regular release-note changes before any Temporal execution is started.
     """
     if env.get("GITHUB_REPOSITORY") != REPOSITORY:
         raise ValueError("This automation only releases temporalio/sdk-java.")
-    commit, automation = required(env, "RELEASE_COMMIT"), required(env, "RELEASE_AUTOMATION_REF")
+    commit = required(env, "RELEASE_COMMIT")
     base = required(env, "BASE_SHA")
     if re.fullmatch(r"0+", base):
         base = git("rev-parse", "HEAD^")
     if (
         git("rev-parse", "HEAD^{commit}") != commit
-        or git("rev-parse", "HEAD^{commit}", cwd=ROOT) != automation
+        or git("rev-parse", "HEAD^{commit}", cwd=ROOT) != commit
     ):
         raise ValueError("A source or automation checkout changed.")
     git("merge-base", "--is-ancestor", base, commit)
@@ -126,7 +126,6 @@ def candidate_from_push(env: Mapping[str, str]) -> CandidateIdentity:
     return CandidateIdentity(
         tag,
         commit,
-        automation,
         policy_for_settings(Path("settings.gradle")),
         int(required(env, "GITHUB_RUN_ID")),
     )
@@ -226,7 +225,7 @@ def github_run(run_id: int) -> Mapping[str, Any]:
 
 
 async def release_jobs(
-    client: Client, workflow_id: str, run_id: str, automation: str
+    client: Client, workflow_id: str, run_id: str
 ) -> dict[str, list[dict[str, Any]]]:
     """Translate one durable release snapshot into minimal Actions matrix entries.
 
@@ -242,7 +241,6 @@ async def release_jobs(
         or info.execution.workflow_id != candidate_workflow_id(candidate)
         or info.execution.run_id != run_id
         or info.task_queue != candidate_queue(candidate)
-        or candidate.trustedAutomationCommit != automation
     ):
         raise RuntimeError("Release execution does not match its immutable candidate routing.")
     verify_candidate_origin(candidate, github_run(candidate.githubRunId))
@@ -252,7 +250,6 @@ async def release_jobs(
         "runId": run_id,
         "tag": candidate.tag,
         "commitSha": candidate.commitSha,
-        "automationCommit": candidate.trustedAutomationCommit,
     }
     jobs: dict[str, list[dict[str, Any]]] = {"build": [], "publication": []}
     if status is None or status.identity is None:
@@ -284,11 +281,9 @@ async def release_jobs(
     return jobs
 
 
-async def output_jobs(
-    client: Client, env: Mapping[str, str], workflow_id: str, run_id: str
-) -> None:
+async def output_jobs(client: Client, workflow_id: str, run_id: str) -> None:
     """Emit jobs for the exact release Workflow started by this merge run."""
-    jobs = await release_jobs(client, workflow_id, run_id, required(env, "RELEASE_AUTOMATION_REF"))
+    jobs = await release_jobs(client, workflow_id, run_id)
     for name, selected in jobs.items():
         output(f"{name}_count", len(selected))
         output(
@@ -353,7 +348,7 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
                 read(path, GithubArtifactReceipt),
             )
         case ["jobs", workflow_id, run_id]:
-            await output_jobs(client, env, workflow_id, run_id)
+            await output_jobs(client, workflow_id, run_id)
         case ["worker", queue]:
             await run_worker(client, queue, env)
         case _:

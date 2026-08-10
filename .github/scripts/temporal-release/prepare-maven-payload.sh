@@ -10,7 +10,7 @@ conflict() { echo "prepare-maven-payload: immutable payload conflict: $*" >&2; e
 required=(
   JAR_SIGNING_KEY JAR_SIGNING_KEY_ID JAR_SIGNING_KEY_PASSWORD MAVEN_ARTIFACTS_JSON
   MAVEN_PAYLOAD_COMMIT MAVEN_PAYLOAD_OUTPUT MAVEN_PAYLOAD_VERSION
-  TRUSTED_AUTOMATION_COMMIT TRUSTED_AUTOMATION_ROOT
+  TRUSTED_AUTOMATION_ROOT
 )
 for variable in "${required[@]}"; do
   [[ -n ${!variable:-} ]] || fail "Required value $variable is missing."
@@ -21,7 +21,7 @@ done
 [[ $(git rev-parse --verify HEAD^{commit}) == "$MAVEN_PAYLOAD_COMMIT" ]] ||
   conflict "the source checkout changed."
 [[ $(git -C "$TRUSTED_AUTOMATION_ROOT" rev-parse --verify HEAD^{commit}) == \
-  "$TRUSTED_AUTOMATION_COMMIT" ]] || conflict "the trusted automation checkout changed."
+  "$MAVEN_PAYLOAD_COMMIT" ]] || conflict "the trusted automation checkout changed."
 [[ -z $(find "$MAVEN_PAYLOAD_OUTPUT" -mindepth 1 -print -quit 2>/dev/null) ]] ||
   fail "The Maven payload output directory is not empty."
 

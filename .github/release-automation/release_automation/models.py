@@ -165,7 +165,6 @@ class GithubArtifactReceipt:
 class CandidateIdentity:
     tag: str
     commitSha: str
-    trustedAutomationCommit: str
     mavenPolicy: str
     githubRunId: int
 
@@ -173,10 +172,6 @@ class CandidateIdentity:
         """Validate every field that contributes to the candidate's stable digest."""
         require(matches(TAG, self.tag), "Invalid release tag.")
         require(matches(SHA, self.commitSha), "Commit must be a full SHA.")
-        require(
-            matches(SHA, self.trustedAutomationCommit),
-            "Trusted automation commit must be a full SHA.",
-        )
         require(self.githubRunId > 0, "GitHub run ID must be positive.")
         maven_artifacts(self.mavenPolicy)
 

@@ -40,14 +40,13 @@ jobs:
         with:
           path: automation
           persist-credentials: false
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ github.sha }}
       - uses: ./automation/.github/release-automation/setup
       - name: Start the release Workflow
         id: start
         working-directory: source
         env:
           BASE_SHA: ${{ github.event.before }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           RELEASE_COMMIT: ${{ github.sha }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
         run: uv run --directory ../automation/.github/release-automation --frozen --no-dev python -m release_automation.cli start
@@ -56,7 +55,6 @@ jobs:
         working-directory: automation
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
         run: >-
           uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
@@ -75,7 +73,6 @@ jobs:
       RELEASE_PLATFORM: ${{ matrix.platform }}
       RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/native-output
       RELEASE_TAG: ${{ matrix.tag }}
-      TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
       TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
     concurrency:
       group: temporal-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
@@ -92,7 +89,7 @@ jobs:
         with:
           path: automation
           persist-credentials: false
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ matrix.commitSha }}
       - name: Find an existing exact artifact
         id: existing
         env:
@@ -144,7 +141,7 @@ jobs:
         with:
           path: automation
           persist-credentials: false
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ matrix.commitSha }}
       - name: Record the exact artifact from the credential-free build job
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,13 +173,12 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-          ref: ${{ vars.RELEASE_AUTOMATION_REF }}
+          ref: ${{ github.sha }}
       - uses: ./.github/release-automation/setup
       - name: Select publication for this release
         id: temporal
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_AUTOMATION_REF: ${{ vars.RELEASE_AUTOMATION_REF }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
         run: >-
           uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
@@ -208,7 +204,7 @@ jobs:
         with:
           path: automation
           persist-credentials: false
-          ref: ${{ matrix.automationCommit }}
+          ref: ${{ matrix.commitSha }}
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
@@ -234,7 +230,6 @@ jobs:
           MAVEN_ARTIFACTS_JSON: ${{ toJSON(matrix.mavenArtifacts) }}
           MAVEN_PAYLOAD_COMMIT: ${{ matrix.commitSha }}
           MAVEN_PAYLOAD_OUTPUT: ${{ runner.temp }}/maven-artifact
-          TRUSTED_AUTOMATION_COMMIT: ${{ matrix.automationCommit }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
         run: |
           version=${{ matrix.tag }}
@@ -280,13 +275,13 @@ jobs:
         working-directory: automation
         env:
           EXPECTED_RUN_ID: ${{ matrix.runId }}
+          EXPECTED_COMMIT: ${{ matrix.commitSha }}
           EXPECTED_WORKFLOW_ID: ${{ matrix.workflowId }}
           GH_TOKEN: ${{ steps.publication-token.outputs.token }}
           RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
-          TRUSTED_WORKER_COMMIT: ${{ matrix.automationCommit }}
         run: >-
           uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
           worker ${{ matrix.taskQueue }}

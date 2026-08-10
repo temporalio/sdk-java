@@ -112,11 +112,11 @@ class PublicationActivities:
         ordinary Activity failures and therefore use Temporal's configured retry policy.
         """
         try:
-            trusted_commit = self.environment.get("TRUSTED_WORKER_COMMIT")
+            expected_commit = self.environment.get("EXPECTED_COMMIT")
             expected_run = self.environment.get("EXPECTED_RUN_ID")
-            if not trusted_commit or not expected_run:
+            if not expected_commit or not expected_run:
                 raise ValueError("Required publication Worker identity is missing.")
-            validate_publication(value, activity.info(), expected_run, trusted_commit)
+            validate_publication(value, activity.info(), expected_run, expected_commit)
         except ValueError as error:
             raise ApplicationError(
                 str(error), type="InvalidPublicationInput", non_retryable=True
@@ -160,9 +160,9 @@ def validate_publication(
     value: PublicationInput,
     info: activity.Info,
     expected_run: str,
-    trusted_commit: str,
+    expected_commit: str,
 ) -> None:
-    """Bind privileged work to the expected Workflow, run, queue, and automation commit.
+    """Bind privileged work to the expected Workflow, run, queue, and release commit.
 
     Queue isolation alone is not authorization: a caller able to address Temporal could
     otherwise schedule an Activity on a known queue. These comparisons ensure the
@@ -174,12 +174,12 @@ def validate_publication(
         info.workflow_id,
         info.workflow_run_id,
         info.task_queue,
-        trusted_commit,
+        expected_commit,
     ) != (
         candidate_workflow_id(value.release.candidate),
         expected_run,
         publication_queue(value.release, value.mavenGenerations[-1].generation),
-        value.release.candidate.trustedAutomationCommit,
+        value.release.candidate.commitSha,
     ):
         raise ValueError("Publication input does not match the privileged Actions run.")
 

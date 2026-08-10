@@ -16,7 +16,7 @@ native_path() {
 required=(
   RELEASE_COMMIT RELEASE_PLATFORM
   RELEASE_PREBUILT_NATIVE_DIR RELEASE_TAG
-  TRUSTED_AUTOMATION_COMMIT TRUSTED_AUTOMATION_ROOT
+  TRUSTED_AUTOMATION_ROOT
 )
 for variable in "${required[@]}"; do
   [[ -n ${!variable:-} ]] || fail "Required value $variable is missing."
@@ -32,7 +32,7 @@ trusted_root=$(native_path "$TRUSTED_AUTOMATION_ROOT")
 output_root=$(native_path "$RELEASE_PREBUILT_NATIVE_DIR")
 [[ $(git rev-parse --verify HEAD^{commit}) == "$RELEASE_COMMIT" ]] ||
   conflict "the checkout is not $RELEASE_COMMIT."
-[[ $(git -C "$trusted_root" rev-parse --verify HEAD^{commit}) == "$TRUSTED_AUTOMATION_COMMIT" ]] ||
+[[ $(git -C "$trusted_root" rev-parse --verify HEAD^{commit}) == "$RELEASE_COMMIT" ]] ||
   conflict "the trusted automation checkout changed."
 notes_file=releases/$RELEASE_TAG
 [[ -s $notes_file && ! -L $notes_file ]] || conflict "the release notes are unavailable."

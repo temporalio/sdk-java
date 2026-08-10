@@ -30,7 +30,7 @@ from release_automation.workflows import ReleaseWorkflow
 
 def fixture_release() -> ReleaseIdentity:
     """Build the complete fixed-platform release used by Workflow tests."""
-    candidate = CandidateIdentity("v1.2.3", "0" * 40, "b" * 40, "current", 123)
+    candidate = CandidateIdentity("v1.2.3", "0" * 40, "current", 123)
     receipts = [
         GithubArtifactReceipt(
             100 + i,
