@@ -469,8 +469,8 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTask retrieveInboundPayloads(ActivityTask task) {
-      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
-      if (converter == null) {
+      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+      if (externalStorage == null) {
         return task;
       }
       PollActivityTaskQueueResponseOrBuilder response = task.getResponse();
@@ -478,20 +478,20 @@ final class ActivityWorker implements SuspendableWorker {
           response instanceof PollActivityTaskQueueResponse
               ? (PollActivityTaskQueueResponse) response
               : ((PollActivityTaskQueueResponse.Builder) response).build();
-      PollActivityTaskQueueResponse retrieved = converter.retrieveBlocking(built);
+      PollActivityTaskQueueResponse retrieved = externalStorage.retrieveBlocking(built);
       return new ActivityTask(retrieved, task.getPermit(), task.getCompletionCallback());
     }
 
     private <T extends Message> T storeOutboundPayloads(
         T request, @Nullable StorageDriverTargetInfo target) {
-      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
-      return converter == null ? request : converter.storeBlocking(request, target);
+      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+      return externalStorage == null ? request : externalStorage.storeBlocking(request, target);
     }
 
     @Nullable
     private StorageDriverTargetInfo activityStorageTarget(
         PollActivityTaskQueueResponseOrBuilder pollResponse) {
-      if (options.getExternalStorageMessageTransformer() == null) {
+      if (options.getExternalStorage() == null) {
         return null;
       }
       return new StorageDriverActivityInfo(

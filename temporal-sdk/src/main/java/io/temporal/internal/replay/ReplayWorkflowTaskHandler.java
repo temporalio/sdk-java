@@ -24,7 +24,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
-import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.worker.*;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
@@ -79,8 +78,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    ExternalStorageMessageTransformer externalStorage =
-        options.getExternalStorageMessageTransformer();
+    ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
     if (externalStorage != null) {
       workflowTask = externalStorage.retrieveBlocking(workflowTask);
     }
@@ -102,11 +100,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
       ServiceWorkflowHistoryIterator historyIterator =
           new ServiceWorkflowHistoryIterator(
-              service,
-              namespace,
-              workflowTask,
-              metricsScope,
-              options.getExternalStorageMessageTransformer());
+              service, namespace, workflowTask, metricsScope, options.getExternalStorage());
       boolean finalCommand;
       Result result;
 
@@ -161,12 +155,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         if (!isFullHistory(workflowTask)) {
           resetStickyTaskQueue(execution);
         }
-      }
-
-      ExternalStorageNotConfiguredException externalStorageFailure =
-          ExternalStorageNotConfiguredException.find(e);
-      if (externalStorageFailure != null) {
-        throw externalStorageFailure;
       }
 
       if (directQuery) {

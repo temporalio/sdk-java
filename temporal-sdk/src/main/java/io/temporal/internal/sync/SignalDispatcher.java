@@ -11,7 +11,6 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.worker.MetricsType;
 import io.temporal.workflow.DynamicSignalHandler;
 import io.temporal.workflow.HandlerUnfinishedPolicy;
@@ -88,11 +87,6 @@ class SignalDispatcher {
             dataConverterWithWorkflowContext.fromPayloads(
                 input, handler.getArgTypes(), handler.getGenericArgTypes());
       } catch (DataConverterException e) {
-        ExternalStorageNotConfiguredException externalStorageFailure =
-            ExternalStorageNotConfiguredException.find(e);
-        if (externalStorageFailure != null) {
-          throw externalStorageFailure;
-        }
         logSerializationException(signalName, eventId, e);
         return;
       }

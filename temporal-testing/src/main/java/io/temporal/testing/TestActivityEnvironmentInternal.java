@@ -102,7 +102,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     this.workflowServiceStubs =
         WorkflowServiceStubs.newServiceStubs(serviceStubsOptionsBuilder.build());
 
-    ExternalStorageOptions externalStorage =
+    ExternalStorageOptions externalStorageOptions =
         testEnvironmentOptions.getWorkflowClientOptions().getExternalStorage();
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
@@ -114,9 +114,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor,
-            externalStorage == null
+            externalStorageOptions == null
                 ? null
-                : ExternalStorageMessageTransformer.create(externalStorage));
+                : ExternalStorageMessageTransformer.create(externalStorageOptions));
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),

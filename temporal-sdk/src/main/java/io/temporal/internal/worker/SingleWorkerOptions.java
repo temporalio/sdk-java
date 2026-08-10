@@ -47,7 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private ExternalStorageMessageTransformer externalStorageMessageTransformer;
+    private ExternalStorageMessageTransformer externalStorage;
 
     private Builder() {}
 
@@ -76,7 +76,7 @@ public final class SingleWorkerOptions {
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
       this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
       this.preferredVersionProvider = options.getPreferredVersionProvider();
-      this.externalStorageMessageTransformer = options.getExternalStorageMessageTransformer();
+      this.externalStorage = options.getExternalStorage();
     }
 
     public Builder setIdentity(String identity) {
@@ -190,9 +190,8 @@ public final class SingleWorkerOptions {
     }
 
     /** The message converter that offloads/restores external-storage payloads, or null. */
-    public Builder setExternalStorageMessageTransformer(
-        ExternalStorageMessageTransformer externalStorageMessageTransformer) {
-      this.externalStorageMessageTransformer = externalStorageMessageTransformer;
+    public Builder setExternalStorage(ExternalStorageMessageTransformer externalStorage) {
+      this.externalStorage = externalStorage;
       return this;
     }
 
@@ -239,7 +238,7 @@ public final class SingleWorkerOptions {
           this.allowActivityHeartbeatDuringShutdown,
           this.workerControlTaskQueue,
           this.preferredVersionProvider,
-          this.externalStorageMessageTransformer);
+          this.externalStorage);
     }
   }
 
@@ -264,7 +263,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
-  private final ExternalStorageMessageTransformer externalStorageMessageTransformer;
+  private final ExternalStorageMessageTransformer externalStorage;
 
   private SingleWorkerOptions(
       String identity,
@@ -288,7 +287,7 @@ public final class SingleWorkerOptions {
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
-      ExternalStorageMessageTransformer externalStorageMessageTransformer) {
+      ExternalStorageMessageTransformer externalStorage) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -310,7 +309,7 @@ public final class SingleWorkerOptions {
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
     this.workerControlTaskQueue = workerControlTaskQueue;
     this.preferredVersionProvider = preferredVersionProvider;
-    this.externalStorageMessageTransformer = externalStorageMessageTransformer;
+    this.externalStorage = externalStorage;
   }
 
   public String getIdentity() {
@@ -410,8 +409,8 @@ public final class SingleWorkerOptions {
 
   /** The external-storage message converter for this worker, or null when disabled. */
   @Nullable
-  public ExternalStorageMessageTransformer getExternalStorageMessageTransformer() {
-    return externalStorageMessageTransformer;
+  public ExternalStorageMessageTransformer getExternalStorage() {
+    return externalStorage;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

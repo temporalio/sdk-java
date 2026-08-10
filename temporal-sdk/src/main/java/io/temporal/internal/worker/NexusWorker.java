@@ -532,8 +532,8 @@ final class NexusWorker implements SuspendableWorker {
     }
 
     private NexusTask retrieveInboundPayloads(NexusTask task) {
-      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
-      if (converter == null) {
+      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+      if (externalStorage == null) {
         return task;
       }
       PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
@@ -541,13 +541,13 @@ final class NexusWorker implements SuspendableWorker {
           response instanceof PollNexusTaskQueueResponse
               ? (PollNexusTaskQueueResponse) response
               : ((PollNexusTaskQueueResponse.Builder) response).build();
-      PollNexusTaskQueueResponse retrieved = converter.retrieveBlocking(built);
+      PollNexusTaskQueueResponse retrieved = externalStorage.retrieveBlocking(built);
       return new NexusTask(retrieved, task.getPermit(), task.getCompletionCallback());
     }
 
     private <T extends Message> T storeOutbound(T request) {
-      ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
-      return converter == null ? request : converter.storeBlocking(request, null);
+      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+      return externalStorage == null ? request : externalStorage.storeBlocking(request, null);
     }
   }
 }

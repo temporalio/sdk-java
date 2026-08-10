@@ -108,7 +108,7 @@ public class ExternalStoragePipelineTest {
     WorkflowStub stub = withoutStorage.newUntypedWorkflowStub(workflowId);
 
     Exception e = assertThrows(Exception.class, () -> stub.getResult(String.class));
-    assertTrue(e.toString(), chainContains(e, "[TMPRL-1105]"));
+    assertTrue(e.toString(), chainContains(e, "[TMPRL1105]"));
   }
 
   @Test

@@ -8,7 +8,6 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.interceptors.Header;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
-import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.statemachines.UnsupportedContinueAsNewRequest;
 import io.temporal.internal.worker.WorkflowExecutionException;
@@ -132,11 +131,6 @@ class WorkflowExecutionHandler {
       throw (DestroyWorkflowThreadError) e;
     }
     Throwable exception = unwrap(e);
-    ExternalStorageNotConfiguredException externalStorageFailure =
-        ExternalStorageNotConfiguredException.find(exception);
-    if (externalStorageFailure != null) {
-      throw externalStorageFailure;
-    }
 
     Class<? extends Throwable>[] failTypes = implementationOptions.getFailWorkflowExceptionTypes();
     if (exception instanceof TemporalFailure) {

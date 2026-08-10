@@ -386,14 +386,14 @@ final class WorkflowWorker implements SuspendableWorker {
 
   private <T extends com.google.protobuf.Message> T storeOutboundPayloads(
       T request, @Nullable StorageDriverTargetInfo target) {
-    ExternalStorageMessageTransformer converter = options.getExternalStorageMessageTransformer();
-    return converter == null ? request : converter.storeBlocking(request, target);
+    ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+    return externalStorage == null ? request : externalStorage.storeBlocking(request, target);
   }
 
   @Nullable
   private StorageDriverTargetInfo workflowStorageTarget(
       WorkflowExecution execution, String workflowType) {
-    if (options.getExternalStorageMessageTransformer() == null) {
+    if (options.getExternalStorage() == null) {
       return null;
     }
     return new StorageDriverWorkflowInfo(

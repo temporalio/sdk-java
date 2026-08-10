@@ -1081,16 +1081,16 @@ public final class Worker {
       identity = options.getIdentity();
     }
 
-    ExternalStorageOptions externalStorage = clientOptions.getExternalStorage();
-    ExternalStorageMessageTransformer externalStorageMessageTransformer =
-        externalStorage == null
+    ExternalStorageOptions externalStorageOptions = clientOptions.getExternalStorage();
+    ExternalStorageMessageTransformer externalStorage =
+        externalStorageOptions == null
             ? null
             : ExternalStorageMessageTransformer.create(
-                externalStorage, factoryOptions.getMaxConcurrentExternalStorageVisits());
+                externalStorageOptions, factoryOptions.getMaxConcurrentExternalStorageVisits());
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
-        .setExternalStorageMessageTransformer(externalStorageMessageTransformer)
+        .setExternalStorage(externalStorage)
         .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())

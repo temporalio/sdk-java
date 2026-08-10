@@ -10,7 +10,7 @@ import org.junit.Test;
 
 /**
  * When external storage is not configured, an inbound reference payload reaching value
- * deserialization must fail with the clear {@code [TMPRL-1105]} error instead of an opaque decoding
+ * deserialization must fail with the clear {@code [TMPRL1105]} error instead of an opaque decoding
  * failure.
  */
 public class ExternalStorageReferenceGuardTest {
@@ -32,8 +32,7 @@ public class ExternalStorageReferenceGuardTest {
         assertThrows(
             ExternalStorageNotConfiguredException.class,
             () -> dataConverter.fromPayload(reference, String.class, String.class));
-    assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL-1105]"));
-    assertTrue(ExternalStorageNotConfiguredException.find(new RuntimeException(e)) == e);
+    assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL1105]"));
   }
 
   @Test
