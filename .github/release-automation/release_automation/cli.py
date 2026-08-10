@@ -132,8 +132,8 @@ def candidate_from_push(env: Mapping[str, str]) -> CandidateIdentity:
     )
 
 
-async def workflows(client: Client) -> list[WorkflowExecution]:
-    """List only running sdk-java ReleaseWorkflow executions for discovery."""
+async def running_releases(client: Client) -> list[WorkflowExecution]:
+    """List running releases while checking that a tag has only one identity."""
     query = "ExecutionStatus = 'Running' AND WorkflowType = 'ReleaseWorkflow'"
     return [item async for item in client.list_workflows(query)]
 
@@ -143,7 +143,7 @@ async def memo(execution: WorkflowExecution, key: str, kind: type[T]) -> T | Non
     return await execution.memo_value(key, None, type_hint=kind)
 
 
-async def start_candidate(client: Client, candidate: CandidateIdentity) -> None:
+async def start_candidate(client: Client, candidate: CandidateIdentity) -> tuple[str, str]:
     """Start or reuse the one Workflow execution for an immutable candidate.
 
     Before starting, all running executions are checked for a conflicting use of the
@@ -151,11 +151,11 @@ async def start_candidate(client: Client, candidate: CandidateIdentity) -> None:
     same authorized push idempotent without allowing identity replacement.
     """
     candidate.validate()
-    for execution in await workflows(client):
+    for execution in await running_releases(client):
         existing = await memo(execution, "CandidateIdentity", CandidateIdentity)
         if existing and existing.tag == candidate.tag and existing.digest() != candidate.digest():
             raise RuntimeError("The release tag already identifies another immutable candidate.")
-    await client.start_workflow(
+    handle = await client.start_workflow(
         "ReleaseWorkflow",
         candidate,
         id=candidate_workflow_id(candidate),
@@ -164,6 +164,9 @@ async def start_candidate(client: Client, candidate: CandidateIdentity) -> None:
         id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
         memo={"CandidateIdentity": candidate},
     )
+    if not handle.result_run_id:
+        raise RuntimeError("Temporal did not identify the release Workflow execution.")
+    return handle.id, handle.result_run_id
 
 
 async def update(
@@ -193,9 +196,9 @@ def workflow_queue(workflow_id: str) -> str:
 def verify_candidate_origin(candidate: CandidateIdentity, run: Mapping[str, Any]) -> None:
     """Reconfirm that GitHub authorized the candidate from the expected push workflow.
 
-    Discovery repeats this check on every scheduled pass so a forged Temporal memo
-    cannot cause privileged work. Repository, workflow path, source SHA, branch policy,
-    event type, and numeric run identity must all match the frozen candidate.
+    The merge-triggered run repeats this check before each privileged stage so a forged
+    Temporal memo cannot cause privileged work. Repository, workflow path, source SHA,
+    branch policy, event type, and numeric run identity must match the frozen candidate.
     """
     repository = run.get("head_repository")
     if (
@@ -223,7 +226,7 @@ def github_run(run_id: int) -> Mapping[str, Any]:
 
 
 async def release_jobs(
-    execution: WorkflowExecution, automation: str
+    client: Client, workflow_id: str, run_id: str, automation: str
 ) -> dict[str, list[dict[str, Any]]]:
     """Translate one durable release snapshot into minimal Actions matrix entries.
 
@@ -231,19 +234,22 @@ async def release_jobs(
     A publication entry is emitted only after the immutable release identity exists;
     its queue is derived from the current durable Maven generation.
     """
-    candidate = await memo(execution, "CandidateIdentity", CandidateIdentity)
+    description = await client.get_workflow_handle(workflow_id, run_id=run_id).describe()
+    info = description.raw_description.workflow_execution_info
+    candidate = await description.memo_value("CandidateIdentity", None, type_hint=CandidateIdentity)
     if (
         candidate is None
-        or execution.id != candidate_workflow_id(candidate)
-        or execution.task_queue != candidate_queue(candidate)
+        or info.execution.workflow_id != candidate_workflow_id(candidate)
+        or info.execution.run_id != run_id
+        or info.task_queue != candidate_queue(candidate)
         or candidate.trustedAutomationCommit != automation
     ):
         raise RuntimeError("Release execution does not match its immutable candidate routing.")
     verify_candidate_origin(candidate, github_run(candidate.githubRunId))
-    status = await memo(execution, "ReleaseStatus", ReleaseStatus)
+    status = await description.memo_value("ReleaseStatus", None, type_hint=ReleaseStatus)
     common = {
-        "workflowId": execution.id,
-        "runId": execution.run_id,
+        "workflowId": workflow_id,
+        "runId": run_id,
         "tag": candidate.tag,
         "commitSha": candidate.commitSha,
         "automationCommit": candidate.trustedAutomationCommit,
@@ -278,17 +284,11 @@ async def release_jobs(
     return jobs
 
 
-async def discover(client: Client, env: Mapping[str, str]) -> None:
-    """Emit build and publication matrices for all valid running releases."""
-    jobs: dict[str, list[dict[str, Any]]] = {"build": [], "publication": []}
-    automation = required(env, "RELEASE_AUTOMATION_REF")
-    for execution in await workflows(client):
-        try:
-            found = await release_jobs(execution, automation)
-            for name in jobs:
-                jobs[name].extend(found[name])
-        except (RuntimeError, ValueError) as error:
-            print(f"Skipping malformed release {execution.id}: {error}", file=sys.stderr)
+async def output_jobs(
+    client: Client, env: Mapping[str, str], workflow_id: str, run_id: str
+) -> None:
+    """Emit jobs for the exact release Workflow started by this merge run."""
+    jobs = await release_jobs(client, workflow_id, run_id, required(env, "RELEASE_AUTOMATION_REF"))
     for name, selected in jobs.items():
         output(f"{name}_count", len(selected))
         output(
@@ -332,7 +332,9 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
     client = await connect(env)
     match argv:
         case ["start"]:
-            await start_candidate(client, candidate_from_push(env))
+            workflow_id, run_id = await start_candidate(client, candidate_from_push(env))
+            output("workflow_id", workflow_id)
+            output("run_id", run_id)
         case ["record-artifact", workflow_id, run_id, platform, path]:
             await update(
                 client,
@@ -350,8 +352,8 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
                 "recordMavenPayload",
                 read(path, GithubArtifactReceipt),
             )
-        case ["discover"]:
-            await discover(client, env)
+        case ["jobs", workflow_id, run_id]:
+            await output_jobs(client, env, workflow_id, run_id)
         case ["worker", queue]:
             await run_worker(client, queue, env)
         case _:

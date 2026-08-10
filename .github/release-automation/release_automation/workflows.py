@@ -246,7 +246,7 @@ class ReleaseWorkflow:
         return ""
 
     def _memo(self) -> None:
-        """Expose durable state to scheduled discovery even when no Worker is running."""
+        """Expose durable state to the merge-triggered Actions run between Workers."""
         workflow.upsert_memo({"ReleaseStatus": self.s})
 
     def _freeze_identity(self) -> None:
