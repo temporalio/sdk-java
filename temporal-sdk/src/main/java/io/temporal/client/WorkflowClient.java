@@ -748,7 +748,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a zero argument update workflow request asynchronously.
+   * Start a zero argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -761,7 +762,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a one argument update workflow request asynchronously.
+   * Start a one argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -775,7 +777,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a two argument update workflow request asynchronously.
+   * Start a two argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -793,7 +796,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a three argument update workflow request asynchronously.
+   * Start a three argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -813,7 +817,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a four argument update workflow request asynchronously.
+   * Start a four argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -835,7 +840,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a five argument update workflow request asynchronously.
+   * Start a five argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -843,7 +849,7 @@ public interface WorkflowClient {
    * @param arg2 second update method parameter
    * @param arg3 third update method parameter
    * @param arg4 fourth update method parameter
-   * @param arg5 firth update method parameter
+   * @param arg5 fifth update method parameter
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
    */
@@ -860,7 +866,8 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a six argument update workflow request asynchronously.
+   * Start a six argument update workflow request. This method blocks until the {@link
+   * UpdateOptions#getWaitForStage() waitForStage} specified in the options is reached.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -868,7 +875,7 @@ public interface WorkflowClient {
    * @param arg2 second update method parameter
    * @param arg3 third update method parameter
    * @param arg4 fourth update method parameter
-   * @param arg5 firth update method parameter
+   * @param arg5 sixth update method parameter
    * @param arg6 sixth update method parameter
    * @param options update options
    * @return WorkflowUpdateHandle that can be used to get the result of the update
@@ -887,8 +894,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a zero argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a zero argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -903,8 +911,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a one argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a one argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -922,8 +931,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a two argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a two argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -943,8 +953,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a three argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a three argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -966,8 +977,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a four argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a four argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -991,8 +1003,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a five argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a five argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1018,8 +1031,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a six argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a six argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1047,8 +1061,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a zero argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a zero argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1064,8 +1079,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a one argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a one argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1083,8 +1099,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a two argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a two argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1104,8 +1121,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a three argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a three argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1127,8 +1145,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a four argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a four argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1152,8 +1171,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a five argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a five argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1179,8 +1199,9 @@ public interface WorkflowClient {
   }
 
   /**
-   * Start a six argument update workflow request asynchronously, along with a workflow start
-   * request.
+   * Start a six argument update workflow request, along with a workflow start
+   * request. This method blocks until the {@link UpdateOptions#getWaitForStage() waitForStage}
+   * specified in the options is reached.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
