@@ -2,9 +2,12 @@
 
 set -euo pipefail
 
+# Report a transient or operational build failure.
 fail() { echo "build-native-binary: $*" >&2; exit 1; }
+# Report an immutable candidate mismatch using the shared conflict exit code.
 conflict() { echo "build-native-binary: immutable candidate conflict: $*" >&2; exit 42; }
 
+# Translate Windows checkout paths to the POSIX form expected by Git Bash tools.
 native_path() {
   if command -v cygpath >/dev/null 2>&1; then cygpath -u "$1"
   else printf '%s\n' "$1"; fi
@@ -43,6 +46,7 @@ esac
 hook_backup=$(mktemp)
 cp gradle/versioning.gradle "$hook_backup"
 cp "$trusted_root/gradle/versioning.gradle" gradle/versioning.gradle
+# Restore the candidate's tracked Gradle hook before checking that the build was read-only.
 restore_hook() { cp "$hook_backup" gradle/versioning.gradle; }
 trap restore_hook EXIT
 

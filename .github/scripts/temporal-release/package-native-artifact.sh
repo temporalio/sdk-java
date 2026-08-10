@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
+# Report an operational packaging failure.
 fail() { echo "package-native-artifact: $*" >&2; exit 1; }
+# Report an immutable input or artifact mismatch.
 conflict() { echo "package-native-artifact: immutable artifact conflict: $*" >&2; exit 42; }
 
 required=(

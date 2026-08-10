@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
+# Report a transient or operational payload-build failure.
 fail() { echo "prepare-maven-payload: $*" >&2; exit 1; }
+# Report a mismatch in immutable source, policy, or generated payload identity.
 conflict() { echo "prepare-maven-payload: immutable payload conflict: $*" >&2; exit 42; }
 
 required=(
@@ -26,6 +28,9 @@ done
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
+# Build in an isolated container, then sign only the generated Maven repository on the host.
+# The untrusted candidate build receives no signing key. Signing happens afterward in the
+# protected job, and the complete signed tree is validated before it becomes an artifact.
 build_and_sign() {
   local image sandbox=$work/sandbox gnupg=$work/gnupg key_file=$work/key
   image='eclipse-temurin:17-jdk@sha256:91b6210cce02091f6f0798a83ec51aa223828242c5a21a85793bb8c28dc891c4'

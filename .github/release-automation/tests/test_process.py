@@ -9,6 +9,7 @@ from release_automation.activities import run_trusted_command
 
 @pytest.mark.asyncio
 async def test_process_has_explicit_environment_and_status(tmp_path: Path) -> None:
+    """Trusted commands receive only allowed values and preserve their exit status."""
     script = tmp_path / "check.sh"
     script.write_text(
         "#!/usr/bin/env bash\n"

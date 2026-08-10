@@ -16,6 +16,12 @@ def validate(
     commit: str,
     exact: bool,
 ) -> None:
+    """Validate the exact signed Maven repository tree against fixed sdk-java policy.
+
+    Every manifest path, digest, size, coordinate, classifier, signature/checksum sidecar,
+    and POM identity is checked. In build mode the per-artifact file set must also be
+    complete, preventing a partially generated payload from becoming durable release data.
+    """
     root = root.resolve()
     approved = set(policy.read_text().splitlines())
     records = []
@@ -70,6 +76,12 @@ def validate(
 
 
 def extract(archive_path: pathlib.Path, output: pathlib.Path) -> None:
+    """Extract only the expected regular-file Maven bundle without tar traversal.
+
+    Tar extraction is implemented explicitly instead of using extractall so absolute
+    paths, parent traversal, duplicates, links, devices, and other special members are
+    rejected before they can touch the publication workspace.
+    """
     output = output.resolve()
     seen = set()
     with tarfile.open(archive_path, "r:") as archive:
@@ -100,6 +112,7 @@ def extract(archive_path: pathlib.Path, output: pathlib.Path) -> None:
 
 
 def main() -> None:
+    """Dispatch trusted payload validation or validation-after-safe-extraction."""
     mode, source, root, policy, version, commit = sys.argv[1:]
     root_path = pathlib.Path(root)
     if mode == "extract":

@@ -29,6 +29,7 @@ from release_automation.workflows import ReleaseWorkflow
 
 
 def fixture_release() -> ReleaseIdentity:
+    """Build the complete fixed-platform release used by Workflow tests."""
     candidate = CandidateIdentity("v1.2.3", "0" * 40, "b" * 40, "current", 123)
     receipts = [
         GithubArtifactReceipt(
@@ -44,6 +45,7 @@ def fixture_release() -> ReleaseIdentity:
 
 
 def maven_payload(release: ReleaseIdentity) -> GithubArtifactReceipt:
+    """Build the exact Maven payload receipt expected for a release."""
     return GithubArtifactReceipt(
         999,
         888,
@@ -57,6 +59,7 @@ class Publication:
     def __init__(
         self, ambiguous_first: bool = False, appears: bool = False, failure: str = ""
     ) -> None:
+        """Configure deterministic publication and inspection outcomes."""
         self.ambiguous_first = ambiguous_first
         self.appears = appears
         self.failure = failure
@@ -64,6 +67,7 @@ class Publication:
 
     @activity.defn(name="publishRelease")
     async def publish(self, value: PublicationInput) -> ReleaseResult:
+        """Simulate success or a typed Maven publication failure."""
         self.publishes += 1
         if self.failure or self.ambiguous_first and self.publishes == 1:
             raise ApplicationError(
@@ -79,6 +83,7 @@ class Publication:
 
     @activity.defn(name="inspectMaven")
     async def inspect(self, value: PublicationInput) -> MavenInspection:
+        """Simulate delayed repository visibility or a terminal failed deployment."""
         self.inspections += 1
         visible = self.appears and self.inspections > 1
         failed = self.failure == "MavenDeploymentFailed"
@@ -98,10 +103,12 @@ class Publication:
         )
 
     def all(self):  # type: ignore[no-untyped-def]
+        """Return both mocked Activities for Worker registration."""
         return [self.publish, self.inspect]
 
 
 async def wait_phase(handle: WorkflowHandle, phase: str) -> ReleaseStatus:
+    """Poll the status query until a test reaches its expected phase."""
     for _ in range(40):
         status = await handle.query("status", result_type=ReleaseStatus)
         if status.phase == phase:
@@ -113,6 +120,7 @@ async def wait_phase(handle: WorkflowHandle, phase: str) -> ReleaseStatus:
 async def run_release(
     ambiguous_first: bool = False, appears: bool = False, failure: str = ""
 ) -> tuple[ReleaseResult, ReleaseStatus]:
+    """Run one complete release against local Temporal and mocked publication."""
     release = fixture_release()
     candidate = release.candidate
     async with await WorkflowEnvironment.start_time_skipping() as env:
@@ -139,12 +147,14 @@ async def run_release(
 
 
 async def test_merged_candidate_publishes_without_secondary_approval() -> None:
+    """Treat the merged release-note candidate as sufficient authorization."""
     result, status = await run_release()
     assert result.releaseDigest == fixture_release().digest()
     assert status.phase == "PUBLISHED"
 
 
 async def test_safe_maven_ambiguity_advances_generation() -> None:
+    """Create one replacement generation after repeated proof of absence."""
     _, status = await run_release(ambiguous_first=True)
     assert status.phase == "PUBLISHED"
     assert status.mavenGenerations[-1].generation == 1
@@ -152,16 +162,19 @@ async def test_safe_maven_ambiguity_advances_generation() -> None:
 
 
 async def test_delayed_repository_visibility_does_not_advance_generation() -> None:
+    """Retain the original generation when its repository becomes visible."""
     _, status = await run_release(ambiguous_first=True, appears=True)
     assert [item.generation for item in status.mavenGenerations] == [0]
 
 
 async def test_failed_portal_retries_only_once() -> None:
+    """Bound replacement after a terminal Portal validation failure."""
     with pytest.raises(WorkflowFailureError):
         await run_release(failure="MavenDeploymentFailed")
 
 
 def test_publication_input_carries_exact_release_digest() -> None:
+    """Require a Maven payload and contiguous durable generation history."""
     release = fixture_release()
     value = PublicationInput(
         release,
@@ -175,6 +188,7 @@ def test_publication_input_carries_exact_release_digest() -> None:
 
 
 async def test_native_receipts_freeze_identity_in_same_workflow() -> None:
+    """Freeze identity in the update that records the final native receipt."""
     expected = fixture_release()
     async with await WorkflowEnvironment.start_time_skipping() as env:
         async with Worker(

@@ -2,17 +2,25 @@
 
 set -euo pipefail
 
+# Report a transient GitHub or local tooling failure.
 fail() { echo "github-artifact: $*" >&2; exit 1; }
+# Report a durable identity mismatch that retries cannot repair.
 conflict() { echo "github-artifact: immutable conflict: $*" >&2; exit 42; }
+# Report deletion or expiry of the exact artifact named by durable Workflow state.
 unavailable() { echo "github-artifact: unavailable: $*" >&2; exit 46; }
+# Compute SHA-256 portably on Linux and macOS runners.
 sha256_file() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | awk '{print $1}'
   else shasum -a 256 "$1" | awk '{print $1}'; fi
 }
+# Require nonempty environment inputs before using them in API paths or filesystem paths.
 need() { for name in "$@"; do [[ -n ${!name:-} ]] || fail "$name is required."; done; }
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 
+# Find at most one live artifact with the immutable release-derived name.
+# Multiple matches are a conflict rather than an arbitrary choice; an expired exact match
+# is unavailable rather than absent, so automation cannot silently rebuild another payload.
 find_artifact() {
   need GH_TOKEN GITHUB_ARTIFACT_NAME
   [[ $GITHUB_ARTIFACT_NAME =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || conflict "invalid name."
@@ -34,6 +42,10 @@ find_artifact() {
     <<<"$matches"
 }
 
+# Download an artifact frozen by its receipt and verify metadata, archive digest, and shape.
+# GitHub's ZIP digest binds the complete archive. The receipt's single expected filename
+# prevents path injection and ensures the later publication step consumes exactly the file
+# that the Workflow associated with this platform or Maven payload.
 download_artifact() {
   need GH_TOKEN GITHUB_ARTIFACT_DESTINATION
   receipt=${GITHUB_ARTIFACT_RECEIPT_FILE:-}
@@ -96,6 +108,10 @@ download_artifact() {
   fi
 }
 
+# Record GitHub's immutable artifact metadata without downloading the archive twice.
+# Publication performs the full download and content validation before use; this command
+# freezes the artifact ID, source run, archive digest, name, and expected filename in
+# Temporal state as soon as the credential-free build has uploaded it.
 record_artifact() {
   need GITHUB_ARTIFACT_FILE_NAME GITHUB_ARTIFACT_RECEIPT_FILE
   receipt_file=$GITHUB_ARTIFACT_RECEIPT_FILE

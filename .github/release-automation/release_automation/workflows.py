@@ -29,11 +29,18 @@ T = TypeVar("T")
 @workflow.defn(name="ReleaseWorkflow", failure_exception_types=[Exception])
 class ReleaseWorkflow:
     def __init__(self) -> None:
+        """Initialize queryable state before the immutable candidate is supplied."""
         self.s = ReleaseStatus("INITIALIZING")
         self.candidate: CandidateIdentity | None = None
 
     @workflow.run
     async def release(self, candidate: CandidateIdentity) -> ReleaseResult:
+        """Drive one candidate from native builds through Maven and GitHub publication.
+
+        The Workflow stores only durable identities and external observations. Binary
+        payloads remain in GitHub Actions artifacts, while short-lived Workers can stop
+        and resume without losing which exact release or Maven generation they own.
+        """
         candidate.validate()
         self.candidate = candidate
         self.s.pendingPlatforms = list(NATIVE_PLATFORMS)
@@ -47,6 +54,7 @@ class ReleaseWorkflow:
 
     @workflow.update(name="recordArtifact")
     def record_artifact(self, platform: str, artifact: GithubArtifactReceipt) -> ReleaseStatus:
+        """Idempotently record one immutable native artifact receipt."""
         if platform in self.s.pendingPlatforms:
             self.s.pendingPlatforms.remove(platform)
             self.s.artifacts.append(artifact)
@@ -56,6 +64,7 @@ class ReleaseWorkflow:
 
     @record_artifact.validator
     def validate_artifact(self, platform: str, artifact: GithubArtifactReceipt) -> None:
+        """Reject wrong-platform receipts and conflicting repeat deliveries."""
         candidate = self.candidate
         if candidate is None or self.s.identity is not None:
             raise RuntimeError("Release is not waiting for this native platform.")
@@ -71,6 +80,7 @@ class ReleaseWorkflow:
 
     @workflow.update(name="recordMavenPayload")
     def record_maven_payload(self, artifact: GithubArtifactReceipt) -> ReleaseStatus:
+        """Idempotently freeze the single signed Maven payload receipt."""
         if self.s.mavenPayload is None:
             self.s.mavenPayload = artifact
         self._memo()
@@ -78,6 +88,7 @@ class ReleaseWorkflow:
 
     @record_maven_payload.validator
     def validate_maven_payload(self, artifact: GithubArtifactReceipt) -> None:
+        """Accept only the Maven artifact derived from the frozen release identity."""
         identity = self.s.identity
         if identity is None or self.s.phase == "PUBLISHED":
             raise RuntimeError("The release cannot accept a Maven payload.")
@@ -88,9 +99,16 @@ class ReleaseWorkflow:
 
     @workflow.query(name="status")
     def status(self) -> ReleaseStatus:
+        """Return the complete operator-visible durable release snapshot."""
         return self.s
 
     async def _publish(self) -> ReleaseResult:
+        """Publish, reconciling ambiguous Maven outcomes before any new submission.
+
+        An Activity failure that is merely transient is handled by Activity retries.
+        Only typed ambiguity or deployment failure enters generation recovery, ensuring
+        a second repository is never created simply because a network response was lost.
+        """
         while True:
             generation = self._current_generation()
             generation.submissionStarted = True
@@ -111,6 +129,13 @@ class ReleaseWorkflow:
             return result
 
     async def _recover_maven(self, cause: BaseException) -> None:
+        """Prove a prior Maven generation inactive before permitting one replacement.
+
+        Two inspections separated by durable Workflow time guard against eventually
+        consistent Sonatype repository creation. A visible or progressing repository is
+        retained; only repeated evidence of absence, or a terminal failed Portal
+        deployment whose repository is released, can advance to the single replacement.
+        """
         assert self.s.identity
         for final in (False, True):
             inspection = await self._publication("inspectMaven", MavenInspection)
@@ -143,6 +168,7 @@ class ReleaseWorkflow:
         self._memo()
 
     async def _publication(self, name: str, result_type: type[T]) -> T:
+        """Execute a privileged Activity on the exact release-generation queue."""
         assert self.s.identity
         return cast(
             T,
@@ -171,6 +197,7 @@ class ReleaseWorkflow:
         )
 
     def _current_generation(self) -> MavenGeneration:
+        """Create generation zero lazily and return the validated current generation."""
         assert self.s.identity
         if not self.s.mavenGenerations:
             self.s.mavenGenerations.append(MavenGeneration(0))
@@ -180,6 +207,12 @@ class ReleaseWorkflow:
         return item
 
     def _adopt_inspection(self, inspection: MavenInspection) -> None:
+        """Merge newly observed external IDs without allowing durable identity changes.
+
+        Repository and Portal IDs may become visible after an ambiguous response, so an
+        empty durable field can adopt an inspected value. Once adopted, a differing value
+        is an immutable conflict rather than a recoverable observation.
+        """
         assert self.s.identity
         inspection.validate()
         if inspection.centralPresent > len(maven_artifacts(self.s.identity.candidate.mavenPolicy)):
@@ -204,6 +237,7 @@ class ReleaseWorkflow:
 
     @staticmethod
     def _error_type(error: BaseException) -> str:
+        """Find the Temporal ApplicationError type through wrapper exception causes."""
         current: BaseException | None = error
         while current:
             if isinstance(current, ApplicationError):
@@ -212,9 +246,16 @@ class ReleaseWorkflow:
         return ""
 
     def _memo(self) -> None:
+        """Expose durable state to scheduled discovery even when no Worker is running."""
         workflow.upsert_memo({"ReleaseStatus": self.s})
 
     def _freeze_identity(self) -> None:
+        """Freeze the release exactly once when the final native receipt arrives.
+
+        This transition occurs inside the update handler as well as the main coroutine so
+        the memo cannot be stranded between phases when its short-lived update Worker
+        exits immediately after acknowledging the final artifact.
+        """
         if not self.s.pendingPlatforms and self.s.identity is None:
             assert self.candidate
             self.s.identity = ReleaseIdentity(self.candidate, self.s.artifacts)

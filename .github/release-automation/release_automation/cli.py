@@ -39,6 +39,7 @@ RELEASE_BRANCH = re.compile(r"(?:main|releases/.+|[^/]*\.[^/]*\.x|release_[^/]*_
 
 
 def output(name: str, value: Any) -> None:
+    """Write an Actions output, falling back to readable local command output."""
     text = str(value).replace("\n", " ") if value is not None else ""
     if destination := os.environ.get("GITHUB_OUTPUT"):
         with Path(destination).open("a") as stream:
@@ -48,16 +49,19 @@ def output(name: str, value: Any) -> None:
 
 
 def required(env: Mapping[str, str], name: str) -> str:
+    """Read a required Actions value without silently accepting an empty secret."""
     if not (value := env.get(name)):
         raise ValueError(f"Required Actions value is missing: {name}")
     return value
 
 
 def read(path: str | Path, kind: type[T]) -> T:
+    """Decode JSON through Temporal's converter so CLI and Workflow types agree."""
     return cast(T, value_to_type(kind, json.loads(Path(path).read_text())))
 
 
 async def connect(env: Mapping[str, str]) -> Client:
+    """Connect to the configured Temporal namespace using its single API credential."""
     return await Client.connect(
         required(env, "TEMPORAL_ADDRESS"),
         namespace=required(env, "TEMPORAL_NAMESPACE"),
@@ -67,6 +71,7 @@ async def connect(env: Mapping[str, str]) -> Client:
 
 
 def policy_for_settings(settings: Path) -> str:
+    """Recognize the checked-out Gradle project set as a fixed Maven policy."""
     projects = [
         match.group(1)
         for line in settings.read_text().splitlines()
@@ -76,10 +81,17 @@ def policy_for_settings(settings: Path) -> str:
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
+    """Run a read-only Git command and return its whitespace-trimmed output."""
     return subprocess.check_output(["git", *args], cwd=cwd, text=True).strip()
 
 
 def candidate_from_push(env: Mapping[str, str]) -> CandidateIdentity:
+    """Authorize a candidate from one newly added release-note file.
+
+    The push workflow is the approval boundary. This function binds that approval to
+    exact source and automation commits, verifies ancestry, and refuses ambiguous or
+    non-regular release-note changes before any Temporal execution is started.
+    """
     if env.get("GITHUB_REPOSITORY") != REPOSITORY:
         raise ValueError("This automation only releases temporalio/sdk-java.")
     commit, automation = required(env, "RELEASE_COMMIT"), required(env, "RELEASE_AUTOMATION_REF")
@@ -121,15 +133,23 @@ def candidate_from_push(env: Mapping[str, str]) -> CandidateIdentity:
 
 
 async def workflows(client: Client) -> list[WorkflowExecution]:
+    """List only running sdk-java ReleaseWorkflow executions for discovery."""
     query = "ExecutionStatus = 'Running' AND WorkflowType = 'ReleaseWorkflow'"
     return [item async for item in client.list_workflows(query)]
 
 
 async def memo(execution: WorkflowExecution, key: str, kind: type[T]) -> T | None:
+    """Decode one typed memo field without requiring a live Workflow Worker."""
     return await execution.memo_value(key, None, type_hint=kind)
 
 
 async def start_candidate(client: Client, candidate: CandidateIdentity) -> None:
+    """Start or reuse the one Workflow execution for an immutable candidate.
+
+    Before starting, all running executions are checked for a conflicting use of the
+    same release tag. Temporal's duplicate policies then make repeated delivery of the
+    same authorized push idempotent without allowing identity replacement.
+    """
     candidate.validate()
     for execution in await workflows(client):
         existing = await memo(execution, "CandidateIdentity", CandidateIdentity)
@@ -153,6 +173,7 @@ async def update(
     name: str,
     *args: Any,
 ) -> None:
+    """Run a short-lived Worker while delivering an update to an exact execution."""
     if not run_id:
         raise ValueError("Release Workflow execution is invalid.")
     async with Worker(client, task_queue=workflow_queue(workflow_id), workflows=[ReleaseWorkflow]):
@@ -162,6 +183,7 @@ async def update(
 
 
 def workflow_queue(workflow_id: str) -> str:
+    """Recover and validate the candidate-specific queue encoded in a Workflow ID."""
     prefix = "sdk-java-release-candidate/"
     if not workflow_id.startswith(prefix):
         raise ValueError("Release Workflow ID is invalid.")
@@ -169,6 +191,12 @@ def workflow_queue(workflow_id: str) -> str:
 
 
 def verify_candidate_origin(candidate: CandidateIdentity, run: Mapping[str, Any]) -> None:
+    """Reconfirm that GitHub authorized the candidate from the expected push workflow.
+
+    Discovery repeats this check on every scheduled pass so a forged Temporal memo
+    cannot cause privileged work. Repository, workflow path, source SHA, branch policy,
+    event type, and numeric run identity must all match the frozen candidate.
+    """
     repository = run.get("head_repository")
     if (
         run.get("id") != candidate.githubRunId
@@ -183,6 +211,7 @@ def verify_candidate_origin(candidate: CandidateIdentity, run: Mapping[str, Any]
 
 
 def github_run(run_id: int) -> Mapping[str, Any]:
+    """Fetch the GitHub Actions run used as candidate authorization evidence."""
     return cast(
         Mapping[str, Any],
         json.loads(
@@ -196,6 +225,12 @@ def github_run(run_id: int) -> Mapping[str, Any]:
 async def release_jobs(
     execution: WorkflowExecution, automation: str
 ) -> dict[str, list[dict[str, Any]]]:
+    """Translate one durable release snapshot into minimal Actions matrix entries.
+
+    Native entries contain no credentials and are emitted only for missing platforms.
+    A publication entry is emitted only after the immutable release identity exists;
+    its queue is derived from the current durable Maven generation.
+    """
     candidate = await memo(execution, "CandidateIdentity", CandidateIdentity)
     if (
         candidate is None
@@ -244,6 +279,7 @@ async def release_jobs(
 
 
 async def discover(client: Client, env: Mapping[str, str]) -> None:
+    """Emit build and publication matrices for all valid running releases."""
     jobs: dict[str, list[dict[str, Any]]] = {"build": [], "publication": []}
     automation = required(env, "RELEASE_AUTOMATION_REF")
     for execution in await workflows(client):
@@ -262,6 +298,12 @@ async def discover(client: Client, env: Mapping[str, str]) -> None:
 
 
 async def run_worker(client: Client, queue: str, env: Mapping[str, str]) -> None:
+    """Poll one release Workflow queue and one exact publication generation queue.
+
+    Hosting both Workers in the publication job removes a separate Actions worker
+    matrix. Activities still exist only on the privileged generation-specific queue,
+    while deterministic Workflow code polls the candidate-specific queue.
+    """
     if not queue.startswith("sdk-java-release-") or "-publication-g" not in queue:
         raise ValueError("Refusing to poll a non-publication Task Queue.")
     workflow_id = required(env, "EXPECTED_WORKFLOW_ID")
@@ -286,6 +328,7 @@ async def run_worker(client: Client, queue: str, env: Mapping[str, str]) -> None
 
 
 async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
+    """Dispatch the small command surface used by the release workflows."""
     client = await connect(env)
     match argv:
         case ["start"]:
@@ -316,6 +359,7 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
 
 
 def main() -> None:
+    """Validate the trusted checkout layout and run the asynchronous CLI."""
     if not (ROOT / ".github/scripts/temporal-release/reconcile-publication.sh").is_file():
         raise RuntimeError("The trusted repository root has an unexpected layout.")
     asyncio.run(async_main(sys.argv[1:], os.environ))

@@ -8,6 +8,7 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 commit=$(git -C "$root" rev-parse HEAD)
 
+# Package one synthetic executable using the same environment contract as Actions.
 package() {
   local platform=$1 asset_platform=$2 extension=$3 binary_name=$4 output=$5
   mkdir "$work/prebuilt-$platform" "$output"

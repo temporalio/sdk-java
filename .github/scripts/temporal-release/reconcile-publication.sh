@@ -2,8 +2,11 @@
 
 set -euo pipefail
 
+# Report a transient or operational failure that Temporal may retry.
 fail() { echo "reconcile-publication: $*" >&2; exit 1; }
+# Report immutable external state that conflicts with this release identity.
 conflict() { echo "reconcile-publication: immutable release conflict: $*" >&2; exit 42; }
+# Report an uncertain Maven submission outcome that requires durable inspection.
 maven_ambiguous() { echo "reconcile-publication: ambiguous Maven submission: $*" >&2; exit 44; }
 
 required=(
@@ -31,6 +34,7 @@ trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/assets"
 mapfile -t maven_artifacts < <(jq -er '.mavenArtifacts[]' "$RELEASE_INPUT_FILE")
 
+# Download one Actions artifact using only the identity frozen in its receipt.
 download_receipt() {
   local receipt=$1 destination=$2
   GH_TOKEN=$GH_TOKEN GITHUB_ARTIFACT_RECEIPT_FILE=$receipt \
@@ -38,6 +42,9 @@ download_receipt() {
     "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/github-artifact.sh" download
 }
 
+# Prove that an artifact came from this repository's scheduled release workflow.
+# Artifact names and digests bind bytes, but origin validation is the trust boundary that
+# prevents an unrelated Actions run from supplying those bytes to privileged publication.
 verify_artifact_origin() {
   local receipt=$1 run_id run
   run_id=$(jq -er .workflowRunId "$receipt")
@@ -51,6 +58,7 @@ verify_artifact_origin() {
     conflict "the artifact originated from another workflow run."
 }
 
+# Download the fixed native matrix and construct its deterministic checksum asset.
 materialize_native_assets() {
   local count index receipt
   count=$(jq '.release.artifacts | length' "$RELEASE_INPUT_FILE")
@@ -65,6 +73,9 @@ materialize_native_assets() {
   (cd "$work/assets" && sha256sum *.tar.gz *.zip | sort -k2) >"$work/assets/SHA256SUMS"
 }
 
+# Download, safely extract, and policy-validate the signed Maven payload.
+# Validation happens again at publication because the Actions artifact, not a prior runner's
+# filesystem, is the durable handoff between payload generation and external mutation.
 materialize_maven_payload() {
   local receipt=$work/maven-receipt.json archive=$work/maven-download/maven-payload.tar
   local bundle=$work/maven-bundle
@@ -82,6 +93,9 @@ materialize_maven_payload() {
     conflict "the Maven archive violates sdk-java policy."
 }
 
+# Count expected artifacts visible in Central and verify each published POM identity.
+# Partial visibility is tracked explicitly because publication may propagate artifact by
+# artifact; an existing coordinate with the wrong SCM commit is an immutable conflict.
 central_state() {
   present=0
   missing=0
@@ -112,6 +126,7 @@ PY
   done
 }
 
+# Require every file in the frozen Maven manifest to be visible in Maven Central.
 validate_central_files() {
   while IFS=$'\t' read -r relative _ _; do
     status=$(curl --silent --show-error --location --head --output /dev/null --write-out '%{http_code}' \
@@ -120,6 +135,9 @@ validate_central_files() {
   done <"$payload_manifest"
 }
 
+# Fetch a consistent-enough view from both legacy staging and Publisher Portal APIs.
+# Sonatype migration exposes repository identity through two APIs with different shapes;
+# reconciliation must consult both before concluding that a submission is absent.
 sonatype_snapshot() {
   curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
     --header 'Accept: application/json' \
@@ -136,6 +154,7 @@ sonatype_snapshot() {
     fail "Publisher Portal repository data is invalid."
 }
 
+# Return exactly one durable generation entry from the Activity input.
 generation_state() {
   jq -cer --argjson generation "$1" \
     '[.mavenGenerations[] | select(.generation == $generation)] |
@@ -143,6 +162,7 @@ generation_state() {
     "$RELEASE_INPUT_FILE"
 }
 
+# Join both Sonatype views for one repository ID without discarding duplicates.
 repository_snapshot() {
   jq -cn --arg id "$1" --slurpfile profiles "$work/profile-repositories.json" \
     --slurpfile manual "$work/manual-repositories.json" '
@@ -151,6 +171,8 @@ repository_snapshot() {
      manual:[($manual[0].repositories // [])[] | select(.key == $id)]}'
 }
 
+# Discover the unique repository created with this release-generation description.
+# The description is the idempotency key available before Sonatype returns a repository ID.
 find_repository_by_description() {
   local description=$1
   jq -rn --arg description "$description" --slurpfile profiles "$work/profile-repositories.json" \
@@ -161,6 +183,9 @@ find_repository_by_description() {
     unique | if length <= 1 then .[0] // "" else error("multiple exact repositories") end'
 }
 
+# Create a staging repository with the exact generation description and return its ID.
+# The response boundary is inherently ambiguous: if the request succeeds but the response is
+# lost, Temporal inspection must discover the repository before another generation is allowed.
 create_repository() {
   local description=$1 profile_id status
   curl --silent --show-error --fail --user "$RH_USER:$RH_PASSWORD" \
@@ -182,6 +207,7 @@ create_repository() {
     "$work/start-response.json" || fail "Sonatype accepted creation without returning an ID."
 }
 
+# Read and identity-check the Publisher Portal state for one deployment.
 portal_status() {
   local deployment_id=$1
   curl --silent --show-error --fail --request POST \
@@ -192,6 +218,10 @@ portal_status() {
     "$work/portal-status.json"
 }
 
+# Revalidate all earlier generations immediately before creating a replacement repository.
+# Workflow recovery already inspected twice with a durable delay. This final check closes the
+# race where an eventually consistent repository appears after the second inspection but before
+# the next generation mutates Sonatype, preventing duplicate publication attempts.
 validate_prior_generations_inactive() {
   (( submission_generation > 0 )) || return
   local row generation description repository_id discovered_id portal_id state snapshot
@@ -231,6 +261,9 @@ validate_prior_generations_inactive() {
   done < <(jq -c '.mavenGenerations[] | select(.submissionStarted == true)' "$RELEASE_INPUT_FILE")
 }
 
+# Compare every staged Maven file with the frozen payload and list only missing files.
+# Existing remote bytes are never overwritten: a size or digest difference is an immutable
+# conflict, while a 404 is safe to repair by uploading that exact manifest entry.
 inspect_staging_payload() {
   : >"$work/remote-missing.tsv"
   while IFS=$'\t' read -r relative sha size; do
@@ -251,6 +284,7 @@ inspect_staging_payload() {
   done <"$payload_manifest"
 }
 
+# Upload only manifest entries proven absent from the exact staging repository.
 upload_missing_payload() {
   while IFS=$'\t' read -r relative _ _; do
     [[ -n $relative ]] || continue
@@ -261,6 +295,7 @@ upload_missing_payload() {
   done <"$work/remote-missing.tsv"
 }
 
+# Adopt or create the repository for the current durable Maven generation.
 reconcile_maven_repository() {
   local state description
   [[ $present -eq 0 || $present -eq ${#maven_artifacts[@]} ]] ||
@@ -281,6 +316,9 @@ reconcile_maven_repository() {
   repository_id=$(create_repository "$description")
 }
 
+# Reconcile staging contents, close the repository, and adopt its Portal deployment.
+# Accepted close requests intentionally fail this Activity attempt so a later retry observes
+# Sonatype's external transition instead of assuming the mutation completed synchronously.
 reconcile_maven_portal() {
   local description repository_state close_status snapshot
   description=sdk-java:$release_digest:$submission_generation
@@ -316,6 +354,7 @@ reconcile_maven_portal() {
   [[ $portal_id =~ ^[0-9a-fA-F-]{16,64}$ ]] || fail "The Portal deployment ID is not visible yet."
 }
 
+# Publish only a validated Portal deployment, then force a fresh reconciliation pass.
 publish_maven() {
   local deployment_state publish_status
   deployment_state=$(portal_status "$portal_id")
@@ -335,6 +374,7 @@ publish_maven() {
   esac
 }
 
+# Fetch the release matching the exact tag while treating API failure as distinct from absence.
 release_json() {
   local releases
   releases=$(gh api --paginate --slurp 'repos/temporalio/sdk-java/releases?per_page=100') ||
@@ -342,6 +382,7 @@ release_json() {
   jq -c --arg tag "$tag" '[.[][]] | map(select(.tag_name == $tag)) | first // empty' <<<"$releases"
 }
 
+# GET a GitHub object while distinguishing an expected 404 from transient API errors.
 github_optional_get() {
   local path=$1 output=$2 status
   status=$(curl --silent --show-error --location --output "$output" --write-out '%{http_code}' \
@@ -352,6 +393,7 @@ github_optional_get() {
     fail "GitHub returned HTTP $status while reading $path." ;; esac
 }
 
+# Create the tag if absent, or prove an existing/concurrently created tag is exact.
 ensure_exact_tag() {
   local file=$work/tag.json
   if github_optional_get "repos/temporalio/sdk-java/git/ref/tags/$tag" "$file"; then
@@ -368,6 +410,7 @@ ensure_exact_tag() {
     }
 }
 
+# Verify immutable GitHub release metadata including notes, target commit, and RC status.
 verify_release_metadata() {
   local release=$1 draft=$2 prerelease=false
   [[ $tag == *-RC* ]] && prerelease=true
@@ -378,6 +421,9 @@ verify_release_metadata() {
     conflict "GitHub release metadata differs."
 }
 
+# Require the public release to contain exactly the locally materialized asset set.
+# GitHub's reported SHA-256 digest and size are compared with every local file before the
+# draft is made public and again afterward, detecting both omission and substitution.
 verify_exact_github_assets() {
   local release=$1 name state size asset_digest expected
   mapfile -t expected < <(find "$work/assets" -mindepth 1 -maxdepth 1 -type f -exec basename {} \; | sort)
@@ -391,6 +437,7 @@ verify_exact_github_assets() {
   done < <(jq -r '.assets[] | [.name,.state,.size,.digest] | @tsv' <<<"$release")
 }
 
+# Detect conflicting tags or releases before any Maven-side mutation begins.
 verify_github_preflight() {
   local release draft remote
   if github_optional_get "repos/temporalio/sdk-java/git/ref/tags/$tag" "$work/preflight-tag.json"; then
@@ -408,6 +455,9 @@ verify_github_preflight() {
   [[ $draft == true ]] || verify_exact_github_assets "$release"
 }
 
+# Reconcile an exact draft and upload only assets that are still absent.
+# Existing uploaded assets must match byte-for-byte. Zero-byte starter assets may be removed
+# only while the release is still draft, preserving public releases as immutable state.
 reconcile_github_draft() {
   local release draft name state size asset_digest id
   ensure_exact_tag
@@ -441,6 +491,7 @@ reconcile_github_draft() {
   done
 }
 
+# Publish GitHub only after Maven Central and every draft asset are exact.
 publish_github() {
   local release
   central_state
@@ -463,6 +514,9 @@ publish_github() {
       mavenCentralUrl:$mavenCentralUrl}' >"$RELEASE_OUTPUT_FILE"
 }
 
+# Return current Central visibility and external identity/state for every generation.
+# This stage is read-only: the Workflow uses its result to decide whether an ambiguous prior
+# submission is active, terminally failed, or repeatedly absent before advancing generation.
 inspect_maven() {
   local row generation description repository_id repository_state portal_id portal_state snapshot
   local profile_count discovered_portal
@@ -501,6 +555,7 @@ inspect_maven() {
     "$work/inspections.jsonl" >"$RELEASE_OUTPUT_FILE"
 }
 
+# Reconcile the complete release in Maven-first, GitHub-public-last order.
 publish_release() {
   materialize_native_assets
   materialize_maven_payload

@@ -14,11 +14,13 @@ RUN_ID = r"[0-9a-fA-F-]{16,64}"
 
 
 def require(condition: bool, message: str) -> None:
+    """Reject model state that would weaken an immutable release invariant."""
     if not condition:
         raise ValueError(message)
 
 
 def matches(pattern: str, value: str | None) -> bool:
+    """Return whether a present string fully matches a release identity pattern."""
     return value is not None and re.fullmatch(pattern, value) is not None
 
 
@@ -34,6 +36,7 @@ def json_value(value: Any) -> Any:
 
 
 def digest(*values: Any) -> str:
+    """Hash the canonical JSON representation used for durable release identities."""
     data = json.dumps(json_value(values), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(data.encode()).hexdigest()
 
@@ -98,6 +101,7 @@ class PlatformSpec(NamedTuple):
 
 
 def platform(id: str, runner: str, family: str) -> PlatformSpec:
+    """Build one fixed native-platform policy entry and its release naming details."""
     asset = f"macOS{id[5:]}" if id.startswith("macos-") else id
     windows, linux = family == "windows", family == "linux"
     return PlatformSpec(
@@ -123,6 +127,7 @@ NATIVE_PLATFORMS = tuple(item.platform for item in PLATFORMS)
 
 
 def maven_artifacts(policy: str) -> tuple[str, ...]:
+    """Return the reviewed artifact set for a named sdk-java release policy."""
     try:
         return MAVEN_POLICIES[policy]
     except KeyError as error:
@@ -130,6 +135,7 @@ def maven_artifacts(policy: str) -> tuple[str, ...]:
 
 
 def maven_policy_for_projects(projects: list[str]) -> str:
+    """Map the immutable Gradle project set to one reviewed Maven policy variant."""
     require(len(projects) == len(set(projects)), "sdk-java settings contain duplicate projects.")
     actual = set(projects)
     for policy, artifacts in MAVEN_POLICIES.items():
@@ -139,6 +145,7 @@ def maven_policy_for_projects(projects: list[str]) -> str:
 
 
 def platform_spec(platform: str) -> PlatformSpec:
+    """Resolve an exact native platform or reject unreviewed matrix expansion."""
     try:
         return next(item for item in PLATFORMS if item.platform == platform)
     except StopIteration as error:
@@ -163,6 +170,7 @@ class CandidateIdentity:
     githubRunId: int
 
     def validate(self) -> None:
+        """Validate every field that contributes to the candidate's stable digest."""
         require(matches(TAG, self.tag), "Invalid release tag.")
         require(matches(SHA, self.commitSha), "Commit must be a full SHA.")
         require(
@@ -174,19 +182,23 @@ class CandidateIdentity:
 
     @property
     def version(self) -> str:
+        """Return the Maven/native version by removing the required tag prefix."""
         return self.tag[1:]
 
     def digest(self) -> str:
+        """Return the repository-scoped immutable candidate identity."""
         self.validate()
         return digest(REPOSITORY, self)
 
 
 def native_artifact_name(version: str, platform: str) -> str:
+    """Return the public native asset filename for one reviewed platform."""
     spec = platform_spec(platform)
     return f"temporal-test-server_{version}_{spec.assetPlatform}{spec.archiveExtension}"
 
 
 def github_native_artifact_name(candidate: CandidateIdentity, platform: str) -> str:
+    """Name the private Actions artifact by candidate digest and platform."""
     platform_spec(platform)
     return f"sdk-java-release-native-{candidate.digest()}-{platform}"
 
@@ -197,6 +209,7 @@ class ReleaseIdentity:
     artifacts: list[GithubArtifactReceipt]
 
     def validate(self) -> None:
+        """Require one correctly paired receipt for every fixed native platform."""
         self.candidate.validate()
         actual = {(x.artifactName, x.fileName) for x in self.artifacts}
         expected = {
@@ -212,15 +225,18 @@ class ReleaseIdentity:
         )
 
     def digest(self) -> str:
+        """Hash the candidate and order-independent native artifact receipt set."""
         self.validate()
         return digest(self.candidate, sorted(self.artifacts, key=lambda x: x.artifactName))
 
 
 def github_maven_artifact_name(release: ReleaseIdentity) -> str:
+    """Name the private Maven payload artifact with the complete release digest."""
     return f"sdk-java-release-maven-{release.digest()}"
 
 
 def matches_maven_payload(release: ReleaseIdentity, artifact: GithubArtifactReceipt) -> bool:
+    """Check that a receipt names the sole Maven payload for this release."""
     return (
         artifact.artifactName == github_maven_artifact_name(release)
         and artifact.fileName == "maven-payload.tar"
@@ -237,6 +253,7 @@ class MavenGeneration:
     portalDeploymentState: str = ""
 
     def validate(self) -> None:
+        """Validate durable and inspected identities for one Maven submission attempt."""
         require(self.generation >= 0, "Maven generation identity is invalid.")
         require(
             not self.repositoryId or matches(r"[A-Za-z0-9._-]+", self.repositoryId),
@@ -263,6 +280,7 @@ class MavenInspection:
     generations: list[MavenGeneration] = field(default_factory=list)
 
     def validate(self) -> None:
+        """Validate an external Maven snapshot before adopting any discovered IDs."""
         require(
             0 <= self.centralPresent <= len(MAVEN_ARTIFACTS),
             "Inspected Maven Central state is invalid.",
@@ -296,18 +314,22 @@ class PublicationInput:
 
 
 def candidate_workflow_id(candidate: CandidateIdentity) -> str:
+    """Derive the unique Workflow ID from the immutable candidate digest."""
     return f"sdk-java-release-candidate/{candidate.digest()}"
 
 
 def candidate_queue_from_digest(digest: str) -> str:
+    """Derive the candidate-specific Workflow Task Queue from a validated digest."""
     require(matches(HASH, digest), "Invalid sdk-java release digest.")
     return f"sdk-java-release-candidate-{digest[:32]}-workflow"
 
 
 def candidate_queue(candidate: CandidateIdentity) -> str:
+    """Return the Workflow Task Queue owned by one immutable candidate."""
     return candidate_queue_from_digest(candidate.digest())
 
 
 def publication_queue(release: ReleaseIdentity, generation: int = 0) -> str:
+    """Derive the release- and generation-specific privileged Activity Task Queue."""
     require(generation >= 0, "Maven submission generation cannot be negative.")
     return f"sdk-java-release-{release.digest()[:32]}-publication-g{generation}"
