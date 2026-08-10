@@ -179,7 +179,7 @@ public class WorkerFactoryOptions {
     /**
      * Maximum number of concurrent payload-list visits performed while offloading or restoring
      * external-storage payloads for a single worker task. Only applies when external storage is
-     * configured on the client. Must be at least 1.
+     * configured on the client. A value of {@code 0} selects the default; must not be negative.
      *
      * <p>Default is 3.
      */

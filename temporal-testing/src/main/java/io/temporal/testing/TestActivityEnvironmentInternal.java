@@ -31,11 +31,13 @@ import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
@@ -100,6 +102,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     this.workflowServiceStubs =
         WorkflowServiceStubs.newServiceStubs(serviceStubsOptionsBuilder.build());
 
+    ExternalStorageOptions externalStorage =
+        testEnvironmentOptions.getWorkflowClientOptions().getExternalStorage();
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
             WorkflowClient.newInstance(
@@ -110,7 +114,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor,
-            null);
+            externalStorage == null
+                ? null
+                : ExternalStorageMessageTransformer.create(externalStorage));
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
