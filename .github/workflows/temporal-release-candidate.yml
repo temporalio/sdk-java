@@ -62,7 +62,7 @@ jobs:
       ARTIFACT_NAME: sdk-java-release-native-${{ needs.start.outputs.candidate_id }}-${{ matrix.platform }}
       RELEASE_COMMIT: ${{ github.sha }}
       RELEASE_PLATFORM: ${{ matrix.platform }}
-      RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/native-output
+      RELEASE_PREBUILT_NATIVE_DIR: native-output
       RELEASE_TAG: ${{ needs.start.outputs.tag }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
