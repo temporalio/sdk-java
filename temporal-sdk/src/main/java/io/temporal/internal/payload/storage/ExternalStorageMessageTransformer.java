@@ -53,21 +53,19 @@ public final class ExternalStorageMessageTransformer {
   public <T extends Message> T storeBlocking(
       T message, @Nullable StorageDriverTargetInfo target, @Nullable Duration timeout) {
     CancelSource<CancellationException> cancel = new CancelSource<>(CancellationException::new);
-    return await(store(message, target, cancel.token()), cancel, timeout);
+    return getOrCancel(store(message, target, cancel.token()), cancel, timeout);
   }
 
   public <T extends Message> T retrieveBlocking(T message) {
     CancelSource<CancellationException> cancel = new CancelSource<>(CancellationException::new);
-    return await(retrieve(message, cancel.token()), cancel, null);
+    return getOrCancel(retrieve(message, cancel.token()), cancel, null);
   }
 
   public <T extends Message> CompletableFuture<T> retrieveAsync(T message) {
     return retrieve(message, CancellationToken.none());
   }
 
-  // Cancels the in-flight driver work when the calling thread is interrupted or the timeout
-  // elapses, so external-storage I/O can never wedge the caller (e.g. an activity heartbeat).
-  private static <T> T await(
+  private static <T> T getOrCancel(
       CompletableFuture<T> future,
       CancelSource<CancellationException> cancel,
       @Nullable Duration timeout) {
