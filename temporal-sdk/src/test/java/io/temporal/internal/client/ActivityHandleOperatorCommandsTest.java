@@ -52,7 +52,11 @@ public class ActivityHandleOperatorCommandsTest {
             .setReason("go")
             .setJitter(Duration.ofSeconds(5))
             .build());
-    handle.reset(ResetActivityOptions.newBuilder().setJitter(Duration.ofSeconds(2)).build());
+    handle.reset(
+        ResetActivityOptions.newBuilder()
+            .setJitter(Duration.ofSeconds(2))
+            .setResetHeartbeat(true)
+            .build());
     handle.updateOptions(
         UpdateActivityOptions.newBuilder().setStartDelay(Duration.ofSeconds(7)).build());
 
@@ -69,11 +73,13 @@ public class ActivityHandleOperatorCommandsTest {
     assertEquals(0, unpauseReq.getJitter().getNanos());
     assertTrue("unpause request_id should be set", !unpauseReq.getRequestId().isEmpty());
 
-    // reset carries jitter and an auto-generated dedup request_id (api#844).
+    // reset carries jitter, an auto-generated dedup request_id (api#844), and reset_heartbeat
+    // (api#848).
     ResetActivityExecutionRequest resetReq = captureReset();
     assertEquals(2, resetReq.getJitter().getSeconds());
     assertEquals(0, resetReq.getJitter().getNanos());
     assertTrue("reset request_id should be set", !resetReq.getRequestId().isEmpty());
+    assertTrue("reset should carry reset_heartbeat=true", resetReq.getResetHeartbeat());
 
     // updateOptions carries start_delay in activity_options with a matching update_mask path, plus
     // an auto-generated dedup request_id (api#844). start_delay is applied server-side but not

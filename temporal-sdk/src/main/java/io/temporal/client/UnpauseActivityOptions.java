@@ -31,8 +31,6 @@ public final class UnpauseActivityOptions {
 
   public static final class Builder {
     private @Nullable String reason;
-    private boolean resetAttempts;
-    private boolean resetHeartbeat;
     private @Nullable Duration jitter;
 
     private Builder() {}
@@ -42,26 +40,12 @@ public final class UnpauseActivityOptions {
         return;
       }
       this.reason = options.reason;
-      this.resetAttempts = options.resetAttempts;
-      this.resetHeartbeat = options.resetHeartbeat;
       this.jitter = options.jitter;
     }
 
     /** Human-readable reason for unpausing. */
     public Builder setReason(@Nullable String reason) {
       this.reason = reason;
-      return this;
-    }
-
-    /** If set, also resets the activity's attempt counter back to 1. */
-    public Builder setResetAttempts(boolean resetAttempts) {
-      this.resetAttempts = resetAttempts;
-      return this;
-    }
-
-    /** If set, also clears the activity's recorded heartbeat details. */
-    public Builder setResetHeartbeat(boolean resetHeartbeat) {
-      this.resetHeartbeat = resetHeartbeat;
       return this;
     }
 
@@ -77,14 +61,10 @@ public final class UnpauseActivityOptions {
   }
 
   private final @Nullable String reason;
-  private final boolean resetAttempts;
-  private final boolean resetHeartbeat;
   private final @Nullable Duration jitter;
 
   private UnpauseActivityOptions(Builder builder) {
     this.reason = builder.reason;
-    this.resetAttempts = builder.resetAttempts;
-    this.resetHeartbeat = builder.resetHeartbeat;
     this.jitter = builder.jitter;
   }
 
@@ -97,14 +77,6 @@ public final class UnpauseActivityOptions {
     return reason;
   }
 
-  public boolean isResetAttempts() {
-    return resetAttempts;
-  }
-
-  public boolean isResetHeartbeat() {
-    return resetHeartbeat;
-  }
-
   @Nullable
   public Duration getJitter() {
     return jitter;
@@ -115,28 +87,16 @@ public final class UnpauseActivityOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     UnpauseActivityOptions that = (UnpauseActivityOptions) o;
-    return resetAttempts == that.resetAttempts
-        && resetHeartbeat == that.resetHeartbeat
-        && Objects.equals(reason, that.reason)
-        && Objects.equals(jitter, that.jitter);
+    return Objects.equals(reason, that.reason) && Objects.equals(jitter, that.jitter);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(reason, resetAttempts, resetHeartbeat, jitter);
+    return Objects.hash(reason, jitter);
   }
 
   @Override
   public String toString() {
-    return "UnpauseActivityOptions{"
-        + "reason='"
-        + reason
-        + "', resetAttempts="
-        + resetAttempts
-        + ", resetHeartbeat="
-        + resetHeartbeat
-        + ", jitter="
-        + jitter
-        + '}';
+    return "UnpauseActivityOptions{" + "reason='" + reason + "', jitter=" + jitter + '}';
   }
 }

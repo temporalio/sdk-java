@@ -363,9 +363,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity())
             .setActivityId(input.getId())
-            .setRequestId(UUID.randomUUID().toString())
-            .setResetAttempts(input.isResetAttempts())
-            .setResetHeartbeat(input.isResetHeartbeat());
+            .setRequestId(UUID.randomUUID().toString());
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }
@@ -388,7 +386,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             .setActivityId(input.getId())
             .setRequestId(UUID.randomUUID().toString())
             .setKeepPaused(input.isKeepPaused())
-            .setRestoreOriginalOptions(input.isRestoreOriginalOptions());
+            .setRestoreOriginalOptions(input.isRestoreOriginalOptions())
+            .setResetHeartbeat(input.isResetHeartbeat());
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }

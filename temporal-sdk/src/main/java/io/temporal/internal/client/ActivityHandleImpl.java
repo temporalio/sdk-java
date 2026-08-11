@@ -165,12 +165,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   public void unpause(UnpauseActivityOptions options) {
     clientCallsInterceptor.unpauseActivity(
         new ActivityClientCallsInterceptor.UnpauseActivityInput(
-            activityId,
-            activityRunId,
-            options.getReason(),
-            options.isResetAttempts(),
-            options.isResetHeartbeat(),
-            options.getJitter()));
+            activityId, activityRunId, options.getReason(), options.getJitter()));
   }
 
   @Override
@@ -186,7 +181,8 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
             activityRunId,
             options.isKeepPaused(),
             options.getJitter(),
-            options.isRestoreOriginalOptions()));
+            options.isRestoreOriginalOptions(),
+            options.isResetHeartbeat()));
   }
 
   @Override

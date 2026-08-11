@@ -413,22 +413,13 @@ public interface ActivityClientCallsInterceptor {
     private final String id;
     private final @Nullable String runId;
     private final @Nullable String reason;
-    private final boolean resetAttempts;
-    private final boolean resetHeartbeat;
     private final @Nullable Duration jitter;
 
     public UnpauseActivityInput(
-        String id,
-        @Nullable String runId,
-        @Nullable String reason,
-        boolean resetAttempts,
-        boolean resetHeartbeat,
-        @Nullable Duration jitter) {
+        String id, @Nullable String runId, @Nullable String reason, @Nullable Duration jitter) {
       this.id = id;
       this.runId = runId;
       this.reason = reason;
-      this.resetAttempts = resetAttempts;
-      this.resetHeartbeat = resetHeartbeat;
       this.jitter = jitter;
     }
 
@@ -444,14 +435,6 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getReason() {
       return reason;
-    }
-
-    public boolean isResetAttempts() {
-      return resetAttempts;
-    }
-
-    public boolean isResetHeartbeat() {
-      return resetHeartbeat;
     }
 
     @Nullable
@@ -470,18 +453,21 @@ public interface ActivityClientCallsInterceptor {
     private final boolean keepPaused;
     private final @Nullable Duration jitter;
     private final boolean restoreOriginalOptions;
+    private final boolean resetHeartbeat;
 
     public ResetActivityInput(
         String id,
         @Nullable String runId,
         boolean keepPaused,
         @Nullable Duration jitter,
-        boolean restoreOriginalOptions) {
+        boolean restoreOriginalOptions,
+        boolean resetHeartbeat) {
       this.id = id;
       this.runId = runId;
       this.keepPaused = keepPaused;
       this.jitter = jitter;
       this.restoreOriginalOptions = restoreOriginalOptions;
+      this.resetHeartbeat = resetHeartbeat;
     }
 
     public String getId() {
@@ -504,6 +490,10 @@ public interface ActivityClientCallsInterceptor {
 
     public boolean isRestoreOriginalOptions() {
       return restoreOriginalOptions;
+    }
+
+    public boolean isResetHeartbeat() {
+      return resetHeartbeat;
     }
   }
 

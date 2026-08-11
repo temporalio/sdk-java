@@ -17,7 +17,6 @@ import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityHandle;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
-import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UpdateActivityOptions;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
@@ -103,22 +102,6 @@ public class StandaloneActivityOperatorCommandsTest {
     }
   }
 
-  /** Always fails (every attempt) so the attempt counter keeps climbing while it retries. */
-  @ActivityInterface
-  public interface AlwaysFailActivity {
-    @ActivityMethod(name = "AlwaysFail")
-    String run();
-  }
-
-  public static class AlwaysFailActivityImpl implements AlwaysFailActivity {
-    @Override
-    public String run() {
-      throw ApplicationFailure.newFailure(
-          "always fails on attempt " + Activity.getExecutionContext().getInfo().getAttempt(),
-          "retry-type");
-    }
-  }
-
   /**
    * Records heartbeat details on attempt 1, then blocks waiting for cancellation. The heartbeat
    * runs on its own — not adjacent to any completion RPC — so the details reliably persist and are
@@ -161,7 +144,6 @@ public class StandaloneActivityOperatorCommandsTest {
               new SlowActivityImpl(),
               new QuickActivityImpl(),
               new FailThenSucceedActivityImpl(),
-              new AlwaysFailActivityImpl(),
               new HeartbeatOnceActivityImpl())
           .build();
 
@@ -444,45 +426,6 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
-  // Overrides the rule's default 10s global timeout: driving retries + unpause takes longer.
-  @Test(timeout = 60_000)
-  public void unpauseResetsAttempts() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityClient client = newActivityClient();
-    StartActivityOptions opts =
-        StartActivityOptions.newBuilder()
-            .setId(uniqueId())
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setStartToCloseTimeout(Duration.ofSeconds(60))
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setInitialInterval(Duration.ofMillis(200))
-                    .setBackoffCoefficient(1.0)
-                    .setMaximumInterval(Duration.ofMillis(200))
-                    .setMaximumAttempts(50)
-                    .build())
-            .build();
-    ActivityHandle<String> handle =
-        client.start(AlwaysFailActivity.class, AlwaysFailActivity::run, opts);
-
-    // Wait until the activity has retried past its first attempt.
-    assertEventually(
-        Duration.ofSeconds(30),
-        () ->
-            assertTrue("expected attempt > 1 before unpause", handle.describe().getAttempt() > 1));
-
-    handle.pause("hold");
-    assertEventuallyPaused(handle);
-
-    handle.unpause(UnpauseActivityOptions.newBuilder().setResetAttempts(true).build());
-
-    // reset_attempts rewinds the attempt counter back to 1.
-    assertEventually(
-        Duration.ofSeconds(30),
-        () -> assertEquals("attempt should be reset to 1", 1, handle.describe().getAttempt()));
-    handle.terminate("cleanup");
-  }
-
   @Test(timeout = 60_000)
   public void resetKeepsPaused() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -561,64 +504,62 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   @Test(timeout = 60_000)
-  public void unpausePreservesHeartbeatByDefault() {
+  public void unpausePreservesHeartbeat() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
     handle.pause("hold");
     assertEventuallyPaused(handle);
 
-    // Default unpause (no reset_heartbeat flag) preserves details. The re-dispatched attempt
-    // doesn't heartbeat (only attempt 1 does), so the persisted details are stable and observable.
+    // Unpause preserves heartbeat details. The re-dispatched attempt doesn't heartbeat (only
+    // attempt 1 does), so the persisted details are stable and observable.
     handle.unpause();
 
     assertEventually(
         Duration.ofSeconds(30),
         () ->
             assertTrue(
-                "heartbeat details should be preserved after default unpause",
+                "heartbeat details should be preserved after unpause",
                 handle.describe().hasHeartbeatDetails()));
     handle.terminate("cleanup");
   }
 
   @Test(timeout = 60_000)
-  public void unpauseResetsHeartbeat() {
+  public void resetPreservesHeartbeatByDefault() throws InterruptedException {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
     handle.pause("hold");
     assertEventuallyPaused(handle);
 
-    // Opt-in flag clears details. The re-dispatched attempt doesn't heartbeat, so cleared stays
-    // cleared and is observable.
-    handle.unpause(UnpauseActivityOptions.newBuilder().setResetHeartbeat(true).build());
-
-    assertEventually(
-        Duration.ofSeconds(30),
-        () ->
-            assertFalse(
-                "heartbeat details should be cleared after unpause(reset_heartbeat)",
-                handle.describe().hasHeartbeatDetails()));
-    handle.terminate("cleanup");
-  }
-
-  @Test(timeout = 60_000)
-  public void resetClearsHeartbeatByDefault() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startHeartbeatReadyActivity();
-
-    handle.pause("hold");
-    assertEventuallyPaused(handle);
-
-    // reset always clears heartbeat details (there is no opt-in flag as of api#820);
-    // keep_paused so no new attempt runs to re-record them.
+    // As of api#848 / temporal#11417, reset does NOT clear heartbeat details by default —
+    // you must pass resetHeartbeat=true. keep_paused so no new attempt reshapes state.
     handle.reset(ResetActivityOptions.newBuilder().setKeepPaused(true).build());
+    // Give the server time to persist any state change, then confirm details survive.
+    Thread.sleep(2000);
+    assertTrue(
+        "heartbeat details should be preserved after default reset",
+        handle.describe().hasHeartbeatDetails());
+    handle.terminate("cleanup");
+  }
+
+  @Test(timeout = 60_000)
+  public void resetClearsHeartbeatWhenFlagSet() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityHandle<Void> handle = startHeartbeatReadyActivity();
+
+    handle.pause("hold");
+    assertEventuallyPaused(handle);
+
+    // Opt-in flag clears details.
+    handle.reset(
+        ResetActivityOptions.newBuilder().setKeepPaused(true).setResetHeartbeat(true).build());
 
     assertEventually(
         Duration.ofSeconds(30),
         () ->
             assertFalse(
-                "heartbeat details should be cleared after reset(keep_paused)",
+                "heartbeat details should be cleared after reset(reset_heartbeat)",
                 handle.describe().hasHeartbeatDetails()));
     handle.terminate("cleanup");
   }

@@ -11,7 +11,8 @@ import javax.annotation.Nullable;
  * <p>All fields are optional. An instance with no fields set resets the activity with default
  * behavior.
  *
- * <p>Reset always clears recorded heartbeat details.
+ * <p>Reset does not clear recorded heartbeat details by default; set {@link
+ * Builder#setResetHeartbeat(boolean)} to additionally discard them.
  */
 @Experimental
 public final class ResetActivityOptions {
@@ -35,6 +36,7 @@ public final class ResetActivityOptions {
     private boolean keepPaused;
     private @Nullable Duration jitter;
     private boolean restoreOriginalOptions;
+    private boolean resetHeartbeat;
 
     private Builder() {}
 
@@ -45,6 +47,7 @@ public final class ResetActivityOptions {
       this.keepPaused = options.keepPaused;
       this.jitter = options.jitter;
       this.restoreOriginalOptions = options.restoreOriginalOptions;
+      this.resetHeartbeat = options.resetHeartbeat;
     }
 
     /** If set and the activity is paused, it will remain paused after the reset. */
@@ -73,6 +76,12 @@ public final class ResetActivityOptions {
       return this;
     }
 
+    /** If set, reset additionally discards any persisted heartbeat details. */
+    public Builder setResetHeartbeat(boolean resetHeartbeat) {
+      this.resetHeartbeat = resetHeartbeat;
+      return this;
+    }
+
     public ResetActivityOptions build() {
       return new ResetActivityOptions(this);
     }
@@ -81,11 +90,13 @@ public final class ResetActivityOptions {
   private final boolean keepPaused;
   private final @Nullable Duration jitter;
   private final boolean restoreOriginalOptions;
+  private final boolean resetHeartbeat;
 
   private ResetActivityOptions(Builder builder) {
     this.keepPaused = builder.keepPaused;
     this.jitter = builder.jitter;
     this.restoreOriginalOptions = builder.restoreOriginalOptions;
+    this.resetHeartbeat = builder.resetHeartbeat;
   }
 
   public Builder toBuilder() {
@@ -105,6 +116,10 @@ public final class ResetActivityOptions {
     return restoreOriginalOptions;
   }
 
+  public boolean isResetHeartbeat() {
+    return resetHeartbeat;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -112,12 +127,13 @@ public final class ResetActivityOptions {
     ResetActivityOptions that = (ResetActivityOptions) o;
     return keepPaused == that.keepPaused
         && restoreOriginalOptions == that.restoreOriginalOptions
+        && resetHeartbeat == that.resetHeartbeat
         && Objects.equals(jitter, that.jitter);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(keepPaused, jitter, restoreOriginalOptions);
+    return Objects.hash(keepPaused, jitter, restoreOriginalOptions, resetHeartbeat);
   }
 
   @Override
@@ -129,6 +145,8 @@ public final class ResetActivityOptions {
         + jitter
         + ", restoreOriginalOptions="
         + restoreOriginalOptions
+        + ", resetHeartbeat="
+        + resetHeartbeat
         + '}';
   }
 }
