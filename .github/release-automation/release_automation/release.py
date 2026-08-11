@@ -746,6 +746,7 @@ def required(name: str) -> str:
 def candidate_from_push() -> Candidate:
     """Turn one newly merged release-note file into the approved identity."""
     commit, base = required("RELEASE_COMMIT"), required("BASE_SHA")
+    base = subprocess.check_output(["git", "rev-parse", "HEAD^"], text=True).strip() if re.fullmatch(r"0+", base) else base
     if subprocess.check_output(["git", "rev-parse", "HEAD^{commit}"], text=True).strip() != commit:
         raise ValueError("The checkout is not the merged commit.")
     changed = subprocess.check_output(
