@@ -4,8 +4,9 @@ from pathlib import Path
 
 import pytest
 
+import release_automation.maven_payload as maven_payload
 from release_automation.cli import publication_worker_queues, verify_candidate_origin
-from release_automation.maven_payload import extract
+from release_automation.maven_payload import archive_bundle, extract, validate, validate_plugin
 from release_automation.models import (
     MAVEN_ARTIFACTS,
     MAVEN_POLICIES,
@@ -115,3 +116,82 @@ def test_maven_payload_rejects_archive_traversal(tmp_path: Path) -> None:
         bundle.addfile(member, io.BytesIO(b"x"))
     with pytest.raises(ValueError, match="unexpected archive path"):
         extract(archive, tmp_path / "output")
+
+
+def test_maven_build_helpers_pin_plugin_and_archive_deterministically(tmp_path: Path) -> None:
+    """Keep source policy fixed and create repeatable receipt-backed Maven archives."""
+    build = tmp_path / "build.gradle"
+    build.write_text("plugins { id 'io.github.gradle-nexus.publish-plugin' version '1.3.0' }")
+    validate_plugin(build)
+    build.write_text("plugins { id 'io.github.gradle-nexus.publish-plugin' version '2.0.0' }")
+    with pytest.raises(ValueError, match="supported Gradle Nexus plugin"):
+        validate_plugin(build)
+
+    bundle = tmp_path / "bundle"
+    payload = bundle / "repository/io/temporal/example/1.0.0/example-1.0.0.pom"
+    payload.parent.mkdir(parents=True)
+    payload.write_text("exact")
+    (bundle / "manifest.tsv").write_text("manifest")
+    first, second = tmp_path / "first.tar", tmp_path / "second.tar"
+    archive_bundle(bundle, first)
+    archive_bundle(bundle, second)
+    assert first.read_bytes() == second.read_bytes()
+    extract(first, tmp_path / "extracted")
+    assert (
+        tmp_path / "extracted/repository/io/temporal/example/1.0.0/example-1.0.0.pom"
+    ).read_text() == "exact"
+
+
+def test_maven_payload_builds_without_forwarding_secrets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exercise the Python build pipeline while keeping secrets outside tool environments."""
+    source, trusted, output = tmp_path / "source", tmp_path / "trusted", tmp_path / "output"
+    source.mkdir()
+    trusted.mkdir()
+    commit = "0123456789abcdef0123456789abcdef01234567"
+    env = {
+        "JAR_SIGNING_KEY": "a2V5",
+        "JAR_SIGNING_KEY_ID": "test",
+        "JAR_SIGNING_KEY_PASSWORD": "secret",
+        "MAVEN_ARTIFACTS_JSON": '["temporal-bom"]',
+        "MAVEN_PAYLOAD_COMMIT": commit,
+        "MAVEN_PAYLOAD_OUTPUT": str(output),
+        "MAVEN_PAYLOAD_VERSION": "1.2.3",
+        "TRUSTED_AUTOMATION_ROOT": str(trusted),
+    }
+
+    def build(
+        _source: Path, _trusted: Path, _sandbox: Path, generated: Path, version: str, sha: str
+    ) -> None:
+        """Stand in for Docker by generating the unsigned BOM files."""
+        root = generated / "io/temporal/temporal-bom" / version
+        root.mkdir(parents=True)
+        (root / f"temporal-bom-{version}.module").write_text("{}")
+        (root / f"temporal-bom-{version}.pom").write_text(
+            f"<project><groupId>io.temporal</groupId><artifactId>temporal-bom</artifactId>"
+            f"<version>{version}</version><scm><tag>{sha}</tag></scm></project>"
+        )
+
+    def sign(root: Path, _home: Path, _env: object) -> None:
+        """Stand in for GPG while creating the exact required sidecar set."""
+        for path in list(root.rglob("*.pom")) + list(root.rglob("*.module")):
+            for suffix in (".asc", ".md5", ".sha1"):
+                Path(f"{path}{suffix}").write_text(suffix)
+
+    monkeypatch.setattr(maven_payload, "git_head", lambda _root: commit)
+    monkeypatch.setattr(maven_payload, "build_unsigned", build)
+    monkeypatch.setattr(maven_payload, "sign", sign)
+    monkeypatch.setenv("JAR_SIGNING_KEY_PASSWORD", "must-not-reach-tools")
+    assert "JAR_SIGNING_KEY_PASSWORD" not in maven_payload.tool_environment()
+    maven_payload.build_payload(env, source)
+    extracted = tmp_path / "built"
+    extract(output / "maven-payload.tar", extracted)
+    validate(
+        extracted / "repository",
+        extracted / "manifest.tsv",
+        ["temporal-bom"],
+        "1.2.3",
+        commit,
+        True,
+    )

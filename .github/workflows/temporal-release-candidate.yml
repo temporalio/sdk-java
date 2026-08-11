@@ -230,11 +230,9 @@ jobs:
           MAVEN_ARTIFACTS_JSON: ${{ toJSON(matrix.mavenArtifacts) }}
           MAVEN_PAYLOAD_COMMIT: ${{ matrix.commitSha }}
           MAVEN_PAYLOAD_OUTPUT: ${{ runner.temp }}/maven-artifact
+          MAVEN_PAYLOAD_VERSION: ${{ matrix.version }}
           TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-        run: |
-          version=${{ matrix.tag }}
-          export MAVEN_PAYLOAD_VERSION=${version#v}
-          "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/prepare-maven-payload.sh"
+        run: python3 "$TRUSTED_AUTOMATION_ROOT/.github/release-automation/release_automation/maven_payload.py" build
       - name: Upload the frozen Maven payload
         if: matrix.mavenPayloadRecorded != true && steps.existing.outputs.found != 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7

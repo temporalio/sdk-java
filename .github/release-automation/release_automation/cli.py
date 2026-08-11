@@ -285,6 +285,7 @@ async def release_jobs(
                 "releaseDigest": status.identity.digest(),
                 "mavenPayloadRecorded": status.mavenPayload is not None,
                 "mavenArtifacts": maven_artifacts(candidate.mavenPolicy),
+                "version": candidate.version,
             }
         )
     return jobs
@@ -366,7 +367,7 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
 
 def main() -> None:
     """Validate the trusted checkout layout and run the asynchronous CLI."""
-    if not (ROOT / ".github/scripts/temporal-release/prepare-maven-payload.sh").is_file():
+    if not (ROOT / ".github/release-automation/release_automation/maven_payload.py").is_file():
         raise RuntimeError("The trusted repository root has an unexpected layout.")
     asyncio.run(async_main(sys.argv[1:], os.environ))
 
