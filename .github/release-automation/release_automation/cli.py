@@ -233,10 +233,37 @@ def github_run(run_id: int) -> Mapping[str, Any]:
     )
 
 
-async def release_jobs(
+async def record_native_receipts(client: Client, workflow_id: str, run_id: str, path: Path) -> None:
+    """Record a receipt batch through one short-lived candidate Workflow Worker.
+
+    Receipt discovery ran in the preceding GitHub-only step; this command receives
+    only the Temporal credential and cannot ask GitHub to replace artifact identity.
+    """
+    if not run_id:
+        raise ValueError("Release Workflow execution is invalid.")
+    rows = json.loads(path.read_text())
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("The native receipt batch is invalid.")
+    async with Worker(client, task_queue=workflow_queue(workflow_id), workflows=[ReleaseWorkflow]):
+        handle = client.get_workflow_handle(workflow_id, run_id=run_id)
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("platform"), str):
+                raise ValueError("The native receipt entry is invalid.")
+            receipt = cast(
+                GithubArtifactReceipt,
+                value_to_type(GithubArtifactReceipt, row.get("receipt")),
+            )
+            await handle.execute_update(
+                "recordArtifact",
+                args=[row["platform"], receipt],
+                result_type=ReleaseStatus,
+            )
+
+
+async def release_plan(
     client: Client, workflow_id: str, run_id: str
 ) -> dict[str, list[dict[str, Any]]]:
-    """Translate one durable release snapshot into minimal Actions matrix entries.
+    """Translate one durable release snapshot into build and publication plans.
 
     Native entries contain no credentials and are emitted only for missing platforms.
     A publication entry is emitted only after the immutable release identity exists;
@@ -291,15 +318,26 @@ async def release_jobs(
     return jobs
 
 
-async def output_jobs(client: Client, workflow_id: str, run_id: str) -> None:
-    """Emit jobs for the exact release Workflow started by this merge run."""
-    jobs = await release_jobs(client, workflow_id, run_id)
-    for name, selected in jobs.items():
-        output(f"{name}_count", len(selected))
-        output(
-            f"{name}_matrix",
-            json.dumps({"include": json_value(selected)}, separators=(",", ":")),
-        )
+async def output_builds(client: Client, workflow_id: str, run_id: str) -> None:
+    """Emit the native matrix for the exact Workflow started by this merge run."""
+    selected = (await release_plan(client, workflow_id, run_id))["build"]
+    output("build_count", len(selected))
+    output(
+        "build_matrix",
+        json.dumps({"include": json_value(selected)}, separators=(",", ":")),
+    )
+
+
+async def output_publication(client: Client, workflow_id: str, run_id: str) -> None:
+    """Emit the sole publication plan after all native receipts are durable."""
+    selected = (await release_plan(client, workflow_id, run_id))["publication"]
+    if len(selected) != 1:
+        raise RuntimeError("The release is not ready for its single publication job.")
+    publication = selected[0]
+    for field in ("taskQueue", "releaseDigest", "version", "commitSha"):
+        output(re.sub(r"(?<!^)(?=[A-Z])", "_", field).lower(), publication[field])
+    output("maven_payload_recorded", str(publication["mavenPayloadRecorded"]).lower())
+    output("maven_artifacts", json.dumps(publication["mavenArtifacts"], separators=(",", ":")))
 
 
 async def run_worker(client: Client, queue: str, env: Mapping[str, str]) -> None:
@@ -340,15 +378,6 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
             workflow_id, run_id = await start_candidate(client, candidate_from_push(env))
             output("workflow_id", workflow_id)
             output("run_id", run_id)
-        case ["record-artifact", workflow_id, run_id, platform, path]:
-            await update(
-                client,
-                workflow_id,
-                run_id,
-                "recordArtifact",
-                platform,
-                read(path, GithubArtifactReceipt),
-            )
         case ["record-maven", workflow_id, run_id, path]:
             await update(
                 client,
@@ -357,8 +386,12 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
                 "recordMavenPayload",
                 read(path, GithubArtifactReceipt),
             )
-        case ["jobs", workflow_id, run_id]:
-            await output_jobs(client, workflow_id, run_id)
+        case ["record-native-batch", workflow_id, run_id, path]:
+            await record_native_receipts(client, workflow_id, run_id, Path(path))
+        case ["builds", workflow_id, run_id]:
+            await output_builds(client, workflow_id, run_id)
+        case ["publication", workflow_id, run_id]:
+            await output_publication(client, workflow_id, run_id)
         case ["worker", queue]:
             await run_worker(client, queue, env)
         case _:

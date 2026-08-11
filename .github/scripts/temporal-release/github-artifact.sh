@@ -49,8 +49,31 @@ record_artifact() {
       githubDigest:$githubDigest,fileName:$fileName}' >"$GITHUB_ARTIFACT_RECEIPT_FILE"
 }
 
+# Record every pending native matrix entry in one receipt batch. This keeps candidate
+# compilation credential-free without creating a second six-job Actions matrix.
+record_matrix() {
+  need GH_TOKEN NATIVE_BUILD_MATRIX NATIVE_RECEIPTS_FILE
+  jq -e '.include | type == "array" and length > 0' <<<"$NATIVE_BUILD_MATRIX" >/dev/null ||
+    conflict "invalid native matrix."
+  batch_work=$(mktemp -d)
+  trap 'rm -rf "$batch_work"' EXIT
+  while IFS=$'\t' read -r platform digest file_name; do
+    [[ $platform =~ ^[A-Za-z0-9-]+$ && $digest =~ ^[0-9a-f]{64}$ &&
+      $file_name =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || conflict "invalid matrix entry."
+    GITHUB_ARTIFACT_NAME=sdk-java-release-native-$digest-$platform
+    GITHUB_ARTIFACT_FILE_NAME=$file_name
+    GITHUB_ARTIFACT_RECEIPT_FILE=$batch_work/receipt.json
+    record_artifact
+    jq -cn --arg platform "$platform" --slurpfile receipt "$batch_work/receipt.json" \
+      '{platform:$platform,receipt:$receipt[0]}' >>"$batch_work/receipts.jsonl"
+  done < <(jq -r '.include[] | [.platform,.candidateDigest,.fileName] | @tsv' \
+    <<<"$NATIVE_BUILD_MATRIX")
+  jq -s . "$batch_work/receipts.jsonl" >"$NATIVE_RECEIPTS_FILE"
+}
+
 case ${1:-} in
   find) find_artifact ;;
   record) record_artifact ;;
-  *) fail "expected find or record." ;;
+  record-matrix) record_matrix ;;
+  *) fail "expected find, record, or record-matrix." ;;
 esac

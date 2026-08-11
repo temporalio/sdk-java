@@ -45,3 +45,18 @@ PATH="$work/bin:$PATH" FAKE_GH_RESPONSE_FILE="$work/live.json" GH_TOKEN=test \
   GITHUB_ARTIFACT_RECEIPT_FILE="$work/receipt.json" "$root/github-artifact.sh" record
 jq -e '.artifactId == 11 and .workflowRunId == 22 and .fileName == "release.tar.gz"' \
   "$work/receipt.json" >/dev/null
+
+digest=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+cat >"$work/matrix-artifact.json" <<JSON
+[{"artifacts":[{"id":31,"name":"sdk-java-release-native-$digest-linux-amd64",
+"expired":false,"digest":"sha256:$digest","workflow_run":{"id":32}}]}]
+JSON
+cat >"$work/matrix.json" <<JSON
+{"include":[{"platform":"linux-amd64","candidateDigest":"$digest",
+"fileName":"temporal-test-server_1.2.3_linux_amd64.tar.gz"}]}
+JSON
+PATH="$work/bin:$PATH" FAKE_GH_RESPONSE_FILE="$work/matrix-artifact.json" GH_TOKEN=test \
+  NATIVE_BUILD_MATRIX="$(<"$work/matrix.json")" NATIVE_RECEIPTS_FILE="$work/receipts.json" \
+  "$root/github-artifact.sh" record-matrix
+jq -e 'length == 1 and .[0].platform == "linux-amd64" and
+  .[0].receipt.artifactId == 31' "$work/receipts.json" >/dev/null
