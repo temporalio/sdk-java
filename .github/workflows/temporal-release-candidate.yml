@@ -1,9 +1,5 @@
 name: Run Temporal-backed release
 
-defaults:
-  run:
-    shell: bash
-
 on:
   push:
     branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
@@ -27,202 +23,133 @@ jobs:
     outputs:
       workflow_id: ${{ steps.start.outputs.workflow_id }}
       run_id: ${{ steps.start.outputs.run_id }}
-      build_count: ${{ steps.temporal.outputs.build_count }}
-      build_matrix: ${{ steps.temporal.outputs.build_matrix }}
+      candidate_id: ${{ steps.start.outputs.candidate_id }}
+      tag: ${{ steps.start.outputs.tag }}
+      version: ${{ steps.start.outputs.version }}
+      maven_artifacts: ${{ steps.start.outputs.maven_artifacts }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          path: source
           persist-credentials: false
           ref: ${{ github.sha }}
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: automation
-          persist-credentials: false
-          ref: ${{ github.sha }}
-      - uses: ./automation/.github/release-automation/setup
-      - name: Start the release Workflow
+      - uses: ./.github/release-automation/setup
+      - name: Start the exact release Workflow
         id: start
-        working-directory: source
         env:
           BASE_SHA: ${{ github.event.before }}
           RELEASE_COMMIT: ${{ github.sha }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
-        run: uv run --directory ../automation/.github/release-automation --frozen --no-dev python -m release_automation.cli start
-      - name: Select native builds for this release
-        id: temporal
-        working-directory: automation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
         run: >-
-          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
-          builds ${{ steps.start.outputs.workflow_id }} ${{ steps.start.outputs.run_id }}
+          uv run --directory .github/release-automation --frozen --no-dev
+          python -m release_automation.release start
 
   build_native:
     needs: start
-    if: needs.start.outputs.build_count != '0'
     strategy:
       fail-fast: false
-      matrix: ${{ fromJSON(needs.start.outputs.build_matrix) }}
+      matrix:
+        include:
+          - {platform: linux-amd64-musl, runner: ubuntu-latest, asset: linux_amd64_musl, extension: .tar.gz, binary: temporal-test-server}
+          - {platform: linux-amd64, runner: ubuntu-latest, asset: linux_amd64, extension: .tar.gz, binary: temporal-test-server}
+          - {platform: macos-amd64, runner: macos-15-intel, asset: macOS_amd64, extension: .tar.gz, binary: temporal-test-server, java: "23"}
+          - {platform: macos-arm64, runner: macos-latest, asset: macOS_arm64, extension: .tar.gz, binary: temporal-test-server, java: "23"}
+          - {platform: linux-arm64, runner: ubuntu-24.04-arm, asset: linux_arm64, extension: .tar.gz, binary: temporal-test-server}
+          - {platform: windows-amd64, runner: windows-latest, asset: windows_amd64, extension: .zip, binary: temporal-test-server.exe, java: "23"}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     env:
-      RELEASE_COMMIT: ${{ matrix.commitSha }}
+      ARTIFACT_NAME: sdk-java-release-native-${{ needs.start.outputs.candidate_id }}-${{ matrix.platform }}
+      RELEASE_COMMIT: ${{ github.sha }}
       RELEASE_PLATFORM: ${{ matrix.platform }}
       RELEASE_PREBUILT_NATIVE_DIR: ${{ runner.temp }}/native-output
-      RELEASE_TAG: ${{ matrix.tag }}
-      TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-    concurrency:
-      group: temporal-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
-      cancel-in-progress: false
+      RELEASE_TAG: ${{ needs.start.outputs.tag }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          path: source
           persist-credentials: false
-          ref: ${{ matrix.commitSha }}
+          ref: ${{ github.sha }}
           submodules: recursive
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          path: automation
-          persist-credentials: false
-          ref: ${{ matrix.commitSha }}
-      - name: Find an existing exact artifact
+      - name: Reuse the first artifact frozen for this candidate
         id: existing
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_ARTIFACT_NAME: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
-        run: automation/.github/scripts/temporal-release/github-artifact.sh find >>"$GITHUB_OUTPUT"
+        run: |
+          count=$(gh api --method GET "repos/${{ github.repository }}/actions/artifacts" -f name="$ARTIFACT_NAME" --jq '[.artifacts[] | select(.expired == false)] | length')
+          echo "found=$([[ $count != 0 ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
-        if: steps.existing.outputs.found != 'true' && (startsWith(matrix.platform, 'macos-') || startsWith(matrix.platform, 'windows-'))
+        if: steps.existing.outputs.found != 'true' && matrix.java
         with:
-          distribution: ${{ matrix.distribution }}
-          java-version: ${{ matrix.javaVersion }}
+          distribution: graalvm
+          java-version: ${{ matrix.java }}
       - uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
-        if: steps.existing.outputs.found != 'true' && (startsWith(matrix.platform, 'macos-') || startsWith(matrix.platform, 'windows-'))
+        if: steps.existing.outputs.found != 'true' && matrix.java
       - name: Compile without release credentials
         if: steps.existing.outputs.found != 'true'
-        working-directory: source
-        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/build-native-binary.sh"
-      - name: Package the deterministic release archive
+        run: .github/scripts/temporal-release/build-native-binary.sh
+      - name: Package the native asset
         if: steps.existing.outputs.found != 'true'
-        working-directory: source
-        env:
-          RELEASE_ARCHIVE_EXTENSION: ${{ matrix.archiveExtension }}
-          RELEASE_ASSET_PLATFORM: ${{ matrix.assetPlatform }}
-          RELEASE_BINARY_NAME: ${{ matrix.binaryName }}
-          RELEASE_OUTPUT_DIR: ${{ runner.temp }}/native-artifact
-        run: bash "$TRUSTED_AUTOMATION_ROOT/.github/scripts/temporal-release/package-native-artifact.sh"
-      - name: Upload the exact native archive
-        id: upload
+        shell: bash
+        run: |
+          root="temporal-test-server_${{ needs.start.outputs.version }}_${{ matrix.asset }}"
+          mkdir -p "$RUNNER_TEMP/native-artifact"
+          python3 .github/release-automation/release_automation/build.py native \
+            "$RELEASE_PREBUILT_NATIVE_DIR/${{ matrix.binary }}" \
+            "$RUNNER_TEMP/native-artifact/$root${{ matrix.extension }}" \
+            "$root" "${{ matrix.binary }}" "${{ matrix.platform }}"
+      - name: Upload the immutable native asset
         if: steps.existing.outputs.found != 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: sdk-java-release-native-${{ matrix.candidateDigest }}-${{ matrix.platform }}
+          name: ${{ env.ARTIFACT_NAME }}
           path: ${{ runner.temp }}/native-artifact
           if-no-files-found: error
           retention-days: 90
+
   publish:
     needs: [start, build_native]
-    if: >-
-      always() && needs.start.result == 'success' &&
-      (needs.start.outputs.build_count == '0' || needs.build_native.result == 'success')
     runs-on: ubuntu-latest
-    timeout-minutes: 360
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
     environment: release-publication
-    permissions:
-      actions: read
-      contents: read
+    env:
+      MAVEN_ARTIFACT_NAME: sdk-java-release-maven-${{ needs.start.outputs.candidate_id }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          path: automation
-          persist-credentials: false
-          ref: ${{ github.sha }}
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
           fetch-depth: 0
-          path: source
           persist-credentials: false
           ref: ${{ github.sha }}
           submodules: recursive
-      - name: Freeze native artifact receipts
-        if: needs.start.outputs.build_count != '0'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NATIVE_BUILD_MATRIX: ${{ needs.start.outputs.build_matrix }}
-          NATIVE_RECEIPTS_FILE: ${{ runner.temp }}/native-receipts.json
-        run: automation/.github/scripts/temporal-release/github-artifact.sh record-matrix
-      - uses: ./automation/.github/release-automation/setup
-      - name: Record native receipts in Release Workflow state
-        if: needs.start.outputs.build_count != '0'
-        working-directory: automation
-        env:
-          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
-        run: >-
-          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
-          record-native-batch ${{ needs.start.outputs.workflow_id }} ${{ needs.start.outputs.run_id }}
-          $RUNNER_TEMP/native-receipts.json
-      - name: Select the single publication
-        id: temporal
-        working-directory: automation
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
-        run: >-
-          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
-          publication ${{ needs.start.outputs.workflow_id }} ${{ needs.start.outputs.run_id }}
-      - name: Find an unrecorded Maven payload artifact
+      - name: Reuse the first signed payload frozen for this candidate
         id: existing
-        if: steps.temporal.outputs.maven_payload_recorded != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          GITHUB_ARTIFACT_NAME: sdk-java-release-maven-${{ steps.temporal.outputs.release_digest }}
-        run: automation/.github/scripts/temporal-release/github-artifact.sh find >>"$GITHUB_OUTPUT"
-      - name: Build and sign the frozen Maven payload
-        if: steps.temporal.outputs.maven_payload_recorded != 'true' && steps.existing.outputs.found != 'true'
-        working-directory: source
+        run: |
+          count=$(gh api --method GET "repos/${{ github.repository }}/actions/artifacts" -f name="$MAVEN_ARTIFACT_NAME" --jq '[.artifacts[] | select(.expired == false)] | length')
+          echo "found=$([[ $count != 0 ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
+      - name: Build and sign the Maven payload
+        if: steps.existing.outputs.found != 'true'
         env:
           JAR_SIGNING_KEY: ${{ secrets.JAR_SIGNING_KEY }}
           JAR_SIGNING_KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
           JAR_SIGNING_KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
-          MAVEN_ARTIFACTS_JSON: ${{ steps.temporal.outputs.maven_artifacts }}
-          MAVEN_PAYLOAD_COMMIT: ${{ steps.temporal.outputs.commit_sha }}
+          MAVEN_ARTIFACTS_JSON: ${{ needs.start.outputs.maven_artifacts }}
+          MAVEN_PAYLOAD_COMMIT: ${{ github.sha }}
           MAVEN_PAYLOAD_OUTPUT: ${{ runner.temp }}/maven-artifact
-          MAVEN_PAYLOAD_VERSION: ${{ steps.temporal.outputs.version }}
-          TRUSTED_AUTOMATION_ROOT: ${{ github.workspace }}/automation
-        run: python3 "$TRUSTED_AUTOMATION_ROOT/.github/release-automation/release_automation/maven_payload.py" build
-      - name: Upload the frozen Maven payload
-        if: steps.temporal.outputs.maven_payload_recorded != 'true' && steps.existing.outputs.found != 'true'
+          MAVEN_PAYLOAD_VERSION: ${{ needs.start.outputs.version }}
+        run: python3 .github/release-automation/release_automation/build.py maven
+      - name: Upload the immutable signed payload
+        if: steps.existing.outputs.found != 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: sdk-java-release-maven-${{ steps.temporal.outputs.release_digest }}
+          name: ${{ env.MAVEN_ARTIFACT_NAME }}
           path: ${{ runner.temp }}/maven-artifact
           if-no-files-found: error
           retention-days: 90
-      - name: Record the exact Maven payload
-        if: steps.temporal.outputs.maven_payload_recorded != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_ARTIFACT_FILE_NAME: maven-payload.tar
-          GITHUB_ARTIFACT_NAME: sdk-java-release-maven-${{ steps.temporal.outputs.release_digest }}
-          GITHUB_ARTIFACT_RECEIPT_FILE: ${{ runner.temp }}/maven-receipt.json
-        run: automation/.github/scripts/temporal-release/github-artifact.sh record
-      - name: Record the Maven artifact in Release Workflow state
-        if: steps.temporal.outputs.maven_payload_recorded != 'true'
-        working-directory: automation
-        env:
-          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
-        run: >-
-          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
-          record-maven ${{ needs.start.outputs.workflow_id }} ${{ needs.start.outputs.run_id }}
-          $RUNNER_TEMP/maven-receipt.json
+      - uses: ./.github/release-automation/setup
       - name: Mint publication GitHub App token
         id: publication-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
@@ -233,17 +160,14 @@ jobs:
           repositories: sdk-java
           permission-actions: read
           permission-contents: write
-      - name: Poll the release and generation-specific publication queues
-        working-directory: automation
+      - name: Run the release and generation-specific Temporal Workers
         env:
-          EXPECTED_RUN_ID: ${{ needs.start.outputs.run_id }}
-          EXPECTED_COMMIT: ${{ steps.temporal.outputs.commit_sha }}
-          EXPECTED_WORKFLOW_ID: ${{ needs.start.outputs.workflow_id }}
           GH_TOKEN: ${{ steps.publication-token.outputs.token }}
-          RELEASE_SOURCE_DIR: ${{ github.workspace }}/source
+          RELEASE_SOURCE_DIR: ${{ github.workspace }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
           TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_RELEASE_API_KEY }}
         run: >-
-          uv run --directory .github/release-automation --frozen --no-dev python -m release_automation.cli
-          worker ${{ steps.temporal.outputs.task_queue }}
+          uv run --directory .github/release-automation --frozen --no-dev
+          python -m release_automation.release publish
+          ${{ needs.start.outputs.candidate_id }} ${{ needs.start.outputs.run_id }}
