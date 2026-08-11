@@ -6,12 +6,13 @@ import re
 import sys
 import tarfile
 import xml.etree.ElementTree as ET
+from collections.abc import Iterable
 
 
 def validate(
     root: pathlib.Path,
     manifest: pathlib.Path,
-    policy: pathlib.Path,
+    policy: Iterable[str],
     version: str,
     commit: str,
     exact: bool,
@@ -23,7 +24,7 @@ def validate(
     complete, preventing a partially generated payload from becoming durable release data.
     """
     root = root.resolve()
-    approved = set(policy.read_text().splitlines())
+    approved = set(policy)
     records = []
     for line in manifest.read_text().splitlines():
         relative, digest, size = line.split("\t")
@@ -122,7 +123,8 @@ def main() -> None:
         manifest = pathlib.Path(source)
     else:
         raise ValueError("expected extract or validate")
-    validate(root_path, manifest, pathlib.Path(policy), version, commit, mode == "validate")
+    approved = pathlib.Path(policy).read_text().splitlines()
+    validate(root_path, manifest, approved, version, commit, mode == "validate")
 
 
 if __name__ == "__main__":

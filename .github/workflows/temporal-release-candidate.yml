@@ -191,14 +191,14 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.select_publication.outputs.publication_matrix) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     concurrency:
       group: sdk-java-release-publication
       cancel-in-progress: false
     environment: release-publication
     permissions:
       actions: read
-      contents: write
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -271,7 +271,6 @@ jobs:
           permission-actions: read
           permission-contents: write
       - name: Poll the release and generation-specific publication queues
-        timeout-minutes: 100
         working-directory: automation
         env:
           EXPECTED_RUN_ID: ${{ matrix.runId }}

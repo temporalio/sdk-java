@@ -5,6 +5,7 @@ import re
 import subprocess
 import sys
 from collections.abc import Mapping
+from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Any, TypeVar, cast
 
@@ -192,6 +193,14 @@ def workflow_queue(workflow_id: str) -> str:
     return candidate_queue_from_digest(workflow_id.removeprefix(prefix))
 
 
+def publication_worker_queues(queue: str) -> tuple[str, ...]:
+    """Return the current publication queue and its one bounded recovery successor."""
+    match = re.fullmatch(r"(sdk-java-release-[0-9a-f]{32}-publication-g)([01])", queue)
+    if match is None:
+        raise ValueError("Refusing to poll a non-publication Task Queue.")
+    return (queue, f"{match.group(1)}1") if match.group(2) == "0" else (queue,)
+
+
 def verify_candidate_origin(candidate: CandidateIdentity, run: Mapping[str, Any]) -> None:
     """Reconfirm that GitHub authorized the candidate from the expected push workflow.
 
@@ -293,33 +302,33 @@ async def output_jobs(client: Client, workflow_id: str, run_id: str) -> None:
 
 
 async def run_worker(client: Client, queue: str, env: Mapping[str, str]) -> None:
-    """Poll one release Workflow queue and one exact publication generation queue.
+    """Poll one release Workflow queue and the bounded publication generation queues.
 
     Hosting both Workers in the publication job removes a separate Actions worker
     matrix. Activities still exist only on the privileged generation-specific queue,
     while deterministic Workflow code polls the candidate-specific queue.
     """
-    if not queue.startswith("sdk-java-release-") or "-publication-g" not in queue:
-        raise ValueError("Refusing to poll a non-publication Task Queue.")
+    queues = publication_worker_queues(queue)
     workflow_id = required(env, "EXPECTED_WORKFLOW_ID")
     source = Path(required(env, "RELEASE_SOURCE_DIR")).absolute()
     if not source.is_dir():
         raise ValueError("RELEASE_SOURCE_DIR is not a directory.")
-    activities = PublicationActivities(ROOT, source, env)
+    activities = PublicationActivities(source, env)
     release_worker = Worker(
         client, task_queue=workflow_queue(workflow_id), workflows=[ReleaseWorkflow]
     )
-    publication_worker = Worker(
-        client,
-        task_queue=queue,
-        activities=[activities.publish_release, activities.inspect_maven],
-    )
     handle = client.get_workflow_handle(workflow_id, run_id=env.get("EXPECTED_RUN_ID"))
-    async with release_worker, publication_worker:
-        try:
-            await asyncio.wait_for(asyncio.shield(handle.result()), 95 * 60)
-        except TimeoutError:
-            pass
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(release_worker)
+        for task_queue in queues:
+            await stack.enter_async_context(
+                Worker(
+                    client,
+                    task_queue=task_queue,
+                    activities=[activities.publish_release, activities.inspect_maven],
+                )
+            )
+        await handle.result()
 
 
 async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
@@ -357,7 +366,7 @@ async def async_main(argv: list[str], env: Mapping[str, str]) -> None:
 
 def main() -> None:
     """Validate the trusted checkout layout and run the asynchronous CLI."""
-    if not (ROOT / ".github/scripts/temporal-release/reconcile-publication.sh").is_file():
+    if not (ROOT / ".github/scripts/temporal-release/prepare-maven-payload.sh").is_file():
         raise RuntimeError("The trusted repository root has an unexpected layout.")
     asyncio.run(async_main(sys.argv[1:], os.environ))
 

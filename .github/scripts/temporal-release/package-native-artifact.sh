@@ -31,42 +31,8 @@ artifact_name=${archive_root}${RELEASE_ARCHIVE_EXTENSION}
 mkdir -p "$RELEASE_OUTPUT_DIR"
 [[ -z $(find "$RELEASE_OUTPUT_DIR" -mindepth 1 -maxdepth 1 -print -quit) ]] ||
   fail "The native artifact output directory is not empty."
-python3 - "$binary" "$RELEASE_OUTPUT_DIR/$artifact_name" "$archive_root" \
-  "$RELEASE_BINARY_NAME" "$RELEASE_PLATFORM" <<'PY'
-import gzip
-import io
-import pathlib
-import stat
-import sys
-import tarfile
-import zipfile
-
-source, output, root, binary_name, platform = sys.argv[1:]
-data = pathlib.Path(source).read_bytes()
-if platform == "windows-amd64":
-    info = zipfile.ZipInfo(f"{root}/{binary_name}", (1980, 1, 1, 0, 0, 0))
-    info.compress_type = zipfile.ZIP_DEFLATED
-    info.external_attr = (stat.S_IFREG | 0o755) << 16
-    with zipfile.ZipFile(output, "w") as archive:
-        archive.writestr(info, data)
-else:
-    tar_bytes = io.BytesIO()
-    with tarfile.open(fileobj=tar_bytes, mode="w", format=tarfile.GNU_FORMAT) as archive:
-        directory = tarfile.TarInfo(root)
-        directory.type = tarfile.DIRTYPE
-        directory.mode = 0o755
-        directory.uid = directory.gid = directory.mtime = 0
-        directory.uname = directory.gname = ""
-        archive.addfile(directory)
-        entry = tarfile.TarInfo(f"{root}/{binary_name}")
-        entry.size = len(data)
-        entry.mode = 0o755
-        entry.uid = entry.gid = entry.mtime = 0
-        entry.uname = entry.gname = ""
-        archive.addfile(entry, io.BytesIO(data))
-    with open(output, "wb") as raw:
-        with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as compressed:
-            compressed.write(tar_bytes.getvalue())
-PY
+python3 "$TRUSTED_AUTOMATION_ROOT/.github/release-automation/release_automation/native_artifact.py" \
+  "$binary" "$RELEASE_OUTPUT_DIR/$artifact_name" "$archive_root" \
+  "$RELEASE_BINARY_NAME" "$RELEASE_PLATFORM"
 [[ -s $RELEASE_OUTPUT_DIR/$artifact_name ]] || fail "The native archive was not created."
 printf '%s\n' "$artifact_name"

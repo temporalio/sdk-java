@@ -211,3 +211,10 @@ async def test_native_receipts_freeze_identity_in_same_workflow() -> None:
             status = await wait_phase(handle, "AWAITING_MAVEN_PAYLOAD")
             assert status.identity is not None
             assert status.identity.digest() == expected.digest()
+            repeated = await handle.execute_update(
+                "recordArtifact",
+                args=[NATIVE_PLATFORMS[-1], expected.artifacts[-1]],
+                result_type=ReleaseStatus,
+            )
+            assert repeated.identity is not None
+            assert repeated.identity.digest() == expected.digest()

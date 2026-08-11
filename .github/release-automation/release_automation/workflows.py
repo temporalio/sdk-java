@@ -66,16 +66,13 @@ class ReleaseWorkflow:
     def validate_artifact(self, platform: str, artifact: GithubArtifactReceipt) -> None:
         """Reject wrong-platform receipts and conflicting repeat deliveries."""
         candidate = self.candidate
-        if candidate is None or self.s.identity is not None:
+        if candidate is None:
             raise RuntimeError("Release is not waiting for this native platform.")
         valid = github_native_artifact_name(candidate, platform) == artifact.artifactName
         valid &= artifact.fileName == native_artifact_name(candidate.version, platform)
         if not valid:
             raise ValueError("GitHub artifact does not match the native platform.")
-        if platform not in self.s.pendingPlatforms and not any(
-            old.artifactName == artifact.artifactName and old == artifact
-            for old in self.s.artifacts
-        ):
+        if platform not in self.s.pendingPlatforms and artifact not in self.s.artifacts:
             raise RuntimeError("Release already recorded another native artifact.")
 
     @workflow.update(name="recordMavenPayload")
@@ -131,10 +128,17 @@ class ReleaseWorkflow:
     async def _recover_maven(self, cause: BaseException) -> None:
         """Prove a prior Maven generation inactive before permitting one replacement.
 
-        Two inspections separated by durable Workflow time guard against eventually
-        consistent Sonatype repository creation. A visible or progressing repository is
-        retained; only repeated evidence of absence, or a terminal failed Portal
-        deployment whose repository is released, can advance to the single replacement.
+        A generation is a distinct Sonatype staging repository, not an ordinary retry.
+        Transient failures therefore remain in the current generation. Two inspections
+        separated by durable Workflow time guard against eventually consistent repository
+        creation, and a final Activity-side inspection closes the remaining creation race.
+
+        A visible or progressing repository is retained. Only repeated evidence of absence,
+        or a terminal failed Portal deployment whose repository is released, permits the
+        single generation-one replacement. If that replacement also fails, the Workflow
+        stops instead of creating repositories indefinitely: one replacement recovers the
+        known ambiguous-response case while bounding duplicate external state and keeping
+        reconciliation understandable.
         """
         assert self.s.identity
         for final in (False, True):

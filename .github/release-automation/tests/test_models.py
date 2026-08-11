@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from release_automation.cli import verify_candidate_origin
+from release_automation.cli import publication_worker_queues, verify_candidate_origin
 from release_automation.maven_payload import extract
 from release_automation.models import (
     MAVEN_ARTIFACTS,
@@ -64,6 +64,16 @@ def test_identity_platforms_order_and_queues_are_stable() -> None:
     assert "temporal-test-server_1.2.3_macOS_amd64.tar.gz" in {x.fileName for x in value.artifacts}
     reversed_release = ReleaseIdentity(value.candidate, list(reversed(value.artifacts)))
     assert reversed_release.digest() == value.digest()
+
+
+def test_publication_worker_polls_only_the_bounded_generation_window() -> None:
+    """Keep generation-specific queues while covering the one allowed replacement."""
+    generation_zero = publication_queue(release())
+    generation_one = publication_queue(release(), 1)
+    assert publication_worker_queues(generation_zero) == (generation_zero, generation_one)
+    assert publication_worker_queues(generation_one) == (generation_one,)
+    with pytest.raises(ValueError, match="non-publication"):
+        publication_worker_queues("sdk-java-release-invalid-publication-g9")
 
 
 def test_fixed_platform_and_maven_policy_cannot_drift() -> None:

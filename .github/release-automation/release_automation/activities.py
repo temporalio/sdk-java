@@ -1,15 +1,12 @@
 import asyncio
-import json
 import os
 import signal
 import subprocess
-import tempfile
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import TypeVar
 
 from temporalio import activity
-from temporalio.converter import value_to_type
 from temporalio.exceptions import ApplicationError
 
 from .models import (
@@ -17,30 +14,22 @@ from .models import (
     PublicationInput,
     ReleaseResult,
     candidate_workflow_id,
-    json_value,
     matches_maven_payload,
-    maven_artifacts,
     publication_queue,
 )
+from .publication import PublicationFailure, Publisher
 
-T = TypeVar("T")
 PASSTHROUGH_ENV = {"PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "JAVA_HOME", "CI"}
-COMMAND_FAILURES = {
-    42: ("Immutable external identity or checksum conflict.", "ReleaseIdentityConflict"),
-    44: ("Maven repository identity is not yet visible.", "MavenSubmissionAmbiguous"),
-    45: ("Portal deployment failed validation.", "MavenDeploymentFailed"),
-    46: ("GitHub artifact expired or was deleted.", "ArtifactUnavailable"),
-}
+Result = TypeVar("Result", ReleaseResult, MavenInspection)
 
 
-async def run_trusted_command(cwd: Path, script: Path, env: Mapping[str, str]) -> list[str]:
-    """Run trusted shell reconciliation with an explicit, credential-minimal environment.
+async def run_trusted_process(cwd: Path, command: Sequence[str], env: Mapping[str, str]) -> bytes:
+    """Run a trusted process with an explicit, credential-minimal environment.
 
     The child gets only a small host-runtime allowlist plus values selected by the
     Activity. It runs in its own process group so Temporal cancellation can terminate
     the complete command tree, including curl, gh, Docker, Gradle, or GPG children.
     """
-    command = ["bash", str(script.absolute())]
     child_env = {key: value for key, value in os.environ.items() if key in PASSTHROUGH_ENV}
     child_env.update(env)
     process = await asyncio.create_subprocess_exec(
@@ -68,7 +57,13 @@ async def run_trusted_command(cwd: Path, script: Path, env: Mapping[str, str]) -
         await asyncio.gather(beat, return_exceptions=True)
     if process.returncode:
         raise subprocess.CalledProcessError(process.returncode, command)
-    return stdout.decode().splitlines()
+    return stdout
+
+
+async def run_trusted_command(cwd: Path, script: Path, env: Mapping[str, str]) -> list[str]:
+    """Run a trusted shell script; retained as the small process-isolation test seam."""
+    output = await run_trusted_process(cwd, ["bash", str(script.absolute())], env)
+    return output.decode().splitlines()
 
 
 async def _terminate_tree(process: asyncio.subprocess.Process) -> None:
@@ -86,30 +81,33 @@ async def _terminate_tree(process: asyncio.subprocess.Process) -> None:
 class PublicationActivities:
     def __init__(
         self,
-        trusted_root: Path,
         source_root: Path,
         environment: Mapping[str, str],
     ) -> None:
-        """Capture trusted/source roots and a snapshot of the privileged job environment."""
-        self.trusted_root, self.source_root = trusted_root, source_root
+        """Capture the source root and a snapshot of the privileged job environment."""
+        self.source_root = source_root
         self.environment = dict(environment)
 
     @activity.defn(name="publishRelease")
     async def publish_release(self, value: PublicationInput) -> ReleaseResult:
         """Reconcile Maven and GitHub to the exact public release state."""
-        return await self._command(value, "all", ReleaseResult)
+        return await self._run(value, Publisher.publish_release)
 
     @activity.defn(name="inspectMaven")
     async def inspect_maven(self, value: PublicationInput) -> MavenInspection:
         """Inspect every durable Maven generation without creating or publishing state."""
-        return await self._command(value, "inspect", MavenInspection)
+        return await self._run(value, Publisher.inspect_maven)
 
-    async def _command(self, value: PublicationInput, stage: str, result_type: type[T]) -> T:
-        """Validate Activity routing, execute reconciliation, and decode its typed result.
+    async def _run(
+        self,
+        value: PublicationInput,
+        operation: Callable[[Publisher], Awaitable[Result]],
+    ) -> Result:
+        """Validate routing and execute one typed publication operation.
 
-        Semantic conflicts and Maven ambiguity use stable exit codes that become typed,
-        non-retryable ApplicationErrors. Transient process and network failures remain
-        ordinary Activity failures and therefore use Temporal's configured retry policy.
+        Durable semantic outcomes become non-retryable ApplicationErrors. Network,
+        process, and visibility failures remain ordinary exceptions so Temporal applies
+        the Workflow's retry policy.
         """
         try:
             expected_commit = self.environment.get("EXPECTED_COMMIT")
@@ -121,39 +119,20 @@ class PublicationActivities:
             raise ApplicationError(
                 str(error), type="InvalidPublicationInput", non_retryable=True
             ) from error
-        with tempfile.TemporaryDirectory(prefix="temporal-release-") as directory:
-            input_file, output_file = (
-                Path(directory) / name for name in ("input.json", "output.json")
-            )
-            data = json_value(value) | {
-                "releaseDigest": value.release.digest(),
-                "mavenArtifacts": maven_artifacts(value.release.candidate.mavenPolicy),
-            }
-            input_file.write_text(json.dumps(data, separators=(",", ":")))
-            env = {
-                "RELEASE_INPUT_FILE": str(input_file),
-                "RELEASE_OUTPUT_FILE": str(output_file),
-                "RELEASE_STAGE": stage,
-                "TRUSTED_AUTOMATION_ROOT": str(self.trusted_root),
-            }
-            for name in ("GH_TOKEN", "RH_USER", "RH_PASSWORD"):
-                if self.environment.get(name):
-                    env[name] = self.environment[name]
-            try:
-                output = await run_trusted_command(
-                    self.source_root,
-                    self.trusted_root / ".github/scripts/temporal-release/reconcile-publication.sh",
-                    env,
-                )
-            except subprocess.CalledProcessError as error:
-                if error.returncode not in COMMAND_FAILURES:
-                    raise
-                message, kind = COMMAND_FAILURES[error.returncode]
-                raise ApplicationError(message, type=kind, non_retryable=True) from error
-            if output:
-                raise RuntimeError("Publication command wrote unexpected standard output.")
-            raw: Any = json.loads(output_file.read_text())
-            return cast(T, value_to_type(result_type, raw))
+
+        async def command(arguments: Sequence[str], env: Mapping[str, str]) -> bytes:
+            """Run publication tools through the Activity's cancellation-aware boundary."""
+            return await run_trusted_process(self.source_root, arguments, env)
+
+        publisher: Publisher | None = None
+        try:
+            publisher = Publisher(value, self.source_root, self.environment, command)
+            return await operation(publisher)
+        except PublicationFailure as error:
+            raise ApplicationError(str(error), type=error.error_type, non_retryable=True) from error
+        finally:
+            if publisher is not None:
+                publisher.close()
 
 
 def validate_publication(

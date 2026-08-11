@@ -50,24 +50,23 @@ cp "$trusted_root/gradle/versioning.gradle" gradle/versioning.gradle
 restore_hook() { cp "$hook_backup" gradle/versioning.gradle; }
 trap restore_hook EXIT
 
+# Use the repository's existing native-image Docker definitions for Linux builds.
+# The optional final arguments select musl without duplicating the build/run boundary.
+build_linux() {
+  local dockerfile=$1 image_file=$hook_backup.image
+  shift
+  docker build --iidfile "$image_file" "$trusted_root/docker/$dockerfile" 1>&2
+  docker run --rm -w /github/workspace -v "$PWD:/github/workspace" "$(<"$image_file")" \
+    ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild "$@" \
+    :temporal-test-server:nativeCompile 1>&2
+}
+
 case "$RELEASE_PLATFORM" in
   linux-amd64-musl)
-    image_id_file=$(mktemp)
-    docker build --iidfile "$image_id_file" \
-      "$trusted_root/docker/native-image-musl" 1>&2
-    docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
-      "$(<"$image_id_file")" \
-      ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild -PnativeBuildMusl \
-      :temporal-test-server:nativeCompile 1>&2
+    build_linux native-image-musl -PnativeBuildMusl
     ;;
   linux-amd64 | linux-arm64)
-    image_id_file=$(mktemp)
-    docker build --iidfile "$image_id_file" \
-      "$trusted_root/docker/native-image" 1>&2
-    docker run --rm -w /github/workspace -v "$PWD:/github/workspace" \
-      "$(<"$image_id_file")" \
-      ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild \
-      :temporal-test-server:nativeCompile 1>&2
+    build_linux native-image
     ;;
   macos-amd64 | macos-arm64 | windows-amd64)
     ./gradlew "-PreleaseVersion=$release_version" -PnativeBuild \
