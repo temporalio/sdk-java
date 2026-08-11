@@ -34,7 +34,7 @@ from release_automation.release import (
 
 def candidate() -> Candidate:
     """Return the immutable candidate shared by focused tests."""
-    return Candidate("v1.2.3", "0123456789abcdef0123456789abcdef01234567")
+    return Candidate("v1.2.3", "0123456789abcdef0123456789abcdef01234567", MAVEN_POLICIES[0])
 
 
 def artifacts() -> list[Artifact]:
@@ -143,7 +143,7 @@ def test_identity_and_queues_are_release_specific() -> None:
     assert len(value.id) == 64
     assert workflow_queue(value.id) != publication_queue(value.id, 0)
     assert publication_queue(value.id, 0) != publication_queue(value.id, 1)
-    assert len(MAVEN_POLICIES) == 17
+    assert sorted(map(len, MAVEN_POLICIES)) == [9, 11, 11, 17]
     with pytest.raises(ValueError, match="generations"):
         publication_queue(value.id, 2)
 

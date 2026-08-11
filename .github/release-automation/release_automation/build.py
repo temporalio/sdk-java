@@ -56,6 +56,8 @@ def unsigned(source: pathlib.Path, work: pathlib.Path, version: str, commit: str
 
 def sign(root: pathlib.Path, home: pathlib.Path, env: Mapping[str, str]) -> None:
     """Sign Maven payload files and create required legacy checksums."""
+    for stale in (path for path in root.rglob("*") if path.suffix in {".asc", ".md5", ".sha1"}):
+        stale.unlink()
     try:
         key = base64.b64decode(env["JAR_SIGNING_KEY"], validate=True)
     except (KeyError, binascii.Error) as error:

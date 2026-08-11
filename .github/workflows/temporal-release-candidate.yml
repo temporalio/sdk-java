@@ -1,14 +1,11 @@
 name: Run Temporal-backed release
-
 on:
   push:
     branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
     paths: ["releases/v*"]
-
 permissions:
   actions: read
   contents: read
-
 env:
   TEMPORAL_ADDRESS: ${{ vars.TEMPORAL_RELEASE_ADDRESS }}
   TEMPORAL_NAMESPACE: ${{ vars.TEMPORAL_RELEASE_NAMESPACE }}
@@ -21,7 +18,6 @@ jobs:
       group: temporal-release-bootstrap-${{ github.sha }}
       cancel-in-progress: false
     outputs:
-      workflow_id: ${{ steps.start.outputs.workflow_id }}
       run_id: ${{ steps.start.outputs.run_id }}
       candidate_id: ${{ steps.start.outputs.candidate_id }}
       tag: ${{ steps.start.outputs.tag }}
@@ -106,7 +102,6 @@ jobs:
           path: ${{ runner.temp }}/native-artifact
           if-no-files-found: error
           retention-days: 90
-
   publish:
     needs: [start, build_native]
     runs-on: ubuntu-latest

@@ -40,13 +40,17 @@ PLATFORMS = {
     "linux-arm64": ("linux_arm64", ".tar.gz", "temporal-test-server"),
     "windows-amd64": ("windows_amd64", ".zip", "temporal-test-server.exe"),
 }
-MAVEN_POLICIES = (
+CURRENT_MAVEN = (
     "temporal-aws-lambda temporal-bom temporal-envconfig temporal-kotlin temporal-opentelemetry "
     "temporal-opentracing temporal-remote-data-encoder temporal-sdk temporal-serviceclient "
     "temporal-shaded temporal-spring-ai temporal-spring-boot-autoconfigure "
     "temporal-spring-boot-starter temporal-test-server temporal-testing "
     "temporal-workflowcheck temporal-workflowstreams"
 ).split()
+MODERN_ONLY = "temporal-aws-lambda temporal-envconfig temporal-opentelemetry temporal-spring-ai temporal-workflowcheck temporal-workflowstreams".split()
+CLASSIC_MAVEN = [x for x in CURRENT_MAVEN if x not in MODERN_ONLY]
+ALPHA_MAVEN = [x.replace("autoconfigure", "autoconfigure-alpha").replace("starter", "starter-alpha") for x in CLASSIC_MAVEN]
+MAVEN_POLICIES = [CURRENT_MAVEN, CLASSIC_MAVEN, ALPHA_MAVEN, [x for x in ALPHA_MAVEN if x not in {"temporal-bom", "temporal-shaded"}]]
 T = TypeVar("T")
 
 
@@ -59,10 +63,11 @@ def digest(value: Any) -> str:
 class Candidate:
     tag: str
     commit: str
+    maven: list[str]
 
     def validate(self) -> None:
-        """Validate the only two values approved by merging release notes."""
-        if not TAG.fullmatch(self.tag) or not SHA.fullmatch(self.commit):
+        """Validate the merged identity and its fixed Maven project policy."""
+        if not TAG.fullmatch(self.tag) or not SHA.fullmatch(self.commit) or self.maven not in MAVEN_POLICIES:
             raise ValueError("Invalid release identity.")
 
     @property
@@ -222,11 +227,12 @@ class ReleaseWorkflow:
         on generation zero; only repeated absence or a released failed Portal deployment
         permits generation one. Generation one can never create another successor.
         """
+        assert self.candidate
         retryable = False
         for final in (False, True):
             found = await self._activity("inspectMaven", Inspection)
             self._adopt(found)
-            if found.central == len(MAVEN_POLICIES):
+            if found.central == len(self.candidate.maven):
                 return
             current = found.generations[-1]
             if current.repositoryState in {"open", "closed"} or current.portalState in {
@@ -432,13 +438,13 @@ class Session:
         )
         archive = await self.download(maven, self.work / "maven")
         root, manifest = unpack_maven(archive, self.work / "bundle")
-        records = validate_maven(root, manifest, MAVEN_POLICIES, self.candidate, False)
+        records = validate_maven(root, manifest, self.candidate.maven, self.candidate, False)
         return root, records
 
     async def central(self) -> int:
         """Count exact Central POM identities and reject partial/conflicting state."""
         present = 0
-        for name in MAVEN_POLICIES:
+        for name in self.candidate.maven:
             status, pom = await self.request(f"{CENTRAL}/io/temporal/{name}/{self.candidate.version}/{name}-{self.candidate.version}.pom")
             if status == 404:
                 continue
@@ -451,7 +457,7 @@ class Session:
             if identity != ("io.temporal", name, self.candidate.version, self.candidate.commit):
                 raise ReleaseError(f"Central coordinate {name} has another identity.")
             present += 1
-        if present not in {0, len(MAVEN_POLICIES)}:
+        if present not in {0, len(self.candidate.maven)}:
             raise RuntimeError("Maven Central is partially visible.")
         return present
 
@@ -539,7 +545,7 @@ class Session:
 
     async def maven(self, root: Path, records: list[tuple[str, str, int]]) -> None:
         """Reconcile the current staging repository through Portal publication."""
-        if await self.central() == len(MAVEN_POLICIES):
+        if await self.central() == len(self.candidate.maven):
             return
         current, view = self.value.generations[-1], await self.view()
         repository = current.repository or view.find(self.description(current.number))
@@ -552,7 +558,8 @@ class Session:
                 state = await self.portal_state(portal_id) if portal_id else ""
                 if profiles or manual and (manual[0].get("state") != "released" or state != "FAILED"):
                     raise MavenAmbiguous("An earlier Maven generation is still active.")
-            repository = await self.create_repository(self.description(current.number))
+            await self.create_repository(self.description(current.number))
+            raise MavenAmbiguous("Sonatype repository created; adopting its identity.")
         profiles, manual = (await self.view()).repository(repository)
         state, portal = self.repository_state(profiles, manual)
         if state == "open":
@@ -623,7 +630,7 @@ class Session:
 
     async def github_release(self) -> ReleaseResult:
         """Publish GitHub only after Maven Central and draft assets are complete."""
-        if await self.central() != len(MAVEN_POLICIES):
+        if await self.central() != len(self.candidate.maven):
             raise RuntimeError("Maven Central is incomplete.")
         await self.tag()
         release = await self.release()
@@ -746,7 +753,11 @@ def candidate_from_push() -> Candidate:
     ).splitlines()
     if len(changed) != 1 or not (match := re.fullmatch(r"A\s+(releases/(v.+))", changed[0])):
         raise ValueError("The merge must add exactly one release-note file.")
-    candidate = Candidate(match.group(2), commit)
+    projects = re.findall(r"(?m)^include ['\"]([^'\"]+)['\"]$", Path("settings.gradle").read_text())
+    policies = [policy for policy in MAVEN_POLICIES if len(projects) == len(policy) and set(projects) == set(policy)]
+    if len(policies) != 1:
+        raise ValueError("The Gradle project set is not a fixed Maven policy.")
+    candidate = Candidate(match.group(2), commit, policies[0])
     candidate.validate()
     if not Path(match.group(1)).is_file():
         raise ValueError("Release notes are unavailable.")
@@ -787,12 +798,11 @@ async def main() -> None:
                 id_reuse_policy=WorkflowIDReusePolicy.REJECT_DUPLICATE,
                 id_conflict_policy=WorkflowIDConflictPolicy.USE_EXISTING,
             )
-            output("workflow_id", handle.id)
             output("run_id", handle.result_run_id)
             output("candidate_id", candidate.id)
             output("tag", candidate.tag)
             output("version", candidate.version)
-            output("maven_artifacts", MAVEN_POLICIES)
+            output("maven_artifacts", candidate.maven)
         case ["publish", identity, run_id]:
             activities = ReleaseActivities(Path(required("RELEASE_SOURCE_DIR")), os.environ)
             workers = [
