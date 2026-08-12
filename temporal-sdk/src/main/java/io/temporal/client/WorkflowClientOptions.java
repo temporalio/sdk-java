@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** Options for WorkflowClient configuration. */
 public final class WorkflowClientOptions {
@@ -53,7 +54,7 @@ public final class WorkflowClientOptions {
     private QueryRejectCondition queryRejectCondition;
     private WorkflowClientPlugin[] plugins;
     private Duration workerHeartbeatInterval;
-    private ExternalStorageOptions externalStorage;
+    private @Nullable ExternalStorageOptions externalStorage;
 
     private Builder() {}
 
@@ -179,7 +180,7 @@ public final class WorkflowClientOptions {
      * disabled.
      */
     @Experimental
-    public Builder setExternalStorage(ExternalStorageOptions externalStorage) {
+    public Builder setExternalStorage(@Nullable ExternalStorageOptions externalStorage) {
       this.externalStorage = externalStorage;
       return this;
     }
@@ -266,7 +267,7 @@ public final class WorkflowClientOptions {
 
   private final Duration workerHeartbeatInterval;
 
-  private final ExternalStorageOptions externalStorage;
+  private final @Nullable ExternalStorageOptions externalStorage;
 
   private WorkflowClientOptions(
       String namespace,
@@ -278,7 +279,7 @@ public final class WorkflowClientOptions {
       QueryRejectCondition queryRejectCondition,
       WorkflowClientPlugin[] plugins,
       Duration workerHeartbeatInterval,
-      ExternalStorageOptions externalStorage) {
+      @Nullable ExternalStorageOptions externalStorage) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
@@ -357,7 +358,7 @@ public final class WorkflowClientOptions {
 
   /** External storage configuration, or null when external storage is disabled. */
   @Experimental
-  public ExternalStorageOptions getExternalStorage() {
+  public @Nullable ExternalStorageOptions getExternalStorage() {
     return externalStorage;
   }
 

@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
+import javax.annotation.Nullable;
 
 public class ActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
   private final WorkflowClient client;
@@ -22,7 +23,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
-  private final ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorageMessageTransformer externalStorage;
   private final ConcurrentMap<ByteBuffer, ActivityExecutionContextImpl> activeContexts =
       new ConcurrentHashMap<>();
 
@@ -34,7 +35,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
       Duration defaultHeartbeatThrottleInterval,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
-      ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorageMessageTransformer externalStorage) {
     this.client = Objects.requireNonNull(client);
     this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);

@@ -47,7 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private ExternalStorageMessageTransformer externalStorage;
+    private @Nullable ExternalStorageMessageTransformer externalStorage;
 
     private Builder() {}
 
@@ -189,8 +189,8 @@ public final class SingleWorkerOptions {
       return this;
     }
 
-    /** The message converter that offloads/restores external-storage payloads, or null. */
-    public Builder setExternalStorage(ExternalStorageMessageTransformer externalStorage) {
+    /** The message transformer that offloads/restores external-storage payloads, or null. */
+    public Builder setExternalStorage(@Nullable ExternalStorageMessageTransformer externalStorage) {
       this.externalStorage = externalStorage;
       return this;
     }
@@ -263,7 +263,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
-  private final ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorageMessageTransformer externalStorage;
 
   private SingleWorkerOptions(
       String identity,
@@ -287,7 +287,7 @@ public final class SingleWorkerOptions {
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
-      ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorageMessageTransformer externalStorage) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -407,7 +407,7 @@ public final class SingleWorkerOptions {
     return preferredVersionProvider;
   }
 
-  /** The external-storage message converter for this worker, or null when disabled. */
+  /** The external-storage message transformer for this worker, or null when disabled. */
   @Nullable
   public ExternalStorageMessageTransformer getExternalStorage() {
     return externalStorage;

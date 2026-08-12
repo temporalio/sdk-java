@@ -16,7 +16,8 @@ import javax.annotation.Nullable;
  * Decorates a {@link GenericWorkflowClient} to offload outbound request payloads to external
  * storage and restore inbound response payloads.
  *
- * <p>Only constructed when external storage is configured, so the converter is never null.
+ * <p>Only constructed when external storage is configured, so {@code externalStorage} is never
+ * null.
  */
 public final class ExternalStorageGenericWorkflowClient implements GenericWorkflowClient {
   private final GenericWorkflowClient next;
