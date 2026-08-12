@@ -59,6 +59,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private final WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
   private final String workerGroupingKey = java.util.UUID.randomUUID().toString();
   private final @Nullable HeartbeatManager heartbeatManager;
+  private final @Nullable ExternalStorageMessageTransformer externalStorage;
 
   /**
    * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
@@ -114,6 +115,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
         externalStorageOptions == null
             ? null
             : ExternalStorageMessageTransformer.create(externalStorageOptions);
+    this.externalStorage = externalStorage;
     GenericWorkflowClient genericClient =
         new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     if (externalStorage != null) {
@@ -829,6 +831,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Nullable
   public HeartbeatManager getHeartbeatManager() {
     return heartbeatManager;
+  }
+
+  @Override
+  @Nullable
+  public ExternalStorageMessageTransformer getExternalStorage() {
+    return externalStorage;
   }
 
   @Override

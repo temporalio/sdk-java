@@ -30,14 +30,13 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
@@ -102,21 +101,19 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     this.workflowServiceStubs =
         WorkflowServiceStubs.newServiceStubs(serviceStubsOptionsBuilder.build());
 
-    ExternalStorageOptions externalStorageOptions =
-        testEnvironmentOptions.getWorkflowClientOptions().getExternalStorage();
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions());
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
-            WorkflowClient.newInstance(
-                this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions()),
+            client,
             testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor,
-            externalStorageOptions == null
-                ? null
-                : ExternalStorageMessageTransformer.create(externalStorageOptions));
+            ((WorkflowClientInternal) client.getInternal()).getExternalStorage());
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),

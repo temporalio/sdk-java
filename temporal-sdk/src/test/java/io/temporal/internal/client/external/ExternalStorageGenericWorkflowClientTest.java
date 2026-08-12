@@ -45,8 +45,8 @@ public class ExternalStorageGenericWorkflowClientTest {
                 ExternalStorageOptions.newBuilder()
                     .setDriver(driver)
                     .setPayloadSizeThreshold(0)
-                    .build(),
-                1),
+                    .setMaxConcurrentPayloadVisits(1)
+                    .build()),
             "test-namespace");
     StartActivityExecutionRequest request =
         StartActivityExecutionRequest.newBuilder()
@@ -76,8 +76,8 @@ public class ExternalStorageGenericWorkflowClientTest {
                 ExternalStorageOptions.newBuilder()
                     .setDriver(driver)
                     .setPayloadSizeThreshold(0)
-                    .build(),
-                1),
+                    .setMaxConcurrentPayloadVisits(1)
+                    .build()),
             "test-namespace");
     ExecuteMultiOperationRequest request =
         ExecuteMultiOperationRequest.newBuilder()

@@ -31,13 +31,9 @@ public final class ExternalStorageMessageTransformer {
   private final int payloadVisitConcurrency;
 
   public static ExternalStorageMessageTransformer create(ExternalStorageOptions options) {
-    return create(options, 1);
-  }
-
-  public static ExternalStorageMessageTransformer create(
-      ExternalStorageOptions options, int payloadVisitConcurrency) {
     return new ExternalStorageMessageTransformer(
-        ExternalStoragePayloadTransformer.fromOptions(options), payloadVisitConcurrency);
+        ExternalStoragePayloadTransformer.fromOptions(options),
+        options.getMaxConcurrentPayloadVisits());
   }
 
   ExternalStorageMessageTransformer(

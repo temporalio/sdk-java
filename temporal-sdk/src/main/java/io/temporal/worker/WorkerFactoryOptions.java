@@ -25,7 +25,6 @@ public class WorkerFactoryOptions {
   private static final int DEFAULT_WORKFLOW_CACHE_SIZE = 600;
   private static final int DEFAULT_MAX_WORKFLOW_THREAD_COUNT = 600;
   private static final Duration DEFAULT_SHUTDOWN_CHECK_INTERVAL = Duration.ofMillis(250);
-  private static final int DEFAULT_MAX_CONCURRENT_EXTERNAL_STORAGE_VISITS = 3;
 
   private static final WorkerFactoryOptions DEFAULT_INSTANCE;
 
@@ -44,7 +43,6 @@ public class WorkerFactoryOptions {
     private boolean usingVirtualWorkflowThreads;
     private ExecutorService overrideLocalActivityTaskExecutor;
     private Duration shutdownCheckInterval;
-    private int maxConcurrentExternalStorageVisits;
 
     private Builder() {}
 
@@ -62,7 +60,6 @@ public class WorkerFactoryOptions {
       this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
       this.overrideLocalActivityTaskExecutor = options.overrideLocalActivityTaskExecutor;
       this.shutdownCheckInterval = options.shutdownCheckInterval;
-      this.maxConcurrentExternalStorageVisits = options.maxConcurrentExternalStorageVisits;
     }
 
     /**
@@ -176,19 +173,6 @@ public class WorkerFactoryOptions {
       return this;
     }
 
-    /**
-     * Maximum number of concurrent payload-list visits performed while offloading or restoring
-     * external-storage payloads for a single worker task. Only applies when external storage is
-     * configured on the client. A value of {@code 0} selects the default; must not be negative.
-     *
-     * <p>Default is 3.
-     */
-    @Experimental
-    public Builder setMaxConcurrentExternalStorageVisits(int maxConcurrentExternalStorageVisits) {
-      this.maxConcurrentExternalStorageVisits = maxConcurrentExternalStorageVisits;
-      return this;
-    }
-
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
           workflowCacheSize,
@@ -200,7 +184,6 @@ public class WorkerFactoryOptions {
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
           shutdownCheckInterval,
-          maxConcurrentExternalStorageVisits,
           false);
     }
 
@@ -226,7 +209,6 @@ public class WorkerFactoryOptions {
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
           shutdownCheckInterval,
-          maxConcurrentExternalStorageVisits,
           true);
     }
   }
@@ -240,7 +222,6 @@ public class WorkerFactoryOptions {
   private final boolean usingVirtualWorkflowThreads;
   private final ExecutorService overrideLocalActivityTaskExecutor;
   private final Duration shutdownCheckInterval;
-  private final int maxConcurrentExternalStorageVisits;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
@@ -252,7 +233,6 @@ public class WorkerFactoryOptions {
       boolean usingVirtualWorkflowThreads,
       ExecutorService overrideLocalActivityTaskExecutor,
       Duration shutdownCheckInterval,
-      int maxConcurrentExternalStorageVisits,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
@@ -282,11 +262,6 @@ public class WorkerFactoryOptions {
       } else {
         shutdownCheckInterval = DEFAULT_SHUTDOWN_CHECK_INTERVAL;
       }
-      Preconditions.checkState(
-          maxConcurrentExternalStorageVisits >= 0, "negative maxConcurrentExternalStorageVisits");
-      if (maxConcurrentExternalStorageVisits <= 0) {
-        maxConcurrentExternalStorageVisits = DEFAULT_MAX_CONCURRENT_EXTERNAL_STORAGE_VISITS;
-      }
     }
     this.workflowCacheSize = workflowCacheSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
@@ -298,7 +273,6 @@ public class WorkerFactoryOptions {
     this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
     this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
     this.shutdownCheckInterval = shutdownCheckInterval;
-    this.maxConcurrentExternalStorageVisits = maxConcurrentExternalStorageVisits;
   }
 
   public int getWorkflowCacheSize() {
@@ -354,15 +328,6 @@ public class WorkerFactoryOptions {
   @Experimental
   public Duration getShutdownCheckInterval() {
     return shutdownCheckInterval;
-  }
-
-  /**
-   * Returns the maximum number of concurrent payload-list visits performed while offloading or
-   * restoring external-storage payloads for a single worker task.
-   */
-  @Experimental
-  public int getMaxConcurrentExternalStorageVisits() {
-    return maxConcurrentExternalStorageVisits;
   }
 
   /**
