@@ -23,7 +23,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.client.WorkflowClientInternal;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -125,7 +125,7 @@ public final class Worker {
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.clientOptions = client.getOptions();
     this.cache = cache;
-    ExternalStorageMessageTransformer externalStorage =
+    ExternalStorage externalStorage =
         ((WorkflowClientInternal) client.getInternal()).getExternalStorage();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowClientOptions clientOptions = client.getOptions();
@@ -923,7 +923,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
-      @Nullable ExternalStorageMessageTransformer externalStorage,
+      @Nullable ExternalStorage externalStorage,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -958,7 +958,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
-      @Nullable ExternalStorageMessageTransformer externalStorage,
+      @Nullable ExternalStorage externalStorage,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -992,7 +992,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
-      @Nullable ExternalStorageMessageTransformer externalStorage,
+      @Nullable ExternalStorage externalStorage,
       boolean autoEnrollEligible) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
@@ -1055,7 +1055,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     return toSingleWorkerOptions(
             factoryOptions,
             options,
@@ -1083,7 +1083,7 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       String workerInstanceKey,
       String workerControlTaskQueue,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     String buildId = null;
     if (options.getBuildId() != null) {
       buildId = options.getBuildId();

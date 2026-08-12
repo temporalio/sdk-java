@@ -4,7 +4,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
@@ -23,7 +23,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
   private final ConcurrentMap<ByteBuffer, ActivityExecutionContextImpl> activeContexts =
       new ConcurrentHashMap<>();
 
@@ -35,7 +35,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
       Duration defaultHeartbeatThrottleInterval,
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     this.client = Objects.requireNonNull(client);
     this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);

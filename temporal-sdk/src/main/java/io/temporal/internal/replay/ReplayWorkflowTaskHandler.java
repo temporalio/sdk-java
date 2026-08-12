@@ -23,7 +23,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.worker.*;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
@@ -78,10 +78,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
-    if (externalStorage != null) {
-      workflowTask = externalStorage.retrieveBlocking(workflowTask);
-    }
+    workflowTask = ExternalStorage.resolveInbound(options.getExternalStorage(), workflowTask);
     return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
   }
 

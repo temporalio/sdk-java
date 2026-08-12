@@ -3,6 +3,8 @@ package io.temporal.internal.payload.storage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -29,12 +31,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 /** Tests external storage message conversion. */
-public class ExternalStorageMessageTransformerTest {
+public class ExternalStorageTest {
 
   @Test
   public void storeAndRetrieveRoundTripsOverAMessage() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageTransformer transformer = transformer(driver, 0);
+    ExternalStorage transformer = transformer(driver, 0);
     Payloads message =
         Payloads.newBuilder().addPayloads(payload("a")).addPayloads(payload("b")).build();
 
@@ -50,7 +52,7 @@ public class ExternalStorageMessageTransformerTest {
   @Test
   public void walksNestedPayloads() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageTransformer transformer = transformer(driver, 0);
+    ExternalStorage transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
             .setScheduleActivityTaskCommandAttributes(
@@ -68,7 +70,7 @@ public class ExternalStorageMessageTransformerTest {
   @Test
   public void payloadBelowThresholdLeavesMessageUnchanged() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageTransformer transformer = transformer(driver, 1024);
+    ExternalStorage transformer = transformer(driver, 1024);
     Payloads message = Payloads.newBuilder().addPayloads(payload("small")).build();
 
     Payloads stored = transformer.store(message, null, CancellationToken.none()).get();
@@ -81,7 +83,7 @@ public class ExternalStorageMessageTransformerTest {
   @Test
   public void searchAttributesAreNotOffloaded() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorageMessageTransformer transformer = transformer(driver, 0);
+    ExternalStorage transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
             .setStartChildWorkflowExecutionCommandAttributes(
@@ -102,15 +104,39 @@ public class ExternalStorageMessageTransformerTest {
     assertEquals(payload("indexed-value"), indexed);
   }
 
-  private static ExternalStorageMessageTransformer transformer(
-      StorageDriver driver, int threshold) {
+  @Test
+  public void resolveInboundThrowsOnReferenceWhenNotConfigured() throws Exception {
+    InMemoryDriver driver = new InMemoryDriver("d1");
+    ExternalStorage transformer = transformer(driver, 0);
+    Payloads stored =
+        transformer
+            .store(
+                Payloads.newBuilder().addPayloads(payload("a")).build(),
+                null,
+                CancellationToken.none())
+            .get();
+
+    ExternalStorageNotConfiguredException e =
+        assertThrows(
+            ExternalStorageNotConfiguredException.class,
+            () -> ExternalStorage.resolveInbound(null, stored));
+    assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL1105]"));
+  }
+
+  @Test
+  public void resolveInboundReturnsInlinePayloadsUnchanged() {
+    Payloads inline = Payloads.newBuilder().addPayloads(payload("a")).build();
+    assertSame(inline, ExternalStorage.resolveInbound(null, inline));
+  }
+
+  private static ExternalStorage transformer(StorageDriver driver, int threshold) {
     ExternalStoragePayloadTransformer payloadTransformer =
         ExternalStoragePayloadTransformer.fromOptions(
             ExternalStorageOptions.newBuilder()
                 .setDriver(driver)
                 .setPayloadSizeThreshold(threshold)
                 .build());
-    return new ExternalStorageMessageTransformer(payloadTransformer, 4);
+    return new ExternalStorage(payloadTransformer, 4);
   }
 
   private static Payload payload(String data) {

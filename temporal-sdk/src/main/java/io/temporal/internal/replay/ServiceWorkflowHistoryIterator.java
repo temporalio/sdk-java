@@ -12,7 +12,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -31,7 +31,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private final GrpcRetryer grpcRetryer;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
   private Deadline deadline;
   private Iterator<HistoryEvent> current;
   ByteString nextPageToken;
@@ -49,7 +49,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     this.service = service;
     this.namespace = namespace;
     this.task = task;
@@ -77,10 +77,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       // true.
       GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
 
-      History history = response.getHistory();
-      if (externalStorage != null) {
-        history = externalStorage.retrieveBlocking(history);
-      }
+      History history = ExternalStorage.resolveInbound(externalStorage, response.getHistory());
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();
       // Server can return an empty page, but a valid nextPageToken that contains

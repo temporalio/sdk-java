@@ -2,13 +2,17 @@ package io.temporal.internal.payload.storage;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.Message;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -18,25 +22,22 @@ import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
- * Transforms payload lists reachable from a proto message by delegating each visited list to {@link
- * ExternalStoragePayloadTransformer}.
- *
- * <p>Search attributes stay inline because the server indexes and validates their payload values.
- *
- * <p>The {@link Message.Builder} overloads transform in place; the {@link Message} overloads copy
- * through a builder and complete with the copy.
+ * External storage offloads large payloads via {@link StorageDriver}s. It walks messages using
+ * {@link PayloadVisitors} transforming payloads to and from {@link ExternalStorageReference} using
+ * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorageOptions} via {@link#create}
+ * to configure external storage.
  */
-public final class ExternalStorageMessageTransformer {
+public final class ExternalStorage {
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
 
-  public static ExternalStorageMessageTransformer create(ExternalStorageOptions options) {
-    return new ExternalStorageMessageTransformer(
+  public static ExternalStorage create(ExternalStorageOptions options) {
+    return new ExternalStorage(
         ExternalStoragePayloadTransformer.fromOptions(options),
         options.getMaxConcurrentPayloadVisits());
   }
 
-  ExternalStorageMessageTransformer(
+  ExternalStorage(
       ExternalStoragePayloadTransformer payloadTransformer, int payloadVisitConcurrency) {
     this.payloadTransformer = payloadTransformer;
     this.payloadVisitConcurrency = payloadVisitConcurrency;
@@ -59,6 +60,48 @@ public final class ExternalStorageMessageTransformer {
 
   public <T extends Message> CompletableFuture<T> retrieveAsync(T message) {
     return retrieve(message, CancellationToken.none());
+  }
+
+  /**
+   * Resolves reference payloads in {@code message}. Throws {@link
+   * ExternalStorageNotConfiguredException} if the message contains any reference and external
+   * storage is not configured.
+   */
+  public static <T extends Message> T resolveInbound(
+      @Nullable ExternalStorage externalStorage, T message) {
+    if (externalStorage == null) {
+      throwIfContainsReference(message);
+      return message;
+    }
+    return externalStorage.retrieveBlocking(message);
+  }
+
+  /**
+   * Throws {@link ExternalStorageNotConfiguredException} if {@code message} contains any reference
+   * payload. Used at inbound task boundaries when external storage is not configured.
+   */
+  public static void throwIfContainsReference(Message message) {
+    PayloadVisitorOptions<Void> options =
+        PayloadVisitorOptions.<Void>newBuilder(
+                (context, payloads) -> {
+                  for (Payload payload : payloads) {
+                    if (payload.getExternalPayloadsCount() > 0) {
+                      CompletableFuture<List<Payload>> found = new CompletableFuture<>();
+                      found.completeExceptionally(new ExternalStorageNotConfiguredException());
+                      return found;
+                    }
+                  }
+                  return CompletableFuture.completedFuture(payloads);
+                })
+            .setSkipSearchAttributes(true)
+            .build();
+    try {
+      PayloadVisitors.visit(message.toBuilder(), options).join();
+    } catch (CompletionException e) {
+      Throwable cause = e.getCause() != null ? e.getCause() : e;
+      Throwables.throwIfUnchecked(cause);
+      throw e;
+    }
   }
 
   private static <T> T getOrCancel(

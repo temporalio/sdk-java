@@ -23,7 +23,7 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.PluginUtils;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
 import io.temporal.payload.storage.ExternalStorageOptions;
@@ -59,7 +59,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private final WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
   private final String workerGroupingKey = java.util.UUID.randomUUID().toString();
   private final @Nullable HeartbeatManager heartbeatManager;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
 
   /**
    * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
@@ -111,10 +111,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     ExternalStorageOptions externalStorageOptions = options.getExternalStorage();
-    ExternalStorageMessageTransformer externalStorage =
-        externalStorageOptions == null
-            ? null
-            : ExternalStorageMessageTransformer.create(externalStorageOptions);
+    ExternalStorage externalStorage =
+        externalStorageOptions == null ? null : ExternalStorage.create(externalStorageOptions);
     this.externalStorage = externalStorage;
     GenericWorkflowClient genericClient =
         new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
@@ -835,7 +833,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   @Override
   @Nullable
-  public ExternalStorageMessageTransformer getExternalStorage() {
+  public ExternalStorage getExternalStorage() {
     return externalStorage;
   }
 

@@ -16,7 +16,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -64,7 +64,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
   private final DataConverter dataConverterWithActivityContext;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
 
   private final Scope metricsScope;
   private final Optional<Payloads> prevAttemptHeartbeatDetails;
@@ -97,7 +97,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     this(
         service,
         namespace,
@@ -122,7 +122,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      @Nullable ExternalStorageMessageTransformer externalStorage,
+      @Nullable ExternalStorage externalStorage,
       long localHeartbeatTimeoutBufferMillis) {
     this.service = service;
     this.metricsScope = metricsScope;

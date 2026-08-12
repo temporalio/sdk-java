@@ -1,7 +1,7 @@
 package io.temporal.internal.client;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.worker.HeartbeatManager;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Functions;
@@ -28,5 +28,5 @@ public interface WorkflowClientInternal {
   HeartbeatManager getHeartbeatManager();
 
   @Nullable
-  ExternalStorageMessageTransformer getExternalStorage();
+  ExternalStorage getExternalStorage();
 }

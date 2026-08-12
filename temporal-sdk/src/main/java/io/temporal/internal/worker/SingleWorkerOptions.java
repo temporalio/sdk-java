@@ -7,7 +7,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
@@ -47,7 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private @Nullable ExternalStorageMessageTransformer externalStorage;
+    private @Nullable ExternalStorage externalStorage;
 
     private Builder() {}
 
@@ -190,7 +190,7 @@ public final class SingleWorkerOptions {
     }
 
     /** The message transformer that offloads/restores external-storage payloads, or null. */
-    public Builder setExternalStorage(@Nullable ExternalStorageMessageTransformer externalStorage) {
+    public Builder setExternalStorage(@Nullable ExternalStorage externalStorage) {
       this.externalStorage = externalStorage;
       return this;
     }
@@ -263,7 +263,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
 
   private SingleWorkerOptions(
       String identity,
@@ -287,7 +287,7 @@ public final class SingleWorkerOptions {
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -409,7 +409,7 @@ public final class SingleWorkerOptions {
 
   /** The external-storage message transformer for this worker, or null when disabled. */
   @Nullable
-  public ExternalStorageMessageTransformer getExternalStorage() {
+  public ExternalStorage getExternalStorage() {
     return externalStorage;
   }
 

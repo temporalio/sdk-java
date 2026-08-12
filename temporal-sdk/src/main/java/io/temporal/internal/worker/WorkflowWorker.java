@@ -18,7 +18,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.WorkflowSerializationContext;
@@ -386,7 +386,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
   private <T extends com.google.protobuf.Message> T storeOutboundPayloads(
       T request, @Nullable StorageDriverTargetInfo target) {
-    ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+    ExternalStorage externalStorage = options.getExternalStorage();
     return externalStorage == null ? request : externalStorage.storeBlocking(request, target);
   }
 

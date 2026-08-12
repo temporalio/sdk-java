@@ -4,7 +4,7 @@ import com.google.common.base.Strings;
 import io.grpc.Deadline;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
@@ -21,13 +21,11 @@ import javax.annotation.Nullable;
  */
 public final class ExternalStorageGenericWorkflowClient implements GenericWorkflowClient {
   private final GenericWorkflowClient next;
-  private final ExternalStorageMessageTransformer externalStorage;
+  private final ExternalStorage externalStorage;
   private final String namespace;
 
   public ExternalStorageGenericWorkflowClient(
-      GenericWorkflowClient next,
-      ExternalStorageMessageTransformer externalStorage,
-      String namespace) {
+      GenericWorkflowClient next, ExternalStorage externalStorage, String namespace) {
     this.next = next;
     this.externalStorage = externalStorage;
     this.namespace = namespace;

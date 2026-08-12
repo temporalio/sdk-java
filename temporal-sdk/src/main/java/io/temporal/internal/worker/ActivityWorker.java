@@ -15,7 +15,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
@@ -469,22 +469,23 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTask retrieveInboundPayloads(ActivityTask task) {
-      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
-      if (externalStorage == null) {
-        return task;
-      }
+      ExternalStorage externalStorage = options.getExternalStorage();
       PollActivityTaskQueueResponseOrBuilder response = task.getResponse();
       PollActivityTaskQueueResponse built =
           response instanceof PollActivityTaskQueueResponse
               ? (PollActivityTaskQueueResponse) response
               : ((PollActivityTaskQueueResponse.Builder) response).build();
-      PollActivityTaskQueueResponse retrieved = externalStorage.retrieveBlocking(built);
-      return new ActivityTask(retrieved, task.getPermit(), task.getCompletionCallback());
+      if (externalStorage == null) {
+        ExternalStorage.throwIfContainsReference(built);
+        return task;
+      }
+      return new ActivityTask(
+          externalStorage.retrieveBlocking(built), task.getPermit(), task.getCompletionCallback());
     }
 
     private <T extends Message> T storeOutboundPayloads(
         T request, @Nullable StorageDriverTargetInfo target) {
-      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+      ExternalStorage externalStorage = options.getExternalStorage();
       return externalStorage == null ? request : externalStorage.storeBlocking(request, target);
     }
 

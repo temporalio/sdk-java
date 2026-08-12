@@ -17,7 +17,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -45,7 +45,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final @Nullable StorageDriverTargetInfo storageTarget;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
 
   ManualActivityCompletionClientImpl(
       @Nonnull WorkflowServiceStubs service,
@@ -58,7 +58,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       @Nullable String activityId,
       @Nullable ActivitySerializationContext context,
       @Nullable StorageDriverTargetInfo storageTarget,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     this.service = service;
     this.externalStorage = externalStorage;
     this.storageTarget = storageTarget;

@@ -4,7 +4,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -26,7 +26,7 @@ public interface ManualActivityCompletionClientFactory {
       @Nonnull String namespace,
       @Nonnull String identity,
       @Nonnull DataConverter dataConverter,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     return new ManualActivityCompletionClientFactoryImpl(
         service, namespace, identity, dataConverter, externalStorage);
   }

@@ -6,7 +6,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -20,14 +20,14 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
   private final DataConverter dataConverter;
   private final String namespace;
   private final String identity;
-  private final @Nullable ExternalStorageMessageTransformer externalStorage;
+  private final @Nullable ExternalStorage externalStorage;
 
   ManualActivityCompletionClientFactoryImpl(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String identity,
       @Nonnull DataConverter dataConverter,
-      @Nullable ExternalStorageMessageTransformer externalStorage) {
+      @Nullable ExternalStorage externalStorage) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.identity = Objects.requireNonNull(identity);

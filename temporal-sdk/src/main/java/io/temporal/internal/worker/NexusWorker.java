@@ -18,7 +18,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -532,21 +532,22 @@ final class NexusWorker implements SuspendableWorker {
     }
 
     private NexusTask retrieveInboundPayloads(NexusTask task) {
-      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
-      if (externalStorage == null) {
-        return task;
-      }
+      ExternalStorage externalStorage = options.getExternalStorage();
       PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
       PollNexusTaskQueueResponse built =
           response instanceof PollNexusTaskQueueResponse
               ? (PollNexusTaskQueueResponse) response
               : ((PollNexusTaskQueueResponse.Builder) response).build();
-      PollNexusTaskQueueResponse retrieved = externalStorage.retrieveBlocking(built);
-      return new NexusTask(retrieved, task.getPermit(), task.getCompletionCallback());
+      if (externalStorage == null) {
+        ExternalStorage.throwIfContainsReference(built);
+        return task;
+      }
+      return new NexusTask(
+          externalStorage.retrieveBlocking(built), task.getPermit(), task.getCompletionCallback());
     }
 
     private <T extends Message> T storeOutbound(T request) {
-      ExternalStorageMessageTransformer externalStorage = options.getExternalStorage();
+      ExternalStorage externalStorage = options.getExternalStorage();
       return externalStorage == null ? request : externalStorage.storeBlocking(request, null);
     }
   }

@@ -15,7 +15,7 @@ import io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionResponse;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
-import io.temporal.internal.payload.storage.ExternalStorageMessageTransformer;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.ExternalStorageOptions;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
@@ -41,7 +41,7 @@ public class ExternalStorageGenericWorkflowClientTest {
     ExternalStorageGenericWorkflowClient client =
         new ExternalStorageGenericWorkflowClient(
             next,
-            ExternalStorageMessageTransformer.create(
+            ExternalStorage.create(
                 ExternalStorageOptions.newBuilder()
                     .setDriver(driver)
                     .setPayloadSizeThreshold(0)
@@ -72,7 +72,7 @@ public class ExternalStorageGenericWorkflowClientTest {
     ExternalStorageGenericWorkflowClient client =
         new ExternalStorageGenericWorkflowClient(
             next,
-            ExternalStorageMessageTransformer.create(
+            ExternalStorage.create(
                 ExternalStorageOptions.newBuilder()
                     .setDriver(driver)
                     .setPayloadSizeThreshold(0)
