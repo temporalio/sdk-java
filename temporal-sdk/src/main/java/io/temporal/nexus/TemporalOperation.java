@@ -13,7 +13,8 @@ import java.lang.annotation.*;
  * TemporalOperationHandler} at registration time, with default cancel behavior matching {@link
  * TemporalOperationHandler#cancel(OperationContext, OperationCancelDetails)}.
  *
- * <p>The method must:
+ * <p>The declaring {@link ServiceImpl}-annotated class must be {@code public} so the annotated
+ * method can be accessed at registration time. The method must:
  *
  * <ul>
  *   <li>be {@code public},

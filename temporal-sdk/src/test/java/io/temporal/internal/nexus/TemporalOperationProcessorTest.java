@@ -56,27 +56,21 @@ public class TemporalOperationProcessorTest {
   @Test
   public void rejects_compositeGenericInputMismatch() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new CompositeBadInput()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new CompositeBadInput()));
     Assert.assertTrue(e.getMessage(), e.getMessage().contains("input type mismatch"));
   }
 
   @Test
   public void rejects_compositeGenericOutputMismatch() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new CompositeBadOutput()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new CompositeBadOutput()));
     Assert.assertTrue(e.getMessage(), e.getMessage().contains("output type mismatch"));
   }
 
   @Test
   public void rejects_rawReturnType() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new RawReturnType()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new RawReturnType()));
     Assert.assertTrue(
         e.getMessage(), e.getMessage().contains("must use parameterized TemporalOperationResult"));
   }
@@ -84,18 +78,14 @@ public class TemporalOperationProcessorTest {
   @Test
   public void rejects_nonPublicMethod() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new NonPublicMethod()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new NonPublicMethod()));
     Assert.assertTrue(e.getMessage(), e.getMessage().contains("must be public"));
   }
 
   @Test
   public void rejects_staticMethod() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new StaticMethod()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new StaticMethod()));
     Assert.assertTrue(e.getMessage(), e.getMessage().contains("must not be static"));
   }
 
@@ -137,9 +127,7 @@ public class TemporalOperationProcessorTest {
   @Test
   public void rejects_badReturnType() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new BadReturnType()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new BadReturnType()));
     Assert.assertTrue(
         e.getMessage(), e.getMessage().contains("must return TemporalOperationResult"));
   }
@@ -147,9 +135,7 @@ public class TemporalOperationProcessorTest {
   @Test
   public void rejects_badArity() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new BadArity()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new BadArity()));
     Assert.assertTrue(
         e.getMessage(),
         e.getMessage()
@@ -159,9 +145,7 @@ public class TemporalOperationProcessorTest {
   @Test
   public void rejects_checkedExceptionInThrows() {
     IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new DeclaresCheckedException()));
+        assertInvalid(() -> TemporalOperationProcessor.process(new DeclaresCheckedException()));
     Assert.assertTrue(
         e.getMessage(),
         e.getMessage()
@@ -183,14 +167,15 @@ public class TemporalOperationProcessorTest {
   }
 
   @Test
-  public void rejects_dualAnnotation() {
-    IllegalArgumentException e =
-        Assert.assertThrows(
-            IllegalArgumentException.class,
-            () -> TemporalOperationProcessor.process(new DualAnnotated()));
-    Assert.assertTrue(
-        e.getMessage(),
-        e.getMessage().contains("@TemporalOperation and @OperationImpl cannot be combined"));
+  public void operationImpl_takesPrecedenceOverTemporalOperation() {
+    Assert.assertEquals(
+        1, TemporalOperationProcessor.process(new DualAnnotated()).getOperationHandlers().size());
+  }
+
+  private static IllegalArgumentException assertInvalid(Runnable action) {
+    RuntimeException wrapper = Assert.assertThrows(RuntimeException.class, action::run);
+    Assert.assertTrue(wrapper.getCause() instanceof IllegalArgumentException);
+    return (IllegalArgumentException) wrapper.getCause();
   }
 
   // ----- Fixtures -----

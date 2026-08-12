@@ -4,9 +4,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Primitives;
 import io.nexusrpc.OperationDefinition;
 import io.nexusrpc.OperationException;
-import io.nexusrpc.ServiceDefinition;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.MethodExtension;
+import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.nexus.TemporalNexusClient;
@@ -43,29 +43,13 @@ public final class TemporalOperationProcessor {
   /** Recognizes {@link TemporalOperation}-annotated methods during nexusrpc service scanning. */
   private static final class TemporalOperationExtension implements MethodExtension {
     @Override
-    public Result extract(Object instance, Method method, ServiceDefinition serviceDefinition) {
+    public OperationHandler<?, ?> extract(
+        Object instance, Method method, OperationDefinition operationDefinition) {
       if (method.getDeclaredAnnotation(TemporalOperation.class) == null) {
         return null;
       }
-      if (method.isAnnotationPresent(OperationImpl.class)) {
-        throw new IllegalArgumentException(
-            "@TemporalOperation and @OperationImpl cannot be combined on method "
-                + method.getName());
-      }
 
       validateSignature(method);
-
-      OperationDefinition operationDefinition =
-          serviceDefinition.getOperations().values().stream()
-              .filter(o -> method.getName().equals(o.getMethodName()))
-              .findFirst()
-              .orElseThrow(
-                  () ->
-                      new IllegalStateException(
-                          "No matching @Operation on service "
-                              + serviceDefinition.getName()
-                              + " for @TemporalOperation method "
-                              + method.getName()));
 
       validateTypes(method, operationDefinition);
 
@@ -80,9 +64,7 @@ public final class TemporalOperationProcessor {
       TemporalOperationHandler.StartHandler<Object, Object> startHandler =
           (ctx, client, input) -> invokeStartHandler(handle, ctx, client, input);
 
-      return new Result(
-          operationDefinition.getName(),
-          new TemporalOperationHandler<Object, Object>(startHandler) {});
+      return new TemporalOperationHandler<Object, Object>(startHandler) {};
     }
   }
 
