@@ -1,3 +1,19 @@
+"""Durably orchestrate one SDK release after its release-note PR is merged.
+
+GitHub Actions calls this module twice. ``start`` validates the merge and starts
+the immutable Temporal Workflow. After the matrix has created the native and
+Maven Actions artifacts, ``publish`` starts short-lived release-specific Workers,
+signals that builds are ready, and waits for the Workflow to finish.
+
+Publication then follows one order: freeze artifact receipts, reconcile Maven to
+an exact Central state, create a GitHub draft, attach native assets, and finally
+make the GitHub release public. The Workflow owns durable decisions; Activities
+own all GitHub, Sonatype, Portal, and Maven Central I/O.
+
+Artifact construction remains in ``build.py``. This module imports only its safe
+unpack and validation helpers; it never invokes the build CLI during publication.
+"""
+
 import asyncio
 import base64
 import hashlib
@@ -23,9 +39,13 @@ from temporalio.common import RetryPolicy, WorkflowIDConflictPolicy, WorkflowIDR
 from temporalio.exceptions import ApplicationError
 from temporalio.worker import Worker
 
+# These pure helpers are allowed through the Workflow import sandbox because the
+# publication Activities use them to revalidate the frozen Maven payload.
 with workflow.unsafe.imports_passed_through():
     from .build import unpack_maven, validate_maven
 
+# Fixed repository policy. Release files choose a version, never a project set,
+# platform matrix, repository, or publication endpoint.
 REPOSITORY = "temporalio/sdk-java"
 CENTRAL = "https://repo1.maven.org/maven2"
 SONATYPE = "https://ossrh-staging-api.central.sonatype.com"
@@ -54,6 +74,9 @@ MAVEN_POLICIES = [CURRENT_MAVEN, CLASSIC_MAVEN, ALPHA_MAVEN, [x for x in ALPHA_M
 T = TypeVar("T")
 
 
+# Durable release identity and state -----------------------------------------
+
+
 def digest(value: Any) -> str:
     """Hash one JSON-compatible durable release identity."""
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
@@ -61,6 +84,8 @@ def digest(value: Any) -> str:
 
 @dataclass
 class Candidate:
+    """Immutable release identity derived from the merged repository state."""
+
     tag: str
     commit: str
     maven: list[str]
@@ -84,6 +109,8 @@ class Candidate:
 
 @dataclass
 class Artifact:
+    """Frozen GitHub Actions artifact receipt used during publication."""
+
     id: int
     digest: str
     file: str
@@ -91,6 +118,8 @@ class Artifact:
 
 @dataclass
 class Generation:
+    """Durable identity and observed state for one Maven submission attempt."""
+
     number: int
     repository: str | None = None
     repositoryState: str = ""
@@ -100,12 +129,16 @@ class Generation:
 
 @dataclass
 class Inspection:
+    """One read-only snapshot of Maven Central and all submission generations."""
+
     central: int
     generations: list[Generation]
 
 
 @dataclass
 class ReleaseInput:
+    """Complete durable state passed from the Workflow to each Activity."""
+
     candidate: Candidate
     artifacts: list[Artifact]
     generations: list[Generation]
@@ -113,6 +146,8 @@ class ReleaseInput:
 
 @dataclass
 class ReleaseResult:
+    """Final publication receipt returned by a completed release Workflow."""
+
     digest: str
     github: str
     maven: str
@@ -120,6 +155,8 @@ class ReleaseResult:
 
 @dataclass
 class ReleaseStatus:
+    """Compact operator-visible Workflow state exposed by the status query."""
+
     phase: str = "INITIALIZING"
     ready: bool = False
     artifacts: list[Artifact] = field(default_factory=list)
@@ -152,6 +189,9 @@ def native_file(candidate: Candidate, platform: str) -> str:
     return f"temporal-test-server_{candidate.version}_{asset}{extension}"
 
 
+# Temporal Workflow ----------------------------------------------------------
+
+
 @workflow.defn(name="ReleaseWorkflow", failure_exception_types=[Exception])
 class ReleaseWorkflow:
     def __init__(self) -> None:
@@ -167,6 +207,9 @@ class ReleaseWorkflow:
         self.s.phase = "BUILDING"
         await workflow.wait_condition(lambda: self.s.ready)
         self.s.phase = "DISCOVERING_ARTIFACTS"
+
+        # Discovery runs once and its IDs and digests become durable Workflow
+        # state. Every retry therefore publishes the same build outputs.
         self.s.artifacts = await self._activity("discoverArtifacts", list[Artifact])
         self.s.generations = [Generation(0)]
         while True:
@@ -274,6 +317,9 @@ class ReleaseWorkflow:
         return ""
 
 
+# Expected external outcomes -------------------------------------------------
+
+
 class ReleaseError(RuntimeError):
     """A durable external outcome that Activity retries cannot repair."""
 
@@ -293,6 +339,8 @@ class MavenFailed(ReleaseError):
 
 
 class View:
+    """Join Sonatype's staging and Portal views by repository identity."""
+
     def __init__(self, profiles: list[dict[str, Any]], manual: list[dict[str, Any]]) -> None:
         """Join Sonatype's staging and Portal views by repository identity."""
         self.profiles, self.manual = profiles, manual
@@ -316,6 +364,13 @@ class View:
 
 
 class Session:
+    """Perform one Activity attempt against frozen artifacts and external APIs.
+
+    A Session is disposable. Each Activity attempt receives fresh temporary
+    storage, reconstructs its state from durable input and external systems, and
+    cleans up afterward. It contains no durable state of its own.
+    """
+
     def __init__(self, value: ReleaseInput, source: Path, environment: Mapping[str, str]) -> None:
         """Create one temporary reconciliation session from durable input."""
         self.value, self.candidate, self.source = value, value.candidate, source
@@ -376,6 +431,8 @@ class Session:
         """Request and decode an optional JSON response."""
         status, data = await self.request(url, **options)
         return status, json.loads(data) if data else None
+
+    # GitHub Actions artifact provenance and materialization ----------------
 
     async def artifact(self, expected_name: str, expected_file: str) -> Artifact:
         """Select the oldest live immutable-name artifact and freeze its identity."""
@@ -440,6 +497,8 @@ class Session:
         root, manifest = unpack_maven(archive, self.work / "bundle")
         records = validate_maven(root, manifest, self.candidate.maven, self.candidate, False)
         return root, records
+
+    # Maven reconciliation ---------------------------------------------------
 
     async def central(self) -> int:
         """Count exact Central POM identities and reject partial/conflicting state."""
@@ -545,6 +604,9 @@ class Session:
 
     async def maven(self, root: Path, records: list[tuple[str, str, int]]) -> None:
         """Reconcile the current staging repository through Portal publication."""
+
+        # Central is the terminal source of truth. If every exact POM is already
+        # visible, a retry has nothing left to mutate in Sonatype or Portal.
         if await self.central() == len(self.candidate.maven):
             return
         current, view = self.value.generations[-1], await self.view()
@@ -592,6 +654,8 @@ class Session:
             raise MavenFailed("Portal validation failed.")
         if portal_state != "PUBLISHED":
             raise ReleaseError(f"Unsupported Portal state: {portal_state}")
+
+    # GitHub release reconciliation -----------------------------------------
 
     async def tag(self) -> None:
         """Create the release tag or require its exact commit target."""
@@ -660,6 +724,8 @@ class Session:
         expected = {path.name: path for path in self.assets.iterdir()}
         present = {item.get("name") for item in release.get("assets", []) if isinstance(item, dict)}
         if release.get("draft") is True:
+            # Draft-first publication prevents a public release from appearing
+            # before every native archive and checksum file is attached.
             for name in expected.keys() - present:
                 await self.gh(
                     "release",
@@ -683,6 +749,9 @@ class Session:
             cast(str, release.get("html_url", "")),
             f"https://central.sonatype.com/artifact/io.temporal/temporal-sdk/{self.candidate.version}",
         )
+
+
+# Temporal Activities --------------------------------------------------------
 
 
 class ReleaseActivities:
@@ -734,6 +803,9 @@ class ReleaseActivities:
             raise ApplicationError(str(error), type=error.error_type, non_retryable=True) from error
         finally:
             session.temp.cleanup()
+
+
+# Merge-triggered command-line entry points ---------------------------------
 
 
 def required(name: str) -> str:
@@ -790,6 +862,8 @@ async def main() -> None:
     client = await connect()
     match sys.argv[1:]:
         case ["start"]:
+            # The lightweight start job validates the push and creates (or finds)
+            # the one Workflow execution for this immutable candidate.
             candidate = candidate_from_push()
             handle = await client.start_workflow(
                 "ReleaseWorkflow",
@@ -805,6 +879,9 @@ async def main() -> None:
             output("version", candidate.version)
             output("maven_artifacts", candidate.maven)
         case ["publish", identity, run_id]:
+            # The protected publication job hosts one Workflow Worker and both
+            # possible Maven-generation Activity Workers. They exist only for the
+            # duration of this job and listen only on this release's task queues.
             activities = ReleaseActivities(Path(required("RELEASE_SOURCE_DIR")), os.environ)
             workers = [
                 Worker(client, task_queue=workflow_queue(identity), workflows=[ReleaseWorkflow]),

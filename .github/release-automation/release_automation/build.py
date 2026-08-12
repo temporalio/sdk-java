@@ -1,3 +1,16 @@
+"""Construct immutable release artifacts for the GitHub Actions workflow.
+
+This module has two roles:
+
+* GitHub Actions invokes the ``maven`` and ``native`` CLI commands to create the
+  signed Maven payload and native release archives.
+* ``release.py`` imports only ``unpack_maven`` and ``validate_maven`` to verify
+  that downloaded artifacts still match the frozen release identity.
+
+``release.py`` never invokes this CLI or rebuilds an artifact during publication.
+The artifact boundary between the two modules is GitHub Actions storage.
+"""
+
 import base64
 import binascii
 import gzip
@@ -21,6 +34,7 @@ from typing import Any
 BUILD_IMAGE = "eclipse-temurin:17-jdk@sha256:91b6210cce02091f6f0798a83ec51aa223828242c5a21a85793bb8c28dc891c4"
 
 
+# Run source-controlled build tools with an intentionally small environment.
 def tool(command: Sequence[str], *, data: bytes | None = None, quiet: bool = False) -> None:
     """Run a build tool without forwarding release credentials."""
     allowed = {"PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "DOCKER_HOST"}
@@ -54,6 +68,7 @@ def unsigned(source: pathlib.Path, work: pathlib.Path, version: str, commit: str
     return repository / "io" / "temporal"
 
 
+# Turn the unsigned Gradle output into the exact repository Maven will receive.
 def sign(root: pathlib.Path, home: pathlib.Path, env: Mapping[str, str]) -> None:
     """Sign Maven payload files and create required legacy checksums."""
     for stale in (path for path in root.rglob("*") if path.suffix in {".asc", ".md5", ".sha1"}):
@@ -120,6 +135,9 @@ def validate_maven(
     return records
 
 
+# The signed payload is persisted as one deterministic Actions artifact. These
+# helpers are shared with release.py so construction and publication enforce the
+# same archive shape and Maven identity.
 def archive_maven(bundle: pathlib.Path, output: pathlib.Path) -> None:
     """Create the deterministic tar used as the durable signed payload."""
     paths = [bundle / "manifest.tsv", bundle / "repository"] + sorted(path for path in (bundle / "repository").rglob("*") if path.is_file())
@@ -175,8 +193,14 @@ def maven(env: Mapping[str, str]) -> None:
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="sdk-java-maven-") as directory:
         work, bundle = pathlib.Path(directory), pathlib.Path(directory) / "bundle"
+
+        # Gradle runs without signing credentials. Signing happens only after the
+        # build process exits and only for the fixed Maven project set.
         generated = unsigned(source, work / "build", version, commit)
         sign(generated, work / "gnupg", env)
+
+        # Copy only approved coordinates, describe every byte in the manifest,
+        # then validate the finished bundle before GitHub Actions uploads it.
         repository = bundle / "repository" / "io" / "temporal"
         repository.mkdir(parents=True)
         for artifact in artifacts:
@@ -194,6 +218,8 @@ def maven(env: Mapping[str, str]) -> None:
         archive_maven(bundle, output / "maven-payload.tar")
 
 
+# Native binaries are compiled elsewhere in the matrix. This module only gives
+# each one its stable public filename and reproducible archive representation.
 def native(source: pathlib.Path, output: pathlib.Path, root: str, name: str, windows: bool) -> None:
     """Create a reproducible one-binary native release archive."""
     data = source.read_bytes()
@@ -224,7 +250,7 @@ def native(source: pathlib.Path, output: pathlib.Path, root: str, name: str, win
 
 
 def main() -> None:
-    """Dispatch Maven construction or deterministic native packaging."""
+    """Dispatch the two build commands called directly by GitHub Actions."""
     if sys.argv[1:] == ["maven"]:
         maven(os.environ)
     elif len(sys.argv) == 7 and sys.argv[1] == "native":
