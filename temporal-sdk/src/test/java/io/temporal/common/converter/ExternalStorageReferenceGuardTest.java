@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import org.junit.Test;
 
@@ -23,9 +24,10 @@ public class ExternalStorageReferenceGuardTest {
         Payload.newBuilder()
             .putMetadata(
                 EncodingKeys.METADATA_ENCODING_KEY, ByteString.copyFromUtf8("json/protobuf"))
+            .putMetadata(
+                EncodingKeys.METADATA_MESSAGE_TYPE_KEY,
+                ByteString.copyFromUtf8(ExternalStorageReference.getDescriptor().getFullName()))
             .setData(ByteString.copyFromUtf8("{}"))
-            .addExternalPayloads(
-                Payload.ExternalPayloadDetails.newBuilder().setSizeBytes(1024).build())
             .build();
 
     ExternalStorageNotConfiguredException e =

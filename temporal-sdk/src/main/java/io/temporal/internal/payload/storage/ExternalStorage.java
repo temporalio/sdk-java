@@ -85,7 +85,7 @@ public final class ExternalStorage {
         PayloadVisitorOptions.<Void>newBuilder(
                 (context, payloads) -> {
                   for (Payload payload : payloads) {
-                    if (payload.getExternalPayloadsCount() > 0) {
+                    if (ExternalStorageReferences.isReference(payload)) {
                       CompletableFuture<List<Payload>> found = new CompletableFuture<>();
                       found.completeExceptionally(new ExternalStorageNotConfiguredException());
                       return found;
