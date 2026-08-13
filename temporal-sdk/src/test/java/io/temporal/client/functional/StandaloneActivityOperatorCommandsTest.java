@@ -5,11 +5,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.api.enums.v1.PendingActivityState;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ActivityExecutionDescription;
@@ -18,6 +18,7 @@ import io.temporal.client.ActivityHandle;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.UpdateActivityOptions;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
@@ -121,7 +122,7 @@ public class StandaloneActivityOperatorCommandsTest {
       if (ctx.getInfo().getAttempt() == 1) {
         ctx.heartbeat("hb-details");
       }
-      ActivityCancellationToken token = ctx.getCancellationToken();
+      CancellationToken<ActivityCanceledException> token = ctx.getCancellationToken();
       while (!token.isCancellationRequested()) {
         try {
           Thread.sleep(100);
