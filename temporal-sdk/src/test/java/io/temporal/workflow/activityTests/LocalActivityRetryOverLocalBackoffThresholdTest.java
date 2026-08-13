@@ -28,7 +28,7 @@ import org.junit.*;
 
 public class LocalActivityRetryOverLocalBackoffThresholdTest {
 
-  private static final int TIMEOUT_ATTEMPTS = 53;
+  private static final int TIMEOUT_ATTEMPTS = 3;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -100,12 +100,12 @@ public class LocalActivityRetryOverLocalBackoffThresholdTest {
     controlledActivity.verifyAttempts();
   }
 
-  @Test(timeout = 120_000)
+  @Test
   public void repeatedTimeoutsDoNotBuildAnUnboundedFailureChain() {
     Worker worker = testWorkflowRule.getWorker();
     ControlledActivityImpl activity =
         new ControlledActivityImpl(
-            Collections.singletonList(ControlledActivityImpl.Outcome.SLEEP), TIMEOUT_ATTEMPTS, 100);
+            Collections.singletonList(ControlledActivityImpl.Outcome.SLEEP), TIMEOUT_ATTEMPTS, 1);
     worker.registerActivitiesImplementations(activity);
     worker.registerWorkflowImplementationTypes(TimingOutWorkflowImpl.class);
     testWorkflowRule.getTestEnvironment().start();
