@@ -6,7 +6,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 /**
- * Runs the OperationFailMetric suite with the old failure format forced via system property. This
+ * Runs the Nexus failure suites with the old failure format forced via system property. This
  * verifies that the test server correctly handles the old format (UnsuccessfulOperationError and
  * HandlerError) even though it advertises support for the new format.
  *
@@ -14,7 +14,11 @@ import org.junit.runners.Suite;
  * responses regardless of server capabilities.
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({OperationFailMetricTest.class})
+@Suite.SuiteClasses({
+  OperationFailMetricTest.class,
+  OperationInputDeserializationFailTest.class,
+  OperationInputDeserializationErrorPropagationTest.class
+})
 public class NexusFailureOldFormatTest {
   private static String originalValue;
 
