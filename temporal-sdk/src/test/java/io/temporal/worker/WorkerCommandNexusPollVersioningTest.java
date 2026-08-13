@@ -18,6 +18,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -39,7 +40,7 @@ public class WorkerCommandNexusPollVersioningTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setTestTimeoutSeconds(15)
+          .setTestTimeoutSeconds(30)
           .setWorkflowServiceStubsOptions(
               WorkflowServiceStubsOptions.newBuilder()
                   .addGrpcClientInterceptor(
@@ -58,6 +59,7 @@ public class WorkerCommandNexusPollVersioningTest {
                               new WorkerDeploymentVersion("test-deployment", "test-build-id"))
                           .build())
                   .build())
+          .setNexusServiceImplementation(new EchoNexusServiceImpl())
           .setDoNotStart(true)
           .build();
 
