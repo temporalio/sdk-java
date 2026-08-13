@@ -502,7 +502,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                               input,
                               originalScheduledTime,
                               laException.getLastAttempt() + 1,
-                              laException.getFailure(),
+                              // Carry the attempt failure, not the local ActivityFailure wrapper.
+                              laException.getFailure().getCause(),
                               result);
                           return null;
                         });
