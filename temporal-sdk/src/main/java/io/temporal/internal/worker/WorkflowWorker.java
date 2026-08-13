@@ -48,10 +48,11 @@ final class WorkflowWorker implements SuspendableWorker {
   private final WorkflowExecutorCache cache;
   private final WorkflowTaskHandler handler;
   private final String stickyTaskQueueName;
-  private final PollerOptions pollerOptions;
+  private PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final EagerActivityDispatcher eagerActivityDispatcher;
+  private final int maxEagerActivityReservationsPerWorkflowTask;
   private final TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier;
 
   private final TaskCounter taskCounter = new TaskCounter();
@@ -77,6 +78,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull WorkflowExecutorCache cache,
       @Nonnull WorkflowTaskHandler handler,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
+      int maxEagerActivityReservationsPerWorkflowTask,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
@@ -92,6 +94,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.handler = Objects.requireNonNull(handler);
     this.grpcRetryer = new GrpcRetryer(service.getServerCapabilities());
     this.eagerActivityDispatcher = eagerActivityDispatcher;
+    this.maxEagerActivityReservationsPerWorkflowTask = maxEagerActivityReservationsPerWorkflowTask;
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
     this.namespaceCapabilities = namespaceCapabilities;
   }
@@ -99,6 +102,11 @@ final class WorkflowWorker implements SuspendableWorker {
   @Override
   public boolean start() {
     if (handler.isAnyTypeSupported()) {
+      // Auto-enroll into poller autoscaling if the namespace advertises the capability and this
+      // poller type was left at its default. Resolved here (after namespace capabilities are known)
+      // so the poller built below reflects the effective behavior.
+      this.pollerOptions =
+          PollerOptions.maybeEnrollInPollerAutoscaling(pollerOptions, namespaceCapabilities);
       pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,
@@ -473,7 +481,8 @@ final class WorkflowWorker implements SuspendableWorker {
                     RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
                         taskCompleted.toBuilder();
                     try (EagerActivitySlotsReservation activitySlotsReservation =
-                        new EagerActivitySlotsReservation(eagerActivityDispatcher)) {
+                        new EagerActivitySlotsReservation(
+                            eagerActivityDispatcher, maxEagerActivityReservationsPerWorkflowTask)) {
                       activitySlotsReservation.applyToRequest(requestBuilder);
                       RespondWorkflowTaskCompletedResponse response =
                           sendTaskCompleted(

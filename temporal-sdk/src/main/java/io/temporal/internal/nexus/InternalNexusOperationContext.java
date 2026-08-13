@@ -38,6 +38,8 @@ public class InternalNexusOperationContext {
   private final Object responseLinksLock = new Object();
   private final List<Link> responseLinks = new ArrayList<>();
 
+  private NexusOperationMetadata nexusOperationMetadata;
+
   public InternalNexusOperationContext(
       String namespace,
       String taskQueue,
@@ -80,6 +82,15 @@ public class InternalNexusOperationContext {
       throw new IllegalStateException("Outbound interceptor is not set");
     }
     return new NexusOperationContextImpl();
+  }
+
+  /** Sets metadata for the Temporal primitive backing the current Nexus operation. */
+  public void setNexusOperationMetadata(NexusOperationMetadata metadata) {
+    this.nexusOperationMetadata = metadata;
+  }
+
+  public NexusOperationMetadata getNexusOperationMetadata() {
+    return nexusOperationMetadata;
   }
 
   /**

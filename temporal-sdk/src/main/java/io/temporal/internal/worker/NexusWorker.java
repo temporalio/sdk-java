@@ -46,7 +46,7 @@ final class NexusWorker implements SuspendableWorker {
   private final String namespace;
   private final String taskQueue;
   private final SingleWorkerOptions options;
-  private final PollerOptions pollerOptions;
+  private PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
   private final DataConverter dataConverter;
   private final GrpcRetryer grpcRetryer;
@@ -114,6 +114,11 @@ final class NexusWorker implements SuspendableWorker {
   @Override
   public boolean start() {
     if (handler.start()) {
+      // Auto-enroll into poller autoscaling if the namespace advertises the capability and this
+      // poller type was left at its default. Resolved here (after namespace capabilities are known)
+      // so the poller built below reflects the effective behavior.
+      this.pollerOptions =
+          PollerOptions.maybeEnrollInPollerAutoscaling(pollerOptions, namespaceCapabilities);
       this.pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,

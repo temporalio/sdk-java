@@ -10,6 +10,7 @@ import io.nexusrpc.OperationState;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
+import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowNotFoundException;
@@ -192,7 +193,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private void convertKnownFailures(Throwable e) {
     Throwable failure = CheckedExceptionWrapper.unwrap(e);
-    if (failure instanceof WorkflowException) {
+    if (failure instanceof WorkflowException
+        || failure instanceof ActivityAlreadyStartedException) {
       if (failure instanceof WorkflowNotFoundException) {
         throw new HandlerException(HandlerException.ErrorType.NOT_FOUND, failure);
       }
@@ -301,20 +303,13 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
-              // LinkConverter only returns a WorkflowEvent-shaped common.v1.Link; nexus links of
-              // other shapes (e.g. non-temporal URLs) come back null and are intentionally not
-              // forwarded onto the RPCs the handler issues, which require the WorkflowEvent
-              // variant. Log so a debugging session can see what was dropped.
-              io.temporal.api.common.v1.Link commonLink =
-                  LinkConverter.nexusLinkToWorkflowEvent(link);
+              // Convert inbound Nexus links into common.v1.Link so RPCs issued by the handler
+              // (e.g. signal, signalWithStart) can attach them as request links. Both
+              // WorkflowEvent (caller workflow → nexus op scheduled) and NexusOperation (SANO
+              // record) variants flow through; other shapes are dropped.
+              io.temporal.api.common.v1.Link commonLink = LinkConverter.nexusLinkToLink(link);
               if (commonLink != null) {
                 inboundCommonLinks.add(commonLink);
-              } else {
-                log.warn(
-                    "Dropping inbound Nexus link from outbound link propagation: type='{}',"
-                        + " url='{}' (not a parseable temporal WorkflowEvent link)",
-                    link.getType(),
-                    link.getUrl());
               }
             });
     CurrentNexusOperationContext.get().setRequestLinks(inboundCommonLinks);
@@ -335,11 +330,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         List<io.temporal.api.nexus.v1.Link> responseLinks = new ArrayList<>();
         for (io.temporal.api.common.v1.Link responseLink :
             CurrentNexusOperationContext.get().getResponseLinks()) {
-          if (!responseLink.hasWorkflowEvent()) {
-            continue;
-          }
-          io.temporal.api.nexus.v1.Link converted =
-              LinkConverter.workflowEventToNexusLink(responseLink.getWorkflowEvent());
+          io.temporal.api.nexus.v1.Link converted = LinkConverter.linkToNexusLink(responseLink);
           if (converted != null) {
             responseLinks.add(converted);
           }
@@ -403,7 +394,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     if (nexusService instanceof Class) {
       throw new IllegalArgumentException("Nexus service object instance expected, not the class");
     }
-    ServiceImplInstance instance = ServiceImplInstance.fromInstance(nexusService);
+    ServiceImplInstance instance = TemporalOperationProcessor.process(nexusService);
     InternalUtils.checkMethodName(instance);
     if (serviceImplInstances.put(instance.getDefinition().getName(), instance) != null) {
       throw new TypeAlreadyRegisteredException(

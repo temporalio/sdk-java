@@ -6,6 +6,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
+import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.ActivityHandleImpl;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
@@ -27,7 +28,7 @@ import javax.annotation.Nullable;
  * Implementation of {@link ActivityClient} that delegates calls through the activity interceptor
  * chain and ultimately to the Temporal service.
  */
-class ActivityClientImpl implements ActivityClient {
+class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
 
   private final WorkflowServiceStubs stubs;
   private final ActivityClientOptions options;
@@ -53,6 +54,11 @@ class ActivityClientImpl implements ActivityClient {
     for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
       invoker = interceptor.activityClientCallsInterceptor(invoker);
     }
+    return invoker;
+  }
+
+  @Override
+  public ActivityClientCallsInterceptor getInvoker() {
     return invoker;
   }
 

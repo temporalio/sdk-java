@@ -65,6 +65,41 @@ dependencies {
     java21Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
 }
 
+// --- Payload visitor code generation ---
+// A build-time generator (compiled in its own source set against the proto classes from
+// temporal-serviceclient) emits GeneratedPayloadVisitor.java, which knows how to walk every
+// payload-bearing Temporal API message. The generated source is added to the main source set.
+sourceSets {
+    payloadVisitorGenerator {
+        java {
+            srcDirs = ['src/payloadVisitorGenerator/java']
+        }
+    }
+}
+
+dependencies {
+    payloadVisitorGeneratorImplementation project(':temporal-serviceclient')
+}
+
+def generatedPayloadVisitorDir = layout.buildDirectory.dir('generated/payloadvisitor/java')
+
+def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) {
+    dependsOn 'compilePayloadVisitorGeneratorJava'
+    classpath = sourceSets.payloadVisitorGenerator.runtimeClasspath
+    mainClass = 'io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator'
+    args generatedPayloadVisitorDir.get().asFile.absolutePath
+    inputs.files(sourceSets.payloadVisitorGenerator.runtimeClasspath)
+    outputs.dir(generatedPayloadVisitorDir)
+}
+
+sourceSets.main.java.srcDir(generatePayloadVisitor)
+
+tasks.named('compilePayloadVisitorGeneratorJava') {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+    options.errorprone.error('MissingCasesInEnumSwitch')
+}
+
 tasks.named('compileJava17Java') {
     options.release = 17
 }

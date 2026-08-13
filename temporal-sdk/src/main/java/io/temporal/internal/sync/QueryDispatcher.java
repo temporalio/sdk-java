@@ -1,6 +1,7 @@
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.TEMPORAL_RESERVED_PREFIX;
+import static io.temporal.internal.common.InternalUtils.isWorkflowStreamReservedName;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
@@ -80,7 +81,8 @@ class QueryDispatcher {
       Optional<Payloads> input) {
     WorkflowOutboundCallsInterceptor.RegisterQueryInput handler = queryCallbacks.get(queryName);
     Object[] args;
-    if (queryName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
+    if (queryName.startsWith(TEMPORAL_RESERVED_PREFIX)
+        && !isWorkflowStreamReservedName(queryName)) {
       throw new IllegalArgumentException(
           "Unknown query type: " + queryName + ", knownTypes=" + queryCallbacks.keySet());
     }

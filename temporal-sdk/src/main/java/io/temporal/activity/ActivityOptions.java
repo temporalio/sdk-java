@@ -238,7 +238,6 @@ public final class ActivityOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setSummary(String summary) {
       this.summary = summary;
       return this;
@@ -452,7 +451,6 @@ public final class ActivityOptions {
     return versioningIntent;
   }
 
-  @Experimental
   public String getSummary() {
     return summary;
   }

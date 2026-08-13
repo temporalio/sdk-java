@@ -1467,6 +1467,9 @@ class StateMachines {
     if (d.hasSearchAttributes()) {
       a.setSearchAttributes(d.getSearchAttributes());
     }
+    if (d.hasMemo()) {
+      a.setMemo(d.getMemo());
+    }
     a.setNewExecutionRunId(UUID.randomUUID().toString());
     HistoryEvent event =
         HistoryEvent.newBuilder()

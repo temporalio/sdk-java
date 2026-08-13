@@ -1,0 +1,37 @@
+# **Highlights**
+
+## Virtual Threads are stable
+
+Support for virtual threads is now stable. The feature requires JVM version of 21 or higher.
+Virtual threads can be used inside workflows by enabling `WorkerFactoryOptions.setUsingVirtualWorkflowThreads`.
+Users can also use virtual threads for task processing in a worker by enabling `WorkerOptions.setUsingVirtualThreads`.
+
+## Workflow Streams (Public Preview)
+
+This release adds Workflow Streams, a public preview contrib library that gives a workflow a durable, offset-addressed event channel
+for keeping outside observers updated on workflow and activity progress. It's built on Temporal's existing signals, updates, and queries,
+with batching, exactly-once deduplication, topic filtering, and continue-as-new helpers layered on top.
+Intended uses are streaming UIs for long-running AI agents, status for in-flight payment or order processing, and progress for data pipelines.
+It is not for not ultra-low-latency cases like real-time voice.
+
+## AWS Lambda Serverless Workers (experimental)
+
+This release adds the `temporal-aws-lambda` contrib module for running Java Workers with Temporal Serverless Workers on AWS Lambda.
+See [online documentation](https://docs.temporal.io/serverless-workers) and the module's README for more information.
+
+## Workflow preferred version provider (experimental)
+
+Added `worker.Options.PreferredVersionProvider`, which can select the version recorded by a newly encountered `workflow.GetVersion` call.
+This supports gradual rollout of a new `GetVersion` call before activating its new behavior.
+
+# What's Changed
+
+2026-07-02 - ac9c7ddb - Change references to `master` branch to `main` (#2938)
+2026-07-06 - f86c7664 - fix flakey WorkflowUpdateTest.duplicateRejectedUpdate logic where ADMITTED was reported for updates that were actually COMPLETED. (#2940)
+2026-07-09 - 23590a1c - AWS Lambda (Java) (#2901)
+2026-07-09 - b8ace300 - Add preferred version provider to worker options (#2942)
+2026-07-10 - 2c5e662d - Fix misleading docstring in preferred version PR (#2944)
+2026-07-13 - 01925765 - Stabilize Worker options to enable virtual threads (#2947)
+2026-07-13 - c0c91323 - Add temporal-workflowstreams contrib module (#2912)
+2026-07-13 - ed6a3f7b - fix: add @TemporalDsl receiver annotation to setRetryOptions extensions (#2915)
+2026-07-13 - ff980d39 - Propagate memo on continue-as-new in the test server (#2943)

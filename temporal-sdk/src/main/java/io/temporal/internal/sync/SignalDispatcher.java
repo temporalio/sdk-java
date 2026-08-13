@@ -1,6 +1,7 @@
 package io.temporal.internal.sync;
 
 import static io.temporal.internal.common.InternalUtils.TEMPORAL_RESERVED_PREFIX;
+import static io.temporal.internal.common.InternalUtils.isWorkflowStreamReservedName;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
@@ -68,7 +69,8 @@ class SignalDispatcher {
         signalCallbacks.get(signalName);
     Object[] args;
     HandlerUnfinishedPolicy policy;
-    if (signalName.startsWith(TEMPORAL_RESERVED_PREFIX)) {
+    if (signalName.startsWith(TEMPORAL_RESERVED_PREFIX)
+        && !isWorkflowStreamReservedName(signalName)) {
       // Ignore internal signals
       return;
     }

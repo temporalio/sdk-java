@@ -43,7 +43,7 @@ final class ActivityWorker implements SuspendableWorker {
   private final String taskQueue;
   private final SingleWorkerOptions options;
   private final double taskQueueActivitiesPerSecond;
-  private final PollerOptions pollerOptions;
+  private PollerOptions pollerOptions;
   private final Scope workerMetricsScope;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
@@ -83,6 +83,11 @@ final class ActivityWorker implements SuspendableWorker {
   @Override
   public boolean start() {
     if (handler.isAnyTypeSupported()) {
+      // Auto-enroll into poller autoscaling if the namespace advertises the capability and this
+      // poller type was left at its default. Resolved here (after namespace capabilities are known)
+      // so the poller built below reflects the effective behavior.
+      this.pollerOptions =
+          PollerOptions.maybeEnrollInPollerAutoscaling(pollerOptions, namespaceCapabilities);
       this.pollTaskExecutor =
           new PollTaskExecutor<>(
               namespace,

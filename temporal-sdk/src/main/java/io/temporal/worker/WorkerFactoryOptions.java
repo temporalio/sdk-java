@@ -136,7 +136,6 @@ public class WorkerFactoryOptions {
      *
      * <p>Default is false
      */
-    @Experimental
     public Builder setUsingVirtualWorkflowThreads(boolean usingVirtualWorkflowThreads) {
       this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
       return this;
@@ -307,7 +306,6 @@ public class WorkerFactoryOptions {
     return enableLoggingInReplay;
   }
 
-  @Experimental
   public boolean isUsingVirtualWorkflowThreads() {
     return usingVirtualWorkflowThreads;
   }

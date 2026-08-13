@@ -1,11 +1,12 @@
 package io.temporal.internal.activity;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.activity.ActivityCancellationToken;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.CancellationToken;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -59,8 +60,8 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   }
 
   @Override
-  public ActivityCancellationToken getCancellationToken() {
-    return ActivityCancellationToken.NONE;
+  public CancellationToken<ActivityCanceledException> getCancellationToken() {
+    return CancellationToken.none();
   }
 
   @Override

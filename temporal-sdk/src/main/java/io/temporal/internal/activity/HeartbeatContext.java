@@ -1,7 +1,8 @@
 package io.temporal.internal.activity;
 
-import io.temporal.activity.ActivityCancellationToken;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
+import io.temporal.common.CancellationToken;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -24,7 +25,7 @@ interface HeartbeatContext {
 
   Object getLatestHeartbeatDetails();
 
-  ActivityCancellationToken getCancellationToken();
+  CancellationToken<ActivityCanceledException> getCancellationToken();
 
   /** Mark this activity as canceled by an external worker command. */
   void cancelFromWorkerCommand();

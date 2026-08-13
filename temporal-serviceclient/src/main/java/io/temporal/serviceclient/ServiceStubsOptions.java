@@ -742,8 +742,10 @@ public class ServiceStubsOptions {
     }
 
     /**
-     * Sets outbound transport-level gRPC compression. Defaults to {@link GrpcCompression#GZIP}. Set
-     * to {@link GrpcCompression#NONE} to opt out of compressing requests.
+     * Sets outbound transport-level gRPC compression. Defaults to {@link GrpcCompression#GZIP}. If
+     * a specific server RPC does not support gzip, the SDK may retry that RPC without compression
+     * and continue using gzip for other RPCs. Set to {@link GrpcCompression#NONE} to opt out of
+     * compressing requests.
      *
      * <p>The SDK uses the default gRPC response decompression registry for all compression options,
      * so disabling request compression does not disable accepting compressed responses.

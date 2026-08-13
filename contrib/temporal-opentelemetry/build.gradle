@@ -1,0 +1,32 @@
+description = '''Temporal Java SDK OpenTelemetry Support Module'''
+
+ext {
+    otelVersion = '1.25.0'
+    otShimVersion = "${otelVersion}-alpha"
+}
+
+dependencies {
+    api platform("io.opentelemetry:opentelemetry-bom:$otelVersion")
+
+    // This module shouldn't carry temporal-sdk with it, especially for situations when users may
+    // be using a shaded artifact.
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
+    compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
+
+    api "com.uber.m3:tally-core:$tallyVersion"
+    api "io.opentelemetry:opentelemetry-api"
+    api "io.opentelemetry:opentelemetry-sdk-trace"
+
+    implementation project(':temporal-opentracing')
+    implementation "io.opentelemetry:opentelemetry-exporter-otlp"
+    implementation "io.opentelemetry:opentelemetry-opentracing-shim:$otShimVersion"
+    implementation "io.opentelemetry:opentelemetry-sdk"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+
+    testImplementation project(':temporal-sdk')
+    testImplementation project(':temporal-serviceclient')
+    testImplementation "junit:junit:${junitVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}

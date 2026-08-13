@@ -14,8 +14,10 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.worker.VersionPreference;
 import io.temporal.workflow.Functions;
 import java.util.Objects;
+import java.util.function.BiFunction;
 import javax.annotation.Nullable;
 
 final class VersionStateMachine {
@@ -137,17 +139,22 @@ final class VersionStateMachine {
     private final Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback;
     private final Functions.Proc2<Integer, RuntimeException> resultCallback;
 
+    @Nullable
+    private final BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider;
+
     InvocationStateMachine(
         int minSupported,
         int maxSupported,
         boolean waitForMarkerRecordedReplaying,
         Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
+        @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
         Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
       this.maxSupported = maxSupported;
       this.waitForMarkerRecordedReplaying = waitForMarkerRecordedReplaying;
       this.upsertSearchAttributeCallback = upsertSearchAttributeCallback;
+      this.preferredVersionProvider = preferredVersionProvider;
       this.resultCallback = Objects.requireNonNull(callback);
     }
 
@@ -210,11 +217,15 @@ final class VersionStateMachine {
         throw new IllegalStateException((preloaded ? "preloaded " : "") + " version not set");
       }
       if (versionToUse < minSupported || versionToUse > maxSupported) {
-        throw new UnsupportedVersion.UnsupportedVersionException(
-            String.format(
-                "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
-                versionToUse, changeId, minSupported, maxSupported));
+        throwUnsupportedVersion(versionToUse);
       }
+    }
+
+    private void throwUnsupportedVersion(int unsupportedVersion) {
+      throw new UnsupportedVersion.UnsupportedVersionException(
+          String.format(
+              "Version %d of changeId %s is not supported. Supported v is between %d and %d.",
+              unsupportedVersion, changeId, minSupported, maxSupported));
     }
 
     void notifyFromVersion(boolean preloaded) {
@@ -227,8 +238,8 @@ final class VersionStateMachine {
     }
 
     void notifyFromVersionExecuting() {
-      // the only case when we don't need to validate before notification because
-      // we just initialized the version with maxVersion
+      // No validation needed before notification here: resolveVersionExecuting() already guarantees
+      // the version it produces is within [minSupported, maxSupported].
       notifyFromVersion(false);
     }
 
@@ -238,7 +249,7 @@ final class VersionStateMachine {
         addCommand(StateMachineCommandUtils.RECORD_MARKER_FAKE_COMMAND);
         return State.SKIPPED;
       } else {
-        version = maxSupported;
+        version = resolveVersionExecuting();
         SearchAttributes sa = upsertSearchAttributeCallback.apply(version);
         writeVersionChangeSA = sa != null;
         RecordMarkerCommandAttributes markerAttributes =
@@ -251,6 +262,27 @@ final class VersionStateMachine {
         }
         return State.MARKER_COMMAND_CREATED;
       }
+    }
+
+    private int resolveVersionExecuting() {
+      if (preferredVersionProvider == null) {
+        return maxSupported;
+      }
+      VersionPreference versionPreference =
+          preferredVersionProvider.apply(minSupported, maxSupported);
+      if (versionPreference == null) {
+        return maxSupported;
+      }
+
+      int preferredVersion = versionPreference.getVersion();
+      if (preferredVersion >= minSupported && preferredVersion <= maxSupported) {
+        return preferredVersion;
+      }
+      if (versionPreference.isClampToSupportedRange()) {
+        return Math.min(Math.max(preferredVersion, minSupported), maxSupported);
+      }
+      throwUnsupportedVersion(preferredVersion);
+      throw new IllegalStateException("unreachable");
     }
 
     void notifySkippedExecuting() {
@@ -411,6 +443,7 @@ final class VersionStateMachine {
       int maxSupported,
       boolean waitForMarkerRecordedReplaying,
       Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
+      @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
       Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism =
         new InvocationStateMachine(
@@ -418,6 +451,7 @@ final class VersionStateMachine {
             maxSupported,
             waitForMarkerRecordedReplaying,
             upsertSearchAttributeCallback,
+            preferredVersionProvider,
             callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);

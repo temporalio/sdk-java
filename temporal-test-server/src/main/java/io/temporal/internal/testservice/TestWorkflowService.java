@@ -1657,6 +1657,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (!r.getLinksList().isEmpty()) {
         startRequest.addAllLinks(r.getLinksList());
       }
+      if (r.hasPriority()) {
+        startRequest.setPriority(r.getPriority());
+      }
 
       StartWorkflowExecutionResponse startResult =
           startWorkflowExecutionImpl(
@@ -1756,6 +1759,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     if (ea.hasSearchAttributes()) {
       startRequestBuilder.setSearchAttributes(ea.getSearchAttributes());
+    }
+    if (ea.hasMemo()) {
+      startRequestBuilder.setMemo(ea.getMemo());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();

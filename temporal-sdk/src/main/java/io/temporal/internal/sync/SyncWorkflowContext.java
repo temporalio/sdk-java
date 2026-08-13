@@ -1143,21 +1143,26 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
     CompletablePromise<Integer> result = Workflow.newPromise();
-    Integer versionToUse =
-        replayContext.getVersion(
-            changeId,
-            minSupported,
-            maxSupported,
-            (v, e) ->
-                runner.executeInWorkflowThread(
-                    "version-callback",
-                    () -> {
-                      if (v != null) {
-                        result.complete(v);
-                      } else {
-                        result.completeExceptionally(e);
-                      }
-                    }));
+    Integer versionToUse;
+    try {
+      versionToUse =
+          replayContext.getVersion(
+              changeId,
+              minSupported,
+              maxSupported,
+              (v, e) ->
+                  runner.executeInWorkflowThread(
+                      "version-callback",
+                      () -> {
+                        if (v != null) {
+                          result.complete(v);
+                        } else {
+                          result.completeExceptionally(e);
+                        }
+                      }));
+    } catch (UnsupportedVersion.UnsupportedVersionException ex) {
+      throw new UnsupportedVersion(ex);
+    }
     /*
      * If we are replaying a workflow and encounter a getVersion call it is possible that this call did not exist
      * on the original execution. If the call did not exist on the original execution then we cannot block on results

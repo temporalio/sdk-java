@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
+/** Tests external storage option validation and defaults. */
 public class ExternalStorageOptionsTest {
 
   private static StorageDriverStoreContext storeContext(StorageDriverTargetInfo target) {

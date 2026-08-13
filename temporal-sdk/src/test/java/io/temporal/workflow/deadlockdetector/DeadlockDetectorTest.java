@@ -78,6 +78,7 @@ public class DeadlockDetectorTest {
         failure = failure.getCause();
       }
       assertTrue(failure.getMessage().contains("Potential deadlock detected"));
+      assertTrue(failure.getMessage().contains("1s"));
       assertTrue(failure.getMessage().contains("Workflow.await"));
     }
   }
@@ -100,6 +101,7 @@ public class DeadlockDetectorTest {
         failure = failure.getCause();
       }
       assertTrue(failure.getMessage().contains("Potential deadlock detected"));
+      assertTrue(failure.getMessage().contains("500ms"));
       assertTrue(failure.getMessage().contains("Workflow.await"));
     }
   }

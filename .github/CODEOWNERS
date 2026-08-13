@@ -12,4 +12,5 @@
 # For each one, we add the owning team, as well as
 # @temporalio/sdk, so the SDK team can continue to
 # manage repo-wide concerns
-/contrib/temporal-spring-ai/ @temporalio/ai-sdk @temporalio/sdk
+/contrib/temporal-spring-ai/       @temporalio/sdk @temporalio/ai-sdk
+/contrib/temporal-workflowstreams/ @temporalio/sdk @temporalio/ai-sdk

@@ -7,7 +7,9 @@ description = '''Temporal Java BOM'''
 dependencies {
     constraints {
         api project(':temporal-kotlin')
+        api project(':temporal-opentelemetry')
         api project(':temporal-opentracing')
+        api project(':temporal-aws-lambda')
         api project(':temporal-remote-data-encoder')
         api project(':temporal-sdk')
         api project(':temporal-serviceclient')
@@ -18,5 +20,6 @@ dependencies {
         api project(':temporal-test-server')
         api project(':temporal-testing')
         api project(':temporal-envconfig')
+        api project(':temporal-workflowstreams')
     }
 }

@@ -11,6 +11,8 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.workflowservice.v1.GetSystemInfoRequest;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
@@ -119,6 +121,13 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {
+    @Override
+    public void getSystemInfo(
+        GetSystemInfoRequest request, StreamObserver<GetSystemInfoResponse> responseObserver) {
+      responseObserver.onNext(GetSystemInfoResponse.getDefaultInstance());
+      responseObserver.onCompleted();
+    }
+
     @Override
     public void recordActivityTaskHeartbeat(
         RecordActivityTaskHeartbeatRequest request,
