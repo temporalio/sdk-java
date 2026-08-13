@@ -16,27 +16,35 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  * provides a composable way to map Temporal operations (start workflow, start activity, etc.) to
  * Nexus operations.
  *
- * <p>Usage example:
+ * <p>For the common case (default cancel behavior), prefer {@link TemporalOperation}, which
+ * collapses the operation factory into the method itself. Subclass this class only when you need to
+ * customize cancel behavior. Override {@link #cancelWorkflowRun}, {@link #cancelUpdateWorkflow}, or
+ * {@link #cancelActivityExecution} to change how the corresponding cancellation is handled. The
+ * {@link #start} and {@link #cancel} methods should not be overridden — they contain the core
+ * dispatch logic.
+ *
+ * <p>Custom-cancel example:
  *
  * <pre>{@code
  * @OperationImpl
  * public OperationHandler<TransferInput, TransferResult> startTransfer() {
- *   return TemporalOperationHandler.create((context, client, input) -> {
- *     return client.startWorkflow(
- *         TransferWorkflow.class,
- *         TransferWorkflow::transfer, input.getFromAccount(), input.getToAccount(),
- *         WorkflowOptions.newBuilder()
- *             .setWorkflowId("transfer-" + input.getTransferId())
- *             .build());
- *   });
+ *   return new TemporalOperationHandler<TransferInput, TransferResult>(
+ *       (context, client, input) ->
+ *           client.startWorkflow(
+ *               TransferWorkflow.class,
+ *               TransferWorkflow::transfer,
+ *               input,
+ *               WorkflowOptions.newBuilder()
+ *                   .setWorkflowId("transfer-" + input.getTransferId())
+ *                   .build())) {
+ *     @Override
+ *     protected void cancelWorkflowRun(
+ *         TemporalOperationCancelContext ctx, CancelWorkflowRunInput input) {
+ *       // custom logic
+ *     }
+ *   };
  * }
  * }</pre>
- *
- * <p>This class supports subclassing to customize cancel behavior. Override {@link
- * #cancelWorkflowRun} to change how workflow-run (token type {@code t:1}) cancellations are
- * handled, or {@link #cancelActivityExecution} to change how activity-execution (token type {@code
- * t:2}) cancellations are handled. The {@link #start} and {@link #cancel} methods should not be
- * overridden — they contain the core dispatch logic.
  *
  * @param <T> the input type
  * @param <R> the result type
@@ -54,7 +62,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
   public interface StartHandler<T, R> {
     TemporalOperationResult<R> apply(
         TemporalOperationStartContext context, TemporalNexusClient client, T input)
-        throws OperationException;
+        throws OperationException, HandlerException;
   }
 
   private final StartHandler<T, R> startHandler;
@@ -65,7 +73,8 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
   /**
    * Creates a {@link TemporalOperationHandler} from a start handler. Subclass and override {@link
-   * #cancelWorkflowRun} or {@link #cancelActivityExecution} to customize cancel behavior.
+   * #cancelWorkflowRun}, {@link #cancelUpdateWorkflow}, or {@link #cancelActivityExecution} to
+   * customize cancel behavior.
    *
    * @param startHandler the handler to invoke on start operation requests
    * @return an operation handler backed by the given start handler
@@ -76,7 +85,8 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
 
   @Override
   public final OperationStartResult<R> start(
-      OperationContext ctx, OperationStartDetails details, T input) throws OperationException {
+      OperationContext ctx, OperationStartDetails details, T input)
+      throws OperationException, HandlerException {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
     TemporalNexusClient client =
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
