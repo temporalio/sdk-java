@@ -8,6 +8,7 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
+import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.PendingActivityState;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityClient;
@@ -437,6 +438,50 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityExecutionOptions restored =
         handle.updateOptions(UpdateActivityOptions.newBuilder().setRestoreOriginal(true).build());
     assertEquals(Duration.ofSeconds(45), restored.getStartToCloseTimeout());
+    handle.terminate("cleanup");
+  }
+
+  @Test(timeout = 60_000)
+  public void updateOptionsOnPausedActivity() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    // Start delayed so the activity sits SCHEDULED and pauses to a true PAUSED state rather than
+    // the PAUSE_REQUESTED a running activity lands in.
+    ActivityHandle<String> handle =
+        newActivityClient()
+            .start(
+                QuickActivity.class,
+                QuickActivity::run,
+                StartActivityOptions.newBuilder()
+                    .setId(uniqueId())
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setStartToCloseTimeout(Duration.ofSeconds(45))
+                    .setScheduleToCloseTimeout(Duration.ofSeconds(120))
+                    .setStartDelay(Duration.ofSeconds(60))
+                    .build());
+    handle.pause("hold");
+    assertEventually(
+        Duration.ofSeconds(30),
+        () ->
+            assertEquals(
+                PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED,
+                handle.describe().getRunState()));
+
+    // Updating options is legal while paused, and the new value lands.
+    ActivityExecutionOptions updated =
+        handle.updateOptions(
+            UpdateActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(90))
+                .build());
+    assertEquals(Duration.ofSeconds(90), updated.getStartToCloseTimeout());
+
+    ActivityExecutionDescription desc = handle.describe();
+    assertEquals(Duration.ofSeconds(90), desc.getStartToCloseTimeout());
+    // The mask is still honored while paused — an option we didn't touch keeps its original value.
+    assertEquals(Duration.ofSeconds(120), desc.getScheduleToCloseTimeout());
+    // And the update leaves the activity paused; it is not an implicit unpause.
+    assertEquals(PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED, desc.getRunState());
+    assertEquals(ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_PAUSED, desc.getStatus());
+
     handle.terminate("cleanup");
   }
 
