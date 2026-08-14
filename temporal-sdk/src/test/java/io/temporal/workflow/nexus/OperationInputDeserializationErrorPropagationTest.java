@@ -141,6 +141,9 @@ public class OperationInputDeserializationErrorPropagationTest {
     Throwable cause = handlerFailure.getCause();
     Assert.assertNotNull(cause);
     Assert.assertTrue(
+        "expected an ApplicationFailure cause, got " + cause, cause instanceof ApplicationFailure);
+    Assert.assertEquals("PayloadValidationError", ((ApplicationFailure) cause).getType());
+    Assert.assertTrue(
         "expected the converter's message on the cause, got " + cause.getMessage(),
         cause.getMessage().contains("intentional failure"));
 

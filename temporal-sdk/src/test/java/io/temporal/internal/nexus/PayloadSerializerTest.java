@@ -142,9 +142,15 @@ public class PayloadSerializerTest {
     Assert.assertFalse(e.isRetryable());
     Assert.assertEquals("invalid operation input", e.getMessage());
     // The converter's own message is not in the wrapper, so it has to survive on the cause.
-    Assert.assertSame(original, e.getCause());
-    Assert.assertEquals("invalid input", original.getOriginalMessage());
-    Assert.assertSame(cause, e.getCause().getCause());
+    Assert.assertTrue(
+        "expected an ApplicationFailure cause, got " + e.getCause(),
+        e.getCause() instanceof ApplicationFailure);
+    ApplicationFailure causeFailure = (ApplicationFailure) e.getCause();
+    Assert.assertSame(original, causeFailure);
+    Assert.assertEquals(PayloadSerializer.PAYLOAD_VALIDATION_ERROR_TYPE, causeFailure.getType());
+    Assert.assertTrue(causeFailure.isNonRetryable());
+    Assert.assertEquals("invalid input", causeFailure.getOriginalMessage());
+    Assert.assertSame(cause, causeFailure.getCause());
   }
 
   @Test
