@@ -21,10 +21,12 @@ import javax.annotation.Nullable;
  * reports for them is decided here.
  *
  * <p>Input that will never decode into the expected type is the caller's fault and is reported as a
- * non-retryable {@link HandlerException.ErrorType#BAD_REQUEST}. Any other failure on the way to the
- * value, a {@link io.temporal.payload.codec.PayloadCodec} outage for example, may well succeed on a
- * retry, so it is left to the handling in {@link NexusTaskHandlerImpl} that a failure from an
- * operation handler would get.
+ * non-retryable {@link HandlerException.ErrorType#BAD_REQUEST}. A data converter can also opt into
+ * that treatment for input it decoded but rejected, by throwing a non-retryable {@link
+ * ApplicationFailure} of type {@value #PAYLOAD_VALIDATION_ERROR_TYPE}. Any other failure on the way
+ * to the value, a {@link io.temporal.payload.codec.PayloadCodec} outage for example, may well
+ * succeed on a retry, so it is left to the handling in {@link NexusTaskHandlerImpl} that a failure
+ * from an operation handler would get.
  *
  * <p>Serializing an operation result is not translated at all. Note that this still means a
  * converter can choose the outcome: a non-retryable {@link ApplicationFailure} raised while
@@ -32,6 +34,13 @@ import javax.annotation.Nullable;
  * NexusTaskHandlerImpl}, and anything else keeps the retryable {@code INTERNAL} default.
  */
 class PayloadSerializer implements Serializer {
+  /**
+   * {@link ApplicationFailure#getType()} a data converter uses to say it understood the input but
+   * considers it invalid. When non-retryable, it is reported as {@link
+   * HandlerException.ErrorType#BAD_REQUEST} rather than as a handler-side {@code INTERNAL} error.
+   */
+  static final String PAYLOAD_VALIDATION_ERROR_TYPE = "PayloadValidationError";
+
   private final DataConverter dataConverter;
 
   PayloadSerializer(DataConverter dataConverter) {
@@ -64,7 +73,16 @@ class PayloadSerializer implements Serializer {
             null,
             HandlerException.RetryBehavior.NON_RETRYABLE);
       }
-    } catch (HandlerException | ApplicationFailure e) {
+    } catch (ApplicationFailure e) {
+      if (e.isNonRetryable() && PAYLOAD_VALIDATION_ERROR_TYPE.equals(e.getType())) {
+        // The data converter decoded the input and rejected it, so this is the caller's fault
+        // rather than a handler-side error.
+        throw new HandlerException(
+            HandlerException.ErrorType.BAD_REQUEST, "invalid operation input", e);
+      }
+      // Otherwise the data converter already picked an error type and retry behavior, keep them.
+      throw e;
+    } catch (HandlerException e) {
       // The data converter already picked an error type and retry behavior, keep them.
       throw e;
     } catch (InvalidProtocolBufferException | DataConverterException e) {

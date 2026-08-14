@@ -32,13 +32,20 @@ import org.junit.*;
  * operation input. A {@link HandlerException} keeps the error type and retry behavior the converter
  * chose, and an {@link ApplicationFailure} is wrapped by {@link
  * io.temporal.internal.nexus.NexusTaskHandlerImpl} the same way one thrown from an operation
- * handler is. Neither is rewritten to BAD_REQUEST, which is what happens to every other failure.
+ * handler is. Neither is rewritten to BAD_REQUEST, which is what happens to every other failure,
+ * with one exception: a non-retryable {@code PayloadValidationError} is the converter's way of
+ * saying the input itself was invalid, so it is reported as a non-retryable BAD_REQUEST.
  */
 public class OperationInputDeserializationErrorPropagationTest {
   private static final String HANDLER_EXCEPTION = "handler-exception";
   private static final String NON_RETRYABLE_APPLICATION_FAILURE =
       "non-retryable-application-failure";
   private static final String RETRYABLE_APPLICATION_FAILURE = "retryable-application-failure";
+  private static final String NON_RETRYABLE_PAYLOAD_VALIDATION_ERROR =
+      "non-retryable-payload-validation-error";
+  private static final String RETRYABLE_PAYLOAD_VALIDATION_ERROR =
+      "retryable-payload-validation-error";
+  private static final String PAYLOAD_VALIDATION_ERROR_TYPE = "PayloadValidationError";
   private static final String CODEC_FAILURE = "codec-failure";
 
   private static final AtomicInteger deserializeAttempts = new AtomicInteger();
@@ -116,6 +123,38 @@ public class OperationInputDeserializationErrorPropagationTest {
   @Test(timeout = 30000)
   public void retryableApplicationFailureIsRetried() {
     assertRetriedUntilTimeout(RETRYABLE_APPLICATION_FAILURE);
+  }
+
+  @Test
+  public void nonRetryablePayloadValidationErrorBecomesNonRetryableBadRequest() {
+    HandlerException handlerFailure =
+        executeAndGetHandlerException(NON_RETRYABLE_PAYLOAD_VALIDATION_ERROR);
+
+    // BAD_REQUEST rather than the INTERNAL every other non-retryable ApplicationFailure gets.
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, handlerFailure.getErrorType());
+    Assert.assertFalse(handlerFailure.isRetryable());
+    if (isUsingNewFormat()) {
+      Assert.assertEquals("invalid operation input", handlerFailure.getMessage());
+    }
+    // The wrapper message does not carry the converter's own message, so it has to survive on the
+    // cause for the caller to see why the input was rejected.
+    Throwable cause = handlerFailure.getCause();
+    Assert.assertNotNull(cause);
+    Assert.assertTrue(
+        "expected the converter's message on the cause, got " + cause.getMessage(),
+        cause.getMessage().contains("intentional failure"));
+
+    Assert.assertEquals(1, deserializeAttempts.get());
+    Assert.assertEquals(0, operationInvocations.get());
+  }
+
+  /**
+   * The PayloadValidationError type only opts into BAD_REQUEST when the failure is non-retryable,
+   * so a retryable one keeps being retried.
+   */
+  @Test(timeout = 30000)
+  public void retryablePayloadValidationErrorIsRetried() {
+    assertRetriedUntilTimeout(RETRYABLE_PAYLOAD_VALIDATION_ERROR);
   }
 
   /**
@@ -245,6 +284,12 @@ public class OperationInputDeserializationErrorPropagationTest {
           return ApplicationFailure.newNonRetryableFailure("intentional failure", "TestFailure");
         case RETRYABLE_APPLICATION_FAILURE:
           return ApplicationFailure.newFailure("intentional failure", "TestFailure");
+        case NON_RETRYABLE_PAYLOAD_VALIDATION_ERROR:
+          return ApplicationFailure.newNonRetryableFailure(
+              "intentional failure", PAYLOAD_VALIDATION_ERROR_TYPE);
+        case RETRYABLE_PAYLOAD_VALIDATION_ERROR:
+          return ApplicationFailure.newFailure(
+              "intentional failure", PAYLOAD_VALIDATION_ERROR_TYPE);
         case CODEC_FAILURE:
           return new PayloadCodecException("intentional failure");
         default:

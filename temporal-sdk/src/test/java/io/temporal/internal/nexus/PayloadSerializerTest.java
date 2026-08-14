@@ -126,6 +126,59 @@ public class PayloadSerializerTest {
   }
 
   @Test
+  public void testDeserializeNonRetryablePayloadValidationErrorIsNonRetryableBadRequest() {
+    // The converter understood the input and rejected it, which makes this the caller's fault.
+    RuntimeException cause = new RuntimeException("field 'name' must not be empty");
+    ApplicationFailure original =
+        ApplicationFailure.newNonRetryableFailureWithCause(
+            "invalid input", PayloadSerializer.PAYLOAD_VALIDATION_ERROR_TYPE, cause);
+    PayloadSerializer serializer = failingSerializer(null, original);
+    PayloadSerializer.Content content = payloadSerializer.serialize("test");
+
+    HandlerException e =
+        Assert.assertThrows(
+            HandlerException.class, () -> serializer.deserialize(content, String.class));
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, e.getErrorType());
+    Assert.assertFalse(e.isRetryable());
+    Assert.assertEquals("invalid operation input", e.getMessage());
+    // The converter's own message is not in the wrapper, so it has to survive on the cause.
+    Assert.assertSame(original, e.getCause());
+    Assert.assertEquals("invalid input", original.getOriginalMessage());
+    Assert.assertSame(cause, e.getCause().getCause());
+  }
+
+  @Test
+  public void testDeserializeNonRetryableOtherApplicationFailureTypeIsPropagatedAsIs() {
+    // Only the PayloadValidationError type opts into BAD_REQUEST, everything else keeps the
+    // non-retryable INTERNAL handling NexusTaskHandlerImpl applies.
+    ApplicationFailure original =
+        ApplicationFailure.newNonRetryableFailure("invalid input", "SomeOtherValidationError");
+    PayloadSerializer serializer = failingSerializer(null, original);
+    PayloadSerializer.Content content = payloadSerializer.serialize("test");
+
+    Assert.assertSame(
+        original,
+        Assert.assertThrows(
+            ApplicationFailure.class, () -> serializer.deserialize(content, String.class)));
+  }
+
+  @Test
+  public void testDeserializeRetryablePayloadValidationErrorIsPropagatedAsIs() {
+    // A retryable failure may succeed on a retry, so the type alone must not make it a
+    // non-retryable BAD_REQUEST.
+    ApplicationFailure original =
+        ApplicationFailure.newFailure(
+            "invalid input", PayloadSerializer.PAYLOAD_VALIDATION_ERROR_TYPE);
+    PayloadSerializer serializer = failingSerializer(null, original);
+    PayloadSerializer.Content content = payloadSerializer.serialize("test");
+
+    Assert.assertSame(
+        original,
+        Assert.assertThrows(
+            ApplicationFailure.class, () -> serializer.deserialize(content, String.class)));
+  }
+
+  @Test
   public void testDeserializeTransientFailureIsNotTranslated() {
     // A payload codec outage is not the caller's fault and may succeed on a retry, so it must not
     // be flattened into a non-retryable BAD_REQUEST.
