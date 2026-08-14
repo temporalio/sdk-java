@@ -407,6 +407,19 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   @Test
+  public void updateOptionsRequiresAtLeastOneOption() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityHandle<Void> handle = startRunningSlowActivity(slowOpts());
+    // Building the request with no options and no restore_original is rejected before any RPC.
+    IllegalArgumentException err =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> handle.updateOptions(UpdateActivityOptions.newBuilder().build()));
+    assertTrue(err.getMessage().toLowerCase().contains("at least one option"));
+    handle.terminate("cleanup");
+  }
+
+  @Test
   public void updateOptionsRestoreOriginal() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle =
