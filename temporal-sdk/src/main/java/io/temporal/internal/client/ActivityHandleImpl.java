@@ -7,6 +7,7 @@ import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionOptions;
+import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
@@ -116,9 +117,15 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public ActivityExecutionDescription describe() {
+    return describe(DescribeActivityOptions.getDefaultInstance());
+  }
+
+  @Override
+  public ActivityExecutionDescription describe(DescribeActivityOptions options) {
     return clientCallsInterceptor
         .describeActivity(
-            new ActivityClientCallsInterceptor.DescribeActivityInput(activityId, activityRunId))
+            new ActivityClientCallsInterceptor.DescribeActivityInput(
+                activityId, activityRunId, options))
         .getDescription();
   }
 

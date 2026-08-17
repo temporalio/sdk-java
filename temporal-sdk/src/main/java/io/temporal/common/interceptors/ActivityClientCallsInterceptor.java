@@ -7,6 +7,7 @@ import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
+import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
@@ -289,10 +290,13 @@ public interface ActivityClientCallsInterceptor {
   final class DescribeActivityInput {
     private final String id;
     private final @Nullable String runId;
+    private final DescribeActivityOptions options;
 
-    public DescribeActivityInput(String id, @Nullable String runId) {
+    public DescribeActivityInput(
+        String id, @Nullable String runId, DescribeActivityOptions options) {
       this.id = id;
       this.runId = runId;
+      this.options = options;
     }
 
     public String getId() {
@@ -302,6 +306,10 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getRunId() {
       return runId;
+    }
+
+    public DescribeActivityOptions getOptions() {
+      return options;
     }
   }
 

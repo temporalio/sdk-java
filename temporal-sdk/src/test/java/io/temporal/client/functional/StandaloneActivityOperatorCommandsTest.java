@@ -16,6 +16,7 @@ import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityHandle;
+import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.UpdateActivityOptions;
@@ -45,6 +46,10 @@ import org.junit.Test;
  * does not support the standalone activity APIs.
  */
 public class StandaloneActivityOperatorCommandsTest {
+
+  /** Heartbeat details are opt-in on describe; these tests assert on them. */
+  private static final DescribeActivityOptions WITH_HEARTBEAT_DETAILS =
+      DescribeActivityOptions.newBuilder().setIncludeHeartbeatDetails(true).build();
 
   // ---------------------------------------------------------------------------
   // Activities
@@ -213,7 +218,7 @@ public class StandaloneActivityOperatorCommandsTest {
         () ->
             assertTrue(
                 "expected heartbeat details to be recorded",
-                handle.describe().hasHeartbeatDetails()));
+                handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails()));
     return handle;
   }
 
@@ -377,13 +382,12 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(Duration.ofSeconds(25), desc.getHeartbeatTimeout());
     assertEquals(7, desc.getRetryOptions().getMaximumAttempts());
     assertEquals(3, desc.getPriority().getPriorityKey());
-    // start_delay isn't surfaced by ActivityExecutionDescription today; read via raw info.
-    assertEquals(500, desc.getRawInfo().getStartDelay().getSeconds());
+    assertEquals(Duration.ofSeconds(500), desc.getStartDelay());
     // execution_time (api#807 + temporal#11017): reflects the updated start_delay. Server
     // recomputes it on UpdateActivityOptions, so it lands at schedule_time + 500s (the new value),
     // not schedule_time + 300s (the value at start).
     assertEquals(
-        desc.getScheduledTime().plus(Duration.ofSeconds(500)).getEpochSecond(),
+        desc.getScheduleTime().plus(Duration.ofSeconds(500)).getEpochSecond(),
         desc.getExecutionTime().getEpochSecond());
 
     handle.terminate("cleanup");
@@ -547,6 +551,24 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
+  /**
+   * The payload-bearing describe fields are opt-in (api#792). Assert the default really is "off"
+   * rather than the SDK quietly requesting everything: same activity, same moment, two describes.
+   */
+  @Test(timeout = 60_000)
+  public void describePayloadFieldsAreOptIn() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityHandle<Void> handle = startHeartbeatReadyActivity();
+
+    assertFalse(handle.describe().hasHeartbeatDetails());
+    assertFalse(handle.describe().getHeartbeatDetails(String.class).isPresent());
+    assertTrue(handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
+    assertEquals(
+        "hb-details",
+        handle.describe(WITH_HEARTBEAT_DETAILS).getHeartbeatDetails(String.class).orElse(null));
+    handle.terminate("cleanup");
+  }
+
   @Test(timeout = 60_000)
   public void pausePreservesHeartbeat() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -558,7 +580,7 @@ public class StandaloneActivityOperatorCommandsTest {
     // Pause never touches heartbeat details — they persist across the transition.
     assertTrue(
         "heartbeat details should be preserved across pause",
-        handle.describe().hasHeartbeatDetails());
+        handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
     handle.terminate("cleanup");
   }
 
@@ -579,7 +601,7 @@ public class StandaloneActivityOperatorCommandsTest {
         () ->
             assertTrue(
                 "heartbeat details should be preserved after unpause",
-                handle.describe().hasHeartbeatDetails()));
+                handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails()));
     handle.terminate("cleanup");
   }
 
@@ -598,7 +620,7 @@ public class StandaloneActivityOperatorCommandsTest {
     Thread.sleep(2000);
     assertTrue(
         "heartbeat details should be preserved after default reset",
-        handle.describe().hasHeartbeatDetails());
+        handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
     handle.terminate("cleanup");
   }
 
@@ -619,7 +641,7 @@ public class StandaloneActivityOperatorCommandsTest {
         () ->
             assertFalse(
                 "heartbeat details should be cleared after reset(reset_heartbeat)",
-                handle.describe().hasHeartbeatDetails()));
+                handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails()));
     handle.terminate("cleanup");
   }
 
@@ -637,7 +659,7 @@ public class StandaloneActivityOperatorCommandsTest {
 
     assertTrue(
         "heartbeat details should be preserved after updateOptions",
-        handle.describe().hasHeartbeatDetails());
+        handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
     handle.terminate("cleanup");
   }
 

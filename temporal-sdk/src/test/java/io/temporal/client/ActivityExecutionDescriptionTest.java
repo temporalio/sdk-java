@@ -46,7 +46,7 @@ public class ActivityExecutionDescriptionTest {
   public void testScheduledTime() {
     ActivityExecutionDescription desc =
         new ActivityExecutionDescription(buildInfo("act-id", ""), CONVERTER, "test-ns");
-    assertEquals(Instant.ofEpochMilli(1000), desc.getScheduledTime());
+    assertEquals(Instant.ofEpochMilli(1000), desc.getScheduleTime());
   }
 
   @Test

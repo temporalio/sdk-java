@@ -383,7 +383,7 @@ public class StandaloneActivityTest {
             assertEquals(activityId, desc.getActivityId());
             assertEquals("WaitForCancel", desc.getActivityType());
             assertEquals(testWorkflowRule.getTaskQueue(), desc.getTaskQueue());
-            assertNotNull(desc.getScheduledTime());
+            assertNotNull(desc.getScheduleTime());
             assertEquals(1, desc.getAttempt());
             assertNotNull(desc.getScheduleToCloseTimeout());
             assertNotNull(desc.getStartToCloseTimeout());
@@ -854,7 +854,9 @@ public class StandaloneActivityTest {
       assertEventually(
           Duration.ofSeconds(60),
           () -> {
-            ActivityExecutionDescription desc = handle.describe();
+            ActivityExecutionDescription desc =
+                handle.describe(
+                    DescribeActivityOptions.newBuilder().setIncludeLastFailure(true).build());
             Exception lastFailure = desc.getLastFailure();
             assertNotNull("last_failure should be set after a failed attempt", lastFailure);
             assertThat(lastFailure, instanceOf(ApplicationFailure.class));
@@ -1027,9 +1029,9 @@ public class StandaloneActivityTest {
     assertEquals("echo:hello", handle.getResult());
 
     ActivityExecutionDescription desc = handle.describe();
-    Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
+    Duration between = Duration.between(desc.getScheduleTime(), desc.getLastStartedTime());
     assertTrue(
-        "lastStartedTime - scheduledTime should be >= startDelay - 500ms, was " + between,
+        "lastStartedTime - scheduleTime should be >= startDelay - 500ms, was " + between,
         between.compareTo(delay.minusMillis(500)) >= 0);
   }
 
@@ -1159,7 +1161,7 @@ public class StandaloneActivityTest {
     assertEquals("echo:x", handle.getResult());
 
     ActivityExecutionDescription desc = handle.describe();
-    Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
+    Duration between = Duration.between(desc.getScheduleTime(), desc.getLastStartedTime());
     assertTrue(
         "Duration.ZERO should not introduce dispatch latency, was " + between,
         between.compareTo(Duration.ofSeconds(1)) < 0);

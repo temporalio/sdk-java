@@ -103,6 +103,11 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
+  public ActivityExecutionDescription describe(DescribeActivityOptions options) {
+    return delegate.describe(options);
+  }
+
+  @Override
   public void cancel() {
     delegate.cancel();
   }

@@ -137,6 +137,24 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         : null;
   }
 
+  /**
+   * Delay before the first activity task is made available for dispatch. Not applied to retry
+   * attempts. {@code null} if no start delay is set.
+   */
+  @Nullable
+  public Duration getStartDelay() {
+    return info.hasStartDelay() ? ProtobufTimeUtils.toJavaDuration(info.getStartDelay()) : null;
+  }
+
+  /**
+   * Whether a failure from a failed attempt is present. {@code false} when the activity has no
+   * failed attempt, and also when the description was requested without {@link
+   * DescribeActivityOptions.Builder#setIncludeLastFailure(boolean)}.
+   */
+  public boolean hasLastFailure() {
+    return info.hasLastFailure();
+  }
+
   /** Failure details from the last failed attempt. {@code null} if no failure has occurred. */
   @Nullable
   public Exception getLastFailure() {
@@ -197,7 +215,11 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         : null;
   }
 
-  /** Whether heartbeat details were recorded for the last attempt. */
+  /**
+   * Whether heartbeat details were recorded for the last attempt. {@code false} when the activity
+   * recorded none, and also when the description was requested without {@link
+   * DescribeActivityOptions.Builder#setIncludeHeartbeatDetails(boolean)}.
+   */
   public boolean hasHeartbeatDetails() {
     return info.hasHeartbeatDetails();
   }

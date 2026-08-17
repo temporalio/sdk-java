@@ -118,11 +118,21 @@ public interface UntypedActivityHandle {
       long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType);
 
   /**
-   * Describes the current state of the activity execution.
+   * Describes the current state of the activity execution, without any of the payload-bearing
+   * fields. Equivalent to {@code describe(DescribeActivityOptions.getDefaultInstance())}.
    *
    * @return detailed information about the activity
    */
   ActivityExecutionDescription describe();
+
+  /**
+   * Describes the current state of the activity execution.
+   *
+   * @param options which payload-bearing fields to include in the description. These are opt-in
+   *     because they can be arbitrarily large.
+   * @return detailed information about the activity
+   */
+  ActivityExecutionDescription describe(DescribeActivityOptions options);
 
   /**
    * Requests cancellation of the activity. The activity will receive a cancellation via {@link

@@ -340,8 +340,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         DescribeActivityExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setActivityId(input.getId())
-            .setIncludeHeartbeatDetails(true)
-            .setIncludeLastFailure(true);
+            .setIncludeInput(input.getOptions().isIncludeInput())
+            .setIncludeOutcome(input.getOptions().isIncludeOutcome())
+            .setIncludeHeartbeatDetails(input.getOptions().isIncludeHeartbeatDetails())
+            .setIncludeLastFailure(input.getOptions().isIncludeLastFailure());
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }

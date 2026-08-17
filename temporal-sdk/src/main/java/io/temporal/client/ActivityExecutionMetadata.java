@@ -25,7 +25,7 @@ public class ActivityExecutionMetadata {
   private final String activityType;
   private final @Nullable Instant closeTime;
   private final @Nullable Duration executionDuration;
-  private final Instant scheduledTime;
+  private final Instant scheduleTime;
   private final ActivityExecutionStatus status;
   private final String taskQueue;
   private final SearchAttributes searchAttributes;
@@ -37,7 +37,7 @@ public class ActivityExecutionMetadata {
       String activityType,
       @Nullable Instant closeTime,
       @Nullable Duration executionDuration,
-      Instant scheduledTime,
+      Instant scheduleTime,
       ActivityExecutionStatus status,
       String taskQueue,
       SearchAttributes searchAttributes) {
@@ -47,7 +47,7 @@ public class ActivityExecutionMetadata {
     this.activityType = activityType;
     this.closeTime = closeTime;
     this.executionDuration = executionDuration;
-    this.scheduledTime = scheduledTime;
+    this.scheduleTime = scheduleTime;
     this.status = status;
     this.taskQueue = taskQueue;
     this.searchAttributes = searchAttributes;
@@ -120,8 +120,8 @@ public class ActivityExecutionMetadata {
 
   /** Time when the activity was originally scheduled. */
   @Nonnull
-  public Instant getScheduledTime() {
-    return scheduledTime;
+  public Instant getScheduleTime() {
+    return scheduleTime;
   }
 
   /** General status of the activity execution. */
@@ -152,7 +152,7 @@ public class ActivityExecutionMetadata {
         && Objects.equals(activityType, that.activityType)
         && Objects.equals(closeTime, that.closeTime)
         && Objects.equals(executionDuration, that.executionDuration)
-        && Objects.equals(scheduledTime, that.scheduledTime)
+        && Objects.equals(scheduleTime, that.scheduleTime)
         && status == that.status
         && Objects.equals(taskQueue, that.taskQueue)
         && Objects.equals(searchAttributes, that.searchAttributes);
@@ -166,7 +166,7 @@ public class ActivityExecutionMetadata {
         activityType,
         closeTime,
         executionDuration,
-        scheduledTime,
+        scheduleTime,
         status,
         taskQueue,
         searchAttributes);
@@ -183,8 +183,8 @@ public class ActivityExecutionMetadata {
         + activityType
         + "', status="
         + status
-        + ", scheduledTime="
-        + scheduledTime
+        + ", scheduleTime="
+        + scheduleTime
         + ", closeTime="
         + closeTime
         + ", executionDuration="
