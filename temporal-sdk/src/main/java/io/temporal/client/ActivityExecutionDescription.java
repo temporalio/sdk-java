@@ -3,6 +3,7 @@ package io.temporal.client;
 import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.PendingActivityState;
+import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
@@ -27,34 +28,44 @@ import javax.annotation.Nullable;
 @Experimental
 public final class ActivityExecutionDescription extends ActivityExecutionMetadata {
 
+  private final DescribeActivityExecutionResponse response;
   private final ActivityExecutionInfo info;
   private final DataConverter dataConverter;
   private final String namespace;
 
   public ActivityExecutionDescription(
-      ActivityExecutionInfo info, DataConverter dataConverter, String namespace) {
+      DescribeActivityExecutionResponse response, DataConverter dataConverter, String namespace) {
     super(
         null,
-        info.getActivityId(),
-        nullIfEmpty(info.getRunId()),
-        info.getActivityType().getName(),
-        info.hasCloseTime() ? ProtobufTimeUtils.toJavaInstant(info.getCloseTime()) : null,
-        info.hasExecutionDuration()
-            ? ProtobufTimeUtils.toJavaDuration(info.getExecutionDuration())
+        response.getInfo().getActivityId(),
+        nullIfEmpty(response.getInfo().getRunId()),
+        response.getInfo().getActivityType().getName(),
+        response.getInfo().hasCloseTime()
+            ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getCloseTime())
             : null,
-        info.hasScheduleTime()
-            ? ProtobufTimeUtils.toJavaInstant(info.getScheduleTime())
+        response.getInfo().hasExecutionDuration()
+            ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getExecutionDuration())
+            : null,
+        response.getInfo().hasScheduleTime()
+            ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getScheduleTime())
             : Instant.EPOCH,
-        info.getStatus(),
-        info.getTaskQueue(),
-        SearchAttributesUtil.decodeTyped(info.getSearchAttributes()));
-    this.info = info;
+        response.getInfo().getStatus(),
+        response.getInfo().getTaskQueue(),
+        SearchAttributesUtil.decodeTyped(response.getInfo().getSearchAttributes()));
+    this.response = response;
+    this.info = response.getInfo();
     this.dataConverter = dataConverter;
     this.namespace = namespace;
   }
 
   private static @Nullable String nullIfEmpty(String s) {
     return s == null || s.isEmpty() ? null : s;
+  }
+
+  /** Underlying proto response. Exposed while the standalone activity surface is experimental. */
+  @Nonnull
+  public DescribeActivityExecutionResponse getRawResponse() {
+    return response;
   }
 
   /** The raw protobuf info returned by the server for this activity execution. */
@@ -248,6 +259,125 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     return Optional.ofNullable(
         dataConverter.fromPayloads(
             0, Optional.of(info.getHeartbeatDetails()), valueType, genericType));
+  }
+
+  /**
+   * Whether the activity's input is present. {@code false} unless the description was requested
+   * with {@link DescribeActivityOptions.Builder#setIncludeInput(boolean)}.
+   */
+  public boolean hasInput() {
+    return response.hasInput();
+  }
+
+  /**
+   * The number of input arguments the activity was started with. {@code 0} if no input is present
+   * (the activity took no arguments, or {@code includeInput} was false).
+   */
+  public int getInputCount() {
+    return response.hasInput() ? response.getInput().getPayloadsCount() : 0;
+  }
+
+  /**
+   * Deserializes the activity's first input argument. Returns {@link Optional#empty()} if no input
+   * is present (the activity took no arguments, or {@code includeInput} was false).
+   *
+   * <p>For a multi-argument activity this returns only the first argument; use {@link
+   * #getInput(int, Class)} to read the rest, and {@link #getInputCount()} for how many there are.
+   *
+   * @param valueType the class to deserialize the input into
+   */
+  public <V> Optional<V> getInput(Class<V> valueType) {
+    return getInput(0, valueType, valueType);
+  }
+
+  /**
+   * Deserializes the activity's first input argument into the given generic type. Returns {@link
+   * Optional#empty()} if no input is present.
+   *
+   * @param valueType the class to deserialize the input into
+   * @param genericType the generic type for deserialization; may equal {@code valueType}
+   */
+  public <V> Optional<V> getInput(Class<V> valueType, Type genericType) {
+    return getInput(0, valueType, genericType);
+  }
+
+  /**
+   * Deserializes the activity's input argument at the given position. Returns {@link
+   * Optional#empty()} if no input is present or {@code index} is past the last argument.
+   *
+   * @param index zero-based position of the argument, in declaration order
+   * @param valueType the class to deserialize the argument into
+   */
+  public <V> Optional<V> getInput(int index, Class<V> valueType) {
+    return getInput(index, valueType, valueType);
+  }
+
+  /**
+   * Deserializes the activity's input argument at the given position into the given generic type.
+   * Returns {@link Optional#empty()} if no input is present or {@code index} is past the last
+   * argument.
+   *
+   * @param index zero-based position of the argument, in declaration order
+   * @param valueType the class to deserialize the argument into
+   * @param genericType the generic type for deserialization; may equal {@code valueType}
+   */
+  public <V> Optional<V> getInput(int index, Class<V> valueType, Type genericType) {
+    if (index < 0 || index >= getInputCount()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(
+        dataConverter.fromPayloads(
+            index, Optional.of(response.getInput()), valueType, genericType));
+  }
+
+  /**
+   * Whether the activity closed with a successful result. {@code false} while the activity is still
+   * running, when it closed with a failure, or when the description was requested without {@link
+   * DescribeActivityOptions.Builder#setIncludeOutcome(boolean)}.
+   */
+  public boolean hasResult() {
+    return response.hasOutcome() && response.getOutcome().hasResult();
+  }
+
+  /**
+   * Deserializes the activity's success result. Returns {@link Optional#empty()} if no result is
+   * present (activity still running, closed with a failure, or {@code includeOutcome} was false).
+   *
+   * @param valueType the class to deserialize the result into
+   */
+  public <V> Optional<V> getResult(Class<V> valueType) {
+    return getResult(valueType, valueType);
+  }
+
+  /**
+   * Deserializes the activity's success result into the given generic type. Returns {@link
+   * Optional#empty()} if no result is present.
+   *
+   * @param valueType the class to deserialize the result into
+   * @param genericType the generic type for deserialization; may equal {@code valueType}
+   */
+  public <V> Optional<V> getResult(Class<V> valueType, Type genericType) {
+    if (!hasResult()) {
+      return Optional.empty();
+    }
+    return Optional.ofNullable(
+        dataConverter.fromPayloads(
+            0, Optional.of(response.getOutcome().getResult()), valueType, genericType));
+  }
+
+  /**
+   * The failure the activity closed with, as an exception. {@code null} if the activity did not
+   * close with a failure or if {@code includeOutcome} was false on the describe call.
+   *
+   * <p>This is the terminal outcome; {@link #getLastFailure()} is the failure of the most recent
+   * attempt, which may be set while the activity is still retrying.
+   */
+  @Nullable
+  public Exception getFailure() {
+    if (!response.hasOutcome() || !response.getOutcome().hasFailure()) {
+      return null;
+    }
+    return dataConverter.failureToException(response.getOutcome().getFailure());
   }
 
   /**

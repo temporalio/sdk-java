@@ -78,6 +78,20 @@ public class StandaloneActivityOperatorCommandsTest {
     }
   }
 
+  /** Takes two arguments, so a describe can read a multi-argument input back off the server. */
+  @ActivityInterface
+  public interface TwoArgActivity {
+    @ActivityMethod(name = "TwoArg")
+    String run(String word, Integer count);
+  }
+
+  public static class TwoArgActivityImpl implements TwoArgActivity {
+    @Override
+    public String run(String word, Integer count) {
+      return word + "-" + count;
+    }
+  }
+
   /** Returns immediately. Used with a start delay so it can be paused while scheduled. */
   @ActivityInterface
   public interface QuickActivity {
@@ -151,6 +165,7 @@ public class StandaloneActivityOperatorCommandsTest {
               new SlowActivityImpl(),
               new QuickActivityImpl(),
               new FailThenSucceedActivityImpl(),
+              new TwoArgActivityImpl(),
               new HeartbeatOnceActivityImpl())
           .build();
 
@@ -567,6 +582,73 @@ public class StandaloneActivityOperatorCommandsTest {
         "hb-details",
         handle.describe(WITH_HEARTBEAT_DETAILS).getHeartbeatDetails(String.class).orElse(null));
     handle.terminate("cleanup");
+  }
+
+  /**
+   * Input and outcome are opt-in like the other payload fields. Uses a two-argument activity so
+   * {@link ActivityExecutionDescription#getInput(int, Class)} has more than one argument to read.
+   */
+  @Test(timeout = 60_000)
+  public void describeReadsInputAndOutcome() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setStartToCloseTimeout(Duration.ofSeconds(60))
+            .build();
+    ActivityHandle<String> handle =
+        newActivityClient().start(TwoArgActivity.class, TwoArgActivity::run, opts, "ping", 7);
+    assertEquals("ping-7", handle.getResult(String.class));
+
+    // Default describe omits both.
+    ActivityExecutionDescription bare = handle.describe();
+    assertFalse(bare.hasInput());
+    assertEquals(0, bare.getInputCount());
+    assertFalse(bare.hasResult());
+    assertNull(bare.getFailure());
+
+    ActivityExecutionDescription desc =
+        handle.describe(
+            DescribeActivityOptions.newBuilder()
+                .setIncludeInput(true)
+                .setIncludeOutcome(true)
+                .build());
+    assertTrue(desc.hasInput());
+    assertEquals(2, desc.getInputCount());
+    assertEquals("ping", desc.getInput(0, String.class).orElse(null));
+    assertEquals(Integer.valueOf(7), desc.getInput(1, Integer.class).orElse(null));
+    assertTrue(desc.hasResult());
+    assertEquals("ping-7", desc.getResult(String.class).orElse(null));
+    // A successful outcome has no failure arm.
+    assertNull(desc.getFailure());
+  }
+
+  /** The other arm of the outcome oneof: a terminally failed activity has a failure, no result. */
+  @Test(timeout = 60_000)
+  public void describeReadsFailureOutcome() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setStartToCloseTimeout(Duration.ofSeconds(60))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+            .build();
+    ActivityHandle<String> handle =
+        newActivityClient()
+            .start(FailThenSucceedActivity.class, FailThenSucceedActivity::run, opts);
+    assertThrows(Exception.class, () -> handle.getResult(String.class));
+
+    ActivityExecutionDescription desc =
+        handle.describe(DescribeActivityOptions.newBuilder().setIncludeOutcome(true).build());
+    assertFalse(desc.hasResult());
+    assertFalse(desc.getResult(String.class).isPresent());
+
+    Exception failure = desc.getFailure();
+    assertNotNull(failure);
+    assertTrue(failure instanceof ApplicationFailure);
+    assertEquals("retryable failure", ((ApplicationFailure) failure).getOriginalMessage());
   }
 
   @Test(timeout = 60_000)
