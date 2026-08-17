@@ -6,10 +6,14 @@ import static io.temporal.serviceclient.MetricsTag.TASK_FAILURE_TYPE;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.MessageOrBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributesOrBuilder;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
@@ -19,9 +23,11 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.payload.storage.ExternalStorage;
+import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
@@ -390,6 +396,16 @@ final class WorkflowWorker implements SuspendableWorker {
     return externalStorage == null ? request : externalStorage.storeBlocking(request, target);
   }
 
+  private <T extends com.google.protobuf.Message> T storeOutboundPayloads(
+      T request,
+      @Nullable StorageDriverTargetInfo target,
+      MessageVisitor<StorageDriverTargetInfo> targetVisitor) {
+    ExternalStorage externalStorage = options.getExternalStorage();
+    return externalStorage == null
+        ? request
+        : externalStorage.storeBlocking(request, target, targetVisitor);
+  }
+
   @Nullable
   private StorageDriverTargetInfo workflowStorageTarget(
       WorkflowExecution execution, String workflowType) {
@@ -398,6 +414,29 @@ final class WorkflowWorker implements SuspendableWorker {
     }
     return new StorageDriverWorkflowInfo(
         namespace, execution.getWorkflowId(), execution.getRunId(), workflowType);
+  }
+
+  private StorageDriverTargetInfo commandStorageTarget(
+      StorageDriverTargetInfo current, MessageOrBuilder message) {
+    if (message instanceof ScheduleActivityTaskCommandAttributesOrBuilder) {
+      ScheduleActivityTaskCommandAttributesOrBuilder attrs =
+          (ScheduleActivityTaskCommandAttributesOrBuilder) message;
+      return new StorageDriverActivityInfo(
+          namespace, attrs.getActivityId(), null, attrs.getActivityType().getName());
+    }
+    if (message instanceof StartChildWorkflowExecutionCommandAttributesOrBuilder) {
+      StartChildWorkflowExecutionCommandAttributesOrBuilder attrs =
+          (StartChildWorkflowExecutionCommandAttributesOrBuilder) message;
+      return new StorageDriverWorkflowInfo(
+          namespace, attrs.getWorkflowId(), null, attrs.getWorkflowType().getName());
+    }
+    if (message instanceof SignalExternalWorkflowExecutionCommandAttributesOrBuilder) {
+      WorkflowExecution execution =
+          ((SignalExternalWorkflowExecutionCommandAttributesOrBuilder) message).getExecution();
+      return new StorageDriverWorkflowInfo(
+          namespace, execution.getWorkflowId(), execution.getRunId(), null);
+    }
+    return current;
   }
 
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {
@@ -703,8 +742,10 @@ final class WorkflowWorker implements SuspendableWorker {
         taskCompleted.setBinaryChecksum(options.getBuildId());
       }
 
+      MessageVisitor<StorageDriverTargetInfo> perCommandTarget =
+          WorkflowWorker.this::commandStorageTarget;
       RespondWorkflowTaskCompletedRequest request =
-          storeOutboundPayloads(taskCompleted.build(), storageTarget);
+          storeOutboundPayloads(taskCompleted.build(), storageTarget, perCommandTarget);
       return grpcRetryer.retryWithResult(
           () ->
               service

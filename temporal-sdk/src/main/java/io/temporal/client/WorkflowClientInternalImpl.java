@@ -143,7 +143,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
     WorkflowClientCallsInterceptor workflowClientInvoker =
-        new RootWorkflowClientInvoker(genericClient, options, workerFactoryRegistry);
+        new RootWorkflowClientInvoker(
+            genericClient, options, workerFactoryRegistry, externalStorage);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
           clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);

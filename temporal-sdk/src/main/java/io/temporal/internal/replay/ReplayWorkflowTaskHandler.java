@@ -78,7 +78,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    workflowTask = ExternalStorage.resolveInbound(options.getExternalStorage(), workflowTask);
+    ExternalStorage externalStorage = options.getExternalStorage();
+    if (externalStorage == null) {
+      ExternalStorage.throwIfContainsReference(workflowTask);
+    } else {
+      workflowTask = externalStorage.retrieveBlocking(workflowTask);
+    }
     return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
   }
 

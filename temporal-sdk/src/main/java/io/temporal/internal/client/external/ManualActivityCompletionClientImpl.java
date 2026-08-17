@@ -195,8 +195,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
 
   @Override
   public void recordHeartbeat(@Nullable Object details) throws CanceledFailure {
-    Optional<Payloads> payloads = dataConverterWithActivityExecutionContext.toPayloads(details);
     try {
+      Optional<Payloads> payloads = dataConverterWithActivityExecutionContext.toPayloads(details);
       if (taskToken != null) {
         RecordActivityTaskHeartbeatRequest.Builder builder =
             RecordActivityTaskHeartbeatRequest.newBuilder()

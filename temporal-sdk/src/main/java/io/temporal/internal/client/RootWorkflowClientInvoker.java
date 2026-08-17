@@ -28,6 +28,8 @@ import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.internal.nexus.OperationTokenUtil;
+import io.temporal.internal.payload.storage.ExternalStorage;
+import io.temporal.internal.payload.storage.ExternalStorageResolvingDataConverter;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
@@ -50,15 +52,28 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final WorkflowClientOptions clientOptions;
   private final EagerWorkflowTaskDispatcher eagerWorkflowTaskDispatcher;
   private final WorkflowClientRequestFactory requestsHelper;
+  private final @Nullable ExternalStorage externalStorage;
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
       WorkflowClientOptions clientOptions,
-      WorkerFactoryRegistry workerFactoryRegistry) {
+      WorkerFactoryRegistry workerFactoryRegistry,
+      @Nullable ExternalStorage externalStorage) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
     this.eagerWorkflowTaskDispatcher = new EagerWorkflowTaskDispatcher(workerFactoryRegistry);
     this.requestsHelper = new WorkflowClientRequestFactory(clientOptions);
+    this.externalStorage = externalStorage;
+  }
+
+  /**
+   * Wraps {@code base} so that reference payloads are resolved lazily when a result object's getter
+   * deserializes them. Returns {@code base} unchanged when external storage is not configured.
+   */
+  private DataConverter lazyResolvingConverter(DataConverter base) {
+    return externalStorage == null
+        ? base
+        : new ExternalStorageResolvingDataConverter(base, externalStorage);
   }
 
   @Override
@@ -774,7 +789,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                     clientOptions.getNamespace(), input.getWorkflowExecution().getWorkflowId()));
 
     return new DescribeWorkflowOutput(
-        new WorkflowExecutionDescription(response, dataConverterWithWorkflowContext));
+        new WorkflowExecutionDescription(
+            response, lazyResolvingConverter(dataConverterWithWorkflowContext)));
   }
 
   @Override
@@ -797,7 +813,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     Iterator<WorkflowExecutionMetadata> wrappedIterator =
         Iterators.transform(
             iterator,
-            info -> new WorkflowExecutionMetadata(info, clientOptions.getDataConverter()));
+            info ->
+                new WorkflowExecutionMetadata(
+                    info, lazyResolvingConverter(clientOptions.getDataConverter())));
 
     // IMMUTABLE here means that "interference" (in Java Streams terms) to this spliterator is
     // impossible

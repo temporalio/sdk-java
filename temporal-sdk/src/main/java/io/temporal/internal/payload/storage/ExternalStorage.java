@@ -6,6 +6,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorageOptions;
@@ -44,13 +45,24 @@ public final class ExternalStorage {
   }
 
   public <T extends Message> T storeBlocking(T message, @Nullable StorageDriverTargetInfo target) {
-    return storeBlocking(message, target, null);
+    return storeBlocking(message, target, (Duration) null);
   }
 
   public <T extends Message> T storeBlocking(
       T message, @Nullable StorageDriverTargetInfo target, @Nullable Duration timeout) {
     CancelSource<CancellationException> cancel = new CancelSource<>(CancellationException::new);
     return getOrCancel(store(message, target, cancel.token()), cancel, timeout);
+  }
+
+  public <T extends Message> T storeBlocking(
+      T message,
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor) {
+    CancelSource<CancellationException> cancel = new CancelSource<>(CancellationException::new);
+    return getOrCancel(
+        PayloadVisitors.visit(message, storeOptions(target, targetVisitor, cancel.token())),
+        cancel,
+        null);
   }
 
   public <T extends Message> T retrieveBlocking(T message) {
@@ -60,20 +72,6 @@ public final class ExternalStorage {
 
   public <T extends Message> CompletableFuture<T> retrieveAsync(T message) {
     return retrieve(message, CancellationToken.none());
-  }
-
-  /**
-   * Resolves reference payloads in {@code message}. Throws {@link
-   * ExternalStorageNotConfiguredException} if the message contains any reference and external
-   * storage is not configured.
-   */
-  public static <T extends Message> T resolveInbound(
-      @Nullable ExternalStorage externalStorage, T message) {
-    if (externalStorage == null) {
-      throwIfContainsReference(message);
-      return message;
-    }
-    return externalStorage.retrieveBlocking(message);
   }
 
   /**
@@ -128,14 +126,14 @@ public final class ExternalStorage {
       T message,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(message, storeOptions(target, cancellationToken));
+    return PayloadVisitors.visit(message, storeOptions(target, null, cancellationToken));
   }
 
   CompletableFuture<Void> store(
       Message.Builder builder,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(builder, storeOptions(target, cancellationToken));
+    return PayloadVisitors.visit(builder, storeOptions(target, null, cancellationToken));
   }
 
   <T extends Message> CompletableFuture<T> retrieve(
@@ -150,11 +148,13 @@ public final class ExternalStorage {
 
   private PayloadVisitorOptions<StorageDriverTargetInfo> storeOptions(
       @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
     return PayloadVisitorOptions.<StorageDriverTargetInfo>newBuilder(
             (visitedTarget, payloads) ->
                 payloadTransformer.store(payloads, visitedTarget, cancellationToken))
         .setInitialContext(target)
+        .setMessageVisitor(targetVisitor)
         .setConcurrency(payloadVisitConcurrency)
         .setSkipSearchAttributes(true)
         .build();

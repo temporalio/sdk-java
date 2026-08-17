@@ -2,7 +2,6 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
-import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
@@ -20,6 +19,7 @@ import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
@@ -263,6 +263,24 @@ final class ActivityWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  static StorageDriverTargetInfo storageTargetForActivityTask(
+      String namespace, PollActivityTaskQueueResponseOrBuilder pollResponse) {
+    String activityRunId = pollResponse.getActivityRunId();
+    if (!activityRunId.isEmpty()) {
+      return new StorageDriverActivityInfo(
+          namespace,
+          pollResponse.getActivityId(),
+          activityRunId,
+          pollResponse.getActivityType().getName());
+    }
+    WorkflowExecution execution = pollResponse.getWorkflowExecution();
+    return new StorageDriverWorkflowInfo(
+        namespace,
+        execution.getWorkflowId(),
+        execution.getRunId(),
+        pollResponse.getWorkflowType().getName());
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<ActivityTask> {
 
     final ActivityTaskHandler handler;
@@ -495,11 +513,7 @@ final class ActivityWorker implements SuspendableWorker {
       if (options.getExternalStorage() == null) {
         return null;
       }
-      return new StorageDriverActivityInfo(
-          namespace,
-          pollResponse.getActivityId(),
-          Strings.emptyToNull(pollResponse.getActivityRunId()),
-          pollResponse.getActivityType().getName());
+      return storageTargetForActivityTask(namespace, pollResponse);
     }
 
     private void logExceptionDuringResultReporting(

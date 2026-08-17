@@ -77,7 +77,12 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       // true.
       GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
 
-      History history = ExternalStorage.resolveInbound(externalStorage, response.getHistory());
+      History history = response.getHistory();
+      if (externalStorage == null) {
+        ExternalStorage.throwIfContainsReference(history);
+      } else {
+        history = externalStorage.retrieveBlocking(history);
+      }
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();
       // Server can return an empty page, but a valid nextPageToken that contains
