@@ -13,7 +13,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -175,44 +174,61 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   }
 
   @Override
-  public void recordHeartbeat(@Nullable Object details) throws CanceledFailure {
-    try {
-      if (taskToken != null) {
-        RecordActivityTaskHeartbeatResponse status =
-            ActivityClientHelper.sendHeartbeatRequest(
-                service,
-                namespace,
-                identity,
-                taskToken,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope);
-        if (status.getCancelRequested()) {
-          throw new ActivityCanceledException();
-        } else if (status.getActivityReset()) {
-          throw new ActivityResetException();
-        } else if (status.getActivityPaused()) {
-          throw new ActivityPausedException();
-        }
-      } else {
-        RecordActivityTaskHeartbeatByIdResponse status =
-            ActivityClientHelper.recordActivityTaskHeartbeatById(
-                service,
-                namespace,
-                identity,
-                execution,
-                activityId,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope);
-        if (status.getCancelRequested()) {
-          throw new ActivityCanceledException();
-        } else if (status.getActivityReset()) {
-          throw new ActivityResetException();
-        } else if (status.getActivityPaused()) {
-          throw new ActivityPausedException();
-        }
+  public void recordHeartbeat(@Nullable Object details) throws ActivityCompletionException {
+    if (taskToken != null) {
+      RecordActivityTaskHeartbeatResponse status;
+      try {
+        status =
+            grpcRetryer.retryWithResult(
+                () ->
+                    ActivityClientHelper.sendHeartbeatRequest(
+                        service,
+                        namespace,
+                        identity,
+                        taskToken,
+                        dataConverterWithActivityExecutionContext.toPayloads(details),
+                        metricsScope),
+                replyGrpcRetryerOptions);
+      } catch (Exception e) {
+        processException(e);
+        return;
       }
-    } catch (Exception e) {
-      processException(e);
+      if (status.getCancelRequested()) {
+        throw new ActivityCanceledException();
+      } else if (status.getActivityReset()) {
+        throw new ActivityResetException();
+      } else if (status.getActivityPaused()) {
+        throw new ActivityPausedException();
+      }
+    } else {
+      if (activityId == null) {
+        throw new IllegalArgumentException("Either activity id or task token are required");
+      }
+      RecordActivityTaskHeartbeatByIdResponse status;
+      try {
+        status =
+            grpcRetryer.retryWithResult(
+                () ->
+                    ActivityClientHelper.recordActivityTaskHeartbeatById(
+                        service,
+                        namespace,
+                        identity,
+                        execution,
+                        activityId,
+                        dataConverterWithActivityExecutionContext.toPayloads(details),
+                        metricsScope),
+                replyGrpcRetryerOptions);
+      } catch (Exception e) {
+        processException(e);
+        return;
+      }
+      if (status.getCancelRequested()) {
+        throw new ActivityCanceledException();
+      } else if (status.getActivityReset()) {
+        throw new ActivityResetException();
+      } else if (status.getActivityPaused()) {
+        throw new ActivityPausedException();
+      }
     }
   }
 
