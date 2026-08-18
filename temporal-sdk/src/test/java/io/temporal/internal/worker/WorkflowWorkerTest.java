@@ -12,6 +12,11 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.workflowservice.v1.*;
@@ -20,6 +25,9 @@ import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testUtils.HistoryUtils;
@@ -447,5 +455,59 @@ public class WorkflowWorkerTest {
     when(mockFactory.isAnyTypeSupported()).thenReturn(true);
     when(mockWorkflow.eventLoop()).thenReturn(false);
     return mockFactory;
+  }
+
+  @Test
+  public void refineStorageTargetPointsActivityCommandsAtTheActivity() {
+    StorageDriverTargetInfo workflowDefault =
+        new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
+    ScheduleActivityTaskCommandAttributes command =
+        ScheduleActivityTaskCommandAttributes.newBuilder()
+            .setActivityId("act-1")
+            .setActivityType(ActivityType.newBuilder().setName("MyActivity"))
+            .build();
+
+    assertEquals(
+        new StorageDriverActivityInfo("ns", "act-1", null, "MyActivity"),
+        WorkflowWorker.refineStorageTarget("ns", workflowDefault, command));
+  }
+
+  @Test
+  public void refineStorageTargetPointsChildWorkflowCommandsAtTheChild() {
+    StorageDriverTargetInfo parent =
+        new StorageDriverWorkflowInfo("ns", "parent", "parent-run", "Parent");
+    StartChildWorkflowExecutionCommandAttributes command =
+        StartChildWorkflowExecutionCommandAttributes.newBuilder()
+            .setWorkflowId("child-1")
+            .setWorkflowType(WorkflowType.newBuilder().setName("Child"))
+            .build();
+
+    assertEquals(
+        new StorageDriverWorkflowInfo("ns", "child-1", null, "Child"),
+        WorkflowWorker.refineStorageTarget("ns", parent, command));
+  }
+
+  @Test
+  public void refineStorageTargetPointsSignalCommandsAtTheTargetWorkflow() {
+    StorageDriverTargetInfo self = new StorageDriverWorkflowInfo("ns", "self", "self-run", "Self");
+    SignalExternalWorkflowExecutionCommandAttributes command =
+        SignalExternalWorkflowExecutionCommandAttributes.newBuilder()
+            .setExecution(
+                WorkflowExecution.newBuilder().setWorkflowId("other").setRunId("other-run"))
+            .build();
+
+    assertEquals(
+        new StorageDriverWorkflowInfo("ns", "other", "other-run", null),
+        WorkflowWorker.refineStorageTarget("ns", self, command));
+  }
+
+  @Test
+  public void refineStorageTargetKeepsTheCurrentTargetForOtherCommands() {
+    StorageDriverTargetInfo current =
+        new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
+    CompleteWorkflowExecutionCommandAttributes command =
+        CompleteWorkflowExecutionCommandAttributes.newBuilder().build();
+
+    assertSame(current, WorkflowWorker.refineStorageTarget("ns", current, command));
   }
 }
