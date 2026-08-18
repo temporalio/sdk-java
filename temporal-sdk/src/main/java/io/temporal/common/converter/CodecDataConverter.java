@@ -9,6 +9,8 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
+import io.temporal.internal.worker.WorkflowTaskPayloadStats;
+import io.temporal.internal.worker.WorkflowTaskPayloadStatsContext;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
@@ -17,6 +19,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -193,13 +196,43 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   @Nonnull
   @Override
   public List<Payload> encode(@Nonnull List<Payload> payloads) {
-    return ConverterUtils.withContext(chainCodec, serializationContext).encode(payloads);
+
+    long start = System.nanoTime();
+
+    List<Payload> result =
+        ConverterUtils.withContext(chainCodec, serializationContext).encode(payloads);
+
+    WorkflowTaskPayloadStats stats = WorkflowTaskPayloadStatsContext.get();
+
+    if (stats != null) {
+      stats.recordUpload(
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start),
+          payloads.size(),
+          payloads.stream().mapToLong(Payload::getSerializedSize).sum());
+    }
+
+    return result;
   }
 
   @Nonnull
   @Override
   public List<Payload> decode(@Nonnull List<Payload> payloads) {
-    return ConverterUtils.withContext(chainCodec, serializationContext).decode(payloads);
+
+    long start = System.nanoTime();
+
+    List<Payload> result =
+        ConverterUtils.withContext(chainCodec, serializationContext).decode(payloads);
+
+    WorkflowTaskPayloadStats stats = WorkflowTaskPayloadStatsContext.get();
+
+    if (stats != null) {
+      stats.recordDownload(
+          TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start),
+          payloads.size(),
+          payloads.stream().mapToLong(Payload::getSerializedSize).sum());
+    }
+
+    return result;
   }
 
   private Failure.Builder encodeFailure(Failure.Builder failure) {
