@@ -1,9 +1,11 @@
 package io.temporal.common.interceptors;
 
+import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 /** Convenience base class for {@link ActivityClientCallsInterceptor} implementations. */
+@Experimental
 public class ActivityClientCallsInterceptorBase implements ActivityClientCallsInterceptor {
 
   private final ActivityClientCallsInterceptor next;
