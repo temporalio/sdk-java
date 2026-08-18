@@ -9,7 +9,7 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-final class ExternalStorageReferences {
+public final class ExternalStorageReferences {
   private static final String ENCODING_PROTOBUF_JSON = "json/protobuf";
   private static final String REFERENCE_MESSAGE_TYPE =
       ExternalStorageReference.getDescriptor().getFullName();
@@ -64,8 +64,7 @@ final class ExternalStorageReferences {
    * producer that omits it still yields a readable reference.
    */
   static @Nullable ParsedReference tryParseReference(@Nonnull Payload payload) {
-    if (!hasMetadata(payload, EncodingKeys.METADATA_ENCODING_KEY, ENCODING_PROTOBUF_JSON)
-        || !hasMetadata(payload, EncodingKeys.METADATA_MESSAGE_TYPE_KEY, REFERENCE_MESSAGE_TYPE)) {
+    if (!isReference(payload)) {
       return null;
     }
     ExternalStorageReference.Builder builder = ExternalStorageReference.newBuilder();
@@ -77,6 +76,15 @@ final class ExternalStorageReferences {
     ExternalStorageReference reference = builder.build();
     return new ParsedReference(
         reference.getDriverName(), new StorageDriverClaim(reference.getClaimDataMap()));
+  }
+
+  /**
+   * True if {@code payload} is an external-storage reference, identified by its encoding and
+   * message type.
+   */
+  public static boolean isReference(Payload payload) {
+    return hasMetadata(payload, EncodingKeys.METADATA_ENCODING_KEY, ENCODING_PROTOBUF_JSON)
+        && hasMetadata(payload, EncodingKeys.METADATA_MESSAGE_TYPE_KEY, REFERENCE_MESSAGE_TYPE);
   }
 
   private static boolean hasMetadata(Payload payload, String key, String expected) {
