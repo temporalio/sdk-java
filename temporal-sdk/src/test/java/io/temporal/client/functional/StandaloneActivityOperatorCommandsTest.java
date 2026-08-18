@@ -402,7 +402,7 @@ public class StandaloneActivityOperatorCommandsTest {
     // recomputes it on UpdateActivityOptions, so it lands at schedule_time + 500s (the new value),
     // not schedule_time + 300s (the value at start).
     assertEquals(
-        desc.getScheduleTime().plus(Duration.ofSeconds(500)).getEpochSecond(),
+        desc.getScheduledTime().plus(Duration.ofSeconds(500)).getEpochSecond(),
         desc.getExecutionTime().getEpochSecond());
 
     handle.terminate("cleanup");

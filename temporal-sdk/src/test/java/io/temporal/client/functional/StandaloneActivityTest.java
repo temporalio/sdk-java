@@ -383,7 +383,7 @@ public class StandaloneActivityTest {
             assertEquals(activityId, desc.getActivityId());
             assertEquals("WaitForCancel", desc.getActivityType());
             assertEquals(testWorkflowRule.getTaskQueue(), desc.getTaskQueue());
-            assertNotNull(desc.getScheduleTime());
+            assertNotNull(desc.getScheduledTime());
             assertEquals(1, desc.getAttempt());
             assertNotNull(desc.getScheduleToCloseTimeout());
             assertNotNull(desc.getStartToCloseTimeout());
@@ -1029,9 +1029,9 @@ public class StandaloneActivityTest {
     assertEquals("echo:hello", handle.getResult());
 
     ActivityExecutionDescription desc = handle.describe();
-    Duration between = Duration.between(desc.getScheduleTime(), desc.getLastStartedTime());
+    Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
     assertTrue(
-        "lastStartedTime - scheduleTime should be >= startDelay - 500ms, was " + between,
+        "lastStartedTime - scheduledTime should be >= startDelay - 500ms, was " + between,
         between.compareTo(delay.minusMillis(500)) >= 0);
   }
 
@@ -1161,7 +1161,7 @@ public class StandaloneActivityTest {
     assertEquals("echo:x", handle.getResult());
 
     ActivityExecutionDescription desc = handle.describe();
-    Duration between = Duration.between(desc.getScheduleTime(), desc.getLastStartedTime());
+    Duration between = Duration.between(desc.getScheduledTime(), desc.getLastStartedTime());
     assertTrue(
         "Duration.ZERO should not introduce dispatch latency, was " + between,
         between.compareTo(Duration.ofSeconds(1)) < 0);
