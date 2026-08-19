@@ -853,23 +853,28 @@ public class LinkConverterTest {
   }
 
   /**
-   * Characterization test, not a statement of intent. {@link java.net.URLDecoder} performs form
-   * decoding, so it turns a literal '+' in a path segment into a space. Other SDKs escape paths
-   * with Go's {@code url.PathEscape}, which leaves '+' literal, so a link they produce for a
-   * workflow ID containing '+' is currently decoded incorrectly here. The same flaw exists in
-   * {@link LinkConverter#nexusLinkToWorkflowEvent} and {@link
-   * LinkConverter#nexusLinkToNexusOperation}. When path decoding is fixed across all three
-   * converters, invert this assertion to expect "a+b".
+   * A '+' in a path segment is a literal '+', not a space.
+   * Form decoding would turn it into a space and point
+   * at a different execution.
    */
   @Test
-  public void testConvertNexusToWorkflow_LiteralPlusInPathDecodesToSpace() {
+  public void testConvertNexusToWorkflow_LiteralPlusInPathIsPreserved() {
     io.temporal.api.nexus.v1.Link input =
         io.temporal.api.nexus.v1.Link.newBuilder()
             .setUrl("temporal:///namespaces/ns/workflows/a+b/run-id")
             .setType("temporal.api.common.v1.Link.Workflow")
             .build();
 
-    assertEquals("a b", nexusLinkToWorkflowLink(input).getWorkflow().getWorkflowId());
+    assertEquals("a+b", nexusLinkToWorkflowLink(input).getWorkflow().getWorkflowId());
+
+    // A percent-escaped space still decodes to a space.
+    io.temporal.api.nexus.v1.Link spaceInput =
+        io.temporal.api.nexus.v1.Link.newBuilder()
+            .setUrl("temporal:///namespaces/ns/workflows/a%20b/run-id")
+            .setType("temporal.api.common.v1.Link.Workflow")
+            .build();
+
+    assertEquals("a b", nexusLinkToWorkflowLink(spaceInput).getWorkflow().getWorkflowId());
 
     // A '+' this SDK encoded itself does survive, because URLEncoder emits %2B.
     Link.Workflow w =

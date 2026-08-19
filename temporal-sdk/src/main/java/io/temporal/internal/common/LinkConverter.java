@@ -147,13 +147,13 @@ public class LinkConverter {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String namespace = decodePathSegment(st.nextToken());
       if (!st.nextToken().equals("workflows")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String workflowID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      String runID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String workflowID = decodePathSegment(st.nextToken());
+      String runID = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens() || !st.nextToken().equals("history")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
@@ -229,13 +229,13 @@ public class LinkConverter {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String namespace = decodePathSegment(st.nextToken());
       if (!st.nextToken().equals("workflows")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String workflowID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
-      String runID = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String workflowID = decodePathSegment(st.nextToken());
+      String runID = decodePathSegment(st.nextToken());
       // The run ID ends a workflow link, so anything trailing means this is a different link
       // shape. In particular this rejects the workflow-event form, which ends in "/history".
       if (st.hasMoreTokens()) {
@@ -343,17 +343,17 @@ public class LinkConverter {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String namespace = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens() || !st.nextToken().equals("activities")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String activityId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String activityId = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens()) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String runId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String runId = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens() || !st.nextToken().equals("details")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
@@ -413,17 +413,17 @@ public class LinkConverter {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String namespace = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String namespace = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens() || !st.nextToken().equals("nexus-operations")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String operationId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String operationId = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens()) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
       }
-      String runId = URLDecoder.decode(st.nextToken(), StandardCharsets.UTF_8.toString());
+      String runId = decodePathSegment(st.nextToken());
       if (!st.hasMoreTokens() || !st.nextToken().equals("details")) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", uri.getRawPath());
         return null;
@@ -447,6 +447,15 @@ public class LinkConverter {
    */
   private static String encodePathSegment(String value) throws UnsupportedEncodingException {
     return URLEncoder.encode(value, StandardCharsets.UTF_8.toString()).replace("+", "%20");
+  }
+
+  /**
+   * Percent-decodes a single URL path segment. {@link URLDecoder} targets form decoding, where '+'
+   * means a space, but in a path a '+' is a literal character. Pre-escaping '+' as "%2B" keeps it
+   * literal while leaving genuine percent escapes such as "%20" for the decoder to handle.
+   */
+  private static String decodePathSegment(String value) throws UnsupportedEncodingException {
+    return URLDecoder.decode(value.replace("+", "%2B"), StandardCharsets.UTF_8.toString());
   }
 
   /**
