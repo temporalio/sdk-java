@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 
 import com.google.common.base.Preconditions;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -16,8 +17,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Optional;
@@ -41,6 +44,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   private final byte[] taskToken;
   private final GrpcRetryer grpcRetryer;
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
+  private final @Nullable StorageDriverTargetInfo storageTarget;
+  private final @Nullable ExternalStorageRunner externalStorage;
 
   ManualActivityCompletionClientImpl(
       @Nonnull WorkflowServiceStubs service,
@@ -51,8 +56,12 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       @Nullable byte[] taskToken,
       @Nullable WorkflowExecution execution,
       @Nullable String activityId,
-      @Nullable ActivitySerializationContext context) {
+      @Nullable ActivitySerializationContext context,
+      @Nullable StorageDriverTargetInfo storageTarget,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.service = service;
+    this.externalStorage = externalStorage;
+    this.storageTarget = storageTarget;
     this.dataConverterWithActivityExecutionContext =
         context != null ? dataConverter.withContext(context) : dataConverter;
     this.namespace = namespace;
@@ -75,23 +84,30 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     this.activityId = activityId;
   }
 
+  private <T extends Message> T storeOutbound(T request) {
+    return externalStorage == null
+        ? request
+        : externalStorage.storeBlocking(request, storageTarget);
+  }
+
   @Override
   public void complete(@Nullable Object result) {
     Optional<Payloads> payloads = dataConverterWithActivityExecutionContext.toPayloads(result);
     if (taskToken != null) {
-      RespondActivityTaskCompletedRequest.Builder request =
+      RespondActivityTaskCompletedRequest.Builder builder =
           RespondActivityTaskCompletedRequest.newBuilder()
               .setNamespace(namespace)
               .setIdentity(identity)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      payloads.ifPresent(request::setResult);
+      payloads.ifPresent(builder::setResult);
       try {
+        RespondActivityTaskCompletedRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .respondActivityTaskCompleted(request.build()),
+                    .respondActivityTaskCompleted(request),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
         processException(e);
@@ -100,20 +116,21 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskCompletedByIdRequest.Builder request =
+      RespondActivityTaskCompletedByIdRequest.Builder builder =
           RespondActivityTaskCompletedByIdRequest.newBuilder()
               .setActivityId(activityId)
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId());
-      payloads.ifPresent(request::setResult);
+      payloads.ifPresent(builder::setResult);
       try {
+        RespondActivityTaskCompletedByIdRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .respondActivityTaskCompletedById(request.build()),
+                    .respondActivityTaskCompletedById(request),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
         processException(e);
@@ -126,13 +143,14 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     Preconditions.checkNotNull(exception, "null exception");
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
-      RespondActivityTaskFailedRequest request =
+      RespondActivityTaskFailedRequest unstoredRequest =
           RespondActivityTaskFailedRequest.newBuilder()
               .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken))
               .build();
       try {
+        RespondActivityTaskFailedRequest request = storeOutbound(unstoredRequest);
         grpcRetryer.retry(
             () ->
                 service
@@ -152,7 +170,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskFailedByIdRequest request =
+      RespondActivityTaskFailedByIdRequest unstoredRequest =
           RespondActivityTaskFailedByIdRequest.newBuilder()
               .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
               .setNamespace(namespace)
@@ -161,6 +179,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
               .setActivityId(activityId)
               .build();
       try {
+        RespondActivityTaskFailedByIdRequest request = storeOutbound(unstoredRequest);
         grpcRetryer.retry(
             () ->
                 service
@@ -177,15 +196,17 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
   @Override
   public void recordHeartbeat(@Nullable Object details) throws CanceledFailure {
     try {
+      Optional<Payloads> payloads = dataConverterWithActivityExecutionContext.toPayloads(details);
       if (taskToken != null) {
+        RecordActivityTaskHeartbeatRequest.Builder builder =
+            RecordActivityTaskHeartbeatRequest.newBuilder()
+                .setNamespace(namespace)
+                .setIdentity(identity)
+                .setTaskToken(ByteString.copyFrom(taskToken));
+        payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatResponse status =
             ActivityClientHelper.sendHeartbeatRequest(
-                service,
-                namespace,
-                identity,
-                taskToken,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope);
+                service, storeOutbound(builder.build()), metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -194,15 +215,17 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           throw new ActivityPausedException();
         }
       } else {
+        RecordActivityTaskHeartbeatByIdRequest.Builder builder =
+            RecordActivityTaskHeartbeatByIdRequest.newBuilder()
+                .setNamespace(namespace)
+                .setIdentity(identity)
+                .setWorkflowId(execution.getWorkflowId())
+                .setRunId(execution.getRunId())
+                .setActivityId(activityId);
+        payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatByIdResponse status =
             ActivityClientHelper.recordActivityTaskHeartbeatById(
-                service,
-                namespace,
-                identity,
-                execution,
-                activityId,
-                dataConverterWithActivityExecutionContext.toPayloads(details),
-                metricsScope);
+                service, storeOutbound(builder.build()), metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -221,18 +244,19 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     Optional<Payloads> convertedDetails =
         dataConverterWithActivityExecutionContext.toPayloads(details);
     if (taskToken != null) {
-      RespondActivityTaskCanceledRequest.Builder request =
+      RespondActivityTaskCanceledRequest.Builder builder =
           RespondActivityTaskCanceledRequest.newBuilder()
               .setNamespace(namespace)
               .setTaskToken(ByteString.copyFrom(taskToken));
-      convertedDetails.ifPresent(request::setDetails);
+      convertedDetails.ifPresent(builder::setDetails);
       try {
+        RespondActivityTaskCanceledRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .respondActivityTaskCanceled(request.build()),
+                    .respondActivityTaskCanceled(request),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
         // There is nothing that can be done at this point.
@@ -243,20 +267,21 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskCanceledByIdRequest.Builder request =
+      RespondActivityTaskCanceledByIdRequest.Builder builder =
           RespondActivityTaskCanceledByIdRequest.newBuilder()
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(OptionsUtils.safeGet(execution.getRunId()))
               .setActivityId(activityId);
-      convertedDetails.ifPresent(request::setDetails);
+      convertedDetails.ifPresent(builder::setDetails);
       try {
+        RespondActivityTaskCanceledByIdRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                    .respondActivityTaskCanceledById(request.build()),
+                    .respondActivityTaskCanceledById(request),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
         // There is nothing that can be done at this point.
