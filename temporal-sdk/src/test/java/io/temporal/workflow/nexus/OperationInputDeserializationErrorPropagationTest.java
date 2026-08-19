@@ -13,6 +13,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.PayloadValidationException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TimeoutFailure;
@@ -22,6 +23,7 @@ import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
@@ -45,7 +47,6 @@ public class OperationInputDeserializationErrorPropagationTest {
       "non-retryable-payload-validation-error";
   private static final String RETRYABLE_PAYLOAD_VALIDATION_ERROR =
       "retryable-payload-validation-error";
-  private static final String PAYLOAD_VALIDATION_ERROR_TYPE = "PayloadValidationError";
   private static final String CODEC_FAILURE = "codec-failure";
 
   private static final AtomicInteger deserializeAttempts = new AtomicInteger();
@@ -145,7 +146,7 @@ public class OperationInputDeserializationErrorPropagationTest {
     Assert.assertEquals("PayloadValidationError", ((ApplicationFailure) cause).getType());
     Assert.assertTrue(
         "expected the converter's message on the cause, got " + cause.getMessage(),
-        cause.getMessage().contains("intentional failure"));
+        cause.getMessage().contains("Payload validation failed"));
 
     Assert.assertEquals(1, deserializeAttempts.get());
     Assert.assertEquals(0, operationInvocations.get());
@@ -288,11 +289,10 @@ public class OperationInputDeserializationErrorPropagationTest {
         case RETRYABLE_APPLICATION_FAILURE:
           return ApplicationFailure.newFailure("intentional failure", "TestFailure");
         case NON_RETRYABLE_PAYLOAD_VALIDATION_ERROR:
-          return ApplicationFailure.newNonRetryableFailure(
-              "intentional failure", PAYLOAD_VALIDATION_ERROR_TYPE);
+          return PayloadValidationException.create(
+              Collections.singletonList("intentional validation failure"));
         case RETRYABLE_PAYLOAD_VALIDATION_ERROR:
-          return ApplicationFailure.newFailure(
-              "intentional failure", PAYLOAD_VALIDATION_ERROR_TYPE);
+          return ApplicationFailure.newFailure("intentional failure", "PayloadValidationError");
         case CODEC_FAILURE:
           return new PayloadCodecException("intentional failure");
         default:
