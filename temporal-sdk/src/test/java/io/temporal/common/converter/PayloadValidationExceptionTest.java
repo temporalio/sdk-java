@@ -13,11 +13,11 @@ import org.junit.Test;
 
 public class PayloadValidationExceptionTest {
   @Test
-  public void createReturnsNonRetryableApplicationFailureWithEncodedViolations() {
-    List<Map<String, String>> violations =
+  public void createReturnsNonRetryableApplicationFailureWithEncodedDetails() {
+    List<Map<String, String>> details =
         Collections.singletonList(Collections.singletonMap("path", "$.customer.contact.email"));
 
-    ApplicationFailure applicationFailure = PayloadValidationException.create(violations);
+    ApplicationFailure applicationFailure = PayloadValidationException.create(details);
 
     assertEquals("PayloadValidationError", applicationFailure.getType());
     assertTrue(applicationFailure.isNonRetryable());
@@ -30,9 +30,8 @@ public class PayloadValidationExceptionTest {
 
     ApplicationFailure decodedFailure =
         (ApplicationFailure) dataConverter.failureToException(encodedFailure);
-    TypeToken<List<Map<String, String>>> violationsType =
+    TypeToken<List<Map<String, String>>> detailsType =
         new TypeToken<List<Map<String, String>>>() {};
-    assertEquals(
-        violations, decodedFailure.getDetails().get(0, List.class, violationsType.getType()));
+    assertEquals(details, decodedFailure.getDetails().get(0, List.class, detailsType.getType()));
   }
 }

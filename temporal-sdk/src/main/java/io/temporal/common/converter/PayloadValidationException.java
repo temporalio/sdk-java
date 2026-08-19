@@ -10,14 +10,14 @@ public final class PayloadValidationException {
   private PayloadValidationException() {}
 
   /**
-   * Creates a non-retryable failure containing the aggregated validation violations.
+   * Creates a non-retryable failure containing payload validation details.
    *
-   * <p>The violations are stored as a single details value and serialized by the configured {@link
+   * <p>The details are stored as a single value and serialized by the configured {@link
    * DataConverter}.
    *
-   * @param violations aggregated payload validation violations
+   * @param details payload validation details
    */
-  public static ApplicationFailure create(Object violations) {
-    return ApplicationFailure.newNonRetryableFailure(MESSAGE, TYPE, violations);
+  public static ApplicationFailure create(Object details) {
+    return ApplicationFailure.newNonRetryableFailure(MESSAGE, TYPE, details);
   }
 }
