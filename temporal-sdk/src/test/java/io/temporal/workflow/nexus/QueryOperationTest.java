@@ -1,12 +1,18 @@
 package io.temporal.workflow.nexus;
 
+import static org.junit.Assume.assumeTrue;
+
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.api.common.v1.Link;
+import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.QueryRejectCondition;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowFailedException;
@@ -24,8 +30,11 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
@@ -39,13 +48,17 @@ import org.junit.function.ThrowingRunnable;
  * a query handler that throws, and a Query rejected by the client's reject condition. All of these
  * must fail the caller's Nexus operation rather than hanging or returning a default.
  *
- * <p>The response link the server attaches to {@code QueryWorkflowResponse} is verified in {@link
- * io.temporal.internal.client.RootWorkflowClientInvokerLinkPropagationTest} instead, since neither
- * the in-memory test server nor a released real server populates that field yet.
  */
 public class QueryOperationTest {
 
   private static final int BUMPS = 2;
+
+  @BeforeClass
+  public static void requireExternalService() {
+    assumeTrue(
+        "query response links require a real server that populates QueryWorkflowResponse.link",
+        SDKTestWorkflowRule.useExternalService);
+  }
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -74,6 +87,37 @@ public class QueryOperationTest {
         "the operation should return what the query handler computed from workflow state",
         BUMPS,
         caller.execute(new QueryRequest(targetWorkflowId, "", false)));
+
+    completeCounterWorkflow(targetWorkflowId);
+  }
+
+  /**
+   * End-to-end response link check: the server attaches a link to {@code QueryWorkflowResponse},
+   * {@code RootWorkflowClientInvoker.query} hands it to the Nexus operation context, and the SDK
+   * puts it on the caller's {@code NexusOperationCompleted} event.
+   *
+   * <p>Only the response direction is asserted. A Query writes nothing to the queried workflow's
+   * history, so there is no event on the callee side to carry a forward link — unlike the signal
+   * case in {@link SignalOperationLinkingTest}.
+   */
+  @Test
+  public void queryOperationCapturesResponseLink() {
+    String targetWorkflowId = startCounterWorkflow();
+    bumpCounter(targetWorkflowId, BUMPS);
+
+    QueryCallerWorkflow caller =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(QueryCallerWorkflow.class, "link-caller");
+    Assert.assertEquals(BUMPS, caller.execute(new QueryRequest(targetWorkflowId, "", false)));
+
+    String callerWorkflowId = WorkflowStub.fromTyped(caller).getExecution().getWorkflowId();
+    History callerHistory =
+        testWorkflowRule.getWorkflowClient().fetchHistory(callerWorkflowId).getHistory();
+
+    List<HistoryEvent> completedEvents =
+        getAllEventsOfType(callerHistory, EventType.EVENT_TYPE_NEXUS_OPERATION_COMPLETED);
+    Assert.assertEquals(
+        "expected exactly one NexusOperationCompleted event", 1, completedEvents.size());
+    assertQueryResponseLink(completedEvents.get(0), targetWorkflowId);
 
     completeCounterWorkflow(targetWorkflowId);
   }
@@ -156,6 +200,42 @@ public class QueryOperationTest {
         "expected a HandlerException under the NexusOperationFailure but got: " + handlerFailure,
         handlerFailure instanceof HandlerException);
     Assert.assertEquals(expectedErrorType, ((HandlerException) handlerFailure).getErrorType());
+  }
+
+  /**
+   * Assert that a caller-side event carries a response link naming the queried workflow. A Query
+   * produces no history event, so the server answers with a {@code Link.Workflow} identifying the
+   * execution that processed the Query rather than the {@code Link.WorkflowEvent} the signal and
+   * update paths use.
+   */
+  private static void assertQueryResponseLink(HistoryEvent event, String queriedWorkflowId) {
+    Assert.assertTrue(
+        "expected a query response link on " + event.getEventType().name(),
+        event.getLinksCount() >= 1);
+    Link link = event.getLinks(0);
+    Assert.assertTrue(
+        "a Query link must use the Workflow variant, not WorkflowEvent, because a Query writes"
+            + " nothing to history; got: "
+            + link,
+        link.hasWorkflow());
+    Assert.assertEquals(
+        "the response link should name the queried workflow",
+        queriedWorkflowId,
+        link.getWorkflow().getWorkflowId());
+    Assert.assertFalse(
+        "the response link should name the run that processed the Query",
+        link.getWorkflow().getRunId().isEmpty());
+  }
+
+  /** Find all history events of a given type, in order. */
+  private static List<HistoryEvent> getAllEventsOfType(History history, EventType type) {
+    List<HistoryEvent> out = new ArrayList<>();
+    for (HistoryEvent e : history.getEventsList()) {
+      if (e.getEventType() == type) {
+        out.add(e);
+      }
+    }
+    return out;
   }
 
   private String startCounterWorkflow() {
