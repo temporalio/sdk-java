@@ -171,8 +171,37 @@ public final class OpenTelemetryWorker {
   }
 
   static String resolveServiceName(Map<String, String> env) {
+    return resolveServiceName(env, DEFAULT_SERVICE_NAME);
+  }
+
+  /**
+   * Resolves an OpenTelemetry service name from the environment.
+   *
+   * <p>Resolution prefers {@code OTEL_SERVICE_NAME}, then each of {@code fallbackEnvVars} in order,
+   * and finally {@code defaultServiceName}. Environment values that are unset, empty, or blank are
+   * treated as absent.
+   *
+   * @param env environment variables to resolve from
+   * @param defaultServiceName value returned when no environment variable provides a service name
+   * @param fallbackEnvVars environment variable names consulted, in order, after {@code
+   *     OTEL_SERVICE_NAME}
+   * @return the resolved service name
+   */
+  public static String resolveServiceName(
+      Map<String, String> env, String defaultServiceName, String... fallbackEnvVars) {
     String serviceName = nonEmptyEnv(env, OTEL_SERVICE_NAME);
-    return serviceName == null ? DEFAULT_SERVICE_NAME : serviceName;
+    if (serviceName != null) {
+      return serviceName;
+    }
+    if (fallbackEnvVars != null) {
+      for (String fallbackEnvVar : fallbackEnvVars) {
+        serviceName = nonEmptyEnv(env, fallbackEnvVar);
+        if (serviceName != null) {
+          return serviceName;
+        }
+      }
+    }
+    return defaultServiceName;
   }
 
   public static final class Builder {
