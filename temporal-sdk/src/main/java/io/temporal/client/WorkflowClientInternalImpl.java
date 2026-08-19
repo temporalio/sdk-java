@@ -18,6 +18,7 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.*;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.client.external.ExternalStorageGenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
@@ -110,9 +111,17 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     ExternalStorage externalStorage = options.getExternalStorage();
-    this.externalStorageRunner =
+    ExternalStorageRunner externalStorageRunner =
         externalStorage == null ? null : ExternalStorageRunner.create(externalStorage);
-    this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    this.externalStorageRunner = externalStorageRunner;
+    GenericWorkflowClient genericClient =
+        new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
+    if (externalStorageRunner != null) {
+      genericClient =
+          new ExternalStorageGenericWorkflowClient(
+              genericClient, externalStorageRunner, options.getNamespace());
+    }
+    this.genericClient = genericClient;
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
     this.manualActivityCompletionClientFactory =
@@ -120,7 +129,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             workflowServiceStubs,
             options.getNamespace(),
             options.getIdentity(),
-            options.getDataConverter());
+            options.getDataConverter(),
+            externalStorage);
 
     java.time.Duration heartbeatInterval = options.getWorkerHeartbeatInterval();
     if (!heartbeatInterval.isNegative()) {

@@ -2,6 +2,7 @@ package io.temporal.client;
 
 import com.google.common.base.Preconditions;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
@@ -9,7 +10,10 @@ import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.payload.storage.ExternalStorageReferences;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.ExternalStorage;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
@@ -123,11 +127,27 @@ public class WorkflowExecutionMetadata {
     if (memo == null) {
       return null;
     }
+    memo = resolveExternalStorageReference(memo);
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
                 info.getParentNamespaceId(), info.getExecution().getWorkflowId()))
         .fromPayload(memo, valueClass, genericType);
+  }
+
+  /**
+   * Resolves an external-storage reference payload to its stored contents, lazily, when a getter
+   * reads it. Uses the external storage attached to this result's data converter, or returns the
+   * payload unchanged when it is not a reference or no external storage is configured.
+   */
+  protected Payload resolveExternalStorageReference(Payload payload) {
+    ExternalStorage externalStorage = dataConverter.getExternalStorage();
+    if (externalStorage == null || !ExternalStorageReferences.isReference(payload)) {
+      return payload;
+    }
+    return ExternalStorageRunner.create(externalStorage)
+        .retrieve(Payloads.newBuilder().addPayloads(payload).build())
+        .getPayloads(0);
   }
 
   @Nonnull
