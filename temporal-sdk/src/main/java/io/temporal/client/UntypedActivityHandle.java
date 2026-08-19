@@ -163,11 +163,11 @@ public interface UntypedActivityHandle {
   void pause();
 
   /**
-   * Pauses the activity with an optional reason.
+   * Pauses the activity with the given options.
    *
-   * @param reason human-readable reason for pausing, may be {@code null}
+   * @param options pause options (reason)
    */
-  void pause(@Nullable String reason);
+  void pause(PauseActivityOptions options);
 
   /** Unpauses the activity with default options, allowing it to be dispatched again. */
   void unpause();
@@ -191,12 +191,18 @@ public interface UntypedActivityHandle {
 
   /**
    * Updates the activity's options. Only the fields explicitly set in {@code options} are changed;
-   * a derived field mask leaves the rest untouched. Alternatively, {@link
-   * UpdateActivityOptions.Builder#setRestoreOriginal(boolean)} reverts the options to the values
-   * the activity was created with.
+   * a derived field mask leaves the rest untouched. To revert to the options the activity was
+   * created with, use {@link #restoreOriginalOptions()}.
    *
    * @param options the options to apply
    * @return the activity options as resolved by the server after the update
    */
-  ActivityExecutionOptions updateOptions(UpdateActivityOptions options);
+  UpdateActivityOptions updateOptions(UpdateActivityOptions options);
+
+  /**
+   * Restores the activity's options to the ones it was created with.
+   *
+   * @return the activity options as resolved by the server after the restore
+   */
+  UpdateActivityOptions restoreOriginalOptions();
 }

@@ -6,8 +6,8 @@ import com.google.protobuf.FieldMask;
 import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.ActivityExecutionDescription;
-import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.DescribeActivityOptions;
+import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
@@ -15,7 +15,6 @@ import io.temporal.client.UpdateActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.RetryOptionsUtils;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
@@ -154,13 +153,13 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public void pause() {
-    pause(null);
+    pause(PauseActivityOptions.getDefaultInstance());
   }
 
   @Override
-  public void pause(@Nullable String reason) {
+  public void pause(PauseActivityOptions options) {
     clientCallsInterceptor.pauseActivity(
-        new ActivityClientCallsInterceptor.PauseActivityInput(activityId, activityRunId, reason));
+        new ActivityClientCallsInterceptor.PauseActivityInput(activityId, activityRunId, options));
   }
 
   @Override
@@ -172,7 +171,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   public void unpause(UnpauseActivityOptions options) {
     clientCallsInterceptor.unpauseActivity(
         new ActivityClientCallsInterceptor.UnpauseActivityInput(
-            activityId, activityRunId, options.getReason(), options.getJitter()));
+            activityId, activityRunId, options));
   }
 
   @Override
@@ -183,58 +182,49 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   @Override
   public void reset(ResetActivityOptions options) {
     clientCallsInterceptor.resetActivity(
-        new ActivityClientCallsInterceptor.ResetActivityInput(
-            activityId,
-            activityRunId,
-            options.isKeepPaused(),
-            options.getJitter(),
-            options.isRestoreOriginalOptions(),
-            options.isResetHeartbeat()));
+        new ActivityClientCallsInterceptor.ResetActivityInput(activityId, activityRunId, options));
   }
 
   @Override
-  public ActivityExecutionOptions updateOptions(UpdateActivityOptions options) {
+  public UpdateActivityOptions updateOptions(UpdateActivityOptions options) {
     ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
     List<String> maskPaths = new ArrayList<>();
 
-    if (!options.isRestoreOriginal()) {
-      if (options.getTaskQueue() != null) {
-        activityOptions.setTaskQueue(
-            TaskQueue.newBuilder().setName(options.getTaskQueue()).build());
-        maskPaths.add("task_queue.name");
-      }
-      if (options.getScheduleToCloseTimeout() != null) {
-        activityOptions.setScheduleToCloseTimeout(
-            ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()));
-        maskPaths.add("schedule_to_close_timeout");
-      }
-      if (options.getScheduleToStartTimeout() != null) {
-        activityOptions.setScheduleToStartTimeout(
-            ProtobufTimeUtils.toProtoDuration(options.getScheduleToStartTimeout()));
-        maskPaths.add("schedule_to_start_timeout");
-      }
-      if (options.getStartToCloseTimeout() != null) {
-        activityOptions.setStartToCloseTimeout(
-            ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()));
-        maskPaths.add("start_to_close_timeout");
-      }
-      if (options.getHeartbeatTimeout() != null) {
-        activityOptions.setHeartbeatTimeout(
-            ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
-        maskPaths.add("heartbeat_timeout");
-      }
-      if (options.getRetryOptions() != null) {
-        activityOptions.setRetryPolicy(toRetryPolicy(options.getRetryOptions()));
-        maskPaths.add("retry_policy");
-      }
-      if (options.getPriority() != null) {
-        activityOptions.setPriority(ProtoConverters.toProto(options.getPriority()));
-        maskPaths.add("priority");
-      }
-      if (options.getStartDelay() != null) {
-        activityOptions.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
-        maskPaths.add("start_delay");
-      }
+    if (options.getTaskQueue() != null) {
+      activityOptions.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build());
+      maskPaths.add("task_queue.name");
+    }
+    if (options.getScheduleToCloseTimeout() != null) {
+      activityOptions.setScheduleToCloseTimeout(
+          ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()));
+      maskPaths.add("schedule_to_close_timeout");
+    }
+    if (options.getScheduleToStartTimeout() != null) {
+      activityOptions.setScheduleToStartTimeout(
+          ProtobufTimeUtils.toProtoDuration(options.getScheduleToStartTimeout()));
+      maskPaths.add("schedule_to_start_timeout");
+    }
+    if (options.getStartToCloseTimeout() != null) {
+      activityOptions.setStartToCloseTimeout(
+          ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()));
+      maskPaths.add("start_to_close_timeout");
+    }
+    if (options.getHeartbeatTimeout() != null) {
+      activityOptions.setHeartbeatTimeout(
+          ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
+      maskPaths.add("heartbeat_timeout");
+    }
+    if (options.getRetryOptions() != null) {
+      activityOptions.setRetryPolicy(toRetryPolicy(options.getRetryOptions()));
+      maskPaths.add("retry_policy");
+    }
+    if (options.getPriority() != null) {
+      activityOptions.setPriority(ProtoConverters.toProto(options.getPriority()));
+      maskPaths.add("priority");
+    }
+    if (options.getStartDelay() != null) {
+      activityOptions.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
+      maskPaths.add("start_delay");
     }
 
     FieldMask updateMask = FieldMask.newBuilder().addAllPaths(maskPaths).build();
@@ -242,32 +232,21 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
     ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =
         clientCallsInterceptor.updateActivityOptions(
             new ActivityClientCallsInterceptor.UpdateActivityOptionsInput(
-                activityId,
-                activityRunId,
-                activityOptions.build(),
-                updateMask,
-                options.isRestoreOriginal()));
+                activityId, activityRunId, activityOptions.build(), updateMask, false));
 
-    return fromProto(output.getActivityOptions());
+    return output.getOptions();
   }
 
-  private static ActivityExecutionOptions fromProto(ActivityOptions proto) {
-    return new ActivityExecutionOptions(
-        proto.hasTaskQueue() ? proto.getTaskQueue().getName() : null,
-        proto.hasScheduleToCloseTimeout()
-            ? ProtobufTimeUtils.toJavaDuration(proto.getScheduleToCloseTimeout())
-            : null,
-        proto.hasScheduleToStartTimeout()
-            ? ProtobufTimeUtils.toJavaDuration(proto.getScheduleToStartTimeout())
-            : null,
-        proto.hasStartToCloseTimeout()
-            ? ProtobufTimeUtils.toJavaDuration(proto.getStartToCloseTimeout())
-            : null,
-        proto.hasHeartbeatTimeout()
-            ? ProtobufTimeUtils.toJavaDuration(proto.getHeartbeatTimeout())
-            : null,
-        proto.hasRetryPolicy() ? RetryOptionsUtils.toRetryOptions(proto.getRetryPolicy()) : null,
-        proto.hasPriority() ? ProtoConverters.fromProto(proto.getPriority()) : null,
-        proto.hasStartDelay() ? ProtobufTimeUtils.toJavaDuration(proto.getStartDelay()) : null);
+  @Override
+  public UpdateActivityOptions restoreOriginalOptions() {
+    ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =
+        clientCallsInterceptor.updateActivityOptions(
+            new ActivityClientCallsInterceptor.UpdateActivityOptionsInput(
+                activityId,
+                activityRunId,
+                ActivityOptions.getDefaultInstance(),
+                FieldMask.getDefaultInstance(),
+                true));
+    return output.getOptions();
   }
 }

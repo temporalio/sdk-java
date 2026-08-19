@@ -133,8 +133,8 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public void pause(@Nullable String reason) {
-    delegate.pause(reason);
+  public void pause(PauseActivityOptions options) {
+    delegate.pause(options);
   }
 
   @Override
@@ -158,7 +158,12 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public ActivityExecutionOptions updateOptions(UpdateActivityOptions options) {
+  public UpdateActivityOptions updateOptions(UpdateActivityOptions options) {
     return delegate.updateOptions(options);
+  }
+
+  @Override
+  public UpdateActivityOptions restoreOriginalOptions() {
+    return delegate.restoreOriginalOptions();
   }
 }

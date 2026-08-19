@@ -13,6 +13,7 @@ import io.temporal.api.workflowservice.v1.UnpauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
@@ -46,7 +47,7 @@ public class ActivityHandleOperatorCommandsTest {
 
     UntypedActivityHandle handle = newHandle();
 
-    handle.pause("because");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("because").build());
     handle.unpause(
         UnpauseActivityOptions.newBuilder()
             .setReason("go")

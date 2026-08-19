@@ -8,10 +8,13 @@ import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.DescribeActivityOptions;
+import io.temporal.client.PauseActivityOptions;
+import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UnpauseActivityOptions;
+import io.temporal.client.UpdateActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -390,12 +393,12 @@ public interface ActivityClientCallsInterceptor {
   final class PauseActivityInput {
     private final String id;
     private final @Nullable String runId;
-    private final @Nullable String reason;
+    private final PauseActivityOptions options;
 
-    public PauseActivityInput(String id, @Nullable String runId, @Nullable String reason) {
+    public PauseActivityInput(String id, @Nullable String runId, PauseActivityOptions options) {
       this.id = id;
       this.runId = runId;
-      this.reason = reason;
+      this.options = options;
     }
 
     public String getId() {
@@ -407,9 +410,8 @@ public interface ActivityClientCallsInterceptor {
       return runId;
     }
 
-    @Nullable
-    public String getReason() {
-      return reason;
+    public PauseActivityOptions getOptions() {
+      return options;
     }
   }
 
@@ -420,15 +422,12 @@ public interface ActivityClientCallsInterceptor {
   final class UnpauseActivityInput {
     private final String id;
     private final @Nullable String runId;
-    private final @Nullable String reason;
-    private final @Nullable Duration jitter;
+    private final UnpauseActivityOptions options;
 
-    public UnpauseActivityInput(
-        String id, @Nullable String runId, @Nullable String reason, @Nullable Duration jitter) {
+    public UnpauseActivityInput(String id, @Nullable String runId, UnpauseActivityOptions options) {
       this.id = id;
       this.runId = runId;
-      this.reason = reason;
-      this.jitter = jitter;
+      this.options = options;
     }
 
     public String getId() {
@@ -440,14 +439,8 @@ public interface ActivityClientCallsInterceptor {
       return runId;
     }
 
-    @Nullable
-    public String getReason() {
-      return reason;
-    }
-
-    @Nullable
-    public Duration getJitter() {
-      return jitter;
+    public UnpauseActivityOptions getOptions() {
+      return options;
     }
   }
 
@@ -458,24 +451,12 @@ public interface ActivityClientCallsInterceptor {
   final class ResetActivityInput {
     private final String id;
     private final @Nullable String runId;
-    private final boolean keepPaused;
-    private final @Nullable Duration jitter;
-    private final boolean restoreOriginalOptions;
-    private final boolean resetHeartbeat;
+    private final ResetActivityOptions options;
 
-    public ResetActivityInput(
-        String id,
-        @Nullable String runId,
-        boolean keepPaused,
-        @Nullable Duration jitter,
-        boolean restoreOriginalOptions,
-        boolean resetHeartbeat) {
+    public ResetActivityInput(String id, @Nullable String runId, ResetActivityOptions options) {
       this.id = id;
       this.runId = runId;
-      this.keepPaused = keepPaused;
-      this.jitter = jitter;
-      this.restoreOriginalOptions = restoreOriginalOptions;
-      this.resetHeartbeat = resetHeartbeat;
+      this.options = options;
     }
 
     public String getId() {
@@ -487,21 +468,8 @@ public interface ActivityClientCallsInterceptor {
       return runId;
     }
 
-    public boolean isKeepPaused() {
-      return keepPaused;
-    }
-
-    @Nullable
-    public Duration getJitter() {
-      return jitter;
-    }
-
-    public boolean isRestoreOriginalOptions() {
-      return restoreOriginalOptions;
-    }
-
-    public boolean isResetHeartbeat() {
-      return resetHeartbeat;
+    public ResetActivityOptions getOptions() {
+      return options;
     }
   }
 
@@ -553,15 +521,15 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class UpdateActivityOptionsOutput {
-    private final ActivityOptions activityOptions;
+    private final UpdateActivityOptions options;
 
-    public UpdateActivityOptionsOutput(ActivityOptions activityOptions) {
-      this.activityOptions = activityOptions;
+    public UpdateActivityOptionsOutput(UpdateActivityOptions options) {
+      this.options = options;
     }
 
     /** The activity options as resolved by the server after the update. */
-    public ActivityOptions getActivityOptions() {
-      return activityOptions;
+    public UpdateActivityOptions getOptions() {
+      return options;
     }
   }
 

@@ -19,7 +19,6 @@ import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import org.junit.Test;
 
 public class ActivityExecutionDescriptionTest {
@@ -62,7 +61,7 @@ public class ActivityExecutionDescriptionTest {
   public void testHasHeartbeatDetailsAbsent() {
     ActivityExecutionDescription desc = describe(buildInfo("id", "run"));
     assertFalse(desc.hasHeartbeatDetails());
-    assertFalse(desc.getHeartbeatDetails(String.class).isPresent());
+    assertEquals(0, desc.getHeartbeatDetails().getSize());
   }
 
   @Test
@@ -73,9 +72,8 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionDescription desc = describe(info);
 
     assertTrue(desc.hasHeartbeatDetails());
-    Optional<String> result = desc.getHeartbeatDetails(String.class);
-    assertTrue(result.isPresent());
-    assertEquals("hello-heartbeat", result.get());
+    assertEquals(1, desc.getHeartbeatDetails().getSize());
+    assertEquals("hello-heartbeat", desc.getHeartbeatDetails().get(0, String.class));
   }
 
   @Test
@@ -89,9 +87,9 @@ public class ActivityExecutionDescriptionTest {
 
     Type genericType = new TypeToken<List<String>>() {}.getType();
     Class<List<String>> listClass = (Class<List<String>>) (Class<?>) List.class;
-    Optional<List<String>> result = desc.getHeartbeatDetails(listClass, genericType);
-    assertTrue(result.isPresent());
-    assertEquals(Arrays.asList("one", "two", "three"), result.get());
+    assertEquals(
+        Arrays.asList("one", "two", "three"),
+        desc.getHeartbeatDetails().get(0, listClass, genericType));
   }
 
   @Test
@@ -115,7 +113,7 @@ public class ActivityExecutionDescriptionTest {
   public void testInputAbsentUnlessRequested() {
     ActivityExecutionDescription desc = describe(buildInfo("id", "run"));
     assertFalse(desc.hasInput());
-    assertFalse(desc.getInput(String.class).isPresent());
+    assertEquals(0, desc.getInput().getSize());
   }
 
   @Test
@@ -128,11 +126,12 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionDescription desc = describe(response);
 
     assertTrue(desc.hasInput());
-    assertEquals("hello-input", desc.getInput(String.class).orElse(null));
+    assertEquals(1, desc.getInput().getSize());
+    assertEquals("hello-input", desc.getInput().get(0, String.class));
   }
 
   @Test
-  public void testGetInputByIndexDecodesEveryArgument() {
+  public void testGetInputDecodesEveryArgument() {
     DescribeActivityExecutionResponse response =
         DescribeActivityExecutionResponse.newBuilder()
             .setInfo(buildInfo("id", "run"))
@@ -140,21 +139,15 @@ public class ActivityExecutionDescriptionTest {
             .build();
     ActivityExecutionDescription desc = describe(response);
 
-    assertEquals(2, desc.getInputCount());
-    assertEquals("first", desc.getInput(0, String.class).orElse(null));
-    assertEquals(Integer.valueOf(42), desc.getInput(1, Integer.class).orElse(null));
-    // The no-index accessor still reads the first argument.
-    assertEquals("first", desc.getInput(String.class).orElse(null));
-    // Out-of-range indexes are empty rather than throwing.
-    assertFalse(desc.getInput(2, String.class).isPresent());
-    assertFalse(desc.getInput(-1, String.class).isPresent());
+    assertEquals(2, desc.getInput().getSize());
+    assertEquals("first", desc.getInput().get(0, String.class));
+    assertEquals(Integer.valueOf(42), desc.getInput().get(1, Integer.class));
   }
 
   @Test
-  public void testInputCountZeroWhenInputAbsent() {
+  public void testInputEmptyWhenInputAbsent() {
     ActivityExecutionDescription desc = describe(buildInfo("id", "run"));
-    assertEquals(0, desc.getInputCount());
-    assertFalse(desc.getInput(0, String.class).isPresent());
+    assertEquals(0, desc.getInput().getSize());
   }
 
   @Test
@@ -162,7 +155,7 @@ public class ActivityExecutionDescriptionTest {
     ActivityExecutionDescription desc = describe(buildInfo("id", "run"));
     assertFalse(desc.hasResult());
     assertFalse(desc.getResult(String.class).isPresent());
-    assertNull(desc.getFailure());
+    assertNull(desc.getOutcomeFailure());
   }
 
   @Test
@@ -180,7 +173,7 @@ public class ActivityExecutionDescriptionTest {
     assertTrue(desc.hasResult());
     assertEquals("hello-result", desc.getResult(String.class).orElse(null));
     // A successful outcome has no failure arm.
-    assertNull(desc.getFailure());
+    assertNull(desc.getOutcomeFailure());
   }
 
   @Test
@@ -201,7 +194,7 @@ public class ActivityExecutionDescriptionTest {
     assertFalse(desc.hasResult());
     assertFalse(desc.getResult(String.class).isPresent());
 
-    Exception failure = desc.getFailure();
+    RuntimeException failure = desc.getOutcomeFailure();
     assertNotNull(failure);
     assertTrue(failure instanceof ApplicationFailure);
     assertEquals("boom", ((ApplicationFailure) failure).getOriginalMessage());

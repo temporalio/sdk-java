@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
@@ -13,10 +12,6 @@ import javax.annotation.Nullable;
  *
  * <p>Only the fields that are explicitly set are sent to the server; a derived field mask ensures
  * that unset fields are left unchanged (a partial update).
- *
- * <p>{@link Builder#setRestoreOriginal(boolean)} is mutually exclusive with every other field: an
- * instance that sets {@code restoreOriginal} together with any other option is rejected by {@link
- * Builder#build()} before any request is sent.
  */
 @Experimental
 public final class UpdateActivityOptions {
@@ -38,7 +33,6 @@ public final class UpdateActivityOptions {
     private @Nullable RetryOptions retryOptions;
     private @Nullable Priority priority;
     private @Nullable Duration startDelay;
-    private boolean restoreOriginal;
 
     private Builder() {}
 
@@ -54,7 +48,6 @@ public final class UpdateActivityOptions {
       this.retryOptions = options.retryOptions;
       this.priority = options.priority;
       this.startDelay = options.startDelay;
-      this.restoreOriginal = options.restoreOriginal;
     }
 
     /** New task queue for the activity. */
@@ -105,39 +98,7 @@ public final class UpdateActivityOptions {
       return this;
     }
 
-    /**
-     * If set, the activity options are restored to the originals the activity was created with.
-     * This flag cannot be combined with any other field.
-     */
-    public Builder setRestoreOriginal(boolean restoreOriginal) {
-      this.restoreOriginal = restoreOriginal;
-      return this;
-    }
-
     public UpdateActivityOptions build() {
-      if (restoreOriginal) {
-        Preconditions.checkArgument(
-            taskQueue == null
-                && scheduleToCloseTimeout == null
-                && scheduleToStartTimeout == null
-                && startToCloseTimeout == null
-                && heartbeatTimeout == null
-                && retryOptions == null
-                && priority == null
-                && startDelay == null,
-            "restoreOriginal cannot be combined with any other option");
-      } else {
-        Preconditions.checkArgument(
-            taskQueue != null
-                || scheduleToCloseTimeout != null
-                || scheduleToStartTimeout != null
-                || startToCloseTimeout != null
-                || heartbeatTimeout != null
-                || retryOptions != null
-                || priority != null
-                || startDelay != null,
-            "At least one option must be set, or restoreOriginal must be used");
-      }
       return new UpdateActivityOptions(this);
     }
   }
@@ -150,7 +111,6 @@ public final class UpdateActivityOptions {
   private final @Nullable RetryOptions retryOptions;
   private final @Nullable Priority priority;
   private final @Nullable Duration startDelay;
-  private final boolean restoreOriginal;
 
   private UpdateActivityOptions(Builder builder) {
     this.taskQueue = builder.taskQueue;
@@ -161,7 +121,6 @@ public final class UpdateActivityOptions {
     this.retryOptions = builder.retryOptions;
     this.priority = builder.priority;
     this.startDelay = builder.startDelay;
-    this.restoreOriginal = builder.restoreOriginal;
   }
 
   public Builder toBuilder() {
@@ -208,17 +167,12 @@ public final class UpdateActivityOptions {
     return startDelay;
   }
 
-  public boolean isRestoreOriginal() {
-    return restoreOriginal;
-  }
-
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     UpdateActivityOptions that = (UpdateActivityOptions) o;
-    return restoreOriginal == that.restoreOriginal
-        && Objects.equals(taskQueue, that.taskQueue)
+    return Objects.equals(taskQueue, that.taskQueue)
         && Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
         && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
@@ -238,8 +192,7 @@ public final class UpdateActivityOptions {
         heartbeatTimeout,
         retryOptions,
         priority,
-        startDelay,
-        restoreOriginal);
+        startDelay);
   }
 
   @Override
@@ -261,8 +214,6 @@ public final class UpdateActivityOptions {
         + priority
         + ", startDelay="
         + startDelay
-        + ", restoreOriginal="
-        + restoreOriginal
         + '}';
   }
 }

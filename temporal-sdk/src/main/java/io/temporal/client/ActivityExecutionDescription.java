@@ -9,6 +9,7 @@ import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
@@ -29,9 +30,7 @@ import javax.annotation.Nullable;
 public final class ActivityExecutionDescription extends ActivityExecutionMetadata {
 
   private final DescribeActivityExecutionResponse response;
-  private final ActivityExecutionInfo info;
   private final DataConverter dataConverter;
-  private final String namespace;
 
   public ActivityExecutionDescription(
       DescribeActivityExecutionResponse response, DataConverter dataConverter, String namespace) {
@@ -53,9 +52,10 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         response.getInfo().getTaskQueue(),
         SearchAttributesUtil.decodeTyped(response.getInfo().getSearchAttributes()));
     this.response = response;
-    this.info = response.getInfo();
-    this.dataConverter = dataConverter;
-    this.namespace = namespace;
+    this.dataConverter =
+        dataConverter.withContext(
+            new ActivitySerializationContext(
+                namespace, null, null, getActivityType(), getTaskQueue(), false));
   }
 
   private static @Nullable String nullIfEmpty(String s) {
@@ -71,12 +71,12 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   /** The raw protobuf info returned by the server for this activity execution. */
   @Nonnull
   public ActivityExecutionInfo getRawInfo() {
-    return info;
+    return response.getInfo();
   }
 
   /** Current attempt number (starts at 1). */
   public int getAttempt() {
-    return info.getAttempt();
+    return response.getInfo().getAttempt();
   }
 
   /**
@@ -85,55 +85,55 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public String getCanceledReason() {
-    String r = info.getCanceledReason();
+    String r = response.getInfo().getCanceledReason();
     return r.isEmpty() ? null : r;
   }
 
   /** Current or next retry interval. {@code null} if no retries are configured or allowed. */
   @Nullable
   public Duration getCurrentRetryInterval() {
-    return info.hasCurrentRetryInterval()
-        ? ProtobufTimeUtils.toJavaDuration(info.getCurrentRetryInterval())
+    return response.getInfo().hasCurrentRetryInterval()
+        ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getCurrentRetryInterval())
         : null;
   }
 
   /** When the activity will time out (scheduled time + scheduleToCloseTimeout). */
   @Nullable
   public Instant getExpirationTime() {
-    return info.hasExpirationTime()
-        ? ProtobufTimeUtils.toJavaInstant(info.getExpirationTime())
+    return response.getInfo().hasExpirationTime()
+        ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getExpirationTime())
         : null;
   }
 
   /** Maximum allowed time between heartbeats. */
   @Nullable
   public Duration getHeartbeatTimeout() {
-    return info.hasHeartbeatTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info.getHeartbeatTimeout())
+    return response.getInfo().hasHeartbeatTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getHeartbeatTimeout())
         : null;
   }
 
   /** Time the last attempt completed (succeeded or failed). */
   @Nullable
   public Instant getLastAttemptCompleteTime() {
-    return info.hasLastAttemptCompleteTime()
-        ? ProtobufTimeUtils.toJavaInstant(info.getLastAttemptCompleteTime())
+    return response.getInfo().hasLastAttemptCompleteTime()
+        ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getLastAttemptCompleteTime())
         : null;
   }
 
   /** Time the last heartbeat was recorded. */
   @Nullable
   public Instant getLastHeartbeatTime() {
-    return info.hasLastHeartbeatTime()
-        ? ProtobufTimeUtils.toJavaInstant(info.getLastHeartbeatTime())
+    return response.getInfo().hasLastHeartbeatTime()
+        ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getLastHeartbeatTime())
         : null;
   }
 
   /** Time the last attempt was started. */
   @Nullable
   public Instant getLastStartedTime() {
-    return info.hasLastStartedTime()
-        ? ProtobufTimeUtils.toJavaInstant(info.getLastStartedTime())
+    return response.getInfo().hasLastStartedTime()
+        ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getLastStartedTime())
         : null;
   }
 
@@ -143,8 +143,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public Instant getExecutionTime() {
-    return info.hasExecutionTime()
-        ? ProtobufTimeUtils.toJavaInstant(info.getExecutionTime())
+    return response.getInfo().hasExecutionTime()
+        ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getExecutionTime())
         : null;
   }
 
@@ -154,7 +154,9 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public Duration getStartDelay() {
-    return info.hasStartDelay() ? ProtobufTimeUtils.toJavaDuration(info.getStartDelay()) : null;
+    return response.getInfo().hasStartDelay()
+        ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getStartDelay())
+        : null;
   }
 
   /**
@@ -163,34 +165,38 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * DescribeActivityOptions.Builder#setIncludeLastFailure(boolean)}.
    */
   public boolean hasLastFailure() {
-    return info.hasLastFailure();
+    return response.getInfo().hasLastFailure();
   }
 
   /** Failure details from the last failed attempt. {@code null} if no failure has occurred. */
   @Nullable
-  public Exception getLastFailure() {
-    return info.hasLastFailure() ? dataConverter.failureToException(info.getLastFailure()) : null;
+  public RuntimeException getLastFailure() {
+    return response.getInfo().hasLastFailure()
+        ? dataConverter.failureToException(response.getInfo().getLastFailure())
+        : null;
   }
 
   /** Identity of the worker that last processed this activity. */
   @Nullable
   public String getLastWorkerIdentity() {
-    String w = info.getLastWorkerIdentity();
+    String w = response.getInfo().getLastWorkerIdentity();
     return w.isEmpty() ? null : w;
   }
 
   /** Time when the next retry attempt will be scheduled. */
   @Nullable
   public Instant getNextAttemptScheduleTime() {
-    return info.hasNextAttemptScheduleTime()
-        ? ProtobufTimeUtils.toJavaInstant(info.getNextAttemptScheduleTime())
+    return response.getInfo().hasNextAttemptScheduleTime()
+        ? ProtobufTimeUtils.toJavaInstant(response.getInfo().getNextAttemptScheduleTime())
         : null;
   }
 
   /** Retry policy for this activity. */
   @Nullable
   public RetryOptions getRetryOptions() {
-    return info.hasRetryPolicy() ? RetryOptionsUtils.toRetryOptions(info.getRetryPolicy()) : null;
+    return response.getInfo().hasRetryPolicy()
+        ? RetryOptionsUtils.toRetryOptions(response.getInfo().getRetryPolicy())
+        : null;
   }
 
   /**
@@ -199,30 +205,30 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nonnull
   public PendingActivityState getRunState() {
-    return info.getRunState();
+    return response.getInfo().getRunState();
   }
 
   /** Total time the caller is willing to wait for the activity to complete, including retries. */
   @Nullable
   public Duration getScheduleToCloseTimeout() {
-    return info.hasScheduleToCloseTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info.getScheduleToCloseTimeout())
+    return response.getInfo().hasScheduleToCloseTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getScheduleToCloseTimeout())
         : null;
   }
 
   /** Maximum time the task may wait in the task queue. */
   @Nullable
   public Duration getScheduleToStartTimeout() {
-    return info.hasScheduleToStartTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info.getScheduleToStartTimeout())
+    return response.getInfo().hasScheduleToStartTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getScheduleToStartTimeout())
         : null;
   }
 
   /** Maximum time for a single attempt. */
   @Nullable
   public Duration getStartToCloseTimeout() {
-    return info.hasStartToCloseTimeout()
-        ? ProtobufTimeUtils.toJavaDuration(info.getStartToCloseTimeout())
+    return response.getInfo().hasStartToCloseTimeout()
+        ? ProtobufTimeUtils.toJavaDuration(response.getInfo().getStartToCloseTimeout())
         : null;
   }
 
@@ -232,33 +238,16 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * DescribeActivityOptions.Builder#setIncludeHeartbeatDetails(boolean)}.
    */
   public boolean hasHeartbeatDetails() {
-    return info.hasHeartbeatDetails();
+    return response.getInfo().hasHeartbeatDetails();
   }
 
   /**
-   * Deserializes the last heartbeat details into the given type. Returns {@link Optional#empty()}
-   * if no heartbeat details are present.
-   *
-   * @param valueType the class to deserialize the heartbeat details into
+   * The details recorded by the last heartbeat, as lazily-decoded values. Empty (size 0) when no
+   * heartbeat details are present, either because none were recorded or because the description was
+   * requested without {@link DescribeActivityOptions.Builder#setIncludeHeartbeatDetails(boolean)}.
    */
-  public <V> Optional<V> getHeartbeatDetails(Class<V> valueType) {
-    return getHeartbeatDetails(valueType, valueType);
-  }
-
-  /**
-   * Deserializes the last heartbeat details into the given generic type. Returns {@link
-   * Optional#empty()} if no heartbeat details are present.
-   *
-   * @param valueType the class to deserialize the heartbeat details into
-   * @param genericType the generic type for deserialization; may equal {@code valueType}
-   */
-  public <V> Optional<V> getHeartbeatDetails(Class<V> valueType, Type genericType) {
-    if (!info.hasHeartbeatDetails()) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(
-        dataConverter.fromPayloads(
-            0, Optional.of(info.getHeartbeatDetails()), valueType, genericType));
+  public EncodedValues getHeartbeatDetails() {
+    return new EncodedValues(Optional.of(response.getInfo().getHeartbeatDetails()), dataConverter);
   }
 
   /**
@@ -270,64 +259,12 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   }
 
   /**
-   * The number of input arguments the activity was started with. {@code 0} if no input is present
-   * (the activity took no arguments, or {@code includeInput} was false).
+   * The activity's input arguments, as lazily-decoded values, one per argument. Empty (size 0) when
+   * no input is present, either because the activity took no arguments or because the description
+   * was requested without {@link DescribeActivityOptions.Builder#setIncludeInput(boolean)}.
    */
-  public int getInputCount() {
-    return response.hasInput() ? response.getInput().getPayloadsCount() : 0;
-  }
-
-  /**
-   * Deserializes the activity's first input argument. Returns {@link Optional#empty()} if no input
-   * is present (the activity took no arguments, or {@code includeInput} was false).
-   *
-   * <p>For a multi-argument activity this returns only the first argument; use {@link
-   * #getInput(int, Class)} to read the rest, and {@link #getInputCount()} for how many there are.
-   *
-   * @param valueType the class to deserialize the input into
-   */
-  public <V> Optional<V> getInput(Class<V> valueType) {
-    return getInput(0, valueType, valueType);
-  }
-
-  /**
-   * Deserializes the activity's first input argument into the given generic type. Returns {@link
-   * Optional#empty()} if no input is present.
-   *
-   * @param valueType the class to deserialize the input into
-   * @param genericType the generic type for deserialization; may equal {@code valueType}
-   */
-  public <V> Optional<V> getInput(Class<V> valueType, Type genericType) {
-    return getInput(0, valueType, genericType);
-  }
-
-  /**
-   * Deserializes the activity's input argument at the given position. Returns {@link
-   * Optional#empty()} if no input is present or {@code index} is past the last argument.
-   *
-   * @param index zero-based position of the argument, in declaration order
-   * @param valueType the class to deserialize the argument into
-   */
-  public <V> Optional<V> getInput(int index, Class<V> valueType) {
-    return getInput(index, valueType, valueType);
-  }
-
-  /**
-   * Deserializes the activity's input argument at the given position into the given generic type.
-   * Returns {@link Optional#empty()} if no input is present or {@code index} is past the last
-   * argument.
-   *
-   * @param index zero-based position of the argument, in declaration order
-   * @param valueType the class to deserialize the argument into
-   * @param genericType the generic type for deserialization; may equal {@code valueType}
-   */
-  public <V> Optional<V> getInput(int index, Class<V> valueType, Type genericType) {
-    if (index < 0 || index >= getInputCount()) {
-      return Optional.empty();
-    }
-    return Optional.ofNullable(
-        dataConverter.fromPayloads(
-            index, Optional.of(response.getInput()), valueType, genericType));
+  public EncodedValues getInput() {
+    return new EncodedValues(Optional.of(response.getInput()), dataConverter);
   }
 
   /**
@@ -336,7 +273,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * DescribeActivityOptions.Builder#setIncludeOutcome(boolean)}.
    */
   public boolean hasResult() {
-    return response.hasOutcome() && response.getOutcome().hasResult();
+    return response.getOutcome().hasResult();
   }
 
   /**
@@ -346,7 +283,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * @param valueType the class to deserialize the result into
    */
   public <V> Optional<V> getResult(Class<V> valueType) {
-    return getResult(valueType, valueType);
+    return getResult(valueType, null);
   }
 
   /**
@@ -356,13 +293,16 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * @param valueType the class to deserialize the result into
    * @param genericType the generic type for deserialization; may equal {@code valueType}
    */
-  public <V> Optional<V> getResult(Class<V> valueType, Type genericType) {
+  public <V> Optional<V> getResult(Class<V> valueType, @Nullable Type genericType) {
     if (!hasResult()) {
       return Optional.empty();
     }
     return Optional.ofNullable(
         dataConverter.fromPayloads(
-            0, Optional.of(response.getOutcome().getResult()), valueType, genericType));
+            0,
+            Optional.of(response.getOutcome().getResult()),
+            valueType,
+            genericType != null ? genericType : valueType));
   }
 
   /**
@@ -373,8 +313,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * attempt, which may be set while the activity is still retrying.
    */
   @Nullable
-  public Exception getFailure() {
-    if (!response.hasOutcome() || !response.getOutcome().hasFailure()) {
+  public RuntimeException getOutcomeFailure() {
+    if (!response.getOutcome().hasFailure()) {
       return null;
     }
     return dataConverter.failureToException(response.getOutcome().getFailure());
@@ -386,20 +326,21 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public WorkerDeploymentVersion getWorkerDeploymentVersion() {
-    if (!info.hasLastDeploymentVersion()) {
+    if (!response.getInfo().hasLastDeploymentVersion()) {
       return null;
     }
-    io.temporal.api.deployment.v1.WorkerDeploymentVersion proto = info.getLastDeploymentVersion();
+    io.temporal.api.deployment.v1.WorkerDeploymentVersion proto =
+        response.getInfo().getLastDeploymentVersion();
     return new WorkerDeploymentVersion(proto.getDeploymentName(), proto.getBuildId());
   }
 
   /** Priority hint for this activity. {@code null} if not set. */
   @Nullable
   public Priority getPriority() {
-    if (!info.hasPriority()) {
+    if (!response.getInfo().hasPriority()) {
       return null;
     }
-    return ProtoConverters.fromProto(info.getPriority());
+    return ProtoConverters.fromProto(response.getInfo().getPriority());
   }
 
   /**
@@ -408,14 +349,11 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public String getStaticSummary() {
-    if (!info.hasUserMetadata() || !info.getUserMetadata().hasSummary()) {
+    if (!response.getInfo().getUserMetadata().hasSummary()) {
       return null;
     }
-    return dataConverter
-        .withContext(
-            new ActivitySerializationContext(
-                namespace, null, null, getActivityType(), getTaskQueue(), false))
-        .fromPayload(info.getUserMetadata().getSummary(), String.class, String.class);
+    return dataConverter.fromPayload(
+        response.getInfo().getUserMetadata().getSummary(), String.class, String.class);
   }
 
   /**
@@ -424,13 +362,10 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    */
   @Nullable
   public String getStaticDetails() {
-    if (!info.hasUserMetadata() || !info.getUserMetadata().hasDetails()) {
+    if (!response.getInfo().getUserMetadata().hasDetails()) {
       return null;
     }
-    return dataConverter
-        .withContext(
-            new ActivitySerializationContext(
-                namespace, null, null, getActivityType(), getTaskQueue(), false))
-        .fromPayload(info.getUserMetadata().getDetails(), String.class, String.class);
+    return dataConverter.fromPayload(
+        response.getInfo().getUserMetadata().getDetails(), String.class, String.class);
   }
 }

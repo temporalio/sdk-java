@@ -14,9 +14,9 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ActivityExecutionDescription;
-import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityHandle;
 import io.temporal.client.DescribeActivityOptions;
+import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.UpdateActivityOptions;
@@ -264,7 +264,7 @@ public class StandaloneActivityOperatorCommandsTest {
             .build();
     ActivityHandle<String> handle = client.start(QuickActivity.class, QuickActivity::run, opts);
 
-    handle.pause("pause-before-unpause");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("pause-before-unpause").build());
     // A not-yet-started (scheduled) activity transitions fully to PAUSED.
     assertEventually(
         Duration.ofSeconds(30),
@@ -322,7 +322,7 @@ public class StandaloneActivityOperatorCommandsTest {
                 .setStartToCloseTimeout(Duration.ofSeconds(45))
                 .setScheduleToCloseTimeout(Duration.ofSeconds(120)));
 
-    ActivityExecutionOptions updated =
+    UpdateActivityOptions updated =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(90))
@@ -360,7 +360,7 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<String> handle =
         newActivityClient().start(QuickActivity.class, QuickActivity::run, opts);
 
-    ActivityExecutionOptions updated =
+    UpdateActivityOptions updated =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
                 .setTaskQueue("updated-tq")
@@ -409,44 +409,13 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   @Test
-  public void updateOptionsRestoreOriginalExclusive() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startRunningSlowActivity(slowOpts());
-    // Building the request with restore_original AND another option is rejected before any RPC.
-    IllegalArgumentException err =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                handle.updateOptions(
-                    UpdateActivityOptions.newBuilder()
-                        .setRestoreOriginal(true)
-                        .setStartToCloseTimeout(Duration.ofSeconds(5))
-                        .build()));
-    assertTrue(err.getMessage().toLowerCase().contains("restore"));
-    handle.terminate("cleanup");
-  }
-
-  @Test
-  public void updateOptionsRequiresAtLeastOneOption() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startRunningSlowActivity(slowOpts());
-    // Building the request with no options and no restore_original is rejected before any RPC.
-    IllegalArgumentException err =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> handle.updateOptions(UpdateActivityOptions.newBuilder().build()));
-    assertTrue(err.getMessage().toLowerCase().contains("at least one option"));
-    handle.terminate("cleanup");
-  }
-
-  @Test
   public void updateOptionsRestoreOriginal() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle =
         startRunningSlowActivity(slowOpts().setStartToCloseTimeout(Duration.ofSeconds(45)));
 
     // Change an option away from the original.
-    ActivityExecutionOptions changed =
+    UpdateActivityOptions changed =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(90))
@@ -454,8 +423,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(Duration.ofSeconds(90), changed.getStartToCloseTimeout());
 
     // restore_original alone reverts to the value the activity was created with.
-    ActivityExecutionOptions restored =
-        handle.updateOptions(UpdateActivityOptions.newBuilder().setRestoreOriginal(true).build());
+    UpdateActivityOptions restored = handle.restoreOriginalOptions();
     assertEquals(Duration.ofSeconds(45), restored.getStartToCloseTimeout());
     handle.terminate("cleanup");
   }
@@ -477,7 +445,7 @@ public class StandaloneActivityOperatorCommandsTest {
                     .setScheduleToCloseTimeout(Duration.ofSeconds(120))
                     .setStartDelay(Duration.ofSeconds(60))
                     .build());
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventually(
         Duration.ofSeconds(30),
         () ->
@@ -486,7 +454,7 @@ public class StandaloneActivityOperatorCommandsTest {
                 handle.describe().getRunState()));
 
     // Updating options is legal while paused, and the new value lands.
-    ActivityExecutionOptions updated =
+    UpdateActivityOptions updated =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(90))
@@ -519,7 +487,7 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<String> handle =
         newActivityClient().start(QuickActivity.class, QuickActivity::run, opts);
 
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventually(
         Duration.ofSeconds(30),
         () ->
@@ -546,7 +514,7 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<Void> handle =
         startRunningSlowActivity(slowOpts().setStartToCloseTimeout(Duration.ofSeconds(45)));
 
-    ActivityExecutionOptions updated =
+    UpdateActivityOptions updated =
         handle.updateOptions(
             UpdateActivityOptions.newBuilder()
                 .setStartToCloseTimeout(Duration.ofSeconds(90))
@@ -576,11 +544,11 @@ public class StandaloneActivityOperatorCommandsTest {
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
     assertFalse(handle.describe().hasHeartbeatDetails());
-    assertFalse(handle.describe().getHeartbeatDetails(String.class).isPresent());
+    assertEquals(0, handle.describe().getHeartbeatDetails().getSize());
     assertTrue(handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
     assertEquals(
         "hb-details",
-        handle.describe(WITH_HEARTBEAT_DETAILS).getHeartbeatDetails(String.class).orElse(null));
+        handle.describe(WITH_HEARTBEAT_DETAILS).getHeartbeatDetails().get(0, String.class));
     handle.terminate("cleanup");
   }
 
@@ -604,9 +572,9 @@ public class StandaloneActivityOperatorCommandsTest {
     // Default describe omits both.
     ActivityExecutionDescription bare = handle.describe();
     assertFalse(bare.hasInput());
-    assertEquals(0, bare.getInputCount());
+    assertEquals(0, bare.getInput().getSize());
     assertFalse(bare.hasResult());
-    assertNull(bare.getFailure());
+    assertNull(bare.getOutcomeFailure());
 
     ActivityExecutionDescription desc =
         handle.describe(
@@ -615,13 +583,13 @@ public class StandaloneActivityOperatorCommandsTest {
                 .setIncludeOutcome(true)
                 .build());
     assertTrue(desc.hasInput());
-    assertEquals(2, desc.getInputCount());
-    assertEquals("ping", desc.getInput(0, String.class).orElse(null));
-    assertEquals(Integer.valueOf(7), desc.getInput(1, Integer.class).orElse(null));
+    assertEquals(2, desc.getInput().getSize());
+    assertEquals("ping", desc.getInput().get(0, String.class));
+    assertEquals(Integer.valueOf(7), desc.getInput().get(1, Integer.class));
     assertTrue(desc.hasResult());
     assertEquals("ping-7", desc.getResult(String.class).orElse(null));
     // A successful outcome has no failure arm.
-    assertNull(desc.getFailure());
+    assertNull(desc.getOutcomeFailure());
   }
 
   /** The other arm of the outcome oneof: a terminally failed activity has a failure, no result. */
@@ -645,7 +613,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assertFalse(desc.hasResult());
     assertFalse(desc.getResult(String.class).isPresent());
 
-    Exception failure = desc.getFailure();
+    RuntimeException failure = desc.getOutcomeFailure();
     assertNotNull(failure);
     assertTrue(failure instanceof ApplicationFailure);
     assertEquals("retryable failure", ((ApplicationFailure) failure).getOriginalMessage());
@@ -656,7 +624,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventuallyPaused(handle);
 
     // Pause never touches heartbeat details — they persist across the transition.
@@ -671,7 +639,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventuallyPaused(handle);
 
     // Unpause preserves heartbeat details. The re-dispatched attempt doesn't heartbeat (only
@@ -692,7 +660,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventuallyPaused(handle);
 
     // As of api#848 / temporal#11417, reset does NOT clear heartbeat details by default —
@@ -711,7 +679,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventuallyPaused(handle);
 
     // Opt-in flag clears details.
@@ -732,7 +700,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
 
-    handle.pause("hold");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
     assertEventuallyPaused(handle);
 
     // UpdateOptions changes activity options only; it never touches heartbeat details.
@@ -767,7 +735,7 @@ public class StandaloneActivityOperatorCommandsTest {
                 PendingActivityState.PENDING_ACTIVITY_STATE_STARTED,
                 handle.describe().getRunState()));
 
-    handle.pause("reason");
+    handle.pause(PauseActivityOptions.newBuilder().setReason("reason").build());
     assertEventuallyPaused(handle);
     handle.unpause();
     handle.updateOptions(
