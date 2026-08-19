@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 import static io.temporal.serviceclient.MetricsTag.TASK_FAILURE_TYPE;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -17,6 +18,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -274,6 +276,16 @@ final class NexusWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  /**
+   * Marks a failure raised by the external storage. Reported to the server as a retryable handler
+   * error.
+   */
+  private static final class ExternalStorageTaskFailure extends RuntimeException {
+    ExternalStorageTaskFailure(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<NexusTask> {
 
     final NexusTaskHandler handler;
@@ -304,28 +316,30 @@ final class NexusWorker implements SuspendableWorker {
 
     @Override
     public void handle(NexusTask task) {
-      PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
-      // Extract service and operation from the request and set them as MDC and metrics
-      // scope tags. If the request does not have a service or operation, do not set the tags.
-      // If we don't know how to handle the task, we will fail the task further down the line.
-      Scope metricsScope = workerMetricsScope;
-      String service = getNexusTaskService(pollResponse);
-      if (!service.isEmpty()) {
-        MDC.put(LoggerTag.NEXUS_SERVICE, service);
-        metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
-      }
-      String operation = getNexusTaskOperation(pollResponse);
-      if (!operation.isEmpty()) {
-        MDC.put(LoggerTag.NEXUS_OPERATION, operation);
-        metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
-      }
-      slotSupplier.markSlotUsed(
-          new NexusSlotInfo(
-              service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
-          task.getPermit());
-
       boolean taskFailed = false;
       try {
+        task = retrieveInboundPayloads(task);
+        PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
+        // Extract service and operation from the request and set them as MDC and metrics
+        // scope tags. If the request does not have a service or operation, do not set the tags.
+        // If we don't know how to handle the task, we will fail the task further down the line.
+        Scope metricsScope = workerMetricsScope;
+        String service = getNexusTaskService(pollResponse);
+        if (!service.isEmpty()) {
+          MDC.put(LoggerTag.NEXUS_SERVICE, service);
+          metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
+        }
+        String operation = getNexusTaskOperation(pollResponse);
+        if (!operation.isEmpty()) {
+          MDC.put(LoggerTag.NEXUS_OPERATION, operation);
+          metricsScope =
+              metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
+        }
+        slotSupplier.markSlotUsed(
+            new NexusSlotInfo(
+                service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
+            task.getPermit());
+
         taskFailed = handleNexusTask(task, metricsScope);
       } catch (Throwable e) {
         taskFailed = true;
@@ -484,13 +498,14 @@ final class NexusWorker implements SuspendableWorker {
         if (!supportTemporalFailure && taskResponse.getStartOperation().hasFailure()) {
           taskResponse = getResponseForOldServer(taskResponse);
         }
-        RespondNexusTaskCompletedRequest request =
+        RespondNexusTaskCompletedRequest.Builder requestBuilder =
             RespondNexusTaskCompletedRequest.newBuilder()
                 .setTaskToken(taskToken)
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
-                .setResponse(taskResponse)
-                .build();
+                .setResponse(taskResponse);
+        storeOutbound(requestBuilder);
+        RespondNexusTaskCompletedRequest request = requestBuilder.build();
 
         grpcRetryer.retry(
             () ->
@@ -512,16 +527,40 @@ final class NexusWorker implements SuspendableWorker {
           } else {
             request.setError(NexusUtil.handlerErrorToNexusError(handlerException, dataConverter));
           }
+          storeOutbound(request);
+          RespondNexusTaskFailedRequest failedRequest = request.build();
           grpcRetryer.retry(
               () ->
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .respondNexusTaskFailed(request.build()),
+                      .respondNexusTaskFailed(failedRequest),
               replyGrpcRetryerOptions);
         } else {
           throw new IllegalArgumentException("[BUG] Either response or failure must be set");
         }
+      }
+    }
+
+    private NexusTask retrieveInboundPayloads(NexusTask task) {
+      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
+      PollNexusTaskQueueResponse built =
+          response instanceof PollNexusTaskQueueResponse
+              ? (PollNexusTaskQueueResponse) response
+              : ((PollNexusTaskQueueResponse.Builder) response).build();
+      if (externalStorage == null) {
+        ExternalStorageRunner.throwIfContainsReference(built);
+        return task;
+      }
+      return new NexusTask(
+          externalStorage.retrieve(built), task.getPermit(), task.getCompletionCallback());
+    }
+
+    private void storeOutbound(Message.Builder builder) {
+      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      if (externalStorage != null) {
+        externalStorage.store(builder, null);
       }
     }
   }
