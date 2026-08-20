@@ -103,6 +103,11 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
+  public ActivityExecutionDescription describe(DescribeActivityOptions options) {
+    return delegate.describe(options);
+  }
+
+  @Override
   public void cancel() {
     delegate.cancel();
   }
@@ -120,5 +125,45 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   @Override
   public void terminate(@Nullable String reason) {
     delegate.terminate(reason);
+  }
+
+  @Override
+  public void pause() {
+    delegate.pause();
+  }
+
+  @Override
+  public void pause(PauseActivityOptions options) {
+    delegate.pause(options);
+  }
+
+  @Override
+  public void unpause() {
+    delegate.unpause();
+  }
+
+  @Override
+  public void unpause(UnpauseActivityOptions options) {
+    delegate.unpause(options);
+  }
+
+  @Override
+  public void reset() {
+    delegate.reset();
+  }
+
+  @Override
+  public void reset(ResetActivityOptions options) {
+    delegate.reset(options);
+  }
+
+  @Override
+  public UpdateActivityOptions updateOptions(UpdateActivityOptions options) {
+    return delegate.updateOptions(options);
+  }
+
+  @Override
+  public UpdateActivityOptions restoreOriginalOptions() {
+    return delegate.restoreOriginalOptions();
   }
 }

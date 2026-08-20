@@ -1,0 +1,219 @@
+package io.temporal.client;
+
+import io.temporal.common.Experimental;
+import io.temporal.common.Priority;
+import io.temporal.common.RetryOptions;
+import java.time.Duration;
+import java.util.Objects;
+import javax.annotation.Nullable;
+
+/**
+ * Options for {@link UntypedActivityHandle#updateOptions(UpdateActivityOptions)}.
+ *
+ * <p>Only the fields that are explicitly set are sent to the server; a derived field mask ensures
+ * that unset fields are left unchanged (a partial update).
+ */
+@Experimental
+public final class UpdateActivityOptions {
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  public static Builder newBuilder(UpdateActivityOptions options) {
+    return new Builder(options);
+  }
+
+  public static final class Builder {
+    private @Nullable String taskQueue;
+    private @Nullable Duration scheduleToCloseTimeout;
+    private @Nullable Duration scheduleToStartTimeout;
+    private @Nullable Duration startToCloseTimeout;
+    private @Nullable Duration heartbeatTimeout;
+    private @Nullable RetryOptions retryOptions;
+    private @Nullable Priority priority;
+    private @Nullable Duration startDelay;
+
+    private Builder() {}
+
+    private Builder(UpdateActivityOptions options) {
+      if (options == null) {
+        return;
+      }
+      this.taskQueue = options.taskQueue;
+      this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
+      this.scheduleToStartTimeout = options.scheduleToStartTimeout;
+      this.startToCloseTimeout = options.startToCloseTimeout;
+      this.heartbeatTimeout = options.heartbeatTimeout;
+      this.retryOptions = options.retryOptions;
+      this.priority = options.priority;
+      this.startDelay = options.startDelay;
+    }
+
+    /** New task queue for the activity. */
+    public Builder setTaskQueue(@Nullable String taskQueue) {
+      this.taskQueue = taskQueue;
+      return this;
+    }
+
+    /** New schedule-to-close timeout. */
+    public Builder setScheduleToCloseTimeout(@Nullable Duration scheduleToCloseTimeout) {
+      this.scheduleToCloseTimeout = scheduleToCloseTimeout;
+      return this;
+    }
+
+    /** New schedule-to-start timeout. */
+    public Builder setScheduleToStartTimeout(@Nullable Duration scheduleToStartTimeout) {
+      this.scheduleToStartTimeout = scheduleToStartTimeout;
+      return this;
+    }
+
+    /** New start-to-close timeout. */
+    public Builder setStartToCloseTimeout(@Nullable Duration startToCloseTimeout) {
+      this.startToCloseTimeout = startToCloseTimeout;
+      return this;
+    }
+
+    /** New heartbeat timeout. */
+    public Builder setHeartbeatTimeout(@Nullable Duration heartbeatTimeout) {
+      this.heartbeatTimeout = heartbeatTimeout;
+      return this;
+    }
+
+    /** New retry policy. */
+    public Builder setRetryOptions(@Nullable RetryOptions retryOptions) {
+      this.retryOptions = retryOptions;
+      return this;
+    }
+
+    /** New priority. */
+    public Builder setPriority(@Nullable Priority priority) {
+      this.priority = priority;
+      return this;
+    }
+
+    /** New start delay for the first attempt. */
+    public Builder setStartDelay(@Nullable Duration startDelay) {
+      this.startDelay = startDelay;
+      return this;
+    }
+
+    public UpdateActivityOptions build() {
+      return new UpdateActivityOptions(this);
+    }
+  }
+
+  private final @Nullable String taskQueue;
+  private final @Nullable Duration scheduleToCloseTimeout;
+  private final @Nullable Duration scheduleToStartTimeout;
+  private final @Nullable Duration startToCloseTimeout;
+  private final @Nullable Duration heartbeatTimeout;
+  private final @Nullable RetryOptions retryOptions;
+  private final @Nullable Priority priority;
+  private final @Nullable Duration startDelay;
+
+  private UpdateActivityOptions(Builder builder) {
+    this.taskQueue = builder.taskQueue;
+    this.scheduleToCloseTimeout = builder.scheduleToCloseTimeout;
+    this.scheduleToStartTimeout = builder.scheduleToStartTimeout;
+    this.startToCloseTimeout = builder.startToCloseTimeout;
+    this.heartbeatTimeout = builder.heartbeatTimeout;
+    this.retryOptions = builder.retryOptions;
+    this.priority = builder.priority;
+    this.startDelay = builder.startDelay;
+  }
+
+  public Builder toBuilder() {
+    return new Builder(this);
+  }
+
+  @Nullable
+  public String getTaskQueue() {
+    return taskQueue;
+  }
+
+  @Nullable
+  public Duration getScheduleToCloseTimeout() {
+    return scheduleToCloseTimeout;
+  }
+
+  @Nullable
+  public Duration getScheduleToStartTimeout() {
+    return scheduleToStartTimeout;
+  }
+
+  @Nullable
+  public Duration getStartToCloseTimeout() {
+    return startToCloseTimeout;
+  }
+
+  @Nullable
+  public Duration getHeartbeatTimeout() {
+    return heartbeatTimeout;
+  }
+
+  @Nullable
+  public RetryOptions getRetryOptions() {
+    return retryOptions;
+  }
+
+  @Nullable
+  public Priority getPriority() {
+    return priority;
+  }
+
+  @Nullable
+  public Duration getStartDelay() {
+    return startDelay;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    UpdateActivityOptions that = (UpdateActivityOptions) o;
+    return Objects.equals(taskQueue, that.taskQueue)
+        && Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
+        && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
+        && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
+        && Objects.equals(heartbeatTimeout, that.heartbeatTimeout)
+        && Objects.equals(retryOptions, that.retryOptions)
+        && Objects.equals(priority, that.priority)
+        && Objects.equals(startDelay, that.startDelay);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        taskQueue,
+        scheduleToCloseTimeout,
+        scheduleToStartTimeout,
+        startToCloseTimeout,
+        heartbeatTimeout,
+        retryOptions,
+        priority,
+        startDelay);
+  }
+
+  @Override
+  public String toString() {
+    return "UpdateActivityOptions{"
+        + "taskQueue='"
+        + taskQueue
+        + "', scheduleToCloseTimeout="
+        + scheduleToCloseTimeout
+        + ", scheduleToStartTimeout="
+        + scheduleToStartTimeout
+        + ", startToCloseTimeout="
+        + startToCloseTimeout
+        + ", heartbeatTimeout="
+        + heartbeatTimeout
+        + ", retryOptions="
+        + retryOptions
+        + ", priority="
+        + priority
+        + ", startDelay="
+        + startDelay
+        + '}';
+  }
+}

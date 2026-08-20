@@ -118,11 +118,21 @@ public interface UntypedActivityHandle {
       long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType);
 
   /**
-   * Describes the current state of the activity execution.
+   * Describes the current state of the activity execution, without any of the payload-bearing
+   * fields. Equivalent to {@code describe(DescribeActivityOptions.getDefaultInstance())}.
    *
    * @return detailed information about the activity
    */
   ActivityExecutionDescription describe();
+
+  /**
+   * Describes the current state of the activity execution.
+   *
+   * @param options which payload-bearing fields to include in the description. These are opt-in
+   *     because they can be arbitrarily large.
+   * @return detailed information about the activity
+   */
+  ActivityExecutionDescription describe(DescribeActivityOptions options);
 
   /**
    * Requests cancellation of the activity. The activity will receive a cancellation via {@link
@@ -146,4 +156,53 @@ public interface UntypedActivityHandle {
    * @param reason human-readable reason for termination, may be {@code null}
    */
   void terminate(@Nullable String reason);
+
+  /**
+   * Pauses the activity. A paused activity stops being dispatched to workers until it is unpaused.
+   */
+  void pause();
+
+  /**
+   * Pauses the activity with the given options.
+   *
+   * @param options pause options (reason)
+   */
+  void pause(PauseActivityOptions options);
+
+  /** Unpauses the activity with default options, allowing it to be dispatched again. */
+  void unpause();
+
+  /**
+   * Unpauses the activity with the given options.
+   *
+   * @param options unpause options (reset attempts, reset heartbeat, jitter, reason)
+   */
+  void unpause(UnpauseActivityOptions options);
+
+  /** Resets the activity with default options, scheduling a fresh attempt. */
+  void reset();
+
+  /**
+   * Resets the activity with the given options.
+   *
+   * @param options reset options (reset heartbeat, keep paused, jitter, restore original options)
+   */
+  void reset(ResetActivityOptions options);
+
+  /**
+   * Updates the activity's options. Only the fields explicitly set in {@code options} are changed;
+   * a derived field mask leaves the rest untouched. To revert to the options the activity was
+   * created with, use {@link #restoreOriginalOptions()}.
+   *
+   * @param options the options to apply
+   * @return the activity options as resolved by the server after the update
+   */
+  UpdateActivityOptions updateOptions(UpdateActivityOptions options);
+
+  /**
+   * Restores the activity's options to the ones it was created with.
+   *
+   * @return the activity options as resolved by the server after the restore
+   */
+  UpdateActivityOptions restoreOriginalOptions();
 }
