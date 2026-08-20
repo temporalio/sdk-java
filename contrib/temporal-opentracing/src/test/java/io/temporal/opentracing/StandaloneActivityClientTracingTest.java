@@ -7,6 +7,7 @@ import io.opentracing.mock.MockTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.api.workflowservice.v1.CountActivityExecutionsResponse;
 import io.temporal.client.ActivityExecutionCount;
+import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
@@ -108,7 +109,8 @@ public class StandaloneActivityClientTracingTest {
         new ActivityClientCallsInterceptor.GetActivityResultInput<>(
             "act-result-async", null, String.class));
     interceptor.describeActivity(
-        new ActivityClientCallsInterceptor.DescribeActivityInput("act-desc", null));
+        new ActivityClientCallsInterceptor.DescribeActivityInput(
+            "act-desc", null, DescribeActivityOptions.getDefaultInstance()));
     interceptor.cancelActivity(
         new ActivityClientCallsInterceptor.CancelActivityInput("act-cancel", null, "reason"));
     interceptor.terminateActivity(
