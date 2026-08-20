@@ -130,7 +130,7 @@ public class PayloadSerializerTest {
   public void testDeserializeNonRetryablePayloadValidationErrorIsNonRetryableBadRequest() {
     // The converter understood the input and rejected it, which makes this the caller's fault.
     ApplicationFailure original =
-        PayloadValidationException.create(
+        PayloadValidationException.newPayloadValidationException(
             Collections.singletonList(Collections.singletonMap("name", "must not be empty")));
     PayloadSerializer serializer = failingSerializer(null, original);
     PayloadSerializer.Content content = payloadSerializer.serialize("test");

@@ -13,11 +13,13 @@ import org.junit.Test;
 
 public class PayloadValidationExceptionTest {
   @Test
-  public void createReturnsNonRetryableApplicationFailureWithEncodedDetails() {
+  public void
+      newPayloadValidationExceptionReturnsNonRetryableApplicationFailureWithEncodedDetails() {
     List<Map<String, String>> details =
         Collections.singletonList(Collections.singletonMap("path", "$.customer.contact.email"));
 
-    ApplicationFailure applicationFailure = PayloadValidationException.create(details);
+    ApplicationFailure applicationFailure =
+        PayloadValidationException.newPayloadValidationException(details);
 
     assertEquals("PayloadValidationError", applicationFailure.getType());
     assertTrue(applicationFailure.isNonRetryable());

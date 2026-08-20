@@ -17,7 +17,7 @@ public final class PayloadValidationException {
    *
    * @param details payload validation details
    */
-  public static ApplicationFailure create(Object details) {
+  public static ApplicationFailure newPayloadValidationException(Object details) {
     return ApplicationFailure.newNonRetryableFailure(MESSAGE, TYPE, details);
   }
 }

@@ -289,7 +289,7 @@ public class OperationInputDeserializationErrorPropagationTest {
         case RETRYABLE_APPLICATION_FAILURE:
           return ApplicationFailure.newFailure("intentional failure", "TestFailure");
         case NON_RETRYABLE_PAYLOAD_VALIDATION_ERROR:
-          return PayloadValidationException.create(
+          return PayloadValidationException.newPayloadValidationException(
               Collections.singletonList("intentional validation failure"));
         case RETRYABLE_PAYLOAD_VALIDATION_ERROR:
           return ApplicationFailure.newFailure("intentional failure", "PayloadValidationError");
