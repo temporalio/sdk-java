@@ -11,6 +11,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -20,18 +24,30 @@ public class StreamPublisherTest {
   /** Records sent batches; when {@code failure} is set, sending throws it instead. */
   private static class RecordingSignal implements StreamPublisher.SignalFunction {
     final List<PublishInput> signals = new ArrayList<>();
+    final List<String> threads = new ArrayList<>();
     volatile RuntimeException failure;
+    int attempts;
 
     @Override
     public synchronized void send(PublishInput input) {
+      attempts++;
       if (failure != null) {
         throw failure;
       }
+      threads.add(Thread.currentThread().getName());
       signals.add(input);
     }
 
     synchronized List<PublishInput> recorded() {
       return new ArrayList<>(signals);
+    }
+
+    synchronized List<String> threads() {
+      return new ArrayList<>(threads);
+    }
+
+    synchronized int attempts() {
+      return attempts;
     }
   }
 
@@ -63,6 +79,24 @@ public class StreamPublisherTest {
         Thread.sleep(5);
       }
     }
+  }
+
+  private static ScheduledExecutorService newNamedExecutor(String name) {
+    return Executors.newSingleThreadScheduledExecutor(
+        r -> {
+          Thread t = new Thread(r, name);
+          t.setDaemon(true);
+          return t;
+        });
+  }
+
+  /** Proves the executor is alive and still accepting work (i.e. was not shut down). */
+  private static void assertExecutorStillRunsTasks(ScheduledExecutorService executor)
+      throws InterruptedException {
+    Assert.assertFalse(executor.isShutdown());
+    CountDownLatch ran = new CountDownLatch(1);
+    executor.execute(ran::countDown);
+    Assert.assertTrue(ran.await(5, TimeUnit.SECONDS));
   }
 
   @Test
@@ -237,5 +271,77 @@ public class StreamPublisherTest {
     }
 
     publisher.close();
+  }
+
+  /**
+   * A user-supplied executor drives both the flushes triggered by {@code forceFlush} and the
+   * periodic ticks, and close() neither shuts it down nor interrupts its other work: the caller
+   * owns its lifecycle, so many publishers can share one executor.
+   */
+  @Test
+  public void testUserExecutorDrivesFlushesAndSurvivesClose() throws InterruptedException {
+    RecordingSignal signal = new RecordingSignal();
+    ScheduledExecutorService user = newNamedExecutor("user-publish-executor");
+    StreamPublisher publisher =
+        new StreamPublisher(
+            signal,
+            DC,
+            Duration.ofMillis(50),
+            0,
+            WorkflowStreamConstants.DEFAULT_MAX_RETRY_DURATION,
+            user);
+
+    publisher.publish("t", "a", true); // immediate trigger runs on the user executor
+    eventually(Duration.ofSeconds(5), () -> Assert.assertEquals(1, signal.recorded().size()));
+    Assert.assertEquals("user-publish-executor", signal.threads().get(0));
+
+    publisher.publish("t", "b", false); // only a periodic tick can send it
+    eventually(Duration.ofSeconds(5), () -> Assert.assertEquals(2, signal.recorded().size()));
+    Assert.assertEquals("user-publish-executor", signal.threads().get(1));
+
+    // close() drains synchronously on the caller thread and must leave the executor alone.
+    publisher.publish("t", "c", false);
+    publisher.close();
+    Assert.assertEquals(3, signal.recorded().size());
+    assertExecutorStillRunsTasks(user);
+    user.shutdownNow();
+  }
+
+  /**
+   * After a background flush exceeds the max retry duration, the periodic task on a user executor
+   * is cancelled (not the executor) — so once the failure clears, later items stay buffered until
+   * an explicit flush or close drains them, and close() surfaces the deferred timeout.
+   */
+  @Test
+  public void testUserExecutorTaskCancelledAfterFlushTimeout() throws InterruptedException {
+    RecordingSignal signal = new RecordingSignal();
+    signal.failure = new RuntimeException("boom");
+    ScheduledExecutorService user = newNamedExecutor("user-publish-executor");
+    StreamPublisher publisher =
+        new StreamPublisher(signal, DC, Duration.ofMillis(20), 0, Duration.ofMillis(1), user);
+
+    publisher.publish("t", "a", false);
+    // The first tick attempts the send and fails transiently, leaving the batch pending;
+    // the next tick exceeds the 1ms retry window and defers a FlushTimeoutException.
+    eventually(Duration.ofSeconds(5), () -> Assert.assertEquals(1, signal.attempts()));
+    Thread.sleep(300);
+
+    signal.failure = null;
+    publisher.publish("t", "b", false);
+    // The cancelled task must not deliver "b": well past the interval, nothing is sent.
+    Thread.sleep(300);
+    Assert.assertTrue(signal.recorded().isEmpty());
+
+    try {
+      publisher.close();
+      Assert.fail("unreachable");
+    } catch (FlushTimeoutException expected) {
+    }
+    // close() still drains the buffered item on the caller thread, and the user executor
+    // was cancelled, not shut down.
+    Assert.assertEquals(1, signal.recorded().size());
+    Assert.assertEquals("b", decodeItem(signal.recorded().get(0), 0));
+    assertExecutorStillRunsTasks(user);
+    user.shutdownNow();
   }
 }
