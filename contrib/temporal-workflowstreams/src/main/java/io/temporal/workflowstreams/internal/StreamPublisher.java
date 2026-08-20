@@ -72,10 +72,10 @@ public final class StreamPublisher {
   /**
    * @param executor drives the background flush loop (the periodic ticks and the flushes triggered
    *     by a full buffer or {@code forceFlush}). When non-null the caller owns its lifecycle and it
-   *     is never shut down by this publisher, so many publishers can share one executor (e.g. a
-   *     virtual-thread executor); when null a single-thread executor is created lazily, owned by
-   *     this publisher, and shut down by {@link #close}. Flushes block while signaling the
-   *     workflow, so each in-flight flush occupies an executor thread for the duration of the send.
+   *     is never shut down by this publisher, so many publishers can share one executor; when null
+   *     a single-thread executor is created lazily, owned by this publisher, and shut down by
+   *     {@link #close}. Flushes block while signaling the workflow, so each in-flight flush
+   *     occupies an executor thread for the duration of the send.
    */
   public StreamPublisher(
       SignalFunction signal,

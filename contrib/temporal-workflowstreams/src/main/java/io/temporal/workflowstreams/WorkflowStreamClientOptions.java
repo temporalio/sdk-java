@@ -142,8 +142,7 @@ public final class WorkflowStreamClientOptions {
      * flushes triggered by a full buffer or {@code forceFlush}. The caller owns its lifecycle; it
      * is shared across all publishes of this client and must have at least one thread. A flush
      * blocks while signaling the workflow, so it occupies an executor thread for the duration of
-     * each send — supply a pool sized for the number of clients that may flush concurrently, or a
-     * virtual-thread executor to make that cost negligible.
+     * each send — supply a pool sized for the number of clients that may flush concurrently.
      *
      * <p>Default: a single-thread daemon executor created lazily and owned by the client's
      * publisher (shut down by {@link WorkflowStreamClient#close}).
