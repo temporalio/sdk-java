@@ -113,9 +113,9 @@ when the buffer reaches the max batch size, on `forceFlush`, on an explicit
 `flush()`, or on `close()`.
 
 Background flushes run on the client's publish executor: a single daemon thread
-owned by each client by default. Applications running many clients, or preferring
-virtual threads, can supply a shared executor via `publishExecutor` (see the
-options table); it is never shut down by the client.
+owned by each client by default. Applications running many clients can supply a
+shared executor via `publishExecutor` (see the options table); it is never shut
+down by the client.
 
 ## Subscribing
 
@@ -201,7 +201,7 @@ unrecoverable poll failure is rethrown from `hasNext()`.
 | `maxRetryDuration` | 10m | Max time to retry a failed flush before `FlushTimeoutException`. Must be < the workflow's publisher TTL (15m) to preserve exactly-once delivery |
 | `payloadConverters` | standard set | Per-item serialization. Payload conversion only — the client's codec chain runs once on the envelope, never per item |
 | `pollExecutor` | 2 daemon threads, client-owned | Scheduler shared by the client's subscriptions. It runs the short update-admission and delivery steps and poll cooldowns — never held during the long poll itself. A user-supplied executor is never shut down by the client; supply a bigger pool for many subscriptions against slow workflows |
-| `publishExecutor` | 1 daemon thread, client-owned | Scheduler driving the client's background flushes (periodic ticks and full-buffer/`forceFlush` triggers). A flush occupies a thread while signaling the workflow. A user-supplied executor is never shut down by the client; share one across clients — or use a virtual-thread executor — instead of paying a platform thread per client |
+| `publishExecutor` | 1 daemon thread, client-owned | Scheduler driving the client's background flushes (periodic ticks and full-buffer/`forceFlush` triggers). A flush occupies a thread while signaling the workflow. A user-supplied executor is never shut down by the client; share one across clients instead of paying a thread per client |
 | `SubscribeOptions.pollCooldown` | 100ms | Min interval between polls |
 
 ## Cross-language protocol
