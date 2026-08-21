@@ -227,6 +227,14 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
       maskPaths.add("start_delay");
     }
 
+    // An update naming nothing would send an empty mask and silently change nothing. Fail here
+    // rather than making a round trip that looks like it worked. Use restoreOriginalOptions() to
+    // revert options instead.
+    if (maskPaths.isEmpty()) {
+      throw new IllegalArgumentException(
+          "UpdateActivityOptions must set at least one option to update");
+    }
+
     FieldMask updateMask = FieldMask.newBuilder().addAllPaths(maskPaths).build();
 
     ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =

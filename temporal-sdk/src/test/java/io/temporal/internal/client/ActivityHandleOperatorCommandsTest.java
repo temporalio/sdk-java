@@ -1,10 +1,12 @@
 package io.temporal.internal.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.temporal.api.workflowservice.v1.PauseActivityExecutionRequest;
@@ -106,6 +108,40 @@ public class ActivityHandleOperatorCommandsTest {
         ArgumentCaptor.forClass(UnpauseActivityExecutionRequest.class);
     verify(genericClient).unpauseActivity(captor.capture());
     return captor.getValue();
+  }
+
+  /**
+   * An update naming no options would send an empty mask and silently change nothing, so it is
+   * rejected before the round trip. Reverting options is {@link
+   * UntypedActivityHandle#restoreOriginalOptions()}, which the server does not allow to be combined
+   * with individual changes.
+   */
+  @Test
+  public void updateOptionsRequiresAtLeastOneOption() {
+    UntypedActivityHandle handle = newHandle();
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> handle.updateOptions(UpdateActivityOptions.newBuilder().build()));
+    assertTrue(e.getMessage().contains("at least one option"));
+
+    verifyNoInteractions(genericClient);
+  }
+
+  /** A single set option is enough; the mask names exactly it. */
+  @Test
+  public void updateOptionsAcceptsASingleOption() {
+    when(genericClient.updateActivityOptions(any()))
+        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+
+    newHandle()
+        .updateOptions(
+            UpdateActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ofSeconds(25)).build());
+
+    assertEquals(
+        java.util.Collections.singletonList("heartbeat_timeout"),
+        captureUpdate().getUpdateMask().getPathsList());
   }
 
   private ResetActivityExecutionRequest captureReset() {
