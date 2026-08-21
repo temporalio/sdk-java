@@ -139,10 +139,17 @@ jobs:
         if: ${{ github.event.pull_request.head.repo.full_name == '' || github.event.pull_request.head.repo.full_name == 'temporalio/sdk-java' }}
         env:
           USER: unittest
+          TEMPORAL_TEST_ENV_CONFIG_SERVER: "true"
+          TEMPORAL_ADDRESS: sdk-ci.a2dd6.tmprl.cloud:7233
+          TEMPORAL_NAMESPACE: sdk-ci.a2dd6
+          TEMPORAL_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
           TEMPORAL_CLIENT_CLOUD_NAMESPACE: sdk-ci.a2dd6
           TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
           TEMPORAL_CLIENT_CLOUD_API_VERSION: 2024-05-13-00
-        run: ./gradlew --no-daemon :temporal-sdk:test --tests '*CloudOperationsClientTest'
+        run: |
+          ./gradlew --no-daemon :temporal-sdk:test \
+            --tests '*CloudOperationsClientTest' \
+            --tests 'io.temporal.client.functional.SignalTest.signalCompletedWorkflow'
 
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6

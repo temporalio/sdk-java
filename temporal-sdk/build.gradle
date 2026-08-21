@@ -25,6 +25,7 @@ dependencies {
     }
 
     testImplementation project(':temporal-testing')
+    testRuntimeOnly project(':temporal-envconfig')
     testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation 'pl.pragmatists:JUnitParams:1.1.1'
