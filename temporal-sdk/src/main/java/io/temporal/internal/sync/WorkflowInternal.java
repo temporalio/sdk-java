@@ -875,6 +875,10 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().getWorkflowOutboundInterceptor();
   }
 
+  static boolean checkSdkFlag(SdkFlag flag) {
+    return getRootWorkflowContext().getReplayContext().checkSdkFlag(flag);
+  }
+
   static SyncWorkflowContext getRootWorkflowContext() {
     // If we are in a query handler, we need to get the workflow context from the
     // QueryDispatcher, otherwise we get it from the current thread's internal context.
