@@ -18,6 +18,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.Eventually;
 import java.time.Duration;
@@ -329,7 +331,8 @@ public class HeartbeatContextImplTest {
             Duration.ofSeconds(60),
             Duration.ofSeconds(30),
             GlobalDataConverter.get(),
-            heartbeatExecutor);
+            heartbeatExecutor,
+            null);
 
     ActivityInfoInternal info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
     InternalActivityExecutionContext context =
@@ -363,6 +366,7 @@ public class HeartbeatContextImplTest {
         "test-identity",
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
+        null,
         TEST_BUFFER_MILLIS);
   }
 
@@ -389,5 +393,30 @@ public class HeartbeatContextImplTest {
     when(info.getHeartbeatDetails()).thenReturn(Optional.empty());
     when(info.getCompletionHandle()).thenReturn(() -> {});
     return info;
+  }
+
+  @Test
+  public void storageTargetForStandaloneActivityTargetsTheActivity() {
+    ActivityInfo info = mock(ActivityInfo.class);
+    when(info.getActivityRunId()).thenReturn("act-run-1");
+    when(info.getActivityId()).thenReturn("act-1");
+    when(info.getActivityType()).thenReturn("MyActivity");
+
+    assertEquals(
+        new StorageDriverActivityInfo("ns", "act-1", "act-run-1", "MyActivity"),
+        HeartbeatContextImpl.storageTargetForActivity("ns", info));
+  }
+
+  @Test
+  public void storageTargetForWorkflowActivityTargetsTheWorkflow() {
+    ActivityInfo info = mock(ActivityInfo.class);
+    when(info.getActivityRunId()).thenReturn(null);
+    when(info.getWorkflowId()).thenReturn("wf-1");
+    when(info.getWorkflowRunId()).thenReturn("wf-run-1");
+    when(info.getWorkflowType()).thenReturn("MyWorkflow");
+
+    assertEquals(
+        new StorageDriverWorkflowInfo("ns", "wf-1", "wf-run-1", "MyWorkflow"),
+        HeartbeatContextImpl.storageTargetForActivity("ns", info));
   }
 }

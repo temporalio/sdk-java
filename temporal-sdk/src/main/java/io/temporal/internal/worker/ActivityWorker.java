@@ -3,6 +3,7 @@ package io.temporal.internal.worker;
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -13,8 +14,12 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
@@ -27,6 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -257,6 +263,24 @@ final class ActivityWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  static StorageDriverTargetInfo storageTargetForActivityTask(
+      String namespace, PollActivityTaskQueueResponseOrBuilder pollResponse) {
+    String activityRunId = pollResponse.getActivityRunId();
+    if (!activityRunId.isEmpty()) {
+      return new StorageDriverActivityInfo(
+          namespace,
+          pollResponse.getActivityId(),
+          activityRunId,
+          pollResponse.getActivityType().getName());
+    }
+    WorkflowExecution execution = pollResponse.getWorkflowExecution();
+    return new StorageDriverWorkflowInfo(
+        namespace,
+        execution.getWorkflowId(),
+        execution.getRunId(),
+        pollResponse.getWorkflowType().getName());
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<ActivityTask> {
 
     final ActivityTaskHandler handler;
@@ -331,6 +355,7 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleActivity(ActivityTask task, Scope metricsScope) {
+      task = retrieveInboundPayloads(task);
       PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
       metricsScope
@@ -354,7 +379,7 @@ final class ActivityWorker implements SuspendableWorker {
       }
 
       try {
-        sendReply(taskToken, result, metricsScope);
+        sendReply(taskToken, result, metricsScope, activityStorageTarget(pollResponse));
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         // TODO this class doesn't report activity success and failure metrics now, instead it's
@@ -392,16 +417,21 @@ final class ActivityWorker implements SuspendableWorker {
     // TODO: Suppress warning until the SDK supports deployment
     @SuppressWarnings("deprecation")
     private void sendReply(
-        ByteString taskToken, ActivityTaskHandler.Result response, Scope metricsScope) {
+        ByteString taskToken,
+        ActivityTaskHandler.Result response,
+        Scope metricsScope,
+        @Nullable StorageDriverTargetInfo storageTarget) {
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         RespondActivityTaskCompletedRequest request =
-            taskCompleted.toBuilder()
-                .setTaskToken(taskToken)
-                .setIdentity(options.getIdentity())
-                .setNamespace(namespace)
-                .setWorkerVersion(options.workerVersionStamp())
-                .build();
+            storeOutboundPayloads(
+                taskCompleted.toBuilder()
+                    .setTaskToken(taskToken)
+                    .setIdentity(options.getIdentity())
+                    .setNamespace(namespace)
+                    .setWorkerVersion(options.workerVersionStamp())
+                    .build(),
+                storageTarget);
 
         grpcRetryer.retry(
             () ->
@@ -414,12 +444,14 @@ final class ActivityWorker implements SuspendableWorker {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
           RespondActivityTaskFailedRequest request =
-              taskFailed.getTaskFailedRequest().toBuilder()
-                  .setTaskToken(taskToken)
-                  .setIdentity(options.getIdentity())
-                  .setNamespace(namespace)
-                  .setWorkerVersion(options.workerVersionStamp())
-                  .build();
+              storeOutboundPayloads(
+                  taskFailed.getTaskFailedRequest().toBuilder()
+                      .setTaskToken(taskToken)
+                      .setIdentity(options.getIdentity())
+                      .setNamespace(namespace)
+                      .setWorkerVersion(options.workerVersionStamp())
+                      .build(),
+                  storageTarget);
 
           grpcRetryer.retry(
               () ->
@@ -432,12 +464,14 @@ final class ActivityWorker implements SuspendableWorker {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
             RespondActivityTaskCanceledRequest request =
-                taskCanceled.toBuilder()
-                    .setTaskToken(taskToken)
-                    .setIdentity(options.getIdentity())
-                    .setNamespace(namespace)
-                    .setWorkerVersion(options.workerVersionStamp())
-                    .build();
+                storeOutboundPayloads(
+                    taskCanceled.toBuilder()
+                        .setTaskToken(taskToken)
+                        .setIdentity(options.getIdentity())
+                        .setNamespace(namespace)
+                        .setWorkerVersion(options.workerVersionStamp())
+                        .build(),
+                    storageTarget);
 
             grpcRetryer.retry(
                 () ->
@@ -450,6 +484,36 @@ final class ActivityWorker implements SuspendableWorker {
         }
       }
       // Manual activity completion
+    }
+
+    private ActivityTask retrieveInboundPayloads(ActivityTask task) {
+      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      PollActivityTaskQueueResponseOrBuilder response = task.getResponse();
+      PollActivityTaskQueueResponse built =
+          response instanceof PollActivityTaskQueueResponse
+              ? (PollActivityTaskQueueResponse) response
+              : ((PollActivityTaskQueueResponse.Builder) response).build();
+      if (externalStorage == null) {
+        ExternalStorageRunner.throwIfContainsReference(built);
+        return task;
+      }
+      return new ActivityTask(
+          externalStorage.retrieveBlocking(built), task.getPermit(), task.getCompletionCallback());
+    }
+
+    private <T extends Message> T storeOutboundPayloads(
+        T request, @Nullable StorageDriverTargetInfo target) {
+      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      return externalStorage == null ? request : externalStorage.storeBlocking(request, target);
+    }
+
+    @Nullable
+    private StorageDriverTargetInfo activityStorageTarget(
+        PollActivityTaskQueueResponseOrBuilder pollResponse) {
+      if (options.getExternalStorage() == null) {
+        return null;
+      }
+      return storageTargetForActivityTask(namespace, pollResponse);
     }
 
     private void logExceptionDuringResultReporting(
