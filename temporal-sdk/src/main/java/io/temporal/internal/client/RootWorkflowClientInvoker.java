@@ -434,6 +434,14 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     QueryWorkflowResponse result;
     result = genericClient.query(request);
 
+    // A query writes nothing to history, so the server returns a link to the workflow execution
+    // that processed it rather than to an event. When the query is issued from inside a Nexus
+    // operation handler, propagate that link so the caller's Nexus operation event points at the
+    // queried workflow. Older servers leave it unset.
+    if (CurrentNexusOperationContext.isNexusContext() && result.hasLink()) {
+      CurrentNexusOperationContext.get().addResponseLink(result.getLink());
+    }
+
     boolean queryRejected = result.hasQueryRejected();
     WorkflowExecutionStatus rejectStatus =
         queryRejected ? result.getQueryRejected().getStatus() : null;
