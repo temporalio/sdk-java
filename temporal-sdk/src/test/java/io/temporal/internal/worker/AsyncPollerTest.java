@@ -336,7 +336,15 @@ public class AsyncPollerTest {
   @Test
   public void testSuspendPolling()
       throws InterruptedException, ExecutionException, AsyncPoller.PollTaskAsyncAbort {
-    CountingSlotSupplier<SlotInfo> slotSupplierInner = new CountingSlotSupplier<>(1);
+    CountDownLatch reserveAttemptLatch = new CountDownLatch(2);
+    CountingSlotSupplier<SlotInfo> slotSupplierInner =
+        new CountingSlotSupplier<SlotInfo>(1) {
+          @Override
+          public SlotSupplierFuture reserveSlot(SlotReserveContext<SlotInfo> ctx) throws Exception {
+            reserveAttemptLatch.countDown();
+            return super.reserveSlot(ctx);
+          }
+        };
     TrackingSlotSupplier<?> slotSupplier =
         new TrackingSlotSupplier<>(slotSupplierInner, new NoopScope());
     DummyTaskExecutor executor = new DummyTaskExecutor(slotSupplier);
@@ -377,6 +385,9 @@ public class AsyncPollerTest {
           assertEquals(1, slotSupplierInner.reservedCount.get());
           assertEquals(0, slotSupplier.getUsedSlots().size());
         });
+    // Wait until the poll loop is reserving a slot for its next iteration. Suspending before this
+    // point would correctly prevent that reservation, making the expected count racy.
+    assertTrue(reserveAttemptLatch.await(5, TimeUnit.SECONDS));
     // Suspend polling again, this will not affect the already issued poll request
     poller.suspendPolling();
     completePoll.get().apply();
