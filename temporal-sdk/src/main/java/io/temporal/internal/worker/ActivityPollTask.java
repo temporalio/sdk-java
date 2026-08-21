@@ -10,7 +10,7 @@ import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
-import io.temporal.internal.common.ProtobufTimeUtils;
+
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
@@ -120,11 +120,6 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
         metricsScope.counter(MetricsType.ACTIVITY_POLL_NO_TASK_COUNTER).inc(1);
         return null;
       }
-      metricsScope
-          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-          .record(
-              ProtobufTimeUtils.toM3Duration(
-                  response.getStartedTime(), response.getCurrentAttemptScheduledTime()));
       isSuccessful = true;
       pollerTracker.pollSucceeded();
       return new ActivityTask(
