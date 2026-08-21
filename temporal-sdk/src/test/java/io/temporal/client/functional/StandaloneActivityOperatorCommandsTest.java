@@ -535,6 +535,42 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   /**
+   * Describe reports a paused activity as PAUSED (api#834), on both the execution status and the
+   * run state. Asserts the transition, not just the end state: the same handle reports RUNNING
+   * before the pause.
+   */
+  @Test(timeout = 60_000)
+  public void describeReportsPausedStatus() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    // Start delayed so the activity sits SCHEDULED; pausing from there reaches a true PAUSED state
+    // rather than the PAUSE_REQUESTED of a running activity.
+    StartActivityOptions opts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setStartToCloseTimeout(Duration.ofSeconds(60))
+            .setStartDelay(Duration.ofSeconds(30))
+            .build();
+    ActivityHandle<String> handle =
+        newActivityClient().start(QuickActivity.class, QuickActivity::run, opts);
+
+    assertEquals(
+        ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_RUNNING, handle.describe().getStatus());
+
+    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
+
+    assertEventually(
+        Duration.ofSeconds(30),
+        () -> {
+          ActivityExecutionDescription desc = handle.describe();
+          assertEquals(ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_PAUSED, desc.getStatus());
+          assertEquals(PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED, desc.getRunState());
+        });
+
+    handle.terminate("cleanup");
+  }
+
+  /**
    * The payload-bearing describe fields are opt-in (api#792). Assert the default really is "off"
    * rather than the SDK quietly requesting everything: same activity, same moment, two describes.
    */
