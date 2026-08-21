@@ -1,0 +1,7 @@
+description = '''Temporal Google Cloud Run support'''
+
+dependencies {
+    // This module shouldn't carry temporal-sdk with it, especially for situations when users may
+    // be using a shaded artifact.
+    compileOnly project(':temporal-sdk')
+}
