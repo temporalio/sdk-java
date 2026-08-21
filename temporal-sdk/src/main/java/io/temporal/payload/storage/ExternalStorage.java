@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 
 /** Configuration for offloading large payloads to external storage. */
 @Experimental
-public final class ExternalStorageOptions {
+public final class ExternalStorage {
   static final int DEFAULT_PAYLOAD_SIZE_THRESHOLD = 256 * 1024;
   static final int DEFAULT_MAX_CONCURRENT_PAYLOAD_VISITS = 3;
 
@@ -26,7 +26,7 @@ public final class ExternalStorageOptions {
   private final int payloadSizeThreshold;
   private final int maxConcurrentPayloadVisits;
 
-  private ExternalStorageOptions(
+  private ExternalStorage(
       @Nonnull List<StorageDriver> drivers,
       @Nonnull StorageDriverSelector driverSelector,
       int payloadSizeThreshold,
@@ -66,9 +66,8 @@ public final class ExternalStorageOptions {
   public static final class Builder {
     private List<StorageDriver> drivers = Collections.emptyList();
     private StorageDriverSelector driverSelector;
-    private int payloadSizeThreshold = ExternalStorageOptions.DEFAULT_PAYLOAD_SIZE_THRESHOLD;
-    private int maxConcurrentPayloadVisits =
-        ExternalStorageOptions.DEFAULT_MAX_CONCURRENT_PAYLOAD_VISITS;
+    private int payloadSizeThreshold = ExternalStorage.DEFAULT_PAYLOAD_SIZE_THRESHOLD;
+    private int maxConcurrentPayloadVisits = ExternalStorage.DEFAULT_MAX_CONCURRENT_PAYLOAD_VISITS;
 
     private Builder() {}
 
@@ -107,7 +106,7 @@ public final class ExternalStorageOptions {
       return this;
     }
 
-    public ExternalStorageOptions build() {
+    public ExternalStorage build() {
       Preconditions.checkState(!drivers.isEmpty(), "At least one driver must be provided");
       Preconditions.checkState(
           payloadSizeThreshold >= 0, "payloadSizeThreshold must be greater than or equal to zero");
@@ -127,7 +126,7 @@ public final class ExternalStorageOptions {
         StorageDriver driver = drivers.get(0);
         selector = (context, payload) -> driver;
       }
-      return new ExternalStorageOptions(
+      return new ExternalStorage(
           drivers, selector, payloadSizeThreshold, maxConcurrentPayloadVisits);
     }
   }

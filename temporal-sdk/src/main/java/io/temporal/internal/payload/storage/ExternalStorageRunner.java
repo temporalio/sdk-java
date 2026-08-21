@@ -8,7 +8,7 @@ import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.List;
@@ -21,53 +21,45 @@ import javax.annotation.Nullable;
 /**
  * External storage offloads large payloads via {@link StorageDriver}s. It walks messages using
  * {@link PayloadVisitors} transforming payloads to and from {@link ExternalStorageReference} using
- * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorageOptions} via {@link#create}
- * to configure external storage.
+ * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorage} via {@link#create} to
+ * configure external storage.
  */
-public final class ExternalStorage {
+public final class ExternalStorageRunner {
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
 
-  public static ExternalStorage create(ExternalStorageOptions options) {
-    return new ExternalStorage(
+  public static ExternalStorageRunner create(ExternalStorage options) {
+    return new ExternalStorageRunner(
         ExternalStoragePayloadTransformer.fromOptions(options),
         options.getMaxConcurrentPayloadVisits());
   }
 
-  ExternalStorage(
+  ExternalStorageRunner(
       ExternalStoragePayloadTransformer payloadTransformer, int payloadVisitConcurrency) {
     this.payloadTransformer = payloadTransformer;
     this.payloadVisitConcurrency = payloadVisitConcurrency;
   }
 
-  public <T extends Message> T storeBlocking(T message, @Nullable StorageDriverTargetInfo target) {
-    return storeBlocking(message, target, CancellationToken.none());
+  public void store(Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
+    store(builder, target, null, CancellationToken.none());
   }
 
-  public <T extends Message> T storeBlocking(
-      T message,
+  public void store(
+      Message.Builder builder,
       @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
-    return getOrThrowIfCancelled(store(message, target, cancellationToken), cancellationToken);
-  }
-
-  public <T extends Message> T storeBlocking(
-      T message,
-      @Nullable StorageDriverTargetInfo target,
-      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor) {
-    CancellationToken<CancellationException> cancellationToken = CancellationToken.none();
-    return getOrThrowIfCancelled(
-        PayloadVisitors.visit(message, storeOptions(target, targetVisitor, cancellationToken)),
+    getOrThrowIfCancelled(
+        PayloadVisitors.visit(builder, storeOptions(target, targetVisitor, cancellationToken)),
         cancellationToken);
   }
 
-  public <T extends Message> T retrieveBlocking(T message) {
-    CancellationToken<CancellationException> cancellationToken = CancellationToken.none();
-    return getOrThrowIfCancelled(retrieve(message, cancellationToken), cancellationToken);
+  public <T extends Message> T retrieve(T message) {
+    return getOrThrowIfCancelled(retrieveAsync(message), CancellationToken.none());
   }
 
   public <T extends Message> CompletableFuture<T> retrieveAsync(T message) {
-    return retrieve(message, CancellationToken.none());
+    return PayloadVisitors.visit(message, retrieveOptions(CancellationToken.none()));
   }
 
   /**
@@ -111,30 +103,6 @@ public final class ExternalStorage {
       Throwables.throwIfUnchecked(cause);
       throw new CompletionException(cause);
     }
-  }
-
-  <T extends Message> CompletableFuture<T> store(
-      T message,
-      @Nullable StorageDriverTargetInfo target,
-      CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(message, storeOptions(target, null, cancellationToken));
-  }
-
-  CompletableFuture<Void> store(
-      Message.Builder builder,
-      @Nullable StorageDriverTargetInfo target,
-      CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(builder, storeOptions(target, null, cancellationToken));
-  }
-
-  <T extends Message> CompletableFuture<T> retrieve(
-      T message, CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken));
-  }
-
-  CompletableFuture<Void> retrieve(
-      Message.Builder builder, CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(builder, retrieveOptions(cancellationToken));
   }
 
   private PayloadVisitorOptions<StorageDriverTargetInfo> storeOptions(
