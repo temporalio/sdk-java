@@ -11,10 +11,12 @@ import io.temporal.common.Experimental;
 import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.payload.storage.ExternalStorage;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Used by the framework to serialize/deserialize method parameters that need to be sent over the
@@ -200,6 +202,16 @@ public interface DataConverter {
   @Nonnull
   default DataConverter withContext(@Nonnull SerializationContext context) {
     return this;
+  }
+
+  /**
+   * External storage offloads large payloads. This should not be used from inside workflow code as
+   * it performs nondeterministic operations.
+   */
+  @Experimental
+  @Nullable
+  default ExternalStorage getExternalStorage() {
+    return null;
   }
 
   /**

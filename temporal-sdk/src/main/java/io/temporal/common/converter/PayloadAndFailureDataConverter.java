@@ -8,7 +8,10 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
+import io.temporal.internal.payload.storage.ExternalStorageReferences;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.payload.storage.ExternalStorage;
 import java.lang.reflect.Type;
 import java.util.*;
 import javax.annotation.Nonnull;
@@ -22,6 +25,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
   volatile List<PayloadConverter> converters;
   volatile Map<String, PayloadConverter> convertersMap;
   volatile FailureConverter failureConverter;
+  volatile @Nullable ExternalStorage externalStorage;
   private final @Nullable SerializationContext serializationContext;
 
   public PayloadAndFailureDataConverter(@Nonnull List<PayloadConverter> converters) {
@@ -69,6 +73,10 @@ class PayloadAndFailureDataConverter implements DataConverter {
       throws DataConverterException {
     if (valueClass == RawValue.class) {
       return (T) new RawValue(payload);
+    }
+
+    if (ExternalStorageReferences.isReference(payload)) {
+      throw new ExternalStorageNotConfiguredException();
     }
 
     try {
@@ -144,8 +152,17 @@ class PayloadAndFailureDataConverter implements DataConverter {
   }
 
   @Override
+  @Nullable
+  public ExternalStorage getExternalStorage() {
+    return externalStorage;
+  }
+
+  @Override
   public @Nonnull DataConverter withContext(@Nonnull SerializationContext context) {
-    return new PayloadAndFailureDataConverter(converters, convertersMap, failureConverter, context);
+    PayloadAndFailureDataConverter copy =
+        new PayloadAndFailureDataConverter(converters, convertersMap, failureConverter, context);
+    copy.externalStorage = this.externalStorage;
+    return copy;
   }
 
   static Map<String, PayloadConverter> createConvertersMap(List<PayloadConverter> converters) {
