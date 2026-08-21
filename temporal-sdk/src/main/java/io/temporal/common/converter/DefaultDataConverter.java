@@ -1,8 +1,10 @@
 package io.temporal.common.converter;
 
 import com.google.common.base.Preconditions;
+import io.temporal.payload.storage.ExternalStorage;
 import java.util.*;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A {@link DataConverter} that delegates payload conversion to type specific {@link
@@ -99,6 +101,15 @@ public class DefaultDataConverter extends PayloadAndFailureDataConverter {
   @Nonnull
   public DefaultDataConverter withFailureConverter(@Nonnull FailureConverter failureConverter) {
     this.failureConverter = Preconditions.checkNotNull(failureConverter, "failureConverter");
+    return this;
+  }
+
+  /**
+   * Modifies this {@code DefaultDataConverter} by attaching external storage, used to offload and
+   * restore large payloads at task and RPC boundaries.
+   */
+  public DefaultDataConverter withExternalStorage(@Nullable ExternalStorage externalStorage) {
+    this.externalStorage = externalStorage;
     return this;
   }
 }

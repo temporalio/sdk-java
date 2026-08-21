@@ -20,7 +20,7 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.visitor.MessageVisitor;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -38,12 +38,12 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
 /** Tests external storage message conversion. */
-public class ExternalStorageTest {
+public class ExternalStorageRunnerTest {
 
   @Test
   public void storeAndRetrieveRoundTripsOverAMessage() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorage transformer = transformer(driver, 0);
+    ExternalStorageRunner transformer = transformer(driver, 0);
     Payloads message =
         Payloads.newBuilder().addPayloads(payload("a")).addPayloads(payload("b")).build();
 
@@ -59,7 +59,7 @@ public class ExternalStorageTest {
   @Test
   public void walksNestedPayloads() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorage transformer = transformer(driver, 0);
+    ExternalStorageRunner transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
             .setScheduleActivityTaskCommandAttributes(
@@ -77,7 +77,7 @@ public class ExternalStorageTest {
   @Test
   public void payloadBelowThresholdLeavesMessageUnchanged() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorage transformer = transformer(driver, 1024);
+    ExternalStorageRunner transformer = transformer(driver, 1024);
     Payloads message = Payloads.newBuilder().addPayloads(payload("small")).build();
 
     Payloads stored = transformer.store(message, null, CancellationToken.none()).get();
@@ -90,7 +90,7 @@ public class ExternalStorageTest {
   @Test
   public void searchAttributesAreNotOffloaded() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorage transformer = transformer(driver, 0);
+    ExternalStorageRunner transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
             .setStartChildWorkflowExecutionCommandAttributes(
@@ -114,7 +114,7 @@ public class ExternalStorageTest {
   @Test
   public void throwIfContainsReferenceThrowsOnReference() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
-    ExternalStorage transformer = transformer(driver, 0);
+    ExternalStorageRunner transformer = transformer(driver, 0);
     Payloads stored =
         transformer
             .store(
@@ -126,20 +126,20 @@ public class ExternalStorageTest {
     ExternalStorageNotConfiguredException e =
         assertThrows(
             ExternalStorageNotConfiguredException.class,
-            () -> ExternalStorage.throwIfContainsReference(stored));
+            () -> ExternalStorageRunner.throwIfContainsReference(stored));
     assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL1105]"));
   }
 
   @Test
   public void throwIfContainsReferenceAllowsInlinePayloads() {
     Payloads inline = Payloads.newBuilder().addPayloads(payload("a")).build();
-    ExternalStorage.throwIfContainsReference(inline);
+    ExternalStorageRunner.throwIfContainsReference(inline);
   }
 
   @Test
   public void storeAppliesPerCommandTargetFromMessageVisitor() {
     TargetCapturingDriver driver = new TargetCapturingDriver("d1");
-    ExternalStorage storage = transformer(driver, 0);
+    ExternalStorageRunner storage = transformer(driver, 0);
 
     RespondWorkflowTaskCompletedRequest request =
         RespondWorkflowTaskCompletedRequest.newBuilder()
@@ -181,7 +181,7 @@ public class ExternalStorageTest {
 
   @Test
   public void callerCancellationAbortsStore() {
-    ExternalStorage storage = transformer(new HangingDriver("d1"), 0);
+    ExternalStorageRunner storage = transformer(new HangingDriver("d1"), 0);
     CancelSource<CancellationException> caller = new CancelSource<>(CancellationException::new);
     caller.cancel();
     Payloads message = Payloads.newBuilder().addPayloads(payload("big")).build();
@@ -190,14 +190,14 @@ public class ExternalStorageTest {
         CancellationException.class, () -> storage.storeBlocking(message, null, caller.token()));
   }
 
-  private static ExternalStorage transformer(StorageDriver driver, int threshold) {
+  private static ExternalStorageRunner transformer(StorageDriver driver, int threshold) {
     ExternalStoragePayloadTransformer payloadTransformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(driver)
                 .setPayloadSizeThreshold(threshold)
                 .build());
-    return new ExternalStorage(payloadTransformer, 4);
+    return new ExternalStorageRunner(payloadTransformer, 4);
   }
 
   private static Payload payload(String data) {

@@ -8,7 +8,7 @@ import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.List;
@@ -21,20 +21,20 @@ import javax.annotation.Nullable;
 /**
  * External storage offloads large payloads via {@link StorageDriver}s. It walks messages using
  * {@link PayloadVisitors} transforming payloads to and from {@link ExternalStorageReference} using
- * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorageOptions} via {@link#create}
- * to configure external storage.
+ * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorage} via {@link#create} to
+ * configure external storage.
  */
-public final class ExternalStorage {
+public final class ExternalStorageRunner {
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
 
-  public static ExternalStorage create(ExternalStorageOptions options) {
-    return new ExternalStorage(
+  public static ExternalStorageRunner create(ExternalStorage options) {
+    return new ExternalStorageRunner(
         ExternalStoragePayloadTransformer.fromOptions(options),
         options.getMaxConcurrentPayloadVisits());
   }
 
-  ExternalStorage(
+  ExternalStorageRunner(
       ExternalStoragePayloadTransformer payloadTransformer, int payloadVisitConcurrency) {
     this.payloadTransformer = payloadTransformer;
     this.payloadVisitConcurrency = payloadVisitConcurrency;

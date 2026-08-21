@@ -7,7 +7,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.internal.payload.storage.ExternalStorage;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
@@ -47,7 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private @Nullable ExternalStorage externalStorage;
+    private @Nullable ExternalStorageRunner externalStorage;
 
     private Builder() {}
 
@@ -189,7 +189,7 @@ public final class SingleWorkerOptions {
       return this;
     }
 
-    public Builder setExternalStorage(@Nullable ExternalStorage externalStorage) {
+    public Builder setExternalStorage(@Nullable ExternalStorageRunner externalStorage) {
       this.externalStorage = externalStorage;
       return this;
     }
@@ -262,7 +262,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
-  private final @Nullable ExternalStorage externalStorage;
+  private final @Nullable ExternalStorageRunner externalStorage;
 
   private SingleWorkerOptions(
       String identity,
@@ -286,7 +286,7 @@ public final class SingleWorkerOptions {
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
-      @Nullable ExternalStorage externalStorage) {
+      @Nullable ExternalStorageRunner externalStorage) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -408,7 +408,7 @@ public final class SingleWorkerOptions {
 
   /** The external-storage message transformer for this worker, or null when disabled. */
   @Nullable
-  public ExternalStorage getExternalStorage() {
+  public ExternalStorageRunner getExternalStorage() {
     return externalStorage;
   }
 
