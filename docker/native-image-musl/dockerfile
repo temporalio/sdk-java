@@ -1,9 +1,13 @@
 # This Dockerfile builds a GraalVM Native Image Test Server with musl support.
-FROM ubuntu:24.04
+FROM ghcr.io/graalvm/native-image-community:23@sha256:5a28da013d97ac66033b6c836015c7ee7f5d3e07c705d51f1e6c26a04fd17b8e AS graalvm
+FROM ubuntu:24.04@sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea
 ENV JAVA_HOME=/usr/lib64/graalvm/graalvm-community-java23
-COPY --from=ghcr.io/graalvm/native-image-community:23 $JAVA_HOME $JAVA_HOME
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
-RUN apt-get -y update --allow-releaseinfo-change && apt-get install -y -V git build-essential curl ca-certificates binutils
+COPY --from=graalvm ${JAVA_HOME} ${JAVA_HOME}
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      git build-essential curl ca-certificates binutils make tar gzip && \
+    rm -rf /var/lib/apt/lists/*
 COPY install-musl.sh /opt/install-musl.sh
 RUN chmod +x /opt/install-musl.sh
 WORKDIR /opt
@@ -14,5 +18,5 @@ ENV MUSL_HOME=/opt/musl-toolchain
 ENV PATH="$MUSL_HOME/bin:$PATH"
 # Verify installation.
 RUN x86_64-linux-musl-gcc --version
-# Avoid errors like: "fatal: detected dubious ownership in repository".
+# Avoid errors like "fatal: detected dubious ownership in repository."
 RUN git config --global --add safe.directory '*'
