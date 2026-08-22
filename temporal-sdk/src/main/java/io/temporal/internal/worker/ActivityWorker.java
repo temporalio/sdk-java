@@ -353,6 +353,13 @@ final class ActivityWorker implements SuspendableWorker {
         sw.stop();
       }
 
+      // An Activity may return with the thread's interrupt flag raised, either because it caught an
+      // InterruptedException and restored the flag or because it never noticed the flag at all.
+      // gRPC's blocking stubs abort when Thread.interrupted() is set (see
+      // io.grpc.stub.ClientCalls#blockingUnaryCall), so leaving the flag raised here would make the
+      // call below fail and the Activity result would never be reported. Clear it for the duration
+      // of the reporting call and restore it afterwards, so the flag still reaches the thread pool.
+      boolean interrupted = Thread.interrupted();
       try {
         sendReply(taskToken, result, metricsScope);
       } catch (Exception e) {
@@ -362,6 +369,10 @@ final class ActivityWorker implements SuspendableWorker {
         //  so we can increment a failure counter instead of success if send result failed.
         //  This will also align the behavior of ActivityWorker with WorkflowWorker.
         throw e;
+      } finally {
+        if (interrupted) {
+          Thread.currentThread().interrupt();
+        }
       }
 
       if (result.getTaskCompleted() != null) {
