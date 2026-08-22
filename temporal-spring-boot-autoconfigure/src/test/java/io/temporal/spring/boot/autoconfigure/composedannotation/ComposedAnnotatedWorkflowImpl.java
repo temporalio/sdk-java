@@ -13,7 +13,7 @@ public class ComposedAnnotatedWorkflowImpl implements ComposedAnnotatedWorkflow 
         Workflow.newActivityStub(
             ComposedAnnotatedActivity.class,
             ActivityOptions.newBuilder()
-                .setStartToCloseTimeout(Duration.ofSeconds(1))
+                .setStartToCloseTimeout(Duration.ofSeconds(10))
                 .validateAndBuildWithDefaults());
     return "composed:" + activity.execute(input);
   }
