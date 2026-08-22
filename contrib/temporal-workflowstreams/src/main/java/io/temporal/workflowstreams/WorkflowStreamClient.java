@@ -101,7 +101,8 @@ public final class WorkflowStreamClient implements AutoCloseable {
             dataConverter,
             options.getBatchInterval(),
             options.getMaxBatchSize(),
-            options.getMaxRetryDuration());
+            options.getMaxRetryDuration(),
+            options.getPublishExecutor());
   }
 
   /**
@@ -206,7 +207,8 @@ public final class WorkflowStreamClient implements AutoCloseable {
    *
    * <p>Also stops this client's live subscriptions (their done futures complete normally, without
    * {@link WorkflowStreamListener#onCompleted}) and, if the client owns the default poll executor,
-   * shuts it down. A user-supplied poll executor is never shut down.
+   * shuts it down. A user-supplied poll or publish executor is never shut down — only this client's
+   * own tasks on it are stopped.
    */
   @Override
   public void close() {
