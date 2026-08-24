@@ -8,6 +8,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.command.v1.Command;
+import io.temporal.api.command.v1.CommandOrBuilder;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
@@ -16,6 +17,7 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
@@ -160,7 +162,7 @@ public class ExternalStorageRunnerTest {
   }
 
   @Test
-  public void storeAppliesPerCommandTargetFromMessageVisitor() {
+  public void storeScopesCommandTargetOverAttributesAndMetadata() {
     TargetCapturingDriver driver = new TargetCapturingDriver("d1");
     ExternalStorageRunner storage = transformer(driver, 0);
 
@@ -168,6 +170,8 @@ public class ExternalStorageRunnerTest {
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .addCommands(
                 Command.newBuilder()
+                    .setUserMetadata(
+                        UserMetadata.newBuilder().setSummary(payload("activity-summary")))
                     .setScheduleActivityTaskCommandAttributes(
                         ScheduleActivityTaskCommandAttributes.newBuilder()
                             .setActivityId("act-1")
@@ -184,11 +188,15 @@ public class ExternalStorageRunnerTest {
         new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
     MessageVisitor<StorageDriverTargetInfo> visitor =
         (current, message) -> {
-          if (message instanceof ScheduleActivityTaskCommandAttributesOrBuilder) {
-            ScheduleActivityTaskCommandAttributesOrBuilder attrs =
-                (ScheduleActivityTaskCommandAttributesOrBuilder) message;
-            return new StorageDriverActivityInfo(
-                "ns", attrs.getActivityId(), null, attrs.getActivityType().getName());
+          if (message instanceof CommandOrBuilder) {
+            CommandOrBuilder command = (CommandOrBuilder) message;
+            if (command.getAttributesCase()
+                == Command.AttributesCase.SCHEDULE_ACTIVITY_TASK_COMMAND_ATTRIBUTES) {
+              ScheduleActivityTaskCommandAttributesOrBuilder attrs =
+                  command.getScheduleActivityTaskCommandAttributesOrBuilder();
+              return new StorageDriverActivityInfo(
+                  "ns", attrs.getActivityId(), null, attrs.getActivityType().getName());
+            }
           }
           return current;
         };
@@ -198,6 +206,9 @@ public class ExternalStorageRunnerTest {
     assertEquals(
         new StorageDriverActivityInfo("ns", "act-1", null, "MyActivity"),
         driver.targetFor("activity-input"));
+    assertEquals(
+        new StorageDriverActivityInfo("ns", "act-1", null, "MyActivity"),
+        driver.targetFor("activity-summary"));
     assertEquals(workflowTarget, driver.targetFor("wf-result"));
   }
 
