@@ -486,7 +486,6 @@ public final class WorkerFactory {
               }
               cache.invalidateAll();
               workflowThreadPool.shutdownNow();
-              workerCommandWorker = null;
               return null;
             })
         .whenComplete(
