@@ -163,13 +163,17 @@ public class ExternalServiceTestConfigurator {
       Metadata testHeaders,
       Iterable<GrpcMetadataProvider> testProviders) {
     List<GrpcMetadataProvider> profileProviderList = new ArrayList<>();
-    profileProviders.forEach(profileProviderList::add);
+    if (profileProviders != null) {
+      profileProviders.forEach(profileProviderList::add);
+    }
     return () -> {
       Metadata metadata = new Metadata();
       if (testHeaders != null) {
         metadata.merge(testHeaders);
       }
-      testProviders.forEach(provider -> metadata.merge(provider.getMetadata()));
+      if (testProviders != null) {
+        testProviders.forEach(provider -> metadata.merge(provider.getMetadata()));
+      }
       Metadata profileMetadata = new Metadata();
       if (profileHeaders != null) {
         profileMetadata.merge(profileHeaders);

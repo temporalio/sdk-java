@@ -150,6 +150,21 @@ public class ExternalServiceTestConfiguratorTest {
   }
 
   @Test
+  public void preserveTestOptionsWhenEnvConfigHasNoMetadataProviders() {
+    Map<String, String> environment = newEnvConfigEnvironment();
+    environment.remove("TEMPORAL_API_KEY");
+    environment.remove("TEMPORAL_GRPC_META_TEST_HEADER");
+    WorkflowServiceStubsOptions serviceOptions =
+        WorkflowServiceStubsOptions.newBuilder().setRpcTimeout(Duration.ofSeconds(17)).build();
+
+    WorkflowServiceStubsOptions configuredServiceOptions =
+        ExternalServiceTestConfigurator.configure(serviceOptions, environment);
+
+    assertEquals("envconfig-address:7233", configuredServiceOptions.getTarget());
+    assertEquals(Duration.ofSeconds(17), configuredServiceOptions.getRpcTimeout());
+  }
+
+  @Test
   public void sdkRuleReappliesEnvConfigConnectionAfterTestCustomization() {
     Map<String, String> environment = newEnvConfigEnvironment();
     SDKTestWorkflowRule rule =
