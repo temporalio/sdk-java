@@ -180,29 +180,23 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     try {
       if (taskToken != null) {
         status =
-            grpcRetryer.retryWithResult(
-                () ->
-                    ActivityClientHelper.sendHeartbeatRequest(
-                        service,
-                        namespace,
-                        identity,
-                        taskToken,
-                        dataConverterWithActivityExecutionContext.toPayloads(details),
-                        metricsScope),
-                replyGrpcRetryerOptions);
+            ActivityClientHelper.sendHeartbeatRequest(
+                service,
+                namespace,
+                identity,
+                taskToken,
+                dataConverterWithActivityExecutionContext.toPayloads(details),
+                metricsScope);
       } else {
         status =
-            grpcRetryer.retryWithResult(
-                () ->
-                    ActivityClientHelper.recordActivityTaskHeartbeatById(
-                        service,
-                        namespace,
-                        identity,
-                        execution,
-                        activityId,
-                        dataConverterWithActivityExecutionContext.toPayloads(details),
-                        metricsScope),
-                replyGrpcRetryerOptions);
+            ActivityClientHelper.recordActivityTaskHeartbeatById(
+                service,
+                namespace,
+                identity,
+                execution,
+                activityId,
+                dataConverterWithActivityExecutionContext.toPayloads(details),
+                metricsScope);
       }
     } catch (Exception e) {
       throw wrapException(e);

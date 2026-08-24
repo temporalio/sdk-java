@@ -1,10 +1,10 @@
 package io.temporal.internal.client.external;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.uber.m3.tally.NoopScope;
@@ -16,6 +16,7 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionFailureException;
+import io.temporal.client.ActivityNotExistsException;
 import io.temporal.client.ActivityPausedException;
 import io.temporal.client.ActivityResetException;
 import io.temporal.common.converter.GlobalDataConverter;
@@ -70,6 +71,9 @@ public class ManualActivityCompletionClientImplTest {
         null);
   }
 
+  // The tests below verify that exceptions from the heartbeat RPC are reported
+  // according to the documentation from {@link ManualActivityCompletionClient#recordHeartbeat(Object)}.
+
   @Test
   public void cancelRequestedThrowsActivityCanceledExceptionNotSwallowed() {
     when(blockingStub.recordActivityTaskHeartbeat(any()))
@@ -111,24 +115,46 @@ public class ManualActivityCompletionClientImplTest {
   }
 
   @Test
-  public void transientRpcErrorIsRetriedThenSucceeds() {
-    when(blockingStub.recordActivityTaskHeartbeat(any()))
-        .thenThrow(new StatusRuntimeException(Status.RESOURCE_EXHAUSTED))
-        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+  public void byIdActivityResetThrowsActivityResetExceptionNotSwallowed() {
+    when(blockingStub.recordActivityTaskHeartbeatById(any()))
+        .thenReturn(
+            RecordActivityTaskHeartbeatByIdResponse.newBuilder().setActivityReset(true).build());
 
-    // Should not throw: the transient error is retried and the second attempt succeeds.
-    clientWithTaskToken().recordHeartbeat("details");
-
-    verify(blockingStub, times(2)).recordActivityTaskHeartbeat(any());
+    assertThrows(
+        ActivityResetException.class, () -> clientWithActivityId().recordHeartbeat("details"));
   }
 
   @Test
-  public void nonTransientRpcErrorIsReportedAsActivityCompletionFailureException() {
+  public void byIdActivityPausedThrowsActivityPausedExceptionNotSwallowed() {
+    when(blockingStub.recordActivityTaskHeartbeatById(any()))
+        .thenReturn(
+            RecordActivityTaskHeartbeatByIdResponse.newBuilder().setActivityPaused(true).build());
+
+    assertThrows(
+        ActivityPausedException.class, () -> clientWithActivityId().recordHeartbeat("details"));
+  }
+
+  @Test
+  public void notFoundIsReportedAsActivityNotExistsException() {
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(new StatusRuntimeException(Status.NOT_FOUND));
+
+    assertThrows(
+        ActivityNotExistsException.class, () -> clientWithTaskToken().recordHeartbeat("details"));
+  }
+
+  @Test
+  public void rpcErrorIsReportedAsActivityCompletionFailureException() {
     when(blockingStub.recordActivityTaskHeartbeat(any()))
         .thenThrow(new StatusRuntimeException(Status.INTERNAL));
 
-    assertThrows(
-        ActivityCompletionFailureException.class,
-        () -> clientWithTaskToken().recordHeartbeat("details"));
+    ActivityCompletionFailureException failure =
+        assertThrows(
+            ActivityCompletionFailureException.class,
+            () -> clientWithTaskToken().recordHeartbeat("details"));
+
+    assertTrue(failure.getCause() instanceof StatusRuntimeException);
+    assertEquals(
+        Status.Code.INTERNAL, ((StatusRuntimeException) failure.getCause()).getStatus().getCode());
   }
 }

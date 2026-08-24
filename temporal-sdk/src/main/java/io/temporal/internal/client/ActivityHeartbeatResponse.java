@@ -3,8 +3,9 @@ package io.temporal.internal.client;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 
-/** Container class to deduplicate {@link RecordActivityTaskHeartbeatByIdResponse} and
- * {@link RecordActivityTaskHeartbeatResponse}.
+/**
+ * Container class to deduplicate {@link RecordActivityTaskHeartbeatByIdResponse} and {@link
+ * RecordActivityTaskHeartbeatResponse}.
  */
 public final class ActivityHeartbeatResponse {
   private final boolean cancelRequested;

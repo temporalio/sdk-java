@@ -33,8 +33,8 @@ public interface ManualActivityCompletionClient {
    * @throws ActivityCompletionException if the server reports the activity was cancelled, reset, or
    *     paused ({@link io.temporal.client.ActivityCanceledException}, {@link
    *     io.temporal.client.ActivityResetException}, {@link
-   *     io.temporal.client.ActivityPausedException}), or if the heartbeat RPC itself fails after
-   *     retries ({@link io.temporal.client.ActivityCompletionFailureException}, {@link
+   *     io.temporal.client.ActivityPausedException}), or if the heartbeat RPC fails ({@link
+   *     io.temporal.client.ActivityCompletionFailureException}, {@link
    *     io.temporal.client.ActivityNotExistsException}).
    */
   void recordHeartbeat(@Nullable Object details) throws ActivityCompletionException;
