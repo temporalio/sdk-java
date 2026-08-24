@@ -8,8 +8,8 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
-import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageReferences;
+import io.temporal.internal.payload.storage.ExternalStorageUnhandledReferenceException;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.ExternalStorage;
 import java.lang.reflect.Type;
@@ -76,7 +76,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
     }
 
     if (ExternalStorageReferences.isReference(payload)) {
-      throw new ExternalStorageNotConfiguredException();
+      throw new ExternalStorageUnhandledReferenceException();
     }
 
     try {

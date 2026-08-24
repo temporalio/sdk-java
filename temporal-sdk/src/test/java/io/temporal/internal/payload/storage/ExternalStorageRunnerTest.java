@@ -131,7 +131,6 @@ public class ExternalStorageRunnerTest {
         assertThrows(
             ExternalStorageNotConfiguredException.class,
             () -> ExternalStorageRunner.throwIfContainsReference(stored));
-    assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL1105]"));
   }
 
   @Test

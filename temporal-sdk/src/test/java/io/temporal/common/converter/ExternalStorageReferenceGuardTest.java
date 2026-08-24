@@ -6,20 +6,19 @@ import static org.junit.Assert.assertTrue;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
-import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
+import io.temporal.internal.payload.storage.ExternalStorageUnhandledReferenceException;
 import org.junit.Test;
 
 /**
- * When external storage is not configured, an inbound reference payload reaching value
- * deserialization must fail with the clear {@code [TMPRL1105]} error instead of an opaque decoding
- * failure.
+ * An external storage reference reaching value deserialization indicates that an SDK integration
+ * failed to resolve or reject it at the appropriate boundary.
  */
 public class ExternalStorageReferenceGuardTest {
 
   private final DataConverter dataConverter = DefaultDataConverter.newDefaultInstance();
 
   @Test
-  public void referencePayloadWithoutConfiguredStorageThrows() {
+  public void unhandledReferencePayloadThrowsSdkBug() {
     Payload reference =
         Payload.newBuilder()
             .putMetadata(
@@ -30,11 +29,10 @@ public class ExternalStorageReferenceGuardTest {
             .setData(ByteString.copyFromUtf8("{}"))
             .build();
 
-    ExternalStorageNotConfiguredException e =
+    ExternalStorageUnhandledReferenceException e =
         assertThrows(
-            ExternalStorageNotConfiguredException.class,
+            ExternalStorageUnhandledReferenceException.class,
             () -> dataConverter.fromPayload(reference, String.class, String.class));
-    assertTrue(e.getMessage(), e.getMessage().contains("[TMPRL1105]"));
   }
 
   @Test
