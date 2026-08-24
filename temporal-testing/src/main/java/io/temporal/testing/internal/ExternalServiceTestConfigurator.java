@@ -1,11 +1,19 @@
 package io.temporal.testing.internal;
 
+import io.grpc.Metadata;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.envconfig.ClientConfigProfile;
 import io.temporal.envconfig.LoadClientConfigProfileOptions;
+import io.temporal.serviceclient.GrpcMetadataProvider;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowRule;
 import io.temporal.testing.internal.devserver.SdkJavaTestServerProfile;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 
@@ -49,13 +57,30 @@ public class ExternalServiceTestConfigurator {
       TestWorkflowRule.Builder testWorkflowRule,
       Map<String, String> environment,
       String devServerTarget) {
+    return configure(testWorkflowRule, environment, devServerTarget, true);
+  }
+
+  static TestWorkflowRule.Builder configureConnection(
+      TestWorkflowRule.Builder testWorkflowRule,
+      Map<String, String> environment,
+      String devServerTarget) {
+    return configure(testWorkflowRule, environment, devServerTarget, false);
+  }
+
+  private static TestWorkflowRule.Builder configure(
+      TestWorkflowRule.Builder testWorkflowRule,
+      Map<String, String> environment,
+      String devServerTarget,
+      boolean configureOptions) {
     ClientConfigProfile profile = loadEnvConfigProfile(environment);
     if (profile != null) {
       testWorkflowRule.setUseExternalService(true);
       testWorkflowRule.setTarget(profile.getAddress());
       testWorkflowRule.setNamespace(profile.getNamespace());
-      testWorkflowRule.setWorkflowServiceStubsOptions(profile.toWorkflowServiceStubsOptions());
-      testWorkflowRule.setWorkflowClientOptions(profile.toWorkflowClientOptions());
+      if (configureOptions) {
+        testWorkflowRule.setWorkflowServiceStubsOptions(profile.toWorkflowServiceStubsOptions());
+        testWorkflowRule.setWorkflowClientOptions(profile.toWorkflowClientOptions());
+      }
     } else if (devServerTarget != null) {
       testWorkflowRule.setUseExternalService(true);
       testWorkflowRule.setTarget(devServerTarget);
@@ -105,6 +130,81 @@ public class ExternalServiceTestConfigurator {
 
   public static TestEnvironmentOptions.Builder configuredTestEnvironmentOptions() {
     return configure(TestEnvironmentOptions.newBuilder());
+  }
+
+  static WorkflowServiceStubsOptions configure(
+      WorkflowServiceStubsOptions workflowServiceStubsOptions, Map<String, String> environment) {
+    ClientConfigProfile profile = loadEnvConfigProfile(environment);
+    if (profile == null) {
+      return workflowServiceStubsOptions;
+    }
+
+    WorkflowServiceStubsOptions profileOptions = profile.toWorkflowServiceStubsOptions();
+    GrpcMetadataProvider metadataProvider =
+        mergeMetadata(
+            profileOptions.getHeaders(),
+            profileOptions.getGrpcMetadataProviders(),
+            workflowServiceStubsOptions.getHeaders(),
+            workflowServiceStubsOptions.getGrpcMetadataProviders());
+    return WorkflowServiceStubsOptions.newBuilder(workflowServiceStubsOptions)
+        .setChannel(null)
+        .setTarget(profileOptions.getTarget())
+        .setEnableHttps(profileOptions.getEnableHttps())
+        .setSslContext(profileOptions.getSslContext())
+        .setChannelInitializer(profileOptions.getChannelInitializer())
+        .setHeaders(new Metadata())
+        .setGrpcMetadataProviders(Collections.singletonList(metadataProvider))
+        .build();
+  }
+
+  private static GrpcMetadataProvider mergeMetadata(
+      Metadata profileHeaders,
+      Iterable<GrpcMetadataProvider> profileProviders,
+      Metadata testHeaders,
+      Iterable<GrpcMetadataProvider> testProviders) {
+    List<GrpcMetadataProvider> profileProviderList = new ArrayList<>();
+    profileProviders.forEach(profileProviderList::add);
+    return () -> {
+      Metadata metadata = new Metadata();
+      if (testHeaders != null) {
+        metadata.merge(testHeaders);
+      }
+      testProviders.forEach(provider -> metadata.merge(provider.getMetadata()));
+      Metadata profileMetadata = new Metadata();
+      if (profileHeaders != null) {
+        profileMetadata.merge(profileHeaders);
+      }
+      profileProviderList.forEach(provider -> profileMetadata.merge(provider.getMetadata()));
+      for (String keyName : profileMetadata.keys()) {
+        if (keyName.endsWith("-bin")) {
+          metadata.discardAll(Metadata.Key.of(keyName, Metadata.BINARY_BYTE_MARSHALLER));
+        } else {
+          metadata.discardAll(Metadata.Key.of(keyName, Metadata.ASCII_STRING_MARSHALLER));
+        }
+      }
+      metadata.merge(profileMetadata);
+      return metadata;
+    };
+  }
+
+  static WorkflowClientOptions configure(
+      WorkflowClientOptions workflowClientOptions, Map<String, String> environment) {
+    ClientConfigProfile profile = loadEnvConfigProfile(environment);
+    return profile == null
+        ? workflowClientOptions
+        : WorkflowClientOptions.newBuilder(workflowClientOptions)
+            .setNamespace(profile.getNamespace())
+            .build();
+  }
+
+  static ActivityClientOptions configure(
+      ActivityClientOptions activityClientOptions, Map<String, String> environment) {
+    ClientConfigProfile profile = loadEnvConfigProfile(environment);
+    return profile == null
+        ? activityClientOptions
+        : ActivityClientOptions.newBuilder(activityClientOptions)
+            .setNamespace(profile.getNamespace())
+            .build();
   }
 
   static boolean isUseExternalService(Map<String, String> environment) {

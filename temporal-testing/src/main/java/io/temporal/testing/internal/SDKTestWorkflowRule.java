@@ -31,6 +31,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.internal.devserver.SdkJavaTestServerProfile;
 import io.temporal.worker.*;
 import io.temporal.workflow.Functions;
 import java.io.File;
@@ -40,6 +41,7 @@ import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
@@ -91,7 +93,9 @@ public class SDKTestWorkflowRule implements TestRule {
             : null;
 
     testWorkflowRule =
-        ExternalServiceTestConfigurator.configure(builder.testWorkflowRuleBuilder).build();
+        ExternalServiceTestConfigurator.configureConnection(
+                builder.testWorkflowRuleBuilder, builder.environment, builder.devServerTarget)
+            .build();
   }
 
   public static Builder newBuilder() {
@@ -104,24 +108,43 @@ public class SDKTestWorkflowRule implements TestRule {
     private boolean workerFactoryOptionsAreSet = false;
     private boolean workerOptionsAreSet = false;
     private final TestWorkflowRule.Builder testWorkflowRuleBuilder;
+    private final Map<String, String> environment;
+    @Nullable private final String devServerTarget;
 
     public Builder() {
-      testWorkflowRuleBuilder = TestWorkflowRule.newBuilder();
+      this(System.getenv(), SdkJavaTestServerProfile.getTarget());
+    }
+
+    Builder(Map<String, String> environment, @Nullable String devServerTarget) {
+      this.environment = environment;
+      this.devServerTarget = devServerTarget;
+      testWorkflowRuleBuilder =
+          ExternalServiceTestConfigurator.configure(
+              TestWorkflowRule.newBuilder(), environment, devServerTarget);
     }
 
     public Builder setWorkflowServiceStubsOptions(
         WorkflowServiceStubsOptions workflowServiceStubsOptions) {
-      testWorkflowRuleBuilder.setWorkflowServiceStubsOptions(workflowServiceStubsOptions);
+      if (workflowServiceStubsOptions != null) {
+        testWorkflowRuleBuilder.setWorkflowServiceStubsOptions(
+            ExternalServiceTestConfigurator.configure(workflowServiceStubsOptions, environment));
+      }
       return this;
     }
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
-      testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
+      if (workflowClientOptions != null) {
+        testWorkflowRuleBuilder.setWorkflowClientOptions(
+            ExternalServiceTestConfigurator.configure(workflowClientOptions, environment));
+      }
       return this;
     }
 
     public Builder setActivityClientOptions(ActivityClientOptions activityClientOptions) {
-      testWorkflowRuleBuilder.setActivityClientOptions(activityClientOptions);
+      if (activityClientOptions != null) {
+        testWorkflowRuleBuilder.setActivityClientOptions(
+            ExternalServiceTestConfigurator.configure(activityClientOptions, environment));
+      }
       return this;
     }
 
