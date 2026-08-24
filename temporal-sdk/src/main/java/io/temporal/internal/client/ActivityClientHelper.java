@@ -24,7 +24,7 @@ import javax.annotation.Nonnull;
 public final class ActivityClientHelper {
   private ActivityClientHelper() {}
 
-  public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
+  public static ActivityHeartbeatResponse sendHeartbeatRequest(
       WorkflowServiceStubs service,
       String namespace,
       String identity,
@@ -37,13 +37,16 @@ public final class ActivityClientHelper {
             .setNamespace(namespace)
             .setIdentity(identity);
     payloads.ifPresent(request::setDetails);
-    return service
-        .blockingStub()
-        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-        .recordActivityTaskHeartbeat(request.build());
+    RecordActivityTaskHeartbeatResponse response =
+        service
+            .blockingStub()
+            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+            .recordActivityTaskHeartbeat(request.build());
+    return new ActivityHeartbeatResponse(
+        response.getCancelRequested(), response.getActivityReset(), response.getActivityPaused());
   }
 
-  public static RecordActivityTaskHeartbeatByIdResponse recordActivityTaskHeartbeatById(
+  public static ActivityHeartbeatResponse recordActivityTaskHeartbeatById(
       WorkflowServiceStubs service,
       String namespace,
       String identity,
@@ -60,9 +63,12 @@ public final class ActivityClientHelper {
             .setNamespace(namespace)
             .setIdentity(identity);
     payloads.ifPresent(request::setDetails);
-    return service
-        .blockingStub()
-        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-        .recordActivityTaskHeartbeatById(request.build());
+    RecordActivityTaskHeartbeatByIdResponse response =
+        service
+            .blockingStub()
+            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+            .recordActivityTaskHeartbeatById(request.build());
+    return new ActivityHeartbeatResponse(
+        response.getCancelRequested(), response.getActivityReset(), response.getActivityPaused());
   }
 }
