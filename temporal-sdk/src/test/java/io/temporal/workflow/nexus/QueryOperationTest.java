@@ -47,7 +47,6 @@ import org.junit.function.ThrowingRunnable;
  * <p>Covers the value round trip plus the failure modes a caller can observe: an unknown workflow,
  * a query handler that throws, and a Query rejected by the client's reject condition. All of these
  * must fail the caller's Nexus operation rather than hanging or returning a default.
- *
  */
 public class QueryOperationTest {
 

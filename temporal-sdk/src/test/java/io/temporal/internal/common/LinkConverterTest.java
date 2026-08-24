@@ -853,9 +853,8 @@ public class LinkConverterTest {
   }
 
   /**
-   * A '+' in a path segment is a literal '+', not a space.
-   * Form decoding would turn it into a space and point
-   * at a different execution.
+   * A '+' in a path segment is a literal '+', not a space. Form decoding would turn it into a space
+   * and point at a different execution.
    */
   @Test
   public void testConvertNexusToWorkflow_LiteralPlusInPathIsPreserved() {
