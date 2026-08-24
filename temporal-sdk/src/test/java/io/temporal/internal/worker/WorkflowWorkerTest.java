@@ -12,7 +12,9 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
@@ -458,56 +460,98 @@ public class WorkflowWorkerTest {
   }
 
   @Test
-  public void refineStorageTargetPointsActivityCommandsAtTheActivity() {
+  public void deriveStorageTargetPointsActivityCommandsAtTheActivity() {
     StorageDriverTargetInfo workflowDefault =
         new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
-    ScheduleActivityTaskCommandAttributes command =
-        ScheduleActivityTaskCommandAttributes.newBuilder()
-            .setActivityId("act-1")
-            .setActivityType(ActivityType.newBuilder().setName("MyActivity"))
+    Command command =
+        Command.newBuilder()
+            .setScheduleActivityTaskCommandAttributes(
+                ScheduleActivityTaskCommandAttributes.newBuilder()
+                    .setActivityId("act-1")
+                    .setActivityType(ActivityType.newBuilder().setName("MyActivity")))
             .build();
 
     assertEquals(
         new StorageDriverActivityInfo("ns", "act-1", null, "MyActivity"),
-        WorkflowWorker.refineStorageTarget("ns", workflowDefault, command));
+        WorkflowWorker.deriveStorageTarget("ns", workflowDefault, command));
   }
 
   @Test
-  public void refineStorageTargetPointsChildWorkflowCommandsAtTheChild() {
+  public void deriveStorageTargetPointsChildWorkflowCommandsAtTheChild() {
     StorageDriverTargetInfo parent =
         new StorageDriverWorkflowInfo("ns", "parent", "parent-run", "Parent");
-    StartChildWorkflowExecutionCommandAttributes command =
-        StartChildWorkflowExecutionCommandAttributes.newBuilder()
-            .setWorkflowId("child-1")
-            .setWorkflowType(WorkflowType.newBuilder().setName("Child"))
+    Command command =
+        Command.newBuilder()
+            .setStartChildWorkflowExecutionCommandAttributes(
+                StartChildWorkflowExecutionCommandAttributes.newBuilder()
+                    .setWorkflowId("child-1")
+                    .setWorkflowType(WorkflowType.newBuilder().setName("Child")))
             .build();
 
     assertEquals(
         new StorageDriverWorkflowInfo("ns", "child-1", null, "Child"),
-        WorkflowWorker.refineStorageTarget("ns", parent, command));
+        WorkflowWorker.deriveStorageTarget("ns", parent, command));
   }
 
   @Test
-  public void refineStorageTargetPointsSignalCommandsAtTheTargetWorkflow() {
+  public void deriveStorageTargetPointsSignalCommandsAtTheTargetWorkflow() {
     StorageDriverTargetInfo self = new StorageDriverWorkflowInfo("ns", "self", "self-run", "Self");
-    SignalExternalWorkflowExecutionCommandAttributes command =
-        SignalExternalWorkflowExecutionCommandAttributes.newBuilder()
-            .setExecution(
-                WorkflowExecution.newBuilder().setWorkflowId("other").setRunId("other-run"))
+    Command command =
+        Command.newBuilder()
+            .setSignalExternalWorkflowExecutionCommandAttributes(
+                SignalExternalWorkflowExecutionCommandAttributes.newBuilder()
+                    .setExecution(
+                        WorkflowExecution.newBuilder()
+                            .setWorkflowId("other")
+                            .setRunId("other-run")))
             .build();
 
     assertEquals(
         new StorageDriverWorkflowInfo("ns", "other", "other-run", null),
-        WorkflowWorker.refineStorageTarget("ns", self, command));
+        WorkflowWorker.deriveStorageTarget("ns", self, command));
   }
 
   @Test
-  public void refineStorageTargetKeepsTheCurrentTargetForOtherCommands() {
+  public void deriveStorageTargetPointsContinueAsNewAtTheNewRun() {
+    StorageDriverTargetInfo current =
+        new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "CurrentWorkflow");
+    Command command =
+        Command.newBuilder()
+            .setContinueAsNewWorkflowExecutionCommandAttributes(
+                ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder()
+                    .setWorkflowType(WorkflowType.newBuilder().setName("NextWorkflow")))
+            .build();
+
+    assertEquals(
+        new StorageDriverWorkflowInfo("ns", "wf-1", null, "NextWorkflow"),
+        WorkflowWorker.deriveStorageTarget("ns", current, command));
+  }
+
+  @Test
+  public void deriveStorageTargetKeepsWorkflowTypeForContinueAsNewWithoutOverride() {
+    StorageDriverTargetInfo current =
+        new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "CurrentWorkflow");
+    Command command =
+        Command.newBuilder()
+            .setContinueAsNewWorkflowExecutionCommandAttributes(
+                ContinueAsNewWorkflowExecutionCommandAttributes.newBuilder())
+            .build();
+
+    assertEquals(
+        new StorageDriverWorkflowInfo("ns", "wf-1", null, "CurrentWorkflow"),
+        WorkflowWorker.deriveStorageTarget("ns", current, command));
+  }
+
+  @Test
+  public void deriveStorageTargetKeepsTheCurrentTargetForOtherCommands() {
     StorageDriverTargetInfo current =
         new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
-    CompleteWorkflowExecutionCommandAttributes command =
-        CompleteWorkflowExecutionCommandAttributes.newBuilder().build();
+    Command command =
+        Command.newBuilder()
+            .setCompleteWorkflowExecutionCommandAttributes(
+                CompleteWorkflowExecutionCommandAttributes.newBuilder())
+            .build();
 
-    assertSame(current, WorkflowWorker.refineStorageTarget("ns", current, command));
+    assertSame(current, WorkflowWorker.deriveStorageTarget("ns", current, command));
   }
 }

@@ -12,10 +12,7 @@ import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.command.v1.Command;
-import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
-import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributesOrBuilder;
-import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributesOrBuilder;
+import io.temporal.api.command.v1.*;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
@@ -430,27 +427,59 @@ final class WorkflowWorker implements SuspendableWorker {
         namespace, execution.getWorkflowId(), execution.getRunId(), workflowType);
   }
 
-  static StorageDriverTargetInfo refineStorageTarget(
+  static StorageDriverTargetInfo deriveStorageTarget(
       String namespace, StorageDriverTargetInfo current, MessageOrBuilder message) {
-    if (message instanceof ScheduleActivityTaskCommandAttributesOrBuilder) {
-      ScheduleActivityTaskCommandAttributesOrBuilder attrs =
-          (ScheduleActivityTaskCommandAttributesOrBuilder) message;
-      return new StorageDriverActivityInfo(
-          namespace, attrs.getActivityId(), null, attrs.getActivityType().getName());
+    if (!(message instanceof CommandOrBuilder)) {
+      return current;
     }
-    if (message instanceof StartChildWorkflowExecutionCommandAttributesOrBuilder) {
-      StartChildWorkflowExecutionCommandAttributesOrBuilder attrs =
-          (StartChildWorkflowExecutionCommandAttributesOrBuilder) message;
-      return new StorageDriverWorkflowInfo(
-          namespace, attrs.getWorkflowId(), null, attrs.getWorkflowType().getName());
+    CommandOrBuilder command = (CommandOrBuilder) message;
+    // Keep this exhaustive so new command attributes require an explicit target decision.
+    switch (command.getAttributesCase()) {
+      case SCHEDULE_ACTIVITY_TASK_COMMAND_ATTRIBUTES:
+        ScheduleActivityTaskCommandAttributesOrBuilder activity =
+            command.getScheduleActivityTaskCommandAttributesOrBuilder();
+        return new StorageDriverActivityInfo(
+            namespace, activity.getActivityId(), null, activity.getActivityType().getName());
+      case START_CHILD_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+        StartChildWorkflowExecutionCommandAttributesOrBuilder child =
+            command.getStartChildWorkflowExecutionCommandAttributesOrBuilder();
+        return new StorageDriverWorkflowInfo(
+            namespace, child.getWorkflowId(), null, child.getWorkflowType().getName());
+      case SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+        WorkflowExecution execution =
+            command.getSignalExternalWorkflowExecutionCommandAttributes().getExecution();
+        return new StorageDriverWorkflowInfo(
+            namespace, execution.getWorkflowId(), execution.getRunId(), null);
+      case CONTINUE_AS_NEW_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+        if (current instanceof StorageDriverWorkflowInfo) {
+          ContinueAsNewWorkflowExecutionCommandAttributesOrBuilder continueAsNew =
+              command.getContinueAsNewWorkflowExecutionCommandAttributesOrBuilder();
+          StorageDriverWorkflowInfo currentWorkflow = (StorageDriverWorkflowInfo) current;
+          String workflowType = continueAsNew.getWorkflowType().getName();
+          return new StorageDriverWorkflowInfo(
+              namespace,
+              currentWorkflow.getId(),
+              null,
+              Strings.isNullOrEmpty(workflowType) ? currentWorkflow.getType() : workflowType);
+        }
+        return current;
+      case ATTRIBUTES_NOT_SET:
+      case START_TIMER_COMMAND_ATTRIBUTES:
+      case COMPLETE_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+      case FAIL_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+      case REQUEST_CANCEL_ACTIVITY_TASK_COMMAND_ATTRIBUTES:
+      case CANCEL_TIMER_COMMAND_ATTRIBUTES:
+      case CANCEL_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+      case REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+      case RECORD_MARKER_COMMAND_ATTRIBUTES:
+      case UPSERT_WORKFLOW_SEARCH_ATTRIBUTES_COMMAND_ATTRIBUTES:
+      case PROTOCOL_MESSAGE_COMMAND_ATTRIBUTES:
+      case MODIFY_WORKFLOW_PROPERTIES_COMMAND_ATTRIBUTES:
+      case SCHEDULE_NEXUS_OPERATION_COMMAND_ATTRIBUTES:
+      case REQUEST_CANCEL_NEXUS_OPERATION_COMMAND_ATTRIBUTES:
+        return current;
     }
-    if (message instanceof SignalExternalWorkflowExecutionCommandAttributesOrBuilder) {
-      WorkflowExecution execution =
-          ((SignalExternalWorkflowExecutionCommandAttributesOrBuilder) message).getExecution();
-      return new StorageDriverWorkflowInfo(
-          namespace, execution.getWorkflowId(), execution.getRunId(), null);
-    }
-    return current;
+    throw new IllegalStateException("Unhandled command attributes: " + command.getAttributesCase());
   }
 
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<WorkflowTask> {
@@ -779,7 +808,7 @@ final class WorkflowWorker implements SuspendableWorker {
       }
 
       MessageVisitor<StorageDriverTargetInfo> storageTargetVisitor =
-          (current, message) -> refineStorageTarget(namespace, current, message);
+          (current, message) -> deriveStorageTarget(namespace, current, message);
       storeOutboundPayloads(taskCompleted, storageTarget, storageTargetVisitor);
       RespondWorkflowTaskCompletedRequest request = taskCompleted.build();
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
