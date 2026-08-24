@@ -10,6 +10,7 @@ import io.nexusrpc.OperationState;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
+import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowNotFoundException;
@@ -192,7 +193,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private void convertKnownFailures(Throwable e) {
     Throwable failure = CheckedExceptionWrapper.unwrap(e);
-    if (failure instanceof WorkflowException) {
+    if (failure instanceof WorkflowException
+        || failure instanceof ActivityAlreadyStartedException) {
       if (failure instanceof WorkflowNotFoundException) {
         throw new HandlerException(HandlerException.ErrorType.NOT_FOUND, failure);
       }
@@ -392,7 +394,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     if (nexusService instanceof Class) {
       throw new IllegalArgumentException("Nexus service object instance expected, not the class");
     }
-    ServiceImplInstance instance = ServiceImplInstance.fromInstance(nexusService);
+    ServiceImplInstance instance = TemporalOperationProcessor.process(nexusService);
     InternalUtils.checkMethodName(instance);
     if (serviceImplInstances.put(instance.getDefinition().getName(), instance) != null) {
       throw new TypeAlreadyRegisteredException(

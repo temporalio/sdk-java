@@ -1,6 +1,5 @@
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /** TimerOptions is used to specify options for a timer. */
@@ -42,7 +41,6 @@ public final class TimerOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setSummary(String summary) {
       this.summary = summary;
       return this;

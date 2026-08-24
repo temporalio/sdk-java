@@ -5,7 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 /** Visits every payload within a proto message. */
-final class PayloadVisitors {
+public final class PayloadVisitors {
   private PayloadVisitors() {}
 
   /** Visits the payloads in {@code builder} in place. */

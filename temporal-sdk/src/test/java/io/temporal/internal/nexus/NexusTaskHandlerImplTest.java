@@ -133,6 +133,36 @@ public class NexusTaskHandlerImplTest {
   }
 
   @Test
+  public void startTaskWithUndeserializableInput() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(
+        new Object[] {new TestNexusServiceImpl2Echo()});
+    nexusTaskHandlerImpl.start();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService2")
+                            // The operation takes an Integer, so this input never deserializes
+                            .setPayload(dataConverter.toPayload("not an integer").get())
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+    HandlerException e = result.getHandlerException();
+    Assert.assertNotNull(e);
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, e.getErrorType());
+    Assert.assertFalse(e.isRetryable());
+  }
+
+  @Test
   public void startAsyncSyncOperation() throws TimeoutException {
     WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
@@ -400,6 +430,14 @@ public class NexusTaskHandlerImplTest {
             }
             return i;
           });
+    }
+  }
+
+  @ServiceImpl(service = TestNexusServices.TestNexusService2.class)
+  public class TestNexusServiceImpl2Echo {
+    @OperationImpl
+    public OperationHandler<Integer, Integer> operation() {
+      return OperationHandler.sync((ctx, details, i) -> i);
     }
   }
 

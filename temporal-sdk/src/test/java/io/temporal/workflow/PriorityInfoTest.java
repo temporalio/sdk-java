@@ -6,11 +6,13 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
 import io.temporal.common.Priority;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
 import java.time.Duration;
+import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -20,7 +22,10 @@ public class PriorityInfoTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TestPriority.class, TestPriorityChildWorkflow.class)
+          .setWorkflowTypes(
+              TestPriority.class,
+              TestPriorityChildWorkflow.class,
+              TestSignalWithStartPriorityWorkflowImpl.class)
           .setActivityImplementations(new PriorityActivitiesImpl())
           .build();
 
@@ -42,6 +47,24 @@ public class PriorityInfoTest {
                     .build());
     String result = workflowStub.execute(testWorkflowRule.getTaskQueue());
     assertEquals("5:tenant-123:2.5", result);
+  }
+
+  @Test
+  public void testPriorityWithSignalWithStart() {
+    WorkflowStub stub =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(
+                "TestSignalWithStartPriorityWorkflow",
+                WorkflowOptions.newBuilder()
+                    .setWorkflowId("test-signal-with-start-priority-" + UUID.randomUUID())
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setPriority(Priority.newBuilder().setPriorityKey(2).build())
+                    .build());
+    stub.signalWithStart(
+        "mySignal", new Object[] {"signalArg"}, new Object[] {testWorkflowRule.getTaskQueue()});
+    String result = stub.getResult(String.class);
+    assertEquals("2:null:0.0", result);
   }
 
   @ActivityInterface
@@ -129,6 +152,34 @@ public class PriorityInfoTest {
           + key
           + ":"
           + workflowPriority.getFairnessWeight();
+    }
+  }
+
+  @WorkflowInterface
+  public interface TestSignalWithStartPriorityWorkflow {
+    @WorkflowMethod
+    String execute(String taskQueue);
+
+    @SignalMethod
+    void mySignal(String arg);
+  }
+
+  public static class TestSignalWithStartPriorityWorkflowImpl
+      implements TestSignalWithStartPriorityWorkflow {
+
+    private boolean received = false;
+
+    @Override
+    public String execute(String taskQueue) {
+      Workflow.await(() -> received);
+      Priority priority = Workflow.getInfo().getPriority();
+      String key = priority.getFairnessKey() != null ? priority.getFairnessKey() : "null";
+      return priority.getPriorityKey() + ":" + key + ":" + priority.getFairnessWeight();
+    }
+
+    @Override
+    public void mySignal(String arg) {
+      received = true;
     }
   }
 }

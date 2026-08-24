@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest-16-cores
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
 
@@ -25,14 +25,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
-      - name: Run Tests
-        run: ./gradlew test -x spotlessCheck -x spotlessApply -Pjacoco -PtestJavaVersion=23
-        continue-on-error: true
-
-      - name: Run Test Coverage
-        run: ./gradlew testCodeCoverageReport -Pjacoco
-
-      - name: Publish Coverage
+      - name: Run and Publish Test Coverage
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        run: ./gradlew coverallsJacoco -Pjacoco
+        run: ./gradlew coverallsJacoco -x spotlessCheck -x spotlessApply -Pjacoco -PtestJavaVersion=23

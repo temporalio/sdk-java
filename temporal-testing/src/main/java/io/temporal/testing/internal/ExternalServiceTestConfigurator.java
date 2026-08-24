@@ -3,6 +3,8 @@ package io.temporal.testing.internal;
 import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowRule;
+import io.temporal.testing.internal.devserver.SdkJavaTestServerProfile;
+import javax.annotation.Nonnull;
 
 public class ExternalServiceTestConfigurator {
   private static boolean USE_EXTERNAL_SERVICE =
@@ -13,7 +15,7 @@ public class ExternalServiceTestConfigurator {
       EnvironmentVariableUtils.readBooleanFlag("USE_VIRTUAL_THREADS");
 
   public static boolean isUseExternalService() {
-    return USE_EXTERNAL_SERVICE;
+    return USE_EXTERNAL_SERVICE || SdkJavaTestServerProfile.isActive();
   }
 
   public static boolean isUseVirtualThreads() {
@@ -21,27 +23,33 @@ public class ExternalServiceTestConfigurator {
   }
 
   public static String getTemporalServiceAddress() {
+    if (SdkJavaTestServerProfile.isActive()) {
+      return SdkJavaTestServerProfile.getTarget();
+    }
     return USE_EXTERNAL_SERVICE
         ? (TEMPORAL_SERVICE_ADDRESS != null ? TEMPORAL_SERVICE_ADDRESS : "127.0.0.1:7233")
         : null;
   }
 
-  public static TestWorkflowRule.Builder configure(TestWorkflowRule.Builder testWorkflowRule) {
-    if (USE_EXTERNAL_SERVICE) {
+  public static TestWorkflowRule.Builder configure(
+      @Nonnull TestWorkflowRule.Builder testWorkflowRule) {
+    if (isUseExternalService()) {
       testWorkflowRule.setUseExternalService(true);
-      if (TEMPORAL_SERVICE_ADDRESS != null) {
-        testWorkflowRule.setTarget(TEMPORAL_SERVICE_ADDRESS);
+      String target = getTemporalServiceAddress();
+      if (target != null) {
+        testWorkflowRule.setTarget(target);
       }
     }
     return testWorkflowRule;
   }
 
   public static TestEnvironmentOptions.Builder configure(
-      TestEnvironmentOptions.Builder testEnvironmentOptions) {
-    if (USE_EXTERNAL_SERVICE) {
+      @Nonnull TestEnvironmentOptions.Builder testEnvironmentOptions) {
+    if (isUseExternalService()) {
       testEnvironmentOptions.setUseExternalService(true);
-      if (TEMPORAL_SERVICE_ADDRESS != null) {
-        testEnvironmentOptions.setTarget(TEMPORAL_SERVICE_ADDRESS);
+      String target = getTemporalServiceAddress();
+      if (target != null) {
+        testEnvironmentOptions.setTarget(target);
       }
     }
     return testEnvironmentOptions;

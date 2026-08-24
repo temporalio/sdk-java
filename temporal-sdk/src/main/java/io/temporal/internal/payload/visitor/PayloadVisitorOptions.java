@@ -9,7 +9,7 @@ import javax.annotation.Nullable;
  *
  * @param <C> type of the contextual value supplied to the visitor
  */
-final class PayloadVisitorOptions<C> {
+public final class PayloadVisitorOptions<C> {
   private final @Nonnull PayloadVisitor<C> payloadVisitor;
   private final @Nullable MessageVisitor<C> messageVisitor;
   private final @Nullable C initialContext;
@@ -36,7 +36,7 @@ final class PayloadVisitorOptions<C> {
   }
 
   @Nullable
-  public MessageVisitor<C> getMessageVisitor() {
+  MessageVisitor<C> getMessageVisitor() {
     return messageVisitor;
   }
 
@@ -69,7 +69,7 @@ final class PayloadVisitorOptions<C> {
       this.payloadVisitor = Objects.requireNonNull(payloadVisitor, "payloadVisitor");
     }
 
-    public Builder<C> setMessageVisitor(@Nullable MessageVisitor<C> messageVisitor) {
+    Builder<C> setMessageVisitor(@Nullable MessageVisitor<C> messageVisitor) {
       this.messageVisitor = messageVisitor;
       return this;
     }

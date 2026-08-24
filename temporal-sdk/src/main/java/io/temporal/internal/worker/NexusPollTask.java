@@ -86,16 +86,18 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
                             : TaskQueueKind.TASK_QUEUE_KIND_NORMAL));
     pollRequest.setWorkerInstanceKey(workerInstanceKey);
 
-    if (versioningOptions.getWorkerDeploymentOptions() != null) {
-      pollRequest.setDeploymentOptions(
-          WorkerVersioningProtoUtils.deploymentOptionsToProto(
-              versioningOptions.getWorkerDeploymentOptions()));
-    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
-      pollRequest.setWorkerVersionCapabilities(
-          WorkerVersionCapabilities.newBuilder()
-              .setBuildId(versioningOptions.getBuildId())
-              .setUseVersioning(versioningOptions.isUsingVersioning())
-              .build());
+    if (!workerCommandsTaskQueue) {
+      if (versioningOptions.getWorkerDeploymentOptions() != null) {
+        pollRequest.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(
+                versioningOptions.getWorkerDeploymentOptions()));
+      } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+        pollRequest.setWorkerVersionCapabilities(
+            WorkerVersionCapabilities.newBuilder()
+                .setBuildId(versioningOptions.getBuildId())
+                .setUseVersioning(versioningOptions.isUsingVersioning())
+                .build());
+      }
     }
     this.pollRequest = pollRequest.build();
   }
