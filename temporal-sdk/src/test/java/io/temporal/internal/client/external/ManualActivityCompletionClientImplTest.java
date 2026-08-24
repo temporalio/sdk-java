@@ -71,9 +71,6 @@ public class ManualActivityCompletionClientImplTest {
         null);
   }
 
-  // The tests below verify that exceptions from the heartbeat RPC are reported
-  // according to the documentation from {@link ManualActivityCompletionClient#recordHeartbeat(Object)}.
-
   @Test
   public void cancelRequestedThrowsActivityCanceledExceptionNotSwallowed() {
     when(blockingStub.recordActivityTaskHeartbeat(any()))
