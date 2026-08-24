@@ -7,32 +7,46 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.NoopScope;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.internal.worker.WorkflowTaskHandler;
+import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.StorageDriver;
+import io.temporal.payload.storage.StorageDriverClaim;
+import io.temporal.payload.storage.StorageDriverRetrieveContext;
+import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
@@ -119,6 +133,67 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assertEquals(
         "Premature end of stream, expectedLastEventID=3 but no more events after eventID=2",
         result.getTaskFailed().getFailure().getMessage());
+  }
+
+  @Test
+  public void resolvesExternalStorageReferencesInFetchedFullHistory() throws Throwable {
+    ExternalStorageRunner externalStorage =
+        ExternalStorageRunner.create(
+            ExternalStorage.newBuilder()
+                .setDriver(new InMemoryStorageDriver())
+                .setPayloadSizeThreshold(0)
+                .build());
+    PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
+    Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
+    History.Builder storedHistory =
+        fullTask.getHistory().toBuilder()
+            .setEvents(
+                0,
+                startedEvent.toBuilder()
+                    .setWorkflowExecutionStartedEventAttributes(
+                        startedEvent.getWorkflowExecutionStartedEventAttributes().toBuilder()
+                            .setInput(Payloads.newBuilder().addPayloads(input))));
+    externalStorage.store(storedHistory, null);
+
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(client.blockingStub()).thenReturn(blockingStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.getWorkflowExecutionHistory(any()))
+        .thenReturn(
+            GetWorkflowExecutionHistoryResponse.newBuilder().setHistory(storedHistory).build());
+
+    ReplayWorkflow workflow = mock(ReplayWorkflow.class);
+    when(workflow.eventLoop()).thenReturn(true);
+    when(workflow.getOutput()).thenReturn(Optional.empty());
+    WorkflowContext workflowContext = mock(WorkflowContext.class);
+    when(workflowContext.getRunningUpdateHandlers()).thenReturn(new HashMap<>());
+    when(workflow.getWorkflowContext()).thenReturn(workflowContext);
+    ReplayWorkflowFactory workflowFactory = mock(ReplayWorkflowFactory.class);
+    when(workflowFactory.getWorkflow(any(), any())).thenReturn(workflow);
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
+            "namespace",
+            workflowFactory,
+            new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope()),
+            SingleWorkerOptions.newBuilder().setExternalStorage(externalStorage).build(),
+            null,
+            Duration.ofSeconds(5),
+            client,
+            null);
+
+    taskHandler.handleWorkflowTask(
+        fullTask.toBuilder().setHistory(History.getDefaultInstance()).build());
+
+    ArgumentCaptor<HistoryEvent> event = ArgumentCaptor.forClass(HistoryEvent.class);
+    verify(workflow).start(event.capture(), any());
+    assertEquals(
+        input,
+        event.getValue().getWorkflowExecutionStartedEventAttributes().getInput().getPayloads(0));
   }
 
   @Test
@@ -230,5 +305,42 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     when(mockWorkflowContext.getRunningUpdateHandlers()).thenReturn(new HashMap<>());
     when(mockWorkflow.getWorkflowContext()).thenReturn(mockWorkflowContext);
     return mockFactory;
+  }
+
+  private static final class InMemoryStorageDriver implements StorageDriver {
+    private final Map<String, Payload> payloads = new HashMap<>();
+    private int nextKey;
+
+    @Override
+    public String getName() {
+      return "test";
+    }
+
+    @Override
+    public String getType() {
+      return "test.in-memory";
+    }
+
+    @Override
+    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
+        StorageDriverStoreContext context, List<Payload> payloads) {
+      List<StorageDriverClaim> claims = new ArrayList<>();
+      for (Payload payload : payloads) {
+        String key = Integer.toString(nextKey++);
+        this.payloads.put(key, payload);
+        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
+      }
+      return CompletableFuture.completedFuture(claims);
+    }
+
+    @Override
+    public synchronized CompletableFuture<List<Payload>> retrieve(
+        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      List<Payload> retrieved = new ArrayList<>();
+      for (StorageDriverClaim claim : claims) {
+        retrieved.add(payloads.get(claim.getClaimData().get("key")));
+      }
+      return CompletableFuture.completedFuture(retrieved);
+    }
   }
 }

@@ -403,6 +403,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .getWorkflowExecutionHistory(getHistoryRequest);
+      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      if (externalStorage == null) {
+        ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
+      } else {
+        getHistoryResponse = externalStorage.retrieve(getHistoryResponse);
+      }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())
           .setNextPageToken(getHistoryResponse.getNextPageToken());
