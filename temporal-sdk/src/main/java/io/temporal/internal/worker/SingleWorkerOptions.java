@@ -8,6 +8,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
@@ -47,7 +48,6 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private @Nullable ExternalStorageRunner externalStorage;
 
     private Builder() {}
 
@@ -76,7 +76,6 @@ public final class SingleWorkerOptions {
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
       this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
       this.preferredVersionProvider = options.getPreferredVersionProvider();
-      this.externalStorage = options.getExternalStorage();
     }
 
     public Builder setIdentity(String identity) {
@@ -189,11 +188,6 @@ public final class SingleWorkerOptions {
       return this;
     }
 
-    public Builder setExternalStorage(@Nullable ExternalStorageRunner externalStorage) {
-      this.externalStorage = externalStorage;
-      return this;
-    }
-
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -236,8 +230,7 @@ public final class SingleWorkerOptions {
           this.workerInstanceKey,
           this.allowActivityHeartbeatDuringShutdown,
           this.workerControlTaskQueue,
-          this.preferredVersionProvider,
-          this.externalStorage);
+          this.preferredVersionProvider);
     }
   }
 
@@ -285,8 +278,7 @@ public final class SingleWorkerOptions {
       String workerInstanceKey,
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
-      PreferredVersionProvider preferredVersionProvider,
-      @Nullable ExternalStorageRunner externalStorage) {
+      PreferredVersionProvider preferredVersionProvider) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -308,7 +300,9 @@ public final class SingleWorkerOptions {
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
     this.workerControlTaskQueue = workerControlTaskQueue;
     this.preferredVersionProvider = preferredVersionProvider;
-    this.externalStorage = externalStorage;
+    ExternalStorage externalStorageConfig = dataConverter.getExternalStorage();
+    this.externalStorage =
+        externalStorageConfig == null ? null : ExternalStorageRunner.create(externalStorageConfig);
   }
 
   public String getIdentity() {
@@ -406,7 +400,10 @@ public final class SingleWorkerOptions {
     return preferredVersionProvider;
   }
 
-  /** The external-storage message transformer for this worker, or null when disabled. */
+  /**
+   * The external-storage runner for this worker, derived from the worker's {@link DataConverter},
+   * or null when the converter has no external storage configured.
+   */
   @Nullable
   public ExternalStorageRunner getExternalStorage() {
     return externalStorage;
