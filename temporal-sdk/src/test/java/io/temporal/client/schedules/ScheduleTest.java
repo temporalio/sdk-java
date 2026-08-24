@@ -90,6 +90,8 @@ public class ScheduleTest {
     ScheduleHandle handle = client.createSchedule(scheduleId, schedule, options);
     ScheduleDescription description = handle.describe();
     Assert.assertEquals(scheduleId, description.getId());
+    Assert.assertEquals(
+        Duration.ofDays(365), description.getSchedule().getPolicy().getCatchupWindow());
     // Verify the schedule description has the correct (i.e. no) memo
     Assert.assertNull(description.getMemo("memokey1", String.class));
     // Try to create a schedule that already exists
