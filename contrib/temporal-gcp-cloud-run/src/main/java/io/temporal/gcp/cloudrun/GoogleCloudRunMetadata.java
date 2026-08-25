@@ -2,6 +2,7 @@ package io.temporal.gcp.cloudrun;
 
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
+import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerOptions;
@@ -199,7 +200,7 @@ public final class GoogleCloudRunMetadata {
 
   /**
    * Applies the derived {@linkplain #workerDeploymentVersion() worker deployment version} to a
-   * worker options builder, enabling worker versioning.
+   * worker options builder, enabling worker versioning with a PINNED default behavior.
    *
    * @param builder the worker options builder to configure.
    * @return the same builder, for chaining.
@@ -212,6 +213,7 @@ public final class GoogleCloudRunMetadata {
         WorkerDeploymentOptions.newBuilder()
             .setUseVersioning(true)
             .setVersion(workerDeploymentVersion())
+            .setDefaultVersioningBehavior(VersioningBehavior.PINNED)
             .build());
     return builder;
   }
