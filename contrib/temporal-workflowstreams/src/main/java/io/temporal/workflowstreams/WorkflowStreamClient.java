@@ -207,28 +207,35 @@ public final class WorkflowStreamClient implements AutoCloseable {
    *
    * <p>Also stops this client's live subscriptions (their done futures complete normally, without
    * {@link WorkflowStreamListener#onCompleted}) and, if the client owns the default poll executor,
-   * shuts it down. A user-supplied poll or publish executor is never shut down — only this client's
-   * own tasks on it are stopped.
+   * shuts it down. That teardown runs even when the final flush fails, so a thrown {@link
+   * FlushTimeoutException} never leaves subscriptions polling. A user-supplied poll or publish
+   * executor is never shut down — only this client's own tasks on it are stopped.
    */
   @Override
   public void close() {
-    publisher.close();
-    for (SubscriptionDriver driver : liveSubscriptions.toArray(new SubscriptionDriver[0])) {
-      driver.close();
-    }
-    ScheduledExecutorService owned;
-    synchronized (this) {
-      owned = ownedPollExecutor;
-    }
-    if (owned != null) {
-      owned.shutdown();
-      try {
-        if (!owned.awaitTermination(1, TimeUnit.SECONDS)) {
+    // The final flush can throw (a deferred FlushTimeoutException, or a failing signal), and the
+    // rest of the teardown must still run: otherwise live subscriptions keep polling forever and
+    // the owned poll executor is never shut down.
+    try {
+      publisher.close();
+    } finally {
+      for (SubscriptionDriver driver : liveSubscriptions.toArray(new SubscriptionDriver[0])) {
+        driver.close();
+      }
+      ScheduledExecutorService owned;
+      synchronized (this) {
+        owned = ownedPollExecutor;
+      }
+      if (owned != null) {
+        owned.shutdown();
+        try {
+          if (!owned.awaitTermination(1, TimeUnit.SECONDS)) {
+            owned.shutdownNow();
+          }
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
           owned.shutdownNow();
         }
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        owned.shutdownNow();
       }
     }
   }

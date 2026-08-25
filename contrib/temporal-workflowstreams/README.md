@@ -119,8 +119,10 @@ down by the client.
 
 If a flush retry exceeds `maxRetryDuration`, background flushing stops for that
 client — neither the periodic tick nor a `forceFlush`/max-batch-size trigger
-sends again. Later items stay buffered until an explicit `flush()` or `close()`,
-which rethrows the `FlushTimeoutException` for the dropped batch.
+sends again. Later items stay buffered until an explicit `flush()` or `close()`
+drains them. The two report the dropped batch at different points: `flush()`
+rethrows the `FlushTimeoutException` before sending anything (call it again to
+drain), while `close()` drains first and rethrows afterwards.
 
 ## Subscribing
 

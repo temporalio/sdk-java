@@ -154,15 +154,23 @@ public final class StreamPublisher {
                 return t;
               });
     }
-    flushTask =
-        scheduler.scheduleWithFixedDelay(
-            this::backgroundFlush, batchIntervalMs, batchIntervalMs, TimeUnit.MILLISECONDS);
+    try {
+      flushTask =
+          scheduler.scheduleWithFixedDelay(
+              this::backgroundFlush, batchIntervalMs, batchIntervalMs, TimeUnit.MILLISECONDS);
+    } catch (RejectedExecutionException e) {
+      // A user-supplied executor was already shut down. Don't fail the publish call with the
+      // executor's own exception: items stay buffered for flush()/close() to drain on the
+      // caller's thread, as they do after a flush timeout stops the loop.
+    }
   }
 
   private void backgroundFlush() {
     synchronized (stateLock) {
-      if (loopStopped) {
-        // A timed-out flush stopped the loop; a task queued before that must not send.
+      if (loopStopped || closed) {
+        // The loop is stopped (a timed-out flush) or the publisher is closed. A task already
+        // queued at that point must not send: with a user-supplied executor nothing purges the
+        // queue, so this is the only thing keeping a flush from running after close() returned.
         return;
       }
     }
