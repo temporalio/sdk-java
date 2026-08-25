@@ -21,7 +21,8 @@ public class RegisterTestNamespace {
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   public static void main(String[] args) throws InterruptedException {
-    if (!useExternalService || useEnvConfig) {
+    // Envconfig mode connects to an existing namespace and must not register UnitTest.
+    if (useEnvConfig || !useExternalService) {
       return;
     }
 

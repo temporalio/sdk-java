@@ -25,6 +25,7 @@ dependencies {
     }
 
     testImplementation project(':temporal-testing')
+    // The optional envconfig-backed test harness is loaded only while SDK tests are running.
     testRuntimeOnly project(':temporal-envconfig')
     testImplementation "junit:junit:${junitVersion}"
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
