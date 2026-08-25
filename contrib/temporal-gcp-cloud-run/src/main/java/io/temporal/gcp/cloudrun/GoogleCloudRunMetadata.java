@@ -10,7 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Objects;
@@ -120,7 +120,7 @@ public final class GoogleCloudRunMetadata {
 
     HttpURLConnection connection = null;
     try {
-      connection = (HttpURLConnection) new URL(metadataUrl).openConnection();
+      connection = (HttpURLConnection) URI.create(metadataUrl).toURL().openConnection();
       connection.setRequestMethod("GET");
       connection.setRequestProperty(METADATA_FLAVOR_HEADER, METADATA_FLAVOR_VALUE);
       int timeoutMillis = timeoutMillis(timeout);
