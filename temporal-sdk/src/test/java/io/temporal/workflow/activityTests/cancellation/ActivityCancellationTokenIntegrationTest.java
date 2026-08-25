@@ -2,6 +2,7 @@ package io.temporal.workflow.activityTests.cancellation;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import io.grpc.CallOptions;
@@ -21,10 +22,13 @@ import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerDeploymentOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.Promise;
@@ -32,6 +36,7 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,6 +52,8 @@ public class ActivityCancellationTokenIntegrationTest {
 
   private final List<PollNexusTaskQueueRequest> workerCommandPollRequests =
       new CopyOnWriteArrayList<>();
+  private final List<PollNexusTaskQueueRequest> normalNexusPollRequests =
+      new CopyOnWriteArrayList<>();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -55,7 +62,21 @@ public class ActivityCancellationTokenIntegrationTest {
           .setWorkflowServiceStubsOptions(
               WorkflowServiceStubsOptions.newBuilder()
                   .addGrpcClientInterceptor(
-                      new WorkerCommandPollRecordingInterceptor(workerCommandPollRequests))
+                      new NexusPollRecordingInterceptor(
+                          workerCommandPollRequests, normalNexusPollRequests))
+                  .build())
+          // Configure deployment options without useVersioning(true). This causes the SDK to
+          // send deploymentOptions on poll requests (with UNVERSIONED mode) without requiring
+          // server-side deployment setup. This is sufficient to verify that worker-command polls
+          // omit deploymentOptions while normal polls include them — the field presence is the
+          // same regardless of versioning mode.
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setDeploymentOptions(
+                      WorkerDeploymentOptions.newBuilder()
+                          .setVersion(
+                              new WorkerDeploymentVersion("test-deployment", "test-build-id"))
+                          .build())
                   .build())
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
@@ -63,6 +84,7 @@ public class ActivityCancellationTokenIntegrationTest {
                   .build())
           .setWorkflowTypes(TestCancellationWorkflowImpl.class)
           .setActivityImplementations(new NonHeartbeatingActivityImpl())
+          .setNexusServiceImplementation(new EchoNexusServiceImpl())
           .build();
 
   @Before
@@ -95,19 +117,34 @@ public class ActivityCancellationTokenIntegrationTest {
 
     assertEquals("cancelled", workflow.execute(testWorkflowRule.getTaskQueue()));
 
-    assertFalse("Expected a worker command Nexus poll", workerCommandPollRequests.isEmpty());
+    // Normal nexus polls must carry deployment options (positive control).
+    assertFalse("Expected at least one normal Nexus poll", normalNexusPollRequests.isEmpty());
+    for (PollNexusTaskQueueRequest request : normalNexusPollRequests) {
+      assertTrue(
+          "Normal nexus poll should have deployment options", request.hasDeploymentOptions());
+    }
+
+    // Worker command polls must NOT carry any versioning metadata.
+    assertFalse(
+        "Expected at least one worker command Nexus poll", workerCommandPollRequests.isEmpty());
     for (PollNexusTaskQueueRequest request : workerCommandPollRequests) {
-      assertFalse(request.hasDeploymentOptions());
-      assertFalse(request.hasWorkerVersionCapabilities());
+      assertFalse(
+          "Worker command poll should not have deployment options", request.hasDeploymentOptions());
+      assertFalse(
+          "Worker command poll should not have worker version capabilities",
+          request.hasWorkerVersionCapabilities());
     }
   }
 
-  private static class WorkerCommandPollRecordingInterceptor implements ClientInterceptor {
+  private static class NexusPollRecordingInterceptor implements ClientInterceptor {
     private final List<PollNexusTaskQueueRequest> workerCommandPollRequests;
+    private final List<PollNexusTaskQueueRequest> normalNexusPollRequests;
 
-    private WorkerCommandPollRecordingInterceptor(
-        List<PollNexusTaskQueueRequest> workerCommandPollRequests) {
+    private NexusPollRecordingInterceptor(
+        List<PollNexusTaskQueueRequest> workerCommandPollRequests,
+        List<PollNexusTaskQueueRequest> normalNexusPollRequests) {
       this.workerCommandPollRequests = workerCommandPollRequests;
+      this.normalNexusPollRequests = normalNexusPollRequests;
     }
 
     @Override
@@ -121,6 +158,8 @@ public class ActivityCancellationTokenIntegrationTest {
             PollNexusTaskQueueRequest request = (PollNexusTaskQueueRequest) message;
             if (request.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_WORKER_COMMANDS) {
               workerCommandPollRequests.add(request);
+            } else if (request.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_NORMAL) {
+              normalNexusPollRequests.add(request);
             }
           }
           super.sendMessage(message);
