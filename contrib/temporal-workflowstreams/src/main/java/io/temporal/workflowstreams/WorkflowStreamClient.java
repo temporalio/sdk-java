@@ -219,24 +219,33 @@ public final class WorkflowStreamClient implements AutoCloseable {
     try {
       publisher.close();
     } finally {
-      for (SubscriptionDriver driver : liveSubscriptions.toArray(new SubscriptionDriver[0])) {
-        driver.close();
+      stopSubscriptions();
+      shutdownOwnedPollExecutor();
+    }
+  }
+
+  private void stopSubscriptions() {
+    for (SubscriptionDriver driver : liveSubscriptions.toArray(new SubscriptionDriver[0])) {
+      driver.close();
+    }
+  }
+
+  private void shutdownOwnedPollExecutor() {
+    ScheduledExecutorService owned;
+    synchronized (this) {
+      owned = ownedPollExecutor;
+    }
+    if (owned == null) {
+      return;
+    }
+    owned.shutdown();
+    try {
+      if (!owned.awaitTermination(1, TimeUnit.SECONDS)) {
+        owned.shutdownNow();
       }
-      ScheduledExecutorService owned;
-      synchronized (this) {
-        owned = ownedPollExecutor;
-      }
-      if (owned != null) {
-        owned.shutdown();
-        try {
-          if (!owned.awaitTermination(1, TimeUnit.SECONDS)) {
-            owned.shutdownNow();
-          }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          owned.shutdownNow();
-        }
-      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      owned.shutdownNow();
     }
   }
 
