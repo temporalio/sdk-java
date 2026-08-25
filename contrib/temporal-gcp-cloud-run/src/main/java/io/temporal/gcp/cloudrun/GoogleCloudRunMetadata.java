@@ -14,6 +14,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * Reads Google Cloud Run instance metadata and derives a Temporal worker identity and a {@link
@@ -94,11 +95,28 @@ public final class GoogleCloudRunMetadata {
    *     process is not running on Google Cloud Run.
    */
   public static GoogleCloudRunMetadata fetch(String metadataUrl, Duration timeout) {
+    return fetch(metadataUrl, timeout, System::getenv);
+  }
+
+  /**
+   * Package-private test seam that injects the environment-variable lookup used to resolve the
+   * deployment name and revision. This lets unit tests exercise the environment-variable precedence
+   * and the metadata HTTP request deterministically, without depending on the real process
+   * environment. It is not part of the public API and must not be relied on outside of tests; use
+   * {@link #fetch(String, Duration)} instead.
+   *
+   * @param metadataUrl URL of the Cloud Run metadata endpoint that returns the instance id.
+   * @param timeout connect and read timeout applied to the metadata request.
+   * @param getenv environment-variable lookup, normally {@code System::getenv}.
+   */
+  static GoogleCloudRunMetadata fetch(
+      String metadataUrl, Duration timeout, Function<String, String> getenv) {
     Objects.requireNonNull(metadataUrl, "metadataUrl");
     Objects.requireNonNull(timeout, "timeout");
+    Objects.requireNonNull(getenv, "getenv");
 
-    String name = firstNonBlank(System.getenv(CLOUD_RUN_WORKER_POOL), System.getenv(K_SERVICE));
-    String revision = firstNonBlank(System.getenv(CLOUD_RUN_REVISION), System.getenv(K_REVISION));
+    String name = firstNonBlank(getenv.apply(CLOUD_RUN_WORKER_POOL), getenv.apply(K_SERVICE));
+    String revision = firstNonBlank(getenv.apply(CLOUD_RUN_REVISION), getenv.apply(K_REVISION));
 
     HttpURLConnection connection = null;
     try {
