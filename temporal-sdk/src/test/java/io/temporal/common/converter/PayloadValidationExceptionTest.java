@@ -13,6 +13,18 @@ import org.junit.Test;
 
 public class PayloadValidationExceptionTest {
   @Test
+  public void newPayloadValidationExceptionWithNullDetailsHasNoDetails() {
+    ApplicationFailure applicationFailure =
+        PayloadValidationException.newPayloadValidationException(null);
+
+    assertEquals(0, applicationFailure.getDetails().getSize());
+
+    DataConverter dataConverter = DefaultDataConverter.STANDARD_INSTANCE;
+    Failure encodedFailure = dataConverter.exceptionToFailure(applicationFailure);
+    assertEquals(0, encodedFailure.getApplicationFailureInfo().getDetails().getPayloadsCount());
+  }
+
+  @Test
   public void
       newPayloadValidationExceptionReturnsNonRetryableApplicationFailureWithEncodedDetails() {
     List<Map<String, String>> details =

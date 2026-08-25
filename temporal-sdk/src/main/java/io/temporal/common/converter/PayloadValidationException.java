@@ -12,12 +12,15 @@ public final class PayloadValidationException {
   /**
    * Creates a non-retryable failure containing payload validation details.
    *
-   * <p>The details are stored as a single value and serialized by the configured {@link
-   * DataConverter}.
+   * <p>Non-null details are stored as a single value and serialized by the configured {@link
+   * DataConverter}. If details are null, the failure has no detail values.
    *
    * @param details payload validation details
    */
   public static ApplicationFailure newPayloadValidationException(Object details) {
+    if (details == null) {
+      return ApplicationFailure.newNonRetryableFailure(MESSAGE, TYPE);
+    }
     return ApplicationFailure.newNonRetryableFailure(MESSAGE, TYPE, details);
   }
 }
