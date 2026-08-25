@@ -308,12 +308,14 @@ public class StreamPublisherTest {
   }
 
   /**
-   * After a background flush exceeds the max retry duration, the periodic task on a user executor
-   * is cancelled (not the executor) — so once the failure clears, later items stay buffered until
-   * an explicit flush or close drains them, and close() surfaces the deferred timeout.
+   * After a background flush exceeds the max retry duration, every background send is gated: the
+   * periodic task on a user executor is cancelled (not the executor) and a {@code forceFlush}
+   * trigger no longer submits. So once the failure clears, later items stay buffered until an
+   * explicit flush or close drains them, and close() surfaces the deferred timeout.
    */
   @Test
-  public void testUserExecutorTaskCancelledAfterFlushTimeout() throws InterruptedException {
+  public void testTriggeredFlushGatedAfterFlushTimeoutWithUserExecutor()
+      throws InterruptedException {
     RecordingSignal signal = new RecordingSignal();
     signal.failure = new RuntimeException("boom");
     ScheduledExecutorService user = newNamedExecutor("user-publish-executor");
@@ -327,8 +329,9 @@ public class StreamPublisherTest {
     Thread.sleep(300);
 
     signal.failure = null;
-    publisher.publish("t", "b", false);
-    // The cancelled task must not deliver "b": well past the interval, nothing is sent.
+    // forceFlush would otherwise submit onto the still-live user executor and ship "b"
+    // before anyone has seen the deferred timeout.
+    publisher.publish("t", "b", true);
     Thread.sleep(300);
     Assert.assertTrue(signal.recorded().isEmpty());
 
@@ -343,5 +346,68 @@ public class StreamPublisherTest {
     Assert.assertEquals("b", decodeItem(signal.recorded().get(0), 0));
     assertExecutorStillRunsTasks(user);
     user.shutdownNow();
+  }
+
+  /** The max-batch-size trigger is gated after a flush timeout just like {@code forceFlush}. */
+  @Test
+  public void testMaxBatchSizeTriggerGatedAfterFlushTimeout() throws InterruptedException {
+    RecordingSignal signal = new RecordingSignal();
+    signal.failure = new RuntimeException("boom");
+    ScheduledExecutorService user = newNamedExecutor("user-publish-executor");
+    StreamPublisher publisher =
+        new StreamPublisher(signal, DC, Duration.ofMillis(20), 2, Duration.ofMillis(1), user);
+
+    publisher.publish("t", "a", false); // below maxBatchSize: only a tick can send it
+    eventually(Duration.ofSeconds(5), () -> Assert.assertEquals(1, signal.attempts()));
+    Thread.sleep(300);
+
+    signal.failure = null;
+    publisher.publish("t", "b", false);
+    publisher.publish("t", "c", false); // reaches maxBatchSize -> trigger, must be gated
+    Thread.sleep(300);
+    Assert.assertTrue(signal.recorded().isEmpty());
+
+    try {
+      publisher.close();
+      Assert.fail("unreachable");
+    } catch (FlushTimeoutException expected) {
+    }
+    Assert.assertEquals(1, signal.recorded().size());
+    Assert.assertEquals(2, signal.recorded().get(0).items.size());
+    Assert.assertEquals("b", decodeItem(signal.recorded().get(0), 0));
+    Assert.assertEquals("c", decodeItem(signal.recorded().get(0), 1));
+    assertExecutorStillRunsTasks(user);
+    user.shutdownNow();
+  }
+
+  /**
+   * The client-owned executor behaves identically: after a flush timeout a triggered publish
+   * neither sends nor fails the caller with the executor's own RejectedExecutionException — the
+   * deferred timeout is what surfaces, from close().
+   */
+  @Test
+  public void testTriggeredFlushGatedAfterFlushTimeoutWithOwnedExecutor()
+      throws InterruptedException {
+    RecordingSignal signal = new RecordingSignal();
+    signal.failure = new RuntimeException("boom");
+    StreamPublisher publisher =
+        newPublisher(signal, Duration.ofMillis(20), 0, Duration.ofMillis(1));
+
+    publisher.publish("t", "a", false);
+    eventually(Duration.ofSeconds(5), () -> Assert.assertEquals(1, signal.attempts()));
+    Thread.sleep(300);
+
+    signal.failure = null;
+    publisher.publish("t", "b", true); // must not hit the shut-down owned executor
+    Thread.sleep(300);
+    Assert.assertTrue(signal.recorded().isEmpty());
+
+    try {
+      publisher.close();
+      Assert.fail("unreachable");
+    } catch (FlushTimeoutException expected) {
+    }
+    Assert.assertEquals(1, signal.recorded().size());
+    Assert.assertEquals("b", decodeItem(signal.recorded().get(0), 0));
   }
 }

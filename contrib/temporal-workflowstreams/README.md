@@ -117,6 +117,11 @@ owned by each client by default. Applications running many clients can supply a
 shared executor via `publishExecutor` (see the options table); it is never shut
 down by the client.
 
+If a flush retry exceeds `maxRetryDuration`, background flushing stops for that
+client — neither the periodic tick nor a `forceFlush`/max-batch-size trigger
+sends again. Later items stay buffered until an explicit `flush()` or `close()`,
+which rethrows the `FlushTimeoutException` for the dropped batch.
+
 ## Subscribing
 
 There are two subscriber APIs over one shared poll engine: a non-blocking
