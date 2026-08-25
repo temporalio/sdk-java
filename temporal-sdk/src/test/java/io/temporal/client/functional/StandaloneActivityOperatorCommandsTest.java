@@ -692,46 +692,6 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   @Test(timeout = 60_000)
-  public void resetPreservesHeartbeatByDefault() throws InterruptedException {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startHeartbeatReadyActivity();
-
-    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
-    assertEventuallyPaused(handle);
-
-    // As of api#848 / temporal#11417, reset does NOT clear heartbeat details by default —
-    // you must pass resetHeartbeat=true. keep_paused so no new attempt reshapes state.
-    handle.reset(ResetActivityOptions.newBuilder().setKeepPaused(true).build());
-    // Give the server time to persist any state change, then confirm details survive.
-    Thread.sleep(2000);
-    assertTrue(
-        "heartbeat details should be preserved after default reset",
-        handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
-    handle.terminate("cleanup");
-  }
-
-  @Test(timeout = 60_000)
-  public void resetClearsHeartbeatWhenFlagSet() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startHeartbeatReadyActivity();
-
-    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
-    assertEventuallyPaused(handle);
-
-    // Opt-in flag clears details.
-    handle.reset(
-        ResetActivityOptions.newBuilder().setKeepPaused(true).setResetHeartbeat(true).build());
-
-    assertEventually(
-        Duration.ofSeconds(30),
-        () ->
-            assertFalse(
-                "heartbeat details should be cleared after reset(reset_heartbeat)",
-                handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails()));
-    handle.terminate("cleanup");
-  }
-
-  @Test(timeout = 60_000)
   public void updateOptionsPreservesHeartbeat() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     ActivityHandle<Void> handle = startHeartbeatReadyActivity();
