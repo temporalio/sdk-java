@@ -178,7 +178,6 @@ public class TemporalNexusClientImplTest {
     StartActivityOptions options =
         StartActivityOptions.newBuilder()
             .setId("act-1")
-            .setTaskQueue(TASK_QUEUE)
             .setStartToCloseTimeout(Duration.ofSeconds(10))
             .build();
 
@@ -195,7 +194,6 @@ public class TemporalNexusClientImplTest {
                     TestActivity::doSomething,
                     StartActivityOptions.newBuilder()
                         .setId("act-2")
-                        .setTaskQueue(TASK_QUEUE)
                         .setStartToCloseTimeout(Duration.ofSeconds(10))
                         .build()));
 
@@ -258,7 +256,6 @@ public class TemporalNexusClientImplTest {
                     TestActivity::doSomething,
                     StartActivityOptions.newBuilder()
                         .setId("act-mixed-1")
-                        .setTaskQueue(TASK_QUEUE)
                         .setStartToCloseTimeout(Duration.ofSeconds(10))
                         .build()));
 
@@ -272,7 +269,6 @@ public class TemporalNexusClientImplTest {
     StartActivityOptions actOptions =
         StartActivityOptions.newBuilder()
             .setId("act-mixed-2")
-            .setTaskQueue(TASK_QUEUE)
             .setStartToCloseTimeout(Duration.ofSeconds(10))
             .build();
 
