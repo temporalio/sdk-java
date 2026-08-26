@@ -95,7 +95,6 @@ public class AsyncActivityOperationTest {
                   input,
                   StartActivityOptions.newBuilder()
                       .setId("act-" + context.getRequestId())
-                      .setTaskQueue(testWorkflowRule.getTaskQueue())
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .build()));
     }

@@ -23,7 +23,8 @@ public class NexusStartActivityHelper {
    * @param details the operation start details containing requestId, callback, links
    * @param activityType the activity type name
    * @param args the activity arguments
-   * @param options the activity scheduling options (must include task queue, ID)
+   * @param options the activity scheduling options; the task queue defaults to the current worker's
+   *     task queue
    * @param header the propagated header
    * @param invoker function that starts the activity given a {@link NexusStartActivityRequest}
    * @return the {@link NexusStartActivityResponse} containing the activity ID and operation token
@@ -37,6 +38,9 @@ public class NexusStartActivityHelper {
       Header header,
       Function<NexusStartActivityRequest, NexusStartActivityResponse> invoker) {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
+    if (options.getTaskQueue() == null) {
+      options = options.toBuilder().setTaskQueue(nexusCtx.getTaskQueue()).build();
+    }
 
     NexusStartActivityRequest nexusRequest =
         new NexusStartActivityRequest(
