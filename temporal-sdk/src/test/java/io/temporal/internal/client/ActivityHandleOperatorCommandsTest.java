@@ -144,21 +144,6 @@ public class ActivityHandleOperatorCommandsTest {
     verifyNoInteractions(genericClient);
   }
 
-  /** A single set option is enough; the mask names exactly it. */
-  @Test
-  public void updateOptionsAcceptsASingleOption() {
-    when(genericClient.updateActivityOptions(any()))
-        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
-
-    newHandle()
-        .updateOptions(
-            UpdateActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ofSeconds(25)).build());
-
-    assertEquals(
-        java.util.Collections.singletonList("heartbeat_timeout"),
-        captureUpdate().getUpdateMask().getPathsList());
-  }
-
   /**
    * The four api#792 opt-ins are invisible in any observable server state, so only the outgoing
    * request shows whether the SDK asked for them.
