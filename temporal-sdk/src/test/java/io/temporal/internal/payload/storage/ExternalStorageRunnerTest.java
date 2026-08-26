@@ -54,7 +54,7 @@ public class ExternalStorageRunnerTest {
     assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
     assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(1)));
 
-    Payloads retrieved = transformer.retrieve(stored);
+    Payloads retrieved = transformer.retrieve(stored, CancellationToken.none());
     assertEquals(message, retrieved);
   }
 
@@ -75,7 +75,7 @@ public class ExternalStorageRunnerTest {
 
     Payload nested = stored.getScheduleActivityTaskCommandAttributes().getInput().getPayloads(0);
     assertNotNull(ExternalStorageReferences.tryParseReference(nested));
-    assertEquals(command, transformer.retrieve(stored));
+    assertEquals(command, transformer.retrieve(stored, CancellationToken.none()));
   }
 
   @Test

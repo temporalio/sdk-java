@@ -10,6 +10,6 @@ public final class ExternalStorageUnhandledReferenceException extends DataConver
   public ExternalStorageUnhandledReferenceException() {
     super(
         "[BUG] An external storage reference reached payload conversion without being handled. This"
-            + "is likely an SDK bug. Please file a bug report.");
+            + " is likely an SDK bug. Please file a bug report.");
   }
 }

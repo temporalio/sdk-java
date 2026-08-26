@@ -54,12 +54,12 @@ public final class ExternalStorageRunner {
         cancellationToken);
   }
 
-  public <T extends Message> T retrieve(T message) {
-    return getOrThrowIfCancelled(retrieveAsync(message), CancellationToken.none());
+  public <T extends Message> T retrieve(T message, CancellationToken<CancellationException> cancellationToken) {
+    return getOrThrowIfCancelled(retrieveAsync(message, cancellationToken), cancellationToken);
   }
 
-  public <T extends Message> CompletableFuture<T> retrieveAsync(T message) {
-    return PayloadVisitors.visit(message, retrieveOptions(CancellationToken.none()));
+  public <T extends Message> CompletableFuture<T> retrieveAsync(T message, CancellationToken<CancellationException> cancellationToken) {
+    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken));
   }
 
   /**
@@ -72,9 +72,7 @@ public final class ExternalStorageRunner {
                 (context, payloads) -> {
                   for (Payload payload : payloads) {
                     if (ExternalStorageReferences.isReference(payload)) {
-                      CompletableFuture<List<Payload>> found = new CompletableFuture<>();
-                      found.completeExceptionally(new ExternalStorageNotConfiguredException());
-                      return found;
+                      throw new ExternalStorageNotConfiguredException();
                     }
                   }
                   return CompletableFuture.completedFuture(payloads);

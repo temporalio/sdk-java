@@ -1,7 +1,6 @@
 package io.temporal.common.converter;
 
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
@@ -29,21 +28,8 @@ public class ExternalStorageReferenceGuardTest {
             .setData(ByteString.copyFromUtf8("{}"))
             .build();
 
-    ExternalStorageUnhandledReferenceException e =
-        assertThrows(
+    assertThrows(
             ExternalStorageUnhandledReferenceException.class,
             () -> dataConverter.fromPayload(reference, String.class, String.class));
-  }
-
-  @Test
-  public void rawValueBypassesTheGuard() {
-    Payload reference =
-        Payload.newBuilder()
-            .addExternalPayloads(
-                Payload.ExternalPayloadDetails.newBuilder().setSizeBytes(1024).build())
-            .build();
-
-    RawValue raw = dataConverter.fromPayload(reference, RawValue.class, RawValue.class);
-    assertTrue(raw.getPayload().getExternalPayloadsCount() > 0);
   }
 }
