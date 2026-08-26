@@ -1,6 +1,7 @@
 package io.temporal.internal.client;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,12 +10,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import io.temporal.api.activity.v1.ActivityExecutionInfo;
+import io.temporal.api.workflowservice.v1.DescribeActivityExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.api.workflowservice.v1.PauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.ResetActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UnpauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
@@ -147,6 +152,72 @@ public class ActivityHandleOperatorCommandsTest {
     assertEquals(
         java.util.Collections.singletonList("heartbeat_timeout"),
         captureUpdate().getUpdateMask().getPathsList());
+  }
+
+  /**
+   * The four api#792 opt-ins are invisible in any observable server state, so only the outgoing
+   * request shows whether the SDK asked for them.
+   */
+  @Test
+  public void describeOptInsReachTheRequest() {
+    when(genericClient.describeActivity(any()))
+        .thenReturn(
+            DescribeActivityExecutionResponse.newBuilder()
+                .setInfo(ActivityExecutionInfo.newBuilder().setActivityId("act-1"))
+                .build());
+
+    newHandle().describe();
+    DescribeActivityExecutionRequest bare = captureDescribe();
+    assertFalse("default should not request input", bare.getIncludeInput());
+    assertFalse("default should not request outcome", bare.getIncludeOutcome());
+    assertFalse("default should not request heartbeat details", bare.getIncludeHeartbeatDetails());
+    assertFalse("default should not request last failure", bare.getIncludeLastFailure());
+  }
+
+  @Test
+  public void describeOptInsAreForwardedAndIndependent() {
+    when(genericClient.describeActivity(any()))
+        .thenReturn(
+            DescribeActivityExecutionResponse.newBuilder()
+                .setInfo(ActivityExecutionInfo.newBuilder().setActivityId("act-1"))
+                .build());
+
+    newHandle()
+        .describe(
+            DescribeActivityOptions.newBuilder()
+                .setIncludeInput(true)
+                .setIncludeOutcome(true)
+                .setIncludeHeartbeatDetails(true)
+                .setIncludeLastFailure(true)
+                .build());
+    DescribeActivityExecutionRequest all = captureDescribe();
+    assertTrue(all.getIncludeInput());
+    assertTrue(all.getIncludeOutcome());
+    assertTrue(all.getIncludeHeartbeatDetails());
+    assertTrue(all.getIncludeLastFailure());
+  }
+
+  @Test
+  public void describeOptInSetsOnlyTheRequestedFlag() {
+    when(genericClient.describeActivity(any()))
+        .thenReturn(
+            DescribeActivityExecutionResponse.newBuilder()
+                .setInfo(ActivityExecutionInfo.newBuilder().setActivityId("act-1"))
+                .build());
+
+    newHandle().describe(DescribeActivityOptions.newBuilder().setIncludeInput(true).build());
+    DescribeActivityExecutionRequest one = captureDescribe();
+    assertTrue(one.getIncludeInput());
+    assertFalse(one.getIncludeOutcome());
+    assertFalse(one.getIncludeHeartbeatDetails());
+    assertFalse(one.getIncludeLastFailure());
+  }
+
+  private DescribeActivityExecutionRequest captureDescribe() {
+    ArgumentCaptor<DescribeActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(DescribeActivityExecutionRequest.class);
+    verify(genericClient).describeActivity(captor.capture());
+    return captor.getValue();
   }
 
   private ResetActivityExecutionRequest captureReset() {
