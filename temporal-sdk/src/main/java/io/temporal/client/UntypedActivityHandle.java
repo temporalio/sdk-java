@@ -175,7 +175,7 @@ public interface UntypedActivityHandle {
   /**
    * Unpauses the activity with the given options.
    *
-   * @param options unpause options (reset attempts, reset heartbeat, jitter, reason)
+   * @param options unpause options (reason, jitter)
    */
   void unpause(UnpauseActivityOptions options);
 
