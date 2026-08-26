@@ -439,6 +439,7 @@ public class MetricsTest {
             .putAll(TAGS_ACTIVITY_WORKER)
             .put(MetricsTag.ACTIVITY_TYPE, "ThrowIO")
             .put(MetricsTag.EXCEPTION, "IOException")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_ACTIVITY_ERROR)
             .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
             .build();
 
