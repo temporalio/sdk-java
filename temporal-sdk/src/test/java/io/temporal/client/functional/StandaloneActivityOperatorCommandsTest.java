@@ -628,9 +628,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assertNull(desc.getOutcomeFailure());
   }
 
-  /**
-   * The count tracks heartbeats the server recorded.
-   */
+  /** The count tracks heartbeats the server recorded. */
   @Test(timeout = 60_000)
   public void describeReportsTotalHeartbeatCount() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
