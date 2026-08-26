@@ -9,7 +9,7 @@ import pytest
 from temporalio import activity
 from temporalio.client import WorkflowFailureError
 from temporalio.exceptions import ApplicationError
-from temporalio.testing import WorkflowEnvironment
+from temporalio.testing import ActivityEnvironment, WorkflowEnvironment
 from temporalio.worker import Worker
 
 from release_automation.build import native, unpack_maven
@@ -20,6 +20,8 @@ from release_automation.release import (
     Candidate,
     Generation,
     Inspection,
+    ReleaseActivities,
+    ReleaseError,
     ReleaseInput,
     ReleaseResult,
     ReleaseStatus,
@@ -27,6 +29,7 @@ from release_automation.release import (
     Session,
     native_file,
     publication_queue,
+    replaceable,
     workflow_id,
     workflow_queue,
 )
@@ -85,7 +88,7 @@ class Publication:
             ],
         )
 
-    def all(self):  # type: ignore[no-untyped-def]
+    def all(self) -> list[Any]:
         """Return all three mocked Activities for Worker registration."""
         return [self.discover, self.publish, self.inspect]
 
@@ -148,6 +151,49 @@ def test_identity_and_queues_are_release_specific() -> None:
         publication_queue(value.id, 2)
 
 
+@pytest.mark.parametrize(
+    ("profiles", "manual", "expected"),
+    [
+        ([], [], ("absent", None)),
+        ([{"type": "open"}], [], ("open", None)),
+        ([{"type": "closed"}], [], ("closed", None)),
+        (
+            [{"type": "open"}],
+            [{"state": "released", "portal_deployment_id": "portal-1"}],
+            ("released", "portal-1"),
+        ),
+    ],
+)
+def test_repository_state_uses_reported_state(
+    profiles: list[dict[str, Any]],
+    manual: list[dict[str, Any]],
+    expected: tuple[str, str | None],
+) -> None:
+    """Preserve closed state and prefer the Portal-bearing manual API row."""
+    assert Session.repository_state(profiles, manual) == expected
+
+
+def test_repository_state_rejects_unknown_values() -> None:
+    """Fail closed instead of treating an unfamiliar repository as uploadable."""
+    with pytest.raises(ReleaseError, match="Unsupported Sonatype"):
+        Session.repository_state([{"type": "transitioning"}], [])
+
+
+@pytest.mark.parametrize(
+    ("repository", "portal", "expected"),
+    [
+        ("absent", "", True),
+        ("released", "FAILED", True),
+        ("open", "", False),
+        ("closed", "", False),
+        ("released", "PUBLISHED", False),
+    ],
+)
+def test_replacement_requires_an_inactive_generation(repository: str, portal: str, expected: bool) -> None:
+    """Share the exact replacement rule between recovery and publication."""
+    assert replaceable(Generation(0, repositoryState=repository, portalState=portal)) is expected
+
+
 def test_native_archives_are_reproducible(tmp_path: Path) -> None:
     """Package identical Linux and Windows bytes deterministically."""
     source = tmp_path / "binary"
@@ -192,3 +238,36 @@ async def test_download_requires_frozen_archive_digest(tmp_path: Path) -> None:
     artifact.digest = f"sha256:{hashlib.sha256(content.getvalue()).hexdigest()}"
     assert (await session.download(artifact, tmp_path / "download")).read_bytes() == b"asset"
     session.temp.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_activity_runner_maps_discovery_identity_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make immutable artifact conflicts non-retryable during discovery."""
+
+    async def fail_discovery(_session: Session) -> list[Artifact]:
+        """Model an Actions artifact whose durable identity is unusable."""
+        raise ReleaseError("Actions artifact has no immutable digest.")
+
+    monkeypatch.setattr(Session, "discover", fail_discovery)
+    activities = ReleaseActivities(tmp_path, {"GH_TOKEN": "g", "RH_USER": "u", "RH_PASSWORD": "p"})
+    with pytest.raises(ApplicationError) as caught:
+        await ActivityEnvironment().run(activities.discover, ReleaseInput(candidate(), [], [Generation(0)]))
+    assert caught.value.type == "ReleaseIdentityConflict"
+    assert caught.value.non_retryable
+
+
+@pytest.mark.asyncio
+async def test_activity_runner_reports_liveness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Heartbeat every Activity through the single shared execution path."""
+
+    async def inspect(_session: Session) -> Inspection:
+        """Return one deterministic read-only Maven observation."""
+        return Inspection(0, [Generation(0, repositoryState="absent")])
+
+    monkeypatch.setattr(Session, "inspect", inspect)
+    activities = ReleaseActivities(tmp_path, {"GH_TOKEN": "g", "RH_USER": "u", "RH_PASSWORD": "p"})
+    environment, heartbeats = ActivityEnvironment(), []
+    environment.on_heartbeat = lambda *details: heartbeats.append(details)
+    result = await environment.run(activities.inspect_maven, ReleaseInput(candidate(), [], [Generation(0)]))
+    assert result.generations[0].repositoryState == "absent"
+    assert heartbeats == [("inspect",)]

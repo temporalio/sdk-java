@@ -127,6 +127,14 @@ class Generation:
     portalState: str = ""
 
 
+def replaceable(generation: Generation) -> bool:
+    """Return whether Maven may safely create the one replacement generation."""
+    return (generation.repositoryState, generation.portalState) in {
+        ("absent", ""),
+        ("released", "FAILED"),
+    }
+
+
 @dataclass
 class Inspection:
     """One read-only snapshot of Maven Central and all submission generations."""
@@ -250,6 +258,7 @@ class ReleaseWorkflow:
                 result_type=result_type,
                 task_queue=publication_queue(self.candidate.id, generation),
                 start_to_close_timeout=timedelta(minutes=90),
+                heartbeat_timeout=timedelta(minutes=2),
                 retry_policy=RetryPolicy(
                     initial_interval=timedelta(minutes=2),
                     maximum_interval=timedelta(minutes=15),
@@ -286,9 +295,7 @@ class ReleaseWorkflow:
                 "PUBLISHED",
             }:
                 return
-            retryable = not found.central and all(
-                (item.repositoryState, item.portalState) in {("absent", ""), ("released", "FAILED")} for item in found.generations
-            )
+            retryable = not found.central and all(replaceable(item) for item in found.generations)
             if not retryable or final:
                 break
             await workflow.sleep(timedelta(minutes=10))
@@ -458,6 +465,18 @@ class Session:
             raise ReleaseError("Actions artifact has no immutable digest.")
         return Artifact(int(item["id"]), str(item["digest"]), expected_file)
 
+    async def discover(self) -> list[Artifact]:
+        """Freeze deterministic native and Maven Actions artifact identities."""
+        artifacts = [
+            await self.artifact(
+                f"sdk-java-release-native-{self.candidate.id}-{platform}",
+                native_file(self.candidate, platform),
+            )
+            for platform in PLATFORMS
+        ]
+        artifacts.append(await self.artifact(f"sdk-java-release-maven-{self.candidate.id}", "maven-payload.tar"))
+        return artifacts
+
     async def download(self, artifact: Artifact, destination: Path) -> Path:
         """Download and verify one frozen one-file Actions artifact."""
         status, archive = await self.request(
@@ -567,10 +586,22 @@ class Session:
 
     @staticmethod
     def repository_state(profiles: list[dict[str, Any]], manual: list[dict[str, Any]]) -> tuple[str, str | None]:
-        """Derive the staging state and Portal ID from joined repository rows."""
+        """Derive one fail-closed staging state from Sonatype's two API views.
+
+        The compatibility API can expose the same repository twice. Its manual
+        row is authoritative once present and carries the Portal deployment ID.
+        Before that row propagates, the legacy profile row's ``type`` tells us
+        whether upload is still safe; mere profile presence does not imply open.
+        """
         if manual:
-            return str(manual[0].get("state", "")), cast(str | None, manual[0].get("portal_deployment_id"))
-        return ("open", None) if profiles else ("absent", None)
+            state, portal = manual[0].get("state"), manual[0].get("portal_deployment_id")
+        elif profiles:
+            state, portal = profiles[0].get("type"), None
+        else:
+            return "absent", None
+        if state not in {"open", "closed", "released"}:
+            raise ReleaseError(f"Unsupported Sonatype repository state: {state}")
+        return cast(str, state), cast(str | None, portal)
 
     async def inspect(self) -> Inspection:
         """Observe every durable generation without mutating Maven."""
@@ -615,10 +646,14 @@ class Session:
             for prior in self.value.generations[:-1]:
                 old = prior.repository or view.find(self.description(prior.number))
                 profiles, manual = view.repository(old) if old else ([], [])
-                _, portal = self.repository_state(profiles, manual)
+                repository_state, portal = self.repository_state(profiles, manual)
                 portal_id = prior.portal or portal
-                state = await self.portal_state(portal_id) if portal_id else ""
-                if profiles or manual and (manual[0].get("state") != "released" or state != "FAILED"):
+                observed = Generation(
+                    prior.number,
+                    repositoryState=repository_state,
+                    portalState=await self.portal_state(portal_id) if portal_id else "",
+                )
+                if not replaceable(observed):
                     raise MavenAmbiguous("An earlier Maven generation is still active.")
             await self.create_repository(self.description(current.number))
             raise MavenAmbiguous("Sonatype repository created; adopting its identity.")
@@ -750,6 +785,12 @@ class Session:
             f"https://central.sonatype.com/artifact/io.temporal/temporal-sdk/{self.candidate.version}",
         )
 
+    async def publish(self) -> ReleaseResult:
+        """Materialize frozen artifacts and reconcile Maven before GitHub."""
+        root, records = await self.materialize()
+        await self.maven(root, records)
+        return await self.github_release()
+
 
 # Temporal Activities --------------------------------------------------------
 
@@ -760,31 +801,30 @@ class ReleaseActivities:
         self.source, self.environment = source, dict(environment)
 
     async def _run(self, value: ReleaseInput, operation: str) -> Any:
-        """Map durable external outcomes to non-retryable Temporal errors."""
+        """Run one disposable Session with liveness and durable error mapping.
+
+        A heartbeat reports Worker liveness while a trusted command or network
+        request is in progress. It intentionally carries no durable progress:
+        retries reconstruct state from frozen artifacts and external systems.
+        """
         session = Session(value, self.source, self.environment)
+        task = asyncio.create_task(getattr(session, operation)())
         try:
-            return await getattr(session, operation)()
+            while not task.done():
+                activity.heartbeat(operation)
+                await asyncio.wait({task}, timeout=30)
+            return task.result()
         except ReleaseError as error:
             raise ApplicationError(str(error), type=error.error_type, non_retryable=True) from error
         finally:
+            if not task.done():
+                task.cancel()
             session.temp.cleanup()
 
     @activity.defn(name="discoverArtifacts")
     async def discover(self, value: ReleaseInput) -> list[Artifact]:
         """Freeze deterministic native and Maven Actions artifact identities."""
-        session = Session(value, self.source, self.environment)
-        try:
-            artifacts = [
-                await session.artifact(
-                    f"sdk-java-release-native-{value.candidate.id}-{platform}",
-                    native_file(value.candidate, platform),
-                )
-                for platform in PLATFORMS
-            ]
-            artifacts.append(await session.artifact(f"sdk-java-release-maven-{value.candidate.id}", "maven-payload.tar"))
-            return artifacts
-        finally:
-            session.temp.cleanup()
+        return cast(list[Artifact], await self._run(value, "discover"))
 
     @activity.defn(name="inspectMaven")
     async def inspect_maven(self, value: ReleaseInput) -> Inspection:
@@ -794,15 +834,7 @@ class ReleaseActivities:
     @activity.defn(name="publishRelease")
     async def publish(self, value: ReleaseInput) -> ReleaseResult:
         """Reconcile Maven, then the GitHub draft, then public GitHub state."""
-        session = Session(value, self.source, self.environment)
-        try:
-            root, records = await session.materialize()
-            await session.maven(root, records)
-            return await session.github_release()
-        except ReleaseError as error:
-            raise ApplicationError(str(error), type=error.error_type, non_retryable=True) from error
-        finally:
-            session.temp.cleanup()
+        return cast(ReleaseResult, await self._run(value, "publish"))
 
 
 # Merge-triggered command-line entry points ---------------------------------
