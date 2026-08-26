@@ -4,8 +4,10 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.ActivityInvocationOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
+import io.temporal.workflow.Promise;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -46,22 +48,44 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   @Override
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
-    Function<Object[], Object> function;
     ActivityOptions merged =
         ActivityOptions.newBuilder(options)
             .mergeActivityOptions(this.activityMethodOptions.get(activityName))
             .mergeMethodRetry(methodRetry)
             .build();
-    if (merged.getStartToCloseTimeout() == null && merged.getScheduleToCloseTimeout() == null) {
+
+    if (ActivityInvocationInternal.isActive()) {
+      ActivityInvocationOptions invocationOptions = ActivityInvocationInternal.consumeOptions();
+      ActivityStub stub =
+          newStub(ActivityStubImpl.resolveOptions(merged, invocationOptions), merged, activityName);
+      return (a) -> {
+        Promise<?> result =
+            stub.executeAsync(
+                activityName,
+                method.getReturnType(),
+                method.getGenericReturnType(),
+                invocationOptions,
+                a);
+        ActivityInvocationInternal.setResult(result);
+        return null;
+      };
+    }
+
+    ActivityStub stub = newStub(merged, merged, activityName);
+    return (a) ->
+        stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
+  }
+
+  private ActivityStub newStub(
+      ActivityOptions effectiveOptions, ActivityOptions stubOptions, String activityName) {
+    if (effectiveOptions.getStartToCloseTimeout() == null
+        && effectiveOptions.getScheduleToCloseTimeout() == null) {
       throw new IllegalArgumentException(
           "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for "
               + activityName
               + " activity. Please set at least one of the above through the ActivityStub or WorkflowImplementationOptions.");
     }
-    ActivityStub stub = ActivityStubImpl.newInstance(merged, activityExecutor, assertReadOnly);
-    function =
-        (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
-    return function;
+    return ActivityStubImpl.newInstance(stubOptions, activityExecutor, assertReadOnly);
   }
 
   @Override

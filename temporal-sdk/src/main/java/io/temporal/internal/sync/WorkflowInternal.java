@@ -520,6 +520,12 @@ public final class WorkflowInternal {
     return result.get();
   }
 
+  public static <R> Promise<R> executeActivityAsync(
+      ActivityInvocationOptions options, Functions.Proc invocation) {
+    assertNotReadOnly("schedule activity");
+    return ActivityInvocationInternal.invoke(options, invocation);
+  }
+
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
