@@ -80,6 +80,13 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   }
 
   /**
+   * @return total number of heartbeats recorded across all attempts.
+   */
+  public long getTotalHeartbeatCount() {
+    return response.getInfo().getTotalHeartbeatCount();
+  }
+
+  /**
    * Reason that was provided when cancellation was requested. {@code null} if not cancelled or no
    * reason was given.
    */

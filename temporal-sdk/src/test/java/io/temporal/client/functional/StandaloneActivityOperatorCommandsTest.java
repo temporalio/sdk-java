@@ -628,6 +628,24 @@ public class StandaloneActivityOperatorCommandsTest {
     assertNull(desc.getOutcomeFailure());
   }
 
+  /**
+   * The count tracks heartbeats the server recorded.
+   */
+  @Test(timeout = 60_000)
+  public void describeReportsTotalHeartbeatCount() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    ActivityHandle<Void> handle =
+        startRunningSlowActivity(slowOpts().setHeartbeatTimeout(Duration.ofSeconds(3)));
+
+    assertEventually(
+        Duration.ofSeconds(20),
+        () ->
+            assertTrue(
+                "total heartbeat count should reach 2",
+                handle.describe().getTotalHeartbeatCount() >= 2));
+    handle.terminate("cleanup");
+  }
+
   /** The other arm of the outcome oneof: a terminally failed activity has a failure, no result. */
   @Test(timeout = 60_000)
   public void describeReadsFailureOutcome() {
