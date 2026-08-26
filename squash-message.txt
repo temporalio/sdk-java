@@ -1,0 +1,11 @@
+- ActivityExecutionDescription: drop the redundant `info` field and read `response.getInfo()` throughout.
+- ActivityExecutionDescription: attach ActivitySerializationContext to the data converter once in the constructor, instead of rebuilding it on every user-metadata read.
+- ActivityExecutionDescription: drop parent-presence guards that protobuf's null-coalescing getters make redundant.
+- ActivityExecutionDescription: getResult(Class) now passes a null generic type, matching ActivityClient.startActivity; the two-arg overload accepts null and normalizes it (previously it threw).
+- ActivityExecutionDescription: rename getFailure to getOutcomeFailure to distinguish the terminal outcome from getLastFailure; both now return RuntimeException.
+- ActivityExecutionDescription: getInput() and getHeartbeatDetails() return EncodedValues; getInputCount() and the typed overloads are gone. BREAKING: getHeartbeatDetails shipped in v1.35.0-v1.38.0.
+- ActivityClientCallsInterceptor: UnpauseActivityInput and ResetActivityInput carry the options object rather than exploded fields.
+- RootActivityClientInvoker: clear payload fields the caller did not request, so an older or buggy server cannot make the description's has* accessors disagree with what was asked for.
+- Delete ActivityExecutionOptions and return UpdateActivityOptions from updateOptions; the update request and response share one proto options type, so the field sets cannot diverge.
+- UpdateActivityOptionsOutput holds the final options object; the proto-to-options conversion moved into the root interceptor, so interceptors see the public type rather than the wire type.
+- Move restoreOriginal off UpdateActivityOptions into ActivityHandle.restoreOriginalOptions(), removing a builder state the server rejects outright. This also drops the "at least one option must be set" guard, which no longer holds now that the type serves as both request and response.
