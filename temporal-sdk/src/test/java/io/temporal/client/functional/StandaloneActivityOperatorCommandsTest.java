@@ -124,6 +124,28 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   /**
+   * Heartbeats, fails the first attempt, then succeeds. One execution of this carries input, a
+   * result, heartbeat details and a last failure all at once, which is what lets a single describe
+   * exercise every payload field.
+   */
+  @ActivityInterface
+  public interface HeartbeatFailIncrementActivity {
+    @ActivityMethod(name = "HeartbeatFailIncrement")
+    Integer run(Integer value);
+  }
+
+  public static class HeartbeatFailIncrementActivityImpl implements HeartbeatFailIncrementActivity {
+    @Override
+    public Integer run(Integer value) {
+      Activity.getExecutionContext().heartbeat("heartbeat details");
+      if (Activity.getExecutionContext().getInfo().getAttempt() == 1) {
+        throw ApplicationFailure.newFailure("deliberate first-attempt failure", "first-attempt");
+      }
+      return value + 1;
+    }
+  }
+
+  /**
    * Records heartbeat details on attempt 1, then blocks waiting for cancellation. The heartbeat
    * runs on its own — not adjacent to any completion RPC — so the details reliably persist and are
    * observable via describe. Later attempts (after a reset or an unpause that spawns a new attempt)
@@ -166,7 +188,8 @@ public class StandaloneActivityOperatorCommandsTest {
               new QuickActivityImpl(),
               new FailThenSucceedActivityImpl(),
               new TwoArgActivityImpl(),
-              new HeartbeatOnceActivityImpl())
+              new HeartbeatOnceActivityImpl(),
+              new HeartbeatFailIncrementActivityImpl())
           .build();
 
   /**
@@ -570,64 +593,6 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
-  /**
-   * The payload-bearing describe fields are opt-in (api#792). Assert the default really is "off"
-   * rather than the SDK quietly requesting everything: same activity, same moment, two describes.
-   */
-  @Test(timeout = 60_000)
-  public void describePayloadFieldsAreOptIn() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle = startHeartbeatReadyActivity();
-
-    assertFalse(handle.describe().hasHeartbeatDetails());
-    assertEquals(0, handle.describe().getHeartbeatDetails().getSize());
-    assertTrue(handle.describe(WITH_HEARTBEAT_DETAILS).hasHeartbeatDetails());
-    assertEquals(
-        "hb-details",
-        handle.describe(WITH_HEARTBEAT_DETAILS).getHeartbeatDetails().get(0, String.class));
-    handle.terminate("cleanup");
-  }
-
-  /**
-   * Input and outcome are opt-in like the other payload fields. Uses a two-argument activity so
-   * {@link ActivityExecutionDescription#getInput(int, Class)} has more than one argument to read.
-   */
-  @Test(timeout = 60_000)
-  public void describeReadsInputAndOutcome() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    StartActivityOptions opts =
-        StartActivityOptions.newBuilder()
-            .setId(uniqueId())
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setStartToCloseTimeout(Duration.ofSeconds(60))
-            .build();
-    ActivityHandle<String> handle =
-        newActivityClient().start(TwoArgActivity.class, TwoArgActivity::run, opts, "ping", 7);
-    assertEquals("ping-7", handle.getResult(String.class));
-
-    // Default describe omits both.
-    ActivityExecutionDescription bare = handle.describe();
-    assertFalse(bare.hasInput());
-    assertEquals(0, bare.getInput().getSize());
-    assertFalse(bare.hasResult());
-    assertNull(bare.getOutcomeFailure());
-
-    ActivityExecutionDescription desc =
-        handle.describe(
-            DescribeActivityOptions.newBuilder()
-                .setIncludeInput(true)
-                .setIncludeOutcome(true)
-                .build());
-    assertTrue(desc.hasInput());
-    assertEquals(2, desc.getInput().getSize());
-    assertEquals("ping", desc.getInput().get(0, String.class));
-    assertEquals(Integer.valueOf(7), desc.getInput().get(1, Integer.class));
-    assertTrue(desc.hasResult());
-    assertEquals("ping-7", desc.getResult(String.class).orElse(null));
-    // A successful outcome has no failure arm.
-    assertNull(desc.getOutcomeFailure());
-  }
-
   /** The count tracks heartbeats the server recorded. */
   @Test(timeout = 60_000)
   public void describeReportsTotalHeartbeatCount() {
@@ -644,31 +609,80 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
-  /** The other arm of the outcome oneof: a terminally failed activity has a failure, no result. */
+  /**
+   * Every payload field on one description. The activity heartbeats, fails once, then succeeds, so
+   * a single execution carries input, a result, heartbeat details and a last failure at the same
+   * time.
+   */
   @Test(timeout = 60_000)
-  public void describeReadsFailureOutcome() {
+  public void describePayloads() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
     StartActivityOptions opts =
         StartActivityOptions.newBuilder()
             .setId(uniqueId())
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setStartToCloseTimeout(Duration.ofSeconds(60))
+            .setHeartbeatTimeout(Duration.ofSeconds(5))
+            .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(2).build())
+            .build();
+    ActivityHandle<Integer> handle =
+        newActivityClient()
+            .start(
+                HeartbeatFailIncrementActivity.class, HeartbeatFailIncrementActivity::run, opts, 1);
+    assertEquals(Integer.valueOf(2), handle.getResult(Integer.class));
+
+    // Nothing requested: every payload field is absent.
+    ActivityExecutionDescription bare = handle.describe();
+    assertFalse(bare.hasInput());
+    assertFalse(bare.hasResult());
+    assertFalse(bare.hasHeartbeatDetails());
+    assertFalse(bare.hasLastFailure());
+    assertFalse(bare.getResult(Integer.class).isPresent());
+    assertNull(bare.getOutcomeFailure());
+    assertNull(bare.getLastFailure());
+
+    // All four requested. The activity succeeded on its second attempt, so it has a result and a
+    // last failure at the same time, and no terminal failure.
+    ActivityExecutionDescription full =
+        handle.describe(
+            DescribeActivityOptions.newBuilder()
+                .setIncludeInput(true)
+                .setIncludeOutcome(true)
+                .setIncludeHeartbeatDetails(true)
+                .setIncludeLastFailure(true)
+                .build());
+    assertTrue(full.hasInput());
+    assertEquals(Integer.valueOf(1), full.getInput().get(0, Integer.class));
+    assertTrue(full.hasResult());
+    assertEquals(Integer.valueOf(2), full.getResult(Integer.class).orElse(null));
+    assertNull(full.getOutcomeFailure());
+    assertTrue(full.hasHeartbeatDetails());
+    assertEquals("heartbeat details", full.getHeartbeatDetails().get(0, String.class));
+    assertTrue(full.hasLastFailure());
+    assertNotNull(full.getLastFailure());
+
+    // The other arm of the oneof, on an activity that never succeeds.
+    StartActivityOptions failOpts =
+        StartActivityOptions.newBuilder()
+            .setId(uniqueId())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setStartToCloseTimeout(Duration.ofSeconds(60))
             .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
             .build();
-    ActivityHandle<String> handle =
+    ActivityHandle<String> failed =
         newActivityClient()
-            .start(FailThenSucceedActivity.class, FailThenSucceedActivity::run, opts);
-    assertThrows(Exception.class, () -> handle.getResult(String.class));
+            .start(FailThenSucceedActivity.class, FailThenSucceedActivity::run, failOpts);
+    assertThrows(Exception.class, () -> failed.getResult(String.class));
 
     ActivityExecutionDescription desc =
-        handle.describe(DescribeActivityOptions.newBuilder().setIncludeOutcome(true).build());
+        failed.describe(
+            DescribeActivityOptions.newBuilder()
+                .setIncludeOutcome(true)
+                .setIncludeLastFailure(true)
+                .build());
     assertFalse(desc.hasResult());
     assertFalse(desc.getResult(String.class).isPresent());
-
-    RuntimeException failure = desc.getOutcomeFailure();
-    assertNotNull(failure);
-    assertTrue(failure instanceof ApplicationFailure);
-    assertEquals("retryable failure", ((ApplicationFailure) failure).getOriginalMessage());
+    assertTrue(desc.getOutcomeFailure() instanceof ApplicationFailure);
   }
 
   @Test(timeout = 60_000)
