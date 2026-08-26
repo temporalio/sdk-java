@@ -10,6 +10,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.EncodedValuesTest;
+import io.temporal.common.converter.PayloadValidationException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.payload.codec.PayloadCodecException;
 import java.lang.reflect.GenericArrayType;
@@ -128,10 +129,9 @@ public class PayloadSerializerTest {
   @Test
   public void testDeserializeNonRetryablePayloadValidationErrorIsNonRetryableBadRequest() {
     // The converter understood the input and rejected it, which makes this the caller's fault.
-    RuntimeException cause = new RuntimeException("field 'name' must not be empty");
     ApplicationFailure original =
-        ApplicationFailure.newNonRetryableFailureWithCause(
-            "invalid input", PayloadSerializer.PAYLOAD_VALIDATION_ERROR_TYPE, cause);
+        PayloadValidationException.newPayloadValidationException(
+            Collections.singletonList(Collections.singletonMap("name", "must not be empty")));
     PayloadSerializer serializer = failingSerializer(null, original);
     PayloadSerializer.Content content = payloadSerializer.serialize("test");
 
@@ -149,8 +149,8 @@ public class PayloadSerializerTest {
     Assert.assertSame(original, causeFailure);
     Assert.assertEquals(PayloadSerializer.PAYLOAD_VALIDATION_ERROR_TYPE, causeFailure.getType());
     Assert.assertTrue(causeFailure.isNonRetryable());
-    Assert.assertEquals("invalid input", causeFailure.getOriginalMessage());
-    Assert.assertSame(cause, causeFailure.getCause());
+    Assert.assertEquals("Payload validation failed", causeFailure.getOriginalMessage());
+    Assert.assertEquals(1, causeFailure.getDetails().getSize());
   }
 
   @Test
