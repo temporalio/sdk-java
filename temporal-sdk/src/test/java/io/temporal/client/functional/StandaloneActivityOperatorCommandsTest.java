@@ -123,9 +123,7 @@ public class StandaloneActivityOperatorCommandsTest {
     }
   }
 
-  /**
-   * Heartbeats, fails the first attempt, then succeeds.
-   */
+  /** Heartbeats, fails the first attempt, then succeeds. */
   @ActivityInterface
   public interface HeartbeatFailIncrementActivity {
     @ActivityMethod(name = "HeartbeatFailIncrement")

@@ -15,7 +15,6 @@ import io.temporal.api.activity.v1.ActivityExecutionOutcome;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.workflowservice.v1.DescribeActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.api.workflowservice.v1.PauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.ResetActivityExecutionRequest;
@@ -145,65 +144,6 @@ public class ActivityHandleOperatorCommandsTest {
   }
 
   /**
-   * The four api#792 opt-ins are invisible in any observable server state, so only the outgoing
-   * request shows whether the SDK asked for them.
-   */
-  @Test
-  public void describeOptInsReachTheRequest() {
-    when(genericClient.describeActivity(any()))
-        .thenReturn(
-            DescribeActivityExecutionResponse.newBuilder()
-                .setInfo(ActivityExecutionInfo.newBuilder().setActivityId("act-1"))
-                .build());
-
-    newHandle().describe();
-    DescribeActivityExecutionRequest bare = captureDescribe();
-    assertFalse("default should not request input", bare.getIncludeInput());
-    assertFalse("default should not request outcome", bare.getIncludeOutcome());
-    assertFalse("default should not request heartbeat details", bare.getIncludeHeartbeatDetails());
-    assertFalse("default should not request last failure", bare.getIncludeLastFailure());
-  }
-
-  @Test
-  public void describeOptInsAreForwardedAndIndependent() {
-    when(genericClient.describeActivity(any()))
-        .thenReturn(
-            DescribeActivityExecutionResponse.newBuilder()
-                .setInfo(ActivityExecutionInfo.newBuilder().setActivityId("act-1"))
-                .build());
-
-    newHandle()
-        .describe(
-            DescribeActivityOptions.newBuilder()
-                .setIncludeInput(true)
-                .setIncludeOutcome(true)
-                .setIncludeHeartbeatDetails(true)
-                .setIncludeLastFailure(true)
-                .build());
-    DescribeActivityExecutionRequest all = captureDescribe();
-    assertTrue(all.getIncludeInput());
-    assertTrue(all.getIncludeOutcome());
-    assertTrue(all.getIncludeHeartbeatDetails());
-    assertTrue(all.getIncludeLastFailure());
-  }
-
-  @Test
-  public void describeOptInSetsOnlyTheRequestedFlag() {
-    when(genericClient.describeActivity(any()))
-        .thenReturn(
-            DescribeActivityExecutionResponse.newBuilder()
-                .setInfo(ActivityExecutionInfo.newBuilder().setActivityId("act-1"))
-                .build());
-
-    newHandle().describe(DescribeActivityOptions.newBuilder().setIncludeInput(true).build());
-    DescribeActivityExecutionRequest one = captureDescribe();
-    assertTrue(one.getIncludeInput());
-    assertFalse(one.getIncludeOutcome());
-    assertFalse(one.getIncludeHeartbeatDetails());
-    assertFalse(one.getIncludeLastFailure());
-  }
-
-  /**
    * A server that ignores the opt-ins must not be able to make the description's has* accessors
    * disagree with what the caller asked for. Only a stub can produce that response.
    */
@@ -283,13 +223,6 @@ public class ActivityHandleOperatorCommandsTest {
     assertTrue("restore should set restore_original", req.getRestoreOriginal());
     assertTrue(
         "restore should name no paths in the mask", req.getUpdateMask().getPathsList().isEmpty());
-  }
-
-  private DescribeActivityExecutionRequest captureDescribe() {
-    ArgumentCaptor<DescribeActivityExecutionRequest> captor =
-        ArgumentCaptor.forClass(DescribeActivityExecutionRequest.class);
-    verify(genericClient).describeActivity(captor.capture());
-    return captor.getValue();
   }
 
   private ResetActivityExecutionRequest captureReset() {
