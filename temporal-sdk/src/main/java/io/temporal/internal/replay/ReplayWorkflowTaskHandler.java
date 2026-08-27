@@ -36,6 +36,7 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -53,6 +54,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final WorkflowServiceStubs service;
   private final TaskQueue stickyTaskQueue;
   private final LocalActivityDispatcher localActivityDispatcher;
+  private final CancellationToken<CancellationException> storageCancellation;
 
   public ReplayWorkflowTaskHandler(
       String namespace,
@@ -63,6 +65,29 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
       LocalActivityDispatcher localActivityDispatcher) {
+    this(
+        namespace,
+        asyncWorkflowFactory,
+        cache,
+        options,
+        stickyTaskQueue,
+        stickyTaskQueueScheduleToStartTimeout,
+        service,
+        localActivityDispatcher,
+        CancellationToken.none());
+  }
+
+  public ReplayWorkflowTaskHandler(
+      String namespace,
+      ReplayWorkflowFactory asyncWorkflowFactory,
+      WorkflowExecutorCache cache,
+      SingleWorkerOptions options,
+      TaskQueue stickyTaskQueue,
+      Duration stickyTaskQueueScheduleToStartTimeout,
+      WorkflowServiceStubs service,
+      LocalActivityDispatcher localActivityDispatcher,
+      CancellationToken<CancellationException> storageCancellation) {
+    this.storageCancellation = storageCancellation;
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -83,7 +108,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     if (externalStorage == null) {
       ExternalStorageRunner.throwIfContainsReference(workflowTask);
     } else {
-      workflowTask = externalStorage.retrieve(workflowTask, CancellationToken.none());
+      workflowTask = externalStorage.retrieve(workflowTask, storageCancellation);
     }
     return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
   }
@@ -103,7 +128,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
 
       ServiceWorkflowHistoryIterator historyIterator =
           new ServiceWorkflowHistoryIterator(
-              service, namespace, workflowTask, metricsScope, options.getExternalStorage());
+              service,
+              namespace,
+              workflowTask,
+              metricsScope,
+              options.getExternalStorage(),
+              storageCancellation);
       boolean finalCommand;
       Result result;
 
@@ -408,7 +438,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (externalStorage == null) {
         ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
       } else {
-        getHistoryResponse = externalStorage.retrieve(getHistoryResponse, CancellationToken.none());
+        getHistoryResponse = externalStorage.retrieve(getHistoryResponse, storageCancellation);
       }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())

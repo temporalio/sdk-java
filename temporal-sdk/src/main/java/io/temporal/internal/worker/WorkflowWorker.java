@@ -38,6 +38,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.*;
 import io.temporal.worker.tuning.*;
 import java.util.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -77,6 +78,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final PollerTracker pollerTracker = new PollerTracker();
   private final PollerTracker stickyPollerTracker = new PollerTracker();
   private final NamespaceCapabilities namespaceCapabilities;
+  private final CancellationToken<CancellationException> storageCancellation;
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
 
@@ -98,7 +100,8 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
       int maxEagerActivityReservationsPerWorkflowTask,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
-      @Nonnull NamespaceCapabilities namespaceCapabilities) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities,
+      CancellationToken<CancellationException> storageCancellation) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -115,6 +118,7 @@ final class WorkflowWorker implements SuspendableWorker {
     this.maxEagerActivityReservationsPerWorkflowTask = maxEagerActivityReservationsPerWorkflowTask;
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
     this.namespaceCapabilities = namespaceCapabilities;
+    this.storageCancellation = storageCancellation;
   }
 
   @Override
@@ -410,7 +414,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor) {
     ExternalStorageRunner externalStorage = options.getExternalStorage();
     if (externalStorage != null) {
-      externalStorage.store(builder, target, targetVisitor, CancellationToken.none());
+      externalStorage.store(builder, target, targetVisitor, storageCancellation);
     }
   }
 

@@ -10,6 +10,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -54,6 +55,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final ActivityTaskHandlerImpl laTaskHandler;
+  private final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
   private boolean runningLocalActivityWorker;
 
   public SyncWorkflowWorker(
@@ -111,7 +114,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             stickyTaskQueue,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
             client.getWorkflowServiceStubs(),
-            laWorker.getLocalActivityScheduler());
+            laWorker.getLocalActivityScheduler(),
+            storageCancellation.token());
 
     workflowWorker =
         new WorkflowWorker(
@@ -126,7 +130,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             eagerActivityDispatcher,
             maxEagerActivityReservationsPerWorkflowTask,
             slotSupplier,
-            namespaceCapabilities);
+            namespaceCapabilities,
+            storageCancellation.token());
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
@@ -139,7 +144,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             null,
             Duration.ZERO,
             client.getWorkflowServiceStubs(),
-            laWorker.getLocalActivityScheduler());
+            laWorker.getLocalActivityScheduler(),
+            storageCancellation.token());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);
   }
@@ -175,6 +181,9 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
     return workflowWorker
         .shutdown(shutdownManager, interruptTasks)
         .thenCompose(ignore -> laWorker.shutdown(shutdownManager, interruptTasks))

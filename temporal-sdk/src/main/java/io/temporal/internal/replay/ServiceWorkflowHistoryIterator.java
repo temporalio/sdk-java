@@ -20,6 +20,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CancellationException;
 import javax.annotation.Nullable;
 
 /** Supports iteration over history while loading new pages through calls to the service. */
@@ -33,6 +34,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private final GrpcRetryer grpcRetryer;
   private final @Nullable ExternalStorageRunner externalStorage;
+  private final CancellationToken<CancellationException> storageCancellation;
   private Deadline deadline;
   private Iterator<HistoryEvent> current;
   ByteString nextPageToken;
@@ -42,7 +44,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope) {
-    this(service, namespace, task, metricsScope, null);
+    this(service, namespace, task, metricsScope, null, CancellationToken.none());
   }
 
   ServiceWorkflowHistoryIterator(
@@ -50,7 +52,9 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope,
-      @Nullable ExternalStorageRunner externalStorage) {
+      @Nullable ExternalStorageRunner externalStorage,
+      CancellationToken<CancellationException> storageCancellation) {
+    this.storageCancellation = storageCancellation;
     this.service = service;
     this.namespace = namespace;
     this.task = task;
@@ -82,7 +86,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       if (externalStorage == null) {
         ExternalStorageRunner.throwIfContainsReference(history);
       } else {
-        history = externalStorage.retrieve(history, CancellationToken.none());
+        history = externalStorage.retrieve(history, storageCancellation);
       }
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();
