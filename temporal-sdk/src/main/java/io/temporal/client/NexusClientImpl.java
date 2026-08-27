@@ -16,6 +16,9 @@ import io.temporal.internal.client.NexusOperationHandleImpl;
 import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
+import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.List;
@@ -46,6 +49,16 @@ public class NexusClientImpl implements NexusClient {
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;
+    ExternalStorage externalStorageConfig = options.getExternalStorage();
+    if (externalStorageConfig != null) {
+      options =
+          NexusClientOptions.newBuilder(options)
+              .setDataConverter(
+                  new ExternalStorageDataConverter(
+                      options.getDataConverter(),
+                      ExternalStorageRunner.create(externalStorageConfig)))
+              .build();
+    }
     this.options = options;
     this.metricsScope =
         workflowServiceStubs
