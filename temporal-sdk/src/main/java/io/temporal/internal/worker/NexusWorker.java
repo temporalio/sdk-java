@@ -14,6 +14,7 @@ import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -554,13 +555,15 @@ final class NexusWorker implements SuspendableWorker {
         return task;
       }
       return new NexusTask(
-          externalStorage.retrieve(built), task.getPermit(), task.getCompletionCallback());
+          externalStorage.retrieve(built, CancellationToken.none()),
+          task.getPermit(),
+          task.getCompletionCallback());
     }
 
     private void storeOutbound(Message.Builder builder) {
       ExternalStorageRunner externalStorage = options.getExternalStorage();
       if (externalStorage != null) {
-        externalStorage.store(builder, null);
+        externalStorage.store(builder, null, null, CancellationToken.none());
       }
     }
   }
