@@ -8,8 +8,6 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
-import io.temporal.internal.payload.storage.ExternalStorageReferences;
-import io.temporal.internal.payload.storage.ExternalStorageUnhandledReferenceException;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.*;

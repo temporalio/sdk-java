@@ -128,8 +128,8 @@ public class ExternalStorageRunnerTest {
     Payloads stored = builder.build();
 
     assertThrows(
-      ExternalStorageNotConfiguredException.class,
-      () -> ExternalStorageRunner.throwIfContainsReference(stored));
+        ExternalStorageNotConfiguredException.class,
+        () -> ExternalStorageRunner.throwIfContainsReference(stored));
   }
 
   @Test

@@ -305,9 +305,7 @@ public final class WorkflowClientOptions {
     return dataConverter;
   }
 
-  /**
-   * External storage used to offload large payloads or null when disabled.
-   */
+  /** External storage used to offload large payloads or null when disabled. */
   @Experimental
   @Nullable
   public ExternalStorage getExternalStorage() {
