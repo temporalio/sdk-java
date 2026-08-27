@@ -30,14 +30,13 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerOptions;
@@ -105,8 +104,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     WorkflowClient client =
         WorkflowClient.newInstance(
             this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions());
-    ExternalStorage externalStorageConfig =
-        testEnvironmentOptions.getWorkflowClientOptions().getDataConverter().getExternalStorage();
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
             client,
@@ -116,9 +113,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
             heartbeatExecutor,
-            externalStorageConfig == null
-                ? null
-                : ExternalStorageRunner.create(externalStorageConfig));
+            ((WorkflowClientInternal) client.getInternal()).getExternalStorage());
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),

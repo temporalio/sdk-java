@@ -6,8 +6,10 @@ import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
@@ -25,24 +27,25 @@ import org.junit.Test;
 public class WorkflowExecutionMetadataTest {
 
   @Test
-  public void getMemoResolvesAnExternalStorageReferenceFromTheConverter() {
+  public void getMemoResolvesAnExternalStorageReference() {
     ExternalStorage config =
         ExternalStorage.newBuilder()
             .setDriver(new InMemoryDriver())
             .setPayloadSizeThreshold(0)
             .build();
-    DataConverter converter = DefaultDataConverter.newDefaultInstance().withExternalStorage(config);
+    DataConverter converter = DefaultDataConverter.newDefaultInstance();
+    ExternalStorageRunner storage = ExternalStorageRunner.create(config);
 
-    // Offload the memo value so the stored info holds a reference, not the inline value.
     Payloads.Builder value = converter.toPayloads("big-memo").get().toBuilder();
-    ExternalStorageRunner.create(config).store(value, null);
+    storage.store(value, null, null, CancellationToken.none());
     Payload reference = value.build().getPayloads(0);
     WorkflowExecutionInfo info =
         WorkflowExecutionInfo.newBuilder()
             .setMemo(Memo.newBuilder().putFields("k", reference))
             .build();
 
-    WorkflowExecutionMetadata metadata = new WorkflowExecutionMetadata(info, converter);
+    WorkflowExecutionMetadata metadata =
+        new WorkflowExecutionMetadata(info, new ExternalStorageDataConverter(converter, storage));
 
     assertEquals("big-memo", metadata.getMemo("k", String.class));
   }

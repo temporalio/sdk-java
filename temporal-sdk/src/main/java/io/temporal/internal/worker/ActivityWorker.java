@@ -13,6 +13,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -29,6 +30,7 @@ import io.temporal.worker.tuning.*;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
@@ -57,6 +59,9 @@ final class ActivityWorker implements SuspendableWorker {
   private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker;
   private final NamespaceCapabilities namespaceCapabilities;
+
+  final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -165,6 +170,9 @@ final class ActivityWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
     String supplierName = this + "#executorSlots";
     return poller
         .shutdown(shutdownManager, interruptTasks)
@@ -495,14 +503,16 @@ final class ActivityWorker implements SuspendableWorker {
         return task;
       }
       return new ActivityTask(
-          externalStorage.retrieve(built), task.getPermit(), task.getCompletionCallback());
+          externalStorage.retrieve(built, storageCancellation.token()),
+          task.getPermit(),
+          task.getCompletionCallback());
     }
 
     private void storeOutboundPayloads(
         Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
       ExternalStorageRunner externalStorage = options.getExternalStorage();
       if (externalStorage != null) {
-        externalStorage.store(builder, target);
+        externalStorage.store(builder, target, null, storageCancellation.token());
       }
     }
 

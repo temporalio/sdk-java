@@ -13,6 +13,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
@@ -89,7 +90,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       return request;
     }
     Message.Builder builder = request.toBuilder();
-    externalStorage.store(builder, storageTarget);
+    externalStorage.store(builder, storageTarget, null, CancellationToken.none());
     @SuppressWarnings("unchecked")
     T stored = (T) builder.build();
     return stored;

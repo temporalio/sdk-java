@@ -30,9 +30,7 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
     if (!response.getExecutionConfig().getUserMetadata().hasSummary()) {
       return null;
     }
-    Payload summary =
-        resolveExternalStorageReference(
-            response.getExecutionConfig().getUserMetadata().getSummary());
+    Payload summary = response.getExecutionConfig().getUserMetadata().getSummary();
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
@@ -52,9 +50,7 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
     if (!response.getExecutionConfig().getUserMetadata().hasDetails()) {
       return null;
     }
-    Payload details =
-        resolveExternalStorageReference(
-            response.getExecutionConfig().getUserMetadata().getDetails());
+    Payload details = response.getExecutionConfig().getUserMetadata().getDetails();
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
