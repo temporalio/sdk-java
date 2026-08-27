@@ -124,9 +124,7 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   /**
-   * Heartbeats, fails the first attempt, then succeeds. One execution of this carries input, a
-   * result, heartbeat details and a last failure all at once, which is what lets a single describe
-   * exercise every payload field.
+   * Heartbeats, fails the first attempt, then succeeds.
    */
   @ActivityInterface
   public interface HeartbeatFailIncrementActivity {
@@ -609,11 +607,6 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
-  /**
-   * Every payload field on one description. The activity heartbeats, fails once, then succeeds, so
-   * a single execution carries input, a result, heartbeat details and a last failure at the same
-   * time.
-   */
   @Test(timeout = 60_000)
   public void describePayloads() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -661,7 +654,6 @@ public class StandaloneActivityOperatorCommandsTest {
     assertTrue(full.hasLastFailure());
     assertNotNull(full.getLastFailure());
 
-    // The other arm of the oneof, on an activity that never succeeds.
     StartActivityOptions failOpts =
         StartActivityOptions.newBuilder()
             .setId(uniqueId())
