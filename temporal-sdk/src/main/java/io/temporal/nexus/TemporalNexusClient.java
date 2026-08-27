@@ -1379,7 +1379,7 @@ public interface TemporalNexusClient {
    *
    * @param activityInterface the activity interface class
    * @param activityMethod unbound method reference to the activity method
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <R> the activity return type
    * @return an async {@link TemporalOperationResult} with the activity-execution operation token
@@ -1395,7 +1395,7 @@ public interface TemporalNexusClient {
    * @param activityInterface the activity interface class
    * @param activityMethod unbound method reference to the activity method
    * @param arg1 first activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <R> the activity return type
@@ -1414,7 +1414,7 @@ public interface TemporalNexusClient {
    * @param activityMethod unbound method reference to the activity method
    * @param arg1 first activity argument
    * @param arg2 second activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1436,7 +1436,7 @@ public interface TemporalNexusClient {
    * @param arg1 first activity argument
    * @param arg2 second activity argument
    * @param arg3 third activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1461,7 +1461,7 @@ public interface TemporalNexusClient {
    * @param arg2 second activity argument
    * @param arg3 third activity argument
    * @param arg4 fourth activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1489,7 +1489,7 @@ public interface TemporalNexusClient {
    * @param arg3 third activity argument
    * @param arg4 fourth activity argument
    * @param arg5 fifth activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1520,7 +1520,7 @@ public interface TemporalNexusClient {
    * @param arg4 fourth activity argument
    * @param arg5 fifth activity argument
    * @param arg6 sixth activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1547,7 +1547,7 @@ public interface TemporalNexusClient {
    *
    * @param activityInterface the activity interface class
    * @param activityMethod unbound method reference to the activity method
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @return an async {@link TemporalOperationResult} with the activity-execution operation token
    */
@@ -1560,7 +1560,7 @@ public interface TemporalNexusClient {
    * @param activityInterface the activity interface class
    * @param activityMethod unbound method reference to the activity method
    * @param arg1 first activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @return an async {@link TemporalOperationResult} with the activity-execution operation token
@@ -1578,7 +1578,7 @@ public interface TemporalNexusClient {
    * @param activityMethod unbound method reference to the activity method
    * @param arg1 first activity argument
    * @param arg2 second activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1599,7 +1599,7 @@ public interface TemporalNexusClient {
    * @param arg1 first activity argument
    * @param arg2 second activity argument
    * @param arg3 third activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1623,7 +1623,7 @@ public interface TemporalNexusClient {
    * @param arg2 second activity argument
    * @param arg3 third activity argument
    * @param arg4 fourth activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1650,7 +1650,7 @@ public interface TemporalNexusClient {
    * @param arg3 third activity argument
    * @param arg4 fourth activity argument
    * @param arg5 fifth activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1680,7 +1680,7 @@ public interface TemporalNexusClient {
    * @param arg4 fourth activity argument
    * @param arg5 fifth activity argument
    * @param arg6 sixth activity argument
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param <I> the activity interface type
    * @param <A1> the type of the first activity argument
    * @param <A2> the type of the second activity argument
@@ -1712,7 +1712,7 @@ public interface TemporalNexusClient {
    *
    * @param activityType the activity type name string
    * @param resultClass the expected result class
-   * @param options activity start options (must include taskQueue)
+   * @param options activity start options; taskQueue defaults to the current worker task queue
    * @param args activity arguments
    * @param <R> the activity return type
    * @return an async {@link TemporalOperationResult} with the activity-execution operation token

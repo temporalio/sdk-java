@@ -19,10 +19,22 @@ public class StartActivityOptionsTest {
         .build();
   }
 
+  @Test
+  public void testMissingTaskQueueAllowed() {
+    StartActivityOptions options =
+        StartActivityOptions.newBuilder()
+            .setId("id")
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .build();
+
+    assertNull(options.getTaskQueue());
+  }
+
   @Test(expected = IllegalArgumentException.class)
-  public void testMissingTaskQueueFails() {
+  public void testEmptyTaskQueueFails() {
     StartActivityOptions.newBuilder()
         .setId("id")
+        .setTaskQueue("")
         .setStartToCloseTimeout(Duration.ofSeconds(10))
         .build();
   }

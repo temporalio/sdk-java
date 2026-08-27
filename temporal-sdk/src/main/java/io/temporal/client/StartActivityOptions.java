@@ -31,7 +31,7 @@ public final class StartActivityOptions {
 
   public static final class Builder {
     private String id;
-    private String taskQueue;
+    private @Nullable String taskQueue;
     private @Nullable Duration scheduleToCloseTimeout;
     private @Nullable Duration scheduleToStartTimeout;
     private @Nullable Duration startToCloseTimeout;
@@ -75,8 +75,12 @@ public final class StartActivityOptions {
       return this;
     }
 
-    /** Required. The task queue that workers will poll for this activity. */
-    public Builder setTaskQueue(String taskQueue) {
+    /**
+     * The task queue that workers will poll for this activity. Required when starting through an
+     * {@link ActivityClient}. When starting through a Temporal Nexus client, this defaults to the
+     * current worker's task queue.
+     */
+    public Builder setTaskQueue(@Nullable String taskQueue) {
       this.taskQueue = taskQueue;
       return this;
     }
@@ -178,7 +182,7 @@ public final class StartActivityOptions {
     public StartActivityOptions build() {
       Preconditions.checkArgument(!Strings.isNullOrEmpty(id), "id must not be null or empty");
       Preconditions.checkArgument(
-          !Strings.isNullOrEmpty(taskQueue), "taskQueue must not be null or empty");
+          taskQueue == null || !taskQueue.isEmpty(), "taskQueue must not be empty");
       Preconditions.checkArgument(
           scheduleToCloseTimeout != null || startToCloseTimeout != null,
           "At least one of scheduleToCloseTimeout or startToCloseTimeout must be set");
@@ -187,7 +191,7 @@ public final class StartActivityOptions {
   }
 
   private final String id;
-  private final String taskQueue;
+  private final @Nullable String taskQueue;
   private final @Nullable Duration scheduleToCloseTimeout;
   private final @Nullable Duration scheduleToStartTimeout;
   private final @Nullable Duration startToCloseTimeout;
@@ -226,7 +230,7 @@ public final class StartActivityOptions {
     return id;
   }
 
-  public String getTaskQueue() {
+  public @Nullable String getTaskQueue() {
     return taskQueue;
   }
 

@@ -152,8 +152,11 @@ public final class Workflow {
 
   /**
    * Creates client stub that can be used to start a child workflow that implements the given
-   * interface using parent options. Use {@link #newExternalWorkflowStub(Class, String)} to get a
-   * stub to signal a workflow without starting it.
+   * interface using parent options. Child workflow options predefined through {@link
+   * io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   * {@link io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   * ChildWorkflowOptions)} are applied. Use {@link #newExternalWorkflowStub(Class, String)} to get
+   * a stub to signal a workflow without starting it.
    *
    * @param workflowInterface interface type implemented by activities
    */
@@ -167,7 +170,12 @@ public final class Workflow {
    * starting it.
    *
    * @param workflowInterface interface type implemented by activities
-   * @param options options passed to the child workflow.
+   * @param options options passed to the child workflow. Each non-null field overrides the
+   *     corresponding field of the child workflow options predefined through {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   *     {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   *     ChildWorkflowOptions)}.
    */
   public static <T> T newChildWorkflowStub(
       Class<T> workflowInterface, ChildWorkflowOptions options) {
@@ -211,7 +219,12 @@ public final class Workflow {
    * Creates untyped client stub that can be used to start and signal a child workflow.
    *
    * @param workflowType name of the workflow type to start.
-   * @param options options passed to the child workflow.
+   * @param options options passed to the child workflow. Each non-null field overrides the
+   *     corresponding field of the child workflow options predefined through {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   *     {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   *     ChildWorkflowOptions)}.
    */
   public static ChildWorkflowStub newUntypedChildWorkflowStub(
       String workflowType, ChildWorkflowOptions options) {
@@ -220,7 +233,10 @@ public final class Workflow {
 
   /**
    * Creates untyped client stub that can be used to start and signal a child workflow. All options
-   * are inherited from the parent.
+   * are inherited from the parent, except for the child workflow options predefined through {@link
+   * io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   * {@link io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   * ChildWorkflowOptions)}, which are applied.
    *
    * @param workflowType name of the workflow type to start.
    */
