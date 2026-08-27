@@ -125,12 +125,8 @@ public final class OtelLambdaWorkerConfigurationHelper {
   }
 
   static String resolveServiceName(Map<String, String> env) {
-    String serviceName = nonEmptyEnv(env, OTEL_SERVICE_NAME);
-    if (serviceName != null) {
-      return serviceName;
-    }
-    serviceName = nonEmptyEnv(env, AWS_LAMBDA_FUNCTION_NAME);
-    return serviceName == null ? DEFAULT_SERVICE_NAME : serviceName;
+    return OpenTelemetryWorker.resolveServiceName(
+        env, DEFAULT_SERVICE_NAME, AWS_LAMBDA_FUNCTION_NAME);
   }
 
   public static final class Builder {
@@ -256,14 +252,6 @@ public final class OtelLambdaWorkerConfigurationHelper {
         Duration metricsReportInterval,
         Duration flushTimeout,
         IdGenerator idGenerator);
-  }
-
-  private static String nonEmptyEnv(Map<String, String> env, String name) {
-    if (env == null) {
-      return null;
-    }
-    String value = env.get(name);
-    return value == null || value.trim().isEmpty() ? null : value;
   }
 
   private static void appendServiceStubsPlugin(
