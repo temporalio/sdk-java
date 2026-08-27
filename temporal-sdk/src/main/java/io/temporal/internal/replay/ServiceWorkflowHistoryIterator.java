@@ -12,6 +12,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
@@ -81,7 +82,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       if (externalStorage == null) {
         ExternalStorageRunner.throwIfContainsReference(history);
       } else {
-        history = externalStorage.retrieve(history);
+        history = externalStorage.retrieve(history, CancellationToken.none());
       }
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();
