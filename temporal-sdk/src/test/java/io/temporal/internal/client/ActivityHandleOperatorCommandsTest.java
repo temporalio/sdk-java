@@ -203,6 +203,47 @@ public class ActivityHandleOperatorCommandsTest {
         .build();
   }
 
+  /**
+   * A zero duration clears the option: the path is named in the mask so the server acts on it, and
+   * the server normalizes a zero timeout back to unset. Null means "do not touch" and keeps the
+   * path out of the mask entirely.
+   */
+  @Test
+  public void zeroDurationClearsTheOption() {
+    when(genericClient.updateActivityOptions(any()))
+        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+
+    newHandle()
+        .updateOptions(
+            UpdateActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ZERO).build());
+
+    UpdateActivityExecutionOptionsRequest req = captureUpdate();
+    assertEquals(
+        java.util.Collections.singletonList("heartbeat_timeout"),
+        req.getUpdateMask().getPathsList());
+    assertEquals(0, req.getActivityOptions().getHeartbeatTimeout().getSeconds());
+    assertEquals(0, req.getActivityOptions().getHeartbeatTimeout().getNanos());
+  }
+
+  /** A null option is left alone: it never reaches the mask. */
+  @Test
+  public void nullOptionIsNotTouched() {
+    when(genericClient.updateActivityOptions(any()))
+        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+
+    newHandle()
+        .updateOptions(
+            UpdateActivityOptions.newBuilder()
+                .setHeartbeatTimeout(null)
+                .setStartToCloseTimeout(Duration.ofSeconds(90))
+                .build());
+
+    UpdateActivityExecutionOptionsRequest req = captureUpdate();
+    assertEquals(
+        java.util.Collections.singletonList("start_to_close_timeout"),
+        req.getUpdateMask().getPathsList());
+  }
+
   private ResetActivityExecutionRequest captureReset() {
     ArgumentCaptor<ResetActivityExecutionRequest> captor =
         ArgumentCaptor.forClass(ResetActivityExecutionRequest.class);
