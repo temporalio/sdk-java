@@ -20,6 +20,7 @@ import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
@@ -154,7 +155,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
                     .setWorkflowExecutionStartedEventAttributes(
                         startedEvent.getWorkflowExecutionStartedEventAttributes().toBuilder()
                             .setInput(Payloads.newBuilder().addPayloads(input))));
-    externalStorage.store(storedHistory, null);
+    externalStorage.store(storedHistory, null, null, CancellationToken.none());
 
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())

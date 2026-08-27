@@ -20,6 +20,7 @@ import io.temporal.api.sdk.v1.WorkflowTaskCompletedMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -82,7 +83,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     if (externalStorage == null) {
       ExternalStorageRunner.throwIfContainsReference(workflowTask);
     } else {
-      workflowTask = externalStorage.retrieve(workflowTask);
+      workflowTask = externalStorage.retrieve(workflowTask, CancellationToken.none());
     }
     return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
   }
@@ -407,7 +408,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       if (externalStorage == null) {
         ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
       } else {
-        getHistoryResponse = externalStorage.retrieve(getHistoryResponse);
+        getHistoryResponse = externalStorage.retrieve(getHistoryResponse, CancellationToken.none());
       }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())

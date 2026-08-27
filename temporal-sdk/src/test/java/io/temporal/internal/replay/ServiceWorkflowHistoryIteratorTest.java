@@ -8,6 +8,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
@@ -107,7 +108,7 @@ public class ServiceWorkflowHistoryIteratorTest {
     ExternalStorageRunner storage = inMemoryStorage();
     History inline = historyWithInput(payload("big-input"));
     History.Builder builder = inline.toBuilder();
-    storage.store(builder, null);
+    storage.store(builder, null, null, CancellationToken.none());
     History stored = builder.build();
     Assert.assertNotEquals(
         "stored history should hold a reference, not the inline payload", inline, stored);
@@ -123,7 +124,7 @@ public class ServiceWorkflowHistoryIteratorTest {
   @Test
   public void failsLoudWhenAFetchedPageHasAReferenceAndStorageIsNotConfigured() {
     History.Builder builder = historyWithInput(payload("big-input")).toBuilder();
-    inMemoryStorage().store(builder, null);
+    inMemoryStorage().store(builder, null, null, CancellationToken.none());
     History stored = builder.build();
 
     ServiceWorkflowHistoryIterator iterator = fetchingIterator(stored, null);
