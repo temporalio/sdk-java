@@ -143,10 +143,6 @@ public class ActivityHandleOperatorCommandsTest {
     verifyNoInteractions(genericClient);
   }
 
-  /**
-   * A server that ignores the opt-ins must not be able to make the description's has* accessors
-   * disagree with what the caller asked for. Only a stub can produce that response.
-   */
   @Test
   public void unrequestedPayloadsAreStripped() {
     when(genericClient.describeActivity(any())).thenReturn(overSharingResponse());
