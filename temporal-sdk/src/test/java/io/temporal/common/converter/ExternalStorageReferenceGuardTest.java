@@ -29,7 +29,7 @@ public class ExternalStorageReferenceGuardTest {
             .build();
 
     assertThrows(
-            ExternalStorageUnhandledReferenceException.class,
-            () -> dataConverter.fromPayload(reference, String.class, String.class));
+        ExternalStorageUnhandledReferenceException.class,
+        () -> dataConverter.fromPayload(reference, String.class, String.class));
   }
 }

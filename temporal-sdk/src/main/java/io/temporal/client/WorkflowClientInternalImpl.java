@@ -22,8 +22,10 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
@@ -56,6 +58,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private final WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
   private final String workerGroupingKey = java.util.UUID.randomUUID().toString();
   private final @Nullable HeartbeatManager heartbeatManager;
+  private final @Nullable ExternalStorageRunner externalStorage;
 
   /**
    * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
@@ -106,6 +109,9 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getOptions()
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
+    ExternalStorage externalStorageConfig = options.getExternalStorage();
+    this.externalStorage =
+        externalStorageConfig == null ? null : ExternalStorageRunner.create(externalStorageConfig);
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
@@ -813,6 +819,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Nullable
   public HeartbeatManager getHeartbeatManager() {
     return heartbeatManager;
+  }
+
+  @Override
+  @Nullable
+  public ExternalStorageRunner getExternalStorage() {
+    return externalStorage;
   }
 
   @Override

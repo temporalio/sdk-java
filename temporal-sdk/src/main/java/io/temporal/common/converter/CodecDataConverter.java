@@ -12,7 +12,6 @@ import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
-import io.temporal.payload.storage.ExternalStorage;
 import java.lang.reflect.Type;
 import java.util.Collection;
 import java.util.Collections;
@@ -189,12 +188,6 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   @Override
   public CodecDataConverter withContext(@Nonnull SerializationContext context) {
     return new CodecDataConverter(dataConverter, chainCodec, encodeFailureAttributes, context);
-  }
-
-  @Override
-  @Nullable
-  public ExternalStorage getExternalStorage() {
-    return dataConverter.getExternalStorage();
   }
 
   @Nonnull

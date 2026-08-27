@@ -10,9 +10,8 @@ public final class ExternalStorageNotConfiguredException extends DataConverterEx
   public ExternalStorageNotConfiguredException() {
     super(
         "[TMPRL1105] Encountered a reference to a payload in external storage, but no external "
-            + "storage is configured to retrieve it. Configure external storage on the "
-            + "DataConverter with "
-            + "DefaultDataConverter.withExternalStorage(...) and provide a driver able to "
-            + "retrieve it.");
+            + "storage is configured to retrieve it. Configure external storage with "
+            + "WorkflowClientOptions.Builder.setExternalStorage(...) and provide a driver "
+            + "able to retrieve it.");
   }
 }

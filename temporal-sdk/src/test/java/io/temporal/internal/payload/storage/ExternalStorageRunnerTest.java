@@ -48,7 +48,7 @@ public class ExternalStorageRunnerTest {
         Payloads.newBuilder().addPayloads(payload("a")).addPayloads(payload("b")).build();
 
     Payloads.Builder builder = message.toBuilder();
-    transformer.store(builder, null);
+    transformer.store(builder, null, null, CancellationToken.none());
     Payloads stored = builder.build();
 
     assertNotNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
@@ -70,7 +70,7 @@ public class ExternalStorageRunnerTest {
             .build();
 
     Command.Builder builder = command.toBuilder();
-    transformer.store(builder, null);
+    transformer.store(builder, null, null, CancellationToken.none());
     Command stored = builder.build();
 
     Payload nested = stored.getScheduleActivityTaskCommandAttributes().getInput().getPayloads(0);
@@ -85,7 +85,7 @@ public class ExternalStorageRunnerTest {
     Payloads message = Payloads.newBuilder().addPayloads(payload("small")).build();
 
     Payloads.Builder builder = message.toBuilder();
-    transformer.store(builder, null);
+    transformer.store(builder, null, null, CancellationToken.none());
     Payloads stored = builder.build();
 
     assertNull(ExternalStorageReferences.tryParseReference(stored.getPayloads(0)));
@@ -108,7 +108,7 @@ public class ExternalStorageRunnerTest {
             .build();
 
     Command.Builder builder = command.toBuilder();
-    transformer.store(builder, null);
+    transformer.store(builder, null, null, CancellationToken.none());
     Command stored = builder.build();
 
     StartChildWorkflowExecutionCommandAttributes attrs =
@@ -124,13 +124,12 @@ public class ExternalStorageRunnerTest {
     InMemoryDriver driver = new InMemoryDriver("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
     Payloads.Builder builder = Payloads.newBuilder().addPayloads(payload("a"));
-    transformer.store(builder, null);
+    transformer.store(builder, null, null, CancellationToken.none());
     Payloads stored = builder.build();
 
-    ExternalStorageNotConfiguredException e =
-        assertThrows(
-            ExternalStorageNotConfiguredException.class,
-            () -> ExternalStorageRunner.throwIfContainsReference(stored));
+    assertThrows(
+      ExternalStorageNotConfiguredException.class,
+      () -> ExternalStorageRunner.throwIfContainsReference(stored));
   }
 
   @Test

@@ -11,7 +11,6 @@ import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.internal.payload.storage.ExternalStorageReferences;
 import io.temporal.internal.payload.storage.ExternalStorageUnhandledReferenceException;
 import io.temporal.payload.context.SerializationContext;
-import io.temporal.payload.storage.ExternalStorage;
 import java.lang.reflect.Type;
 import java.util.*;
 import javax.annotation.Nonnull;
@@ -25,7 +24,6 @@ class PayloadAndFailureDataConverter implements DataConverter {
   volatile List<PayloadConverter> converters;
   volatile Map<String, PayloadConverter> convertersMap;
   volatile FailureConverter failureConverter;
-  volatile @Nullable ExternalStorage externalStorage;
   private final @Nullable SerializationContext serializationContext;
 
   public PayloadAndFailureDataConverter(@Nonnull List<PayloadConverter> converters) {
@@ -152,16 +150,9 @@ class PayloadAndFailureDataConverter implements DataConverter {
   }
 
   @Override
-  @Nullable
-  public ExternalStorage getExternalStorage() {
-    return externalStorage;
-  }
-
-  @Override
   public @Nonnull DataConverter withContext(@Nonnull SerializationContext context) {
     PayloadAndFailureDataConverter copy =
         new PayloadAndFailureDataConverter(converters, convertersMap, failureConverter, context);
-    copy.externalStorage = this.externalStorage;
     return copy;
   }
 

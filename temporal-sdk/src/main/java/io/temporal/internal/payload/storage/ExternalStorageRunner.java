@@ -11,7 +11,6 @@ import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
-import java.util.List;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -40,10 +39,6 @@ public final class ExternalStorageRunner {
     this.payloadVisitConcurrency = payloadVisitConcurrency;
   }
 
-  public void store(Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
-    store(builder, target, null, CancellationToken.none());
-  }
-
   public void store(
       Message.Builder builder,
       @Nullable StorageDriverTargetInfo target,
@@ -54,11 +49,13 @@ public final class ExternalStorageRunner {
         cancellationToken);
   }
 
-  public <T extends Message> T retrieve(T message, CancellationToken<CancellationException> cancellationToken) {
+  public <T extends Message> T retrieve(
+      T message, CancellationToken<CancellationException> cancellationToken) {
     return getOrThrowIfCancelled(retrieveAsync(message, cancellationToken), cancellationToken);
   }
 
-  public <T extends Message> CompletableFuture<T> retrieveAsync(T message, CancellationToken<CancellationException> cancellationToken) {
+  public <T extends Message> CompletableFuture<T> retrieveAsync(
+      T message, CancellationToken<CancellationException> cancellationToken) {
     return PayloadVisitors.visit(message, retrieveOptions(cancellationToken));
   }
 
