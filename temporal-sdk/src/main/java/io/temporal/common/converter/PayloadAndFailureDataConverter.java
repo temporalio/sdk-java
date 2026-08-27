@@ -73,10 +73,6 @@ class PayloadAndFailureDataConverter implements DataConverter {
       return (T) new RawValue(payload);
     }
 
-    if (ExternalStorageReferences.isReference(payload)) {
-      throw new ExternalStorageUnhandledReferenceException();
-    }
-
     try {
       String encoding =
           payload.getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY).toString(UTF_8);
