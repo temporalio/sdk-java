@@ -224,7 +224,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       Workers workers,
       Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
     for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
-      WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
+      WorkflowImpl annotation = AnnotationUtils.findAnnotation(clazz, WorkflowImpl.class);
       for (String taskQueue : annotation.taskQueues()) {
         taskQueue = environment.resolvePlaceholders(taskQueue);
         Worker worker = workerFactory.tryGetWorker(taskQueue);
@@ -303,7 +303,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private void configureWorkflowImplementationsByWorkerName(
       Workers workers, Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
     for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
-      WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
+      WorkflowImpl annotation = AnnotationUtils.findAnnotation(clazz, WorkflowImpl.class);
 
       for (String workerName : annotation.workers()) {
         Worker worker = workers.getByName(workerName);
