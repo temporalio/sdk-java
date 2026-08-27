@@ -20,7 +20,7 @@ import javax.annotation.Nullable;
 /**
  * External storage offloads large payloads via {@link StorageDriver}s. It walks messages using
  * {@link PayloadVisitors} transforming payloads to and from {@link ExternalStorageReference} using
- * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorage} via {@link#create} to
+ * {@link ExternalStoragePayloadTransformer}. Use {@link ExternalStorage} via {@link #create} to
  * configure external storage.
  */
 public final class ExternalStorageRunner {
@@ -87,16 +87,22 @@ public final class ExternalStorageRunner {
 
   private static <T> T getOrThrowIfCancelled(
       CompletableFuture<T> future, CancellationToken<CancellationException> cancellationToken) {
+    CompletableFuture<Void> cancellation = cancellationToken.getCancellationFuture();
     try {
-      CompletableFuture.anyOf(future, cancellationToken.getCancellationFuture()).get();
+      CompletableFuture.anyOf(future, cancellation).get();
       return future.get();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new CancellationException("External storage operation interrupted");
+      CancellationException cancelled =
+          new CancellationException("External storage operation interrupted");
+      cancelled.initCause(e);
+      throw cancelled;
     } catch (ExecutionException e) {
       Throwable cause = e.getCause() != null ? e.getCause() : e;
       Throwables.throwIfUnchecked(cause);
       throw new CompletionException(cause);
+    } finally {
+      cancellation.complete(null);
     }
   }
 

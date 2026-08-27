@@ -4,7 +4,7 @@ import io.temporal.common.converter.DataConverterException;
 
 /**
  * Signals that a payload referenced in external storage needs to be retrieved, but external storage
- * is not configured. Logs a TMPRL1105 error.
+ * is not configured.
  */
 public final class ExternalStorageNotConfiguredException extends DataConverterException {
   public ExternalStorageNotConfiguredException() {

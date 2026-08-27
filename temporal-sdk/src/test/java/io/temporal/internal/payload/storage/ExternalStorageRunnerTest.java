@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 /** Tests external storage message conversion. */
@@ -192,6 +193,20 @@ public class ExternalStorageRunnerTest {
         () -> storage.store(message.toBuilder(), null, null, caller.token()));
   }
 
+  @Test
+  public void completedOperationsReleaseTheirCancellationRegistrations() {
+    RegistrationCountingToken token = new RegistrationCountingToken();
+    ExternalStorageRunner storage = transformer(new InMemoryDriver("d1"), 0);
+
+    for (int i = 0; i < 5; i++) {
+      Payloads.Builder builder = Payloads.newBuilder().addPayloads(payload("a"));
+      storage.store(builder, null, null, token);
+      storage.retrieve(builder.build(), token);
+    }
+
+    assertEquals(0, token.open());
+  }
+
   private static ExternalStorageRunner transformer(StorageDriver driver, int threshold) {
     ExternalStoragePayloadTransformer payloadTransformer =
         ExternalStoragePayloadTransformer.fromOptions(
@@ -204,6 +219,29 @@ public class ExternalStorageRunnerTest {
 
   private static Payload payload(String data) {
     return Payload.newBuilder().setData(ByteString.copyFromUtf8(data)).build();
+  }
+
+  private static final class RegistrationCountingToken
+      implements CancellationToken<CancellationException> {
+    private final AtomicInteger open = new AtomicInteger();
+
+    int open() {
+      return open.get();
+    }
+
+    @Override
+    public boolean isCancellationRequested() {
+      return false;
+    }
+
+    @Override
+    public void throwIfCancellationRequested() {}
+
+    @Override
+    public Registration onCancel(Runnable callback) {
+      open.incrementAndGet();
+      return open::decrementAndGet;
+    }
   }
 
   private static final class InMemoryDriver implements StorageDriver {

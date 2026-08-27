@@ -145,9 +145,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
 
   @Override
   public @Nonnull DataConverter withContext(@Nonnull SerializationContext context) {
-    PayloadAndFailureDataConverter copy =
-        new PayloadAndFailureDataConverter(converters, convertersMap, failureConverter, context);
-    return copy;
+    return new PayloadAndFailureDataConverter(converters, convertersMap, failureConverter, context);
   }
 
   static Map<String, PayloadConverter> createConvertersMap(List<PayloadConverter> converters) {
