@@ -9,6 +9,7 @@ import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
@@ -24,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
@@ -132,11 +134,35 @@ public class ServiceWorkflowHistoryIteratorTest {
     Assert.assertThrows(ExternalStorageNotConfiguredException.class, iterator::hasNext);
   }
 
+  @Test
+  public void aCancelledTokenAbortsRetrievalOfAFetchedPage() {
+    ExternalStorageRunner storage = inMemoryStorage();
+    History.Builder builder = historyWithInput(payload("big-input")).toBuilder();
+    storage.store(builder, null, null, CancellationToken.none());
+    History stored = builder.build();
+
+    CancelSource<CancellationException> source =
+        new CancelSource<>(() -> new CancellationException("Worker shutdown"));
+    source.cancel();
+
+    ServiceWorkflowHistoryIterator iterator = fetchingIterator(stored, storage, source.token());
+
+    Assert.assertThrows(CancellationException.class, iterator::hasNext);
+  }
+
   private static ServiceWorkflowHistoryIterator fetchingIterator(
       History page, ExternalStorageRunner storage) {
+    return fetchingIterator(page, storage, CancellationToken.none());
+  }
+
+  private static ServiceWorkflowHistoryIterator fetchingIterator(
+      History page,
+      ExternalStorageRunner storage,
+      CancellationToken<CancellationException> storageCancellation) {
     PollWorkflowTaskQueueResponse workflowTask =
         PollWorkflowTaskQueueResponse.newBuilder().setNextPageToken(NEXT_PAGE_TOKEN).build();
-    return new ServiceWorkflowHistoryIterator(null, "default", workflowTask, null, storage) {
+    return new ServiceWorkflowHistoryIterator(
+        null, "default", workflowTask, null, storage, storageCancellation) {
       @Override
       GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
         return GetWorkflowExecutionHistoryResponse.newBuilder().setHistory(page).build();

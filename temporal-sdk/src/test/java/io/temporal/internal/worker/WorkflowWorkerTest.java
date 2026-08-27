@@ -22,6 +22,7 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.replay.ReplayWorkflow;
@@ -96,7 +97,8 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             3,
             slotSupplier,
-            new NamespaceCapabilities());
+            new NamespaceCapabilities(),
+            CancellationToken.none());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -268,7 +270,8 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             3,
             slotSupplier,
-            new NamespaceCapabilities());
+            new NamespaceCapabilities(),
+            CancellationToken.none());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -413,7 +416,8 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             3,
             slotSupplier,
-            new NamespaceCapabilities());
+            new NamespaceCapabilities(),
+            CancellationToken.none());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
