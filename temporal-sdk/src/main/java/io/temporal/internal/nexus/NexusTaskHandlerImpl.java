@@ -200,6 +200,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
       throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, failure);
     }
+    if (failure instanceof IllegalArgumentException) {
+      throw new HandlerException(HandlerException.ErrorType.BAD_REQUEST, failure);
+    }
     if (failure instanceof ApplicationFailure) {
       if (((ApplicationFailure) failure).isNonRetryable()) {
         throw new HandlerException(
