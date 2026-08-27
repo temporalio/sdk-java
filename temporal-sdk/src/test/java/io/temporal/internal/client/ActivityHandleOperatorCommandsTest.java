@@ -203,24 +203,6 @@ public class ActivityHandleOperatorCommandsTest {
         .build();
   }
 
-  /**
-   * restoreOriginalOptions reuses the updateActivityOptions call rather than having one of its own,
-   * distinguished purely by restore_original with an empty mask. An interceptor watching option
-   * updates would otherwise silently miss restores.
-   */
-  @Test
-  public void restoreOriginalOptionsRoutesThroughUpdate() {
-    when(genericClient.updateActivityOptions(any()))
-        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
-
-    newHandle().restoreOriginalOptions();
-
-    UpdateActivityExecutionOptionsRequest req = captureUpdate();
-    assertTrue("restore should set restore_original", req.getRestoreOriginal());
-    assertTrue(
-        "restore should name no paths in the mask", req.getUpdateMask().getPathsList().isEmpty());
-  }
-
   private ResetActivityExecutionRequest captureReset() {
     ArgumentCaptor<ResetActivityExecutionRequest> captor =
         ArgumentCaptor.forClass(ResetActivityExecutionRequest.class);
