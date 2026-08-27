@@ -14,10 +14,10 @@ import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -30,6 +30,7 @@ import io.temporal.worker.tuning.*;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -56,6 +57,9 @@ final class NexusWorker implements SuspendableWorker {
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final NamespaceCapabilities namespaceCapabilities;
+
+  final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
   private final boolean forceOldFailureFormat;
   private final boolean workerCommandsTaskQueue;
   private final TaskCounter taskCounter = new TaskCounter();
@@ -185,6 +189,9 @@ final class NexusWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
     String supplierName = this + "#executorSlots";
     return poller
         .shutdown(shutdownManager, interruptTasks)
@@ -555,7 +562,7 @@ final class NexusWorker implements SuspendableWorker {
         return task;
       }
       return new NexusTask(
-          externalStorage.retrieve(built, CancellationToken.none()),
+          externalStorage.retrieve(built, storageCancellation.token()),
           task.getPermit(),
           task.getCompletionCallback());
     }
@@ -563,7 +570,7 @@ final class NexusWorker implements SuspendableWorker {
     private void storeOutbound(Message.Builder builder) {
       ExternalStorageRunner externalStorage = options.getExternalStorage();
       if (externalStorage != null) {
-        externalStorage.store(builder, null, null, CancellationToken.none());
+        externalStorage.store(builder, null, null, storageCancellation.token());
       }
     }
   }
