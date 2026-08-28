@@ -132,8 +132,46 @@ public class RootActivityClientInvokerTest {
   }
 
   @Test
-  public void nexusContextWithoutMetadataStartsOrdinaryActivity() {
-    nexusContext.setRequestLinks(Collections.singletonList(workflowEventLink()));
+  public void nexusContextWithoutMetadataStillGetsAmbientLinksAndDedupButNoCallback() {
+    Link link = workflowEventLink();
+    nexusContext.setRequestLinks(Collections.singletonList(link));
+    nexusContext.setRequestId("ambient-nexus-request-id");
+
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    StartActivityExecutionRequest request = captor.getValue();
+    Assert.assertEquals("ambient-nexus-request-id", request.getRequestId());
+    Assert.assertEquals(Collections.singletonList(link), request.getLinksList());
+    Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
+    Assert.assertFalse(request.getOnConflictOptions().getAttachCompletionCallbacks());
+    Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
+  }
+
+  @Test
+  public void nexusContextWithoutAmbientStateStartsOrdinaryActivity() {
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    StartActivityExecutionRequest request = captor.getValue();
+    Assert.assertFalse(request.getRequestId().isEmpty());
+    Assert.assertEquals(0, request.getLinksCount());
+    Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
+    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
+    Assert.assertFalse(request.getOnConflictOptions().getAttachCompletionCallbacks());
+    Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
+  }
+
+  @Test
+  public void outsideNexusContextStartsOrdinaryActivity() {
+    CurrentNexusOperationContext.unset();
 
     invoker.startActivity(newStartActivityInput());
 
