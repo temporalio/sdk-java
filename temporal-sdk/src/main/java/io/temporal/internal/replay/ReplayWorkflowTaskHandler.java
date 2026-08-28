@@ -104,11 +104,11 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    ExternalStorageRunner externalStorage = options.getExternalStorage();
-    if (externalStorage == null) {
+    ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+    if (externalStorageRunner == null) {
       ExternalStorageRunner.throwIfContainsReference(workflowTask);
     } else {
-      workflowTask = externalStorage.retrieve(workflowTask, storageCancellation);
+      workflowTask = externalStorageRunner.retrieve(workflowTask, storageCancellation);
     }
     return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
   }
@@ -132,7 +132,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               namespace,
               workflowTask,
               metricsScope,
-              options.getExternalStorage(),
+              options.getExternalStorageRunner(),
               storageCancellation);
       boolean finalCommand;
       Result result;
@@ -434,11 +434,12 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .getWorkflowExecutionHistory(getHistoryRequest);
-      ExternalStorageRunner externalStorage = options.getExternalStorage();
-      if (externalStorage == null) {
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner == null) {
         ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
       } else {
-        getHistoryResponse = externalStorage.retrieve(getHistoryResponse, storageCancellation);
+        getHistoryResponse =
+            externalStorageRunner.retrieve(getHistoryResponse, storageCancellation);
       }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())
