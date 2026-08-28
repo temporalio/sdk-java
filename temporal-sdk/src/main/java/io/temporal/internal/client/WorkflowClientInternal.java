@@ -28,5 +28,5 @@ public interface WorkflowClientInternal {
   HeartbeatManager getHeartbeatManager();
 
   @Nullable
-  ExternalStorageRunner getExternalStorage();
+  ExternalStorageRunner getExternalStorageRunner();
 }

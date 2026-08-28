@@ -47,7 +47,7 @@ public final class SingleWorkerOptions {
     private boolean allowActivityHeartbeatDuringShutdown;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
-    private @Nullable ExternalStorageRunner externalStorage;
+    private @Nullable ExternalStorageRunner externalStorageRunner;
 
     private Builder() {}
 
@@ -76,7 +76,7 @@ public final class SingleWorkerOptions {
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
       this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
       this.preferredVersionProvider = options.getPreferredVersionProvider();
-      this.externalStorage = options.getExternalStorage();
+      this.externalStorageRunner = options.getExternalStorageRunner();
     }
 
     public Builder setIdentity(String identity) {
@@ -189,8 +189,8 @@ public final class SingleWorkerOptions {
       return this;
     }
 
-    public Builder setExternalStorage(@Nullable ExternalStorageRunner externalStorage) {
-      this.externalStorage = externalStorage;
+    public Builder setExternalStorageRunner(@Nullable ExternalStorageRunner externalStorageRunner) {
+      this.externalStorageRunner = externalStorageRunner;
       return this;
     }
 
@@ -237,7 +237,7 @@ public final class SingleWorkerOptions {
           this.allowActivityHeartbeatDuringShutdown,
           this.workerControlTaskQueue,
           this.preferredVersionProvider,
-          this.externalStorage);
+          this.externalStorageRunner);
     }
   }
 
@@ -262,7 +262,7 @@ public final class SingleWorkerOptions {
   private final boolean allowActivityHeartbeatDuringShutdown;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
-  private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable ExternalStorageRunner externalStorageRunner;
 
   private SingleWorkerOptions(
       String identity,
@@ -286,7 +286,7 @@ public final class SingleWorkerOptions {
       boolean allowActivityHeartbeatDuringShutdown,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
-      @Nullable ExternalStorageRunner externalStorage) {
+      @Nullable ExternalStorageRunner externalStorageRunner) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -308,7 +308,7 @@ public final class SingleWorkerOptions {
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
     this.workerControlTaskQueue = workerControlTaskQueue;
     this.preferredVersionProvider = preferredVersionProvider;
-    this.externalStorage = externalStorage;
+    this.externalStorageRunner = externalStorageRunner;
   }
 
   public String getIdentity() {
@@ -407,8 +407,8 @@ public final class SingleWorkerOptions {
   }
 
   @Nullable
-  public ExternalStorageRunner getExternalStorage() {
-    return externalStorage;
+  public ExternalStorageRunner getExternalStorageRunner() {
+    return externalStorageRunner;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

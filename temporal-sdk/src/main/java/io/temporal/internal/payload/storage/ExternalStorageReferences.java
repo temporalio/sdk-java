@@ -9,7 +9,7 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public final class ExternalStorageReferences {
+final class ExternalStorageReferences {
   private static final String ENCODING_PROTOBUF_JSON = "json/protobuf";
   private static final String REFERENCE_MESSAGE_TYPE =
       ExternalStorageReference.getDescriptor().getFullName();
@@ -79,7 +79,7 @@ public final class ExternalStorageReferences {
   }
 
   /** True if {@code payload} has an external storage reference encoding and message type. */
-  public static boolean isReference(Payload payload) {
+  static boolean isReference(Payload payload) {
     return hasMetadata(payload, EncodingKeys.METADATA_ENCODING_KEY, ENCODING_PROTOBUF_JSON)
         && hasMetadata(payload, EncodingKeys.METADATA_MESSAGE_TYPE_KEY, REFERENCE_MESSAGE_TYPE);
   }

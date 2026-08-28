@@ -58,7 +58,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private final WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
   private final String workerGroupingKey = java.util.UUID.randomUUID().toString();
   private final @Nullable HeartbeatManager heartbeatManager;
-  private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable ExternalStorageRunner externalStorageRunner;
 
   /**
    * Creates client that connects to an instance of the Temporal Service. Cannot be used from within
@@ -109,9 +109,9 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getOptions()
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
-    ExternalStorage externalStorageConfig = options.getExternalStorage();
-    this.externalStorage =
-        externalStorageConfig == null ? null : ExternalStorageRunner.create(externalStorageConfig);
+    ExternalStorage externalStorage = options.getExternalStorage();
+    this.externalStorageRunner =
+        externalStorage == null ? null : ExternalStorageRunner.create(externalStorage);
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
@@ -823,8 +823,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   @Override
   @Nullable
-  public ExternalStorageRunner getExternalStorage() {
-    return externalStorage;
+  public ExternalStorageRunner getExternalStorageRunner() {
+    return externalStorageRunner;
   }
 
   @Override

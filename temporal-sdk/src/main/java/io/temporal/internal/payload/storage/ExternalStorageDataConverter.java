@@ -16,8 +16,8 @@ import javax.annotation.Nullable;
 /**
  * A {@link DataConverter} that stores/retrieves payloads to/from external storage.
  *
- * <p>This This is an internal class that is not exposed to users or workflow code. The intent is to
- * use this data converter to consolidate extstore usage within the SDK.
+ * <p>This is an internal class that is not exposed to users or workflow code. The intent is to use
+ * this data converter to consolidate extstore usage within the SDK.
  */
 public final class ExternalStorageDataConverter implements DataConverter {
 
@@ -81,6 +81,17 @@ public final class ExternalStorageDataConverter implements DataConverter {
   }
 
   @Override
+  public Object[] fromPayloads(
+      Optional<Payloads> content, Class<?>[] parameterTypes, Type[] genericParameterTypes)
+      throws DataConverterException {
+    if (!content.isPresent()) {
+      return delegate.fromPayloads(content, parameterTypes, genericParameterTypes);
+    }
+    return delegate.fromPayloads(
+        Optional.of(retrieveAll(content.get())), parameterTypes, genericParameterTypes);
+  }
+
+  @Override
   @Nonnull
   public RuntimeException failureToException(@Nonnull Failure failure) {
     return delegate.failureToException(retrieveMessage(failure));
@@ -97,6 +108,15 @@ public final class ExternalStorageDataConverter implements DataConverter {
   public DataConverter withContext(@Nonnull SerializationContext context) {
     return new ExternalStorageDataConverter(
         delegate.withContext(context), externalStorage, storageTarget);
+  }
+
+  private Payloads retrieveAll(Payloads payloads) {
+    for (Payload payload : payloads.getPayloadsList()) {
+      if (ExternalStorageReferences.isReference(payload)) {
+        return retrieveMessage(payloads);
+      }
+    }
+    return payloads;
   }
 
   private Payload retrieve(Payload payload) {

@@ -121,6 +121,26 @@ public class ExternalStorageRunnerTest {
   }
 
   @Test
+  public void throwIfContainsReferenceThrowsOnANestedReference() throws Exception {
+    ExternalStorageRunner transformer = transformer(new InMemoryDriver("d1"), 0);
+    RespondWorkflowTaskCompletedRequest.Builder request =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setScheduleActivityTaskCommandAttributes(
+                        ScheduleActivityTaskCommandAttributes.newBuilder()
+                            .setActivityId("act-1")
+                            .setInput(
+                                Payloads.newBuilder().addPayloads(payload("activity-input")))));
+    transformer.store(request, null, null, CancellationToken.none());
+    RespondWorkflowTaskCompletedRequest stored = request.build();
+
+    assertThrows(
+        ExternalStorageNotConfiguredException.class,
+        () -> ExternalStorageRunner.throwIfContainsReference(stored));
+  }
+
+  @Test
   public void throwIfContainsReferenceThrowsOnReference() throws Exception {
     InMemoryDriver driver = new InMemoryDriver("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
