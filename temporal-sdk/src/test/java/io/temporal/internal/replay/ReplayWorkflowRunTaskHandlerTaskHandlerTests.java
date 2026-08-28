@@ -181,7 +181,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             "namespace",
             workflowFactory,
             new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope()),
-            SingleWorkerOptions.newBuilder().setExternalStorage(externalStorage).build(),
+            SingleWorkerOptions.newBuilder().setExternalStorageRunner(externalStorage).build(),
             null,
             Duration.ofSeconds(5),
             client,

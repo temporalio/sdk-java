@@ -33,7 +33,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private final GrpcRetryer grpcRetryer;
-  private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable ExternalStorageRunner externalStorageRunner;
   private final CancellationToken<CancellationException> storageCancellation;
   private Deadline deadline;
   private Iterator<HistoryEvent> current;
@@ -52,14 +52,14 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope,
-      @Nullable ExternalStorageRunner externalStorage,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       CancellationToken<CancellationException> storageCancellation) {
     this.storageCancellation = storageCancellation;
     this.service = service;
     this.namespace = namespace;
     this.task = task;
     this.metricsScope = metricsScope;
-    this.externalStorage = externalStorage;
+    this.externalStorageRunner = externalStorageRunner;
     // TODO Refactor WorkflowHistoryIteratorTest or WorkflowHistoryIterator to remove this check.
     //  `service == null` shouldn't be allowed as it's needed for a normal functioning of this
     // class.
@@ -83,10 +83,10 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
 
       History history = response.getHistory();
-      if (externalStorage == null) {
+      if (externalStorageRunner == null) {
         ExternalStorageRunner.throwIfContainsReference(history);
       } else {
-        history = externalStorage.retrieve(history, storageCancellation);
+        history = externalStorageRunner.retrieve(history, storageCancellation);
       }
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();
