@@ -551,26 +551,26 @@ final class NexusWorker implements SuspendableWorker {
     }
 
     private NexusTask retrieveInboundPayloads(NexusTask task) {
-      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
       PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
       PollNexusTaskQueueResponse built =
           response instanceof PollNexusTaskQueueResponse
               ? (PollNexusTaskQueueResponse) response
               : ((PollNexusTaskQueueResponse.Builder) response).build();
-      if (externalStorage == null) {
+      if (externalStorageRunner == null) {
         ExternalStorageRunner.throwIfContainsReference(built);
         return task;
       }
       return new NexusTask(
-          externalStorage.retrieve(built, storageCancellation.token()),
+          externalStorageRunner.retrieve(built, storageCancellation.token()),
           task.getPermit(),
           task.getCompletionCallback());
     }
 
     private void storeOutbound(Message.Builder builder) {
-      ExternalStorageRunner externalStorage = options.getExternalStorage();
-      if (externalStorage != null) {
-        externalStorage.store(builder, null, null, storageCancellation.token());
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner != null) {
+        externalStorageRunner.store(builder, null, null, storageCancellation.token());
       }
     }
   }
