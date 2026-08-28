@@ -154,14 +154,10 @@ public class ExternalStorageDataConverterTest {
   public void arrayFromPayloadsDecodesThroughTheCodecInOneBatch() {
     RecordingDriver driver = new RecordingDriver();
     CountingCodec codec = new CountingCodec();
-    DataConverter converter =
-        new ExternalStorageDataConverter(
-            new CodecDataConverter(plain, Collections.singletonList(codec)), runner(driver, 0));
+    DataConverter converter = codecBacked(driver, codec);
 
     Optional<Payloads> stored = converter.toPayloads("a", "b", "c");
-
     assertEquals(1, codec.encodeCalls.get());
-    assertTrue(driver.sawOnlyEncodedPayloads);
 
     Object[] values =
         converter.fromPayloads(
@@ -173,6 +169,39 @@ public class ExternalStorageDataConverterTest {
     assertEquals(1, codec.decodeCalls.get());
   }
 
+  /**
+   * A codec encrypts payloads, so a driver must never see the plaintext: conversion has to run
+   * before the payload is handed to storage.
+   */
+  @Test
+  public void driversOnlyEverSeeCodecEncodedPayloads() {
+    RecordingDriver driver = new RecordingDriver();
+    CountingCodec codec = new CountingCodec();
+    DataConverter converter = codecBacked(driver, codec);
+
+    Optional<Payloads> stored = converter.toPayloads("a", "b", "c");
+
+    assertEquals(3, driver.objects.size());
+    for (Payload payload : driver.objects.values()) {
+      String data = payload.getData().toStringUtf8();
+      assertFalse(data.contains("\"a\""));
+      assertFalse(data.contains("\"b\""));
+      assertFalse(data.contains("\"c\""));
+    }
+
+    assertArrayEquals(
+        new Object[] {"a", "b", "c"},
+        converter.fromPayloads(
+            stored,
+            new Class<?>[] {String.class, String.class, String.class},
+            new Type[] {String.class, String.class, String.class}));
+  }
+
+  private DataConverter codecBacked(StorageDriver driver, PayloadCodec codec) {
+    return new ExternalStorageDataConverter(
+        new CodecDataConverter(plain, Collections.singletonList(codec)), runner(driver, 0));
+  }
+
   private DataConverter resolving(StorageDriver driver, int threshold) {
     return new ExternalStorageDataConverter(plain, runner(driver, threshold));
   }
@@ -182,9 +211,9 @@ public class ExternalStorageDataConverterTest {
         ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build());
   }
 
-  /** Prefixes payload data so an unencoded payload reaching the driver is detectable. */
+  /** Obscures payload bytes so plaintext reaching a driver is detectable. */
   private static final class CountingCodec implements PayloadCodec {
-    static final ByteString PREFIX = ByteString.copyFromUtf8("ENC:");
+    private static final byte KEY = 0x5A;
 
     final AtomicInteger encodeCalls = new AtomicInteger();
     final AtomicInteger decodeCalls = new AtomicInteger();
@@ -192,23 +221,23 @@ public class ExternalStorageDataConverterTest {
     @Override
     public List<Payload> encode(List<Payload> payloads) {
       encodeCalls.incrementAndGet();
-      List<Payload> out = new ArrayList<>();
-      for (Payload payload : payloads) {
-        out.add(payload.toBuilder().setData(PREFIX.concat(payload.getData())).build());
-      }
-      return out;
+      return apply(payloads);
     }
 
     @Override
     public List<Payload> decode(List<Payload> payloads) {
       decodeCalls.incrementAndGet();
+      return apply(payloads);
+    }
+
+    private static List<Payload> apply(List<Payload> payloads) {
       List<Payload> out = new ArrayList<>();
       for (Payload payload : payloads) {
-        ByteString data = payload.getData();
-        if (!data.startsWith(PREFIX)) {
-          throw new IllegalStateException("payload reached decode without the codec prefix");
+        byte[] bytes = payload.getData().toByteArray();
+        for (int i = 0; i < bytes.length; i++) {
+          bytes[i] ^= KEY;
         }
-        out.add(payload.toBuilder().setData(data.substring(PREFIX.size())).build());
+        out.add(payload.toBuilder().setData(ByteString.copyFrom(bytes)).build());
       }
       return out;
     }
@@ -218,7 +247,6 @@ public class ExternalStorageDataConverterTest {
     final Map<String, Payload> objects = new HashMap<>();
     final List<String> retrievedKeys = new ArrayList<>();
     volatile StorageDriverTargetInfo lastTarget;
-    volatile boolean sawOnlyEncodedPayloads = true;
     private int counter = 0;
 
     @Override
@@ -235,11 +263,6 @@ public class ExternalStorageDataConverterTest {
     public synchronized CompletableFuture<List<StorageDriverClaim>> store(
         StorageDriverStoreContext context, List<Payload> payloads) {
       lastTarget = context.getTarget();
-      for (Payload payload : payloads) {
-        if (!payload.getData().startsWith(CountingCodec.PREFIX)) {
-          sawOnlyEncodedPayloads = false;
-        }
-      }
       List<StorageDriverClaim> claims = new ArrayList<>();
       for (Payload payload : payloads) {
         String key = "k-" + (counter++);
