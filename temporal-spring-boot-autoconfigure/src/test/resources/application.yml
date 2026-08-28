@@ -113,6 +113,18 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-composed-annotation
+  temporal:
+    workers-auto-discovery:
+      enabled: true
+      workflow-packages:
+        - io.temporal.spring.boot.autoconfigure.composedannotation
+      register-activity-beans: true
+
+---
+spring:
+  config:
+    activate:
       on-profile: auto-discovery-with-profile
   temporal:
     workers:

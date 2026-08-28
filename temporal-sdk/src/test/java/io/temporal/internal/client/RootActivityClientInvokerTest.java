@@ -148,6 +148,25 @@ public class RootActivityClientInvokerTest {
     Assert.assertTrue(nexusContext.getResponseLinks().isEmpty());
   }
 
+  @Test
+  public void missingTaskQueueFailsAtInvocation() {
+    StartActivityOptions options =
+        StartActivityOptions.newBuilder()
+            .setId("activity-id")
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .build();
+
+    IllegalArgumentException exception =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                invoker.startActivity(
+                    new StartActivityInput(
+                        "TestActivity", Collections.emptyList(), options, Header.empty())));
+
+    Assert.assertEquals("taskQueue must not be null or empty", exception.getMessage());
+  }
+
   private static StartActivityInput newStartActivityInput() {
     StartActivityOptions options =
         StartActivityOptions.newBuilder()
