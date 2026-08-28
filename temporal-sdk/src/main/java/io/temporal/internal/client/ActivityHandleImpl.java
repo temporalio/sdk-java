@@ -194,9 +194,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   @Override
   public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
     ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
-    // A repeated key resolves to its last update, so a later valueUnset overrides an earlier
-    // valueSet. Nothing else about ordering matters: the server reads the mask as a set, and each
-    // path writes a different field of ActivityOptions.
+    // For repeated keys, later values override previous ones.
     Map<String, ActivityOptionsUpdate<?>> byPath = new HashMap<>();
     for (ActivityOptionsUpdate<?> update : updates) {
       if (update != null) {
