@@ -92,8 +92,8 @@ public final class WorkflowClientOptions {
 
     /**
      * External storage configuration used to store/retrieve large payloads.
-     * 
-     * n.b. This is currently a no-op. External storage has not been fully integrated yet.
+     *
+     * <p>n.b. This is currently a no-op. External storage has not been fully integrated yet.
      *
      * <p>Defaults to null.
      */
