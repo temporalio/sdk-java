@@ -492,34 +492,34 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTask retrieveInboundPayloads(ActivityTask task) {
-      ExternalStorageRunner externalStorage = options.getExternalStorage();
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
       PollActivityTaskQueueResponseOrBuilder response = task.getResponse();
       PollActivityTaskQueueResponse built =
           response instanceof PollActivityTaskQueueResponse
               ? (PollActivityTaskQueueResponse) response
               : ((PollActivityTaskQueueResponse.Builder) response).build();
-      if (externalStorage == null) {
+      if (externalStorageRunner == null) {
         ExternalStorageRunner.throwIfContainsReference(built);
         return task;
       }
       return new ActivityTask(
-          externalStorage.retrieve(built, storageCancellation.token()),
+          externalStorageRunner.retrieve(built, storageCancellation.token()),
           task.getPermit(),
           task.getCompletionCallback());
     }
 
     private void storeOutboundPayloads(
         Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
-      ExternalStorageRunner externalStorage = options.getExternalStorage();
-      if (externalStorage != null) {
-        externalStorage.store(builder, target, null, storageCancellation.token());
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner != null) {
+        externalStorageRunner.store(builder, target, null, storageCancellation.token());
       }
     }
 
     @Nullable
     private StorageDriverTargetInfo activityStorageTarget(
         PollActivityTaskQueueResponseOrBuilder pollResponse) {
-      if (options.getExternalStorage() == null) {
+      if (options.getExternalStorageRunner() == null) {
         return null;
       }
       return storageTargetForActivityTask(namespace, pollResponse);
