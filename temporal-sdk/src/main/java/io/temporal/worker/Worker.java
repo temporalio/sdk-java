@@ -22,6 +22,8 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -123,6 +125,8 @@ public final class Worker {
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.clientOptions = client.getOptions();
     this.cache = cache;
+    ExternalStorage externalStorage =
+        ((WorkflowClientInternal) client.getInternal()).getExternalStorage();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
@@ -150,6 +154,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorage,
             activityTaskAutoEnrollEligible);
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
@@ -185,6 +190,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorage,
             nexusTaskAutoEnrollEligible);
     SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -206,6 +212,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorage,
             workflowTaskAutoEnrollEligible);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
@@ -215,7 +222,8 @@ public final class Worker {
             contextPropagators,
             taggedScope,
             workerInstanceKey,
-            workerControlTaskQueue);
+            workerControlTaskQueue,
+            externalStorage);
 
     SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -915,6 +923,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorage externalStorage,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -922,7 +931,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorage)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
         .setAllowActivityHeartbeatDuringShutdown(options.getAllowActivityHeartbeatDuringShutdown())
         .setPollerOptions(
@@ -948,6 +958,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorage externalStorage,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -955,7 +966,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorage)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -980,6 +992,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorage externalStorage,
       boolean autoEnrollEligible) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
@@ -1015,7 +1028,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorage)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -1040,14 +1054,16 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      @Nullable ExternalStorage externalStorage) {
     return toSingleWorkerOptions(
             factoryOptions,
             options,
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorage)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -1066,7 +1082,8 @@ public final class Worker {
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      @Nullable ExternalStorage externalStorage) {
     String buildId = null;
     if (options.getBuildId() != null) {
       buildId = options.getBuildId();
@@ -1081,6 +1098,7 @@ public final class Worker {
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
+        .setExternalStorage(externalStorage)
         .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())

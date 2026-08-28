@@ -66,7 +66,8 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
             WorkflowClientOptions.newBuilder()
                 .setNamespace(NAMESPACE)
                 .validateAndBuildWithDefaults(),
-            new WorkerFactoryRegistry());
+            new WorkerFactoryRegistry(),
+            null);
     Scope metricsScope = new RootScopeBuilder().reportEvery(com.uber.m3.util.Duration.ofMillis(10));
     nexusCtx =
         new InternalNexusOperationContext(

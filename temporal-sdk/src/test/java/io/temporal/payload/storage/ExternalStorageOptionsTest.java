@@ -118,4 +118,22 @@ public class ExternalStorageOptionsTest {
         .setPayloadSizeThreshold(-1)
         .build();
   }
+
+  @Test
+  public void maxConcurrentPayloadVisitsDefaultsToThree() {
+    assertEquals(
+        3,
+        ExternalStorageOptions.newBuilder()
+            .setDriver(driver("a"))
+            .build()
+            .getMaxConcurrentPayloadVisits());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void zeroMaxConcurrentPayloadVisitsRejected() {
+    ExternalStorageOptions.newBuilder()
+        .setDriver(driver("a"))
+        .setMaxConcurrentPayloadVisits(0)
+        .build();
+  }
 }

@@ -4,24 +4,31 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.payload.storage.ExternalStorage;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface ManualActivityCompletionClientFactory {
 
-  /**
-   * Create a {@link ManualActivityCompletionClientFactory} that emits simple {@link
-   * ManualActivityCompletionClientImpl} implementations
-   */
   static ManualActivityCompletionClientFactory newFactory(
       @Nonnull WorkflowServiceStubs service,
       @Nonnull String namespace,
       @Nonnull String identity,
       @Nonnull DataConverter dataConverter) {
+    return newFactory(service, namespace, identity, dataConverter, null);
+  }
+
+  static ManualActivityCompletionClientFactory newFactory(
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String identity,
+      @Nonnull DataConverter dataConverter,
+      @Nullable ExternalStorage externalStorage) {
     return new ManualActivityCompletionClientFactoryImpl(
-        service, namespace, identity, dataConverter);
+        service, namespace, identity, dataConverter, externalStorage);
   }
 
   ManualActivityCompletionClient getClient(@Nonnull byte[] taskToken, @Nonnull Scope metricsScope);
@@ -30,6 +37,12 @@ public interface ManualActivityCompletionClientFactory {
       @Nonnull byte[] taskToken,
       @Nonnull Scope metricsScope,
       @Nullable ActivitySerializationContext activitySerializationContext);
+
+  ManualActivityCompletionClient getClient(
+      @Nonnull byte[] taskToken,
+      @Nonnull Scope metricsScope,
+      @Nullable ActivitySerializationContext activitySerializationContext,
+      @Nullable StorageDriverTargetInfo storageTarget);
 
   ManualActivityCompletionClient getClient(
       @Nonnull WorkflowExecution execution,
