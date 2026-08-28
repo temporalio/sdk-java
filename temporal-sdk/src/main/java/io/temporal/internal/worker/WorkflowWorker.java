@@ -9,11 +9,14 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.command.v1.Command;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
+import io.temporal.api.errordetails.v1.WorkflowTaskCompletionBufferLostFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
@@ -23,6 +26,7 @@ import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.RpcRetryOptions;
+import io.temporal.serviceclient.StatusUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.*;
 import io.temporal.worker.tuning.*;
@@ -38,6 +42,13 @@ import org.slf4j.MDC;
 
 final class WorkflowWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
+
+  // Backoff between resends of a paginated completion after the server reports its buffered pages
+  // were lost. Buffer loss is transient; the loop is bounded by the server eventually timing the
+  // task
+  // out (after which the stale token fails with a different error) or by worker shutdown.
+  private static final long WFT_COMPLETION_PAGE_RESEND_INITIAL_BACKOFF_MS = 100;
+  private static final long WFT_COMPLETION_PAGE_RESEND_MAX_BACKOFF_MS = 5000;
 
   private final WorkflowRunLockManager runLocks;
 
@@ -477,7 +488,28 @@ final class WorkflowWorker implements SuspendableWorker {
                 }
               } else {
                 try {
-                  if (taskCompleted != null) {
+                  WorkflowTaskFailedCause requestTooLargeCause =
+                      taskCompleted == null
+                          ? null
+                          : completionExceedingSizeLimitCause(taskCompleted);
+                  if (requestTooLargeCause != null) {
+                    // A completion whose recombined command bytes exceed the namespace limit would
+                    // be
+                    // rejected and the workflow terminated by the server, so fail it proactively
+                    // rather than sending doomed pages.
+                    taskFailedCause = requestTooLargeCause;
+                    RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
+                        RespondWorkflowTaskFailedRequest.newBuilder()
+                            .setFailure(
+                                requestTooLargeFailure(
+                                    workflowExecution.getWorkflowId(), taskCompleted))
+                            .setCause(requestTooLargeCause);
+                    sendTaskFailed(
+                        currentTask.getTaskToken(),
+                        taskFailedBuilder,
+                        result.getRequestRetryOptions(),
+                        workflowTypeScope);
+                  } else if (taskCompleted != null) {
                     RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
                         taskCompleted.toBuilder();
                     try (EagerActivitySlotsReservation activitySlotsReservation =
@@ -565,6 +597,9 @@ final class WorkflowWorker implements SuspendableWorker {
                   break;
                 case WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE:
                   taskFailureType = MetricsTag.TASK_FAILURE_VALUE_GRPC_MESSAGE_TOO_LARGE;
+                  break;
+                case WORKFLOW_TASK_FAILED_CAUSE_REQUEST_TOO_LARGE:
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_REQUEST_TOO_LARGE;
                   break;
                 default:
                   taskFailureType = MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR;
@@ -654,10 +689,6 @@ final class WorkflowWorker implements SuspendableWorker {
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
         RpcRetryOptions retryOptions,
         Scope workflowTypeMetricsScope) {
-      GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
-          new GrpcRetryer.GrpcRetryerOptions(
-              RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
-
       taskCompleted
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
@@ -676,13 +707,81 @@ final class WorkflowWorker implements SuspendableWorker {
         taskCompleted.setBinaryChecksum(options.getBuildId());
       }
 
-      return grpcRetryer.retryWithResult(
-          () ->
-              service
-                  .blockingStub()
-                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
-                  .respondWorkflowTaskCompleted(taskCompleted.build()),
-          grpcRetryOptions);
+      RespondWorkflowTaskCompletedRequest request = taskCompleted.build();
+      GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
+          new GrpcRetryer.GrpcRetryerOptions(
+              RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
+
+      if (!namespaceCapabilities.isWorkflowTaskCompletionPagination()) {
+        return grpcRetryer.retryWithResult(
+            () -> respondWorkflowTaskCompleted(request, workflowTypeMetricsScope),
+            grpcRetryOptions);
+      }
+
+      WorkflowTaskCompletionPaginator.Pages pages =
+          WorkflowTaskCompletionPaginator.paginate(
+              request, WorkflowTaskCompletionPaginator.MAX_PAGE_BYTES);
+      if (!pages.isPaginated()) {
+        return grpcRetryer.retryWithResult(
+            () -> respondWorkflowTaskCompleted(pages.finalPage, workflowTypeMetricsScope),
+            grpcRetryOptions);
+      }
+      return sendPaginatedTaskCompleted(pages, retryOptions, workflowTypeMetricsScope);
+    }
+
+    /**
+     * Sends a paginated completion, resending every page from page 0 on buffer loss. Buffer loss —
+     * the server dropping the pages it had buffered for this token — is transient, so this backs
+     * off and retries. The gRPC retry layer does not retry buffer loss (it is excluded via a
+     * DoNotRetryItem below), so this loop is its sole handler; it bails on worker shutdown, and the
+     * server bounds it by eventually timing the task out.
+     */
+    private RespondWorkflowTaskCompletedResponse sendPaginatedTaskCompleted(
+        WorkflowTaskCompletionPaginator.Pages pages,
+        RpcRetryOptions retryOptions,
+        Scope workflowTypeMetricsScope) {
+      // Buffer loss requires resending every page, which a single-page gRPC retry cannot do, so it
+      // is handled by this loop instead of the retryer.
+      GrpcRetryer.GrpcRetryerOptions pageRetryOptions =
+          new GrpcRetryer.GrpcRetryerOptions(
+              RpcRetryOptions.newBuilder(
+                      RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions))
+                  .addDoNotRetry(Status.Code.ABORTED, WorkflowTaskCompletionBufferLostFailure.class)
+                  .validateBuildWithDefaults(),
+              null);
+      long backoffMs = WFT_COMPLETION_PAGE_RESEND_INITIAL_BACKOFF_MS;
+      while (true) {
+        try {
+          for (RespondWorkflowTaskCompletedRequest page : pages.intermediatePages) {
+            grpcRetryer.retryWithResult(
+                () -> respondWorkflowTaskCompleted(page, workflowTypeMetricsScope),
+                pageRetryOptions);
+          }
+          return grpcRetryer.retryWithResult(
+              () -> respondWorkflowTaskCompleted(pages.finalPage, workflowTypeMetricsScope),
+              pageRetryOptions);
+        } catch (StatusRuntimeException e) {
+          if (!StatusUtils.hasFailure(e, WorkflowTaskCompletionBufferLostFailure.class)
+              || isShutdown()) {
+            throw e;
+          }
+          try {
+            Thread.sleep(backoffMs);
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+            throw e;
+          }
+          backoffMs = Math.min(backoffMs * 2, WFT_COMPLETION_PAGE_RESEND_MAX_BACKOFF_MS);
+        }
+      }
+    }
+
+    private RespondWorkflowTaskCompletedResponse respondWorkflowTaskCompleted(
+        RespondWorkflowTaskCompletedRequest request, Scope workflowTypeMetricsScope) {
+      return service
+          .blockingStub()
+          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+          .respondWorkflowTaskCompleted(request);
     }
 
     @SuppressWarnings("deprecation")
@@ -758,6 +857,56 @@ final class WorkflowWorker implements SuspendableWorker {
       // knows next time.
       cache.invalidate(
           workflowExecution, workflowTypeScope, "Failed result reporting to the server", e);
+    }
+
+    /**
+     * Returns the fail cause when {@code taskCompleted}'s recombined command bytes exceed the
+     * namespace's completion size limit, or null otherwise. The limit governs the server's
+     * recombined page buffer, so it only applies when pagination is enabled and the completion is
+     * large enough to be paginated; a completion that fits in a single request is never buffered
+     * and is left for the server to accept. Only command bytes count toward the limit, not messages
+     * or metadata.
+     */
+    private WorkflowTaskFailedCause completionExceedingSizeLimitCause(
+        RespondWorkflowTaskCompletedRequest taskCompleted) {
+      if (!namespaceCapabilities.isWorkflowTaskCompletionPagination()
+          || taskCompleted.getSerializedSize() <= WorkflowTaskCompletionPaginator.MAX_PAGE_BYTES) {
+        return null;
+      }
+      long sizeLimit = namespaceCapabilities.getWorkflowTaskCompletionSizeLimit();
+      if (sizeLimit <= 0) {
+        return null;
+      }
+      long commandBytes = 0;
+      for (Command command : taskCompleted.getCommandsList()) {
+        commandBytes += command.getSerializedSize();
+      }
+      if (commandBytes <= sizeLimit) {
+        return null;
+      }
+      return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_REQUEST_TOO_LARGE;
+    }
+
+    private Failure requestTooLargeFailure(
+        String workflowId, RespondWorkflowTaskCompletedRequest taskCompleted) {
+      long commandBytes = 0;
+      for (Command command : taskCompleted.getCommandsList()) {
+        commandBytes += command.getSerializedSize();
+      }
+      String message =
+          String.format(
+              "Workflow task completion command size %d exceeds the namespace limit of %d bytes",
+              commandBytes, namespaceCapabilities.getWorkflowTaskCompletionSizeLimit());
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage(message)
+              .setType("WorkflowTaskCompletionRequestTooLarge")
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]); // don't serialize stack trace
+      return options
+          .getDataConverter()
+          .withContext(new WorkflowSerializationContext(namespace, workflowId))
+          .exceptionToFailure(applicationFailure);
     }
 
     private Failure grpcMessageTooLargeFailure(
