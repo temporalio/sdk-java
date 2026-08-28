@@ -132,10 +132,23 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
 
     // If this signal is being issued from inside a Nexus operation handler, forward the inbound
-    // Nexus task links so the SignalWorkflowExecution history event links back to the caller.
+    // Nexus task links so the SignalWorkflowExecution history event links back to the caller, and
+    // derive a redelivery-safe request ID. We deliberately do NOT reuse the ambient
+    // nexusContext.getRequestId() verbatim here the way RootActivityClientInvoker does for
+    // activity starts: SignalWorkflowExecutionRequest's request_id is a pure dedup key with no
+    // awareness of signal name, payload, or target, so if a single Nexus operation handler
+    // invocation issues more than one signal-class call to the same workflow, reusing the same
+    // raw ambient ID for both would make the server treat the second call as a duplicate of the
+    // first and silently drop it. nextSignalRequestId() hands out a distinct-but-redelivery-stable
+    // ID per signal-class call instead. See InternalNexusOperationContext.nextSignalRequestId().
     boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
     if (inNexusContext) {
-      request.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
+      InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+      request.addAllLinks(nexusContext.getRequestLinks());
+      String signalRequestId = nexusContext.nextSignalRequestId();
+      if (signalRequestId != null) {
+        request.setRequestId(signalRequestId);
+      }
     }
 
     DataConverter dataConverterWitSignalContext =
@@ -176,10 +189,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             startRequest, input.getSignalName(), signalInput.orElse(null));
     // If this signalWithStart is being issued from inside a Nexus operation handler, forward
     // the inbound Nexus task links so both the WorkflowExecutionStarted and
-    // WorkflowExecutionSignaled events on the callee link back to the caller.
+    // WorkflowExecutionSignaled events on the callee link back to the caller, and derive a
+    // redelivery-safe request ID the same way signal() does above -- see the comment there for why
+    // the raw ambient nexusContext.getRequestId() must not be reused verbatim.
     boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
     if (inNexusContext) {
-      requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
+      InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+      requestBuilder.addAllLinks(nexusContext.getRequestLinks());
+      String signalRequestId = nexusContext.nextSignalRequestId();
+      if (signalRequestId != null) {
+        requestBuilder.setRequestId(signalRequestId);
+      }
     }
     SignalWithStartWorkflowExecutionRequest request = requestBuilder.build();
     SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);

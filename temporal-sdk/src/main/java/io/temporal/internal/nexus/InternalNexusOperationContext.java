@@ -9,6 +9,7 @@ import io.temporal.nexus.NexusOperationInfo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
 public class InternalNexusOperationContext {
@@ -33,6 +34,16 @@ public class InternalNexusOperationContext {
   // nexusOperationMetadata, which is scoped to the single backing start because it carries
   // completion-callback semantics.
   private String requestId;
+  // Counter used to derive distinct-but-stable request IDs for signal-class RPCs (signal,
+  // signalWithStart) issued during this invocation. Unlike activity starts, a signal has no
+  // per-call unique identifier of its own (server-side dedup for
+  // Signal/SignalWithStartWorkflowExecutionRequest is keyed purely on request_id, with no
+  // awareness of signal name, payload, or target), so reusing the raw ambient requestId verbatim
+  // for more than one signal-class call in the same invocation would make the server treat the
+  // second call as a duplicate of the first and silently drop it. See nextSignalRequestId(). A
+  // handler may issue RPCs from multiple threads (see responseLinksLock below), so this must be
+  // thread-safe.
+  private final AtomicInteger signalRequestIdSequence = new AtomicInteger();
   // Links returned by outbound RPCs the operation handler issues (such as
   // SignalWorkflowExecutionResponse.link or SignalWithStartWorkflowExecutionResponse.signal_link).
   // One entry per outbound RPC that returned a link. Drained
@@ -120,6 +131,30 @@ public class InternalNexusOperationContext {
   /** The inbound Nexus task's request ID; {@code null} if not set. */
   public String getRequestId() {
     return requestId;
+  }
+
+  /**
+   * Returns a request ID for a signal-class RPC (signal / signalWithStart) issued during this
+   * invocation.
+   *
+   * <p>The returned ID is stable across a Nexus task redelivery for the Nth such call issued by
+   * this invocation (assuming the handler reissues the same sequence of calls on retry -- the same
+   * determinism assumption the ambient requestId/requestLinks design already relies on), which
+   * makes redelivered signal-class calls redelivery-safe against the server's request-ID based
+   * dedup. Unlike {@link #getRequestId()}, repeated calls within the same invocation return
+   * distinct values, so two different signal-class calls issued by one invocation (e.g. a
+   * signalWithStart followed by a plain signal to the same workflow) never collide on the server's
+   * dedup key.
+   *
+   * @return a derived, per-call request ID, or {@code null} if no ambient requestId is set (outside
+   *     a Nexus context, or a bare context not populated by {@code NexusTaskHandlerImpl}),
+   *     signaling callers to fall back to a fresh random ID.
+   */
+  public String nextSignalRequestId() {
+    if (requestId == null || requestId.isEmpty()) {
+      return null;
+    }
+    return requestId + "-" + signalRequestIdSequence.getAndIncrement();
   }
 
   public void setStartWorkflowResponseLink(Link link) {
