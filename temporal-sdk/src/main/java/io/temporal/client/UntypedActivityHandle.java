@@ -190,19 +190,23 @@ public interface UntypedActivityHandle {
   void reset(ResetActivityOptions options);
 
   /**
-   * Updates the activity's options. Only the fields explicitly set in {@code options} are changed;
-   * a derived field mask leaves the rest untouched. To revert to the options the activity was
-   * created with, use {@link #restoreOriginalOptions()}.
+   * Updates the activity's options. Only the options named by {@code updates} are changed; a
+   * derived field mask leaves the rest untouched. To revert to the options the activity was created
+   * with, use {@link #restoreOriginalOptions()}.
    *
-   * @param options the options to apply
+   * <p>Updates are created from the keys on {@link ActivityOptionsKeys}, via {@link
+   * ActivityOptionsKey#valueSet} to set an option or {@link ActivityOptionsKey#valueUnset} to clear
+   * it.
+   *
+   * @param updates the option updates to apply; at least one is required
    * @return the activity options as resolved by the server after the update
    */
-  UpdateActivityOptions updateOptions(UpdateActivityOptions options);
+  ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates);
 
   /**
    * Restores the activity's options to the ones it was created with.
    *
    * @return the activity options as resolved by the server after the restore
    */
-  UpdateActivityOptions restoreOriginalOptions();
+  ActivityExecutionOptions restoreOriginalOptions();
 }

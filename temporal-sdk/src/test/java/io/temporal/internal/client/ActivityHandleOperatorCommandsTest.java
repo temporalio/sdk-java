@@ -23,12 +23,12 @@ import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityOptionsKeys;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
-import io.temporal.client.UpdateActivityOptions;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import java.time.Duration;
 import org.junit.Test;
@@ -71,8 +71,7 @@ public class ActivityHandleOperatorCommandsTest {
             .setKeepPaused(true)
             .setRestoreOriginalOptions(true)
             .build());
-    handle.updateOptions(
-        UpdateActivityOptions.newBuilder().setStartDelay(Duration.ofSeconds(7)).build());
+    handle.updateOptions(ActivityOptionsKeys.START_DELAY.valueSet(Duration.ofSeconds(7)));
 
     // pause carries the reason and an auto-generated dedup request_id; neither is returned by
     // describe.
@@ -135,9 +134,7 @@ public class ActivityHandleOperatorCommandsTest {
     UntypedActivityHandle handle = newHandle();
 
     IllegalArgumentException e =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> handle.updateOptions(UpdateActivityOptions.newBuilder().build()));
+        assertThrows(IllegalArgumentException.class, () -> handle.updateOptions());
     assertTrue(e.getMessage().contains("at least one option"));
 
     verifyNoInteractions(genericClient);
@@ -204,44 +201,84 @@ public class ActivityHandleOperatorCommandsTest {
   }
 
   /**
-   * A zero duration clears the option: the path is named in the mask so the server acts on it, and
-   * the server normalizes a zero timeout back to unset. Null means "do not touch" and keeps the
-   * path out of the mask entirely.
+   * ValueSet of a zero duration is an explicit zero, not a clear: the path is named in the mask and
+   * the field is present holding zero. The server normalizes a zero timeout to unset, but that is
+   * the server's decision, not something the SDK decides on the caller's behalf.
    */
   @Test
-  public void zeroDurationClearsTheOption() {
+  public void valueSetOfZeroSendsAnExplicitZero() {
     when(genericClient.updateActivityOptions(any()))
         .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
 
-    newHandle()
-        .updateOptions(
-            UpdateActivityOptions.newBuilder().setHeartbeatTimeout(Duration.ZERO).build());
+    newHandle().updateOptions(ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueSet(Duration.ZERO));
 
     UpdateActivityExecutionOptionsRequest req = captureUpdate();
     assertEquals(
-        java.util.Collections.singletonList("heartbeat_timeout"),
-        req.getUpdateMask().getPathsList());
+        java.util.Collections.singleton("heartbeat_timeout"),
+        new java.util.HashSet<>(req.getUpdateMask().getPathsList()));
+    assertTrue(
+        "a zero value is present, not absent", req.getActivityOptions().hasHeartbeatTimeout());
     assertEquals(0, req.getActivityOptions().getHeartbeatTimeout().getSeconds());
     assertEquals(0, req.getActivityOptions().getHeartbeatTimeout().getNanos());
   }
 
-  /** A null option is left alone: it never reaches the mask. */
+  /**
+   * ValueUnset names the path but leaves the field absent, which is how the server is told to clear
+   * the option rather than set it to a value.
+   */
   @Test
-  public void nullOptionIsNotTouched() {
+  public void valueUnsetNamesThePathButLeavesTheFieldAbsent() {
+    when(genericClient.updateActivityOptions(any()))
+        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+
+    newHandle().updateOptions(ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueUnset());
+
+    UpdateActivityExecutionOptionsRequest req = captureUpdate();
+    assertEquals(
+        java.util.Collections.singleton("heartbeat_timeout"),
+        new java.util.HashSet<>(req.getUpdateMask().getPathsList()));
+    assertFalse(
+        "an unset value is absent, not zero", req.getActivityOptions().hasHeartbeatTimeout());
+  }
+
+  /** A repeated key resolves to its last update: a later valueUnset overrides an earlier set. */
+  @Test
+  public void aRepeatedKeyResolvesToItsLastUpdate() {
     when(genericClient.updateActivityOptions(any()))
         .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
 
     newHandle()
         .updateOptions(
-            UpdateActivityOptions.newBuilder()
-                .setHeartbeatTimeout(null)
-                .setStartToCloseTimeout(Duration.ofSeconds(90))
-                .build());
+            ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueSet(Duration.ofSeconds(5)),
+            ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueUnset());
+
+    UpdateActivityExecutionOptionsRequest req = captureUpdate();
+    // The later unset wins, and the path is named once.
+    assertEquals(
+        java.util.Collections.singleton("heartbeat_timeout"),
+        new java.util.HashSet<>(req.getUpdateMask().getPathsList()));
+    assertFalse(req.getActivityOptions().hasHeartbeatTimeout());
+  }
+
+  /** The mask names exactly the options that were updated, and nothing else. */
+  @Test
+  public void maskNamesOnlyTheChangedOptions() {
+    when(genericClient.updateActivityOptions(any()))
+        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+
+    newHandle()
+        .updateOptions(
+            ActivityOptionsKeys.TASK_QUEUE.valueSet("new-tq"),
+            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
 
     UpdateActivityExecutionOptionsRequest req = captureUpdate();
     assertEquals(
-        java.util.Collections.singletonList("start_to_close_timeout"),
-        req.getUpdateMask().getPathsList());
+        new java.util.HashSet<>(
+            java.util.Arrays.asList("task_queue.name", "start_to_close_timeout")),
+        new java.util.HashSet<>(req.getUpdateMask().getPathsList()));
+    assertFalse(req.getRestoreOriginal());
+    assertEquals("new-tq", req.getActivityOptions().getTaskQueue().getName());
+    assertEquals(90, req.getActivityOptions().getStartToCloseTimeout().getSeconds());
   }
 
   private ResetActivityExecutionRequest captureReset() {

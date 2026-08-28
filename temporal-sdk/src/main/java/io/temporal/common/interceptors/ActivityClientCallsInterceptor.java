@@ -6,13 +6,13 @@ import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
+import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
-import io.temporal.client.UpdateActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -521,14 +521,14 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class UpdateActivityOptionsOutput {
-    private final UpdateActivityOptions options;
+    private final ActivityExecutionOptions options;
 
-    public UpdateActivityOptionsOutput(UpdateActivityOptions options) {
+    public UpdateActivityOptionsOutput(ActivityExecutionOptions options) {
       this.options = options;
     }
 
     /** The activity options as resolved by the server after the update. */
-    public UpdateActivityOptions getOptions() {
+    public ActivityExecutionOptions getOptions() {
       return options;
     }
   }

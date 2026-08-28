@@ -8,19 +8,19 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * Options for {@link UntypedActivityHandle#updateOptions(UpdateActivityOptions)}.
+ * Options for {@link UntypedActivityHandle#updateOptions(ActivityExecutionOptions)}.
  *
  * <p>Only the fields that are explicitly set are sent to the server; a derived field mask ensures
  * that unset fields are left unchanged (a partial update).
  */
 @Experimental
-public final class UpdateActivityOptions {
+public final class ActivityExecutionOptions {
 
   public static Builder newBuilder() {
     return new Builder();
   }
 
-  public static Builder newBuilder(UpdateActivityOptions options) {
+  public static Builder newBuilder(ActivityExecutionOptions options) {
     return new Builder(options);
   }
 
@@ -36,7 +36,7 @@ public final class UpdateActivityOptions {
 
     private Builder() {}
 
-    private Builder(UpdateActivityOptions options) {
+    private Builder(ActivityExecutionOptions options) {
       if (options == null) {
         return;
       }
@@ -98,8 +98,8 @@ public final class UpdateActivityOptions {
       return this;
     }
 
-    public UpdateActivityOptions build() {
-      return new UpdateActivityOptions(this);
+    public ActivityExecutionOptions build() {
+      return new ActivityExecutionOptions(this);
     }
   }
 
@@ -112,7 +112,7 @@ public final class UpdateActivityOptions {
   private final @Nullable Priority priority;
   private final @Nullable Duration startDelay;
 
-  private UpdateActivityOptions(Builder builder) {
+  private ActivityExecutionOptions(Builder builder) {
     this.taskQueue = builder.taskQueue;
     this.scheduleToCloseTimeout = builder.scheduleToCloseTimeout;
     this.scheduleToStartTimeout = builder.scheduleToStartTimeout;
@@ -171,7 +171,7 @@ public final class UpdateActivityOptions {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    UpdateActivityOptions that = (UpdateActivityOptions) o;
+    ActivityExecutionOptions that = (ActivityExecutionOptions) o;
     return Objects.equals(taskQueue, that.taskQueue)
         && Objects.equals(scheduleToCloseTimeout, that.scheduleToCloseTimeout)
         && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
@@ -197,7 +197,7 @@ public final class UpdateActivityOptions {
 
   @Override
   public String toString() {
-    return "UpdateActivityOptions{"
+    return "ActivityExecutionOptions{"
         + "taskQueue='"
         + taskQueue
         + "', scheduleToCloseTimeout="

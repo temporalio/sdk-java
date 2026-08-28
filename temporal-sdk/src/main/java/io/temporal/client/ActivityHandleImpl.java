@@ -158,12 +158,12 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public UpdateActivityOptions updateOptions(UpdateActivityOptions options) {
-    return delegate.updateOptions(options);
+  public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
+    return delegate.updateOptions(updates);
   }
 
   @Override
-  public UpdateActivityOptions restoreOriginalOptions() {
+  public ActivityExecutionOptions restoreOriginalOptions() {
     return delegate.restoreOriginalOptions();
   }
 }

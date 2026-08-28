@@ -6,18 +6,24 @@ import com.google.protobuf.FieldMask;
 import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityExecutionOptions;
+import io.temporal.client.ActivityOptionsKey;
+import io.temporal.client.ActivityOptionsKeys;
+import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
-import io.temporal.client.UpdateActivityOptions;
+import io.temporal.common.Priority;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -186,56 +192,32 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
   }
 
   @Override
-  public UpdateActivityOptions updateOptions(UpdateActivityOptions options) {
+  public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
     ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
-    List<String> maskPaths = new ArrayList<>();
-
-    if (options.getTaskQueue() != null) {
-      activityOptions.setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build());
-      maskPaths.add("task_queue.name");
-    }
-    if (options.getScheduleToCloseTimeout() != null) {
-      activityOptions.setScheduleToCloseTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getScheduleToCloseTimeout()));
-      maskPaths.add("schedule_to_close_timeout");
-    }
-    if (options.getScheduleToStartTimeout() != null) {
-      activityOptions.setScheduleToStartTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getScheduleToStartTimeout()));
-      maskPaths.add("schedule_to_start_timeout");
-    }
-    if (options.getStartToCloseTimeout() != null) {
-      activityOptions.setStartToCloseTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getStartToCloseTimeout()));
-      maskPaths.add("start_to_close_timeout");
-    }
-    if (options.getHeartbeatTimeout() != null) {
-      activityOptions.setHeartbeatTimeout(
-          ProtobufTimeUtils.toProtoDuration(options.getHeartbeatTimeout()));
-      maskPaths.add("heartbeat_timeout");
-    }
-    if (options.getRetryOptions() != null) {
-      activityOptions.setRetryPolicy(toRetryPolicy(options.getRetryOptions()));
-      maskPaths.add("retry_policy");
-    }
-    if (options.getPriority() != null) {
-      activityOptions.setPriority(ProtoConverters.toProto(options.getPriority()));
-      maskPaths.add("priority");
-    }
-    if (options.getStartDelay() != null) {
-      activityOptions.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
-      maskPaths.add("start_delay");
+    // A repeated key resolves to its last update, so a later valueUnset overrides an earlier
+    // valueSet. Nothing else about ordering matters: the server reads the mask as a set, and each
+    // path writes a different field of ActivityOptions.
+    Map<String, ActivityOptionsUpdate<?>> byPath = new HashMap<>();
+    for (ActivityOptionsUpdate<?> update : updates) {
+      if (update != null) {
+        byPath.put(update.getKey().getName(), update);
+      }
     }
 
     // An update naming nothing would send an empty mask and silently change nothing. Fail here
     // rather than making a round trip that looks like it worked. Use restoreOriginalOptions() to
     // revert options instead.
-    if (maskPaths.isEmpty()) {
-      throw new IllegalArgumentException(
-          "UpdateActivityOptions must set at least one option to update");
+    if (byPath.isEmpty()) {
+      throw new IllegalArgumentException("updateOptions requires at least one option update");
     }
 
-    FieldMask updateMask = FieldMask.newBuilder().addAllPaths(maskPaths).build();
+    for (ActivityOptionsUpdate<?> update : byPath.values()) {
+      // An unset update names its path but leaves the field absent, which is how the server is
+      // told to clear the option.
+      update.getValue().ifPresent(value -> applyUpdate(activityOptions, update.getKey(), value));
+    }
+
+    FieldMask updateMask = FieldMask.newBuilder().addAllPaths(byPath.keySet()).build();
 
     ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =
         clientCallsInterceptor.updateActivityOptions(
@@ -245,8 +227,44 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
     return output.getOptions();
   }
 
+  /**
+   * Writes one option's value onto the request. The cast is safe because every key is created by
+   * {@link ActivityOptionsKeys} with the value type its path expects.
+   */
+  private static void applyUpdate(
+      ActivityOptions.Builder options, ActivityOptionsKey<?> key, Object value) {
+    switch (key.getName()) {
+      case "task_queue.name":
+        options.setTaskQueue(TaskQueue.newBuilder().setName((String) value).build());
+        break;
+      case "schedule_to_close_timeout":
+        options.setScheduleToCloseTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "schedule_to_start_timeout":
+        options.setScheduleToStartTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "start_to_close_timeout":
+        options.setStartToCloseTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "heartbeat_timeout":
+        options.setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "start_delay":
+        options.setStartDelay(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "retry_policy":
+        options.setRetryPolicy(toRetryPolicy((RetryOptions) value));
+        break;
+      case "priority":
+        options.setPriority(ProtoConverters.toProto((Priority) value));
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown activity option: " + key.getName());
+    }
+  }
+
   @Override
-  public UpdateActivityOptions restoreOriginalOptions() {
+  public ActivityExecutionOptions restoreOriginalOptions() {
     ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =
         clientCallsInterceptor.updateActivityOptions(
             new ActivityClientCallsInterceptor.UpdateActivityOptionsInput(

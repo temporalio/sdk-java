@@ -528,8 +528,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   /** Converts the server's resolved activity options into the public options type. */
-  private static UpdateActivityOptions toUpdateActivityOptions(ActivityOptions proto) {
-    UpdateActivityOptions.Builder builder = UpdateActivityOptions.newBuilder();
+  private static ActivityExecutionOptions toUpdateActivityOptions(ActivityOptions proto) {
+    ActivityExecutionOptions.Builder builder = ActivityExecutionOptions.newBuilder();
     if (proto.hasTaskQueue()) {
       builder.setTaskQueue(proto.getTaskQueue().getName());
     }
