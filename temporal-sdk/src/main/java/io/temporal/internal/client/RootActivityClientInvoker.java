@@ -64,14 +64,21 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     NexusOperationMetadata nexusOperationMetadata =
         nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
+    String requestId;
+    if (nexusOperationMetadata != null
+        && !Strings.isNullOrEmpty(nexusOperationMetadata.requestId)) {
+      requestId = nexusOperationMetadata.requestId;
+    } else if (nexusContext != null && !Strings.isNullOrEmpty(nexusContext.getRequestId())) {
+      requestId = nexusContext.getRequestId();
+    } else {
+      requestId = UUID.randomUUID().toString();
+    }
+
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity())
-            .setRequestId(
-                nexusOperationMetadata == null
-                    ? UUID.randomUUID().toString()
-                    : nexusOperationMetadata.requestId)
+            .setRequestId(requestId)
             .setActivityId(options.getId())
             .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
             .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
@@ -121,14 +128,25 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
     request.setHeader(grpcHeader);
 
-    if (nexusOperationMetadata != null) {
-      List<Link> protoLinks = nexusContext.getRequestLinks();
+    List<Link> protoLinks = Collections.emptyList();
+    if (nexusContext != null) {
+      // Propagate the inbound Nexus request ID and links to every activity start on the
+      // operation-handler thread, including starts through a raw ActivityClient.
+      // Completion callbacks remain limited to the metadata-backed start because only it
+      // completes the Nexus operation.
+      protoLinks = nexusContext.getRequestLinks();
       request.addAllLinks(protoLinks);
-      request.setOnConflictOptions(
+      io.temporal.api.common.v1.OnConflictOptions.Builder onConflictOptions =
           io.temporal.api.common.v1.OnConflictOptions.newBuilder()
               .setAttachRequestId(true)
-              .setAttachLinks(true)
-              .setAttachCompletionCallbacks(true));
+              .setAttachLinks(true);
+      if (nexusOperationMetadata != null) {
+        onConflictOptions.setAttachCompletionCallbacks(true);
+      }
+      request.setOnConflictOptions(onConflictOptions);
+    }
+
+    if (nexusOperationMetadata != null) {
       // Generate the operation token from the user-supplied activity ID and namespace so the
       // dual OPERATION_ID + OPERATION_TOKEN headers can be injected before the start RPC fires.
       try {
@@ -168,7 +186,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throw e;
     }
 
-    if (nexusOperationMetadata != null && response.hasLink()) {
+    if (nexusContext != null && response.hasLink()) {
       nexusContext.addResponseLink(response.getLink());
     }
 
