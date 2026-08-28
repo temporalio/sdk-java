@@ -14,6 +14,7 @@ import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
+import io.temporal.workflow.WorkflowRandomStream;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -291,6 +292,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
 
   /** Replay safe random. */
   Random newRandom();
+
+  /** Replay safe named random stream. */
+  WorkflowRandomStream getRandomStream(String name);
 
   /**
    * @return scope to be used for metrics reporting.

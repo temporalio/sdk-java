@@ -712,6 +712,22 @@ public final class Workflow {
   }
 
   /**
+   * Returns a deterministic pseudorandom stream private to {@code name}.
+   *
+   * <p>Calling this method again with the same name returns the same logical stream where earlier
+   * draws left it. A Workflow Reset replays the same values up to the reset point, then reseeds the
+   * stream for the new Run. Each Continue-As-New Run gets a new sequence.
+   *
+   * <p>Each draw advances Workflow state without recording an Event in Workflow History. Replay
+   * must make the same draws in the same order. Calling this method in read-only code fails; shared
+   * code can check {@link WorkflowUnsafe#isReadOnly()} first.
+   */
+  @Experimental
+  public static WorkflowRandomStream getRandomStream(String name) {
+    return WorkflowInternal.getRandomStream(name);
+  }
+
+  /**
    * True if workflow code is being replayed.
    *
    * <p><b>Warning!</b> Never make workflow logic depend on this flag as it is going to break
