@@ -1,6 +1,7 @@
 package io.temporal.serviceclient;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.grpc.Status;
 import java.time.Duration;
@@ -61,6 +62,22 @@ public class RpcRetryOptionsTest {
     assertEquals(Collections.singletonList(Status.Code.NOT_FOUND), codes(validated));
     assertEquals(Collections.singletonList(Status.Code.NOT_FOUND), codes(built));
     assertEquals(Arrays.asList(Status.Code.NOT_FOUND, Status.Code.ABORTED), codes(builder.build()));
+  }
+
+  /**
+   * toString omitted the separator before congestionInitialInterval, so the two durations ran
+   * together as a single unreadable token.
+   */
+  @Test
+  public void toStringSeparatesInitialAndCongestionInterval() {
+    String rendered =
+        RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(100))
+            .setCongestionInitialInterval(Duration.ofSeconds(1))
+            .validateBuildWithDefaults()
+            .toString();
+
+    assertTrue(rendered, rendered.contains(", congestionInitialInterval="));
   }
 
   private static List<Status.Code> codes(RpcRetryOptions options) {

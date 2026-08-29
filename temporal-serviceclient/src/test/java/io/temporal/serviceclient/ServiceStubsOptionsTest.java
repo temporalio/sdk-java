@@ -2,6 +2,7 @@ package io.temporal.serviceclient;
 
 import static org.junit.Assert.*;
 
+import io.grpc.Metadata;
 import org.junit.Test;
 
 public class ServiceStubsOptionsTest {
@@ -242,5 +243,29 @@ public class ServiceStubsOptionsTest {
     assertFalse(rendered, rendered.contains("super-secret-api-key"));
     // The fact that an API key was configured is still useful when debugging.
     assertTrue(rendered, rendered.contains("apiKeyProvided=true"));
+  }
+
+  @Test
+  public void testToStringRendersHeaderNamesWithoutValues() {
+    Metadata headers = new Metadata();
+    headers.put(
+        Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER),
+        "Bearer super-secret-token");
+    headers.put(Metadata.Key.of("x-custom", Metadata.ASCII_STRING_MARSHALLER), "plain-value");
+
+    WorkflowServiceStubsOptions options =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .setHeaders(headers)
+            .validateAndBuildWithDefaults();
+
+    String rendered = options.toString();
+
+    // Metadata.toString renders values in the clear, so it must not be embedded directly.
+    assertFalse(rendered, rendered.contains("super-secret-token"));
+    assertFalse(rendered, rendered.contains("plain-value"));
+    // Header names are still reported, which is what makes the output useful for debugging.
+    assertTrue(rendered, rendered.contains("authorization"));
+    assertTrue(rendered, rendered.contains("x-custom"));
   }
 }
