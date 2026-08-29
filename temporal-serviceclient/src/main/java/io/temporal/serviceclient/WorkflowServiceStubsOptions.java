@@ -137,7 +137,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
   @Override
   public String toString() {
     return "WorkflowServiceStubsOptions{"
-        + "disableHealthCheck="
+        + toStringFields()
+        + ", disableHealthCheck="
         + disableHealthCheck
         + ", rpcLongPollTimeout="
         + rpcLongPollTimeout
