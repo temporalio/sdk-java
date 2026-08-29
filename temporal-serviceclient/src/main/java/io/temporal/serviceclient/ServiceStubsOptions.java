@@ -455,8 +455,10 @@ public class ServiceStubsOptions {
         + connectionBackoffResetFrequency
         + ", grpcReconnectFrequency="
         + grpcReconnectFrequency
-        + ", headers="
-        + headers
+        // Only the header names are rendered. Values are omitted because they routinely carry
+        // credentials, for example an Authorization header set through setHeaders.
+        + ", headerNames="
+        + (headers == null ? null : headers.keys())
         + ", grpcMetadataProviders="
         + grpcMetadataProviders
         + ", grpcClientInterceptors="
