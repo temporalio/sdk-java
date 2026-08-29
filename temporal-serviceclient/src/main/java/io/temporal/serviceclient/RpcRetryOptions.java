@@ -489,7 +489,7 @@ public final class RpcRetryOptions {
     return "RetryOptions{"
         + "initialInterval="
         + initialInterval
-        + "congestionInitialInterval="
+        + ", congestionInitialInterval="
         + congestionInitialInterval
         + ", backoffCoefficient="
         + backoffCoefficient
