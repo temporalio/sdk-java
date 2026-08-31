@@ -11,6 +11,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
@@ -289,6 +290,12 @@ final class ActivityWorker implements SuspendableWorker {
         pollResponse.getWorkflowType().getName());
   }
 
+  private static final class ExternalStorageTaskFailure extends RuntimeException {
+    ExternalStorageTaskFailure(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<ActivityTask> {
 
     final ActivityTaskHandler handler;
@@ -388,6 +395,9 @@ final class ActivityWorker implements SuspendableWorker {
 
       try {
         sendReply(taskToken, result, metricsScope, activityStorageTarget(pollResponse));
+      } catch (ExternalStorageTaskFailure e) {
+        sendStorageFailure(taskToken, pollResponse, metricsScope, e.getCause());
+        return result;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         // TODO this class doesn't report activity success and failure metrics now, instead it's
@@ -511,9 +521,45 @@ final class ActivityWorker implements SuspendableWorker {
     private void storeOutboundPayloads(
         Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
       ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
-      if (externalStorageRunner != null) {
-        externalStorageRunner.store(builder, target, null, storageCancellation.token());
+      if (externalStorageRunner == null) {
+        return;
       }
+      try {
+        externalStorageRunner.store(builder, target, null, storageCancellation.token());
+      } catch (Throwable e) {
+        throw new ExternalStorageTaskFailure("External storage store failed", e);
+      }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void sendStorageFailure(
+        ByteString taskToken,
+        PollActivityTaskQueueResponseOrBuilder pollResponse,
+        Scope metricsScope,
+        Throwable e) {
+      log.warn("External storage failed for an activity task", e);
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage("External storage failed: " + e.getMessage())
+              .setType(ExternalStorageTaskFailure.class.getSimpleName())
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]);
+      RespondActivityTaskFailedRequest.Builder failedBuilder =
+          RespondActivityTaskFailedRequest.newBuilder()
+              .setTaskToken(taskToken)
+              .setIdentity(options.getIdentity())
+              .setNamespace(namespace)
+              .setWorkerVersion(options.workerVersionStamp())
+              .setFailure(options.getDataConverter().exceptionToFailure(applicationFailure));
+      storeOutboundPayloads(failedBuilder, activityStorageTarget(pollResponse));
+      RespondActivityTaskFailedRequest request = failedBuilder.build();
+      grpcRetryer.retry(
+          () ->
+              service
+                  .blockingStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                  .respondActivityTaskFailed(request),
+          replyGrpcRetryerOptions);
     }
 
     @Nullable
