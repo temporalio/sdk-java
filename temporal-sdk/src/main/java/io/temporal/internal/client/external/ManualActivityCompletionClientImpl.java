@@ -149,14 +149,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     Preconditions.checkNotNull(exception, "null exception");
     // When converting failures reason is class name, details are serialized exception.
     if (taskToken != null) {
-      RespondActivityTaskFailedRequest unstoredRequest =
+      RespondActivityTaskFailedRequest.Builder builder =
           RespondActivityTaskFailedRequest.newBuilder()
               .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
               .setNamespace(namespace)
-              .setTaskToken(ByteString.copyFrom(taskToken))
-              .build();
+              .setTaskToken(ByteString.copyFrom(taskToken));
       try {
-        RespondActivityTaskFailedRequest request = storeOutbound(unstoredRequest);
+        RespondActivityTaskFailedRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
@@ -176,16 +175,15 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       if (activityId == null) {
         throw new IllegalArgumentException("Either activity id or task token are required");
       }
-      RespondActivityTaskFailedByIdRequest unstoredRequest =
+      RespondActivityTaskFailedByIdRequest.Builder builder =
           RespondActivityTaskFailedByIdRequest.newBuilder()
               .setFailure(dataConverterWithActivityExecutionContext.exceptionToFailure(exception))
               .setNamespace(namespace)
               .setWorkflowId(execution.getWorkflowId())
               .setRunId(execution.getRunId())
-              .setActivityId(activityId)
-              .build();
+              .setActivityId(activityId);
       try {
-        RespondActivityTaskFailedByIdRequest request = storeOutbound(unstoredRequest);
+        RespondActivityTaskFailedByIdRequest request = storeOutbound(builder.build());
         grpcRetryer.retry(
             () ->
                 service
