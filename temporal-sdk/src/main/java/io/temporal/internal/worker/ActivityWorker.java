@@ -2,6 +2,7 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
@@ -16,12 +17,11 @@ import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
-import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
@@ -274,20 +274,17 @@ final class ActivityWorker implements SuspendableWorker {
 
   static StorageDriverTargetInfo storageTargetForActivityTask(
       String namespace, PollActivityTaskQueueResponseOrBuilder pollResponse) {
-    String activityRunId = pollResponse.getActivityRunId();
-    if (!activityRunId.isEmpty()) {
-      return new StorageDriverActivityInfo(
-          namespace,
-          pollResponse.getActivityId(),
-          activityRunId,
-          pollResponse.getActivityType().getName());
-    }
     WorkflowExecution execution = pollResponse.getWorkflowExecution();
-    return new StorageDriverWorkflowInfo(
-        namespace,
-        execution.getWorkflowId(),
-        execution.getRunId(),
-        pollResponse.getWorkflowType().getName());
+    return ActivityStorageTargets.newBuilder(namespace)
+        .setActivity(
+            pollResponse.getActivityId(),
+            Strings.emptyToNull(pollResponse.getActivityRunId()),
+            pollResponse.getActivityType().getName())
+        .setWorkflow(
+            Strings.emptyToNull(execution.getWorkflowId()),
+            Strings.emptyToNull(execution.getRunId()),
+            pollResponse.getWorkflowType().getName())
+        .build();
   }
 
   private static final class ExternalStorageTaskFailure extends RuntimeException {

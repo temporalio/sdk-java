@@ -6,9 +6,9 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
@@ -49,11 +49,14 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
     StorageDriverTargetInfo storageTarget =
         activitySerializationContext == null
             ? null
-            : new StorageDriverActivityInfo(
-                namespace,
-                null,
-                null,
-                Strings.emptyToNull(activitySerializationContext.getActivityType()));
+            : ActivityStorageTargets.newBuilder(namespace)
+                .setActivity(
+                    null, null, Strings.emptyToNull(activitySerializationContext.getActivityType()))
+                .setWorkflow(
+                    Strings.emptyToNull(activitySerializationContext.getWorkflowId()),
+                    null,
+                    Strings.emptyToNull(activitySerializationContext.getWorkflowType()))
+                .build();
     return getClient(taskToken, metricsScope, activitySerializationContext, storageTarget);
   }
 
@@ -103,6 +106,10 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
         activitySerializationContext == null
             ? null
             : Strings.emptyToNull(activitySerializationContext.getActivityType());
+    String workflowType =
+        activitySerializationContext == null
+            ? null
+            : Strings.emptyToNull(activitySerializationContext.getWorkflowType());
     return new ManualActivityCompletionClientImpl(
         service,
         namespace,
@@ -113,7 +120,13 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
         execution,
         activityId,
         activitySerializationContext,
-        new StorageDriverActivityInfo(namespace, activityId, activityRunId, activityType),
+        ActivityStorageTargets.newBuilder(namespace)
+            .setActivity(activityId, activityRunId, activityType)
+            .setWorkflow(
+                Strings.emptyToNull(execution.getWorkflowId()),
+                Strings.emptyToNull(execution.getRunId()),
+                workflowType)
+            .build(),
         externalStorage);
   }
 }

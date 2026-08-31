@@ -1,5 +1,6 @@
 package io.temporal.internal.activity;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
@@ -16,11 +17,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
-import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -353,13 +353,13 @@ class HeartbeatContextImpl implements HeartbeatContext {
    * non-empty {@code activityRunId} marks a standalone activity.
    */
   static StorageDriverTargetInfo storageTargetForActivity(String namespace, ActivityInfo info) {
-    String activityRunId = info.getActivityRunId();
-    if (activityRunId != null) {
-      return new StorageDriverActivityInfo(
-          namespace, info.getActivityId(), activityRunId, info.getActivityType());
-    }
-    return new StorageDriverWorkflowInfo(
-        namespace, info.getWorkflowId(), info.getWorkflowRunId(), info.getWorkflowType());
+    return ActivityStorageTargets.newBuilder(namespace)
+        .setActivity(info.getActivityId(), info.getActivityRunId(), info.getActivityType())
+        .setWorkflow(
+            Strings.emptyToNull(info.getWorkflowId()),
+            Strings.emptyToNull(info.getWorkflowRunId()),
+            info.getWorkflowType())
+        .build();
   }
 
   /**

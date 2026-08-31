@@ -12,7 +12,6 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -163,11 +162,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
               info.getTaskToken(),
               metricsScope,
               activitySerializationContext,
-              new StorageDriverActivityInfo(
-                  info.getNamespace(),
-                  info.getActivityId(),
-                  info.getActivityRunId(),
-                  info.getActivityType())),
+              HeartbeatContextImpl.storageTargetForActivity(info.getNamespace(), info)),
           completionHandle);
     } finally {
       lock.unlock();
