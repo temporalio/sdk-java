@@ -17,7 +17,7 @@ import java.util.function.Function;
  * WorkerDeploymentVersion} from it.
  *
  * <p>Cloud Run runs a long-lived container rather than a per-request handler, so this class is a
- * metadata helper rather than a worker wrapper. Most applications register {@link CloudRunPlugin}
+ * metadata helper rather than a worker wrapper. Most applications register {@link WorkerIdPlugin}
  * on their workflow client instead of using this class directly; the plugin fetches this metadata
  * and applies the derived identity and deployment version to the client and workers. Use this class
  * directly to read the {@linkplain #workerIdentity() worker identity} or {@linkplain

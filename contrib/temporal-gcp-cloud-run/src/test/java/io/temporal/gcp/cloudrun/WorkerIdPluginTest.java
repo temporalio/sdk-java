@@ -26,16 +26,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link CloudRunPlugin}.
+ * Unit tests for {@link WorkerIdPlugin}.
  *
  * <p>The metadata request is served by an in-process {@link HttpServer} and the environment lookup
  * is injected through the {@link GoogleCloudRunMetadata#fetch(String, Duration,
  * java.util.function.Function)} test seam, so these tests touch neither the network nor the real
- * process environment. The plugin's package-private {@link CloudRunPlugin#CloudRunPlugin(Supplier)}
+ * process environment. The plugin's package-private {@link WorkerIdPlugin#WorkerIdPlugin(Supplier)}
  * seam lets each test point the plugin at that in-process server (or at an unreachable address, to
  * exercise the off-platform fail-fast path).
  */
-public class CloudRunPluginTest {
+public class WorkerIdPluginTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(2);
 
   private HttpServer server;
@@ -109,8 +109,8 @@ public class CloudRunPluginTest {
   public void configureWorkflowClientFailsFastOffCloudRun() {
     String unreachableUrl =
         "http://127.0.0.1:" + reserveUnusedPort() + "/computeMetadata/v1/instance/id";
-    CloudRunPlugin plugin =
-        new CloudRunPlugin(
+    WorkerIdPlugin plugin =
+        new WorkerIdPlugin(
             () -> GoogleCloudRunMetadata.fetch(unreachableUrl, TIMEOUT, name -> null));
 
     IllegalStateException e =
@@ -126,7 +126,7 @@ public class CloudRunPluginTest {
 
     // Metadata server is reachable (instance id is present) but no name/revision env is set, so the
     // deployment version cannot be built. This is the "on some other platform" case.
-    CloudRunPlugin plugin = new CloudRunPlugin(metadata(new HashMap<>()));
+    WorkerIdPlugin plugin = new WorkerIdPlugin(metadata(new HashMap<>()));
 
     assertThrows(
         IllegalStateException.class,
@@ -147,7 +147,7 @@ public class CloudRunPluginTest {
           supplierCalls.incrementAndGet();
           return resolved;
         };
-    CloudRunPlugin plugin = new CloudRunPlugin(countingSupplier);
+    WorkerIdPlugin plugin = new WorkerIdPlugin(countingSupplier);
 
     plugin.configureWorkflowClient(WorkflowClientOptions.newBuilder());
     plugin.configureWorker("orders", WorkerOptions.newBuilder());
@@ -162,7 +162,7 @@ public class CloudRunPluginTest {
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
 
-    CloudRunPlugin plugin = new CloudRunPlugin(metadata(env));
+    WorkerIdPlugin plugin = new WorkerIdPlugin(metadata(env));
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     plugin.configureWorkflowClient(builder);
@@ -170,8 +170,8 @@ public class CloudRunPluginTest {
     assertEquals("instance-1@revision-1", builder.build().getIdentity());
   }
 
-  private CloudRunPlugin pluginFor(Map<String, String> env) {
-    return new CloudRunPlugin(() -> metadata(env));
+  private WorkerIdPlugin pluginFor(Map<String, String> env) {
+    return new WorkerIdPlugin(() -> metadata(env));
   }
 
   private GoogleCloudRunMetadata metadata(Map<String, String> env) {
