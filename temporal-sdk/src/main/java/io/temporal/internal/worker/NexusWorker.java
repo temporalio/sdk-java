@@ -284,6 +284,12 @@ final class NexusWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  private static final class ExternalStorageTaskFailure extends RuntimeException {
+    ExternalStorageTaskFailure(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<NexusTask> {
 
     final NexusTaskHandler handler;
@@ -341,7 +347,8 @@ final class NexusWorker implements SuspendableWorker {
           task = retrieveInboundPayloads(task);
         } catch (Throwable e) {
           taskFailed = true;
-          sendInboundStorageFailure(pollResponse, metricsScope, e);
+          sendStorageFailure(
+              pollResponse.getTaskToken(), supportsTemporalFailure(pollResponse), metricsScope, e);
           return;
         }
 
@@ -436,6 +443,10 @@ final class NexusWorker implements SuspendableWorker {
 
       try {
         sendReply(taskToken, supportsTemporalFailure(pollResponse), result, metricsScope);
+      } catch (ExternalStorageTaskFailure e) {
+        sendStorageFailure(
+            taskToken, supportsTemporalFailure(pollResponse), metricsScope, e.getCause());
+        return true;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         throw e;
@@ -545,9 +556,9 @@ final class NexusWorker implements SuspendableWorker {
           && pollResponse.getRequest().getCapabilities().getTemporalFailureResponses();
     }
 
-    private void sendInboundStorageFailure(
-        PollNexusTaskQueueResponseOrBuilder pollResponse, Scope metricsScope, Throwable e) {
-      log.warn("Failed to retrieve externally stored payloads for a nexus task", e);
+    private void sendStorageFailure(
+        ByteString taskToken, boolean supportTemporalFailure, Scope metricsScope, Throwable e) {
+      log.warn("External storage failed for a nexus task", e);
       metricsScope
           .tagged(
               Collections.singletonMap(
@@ -555,11 +566,10 @@ final class NexusWorker implements SuspendableWorker {
           .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
           .inc(1);
       HandlerException handlerException =
-          new HandlerException(
-              HandlerException.ErrorType.INTERNAL, "External storage retrieval failed", e);
+          new HandlerException(HandlerException.ErrorType.INTERNAL, "External storage failed", e);
       sendReply(
-          pollResponse.getTaskToken(),
-          supportsTemporalFailure(pollResponse),
+          taskToken,
+          supportTemporalFailure,
           new NexusTaskHandler.Result(handlerException),
           metricsScope);
     }
@@ -583,8 +593,13 @@ final class NexusWorker implements SuspendableWorker {
 
     private void storeOutbound(Message.Builder builder) {
       ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
-      if (externalStorageRunner != null) {
+      if (externalStorageRunner == null) {
+        return;
+      }
+      try {
         externalStorageRunner.store(builder, null, null, storageCancellation.token());
+      } catch (Throwable e) {
+        throw new ExternalStorageTaskFailure("External storage store failed", e);
       }
     }
   }

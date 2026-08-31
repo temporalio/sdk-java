@@ -47,6 +47,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -107,6 +108,21 @@ public class NexusExternalStorageFailureTest {
     Assert.assertTrue(
         "expected the failed retrieval to be retried, attempts=" + driver.retrieveAttempts.get(),
         driver.retrieveAttempts.get() > 1);
+    reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags(), 1);
+  }
+
+  @Test
+  public void aFailedOutboundStoreIsReportedAsARetryableHandlerError() {
+    String input = "extstore-outbound-" + UUID.randomUUID();
+    driver.failStoresContaining.set("echo:" + input);
+
+    String result =
+        buildServiceClient()
+            .execute(TestNexusServices.TestNexusService1::operation, newOptionsWithId(), input);
+
+    Assert.assertEquals("echo:" + input, result);
+    Assert.assertEquals(
+        "expected exactly one injected store failure", 1, driver.injectedStoreFailures.get());
     reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags(), 1);
   }
 
@@ -207,6 +223,8 @@ public class NexusExternalStorageFailureTest {
     private final Map<String, Payload> objects = new HashMap<>();
     final AtomicInteger failNextRetrieves = new AtomicInteger();
     final AtomicInteger retrieveAttempts = new AtomicInteger();
+    final AtomicReference<String> failStoresContaining = new AtomicReference<>();
+    final AtomicInteger injectedStoreFailures = new AtomicInteger();
     private int counter = 0;
 
     FlakyDriver(String name) {
@@ -217,6 +235,8 @@ public class NexusExternalStorageFailureTest {
       objects.clear();
       failNextRetrieves.set(0);
       retrieveAttempts.set(0);
+      failStoresContaining.set(null);
+      injectedStoreFailures.set(0);
     }
 
     @Override
@@ -232,6 +252,18 @@ public class NexusExternalStorageFailureTest {
     @Override
     public synchronized CompletableFuture<List<StorageDriverClaim>> store(
         StorageDriverStoreContext context, List<Payload> payloads) {
+      String marker = failStoresContaining.get();
+      if (marker != null) {
+        for (Payload payload : payloads) {
+          if (payload.getData().toStringUtf8().contains(marker)) {
+            failStoresContaining.set(null);
+            injectedStoreFailures.incrementAndGet();
+            CompletableFuture<List<StorageDriverClaim>> failed = new CompletableFuture<>();
+            failed.completeExceptionally(new IllegalStateException("storage unavailable"));
+            return failed;
+          }
+        }
+      }
       List<StorageDriverClaim> claims = new ArrayList<>();
       for (Payload payload : payloads) {
         String key = name + "-" + (counter++);
