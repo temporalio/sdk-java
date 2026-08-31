@@ -413,8 +413,19 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor) {
     ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
-    if (externalStorageRunner != null) {
+    if (externalStorageRunner == null) {
+      return;
+    }
+    try {
       externalStorageRunner.store(builder, target, targetVisitor, storageCancellation);
+    } catch (Throwable e) {
+      throw new ExternalStorageTaskFailure("External storage store failed", e);
+    }
+  }
+
+  private static final class ExternalStorageTaskFailure extends RuntimeException {
+    ExternalStorageTaskFailure(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 
@@ -559,6 +570,22 @@ final class WorkflowWorker implements SuspendableWorker {
                       queryCompleted.toBuilder(),
                       workflowTypeScope,
                       workflowStorageTarget(workflowExecution, workflowType));
+                } catch (ExternalStorageTaskFailure e) {
+                  Failure failure =
+                      storageFailure(
+                          workflowExecution.getWorkflowId(), e, "Failed to send query response");
+                  RespondQueryTaskCompletedRequest.Builder queryFailedBuilder =
+                      RespondQueryTaskCompletedRequest.newBuilder()
+                          .setTaskToken(currentTask.getTaskToken())
+                          .setNamespace(namespace)
+                          .setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
+                          .setErrorMessage(failure.getMessage())
+                          .setFailure(failure);
+                  sendDirectQueryCompletedResponse(
+                      currentTask.getTaskToken(),
+                      queryFailedBuilder,
+                      workflowTypeScope,
+                      workflowStorageTarget(workflowExecution, workflowType));
                 } catch (StatusRuntimeException e) {
                   GrpcMessageTooLargeException tooLargeException =
                       GrpcMessageTooLargeException.tryWrap(e);
@@ -676,6 +703,35 @@ final class WorkflowWorker implements SuspendableWorker {
                   sendTaskFailed(
                       currentTask.getTaskToken(),
                       taskFailedBuilder,
+                      result.getRequestRetryOptions(),
+                      workflowTypeScope,
+                      workflowStorageTarget(workflowExecution, workflowType));
+                } catch (ExternalStorageTaskFailure e) {
+                  if (currentTask.getAttempt() > 1) {
+                    throw e;
+                  }
+
+                  releaseReason = SlotReleaseReason.error(e);
+                  handleReportingFailure(
+                      e, currentTask, result, workflowExecution, workflowTypeScope);
+                  taskFailedCause =
+                      WorkflowTaskFailedCause
+                          .WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE;
+
+                  String messagePrefix =
+                      String.format(
+                          "Failed to send workflow task %s",
+                          taskFailed == null ? "completion" : "failure");
+                  RespondWorkflowTaskFailedRequest.Builder storageFailedBuilder =
+                      RespondWorkflowTaskFailedRequest.newBuilder()
+                          .setFailure(
+                              storageFailure(workflowExecution.getWorkflowId(), e, messagePrefix))
+                          .setCause(
+                              WorkflowTaskFailedCause
+                                  .WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE);
+                  sendTaskFailed(
+                      currentTask.getTaskToken(),
+                      storageFailedBuilder,
                       result.getRequestRetryOptions(),
                       workflowTypeScope,
                       workflowStorageTarget(workflowExecution, workflowType));
@@ -1013,6 +1069,20 @@ final class WorkflowWorker implements SuspendableWorker {
               .setType("WorkflowTaskCompletionRequestTooLarge")
               .build();
       applicationFailure.setStackTrace(new StackTraceElement[0]); // don't serialize stack trace
+      return options
+          .getDataConverter()
+          .withContext(new WorkflowSerializationContext(namespace, workflowId))
+          .exceptionToFailure(applicationFailure);
+    }
+
+    private Failure storageFailure(
+        String workflowId, ExternalStorageTaskFailure e, String messagePrefix) {
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage(messagePrefix + ": " + e.getMessage())
+              .setType(ExternalStorageTaskFailure.class.getSimpleName())
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]);
       return options
           .getDataConverter()
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
