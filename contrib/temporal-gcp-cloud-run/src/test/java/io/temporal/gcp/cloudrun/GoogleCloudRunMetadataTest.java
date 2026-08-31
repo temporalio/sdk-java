@@ -6,11 +6,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
-import io.temporal.worker.WorkerDeploymentOptions;
-import io.temporal.worker.WorkerOptions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -217,50 +213,6 @@ public class GoogleCloudRunMetadataTest {
     assertThrows(
         IllegalStateException.class,
         () -> GoogleCloudRunMetadata.fetch(unreachableUrl, TIMEOUT, env::get));
-  }
-
-  // --- Apply methods ---
-
-  @Test
-  public void applyToWorkflowClientOptionsSetsDerivedIdentity() {
-    responseBody.set("instance-1");
-    Map<String, String> env = new HashMap<>();
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
-
-    // NOTE: The shared cross-SDK design and the Go and .NET helpers set the client identity only
-    // when it is unset, so a user-provided identity is preserved. The Java
-    // applyTo(WorkflowClientOptions.Builder) currently sets it unconditionally. This test asserts
-    // only the "identity unset" case, which holds under either behavior; the user-provided-identity
-    // case is intentionally not asserted here while that divergence is resolved.
-    WorkflowClientOptions options = fetch(env).applyTo(WorkflowClientOptions.newBuilder()).build();
-
-    assertEquals("instance-1@revision-1", options.getIdentity());
-  }
-
-  @Test
-  public void applyToWorkerOptionsEnablesPinnedVersioning() {
-    responseBody.set("instance-1");
-    Map<String, String> env = new HashMap<>();
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
-
-    WorkerOptions options = fetch(env).applyTo(WorkerOptions.newBuilder()).build();
-
-    WorkerDeploymentOptions deploymentOptions = options.getDeploymentOptions();
-    assertTrue(deploymentOptions.isUsingVersioning());
-    assertEquals(
-        new WorkerDeploymentVersion("worker-pool", "revision-1"), deploymentOptions.getVersion());
-    assertEquals(VersioningBehavior.PINNED, deploymentOptions.getDefaultVersioningBehavior());
-  }
-
-  @Test
-  public void applyToWorkerOptionsThrowsWhenDeploymentVersionCannotBeBuilt() {
-    responseBody.set("instance-1");
-
-    assertThrows(
-        IllegalStateException.class,
-        () -> fetch(new HashMap<>()).applyTo(WorkerOptions.newBuilder()));
   }
 
   private GoogleCloudRunMetadata fetch(Map<String, String> env) {

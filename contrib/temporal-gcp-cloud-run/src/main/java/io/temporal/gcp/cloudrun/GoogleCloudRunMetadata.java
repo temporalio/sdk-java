@@ -1,11 +1,7 @@
 package io.temporal.gcp.cloudrun;
 
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
-import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
-import io.temporal.worker.WorkerDeploymentOptions;
-import io.temporal.worker.WorkerOptions;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,9 +17,11 @@ import java.util.function.Function;
  * WorkerDeploymentVersion} from it.
  *
  * <p>Cloud Run runs a long-lived container rather than a per-request handler, so this class is a
- * metadata helper rather than a worker wrapper. Fetch the metadata once while a worker starts up,
- * then apply it to your client and worker option builders with {@link
- * #applyTo(WorkflowClientOptions.Builder)} and {@link #applyTo(WorkerOptions.Builder)}.
+ * metadata helper rather than a worker wrapper. Most applications register {@link CloudRunPlugin}
+ * on their workflow client instead of using this class directly; the plugin fetches this metadata
+ * and applies the derived identity and deployment version to the client and workers. Use this class
+ * directly to read the {@linkplain #workerIdentity() worker identity} or {@linkplain
+ * #workerDeploymentVersion() worker deployment version} yourself.
  *
  * <p>The deployment name and revision are resolved from environment variables Cloud Run injects
  * into every instance. Cloud Run <b>worker pools</b> set {@code CLOUD_RUN_WORKER_POOL} and {@code
@@ -201,39 +199,6 @@ public final class GoogleCloudRunMetadata {
               + "this process may not be running on a Cloud Run worker pool or service");
     }
     return new WorkerDeploymentVersion(name, revision);
-  }
-
-  /**
-   * Applies the derived {@linkplain #workerIdentity() worker identity} to a workflow client options
-   * builder.
-   *
-   * @param builder the workflow client options builder to configure.
-   * @return the same builder, for chaining.
-   */
-  public WorkflowClientOptions.Builder applyTo(WorkflowClientOptions.Builder builder) {
-    Objects.requireNonNull(builder, "builder");
-    builder.setIdentity(workerIdentity());
-    return builder;
-  }
-
-  /**
-   * Applies the derived {@linkplain #workerDeploymentVersion() worker deployment version} to a
-   * worker options builder, enabling worker versioning with a PINNED default behavior.
-   *
-   * @param builder the worker options builder to configure.
-   * @return the same builder, for chaining.
-   * @throws IllegalStateException if the name or revision is blank, which usually means the process
-   *     is not running on a Cloud Run worker pool or service.
-   */
-  public WorkerOptions.Builder applyTo(WorkerOptions.Builder builder) {
-    Objects.requireNonNull(builder, "builder");
-    builder.setDeploymentOptions(
-        WorkerDeploymentOptions.newBuilder()
-            .setUseVersioning(true)
-            .setVersion(workerDeploymentVersion())
-            .setDefaultVersioningBehavior(VersioningBehavior.PINNED)
-            .build());
-    return builder;
   }
 
   private static String readBody(HttpURLConnection connection) throws IOException {
