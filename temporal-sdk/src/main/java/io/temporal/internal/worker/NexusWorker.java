@@ -284,16 +284,6 @@ final class NexusWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
-  /**
-   * Marks a failure raised by the external storage. Reported to the server as a retryable handler
-   * error.
-   */
-  private static final class ExternalStorageTaskFailure extends RuntimeException {
-    ExternalStorageTaskFailure(String message, Throwable cause) {
-      super(message, cause);
-    }
-  }
-
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<NexusTask> {
 
     final NexusTaskHandler handler;
@@ -326,7 +316,6 @@ final class NexusWorker implements SuspendableWorker {
     public void handle(NexusTask task) {
       boolean taskFailed = false;
       try {
-        task = retrieveInboundPayloads(task);
         PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
         // Extract service and operation from the request and set them as MDC and metrics
         // scope tags. If the request does not have a service or operation, do not set the tags.
@@ -343,6 +332,14 @@ final class NexusWorker implements SuspendableWorker {
           metricsScope =
               metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
         }
+        try {
+          task = retrieveInboundPayloads(task);
+        } catch (Throwable e) {
+          taskFailed = true;
+          sendInboundStorageFailure(pollResponse, metricsScope, e);
+          return;
+        }
+
         slotSupplier.markSlotUsed(
             new NexusSlotInfo(
                 service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
@@ -438,14 +435,7 @@ final class NexusWorker implements SuspendableWorker {
       }
 
       try {
-        // Check if the server supports using the Failure directly in responses
-        boolean supportTemporalFailure =
-            task.getResponse().getRequest().getCapabilities().getTemporalFailureResponses();
-        if (forceOldFailureFormat) {
-          supportTemporalFailure = false;
-        }
-
-        sendReply(taskToken, supportTemporalFailure, result, metricsScope);
+        sendReply(taskToken, supportsTemporalFailure(pollResponse), result, metricsScope);
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         throw e;
@@ -548,6 +538,30 @@ final class NexusWorker implements SuspendableWorker {
           throw new IllegalArgumentException("[BUG] Either response or failure must be set");
         }
       }
+    }
+
+    private boolean supportsTemporalFailure(PollNexusTaskQueueResponseOrBuilder pollResponse) {
+      return !forceOldFailureFormat
+          && pollResponse.getRequest().getCapabilities().getTemporalFailureResponses();
+    }
+
+    private void sendInboundStorageFailure(
+        PollNexusTaskQueueResponseOrBuilder pollResponse, Scope metricsScope, Throwable e) {
+      log.warn("Failed to retrieve externally stored payloads for a nexus task", e);
+      metricsScope
+          .tagged(
+              Collections.singletonMap(
+                  TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL))
+          .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+          .inc(1);
+      HandlerException handlerException =
+          new HandlerException(
+              HandlerException.ErrorType.INTERNAL, "External storage retrieval failed", e);
+      sendReply(
+          pollResponse.getTaskToken(),
+          supportsTemporalFailure(pollResponse),
+          new NexusTaskHandler.Result(handlerException),
+          metricsScope);
     }
 
     private NexusTask retrieveInboundPayloads(NexusTask task) {
