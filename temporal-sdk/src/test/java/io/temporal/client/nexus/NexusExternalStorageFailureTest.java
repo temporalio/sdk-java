@@ -20,6 +20,19 @@ import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
+import io.temporal.worker.WorkerOptions;
+import io.temporal.worker.tuning.ActivitySlotInfo;
+import io.temporal.worker.tuning.CompositeTuner;
+import io.temporal.worker.tuning.FixedSizeSlotSupplier;
+import io.temporal.worker.tuning.LocalActivitySlotInfo;
+import io.temporal.worker.tuning.NexusSlotInfo;
+import io.temporal.worker.tuning.SlotMarkUsedContext;
+import io.temporal.worker.tuning.SlotPermit;
+import io.temporal.worker.tuning.SlotReleaseContext;
+import io.temporal.worker.tuning.SlotReserveContext;
+import io.temporal.worker.tuning.SlotSupplier;
+import io.temporal.worker.tuning.SlotSupplierFuture;
+import io.temporal.worker.tuning.WorkflowSlotInfo;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -29,8 +42,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Before;
@@ -38,6 +53,8 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class NexusExternalStorageFailureTest {
+
+  private static final List<String> events = new CopyOnWriteArrayList<>();
 
   private static final FlakyDriver driver = new FlakyDriver("nexus-flaky");
 
@@ -57,6 +74,15 @@ public class NexusExternalStorageFailureTest {
                   .reportEvery(com.uber.m3.util.Duration.ofMillis(10)))
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setExternalStorage(storage).build())
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setWorkerTuner(
+                      new CompositeTuner(
+                          new FixedSizeSlotSupplier<WorkflowSlotInfo>(10),
+                          new FixedSizeSlotSupplier<ActivitySlotInfo>(10),
+                          new FixedSizeSlotSupplier<LocalActivitySlotInfo>(10),
+                          new RecordingNexusSlotSupplier(10)))
+                  .build())
           .build();
 
   @Before
@@ -65,6 +91,7 @@ public class NexusExternalStorageFailureTest {
         "server does not support standalone Nexus operations",
         testWorkflowRule.isUseExternalService());
     driver.reset();
+    events.clear();
   }
 
   @Test
@@ -81,6 +108,23 @@ public class NexusExternalStorageFailureTest {
         "expected the failed retrieval to be retried, attempts=" + driver.retrieveAttempts.get(),
         driver.retrieveAttempts.get() > 1);
     reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags(), 1);
+  }
+
+  @Test
+  public void theSlotIsMarkedUsedBeforeRetrievalStarts() {
+    buildServiceClient()
+        .execute(
+            TestNexusServices.TestNexusService1::operation,
+            newOptionsWithId(),
+            "extstore-slot-" + UUID.randomUUID());
+
+    int markedUsed = events.indexOf("markSlotUsed");
+    int retrieved = events.indexOf("retrieve");
+    Assert.assertTrue("expected the slot to be marked used, events=" + events, markedUsed >= 0);
+    Assert.assertTrue("expected a retrieval, events=" + events, retrieved >= 0);
+    Assert.assertTrue(
+        "retrieval must happen inside the used-slot lifecycle, events=" + events,
+        markedUsed < retrieved);
   }
 
   private Map<String, String> execFailedTags() {
@@ -120,6 +164,41 @@ public class NexusExternalStorageFailureTest {
     @Override
     public String execute(String input) {
       return input;
+    }
+  }
+
+  private static final class RecordingNexusSlotSupplier implements SlotSupplier<NexusSlotInfo> {
+    private final FixedSizeSlotSupplier<NexusSlotInfo> delegate;
+
+    RecordingNexusSlotSupplier(int numSlots) {
+      this.delegate = new FixedSizeSlotSupplier<>(numSlots);
+    }
+
+    @Override
+    public SlotSupplierFuture reserveSlot(SlotReserveContext<NexusSlotInfo> ctx) throws Exception {
+      return delegate.reserveSlot(ctx);
+    }
+
+    @Override
+    public Optional<SlotPermit> tryReserveSlot(SlotReserveContext<NexusSlotInfo> ctx) {
+      return delegate.tryReserveSlot(ctx);
+    }
+
+    @Override
+    public void markSlotUsed(SlotMarkUsedContext<NexusSlotInfo> ctx) {
+      events.add("markSlotUsed");
+      delegate.markSlotUsed(ctx);
+    }
+
+    @Override
+    public void releaseSlot(SlotReleaseContext<NexusSlotInfo> ctx) {
+      events.add("releaseSlot");
+      delegate.releaseSlot(ctx);
+    }
+
+    @Override
+    public Optional<Integer> getMaximumSlots() {
+      return delegate.getMaximumSlots();
     }
   }
 
@@ -165,6 +244,7 @@ public class NexusExternalStorageFailureTest {
     @Override
     public synchronized CompletableFuture<List<Payload>> retrieve(
         StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      events.add("retrieve");
       retrieveAttempts.incrementAndGet();
       if (failNextRetrieves.getAndDecrement() > 0) {
         CompletableFuture<List<Payload>> failed = new CompletableFuture<>();

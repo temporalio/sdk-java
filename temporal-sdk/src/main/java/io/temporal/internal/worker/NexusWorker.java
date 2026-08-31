@@ -332,6 +332,11 @@ final class NexusWorker implements SuspendableWorker {
           metricsScope =
               metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
         }
+        slotSupplier.markSlotUsed(
+            new NexusSlotInfo(
+                service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
+            task.getPermit());
+
         try {
           task = retrieveInboundPayloads(task);
         } catch (Throwable e) {
@@ -339,11 +344,6 @@ final class NexusWorker implements SuspendableWorker {
           sendInboundStorageFailure(pollResponse, metricsScope, e);
           return;
         }
-
-        slotSupplier.markSlotUsed(
-            new NexusSlotInfo(
-                service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
-            task.getPermit());
 
         taskFailed = handleNexusTask(task, metricsScope);
       } catch (Throwable e) {
