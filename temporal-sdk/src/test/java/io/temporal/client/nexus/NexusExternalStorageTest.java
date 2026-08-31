@@ -32,9 +32,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/**
- * End-to-end coverage of external storage on a standalone Nexus operation
- */
+/** End-to-end coverage of external storage on a standalone Nexus operation */
 public class NexusExternalStorageTest {
 
   private static final RecordingDriver driver = new RecordingDriver("nexus-test");
