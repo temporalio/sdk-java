@@ -136,14 +136,19 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       // completes the Nexus operation.
       protoLinks = nexusContext.getRequestLinks();
       request.addAllLinks(protoLinks);
-      io.temporal.api.common.v1.OnConflictOptions.Builder onConflictOptions =
+    }
+
+    boolean willAttachCompletionCallback =
+        nexusOperationMetadata != null
+            && !Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl);
+    if (nexusContext != null && (!protoLinks.isEmpty() || willAttachCompletionCallback)) {
+      // The server rejects attach_request_id unless the request also carries at least one link
+      // or completion callback to attach on conflict.
+      request.setOnConflictOptions(
           io.temporal.api.common.v1.OnConflictOptions.newBuilder()
               .setAttachRequestId(true)
-              .setAttachLinks(true);
-      if (nexusOperationMetadata != null) {
-        onConflictOptions.setAttachCompletionCallbacks(true);
-      }
-      request.setOnConflictOptions(onConflictOptions);
+              .setAttachLinks(!protoLinks.isEmpty())
+              .setAttachCompletionCallbacks(willAttachCompletionCallback));
     }
 
     if (nexusOperationMetadata != null) {
@@ -159,7 +164,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             "failed to generate activity operation token",
             e);
       }
-      if (!Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl)) {
+      if (willAttachCompletionCallback) {
         Callback cb =
             InternalUtils.buildNexusCallback(
                 nexusOperationMetadata.callbackUrl,

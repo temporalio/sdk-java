@@ -143,9 +143,28 @@ public class RootActivityClientInvokerTest {
     Assert.assertEquals(0, request.getCompletionCallbacksCount());
     Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
     Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
-    Assert.assertTrue(request.getOnConflictOptions().getAttachCompletionCallbacks());
+    Assert.assertFalse(request.getOnConflictOptions().getAttachCompletionCallbacks());
     Assert.assertNotNull(metadata.operationToken);
     Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
+  }
+
+  @Test
+  public void metadataWithEmptyCallbackUrlAndNoLinksOmitsOnConflictOptions() {
+    NexusOperationMetadata metadata =
+        new NexusOperationMetadata(
+            "nexus-request-id", "", Collections.singletonMap("Custom-Header", "value"));
+    nexusContext.setNexusOperationMetadata(metadata);
+
+    invoker.startActivity(newStartActivityInput());
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    StartActivityExecutionRequest request = captor.getValue();
+    Assert.assertEquals("nexus-request-id", request.getRequestId());
+    Assert.assertEquals(0, request.getLinksCount());
+    Assert.assertEquals(0, request.getCompletionCallbacksCount());
+    Assert.assertFalse(request.hasOnConflictOptions());
   }
 
   @Test
@@ -195,9 +214,7 @@ public class RootActivityClientInvokerTest {
     Assert.assertFalse(request.getRequestId().isEmpty());
     Assert.assertEquals(0, request.getLinksCount());
     Assert.assertEquals(0, request.getCompletionCallbacksCount());
-    Assert.assertTrue(request.getOnConflictOptions().getAttachRequestId());
-    Assert.assertTrue(request.getOnConflictOptions().getAttachLinks());
-    Assert.assertFalse(request.getOnConflictOptions().getAttachCompletionCallbacks());
+    Assert.assertFalse(request.hasOnConflictOptions());
     Assert.assertEquals(Collections.singletonList(activityLink()), nexusContext.getResponseLinks());
   }
 
