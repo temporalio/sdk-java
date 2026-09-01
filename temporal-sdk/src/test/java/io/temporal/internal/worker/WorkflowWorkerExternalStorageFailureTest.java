@@ -76,6 +76,35 @@ public class WorkflowWorkerExternalStorageFailureTest {
             .isEmpty());
   }
 
+  @Test
+  public void aStorageFailureIsReportedOnEveryAttemptNotJustTheFirst() throws Exception {
+    String workflowId = "extstore-wft-retry-" + UUID.randomUUID();
+    String input = "wft-retry-" + UUID.randomUUID();
+    driver.failStoresContaining.set("echo: " + input);
+    driver.failuresToInject.set(2);
+
+    TestWorkflows.TestWorkflow1 workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                TestWorkflows.TestWorkflow1.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setWorkflowId(workflowId)
+                    .build());
+    WorkflowClient.start(workflow::execute, input);
+
+    awaitEvent(workflowId, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    Assert.assertEquals(
+        "expected two injected store failures", 2, driver.injectedStoreFailures.get());
+    Assert.assertTrue(
+        "a reported failure must not leave a workflow task timeout in history",
+        testWorkflowRule
+            .getHistoryEvents(workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_TIMED_OUT)
+            .isEmpty());
+  }
+
   private void awaitEvent(String workflowId, EventType eventType) throws InterruptedException {
     long deadline = System.nanoTime() + Duration.ofSeconds(8).toNanos();
     while (System.nanoTime() < deadline) {
@@ -98,6 +127,7 @@ public class WorkflowWorkerExternalStorageFailureTest {
     private final String name;
     private final Map<String, Payload> objects = new HashMap<>();
     final AtomicReference<String> failStoresContaining = new AtomicReference<>();
+    final AtomicInteger failuresToInject = new AtomicInteger(1);
     final AtomicInteger injectedStoreFailures = new AtomicInteger();
     private int counter = 0;
 
@@ -108,6 +138,7 @@ public class WorkflowWorkerExternalStorageFailureTest {
     synchronized void reset() {
       objects.clear();
       failStoresContaining.set(null);
+      failuresToInject.set(1);
       injectedStoreFailures.set(0);
     }
 
@@ -128,7 +159,9 @@ public class WorkflowWorkerExternalStorageFailureTest {
       if (marker != null) {
         for (Payload payload : payloads) {
           if (payload.getData().toStringUtf8().contains(marker)) {
-            failStoresContaining.set(null);
+            if (failuresToInject.decrementAndGet() <= 0) {
+              failStoresContaining.set(null);
+            }
             injectedStoreFailures.incrementAndGet();
             CompletableFuture<List<StorageDriverClaim>> failed = new CompletableFuture<>();
             failed.completeExceptionally(new IllegalStateException("storage unavailable"));

@@ -707,10 +707,6 @@ final class WorkflowWorker implements SuspendableWorker {
                       workflowTypeScope,
                       workflowStorageTarget(workflowExecution, workflowType));
                 } catch (ExternalStorageTaskFailure e) {
-                  if (currentTask.getAttempt() > 1) {
-                    throw e;
-                  }
-
                   releaseReason = SlotReleaseReason.error(e);
                   handleReportingFailure(
                       e, currentTask, result, workflowExecution, workflowTypeScope);
