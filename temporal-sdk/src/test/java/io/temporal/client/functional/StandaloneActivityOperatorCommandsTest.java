@@ -525,8 +525,18 @@ public class StandaloneActivityOperatorCommandsTest {
   @Test(timeout = 60_000)
   public void resetRestoresOriginalOptions() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityHandle<Void> handle =
-        startRunningSlowActivity(slowOpts().setStartToCloseTimeout(Duration.ofSeconds(45)));
+    // Start delayed so the restore is applied immediately.
+    ActivityHandle<String> handle =
+        newActivityClient()
+            .start(
+                QuickActivity.class,
+                QuickActivity::run,
+                StartActivityOptions.newBuilder()
+                    .setId(uniqueId())
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setStartToCloseTimeout(Duration.ofSeconds(45))
+                    .setStartDelay(Duration.ofSeconds(300))
+                    .build());
 
     ActivityExecutionOptions updated =
         handle.updateOptions(
