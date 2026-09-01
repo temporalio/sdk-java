@@ -419,7 +419,16 @@ final class WorkflowWorker implements SuspendableWorker {
     try {
       externalStorageRunner.store(builder, target, targetVisitor, storageCancellation);
     } catch (Throwable e) {
+      if (isShutdown()) {
+        throw new WorkerShuttingDown();
+      }
       throw new ExternalStorageTaskFailure("External storage store failed", e);
+    }
+  }
+
+  private static final class WorkerShuttingDown extends RuntimeException {
+    WorkerShuttingDown() {
+      super(null, null, false, false);
     }
   }
 
@@ -733,6 +742,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       workflowStorageTarget(workflowExecution, workflowType));
                 }
               }
+            } catch (WorkerShuttingDown e) {
+              return;
             } catch (Exception e) {
               iterationFailed = true;
               releaseReason = SlotReleaseReason.error(e);
@@ -1075,7 +1086,7 @@ final class WorkflowWorker implements SuspendableWorker {
         String workflowId, ExternalStorageTaskFailure e, String messagePrefix) {
       ApplicationFailure applicationFailure =
           ApplicationFailure.newBuilder()
-              .setMessage(messagePrefix + ": " + e.getMessage())
+              .setMessage(messagePrefix + ": " + (e.getCause() != null ? e.getCause() : e))
               .setType(ExternalStorageTaskFailure.class.getSimpleName())
               .build();
       applicationFailure.setStackTrace(new StackTraceElement[0]);
