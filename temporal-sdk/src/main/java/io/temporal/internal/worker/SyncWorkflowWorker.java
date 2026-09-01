@@ -181,11 +181,12 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    CompletableFuture<Void> workflowWorkerShutdown =
+        workflowWorker.shutdown(shutdownManager, interruptTasks);
     if (interruptTasks) {
       storageCancellation.cancel();
     }
-    return workflowWorker
-        .shutdown(shutdownManager, interruptTasks)
+    return workflowWorkerShutdown
         .thenCompose(ignore -> laWorker.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {

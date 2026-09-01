@@ -3,9 +3,16 @@ package io.temporal.internal.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.google.common.util.concurrent.Futures;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
@@ -19,16 +26,25 @@ import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
+import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
+import io.temporal.payload.storage.StorageDriverClaim;
+import io.temporal.payload.storage.StorageDriverRetrieveContext;
+import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -40,8 +56,11 @@ import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.junit.Test;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
@@ -461,6 +480,192 @@ public class WorkflowWorkerTest {
     when(mockFactory.isAnyTypeSupported()).thenReturn(true);
     when(mockWorkflow.eventLoop()).thenReturn(false);
     return mockFactory;
+  }
+
+  @Test
+  public void aStoreThatFailsWhileShuttingDownIsNotTreatedAsAProblem() throws Exception {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.setContext(loggerContext);
+    logs.start();
+    ch.qos.logback.classic.Logger workerLog =
+        loggerContext.getLogger(WorkflowWorker.class.getName());
+    workerLog.addAppender(logs);
+    try {
+      WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+      when(client.getServerCapabilities())
+          .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+      WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
+      Scope metricsScope =
+          new RootScopeBuilder()
+              .reporter(reporter)
+              .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+      WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
+      SlotSupplier<WorkflowSlotInfo> slotSupplier = new FixedSizeSlotSupplier<>(10);
+
+      WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
+      when(taskHandler.isAnyTypeSupported()).thenReturn(true);
+
+      CountDownLatch storeEntered = new CountDownLatch(1);
+      CountDownLatch releaseStore = new CountDownLatch(1);
+      BlockingDriver driver = new BlockingDriver(storeEntered, releaseStore);
+      CountDownLatch escaped = new CountDownLatch(1);
+
+      WorkflowWorker worker =
+          new WorkflowWorker(
+              client,
+              "default",
+              "task_queue",
+              "sticky_task_queue",
+              SingleWorkerOptions.newBuilder()
+                  .setIdentity("test_identity")
+                  .setBuildId(UUID.randomUUID().toString())
+                  .setWorkerInstanceKey(UUID.randomUUID().toString())
+                  .setPollerOptions(
+                      PollerOptions.newBuilder()
+                          .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                          .setUncaughtExceptionHandler((thread, error) -> escaped.countDown())
+                          .build())
+                  .setMetricsScope(metricsScope)
+                  .setExternalStorageRunner(
+                      ExternalStorageRunner.create(
+                          ExternalStorage.newBuilder()
+                              .setDriver(driver)
+                              .setPayloadSizeThreshold(0)
+                              .build()))
+                  .build(),
+              runLockManager,
+              cache,
+              taskHandler,
+              mock(EagerActivityDispatcher.class),
+              3,
+              slotSupplier,
+              new NamespaceCapabilities(),
+              CancellationToken.none());
+
+      WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+          mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+      when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
+          .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
+      WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+          mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+      when(client.blockingStub()).thenReturn(blockingStub);
+      when(client.futureStub()).thenReturn(futureStub);
+      when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+
+      PollWorkflowTaskQueueResponse pollResponse =
+          PollWorkflowTaskQueueResponse.newBuilder()
+              .setTaskToken(ByteString.copyFrom("token", UTF_8))
+              .setWorkflowExecution(
+                  WorkflowExecution.newBuilder()
+                      .setWorkflowId(WORKFLOW_ID)
+                      .setRunId(RUN_ID)
+                      .build())
+              .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
+              .build();
+      CountDownLatch pollTaskQueueLatch = new CountDownLatch(1);
+      CountDownLatch blockPollTaskQueueLatch = new CountDownLatch(1);
+      when(blockingStub.pollWorkflowTaskQueue(any(PollWorkflowTaskQueueRequest.class)))
+          .thenReturn(pollResponse)
+          .thenAnswer(
+              (Answer<PollWorkflowTaskQueueResponse>)
+                  invocation -> {
+                    pollTaskQueueLatch.countDown();
+                    blockPollTaskQueueLatch.await();
+                    return null;
+                  });
+
+      when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+          .thenAnswer(
+              (Answer<WorkflowTaskHandler.Result>)
+                  invocation ->
+                      new WorkflowTaskHandler.Result(
+                          WORKFLOW_TYPE,
+                          RespondWorkflowTaskCompletedRequest.newBuilder()
+                              .addCommands(
+                                  Command.newBuilder()
+                                      .setCompleteWorkflowExecutionCommandAttributes(
+                                          CompleteWorkflowExecutionCommandAttributes.newBuilder()
+                                              .setResult(
+                                                  Payloads.newBuilder()
+                                                      .addPayloads(
+                                                          Payload.newBuilder()
+                                                              .setData(
+                                                                  ByteString.copyFrom(
+                                                                      "result", UTF_8))))))
+                              .build(),
+                          null,
+                          null,
+                          null,
+                          false,
+                          null,
+                          null));
+
+      assertTrue(worker.start());
+      assertTrue(storeEntered.await(10, TimeUnit.SECONDS));
+
+      CompletableFuture<Void> shutdown = worker.shutdown(new ShutdownManager(), true);
+      releaseStore.countDown();
+
+      assertFalse(
+          "a store that fails while shutting down must not surface as an error on the task",
+          escaped.await(2, TimeUnit.SECONDS));
+      verify(blockingStub, never())
+          .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class));
+      shutdown.get();
+
+      assertFalse(
+          "shutting down must not be logged as a failure to report progress",
+          logs.list.stream()
+              .anyMatch(
+                  event ->
+                      event.getLevel() == Level.WARN
+                          && event.getMessage().contains("Failure while reporting")));
+    } finally {
+      workerLog.detachAppender(logs);
+      logs.stop();
+    }
+  }
+
+  private static final class BlockingDriver implements StorageDriver {
+    private final CountDownLatch storeEntered;
+    private final CountDownLatch releaseStore;
+
+    BlockingDriver(CountDownLatch storeEntered, CountDownLatch releaseStore) {
+      this.storeEntered = storeEntered;
+      this.releaseStore = releaseStore;
+    }
+
+    @Override
+    public String getName() {
+      return "blocking";
+    }
+
+    @Override
+    public String getType() {
+      return "test.blocking";
+    }
+
+    @Override
+    public CompletableFuture<List<StorageDriverClaim>> store(
+        StorageDriverStoreContext context, List<Payload> payloads) {
+      storeEntered.countDown();
+      try {
+        releaseStore.await(10, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      CompletableFuture<List<StorageDriverClaim>> failed = new CompletableFuture<>();
+      failed.completeExceptionally(new RuntimeException("store abandoned"));
+      return failed;
+    }
+
+    @Override
+    public CompletableFuture<List<Payload>> retrieve(
+        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      throw new UnsupportedOperationException();
+    }
   }
 
   @Test

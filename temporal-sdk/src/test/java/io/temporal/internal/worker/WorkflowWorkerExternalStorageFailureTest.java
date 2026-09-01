@@ -69,6 +69,15 @@ public class WorkflowWorkerExternalStorageFailureTest {
     Assert.assertEquals(
         "expected exactly one injected store failure", 1, driver.injectedStoreFailures.get());
     testWorkflowRule.assertHistoryEvent(workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED);
+    String reported =
+        testWorkflowRule
+            .getHistoryEvent(workflowId, EventType.EVENT_TYPE_WORKFLOW_TASK_FAILED)
+            .getWorkflowTaskFailedEventAttributes()
+            .getFailure()
+            .getMessage();
+    Assert.assertTrue(
+        "the reported failure must say what went wrong, got: " + reported,
+        reported.contains("storage unavailable"));
     Assert.assertTrue(
         "a reported failure must not leave a workflow task timeout in history",
         testWorkflowRule
