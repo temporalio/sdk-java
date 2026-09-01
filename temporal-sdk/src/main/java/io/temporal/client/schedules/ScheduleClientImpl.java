@@ -11,6 +11,7 @@ import io.temporal.internal.client.RootScheduleClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
@@ -71,6 +72,10 @@ final class ScheduleClientImpl implements ScheduleClient {
     // Set merged plugins after configuration, then build
     builder.setPlugins(mergedPlugins);
     options = builder.build();
+    options =
+        ScheduleClientOptions.newBuilder(options)
+            .setDataConverter(TemporalTransferTypeDataConverter.wrap(options.getDataConverter()))
+            .build();
 
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());

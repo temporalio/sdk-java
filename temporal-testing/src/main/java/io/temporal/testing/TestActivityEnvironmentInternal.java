@@ -32,6 +32,7 @@ import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.*;
@@ -78,6 +79,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final InProcessGRPCServer mockServer;
   private final ActivityTaskHandlerImpl activityTaskHandler;
   private final TestEnvironmentOptions testEnvironmentOptions;
+  private final DataConverter dataConverter;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final AtomicReference<Object> heartbeatDetails = new AtomicReference<>();
   private final DataConverter heartbeatDetailsConverter;
@@ -91,6 +93,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         options != null
             ? TestEnvironmentOptions.newBuilder(options).validateAndBuildWithDefaults()
             : TestEnvironmentOptions.newBuilder().validateAndBuildWithDefaults();
+    this.dataConverter =
+        TemporalTransferTypeDataConverter.wrap(
+            this.testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
     WorkflowServiceStubsOptions.Builder serviceStubsOptionsBuilder =
         WorkflowServiceStubsOptions.newBuilder(
                 testEnvironmentOptions.getWorkflowServiceStubsOptions())
@@ -112,9 +117,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     DataConverter clientDataConverter =
         testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
     this.heartbeatDetailsConverter =
-        externalStorageRunner == null
-            ? clientDataConverter
-            : new ExternalStorageDataConverter(clientDataConverter, externalStorageRunner);
+        TemporalTransferTypeDataConverter.wrap(
+            externalStorageRunner == null
+                ? clientDataConverter
+                : new ExternalStorageDataConverter(clientDataConverter, externalStorageRunner));
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
             client,
@@ -122,14 +128,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
-            clientDataConverter,
+            dataConverter,
             heartbeatExecutor,
             externalStorageRunner);
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             "test-activity-env-task-queue",
-            testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
+            dataConverter,
             activityExecutionContextFactory,
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
             testEnvironmentOptions.getWorkflowClientOptions().getContextPropagators());
@@ -272,19 +278,10 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public <T> ActivityOutput<T> executeActivity(ActivityInput<T> i) {
-      Optional<Payloads> payloads =
-          testEnvironmentOptions
-              .getWorkflowClientOptions()
-              .getDataConverter()
-              .toPayloads(i.getArgs());
+      Optional<Payloads> payloads = dataConverter.toPayloads(i.getArgs());
       Optional<Payloads> heartbeatPayload =
           Optional.ofNullable(heartbeatDetails.getAndSet(null))
-              .flatMap(
-                  obj ->
-                      testEnvironmentOptions
-                          .getWorkflowClientOptions()
-                          .getDataConverter()
-                          .toPayloads(obj));
+              .flatMap(obj -> dataConverter.toPayloads(obj));
 
       ActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
@@ -315,11 +312,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
 
     @Override
     public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> i) {
-      Optional<Payloads> payloads =
-          testEnvironmentOptions
-              .getWorkflowClientOptions()
-              .getDataConverter()
-              .toPayloads(i.getArgs());
+      Optional<Payloads> payloads = dataConverter.toPayloads(i.getArgs());
       LocalActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()
@@ -523,8 +516,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         ActivityTaskHandler.Result response,
         Class<T> resultClass,
         Type resultType) {
-      DataConverter dataConverter =
-          testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
       if (response.getTaskCompleted() != null) {
         RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
         Optional<Payloads> result =

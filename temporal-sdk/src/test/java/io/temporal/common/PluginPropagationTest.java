@@ -22,13 +22,20 @@ package io.temporal.common;
 
 import static org.junit.Assert.*;
 
+import com.google.protobuf.StringValue;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.TemporalTransferTypeConverter;
+import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.worker.WorkerPlugin;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,6 +47,66 @@ import org.junit.Test;
  * WorkflowClientOptions → WorkerFactory
  */
 public class PluginPropagationTest {
+
+  @Test
+  public void workflowPluginReplacesConverterBeforeTransferWrapping() {
+    DataConverter originalConverter = DefaultDataConverter.newDefaultInstance();
+    TransferConverterPlugin plugin = new TransferConverterPlugin();
+    WorkflowClientOptions originalOptions =
+        WorkflowClientOptions.newBuilder()
+            .setDataConverter(originalConverter)
+            .setPlugins(plugin)
+            .build();
+    TestEnvironmentOptions testOptions =
+        TestEnvironmentOptions.newBuilder().setWorkflowClientOptions(originalOptions).build();
+
+    TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(testOptions);
+    try {
+      assertSame(originalConverter, originalOptions.getDataConverter());
+      Payload payload =
+          env.getWorkflowClient()
+              .getOptions()
+              .getDataConverter()
+              .toPayload(new TransferModel())
+              .get();
+      assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
+    } finally {
+      env.close();
+    }
+  }
+
+  private static final class TransferConverterPlugin extends SimplePlugin {
+    private TransferConverterPlugin() {
+      super("transfer-converter");
+    }
+
+    @Override
+    public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
+      builder.setDataConverter(DefaultDataConverter.newDefaultInstance());
+    }
+  }
+
+  @TemporalTransferTypeConverter(TransferModelConverter.class)
+  private static final class TransferModel {}
+
+  public static final class TransferModelConverter implements TransferTypeConverter<TransferModel> {
+    public TransferModelConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      return StringValue.class;
+    }
+
+    @Override
+    public Object toTransferType(TransferModel value) {
+      return StringValue.of("transferred");
+    }
+
+    @Override
+    public TransferModel fromTransferType(Object value, Type valueType) {
+      return new TransferModel();
+    }
+  }
 
   /** A plugin that tracks all configuration calls via subclassing. */
   private static class TrackingPlugin extends SimplePlugin {
