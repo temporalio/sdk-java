@@ -137,6 +137,53 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   }
 
   @Test
+  public void aFailedDownloadIsReportedAsAWorkflowTaskFailure() throws Throwable {
+    InMemoryStorageDriver driver = new InMemoryStorageDriver();
+    ExternalStorageRunner externalStorage =
+        ExternalStorageRunner.create(
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+    PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
+    Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
+    History.Builder storedHistory =
+        fullTask.getHistory().toBuilder()
+            .setEvents(
+                0,
+                startedEvent.toBuilder()
+                    .setWorkflowExecutionStartedEventAttributes(
+                        startedEvent.getWorkflowExecutionStartedEventAttributes().toBuilder()
+                            .setInput(Payloads.newBuilder().addPayloads(input))));
+    externalStorage.store(storedHistory, null, null, CancellationToken.none());
+    driver.failRetrieve = true;
+
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
+            "namespace",
+            setUpMockWorkflowFactory(),
+            new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope()),
+            SingleWorkerOptions.newBuilder().setExternalStorageRunner(externalStorage).build(),
+            null,
+            Duration.ofSeconds(5),
+            client,
+            null);
+
+    WorkflowTaskHandler.Result result =
+        taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build());
+
+    assertNotNull(
+        "a failed download must be reported rather than ending the task", result.getTaskFailed());
+    assertTrue(result.getTaskFailed().hasFailure());
+    assertTrue(
+        "the reported failure must say what went wrong, got: "
+            + result.getTaskFailed().getFailure().getMessage(),
+        result.getTaskFailed().getFailure().getMessage().contains("storage unavailable"));
+  }
+
+  @Test
   public void resolvesExternalStorageReferencesInFetchedFullHistory() throws Throwable {
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
@@ -311,6 +358,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   private static final class InMemoryStorageDriver implements StorageDriver {
     private final Map<String, Payload> payloads = new HashMap<>();
     private int nextKey;
+    boolean failRetrieve;
 
     @Override
     public String getName() {
@@ -337,6 +385,11 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     @Override
     public synchronized CompletableFuture<List<Payload>> retrieve(
         StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      if (failRetrieve) {
+        CompletableFuture<List<Payload>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("storage unavailable"));
+        return failed;
+      }
       List<Payload> retrieved = new ArrayList<>();
       for (StorageDriverClaim claim : claims) {
         retrieved.add(payloads.get(claim.getClaimData().get("key")));

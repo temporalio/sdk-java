@@ -104,12 +104,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
-    if (externalStorageRunner == null) {
-      ExternalStorageRunner.throwIfContainsReference(workflowTask);
-    } else {
-      workflowTask = externalStorageRunner.retrieve(workflowTask, storageCancellation);
-    }
     return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
   }
 
@@ -122,6 +116,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     boolean useCache = stickyTaskQueue != null;
 
     try {
+      workflowTask = retrieveStoredPayloads(workflowTask);
       workflowRunTaskHandler =
           getOrCreateWorkflowExecutor(useCache, workflowTask, metricsScope, createdNew);
       logWorkflowTaskToBeProcessed(workflowTask, createdNew);
@@ -207,6 +202,16 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         workflowRunTaskHandler.close();
       }
     }
+  }
+
+  private PollWorkflowTaskQueueResponse.Builder retrieveStoredPayloads(
+      PollWorkflowTaskQueueResponse.Builder workflowTask) {
+    ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+    if (externalStorageRunner == null) {
+      ExternalStorageRunner.throwIfContainsReference(workflowTask.build());
+      return workflowTask;
+    }
+    return externalStorageRunner.retrieve(workflowTask.build(), storageCancellation).toBuilder();
   }
 
   private Result createCompletedWFTRequest(
