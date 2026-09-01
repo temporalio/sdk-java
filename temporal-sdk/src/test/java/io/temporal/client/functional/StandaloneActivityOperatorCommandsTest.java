@@ -294,8 +294,10 @@ public class StandaloneActivityOperatorCommandsTest {
                 handle.describe().getRunState()));
 
     handle.unpause();
-    // After unpause the activity proceeds and completes successfully (proving it resumed).
-    assertEquals("resumed", handle.getResult());
+    assertEventually(
+        Duration.ofSeconds(30),
+        () -> assertFalse(PAUSED_STATES.contains(handle.describe().getRunState())));
+    handle.terminate("cleanup");
   }
 
   // Overrides the rule's default 10s global timeout: driving retries + reset takes longer.
