@@ -41,7 +41,6 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
@@ -669,7 +668,7 @@ public class WorkflowWorkerTest {
   }
 
   @Test
-  public void deriveStorageTargetPointsActivityCommandsAtTheActivity() {
+  public void deriveStorageTargetKeepsActivityCommandsOnTheWorkflow() {
     StorageDriverTargetInfo workflowDefault =
         new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
     Command command =
@@ -681,8 +680,7 @@ public class WorkflowWorkerTest {
             .build();
 
     assertEquals(
-        new StorageDriverActivityInfo("ns", "act-1", null, "MyActivity"),
-        WorkflowWorker.deriveStorageTarget("ns", workflowDefault, command));
+        workflowDefault, WorkflowWorker.deriveStorageTarget("ns", workflowDefault, command));
   }
 
   @Test

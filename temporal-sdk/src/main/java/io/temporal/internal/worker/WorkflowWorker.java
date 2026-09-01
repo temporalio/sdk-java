@@ -28,7 +28,6 @@ import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.WorkflowSerializationContext;
-import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
@@ -456,11 +455,6 @@ final class WorkflowWorker implements SuspendableWorker {
     CommandOrBuilder command = (CommandOrBuilder) message;
     // Keep this exhaustive so new command attributes require an explicit target decision.
     switch (command.getAttributesCase()) {
-      case SCHEDULE_ACTIVITY_TASK_COMMAND_ATTRIBUTES:
-        ScheduleActivityTaskCommandAttributesOrBuilder activity =
-            command.getScheduleActivityTaskCommandAttributesOrBuilder();
-        return new StorageDriverActivityInfo(
-            namespace, activity.getActivityId(), null, activity.getActivityType().getName());
       case START_CHILD_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
         StartChildWorkflowExecutionCommandAttributesOrBuilder child =
             command.getStartChildWorkflowExecutionCommandAttributesOrBuilder();
@@ -484,6 +478,7 @@ final class WorkflowWorker implements SuspendableWorker {
               Strings.isNullOrEmpty(workflowType) ? currentWorkflow.getType() : workflowType);
         }
         return current;
+      case SCHEDULE_ACTIVITY_TASK_COMMAND_ATTRIBUTES:
       case ATTRIBUTES_NOT_SET:
       case START_TIMER_COMMAND_ATTRIBUTES:
       case COMPLETE_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
