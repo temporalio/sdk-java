@@ -4,6 +4,7 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
@@ -23,6 +24,7 @@ import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
@@ -39,6 +41,7 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -192,6 +195,53 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
         .getWorkflowExecutionStartedEventAttributes()
         .getInput()
         .getPayloads(0);
+  }
+
+  @Test
+  public void aCancelledDownloadIsNotReportedAsAWorkflowTaskFailure() throws Throwable {
+    TestStorageDriver driver = TestStorageDriver.create();
+    ExternalStorageRunner externalStorage =
+        ExternalStorageRunner.create(
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+    PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
+    Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
+    History.Builder storedHistory =
+        fullTask.getHistory().toBuilder()
+            .setEvents(
+                0,
+                startedEvent.toBuilder()
+                    .setWorkflowExecutionStartedEventAttributes(
+                        startedEvent.getWorkflowExecutionStartedEventAttributes().toBuilder()
+                            .setInput(Payloads.newBuilder().addPayloads(input))));
+    externalStorage.store(storedHistory, null, null, CancellationToken.none());
+    driver.neverAnswers();
+
+    CancelSource<CancellationException> stopping =
+        new CancelSource<>(() -> new CancellationException("Worker shutdown"));
+    stopping.cancel();
+
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
+            "namespace",
+            setUpMockWorkflowFactory(),
+            new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope()),
+            SingleWorkerOptions.newBuilder().setExternalStorageRunner(externalStorage).build(),
+            null,
+            Duration.ofSeconds(5),
+            client,
+            null,
+            stopping.token());
+
+    assertThrows(
+        "stopping storage must not be turned into a workflow task failure",
+        CancellationException.class,
+        () ->
+            taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build()));
   }
 
   @Test

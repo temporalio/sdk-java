@@ -483,6 +483,108 @@ public class WorkflowWorkerTest {
   }
 
   @Test
+  public void aTaskAbandonedWhileShuttingDownIsNotReported() throws Exception {
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+    WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
+    Scope metricsScope =
+        new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
+    WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
+    when(taskHandler.isAnyTypeSupported()).thenReturn(true);
+
+    CountDownLatch handlerEntered = new CountDownLatch(1);
+    CountDownLatch releaseHandler = new CountDownLatch(1);
+    CountDownLatch escaped = new CountDownLatch(1);
+
+    WorkflowWorker worker =
+        new WorkflowWorker(
+            client,
+            "default",
+            "task_queue",
+            "sticky_task_queue",
+            SingleWorkerOptions.newBuilder()
+                .setIdentity("test_identity")
+                .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                        .setUncaughtExceptionHandler((thread, error) -> escaped.countDown())
+                        .build())
+                .setMetricsScope(metricsScope)
+                .build(),
+            runLockManager,
+            cache,
+            taskHandler,
+            mock(EagerActivityDispatcher.class),
+            3,
+            new FixedSizeSlotSupplier<>(10),
+            new NamespaceCapabilities(),
+            CancellationToken.none());
+
+    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
+        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(client.blockingStub()).thenReturn(blockingStub);
+    when(client.futureStub()).thenReturn(futureStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+
+    PollWorkflowTaskQueueResponse pollResponse =
+        PollWorkflowTaskQueueResponse.newBuilder()
+            .setTaskToken(ByteString.copyFrom("token", UTF_8))
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId(RUN_ID).build())
+            .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
+            .build();
+    CountDownLatch blockPolls = new CountDownLatch(1);
+    when(blockingStub.pollWorkflowTaskQueue(any(PollWorkflowTaskQueueRequest.class)))
+        .thenReturn(pollResponse)
+        .thenAnswer(
+            (Answer<PollWorkflowTaskQueueResponse>)
+                invocation -> {
+                  blockPolls.await();
+                  return null;
+                });
+
+    // The task is abandoned part way through, which is what stopping storage looks like.
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+        .thenAnswer(
+            (Answer<WorkflowTaskHandler.Result>)
+                invocation -> {
+                  handlerEntered.countDown();
+                  try {
+                    releaseHandler.await(10, TimeUnit.SECONDS);
+                  } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                  }
+                  throw new CancellationException("Worker shutdown");
+                });
+
+    assertTrue(worker.start());
+    assertTrue(handlerEntered.await(10, TimeUnit.SECONDS));
+    CompletableFuture<Void> shutdown = worker.shutdown(new ShutdownManager(), true);
+    releaseHandler.countDown();
+
+    assertFalse(
+        "abandoning a task while shutting down must not surface as an error",
+        escaped.await(2, TimeUnit.SECONDS));
+    verify(blockingStub, never())
+        .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class));
+    assertEquals(
+        "a task abandoned while shutting down must not count as a failed task",
+        0,
+        worker.getTaskCounter().getTotalFailed());
+    shutdown.get();
+  }
+
+  @Test
   public void payloadsInAFailedWorkflowTaskAreOffloaded() throws Exception {
     TestStorageDriver driver = TestStorageDriver.create();
     Payload details = Payload.newBuilder().setData(ByteString.copyFrom("details", UTF_8)).build();
