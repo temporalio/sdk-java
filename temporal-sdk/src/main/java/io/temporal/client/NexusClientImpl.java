@@ -16,6 +16,7 @@ import io.temporal.internal.client.NexusOperationHandleImpl;
 import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.List;
@@ -43,6 +44,10 @@ public class NexusClientImpl implements NexusClient {
   }
 
   NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientOptions options) {
+    options =
+        NexusClientOptions.newBuilder(options)
+            .setDataConverter(TemporalTransferTypeDataConverter.wrap(options.getDataConverter()))
+            .build();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;

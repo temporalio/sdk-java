@@ -22,6 +22,7 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
@@ -100,6 +101,10 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     // Set merged plugins after configuration, then validate
     builder.setPlugins(mergedPlugins);
     options = builder.validateAndBuildWithDefaults();
+    options =
+        WorkflowClientOptions.newBuilder(options)
+            .setDataConverter(TemporalTransferTypeDataConverter.wrap(options.getDataConverter()))
+            .build();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.options = options;
