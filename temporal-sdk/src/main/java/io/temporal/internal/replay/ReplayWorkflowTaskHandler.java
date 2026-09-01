@@ -292,7 +292,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         null,
         result.isFinalCommand(),
         eventIdSetHandle,
-        result.getApplyPostCompletionMetrics());
+        result.getApplyPostCompletionMetrics(),
+        result.isContinuedAsNew() ? null : result.getParentWorkflowExecution());
   }
 
   private Result failureToWFTResult(

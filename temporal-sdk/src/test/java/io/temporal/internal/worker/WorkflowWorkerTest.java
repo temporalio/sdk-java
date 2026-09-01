@@ -668,6 +668,33 @@ public class WorkflowWorkerTest {
   }
 
   @Test
+  public void deriveStorageTargetPointsACompletionAtItsParent() {
+    StorageDriverTargetInfo child = new StorageDriverWorkflowInfo("ns", "child", "run-1", "Child");
+    StorageDriverTargetInfo parent =
+        new StorageDriverWorkflowInfo("ns", "parent", "parent-run", null);
+    Command command =
+        Command.newBuilder()
+            .setCompleteWorkflowExecutionCommandAttributes(
+                CompleteWorkflowExecutionCommandAttributes.newBuilder())
+            .build();
+
+    assertEquals(parent, WorkflowWorker.deriveStorageTarget("ns", child, command, parent));
+  }
+
+  @Test
+  public void deriveStorageTargetKeepsACompletionOnItselfWithoutAParent() {
+    StorageDriverTargetInfo self =
+        new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");
+    Command command =
+        Command.newBuilder()
+            .setCompleteWorkflowExecutionCommandAttributes(
+                CompleteWorkflowExecutionCommandAttributes.newBuilder())
+            .build();
+
+    assertEquals(self, WorkflowWorker.deriveStorageTarget("ns", self, command, null));
+  }
+
+  @Test
   public void deriveStorageTargetKeepsActivityCommandsOnTheWorkflow() {
     StorageDriverTargetInfo workflowDefault =
         new StorageDriverWorkflowInfo("ns", "wf-1", "run-1", "MyWorkflow");

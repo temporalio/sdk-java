@@ -438,6 +438,18 @@ final class WorkflowWorker implements SuspendableWorker {
   }
 
   @Nullable
+  private StorageDriverTargetInfo parentStorageTarget(@Nullable WorkflowExecution parent) {
+    if (parent == null || options.getExternalStorageRunner() == null) {
+      return null;
+    }
+    return new StorageDriverWorkflowInfo(
+        namespace,
+        Strings.emptyToNull(parent.getWorkflowId()),
+        Strings.emptyToNull(parent.getRunId()),
+        null);
+  }
+
+  @Nullable
   private StorageDriverTargetInfo workflowStorageTarget(
       WorkflowExecution execution, String workflowType) {
     if (options.getExternalStorageRunner() == null) {
@@ -449,6 +461,14 @@ final class WorkflowWorker implements SuspendableWorker {
 
   static StorageDriverTargetInfo deriveStorageTarget(
       String namespace, StorageDriverTargetInfo current, MessageOrBuilder message) {
+    return deriveStorageTarget(namespace, current, message, null);
+  }
+
+  static StorageDriverTargetInfo deriveStorageTarget(
+      String namespace,
+      StorageDriverTargetInfo current,
+      MessageOrBuilder message,
+      @Nullable StorageDriverTargetInfo completionTarget) {
     if (!(message instanceof CommandOrBuilder)) {
       return current;
     }
@@ -478,10 +498,11 @@ final class WorkflowWorker implements SuspendableWorker {
               Strings.isNullOrEmpty(workflowType) ? currentWorkflow.getType() : workflowType);
         }
         return current;
+      case COMPLETE_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
+        return completionTarget != null ? completionTarget : current;
       case SCHEDULE_ACTIVITY_TASK_COMMAND_ATTRIBUTES:
       case ATTRIBUTES_NOT_SET:
       case START_TIMER_COMMAND_ATTRIBUTES:
-      case COMPLETE_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
       case FAIL_WORKFLOW_EXECUTION_COMMAND_ATTRIBUTES:
       case REQUEST_CANCEL_ACTIVITY_TASK_COMMAND_ATTRIBUTES:
       case CANCEL_TIMER_COMMAND_ATTRIBUTES:
@@ -650,7 +671,8 @@ final class WorkflowWorker implements SuspendableWorker {
                               requestBuilder,
                               result.getRequestRetryOptions(),
                               workflowTypeScope,
-                              workflowStorageTarget(workflowExecution, workflowType));
+                              workflowStorageTarget(workflowExecution, workflowType),
+                              parentStorageTarget(result.getCompletionParentExecution()));
                       // If we were processing a speculative WFT the server may instruct us that the
                       // task was dropped by resting out event ID.
                       long resetEventId = response.getResetHistoryEventId();
@@ -847,7 +869,8 @@ final class WorkflowWorker implements SuspendableWorker {
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
         RpcRetryOptions retryOptions,
         Scope workflowTypeMetricsScope,
-        @Nullable StorageDriverTargetInfo storageTarget) {
+        @Nullable StorageDriverTargetInfo storageTarget,
+        @Nullable StorageDriverTargetInfo completionTarget) {
       taskCompleted
           .setIdentity(options.getIdentity())
           .setNamespace(namespace)
@@ -867,7 +890,7 @@ final class WorkflowWorker implements SuspendableWorker {
       }
 
       MessageVisitor<StorageDriverTargetInfo> storageTargetVisitor =
-          (current, message) -> deriveStorageTarget(namespace, current, message);
+          (current, message) -> deriveStorageTarget(namespace, current, message, completionTarget);
       storeOutboundPayloads(taskCompleted, storageTarget, storageTargetVisitor);
       RespondWorkflowTaskCompletedRequest request = taskCompleted.build();
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
