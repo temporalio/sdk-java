@@ -195,11 +195,17 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
         metricsScope.tagged(
             ImmutableMap.of(MetricsTag.EXCEPTION, exception.getClass().getSimpleName()));
     if (!FailureUtils.isBenignApplicationFailure(exception)) {
+      // The deprecated counter keeps its original tags so that dashboards still reading it are
+      // not split into a new series.
+      Scope failureScope =
+          ms.tagged(
+              ImmutableMap.of(
+                  MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_ACTIVITY_ERROR));
       if (isLocalActivity) {
-        ms.counter(MetricsType.LOCAL_ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+        failureScope.counter(MetricsType.LOCAL_ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
         ms.counter(MetricsType.LOCAL_ACTIVITY_FAILED_COUNTER).inc(1);
       } else {
-        ms.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
+        failureScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
       }
     }
     Failure failure = dataConverter.exceptionToFailure(exception);
