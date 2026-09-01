@@ -581,7 +581,15 @@ final class WorkflowWorker implements SuspendableWorker {
           nextWFTResponse = Optional.empty();
           boolean iterationFailed = false;
           try {
-            WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
+            WorkflowTaskHandler.Result result;
+            try {
+              result = handleTask(currentTask, workflowTypeScope);
+            } catch (CancellationException e) {
+              if (isShutdown()) {
+                return;
+              }
+              throw e;
+            }
             WorkflowTaskFailedCause taskFailedCause = null;
             try {
               RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();

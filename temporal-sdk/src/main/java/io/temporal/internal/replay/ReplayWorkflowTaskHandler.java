@@ -166,7 +166,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
 
       return result;
-    } catch (InterruptedException e) {
+    } catch (InterruptedException | CancellationException e) {
       throw e;
     } catch (Throwable e) {
       // Note here that the executor might not be in the cache, even when the caching is on. In that
