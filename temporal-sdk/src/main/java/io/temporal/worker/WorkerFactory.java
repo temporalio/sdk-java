@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
@@ -327,10 +328,15 @@ public final class WorkerFactory {
 
     // Register heartbeat callbacks after workers are started.
     if (hbManager != null && namespaceCapabilities.isWorkerHeartbeats()) {
+      EnvironmentInfo environmentInfo = clientInternal.getWorkerEnvironmentInfo();
       for (Worker worker : workers.values()) {
         Supplier<WorkerHeartbeat> heartbeatSupplier =
-            worker.buildHeartbeatCallback(workerGroupingKey);
-        hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
+            worker.buildHeartbeatCallback(workerGroupingKey, environmentInfo);
+        hbManager.registerWorker(
+            namespace,
+            worker.getWorkerInstanceKey(),
+            heartbeatSupplier,
+            worker::onHeartbeatAccepted);
         worker.setHeartbeatSupplier(heartbeatSupplier);
       }
     }

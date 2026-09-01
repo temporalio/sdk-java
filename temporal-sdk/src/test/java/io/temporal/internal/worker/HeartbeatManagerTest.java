@@ -10,6 +10,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -238,10 +239,24 @@ public class HeartbeatManagerTest {
         .thenThrow(new io.grpc.StatusRuntimeException(io.grpc.Status.UNAVAILABLE))
         .thenReturn(RecordWorkerHeartbeatResponse.getDefaultInstance());
 
-    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL, environment);
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
-    WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
-    manager.registerWorker("default", "worker-1", () -> hb);
+    // Mirrors Worker.buildHeartbeatCallback: the environment is embedded by the supplier until the
+    // accepted callback clears it.
+    AtomicReference<EnvironmentInfo> pending = new AtomicReference<>(environment);
+    manager.registerWorker(
+        "default",
+        "worker-1",
+        () -> {
+          WorkerHeartbeat.Builder hb =
+              WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1");
+          EnvironmentInfo env = pending.get();
+          if (env != null) {
+            hb.setEnvironment(env);
+          }
+          return hb.build();
+        },
+        () -> pending.set(null));
 
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(3)).recordWorkerHeartbeat(any());
 
@@ -258,11 +273,31 @@ public class HeartbeatManagerTest {
   }
 
   @Test
-  public void testEnvironmentInfoOmittedWhenNull() throws Exception {
-    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL, null);
+  public void testAcceptedCallbackNotInvokedOnFailure() throws Exception {
+    when(blockingStub.recordWorkerHeartbeat(any()))
+        .thenThrow(new io.grpc.StatusRuntimeException(io.grpc.Status.UNAVAILABLE))
+        .thenThrow(new RuntimeException("boom"))
+        .thenReturn(RecordWorkerHeartbeatResponse.getDefaultInstance());
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
-    manager.registerWorker("default", "worker-1", () -> hb);
+    Runnable accepted = mock(Runnable.class);
+    manager.registerWorker("default", "worker-1", () -> hb, accepted);
+
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(3)).recordWorkerHeartbeat(any());
+    verify(accepted, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).run();
+    // Two failed RPCs preceded the first success, so there must be fewer acceptances than RPCs.
+    assertTrue(
+        mockingDetails(accepted).getInvocations().size()
+            <= mockingDetails(blockingStub).getInvocations().size() - 2);
+  }
+
+  @Test
+  public void testEnvironmentInfoOmittedWhenNull() throws Exception {
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
+
+    WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
+    manager.registerWorker("default", "worker-1", () -> hb, () -> {});
 
     ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
         ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);

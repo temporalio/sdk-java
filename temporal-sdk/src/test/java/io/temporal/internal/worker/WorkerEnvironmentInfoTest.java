@@ -92,6 +92,17 @@ public class WorkerEnvironmentInfoTest {
   }
 
   @Test
+  public void windowsVersion() {
+    assertEquals("11", WorkerEnvironmentInfo.windowsVersion("Windows 11", "10.0"));
+    assertEquals("10.0", WorkerEnvironmentInfo.windowsVersion("Windows 10", "10.0"));
+    assertEquals("8.1", WorkerEnvironmentInfo.windowsVersion("Windows 8.1", "6.3"));
+    assertEquals("10.0", WorkerEnvironmentInfo.windowsVersion("Windows Server 2022", "10.0"));
+    assertEquals("5.1", WorkerEnvironmentInfo.windowsVersion("Windows XP", "5.1"));
+    assertEquals("10.0", WorkerEnvironmentInfo.windowsVersion("Windows NT (unknown)", "10.0"));
+    assertEquals("6.2", WorkerEnvironmentInfo.windowsVersion("Windows", "6.2"));
+  }
+
+  @Test
   public void javaMajorVersion() {
     assertEquals(8, WorkerEnvironmentInfo.javaMajorVersion("1.8"));
     assertEquals(11, WorkerEnvironmentInfo.javaMajorVersion("11"));

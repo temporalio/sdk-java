@@ -20,26 +20,37 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Detects the runtime, hosting environment, and platform information reported in the first accepted
  * worker heartbeat.
  */
 public final class WorkerEnvironmentInfo {
+  private static final Logger log = LoggerFactory.getLogger(WorkerEnvironmentInfo.class);
 
   private WorkerEnvironmentInfo() {}
 
+  /**
+   * Never throws: this runs during client creation, and telemetry must not break it. System
+   * property, environment, and filesystem access can all fail under a security manager, in which
+   * case whatever was collected before the failure is returned.
+   */
   public static EnvironmentInfo detect() {
-    EnvironmentInfo.Builder builder =
-        EnvironmentInfo.newBuilder()
-            .addRuntimes(
-                Runtime.newBuilder()
-                    .setType(RuntimeType.RUNTIME_TYPE_JVM)
-                    .setVersion(nullToEmpty(System.getProperty("java.version"))))
-            .addAllHostingEnvironments(detectHostingEnvironments(System::getenv));
-    Platform platform = detectPlatform();
-    if (platform != null) {
-      builder.setPlatform(platform);
+    EnvironmentInfo.Builder builder = EnvironmentInfo.newBuilder();
+    try {
+      builder.addRuntimes(
+          Runtime.newBuilder()
+              .setType(RuntimeType.RUNTIME_TYPE_JVM)
+              .setVersion(nullToEmpty(System.getProperty("java.version"))));
+      builder.addAllHostingEnvironments(detectHostingEnvironments(System::getenv));
+      Platform platform = detectPlatform();
+      if (platform != null) {
+        builder.setPlatform(platform);
+      }
+    } catch (RuntimeException e) {
+      log.warn("Failed to detect worker environment information, reporting partial results", e);
     }
     return builder.build();
   }
@@ -149,7 +160,8 @@ public final class WorkerEnvironmentInfo {
 
   @Nullable
   private static Platform detectPlatform() {
-    String name = nullToEmpty(System.getProperty("os.name")).toLowerCase(Locale.ROOT);
+    String osName = nullToEmpty(System.getProperty("os.name"));
+    String name = osName.toLowerCase(Locale.ROOT);
     String osVersion = nullToEmpty(System.getProperty("os.version"));
     Architecture architecture = detectArchitecture();
     if (name.contains("linux")) {
@@ -169,7 +181,7 @@ public final class WorkerEnvironmentInfo {
       return Platform.newBuilder()
           .setWindows(
               WindowsPlatform.newBuilder()
-                  .setVersion(osVersion)
+                  .setVersion(windowsVersion(osName, osVersion))
                   .setArchitecture(architecture)
                   .setCrt(
                       windowsCrt(
@@ -214,6 +226,40 @@ public final class WorkerEnvironmentInfo {
     }
     try {
       return Integer.parseInt(version);
+    } catch (NumberFormatException e) {
+      return 0;
+    }
+  }
+
+  /**
+   * Windows 11 still reports {@code os.version} as {@code 10.0}; since JDK 17.0.1 {@code os.name}
+   * carries the marketing version ("Windows 11"), so prefer it when it is a plain number that
+   * {@code os.version} contradicts. Server editions ("Windows Server 2022") are left as-is because
+   * their year is not a version.
+   */
+  static String windowsVersion(String osName, String osVersion) {
+    String prefix = "windows ";
+    String lower = osName.toLowerCase(Locale.ROOT);
+    if (!lower.startsWith(prefix) || lower.startsWith("windows server")) {
+      return osVersion;
+    }
+    String marketing = osName.substring(prefix.length()).trim();
+    int marketingMajor = leadingInt(marketing);
+    if (marketingMajor <= 0
+        || !marketing.matches("[0-9]+(\\.[0-9]+)*")
+        || marketingMajor <= leadingInt(osVersion)) {
+      return osVersion;
+    }
+    return marketing;
+  }
+
+  private static int leadingInt(String version) {
+    int end = 0;
+    while (end < version.length() && Character.isDigit(version.charAt(end))) {
+      end++;
+    }
+    try {
+      return Integer.parseInt(version.substring(0, end));
     } catch (NumberFormatException e) {
       return 0;
     }
