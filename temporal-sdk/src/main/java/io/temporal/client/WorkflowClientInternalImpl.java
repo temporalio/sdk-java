@@ -25,6 +25,7 @@ import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.internal.worker.WorkerEnvironmentInfo;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -125,7 +126,11 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     java.time.Duration heartbeatInterval = options.getWorkerHeartbeatInterval();
     if (!heartbeatInterval.isNegative()) {
       this.heartbeatManager =
-          new HeartbeatManager(workflowServiceStubs, options.getIdentity(), heartbeatInterval);
+          new HeartbeatManager(
+              workflowServiceStubs,
+              options.getIdentity(),
+              heartbeatInterval,
+              options.isWorkerEnvironmentInfoDisabled() ? null : WorkerEnvironmentInfo.detect());
     } else {
       this.heartbeatManager = null;
     }

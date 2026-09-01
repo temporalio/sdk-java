@@ -1,5 +1,6 @@
 package io.temporal.internal.worker;
 
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.RecordWorkerHeartbeatRequest;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -7,6 +8,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,15 +22,29 @@ public class HeartbeatManager {
   private final WorkflowServiceStubs service;
   private final String identity;
   private final Duration interval;
+  private final @Nullable EnvironmentInfo environmentInfo;
   private final Map<String, SharedNamespaceWorker> namespaceWorkers = new HashMap<>();
   private final Set<String> unimplementedNamespaces = new HashSet<>();
 
   private final Object lock = new Object();
 
   public HeartbeatManager(WorkflowServiceStubs service, String identity, Duration interval) {
+    this(service, identity, interval, null);
+  }
+
+  /**
+   * @param environmentInfo environment information reported once per worker, with the first
+   *     heartbeat accepted by the server, or null to omit it
+   */
+  public HeartbeatManager(
+      WorkflowServiceStubs service,
+      String identity,
+      Duration interval,
+      @Nullable EnvironmentInfo environmentInfo) {
     this.service = service;
     this.identity = identity;
     this.interval = interval;
+    this.environmentInfo = environmentInfo;
   }
 
   /**
@@ -49,7 +65,7 @@ public class HeartbeatManager {
               return existing;
             }
             SharedNamespaceWorker nsWorker =
-                new SharedNamespaceWorker(this, service, ns, identity, interval);
+                new SharedNamespaceWorker(this, service, ns, identity, interval, environmentInfo);
             nsWorker.registerWorker(workerInstanceKey, callback);
             return nsWorker;
           });
@@ -105,8 +121,11 @@ public class HeartbeatManager {
     private final WorkflowServiceStubs service;
     private final String namespace;
     private final String identity;
+    private final @Nullable EnvironmentInfo environmentInfo;
     private final ConcurrentHashMap<String, Supplier<WorkerHeartbeat>> callbacks =
         new ConcurrentHashMap<>();
+    // Workers whose environment info has not yet been accepted by the server.
+    private final Set<String> pendingEnvironment = ConcurrentHashMap.newKeySet();
     private final ScheduledExecutorService scheduler;
 
     SharedNamespaceWorker(
@@ -114,11 +133,13 @@ public class HeartbeatManager {
         WorkflowServiceStubs service,
         String namespace,
         String identity,
-        Duration interval) {
+        Duration interval,
+        @Nullable EnvironmentInfo environmentInfo) {
       this.manager = manager;
       this.service = service;
       this.namespace = namespace;
       this.identity = identity;
+      this.environmentInfo = environmentInfo;
       this.scheduler =
           Executors.newSingleThreadScheduledExecutor(
               r -> {
@@ -132,10 +153,14 @@ public class HeartbeatManager {
 
     void registerWorker(String workerInstanceKey, Supplier<WorkerHeartbeat> callback) {
       callbacks.put(workerInstanceKey, callback);
+      if (environmentInfo != null) {
+        pendingEnvironment.add(workerInstanceKey);
+      }
     }
 
     void unregisterWorker(String workerInstanceKey) {
       callbacks.remove(workerInstanceKey);
+      pendingEnvironment.remove(workerInstanceKey);
     }
 
     boolean isEmpty() {
@@ -165,9 +190,15 @@ public class HeartbeatManager {
       if (callbacks.isEmpty()) return;
 
       List<WorkerHeartbeat> heartbeats = new ArrayList<>();
+      List<String> environmentSent = new ArrayList<>();
       for (Map.Entry<String, Supplier<WorkerHeartbeat>> entry : callbacks.entrySet()) {
         try {
-          heartbeats.add(entry.getValue().get());
+          WorkerHeartbeat heartbeat = entry.getValue().get();
+          if (environmentInfo != null && pendingEnvironment.contains(entry.getKey())) {
+            heartbeat = heartbeat.toBuilder().setEnvironment(environmentInfo).build();
+            environmentSent.add(entry.getKey());
+          }
+          heartbeats.add(heartbeat);
         } catch (Exception e) {
           log.warn(
               "Failed to build heartbeat for worker {} in namespace {}",
@@ -188,6 +219,7 @@ public class HeartbeatManager {
                     .setIdentity(identity)
                     .addAllWorkerHeartbeat(heartbeats)
                     .build());
+        pendingEnvironment.removeAll(environmentSent);
       } catch (io.grpc.StatusRuntimeException e) {
         if (e.getStatus().getCode() == io.grpc.Status.Code.UNIMPLEMENTED) {
           log.warn(

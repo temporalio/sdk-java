@@ -4,10 +4,12 @@ import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
+import java.util.List;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -220,6 +222,53 @@ public class HeartbeatManagerTest {
     manager.unregisterWorker("default", "worker-2");
     clearInvocations(blockingStub);
     verify(blockingStub, after(VERIFY_TIMEOUT_MS).never()).recordWorkerHeartbeat(any());
+  }
+
+  @Test
+  public void testEnvironmentInfoSentUntilAccepted() throws Exception {
+    EnvironmentInfo environment =
+        EnvironmentInfo.newBuilder()
+            .addRuntimes(
+                EnvironmentInfo.Runtime.newBuilder()
+                    .setType(EnvironmentInfo.Runtime.RuntimeType.RUNTIME_TYPE_JVM)
+                    .setVersion("17"))
+            .build();
+    // Fail the first delivery so the environment must be retried.
+    when(blockingStub.recordWorkerHeartbeat(any()))
+        .thenThrow(new io.grpc.StatusRuntimeException(io.grpc.Status.UNAVAILABLE))
+        .thenReturn(RecordWorkerHeartbeatResponse.getDefaultInstance());
+
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL, environment);
+
+    WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
+    manager.registerWorker("default", "worker-1", () -> hb);
+
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(3)).recordWorkerHeartbeat(any());
+
+    ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
+        ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);
+    verify(blockingStub, atLeast(3)).recordWorkerHeartbeat(captor.capture());
+
+    List<RecordWorkerHeartbeatRequest> requests = captor.getAllValues();
+    assertEquals(environment, requests.get(0).getWorkerHeartbeat(0).getEnvironment());
+    assertEquals(environment, requests.get(1).getWorkerHeartbeat(0).getEnvironment());
+    for (RecordWorkerHeartbeatRequest request : requests.subList(2, requests.size())) {
+      assertFalse(request.getWorkerHeartbeat(0).hasEnvironment());
+    }
+  }
+
+  @Test
+  public void testEnvironmentInfoOmittedWhenNull() throws Exception {
+    manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL, null);
+
+    WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
+    manager.registerWorker("default", "worker-1", () -> hb);
+
+    ArgumentCaptor<RecordWorkerHeartbeatRequest> captor =
+        ArgumentCaptor.forClass(RecordWorkerHeartbeatRequest.class);
+    verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce())
+        .recordWorkerHeartbeat(captor.capture());
+    assertFalse(captor.getValue().getWorkerHeartbeat(0).hasEnvironment());
   }
 
   @Test
