@@ -40,14 +40,11 @@ import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.payload.storage.ExternalStorage;
-import io.temporal.payload.storage.StorageDriver;
-import io.temporal.payload.storage.StorageDriverClaim;
-import io.temporal.payload.storage.StorageDriverRetrieveContext;
-import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -59,16 +56,10 @@ import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
@@ -493,7 +484,7 @@ public class WorkflowWorkerTest {
 
   @Test
   public void payloadsInAFailedWorkflowTaskAreOffloaded() throws Exception {
-    TestDriver driver = new TestDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     Payload details = Payload.newBuilder().setData(ByteString.copyFrom("details", UTF_8)).build();
     RespondWorkflowTaskFailedRequest taskFailed =
         RespondWorkflowTaskFailedRequest.newBuilder()
@@ -522,7 +513,7 @@ public class WorkflowWorkerTest {
 
   @Test
   public void payloadsInADirectQueryResponseAreOffloaded() throws Exception {
-    TestDriver driver = new TestDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     Payload answer = Payload.newBuilder().setData(ByteString.copyFrom("answer", UTF_8)).build();
     RespondQueryTaskCompletedRequest queryCompleted =
         RespondQueryTaskCompletedRequest.newBuilder()
@@ -546,7 +537,7 @@ public class WorkflowWorkerTest {
 
   /** Runs a single workflow task through a worker wired to {@code driver}, then verifies. */
   private void runOneTask(
-      TestDriver driver,
+      TestStorageDriver driver,
       WorkflowTaskHandler.Result handlerResult,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
       throws Exception {
@@ -662,10 +653,8 @@ public class WorkflowWorkerTest {
 
       CountDownLatch storeEntered = new CountDownLatch(1);
       CountDownLatch releaseStore = new CountDownLatch(1);
-      TestDriver driver = new TestDriver();
-      driver.storeEntered = storeEntered;
-      driver.releaseStore = releaseStore;
-      driver.failStores = true;
+      TestStorageDriver driver =
+          TestStorageDriver.create().blockStores(storeEntered, releaseStore).failStores(1);
       CountDownLatch escaped = new CountDownLatch(1);
 
       WorkflowWorker worker =
@@ -785,65 +774,6 @@ public class WorkflowWorkerTest {
   }
 
   /** One driver for these tests: stores in memory, and can block or fail on demand. */
-  private static final class TestDriver implements StorageDriver {
-    private final Map<String, Payload> stored = new HashMap<>();
-    private int nextKey;
-    @Nullable CountDownLatch storeEntered;
-    @Nullable CountDownLatch releaseStore;
-    boolean failStores;
-
-    @Override
-    public String getName() {
-      return "test";
-    }
-
-    @Override
-    public String getType() {
-      return "test.in-memory";
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      if (storeEntered != null) {
-        storeEntered.countDown();
-      }
-      if (releaseStore != null) {
-        try {
-          releaseStore.await(10, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-        }
-      }
-      if (failStores) {
-        CompletableFuture<List<StorageDriverClaim>> failed = new CompletableFuture<>();
-        failed.completeExceptionally(new RuntimeException("store abandoned"));
-        return failed;
-      }
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        String key = Integer.toString(nextKey++);
-        stored.put(key, payload);
-        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      List<Payload> payloads = new ArrayList<>();
-      for (StorageDriverClaim claim : claims) {
-        payloads.add(stored.get(claim.getClaimData().get("key")));
-      }
-      return CompletableFuture.completedFuture(payloads);
-    }
-
-    synchronized int storedCount() {
-      return stored.size();
-    }
-  }
-
   @Test
   public void deriveStorageTargetPointsACompletionAtItsParent() {
     StorageDriverTargetInfo child = new StorageDriverWorkflowInfo("ns", "child", "run-1", "Child");
