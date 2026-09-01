@@ -3,6 +3,7 @@ package io.temporal.internal.replay;
 import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertNotNull;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
@@ -137,6 +138,70 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
   }
 
   @Test
+  public void resolvesExternalStorageReferencesInTheWorkflowTaskItself() throws Throwable {
+    InMemoryStorageDriver driver = new InMemoryStorageDriver();
+    ExternalStorageRunner externalStorage =
+        ExternalStorageRunner.create(
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+    PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
+    Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
+    History.Builder storedHistory =
+        fullTask.getHistory().toBuilder()
+            .setEvents(
+                0,
+                startedEvent.toBuilder()
+                    .setWorkflowExecutionStartedEventAttributes(
+                        startedEvent.getWorkflowExecutionStartedEventAttributes().toBuilder()
+                            .setInput(Payloads.newBuilder().addPayloads(input))));
+    externalStorage.store(storedHistory, null, null, CancellationToken.none());
+    assertNotEquals(
+        "the payload must be replaced by a reference, otherwise this test proves nothing",
+        input,
+        storedInput(storedHistory));
+
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+    ReplayWorkflow workflow = mock(ReplayWorkflow.class);
+    when(workflow.eventLoop()).thenReturn(true);
+    when(workflow.getOutput()).thenReturn(Optional.empty());
+    WorkflowContext workflowContext = mock(WorkflowContext.class);
+    when(workflowContext.getRunningUpdateHandlers()).thenReturn(new HashMap<>());
+    when(workflow.getWorkflowContext()).thenReturn(workflowContext);
+    ReplayWorkflowFactory workflowFactory = mock(ReplayWorkflowFactory.class);
+    when(workflowFactory.getWorkflow(any(), any())).thenReturn(workflow);
+
+    WorkflowTaskHandler taskHandler =
+        new ReplayWorkflowTaskHandler(
+            "namespace",
+            workflowFactory,
+            new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope()),
+            SingleWorkerOptions.newBuilder().setExternalStorageRunner(externalStorage).build(),
+            null,
+            Duration.ofSeconds(5),
+            client,
+            null);
+
+    taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build());
+
+    ArgumentCaptor<HistoryEvent> event = ArgumentCaptor.forClass(HistoryEvent.class);
+    verify(workflow).start(event.capture(), any());
+    assertEquals(
+        input,
+        event.getValue().getWorkflowExecutionStartedEventAttributes().getInput().getPayloads(0));
+  }
+
+  private static Payload storedInput(History.Builder history) {
+    return history
+        .getEvents(0)
+        .getWorkflowExecutionStartedEventAttributes()
+        .getInput()
+        .getPayloads(0);
+  }
+
+  @Test
   public void aFailedDownloadIsReportedAsAWorkflowTaskFailure() throws Throwable {
     InMemoryStorageDriver driver = new InMemoryStorageDriver();
     ExternalStorageRunner externalStorage =
@@ -203,6 +268,10 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
                         startedEvent.getWorkflowExecutionStartedEventAttributes().toBuilder()
                             .setInput(Payloads.newBuilder().addPayloads(input))));
     externalStorage.store(storedHistory, null, null, CancellationToken.none());
+    assertNotEquals(
+        "the payload must be replaced by a reference, otherwise this test proves nothing",
+        input,
+        storedInput(storedHistory));
 
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
