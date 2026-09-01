@@ -17,19 +17,12 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
-import io.temporal.payload.storage.StorageDriverClaim;
-import io.temporal.payload.storage.StorageDriverRetrieveContext;
-import io.temporal.payload.storage.StorageDriverStoreContext;
-import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
@@ -39,7 +32,7 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void payloadsRoundTripThroughStorage() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     DataConverter converter = resolving(driver, 0);
 
     Optional<Payloads> stored = converter.toPayloads("a", "b");
@@ -53,19 +46,19 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void payloadsBelowThresholdStayInline() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     DataConverter converter = resolving(driver, 1024);
 
     Optional<Payloads> stored = converter.toPayloads("small");
 
     assertFalse(ExternalStorageReferences.isReference(stored.get().getPayloads(0)));
-    assertTrue(driver.objects.isEmpty());
+    assertTrue(driver.storedPayloads().isEmpty());
     assertEquals("small", converter.fromPayloads(0, stored, String.class, String.class));
   }
 
   @Test
   public void readingOneArgumentDoesNotFetchTheRest() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     DataConverter converter = resolving(driver, 0);
 
     Optional<Payloads> stored = converter.toPayloads("first", "second", "third");
@@ -78,7 +71,7 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void singlePayloadRoundTrips() {
-    DataConverter converter = resolving(new RecordingDriver(), 0);
+    DataConverter converter = resolving(TestStorageDriver.create(), 0);
 
     Optional<Payload> stored = converter.toPayload("value");
 
@@ -88,7 +81,7 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void failureDetailsRoundTrip() {
-    DataConverter converter = resolving(new RecordingDriver(), 0);
+    DataConverter converter = resolving(TestStorageDriver.create(), 0);
 
     Failure failure =
         converter.exceptionToFailure(
@@ -104,27 +97,27 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void storageTargetReachesTheDriver() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     StorageDriverWorkflowInfo target = new StorageDriverWorkflowInfo("ns", "wf-1", null, null);
 
     ExternalStorageDataConverter converter =
         new ExternalStorageDataConverter(plain, runner(driver, 0)).withStorageTarget(target);
     converter.toPayloads("x");
 
-    assertEquals(target, driver.lastTarget);
+    assertEquals(target, driver.lastTarget());
   }
 
   @Test
   public void withoutATargetTheDriverSeesNone() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     resolving(driver, 0).toPayloads("x");
 
-    assertNull(driver.lastTarget);
+    assertNull(driver.lastTarget());
   }
 
   @Test
   public void arrayFromPayloadsRoundTrips() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     DataConverter converter = resolving(driver, 0);
 
     Optional<Payloads> stored = converter.toPayloads("a", 42);
@@ -141,7 +134,7 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void arrayFromPayloadsWithAbsentContentUsesDefaults() {
-    DataConverter converter = resolving(new RecordingDriver(), 0);
+    DataConverter converter = resolving(TestStorageDriver.create(), 0);
 
     Object[] values =
         converter.fromPayloads(
@@ -152,7 +145,7 @@ public class ExternalStorageDataConverterTest {
 
   @Test
   public void arrayFromPayloadsDecodesThroughTheCodecInOneBatch() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     CountingCodec codec = new CountingCodec();
     DataConverter converter = codecBacked(driver, codec);
 
@@ -175,14 +168,14 @@ public class ExternalStorageDataConverterTest {
    */
   @Test
   public void driversOnlyEverSeeCodecEncodedPayloads() {
-    RecordingDriver driver = new RecordingDriver();
+    TestStorageDriver driver = TestStorageDriver.create();
     CountingCodec codec = new CountingCodec();
     DataConverter converter = codecBacked(driver, codec);
 
     Optional<Payloads> stored = converter.toPayloads("a", "b", "c");
 
-    assertEquals(3, driver.objects.size());
-    for (Payload payload : driver.objects.values()) {
+    assertEquals(3, driver.storedCount());
+    for (Payload payload : driver.storedPayloads()) {
       String data = payload.getData().toStringUtf8();
       assertFalse(data.contains("\"a\""));
       assertFalse(data.contains("\"b\""));
@@ -240,48 +233,6 @@ public class ExternalStorageDataConverterTest {
         out.add(payload.toBuilder().setData(ByteString.copyFrom(bytes)).build());
       }
       return out;
-    }
-  }
-
-  private static final class RecordingDriver implements StorageDriver {
-    final Map<String, Payload> objects = new HashMap<>();
-    final List<String> retrievedKeys = new ArrayList<>();
-    volatile StorageDriverTargetInfo lastTarget;
-    private int counter = 0;
-
-    @Override
-    public String getName() {
-      return "test";
-    }
-
-    @Override
-    public String getType() {
-      return "test.inmemory";
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      lastTarget = context.getTarget();
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        String key = "k-" + (counter++);
-        objects.put(key, payload);
-        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      List<Payload> payloads = new ArrayList<>();
-      for (StorageDriverClaim claim : claims) {
-        String key = claim.getClaimData().get("key");
-        retrievedKeys.add(key);
-        payloads.add(objects.get(key));
-      }
-      return CompletableFuture.completedFuture(payloads);
     }
   }
 }

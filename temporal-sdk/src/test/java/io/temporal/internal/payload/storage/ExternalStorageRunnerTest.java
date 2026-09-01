@@ -25,18 +25,9 @@ import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
-import io.temporal.payload.storage.StorageDriverClaim;
-import io.temporal.payload.storage.StorageDriverRetrieveContext;
-import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
@@ -45,7 +36,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void storeAndRetrieveRoundTripsOverAMessage() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
     Payloads message =
         Payloads.newBuilder().addPayloads(payload("a")).addPayloads(payload("b")).build();
@@ -63,7 +54,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void walksNestedPayloads() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
@@ -83,7 +74,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void payloadBelowThresholdLeavesMessageUnchanged() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 1024);
     Payloads message = Payloads.newBuilder().addPayloads(payload("small")).build();
 
@@ -98,7 +89,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void searchAttributesAreNotOffloaded() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
     Command command =
         Command.newBuilder()
@@ -124,7 +115,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void throwIfContainsReferenceThrowsOnANestedReference() throws Exception {
-    ExternalStorageRunner transformer = transformer(new InMemoryDriver("d1"), 0);
+    ExternalStorageRunner transformer = transformer(TestStorageDriver.named("d1"), 0);
     RespondWorkflowTaskCompletedRequest.Builder request =
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .addCommands(
@@ -144,7 +135,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void throwIfContainsReferenceThrowsOnReference() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
     Payloads.Builder builder = Payloads.newBuilder().addPayloads(payload("a"));
     transformer.store(builder, null, null, CancellationToken.none());
@@ -163,7 +154,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void storeScopesCommandTargetOverAttributesAndMetadata() {
-    TargetCapturingDriver driver = new TargetCapturingDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner storage = transformer(driver, 0);
 
     RespondWorkflowTaskCompletedRequest.Builder request =
@@ -214,7 +205,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void callerCancellationAbortsStore() {
-    ExternalStorageRunner storage = transformer(new HangingDriver("d1"), 0);
+    ExternalStorageRunner storage = transformer(TestStorageDriver.named("d1").neverAnswers(), 0);
     CancelSource<CancellationException> caller = new CancelSource<>(CancellationException::new);
     caller.cancel();
     Payloads message = Payloads.newBuilder().addPayloads(payload("big")).build();
@@ -227,7 +218,7 @@ public class ExternalStorageRunnerTest {
   @Test
   public void completedOperationsReleaseTheirCancellationRegistrations() {
     RegistrationCountingToken token = new RegistrationCountingToken();
-    ExternalStorageRunner storage = transformer(new InMemoryDriver("d1"), 0);
+    ExternalStorageRunner storage = transformer(TestStorageDriver.named("d1"), 0);
 
     for (int i = 0; i < 5; i++) {
       Payloads.Builder builder = Payloads.newBuilder().addPayloads(payload("a"));
@@ -272,123 +263,6 @@ public class ExternalStorageRunnerTest {
     public Registration onCancel(Runnable callback) {
       open.incrementAndGet();
       return open::decrementAndGet;
-    }
-  }
-
-  private static final class InMemoryDriver implements StorageDriver {
-    private final String name;
-    private final Map<String, Payload> objects = new HashMap<>();
-    final List<Integer> storeBatchSizes = new ArrayList<>();
-    private int counter = 0;
-
-    InMemoryDriver(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String getType() {
-      return "test.inmemory";
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      storeBatchSizes.add(payloads.size());
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        String key = name + "-" + (counter++);
-        objects.put(key, payload);
-        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      List<Payload> payloads = new ArrayList<>();
-      for (StorageDriverClaim claim : claims) {
-        payloads.add(objects.get(claim.getClaimData().get("key")));
-      }
-      return CompletableFuture.completedFuture(payloads);
-    }
-  }
-
-  private static final class TargetCapturingDriver implements StorageDriver {
-    private final String name;
-    private final Map<String, StorageDriverTargetInfo> targetByData = new HashMap<>();
-    private int counter = 0;
-
-    TargetCapturingDriver(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String getType() {
-      return "test.capture";
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        targetByData.put(payload.getData().toStringUtf8(), context.getTarget());
-        claims.add(
-            new StorageDriverClaim(Collections.singletonMap("key", name + "-" + (counter++))));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    synchronized StorageDriverTargetInfo targetFor(String data) {
-      return targetByData.get(data);
-    }
-
-    @Override
-    public CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  /** Driver whose operations never settle, so only cancellation can end a blocking call. */
-  private static final class HangingDriver implements StorageDriver {
-    private final String name;
-
-    HangingDriver(String name) {
-      this.name = name;
-    }
-
-    @Override
-    public String getName() {
-      return name;
-    }
-
-    @Override
-    public String getType() {
-      return "test.hanging";
-    }
-
-    @Override
-    public CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      return new CompletableFuture<>();
-    }
-
-    @Override
-    public CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      return new CompletableFuture<>();
     }
   }
 }

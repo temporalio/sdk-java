@@ -12,21 +12,12 @@ import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.payload.storage.ExternalStorage;
-import io.temporal.payload.storage.StorageDriver;
-import io.temporal.payload.storage.StorageDriverClaim;
-import io.temporal.payload.storage.StorageDriverRetrieveContext;
-import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.testUtils.HistoryUtils;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Test;
@@ -173,7 +164,7 @@ public class ServiceWorkflowHistoryIteratorTest {
   private static ExternalStorageRunner inMemoryStorage() {
     return ExternalStorageRunner.create(
         ExternalStorage.newBuilder()
-            .setDriver(new InMemoryDriver())
+            .setDriver(TestStorageDriver.create())
             .setPayloadSizeThreshold(0)
             .build());
   }
@@ -190,42 +181,5 @@ public class ServiceWorkflowHistoryIteratorTest {
 
   private static Payload payload(String data) {
     return Payload.newBuilder().setData(ByteString.copyFromUtf8(data)).build();
-  }
-
-  private static final class InMemoryDriver implements StorageDriver {
-    private final Map<String, Payload> objects = new HashMap<>();
-    private int counter = 0;
-
-    @Override
-    public String getName() {
-      return "test";
-    }
-
-    @Override
-    public String getType() {
-      return "test.inmemory";
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        String key = "k-" + (counter++);
-        objects.put(key, payload);
-        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    @Override
-    public synchronized CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      List<Payload> payloads = new ArrayList<>();
-      for (StorageDriverClaim claim : claims) {
-        payloads.add(objects.get(claim.getClaimData().get("key")));
-      }
-      return CompletableFuture.completedFuture(payloads);
-    }
   }
 }
