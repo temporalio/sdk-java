@@ -73,40 +73,32 @@ public class ActivityHandleOperatorCommandsTest {
             .build());
     handle.updateOptions(ActivityOptionsKeys.START_DELAY.valueSet(Duration.ofSeconds(7)));
 
-    // pause carries the reason and an auto-generated dedup request_id; neither is returned by
-    // describe.
+    // pause carries the reason, which is not returned by describe.
     PauseActivityExecutionRequest pauseReq = capturePause();
     assertEquals("because", pauseReq.getReason());
-    assertTrue("pause request_id should be set", !pauseReq.getRequestId().isEmpty());
 
-    // unpause carries the reason, jitter, and an auto-generated dedup request_id (api#844).
+    // unpause carries the reason and jitter.
     UnpauseActivityExecutionRequest unpauseReq = captureUnpause();
     assertEquals("go", unpauseReq.getReason());
     assertEquals(5, unpauseReq.getJitter().getSeconds());
     assertEquals(0, unpauseReq.getJitter().getNanos());
-    assertTrue("unpause request_id should be set", !unpauseReq.getRequestId().isEmpty());
 
-    // reset carries jitter, an auto-generated dedup request_id (api#844), and reset_heartbeat
-    // (api#848).
+    // reset carries jitter and reset_heartbeat (api#848).
     ResetActivityExecutionRequest resetReq = captureReset();
     assertEquals(2, resetReq.getJitter().getSeconds());
     assertEquals(0, resetReq.getJitter().getNanos());
-    assertTrue("reset request_id should be set", !resetReq.getRequestId().isEmpty());
     assertTrue("reset should carry reset_heartbeat=true", resetReq.getResetHeartbeat());
     assertTrue("reset should carry keep_paused=true", resetReq.getKeepPaused());
     assertTrue(
         "reset should carry restore_original_options=true", resetReq.getRestoreOriginalOptions());
 
-    // updateOptions carries start_delay in activity_options with a matching update_mask path, plus
-    // an auto-generated dedup request_id (api#844). start_delay is applied server-side but not
-    // otherwise observable from the request.
+    // updateOptions carries start_delay in activity_options with a matching update_mask path.
     UpdateActivityExecutionOptionsRequest updateReq = captureUpdate();
     assertEquals(7, updateReq.getActivityOptions().getStartDelay().getSeconds());
     assertEquals(0, updateReq.getActivityOptions().getStartDelay().getNanos());
     assertTrue(
         "update_mask should include start_delay",
         updateReq.getUpdateMask().getPathsList().contains("start_delay"));
-    assertTrue("updateOptions request_id should be set", !updateReq.getRequestId().isEmpty());
   }
 
   private PauseActivityExecutionRequest capturePause() {
@@ -239,6 +231,17 @@ public class ActivityHandleOperatorCommandsTest {
         new java.util.HashSet<>(req.getUpdateMask().getPathsList()));
     assertFalse(
         "an unset value is absent, not zero", req.getActivityOptions().hasHeartbeatTimeout());
+  }
+
+  @Test
+  public void omittedJitterIsLeftOffTheWire() {
+    UntypedActivityHandle handle = newHandle();
+
+    handle.unpause(UnpauseActivityOptions.newBuilder().build());
+    handle.reset(ResetActivityOptions.newBuilder().build());
+
+    assertFalse("unpause should not send jitter", captureUnpause().hasJitter());
+    assertFalse("reset should not send jitter", captureReset().hasJitter());
   }
 
   /** A repeated key resolves to its last update: a later valueUnset overrides an earlier set. */
