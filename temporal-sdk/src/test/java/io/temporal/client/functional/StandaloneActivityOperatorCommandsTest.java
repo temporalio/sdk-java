@@ -416,9 +416,6 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(7, desc.getRetryOptions().getMaximumAttempts());
     assertEquals(3, desc.getPriority().getPriorityKey());
     assertEquals(Duration.ofSeconds(500), desc.getStartDelay());
-    // execution_time (api#807 + temporal#11017): reflects the updated start_delay. Server
-    // recomputes it on updateOptions, so it lands at schedule_time + 500s (the new value), not
-    // schedule_time + 300s (the value at start).
     assertEquals(
         desc.getScheduledTime().plus(Duration.ofSeconds(500)).getEpochSecond(),
         desc.getExecutionTime().getEpochSecond());
@@ -556,11 +553,6 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
-  /**
-   * Describe reports a paused activity as PAUSED (api#834), on both the execution status and the
-   * run state. Asserts the transition, not just the end state: the same handle reports RUNNING
-   * before the pause.
-   */
   @Test(timeout = 60_000)
   public void describeReportsPausedStatus() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);

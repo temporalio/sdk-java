@@ -83,7 +83,7 @@ public class ActivityHandleOperatorCommandsTest {
     assertEquals(5, unpauseReq.getJitter().getSeconds());
     assertEquals(0, unpauseReq.getJitter().getNanos());
 
-    // reset carries jitter and reset_heartbeat (api#848).
+    // reset carries jitter and reset_heartbeat.
     ResetActivityExecutionRequest resetReq = captureReset();
     assertEquals(2, resetReq.getJitter().getSeconds());
     assertEquals(0, resetReq.getJitter().getNanos());
