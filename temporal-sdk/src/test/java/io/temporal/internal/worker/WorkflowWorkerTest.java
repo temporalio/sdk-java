@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static junit.framework.TestCase.assertEquals;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.never;
@@ -30,7 +31,10 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.failure.v1.ApplicationFailureInfo;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
@@ -55,12 +59,18 @@ import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -482,6 +492,150 @@ public class WorkflowWorkerTest {
   }
 
   @Test
+  public void payloadsInAFailedWorkflowTaskAreOffloaded() throws Exception {
+    TestDriver driver = new TestDriver();
+    Payload details = Payload.newBuilder().setData(ByteString.copyFrom("details", UTF_8)).build();
+    RespondWorkflowTaskFailedRequest taskFailed =
+        RespondWorkflowTaskFailedRequest.newBuilder()
+            .setFailure(
+                Failure.newBuilder()
+                    .setMessage("boom")
+                    .setApplicationFailureInfo(
+                        ApplicationFailureInfo.newBuilder()
+                            .setDetails(Payloads.newBuilder().addPayloads(details))))
+            .build();
+
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+    runOneTask(
+        driver,
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, null, taskFailed, null, null, false, null, null),
+        blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
+
+    assertEquals("the failure details must be offloaded", 1, driver.storedCount());
+    assertNotEquals(
+        "the failure details must be replaced by a reference",
+        details,
+        sent.getValue().getFailure().getApplicationFailureInfo().getDetails().getPayloads(0));
+  }
+
+  @Test
+  public void payloadsInADirectQueryResponseAreOffloaded() throws Exception {
+    TestDriver driver = new TestDriver();
+    Payload answer = Payload.newBuilder().setData(ByteString.copyFrom("answer", UTF_8)).build();
+    RespondQueryTaskCompletedRequest queryCompleted =
+        RespondQueryTaskCompletedRequest.newBuilder()
+            .setQueryResult(Payloads.newBuilder().addPayloads(answer))
+            .build();
+
+    ArgumentCaptor<RespondQueryTaskCompletedRequest> sent =
+        ArgumentCaptor.forClass(RespondQueryTaskCompletedRequest.class);
+    runOneTask(
+        driver,
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, null, null, queryCompleted, null, false, null, null),
+        blockingStub -> verify(blockingStub).respondQueryTaskCompleted(sent.capture()));
+
+    assertEquals("the query answer must be offloaded", 1, driver.storedCount());
+    assertNotEquals(
+        "the query answer must be replaced by a reference",
+        answer,
+        sent.getValue().getQueryResult().getPayloads(0));
+  }
+
+  /** Runs a single workflow task through a worker wired to {@code driver}, then verifies. */
+  private void runOneTask(
+      TestDriver driver,
+      WorkflowTaskHandler.Result handlerResult,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
+    WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
+    when(client.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+    WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
+    Scope metricsScope =
+        new RootScopeBuilder()
+            .reporter(reporter)
+            .reportEvery(com.uber.m3.util.Duration.ofMillis(1));
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLockManager, metricsScope);
+    WorkflowTaskHandler taskHandler = mock(WorkflowTaskHandler.class);
+    when(taskHandler.isAnyTypeSupported()).thenReturn(true);
+
+    WorkflowWorker worker =
+        new WorkflowWorker(
+            client,
+            "default",
+            "task_queue",
+            "sticky_task_queue",
+            SingleWorkerOptions.newBuilder()
+                .setIdentity("test_identity")
+                .setBuildId(UUID.randomUUID().toString())
+                .setWorkerInstanceKey(UUID.randomUUID().toString())
+                .setPollerOptions(
+                    PollerOptions.newBuilder()
+                        .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
+                        .build())
+                .setMetricsScope(metricsScope)
+                .setExternalStorageRunner(
+                    ExternalStorageRunner.create(
+                        ExternalStorage.newBuilder()
+                            .setDriver(driver)
+                            .setPayloadSizeThreshold(0)
+                            .build()))
+                .build(),
+            runLockManager,
+            cache,
+            taskHandler,
+            mock(EagerActivityDispatcher.class),
+            3,
+            new FixedSizeSlotSupplier<>(10),
+            new NamespaceCapabilities(),
+            CancellationToken.none());
+
+    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
+        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(client.blockingStub()).thenReturn(blockingStub);
+    when(client.futureStub()).thenReturn(futureStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+
+    PollWorkflowTaskQueueResponse pollResponse =
+        PollWorkflowTaskQueueResponse.newBuilder()
+            .setTaskToken(ByteString.copyFrom("token", UTF_8))
+            .setWorkflowExecution(
+                WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId(RUN_ID).build())
+            .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
+            .build();
+    CountDownLatch blockPolls = new CountDownLatch(1);
+    when(blockingStub.pollWorkflowTaskQueue(any(PollWorkflowTaskQueueRequest.class)))
+        .thenReturn(pollResponse)
+        .thenAnswer(
+            (Answer<PollWorkflowTaskQueueResponse>)
+                invocation -> {
+                  blockPolls.await();
+                  return null;
+                });
+
+    CountDownLatch handled = new CountDownLatch(1);
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+        .thenAnswer(
+            (Answer<WorkflowTaskHandler.Result>)
+                invocation -> {
+                  handled.countDown();
+                  return handlerResult;
+                });
+
+    assertTrue(worker.start());
+    assertTrue(handled.await(10, TimeUnit.SECONDS));
+    worker.shutdown(new ShutdownManager(), false).get();
+    verification.accept(blockingStub);
+  }
+
+  @Test
   public void aStoreThatFailsWhileShuttingDownIsNotTreatedAsAProblem() throws Exception {
     LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
     ListAppender<ILoggingEvent> logs = new ListAppender<>();
@@ -508,7 +662,10 @@ public class WorkflowWorkerTest {
 
       CountDownLatch storeEntered = new CountDownLatch(1);
       CountDownLatch releaseStore = new CountDownLatch(1);
-      BlockingDriver driver = new BlockingDriver(storeEntered, releaseStore);
+      TestDriver driver = new TestDriver();
+      driver.storeEntered = storeEntered;
+      driver.releaseStore = releaseStore;
+      driver.failStores = true;
       CountDownLatch escaped = new CountDownLatch(1);
 
       WorkflowWorker worker =
@@ -627,43 +784,63 @@ public class WorkflowWorkerTest {
     }
   }
 
-  private static final class BlockingDriver implements StorageDriver {
-    private final CountDownLatch storeEntered;
-    private final CountDownLatch releaseStore;
-
-    BlockingDriver(CountDownLatch storeEntered, CountDownLatch releaseStore) {
-      this.storeEntered = storeEntered;
-      this.releaseStore = releaseStore;
-    }
+  /** One driver for these tests: stores in memory, and can block or fail on demand. */
+  private static final class TestDriver implements StorageDriver {
+    private final Map<String, Payload> stored = new HashMap<>();
+    private int nextKey;
+    @Nullable CountDownLatch storeEntered;
+    @Nullable CountDownLatch releaseStore;
+    boolean failStores;
 
     @Override
     public String getName() {
-      return "blocking";
+      return "test";
     }
 
     @Override
     public String getType() {
-      return "test.blocking";
+      return "test.in-memory";
     }
 
     @Override
-    public CompletableFuture<List<StorageDriverClaim>> store(
+    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
         StorageDriverStoreContext context, List<Payload> payloads) {
-      storeEntered.countDown();
-      try {
-        releaseStore.await(10, TimeUnit.SECONDS);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
+      if (storeEntered != null) {
+        storeEntered.countDown();
       }
-      CompletableFuture<List<StorageDriverClaim>> failed = new CompletableFuture<>();
-      failed.completeExceptionally(new RuntimeException("store abandoned"));
-      return failed;
+      if (releaseStore != null) {
+        try {
+          releaseStore.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        }
+      }
+      if (failStores) {
+        CompletableFuture<List<StorageDriverClaim>> failed = new CompletableFuture<>();
+        failed.completeExceptionally(new RuntimeException("store abandoned"));
+        return failed;
+      }
+      List<StorageDriverClaim> claims = new ArrayList<>();
+      for (Payload payload : payloads) {
+        String key = Integer.toString(nextKey++);
+        stored.put(key, payload);
+        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
+      }
+      return CompletableFuture.completedFuture(claims);
     }
 
     @Override
-    public CompletableFuture<List<Payload>> retrieve(
+    public synchronized CompletableFuture<List<Payload>> retrieve(
         StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      throw new UnsupportedOperationException();
+      List<Payload> payloads = new ArrayList<>();
+      for (StorageDriverClaim claim : claims) {
+        payloads.add(stored.get(claim.getClaimData().get("key")));
+      }
+      return CompletableFuture.completedFuture(payloads);
+    }
+
+    synchronized int storedCount() {
+      return stored.size();
     }
   }
 
