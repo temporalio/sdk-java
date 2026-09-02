@@ -4,7 +4,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.common.ListUtils;
 import io.temporal.internal.concurrent.structured.TaskScope;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -30,7 +30,7 @@ final class ExternalStoragePayloadTransformer {
   private final StorageDriverSelector selector;
   private final int payloadSizeThreshold;
 
-  static ExternalStoragePayloadTransformer fromOptions(ExternalStorageOptions options) {
+  static ExternalStoragePayloadTransformer fromOptions(ExternalStorage options) {
     Map<String, StorageDriver> driversByName = new LinkedHashMap<>();
     for (StorageDriver driver : options.getDrivers()) {
       driversByName.put(driver.getName(), driver);
