@@ -74,6 +74,10 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier,
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
+    singleWorkerOptions =
+        SingleWorkerOptions.newBuilder(singleWorkerOptions)
+            .setStorageCancellation(storageCancellation.token())
+            .build();
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -114,8 +118,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             stickyTaskQueue,
             singleWorkerOptions.getStickyQueueScheduleToStartTimeout(),
             client.getWorkflowServiceStubs(),
-            laWorker.getLocalActivityScheduler(),
-            storageCancellation.token());
+            laWorker.getLocalActivityScheduler());
 
     workflowWorker =
         new WorkflowWorker(
@@ -130,8 +133,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             eagerActivityDispatcher,
             maxEagerActivityReservationsPerWorkflowTask,
             slotSupplier,
-            namespaceCapabilities,
-            storageCancellation.token());
+            namespaceCapabilities);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
@@ -144,8 +146,7 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             null,
             Duration.ZERO,
             client.getWorkflowServiceStubs(),
-            laWorker.getLocalActivityScheduler(),
-            storageCancellation.token());
+            laWorker.getLocalActivityScheduler());
 
     queryReplayHelper = new QueryReplayHelper(nonStickyReplayTaskHandler);
   }

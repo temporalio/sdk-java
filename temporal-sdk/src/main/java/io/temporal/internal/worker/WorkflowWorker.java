@@ -20,7 +20,6 @@ import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.errordetails.v1.WorkflowTaskCompletionBufferLostFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.common.CancellationToken;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
@@ -77,7 +76,6 @@ final class WorkflowWorker implements SuspendableWorker {
   private final PollerTracker pollerTracker = new PollerTracker();
   private final PollerTracker stickyPollerTracker = new PollerTracker();
   private final NamespaceCapabilities namespaceCapabilities;
-  private final CancellationToken<CancellationException> storageCancellation;
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
 
@@ -99,8 +97,7 @@ final class WorkflowWorker implements SuspendableWorker {
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
       int maxEagerActivityReservationsPerWorkflowTask,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
-      @Nonnull NamespaceCapabilities namespaceCapabilities,
-      CancellationToken<CancellationException> storageCancellation) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.service = Objects.requireNonNull(service);
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
@@ -117,7 +114,6 @@ final class WorkflowWorker implements SuspendableWorker {
     this.maxEagerActivityReservationsPerWorkflowTask = maxEagerActivityReservationsPerWorkflowTask;
     this.slotSupplier = new TrackingSlotSupplier<>(slotSupplier, this.workerMetricsScope);
     this.namespaceCapabilities = namespaceCapabilities;
-    this.storageCancellation = storageCancellation;
   }
 
   @Override
@@ -416,7 +412,7 @@ final class WorkflowWorker implements SuspendableWorker {
       return;
     }
     try {
-      externalStorageRunner.store(builder, target, targetVisitor, storageCancellation);
+      externalStorageRunner.store(builder, target, targetVisitor, options.getStorageCancellation());
     } catch (Throwable e) {
       if (isShutdown()) {
         throw new WorkerShuttingDown();

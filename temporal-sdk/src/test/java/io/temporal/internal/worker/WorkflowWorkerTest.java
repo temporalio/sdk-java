@@ -36,7 +36,6 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
-import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
@@ -116,8 +115,7 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             3,
             slotSupplier,
-            new NamespaceCapabilities(),
-            CancellationToken.none());
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -289,8 +287,7 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             3,
             slotSupplier,
-            new NamespaceCapabilities(),
-            CancellationToken.none());
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -435,8 +432,7 @@ public class WorkflowWorkerTest {
             eagerActivityDispatcher,
             3,
             slotSupplier,
-            new NamespaceCapabilities(),
-            CancellationToken.none());
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -523,8 +519,7 @@ public class WorkflowWorkerTest {
             mock(EagerActivityDispatcher.class),
             3,
             new FixedSizeSlotSupplier<>(10),
-            new NamespaceCapabilities(),
-            CancellationToken.none());
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -683,8 +678,7 @@ public class WorkflowWorkerTest {
             mock(EagerActivityDispatcher.class),
             3,
             new FixedSizeSlotSupplier<>(10),
-            new NamespaceCapabilities(),
-            CancellationToken.none());
+            new NamespaceCapabilities());
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -788,8 +782,7 @@ public class WorkflowWorkerTest {
               mock(EagerActivityDispatcher.class),
               3,
               slotSupplier,
-              new NamespaceCapabilities(),
-              CancellationToken.none());
+              new NamespaceCapabilities());
 
       WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
           mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
