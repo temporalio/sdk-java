@@ -123,6 +123,26 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   @Test
+  public void classIsUsedWhenRequestedTypeIsAbsent() {
+    Payload payload = converter.toPayload(new Model("value")).get();
+
+    assertEquals(new Model("value"), converter.fromPayload(payload, Model.class, null));
+    assertSame(Model.class, ModelConverter.lastTransferTypeRequest);
+    assertSame(Model.class, ModelConverter.lastConversionRequest);
+
+    Optional<Payloads> payloads = converter.toPayloads(new Model("value"));
+    assertEquals(new Model("value"), converter.fromPayloads(0, payloads, Model.class, null));
+    assertSame(Model.class, ModelConverter.lastTransferTypeRequest);
+    assertSame(Model.class, ModelConverter.lastConversionRequest);
+
+    Object[] values =
+        converter.fromPayloads(payloads, new Class<?>[] {Model.class}, new Type[] {null});
+    assertEquals(new Model("value"), values[0]);
+    assertSame(Model.class, ModelConverter.lastTransferTypeRequest);
+    assertSame(Model.class, ModelConverter.lastConversionRequest);
+  }
+
+  @Test
   public void parameterizedTransferTypeIsPassedIntact() {
     Type modelType = new TypeToken<ListModel<String>>() {}.getType();
     ListModel<String> value =
@@ -217,10 +237,14 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   public static final class ModelConverter implements TransferTypeConverter<Model> {
+    static Type lastTransferTypeRequest;
+    static Type lastConversionRequest;
+
     public ModelConverter() {}
 
     @Override
     public Type getTransferType(Type valueType) {
+      lastTransferTypeRequest = valueType;
       return StringValue.class;
     }
 
@@ -231,6 +255,7 @@ public class TemporalTransferTypeDataConverterTest {
 
     @Override
     public Model fromTransferType(Object value, Type valueType) {
+      lastConversionRequest = valueType;
       return new Model(((StringValue) value).getValue());
     }
   }
