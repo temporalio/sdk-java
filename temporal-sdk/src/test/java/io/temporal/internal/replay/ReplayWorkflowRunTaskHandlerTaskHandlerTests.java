@@ -230,12 +230,14 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             "namespace",
             setUpMockWorkflowFactory(),
             new WorkflowExecutorCache(10, new WorkflowRunLockManager(), new NoopScope()),
-            SingleWorkerOptions.newBuilder().setExternalStorageRunner(externalStorage).build(),
+            SingleWorkerOptions.newBuilder()
+                .setExternalStorageRunner(externalStorage)
+                .setStorageCancellation(stopping.token())
+                .build(),
             null,
             Duration.ofSeconds(5),
             client,
-            null,
-            stopping.token());
+            null);
 
     assertThrows(
         "stopping storage must not be turned into a workflow task failure",

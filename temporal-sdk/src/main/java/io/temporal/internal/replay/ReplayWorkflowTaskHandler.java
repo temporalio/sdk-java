@@ -20,7 +20,6 @@ import io.temporal.api.sdk.v1.WorkflowTaskCompletedMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
-import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
@@ -54,7 +53,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   private final WorkflowServiceStubs service;
   private final TaskQueue stickyTaskQueue;
   private final LocalActivityDispatcher localActivityDispatcher;
-  private final CancellationToken<CancellationException> storageCancellation;
 
   public ReplayWorkflowTaskHandler(
       String namespace,
@@ -65,29 +63,6 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       Duration stickyTaskQueueScheduleToStartTimeout,
       WorkflowServiceStubs service,
       LocalActivityDispatcher localActivityDispatcher) {
-    this(
-        namespace,
-        asyncWorkflowFactory,
-        cache,
-        options,
-        stickyTaskQueue,
-        stickyTaskQueueScheduleToStartTimeout,
-        service,
-        localActivityDispatcher,
-        CancellationToken.none());
-  }
-
-  public ReplayWorkflowTaskHandler(
-      String namespace,
-      ReplayWorkflowFactory asyncWorkflowFactory,
-      WorkflowExecutorCache cache,
-      SingleWorkerOptions options,
-      TaskQueue stickyTaskQueue,
-      Duration stickyTaskQueueScheduleToStartTimeout,
-      WorkflowServiceStubs service,
-      LocalActivityDispatcher localActivityDispatcher,
-      CancellationToken<CancellationException> storageCancellation) {
-    this.storageCancellation = storageCancellation;
     this.namespace = namespace;
     this.workflowFactory = asyncWorkflowFactory;
     this.cache = cache;
@@ -128,7 +103,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               workflowTask,
               metricsScope,
               options.getExternalStorageRunner(),
-              storageCancellation);
+              options.getStorageCancellation());
       boolean finalCommand;
       Result result;
 
@@ -211,7 +186,9 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       ExternalStorageRunner.throwIfContainsReference(workflowTask.build());
       return workflowTask;
     }
-    return externalStorageRunner.retrieve(workflowTask.build(), storageCancellation).toBuilder();
+    return externalStorageRunner
+        .retrieve(workflowTask.build(), options.getStorageCancellation())
+        .toBuilder();
   }
 
   private Result createCompletedWFTRequest(
@@ -445,7 +422,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
       } else {
         getHistoryResponse =
-            externalStorageRunner.retrieve(getHistoryResponse, storageCancellation);
+            externalStorageRunner.retrieve(getHistoryResponse, options.getStorageCancellation());
       }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())
