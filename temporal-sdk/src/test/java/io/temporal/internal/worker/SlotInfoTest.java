@@ -18,6 +18,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.testUtils.RecordingSlotSupplier;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerOptions;
@@ -41,8 +43,11 @@ import java.util.ArrayList;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings("deprecation")
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class SlotInfoTest {
   private static final String WORKFLOW_TYPE = "slot-info-workflow";
   private static final String ACTIVITY_TYPE = "slot-info-activity";

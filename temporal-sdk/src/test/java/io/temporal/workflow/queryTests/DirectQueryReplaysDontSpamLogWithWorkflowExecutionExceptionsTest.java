@@ -8,12 +8,15 @@ import ch.qos.logback.core.read.ListAppender;
 import io.temporal.client.WorkflowException;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.Issue;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -57,6 +60,78 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
             + "But only one original exception should be logged.",
         1,
         workflowExecuteRunnableLoggerAppender.list.size());
+  }
+
+  @Test
+  @CloudTestExclusionNote(
+      "Uses an exact replay count that is not stable when queries run against Cloud.")
+  @Category(NeedsCloudAdaptation.class)
+  public void queriedWorkflowFailureDoesntProduceAdditionalLogsWhenWorkflowIsNotCompleted() {
+    assumeTrue("This test is flaky on the Test Server", SDKTestWorkflowRule.useExternalService);
+
+    TestWorkflows.QueryableWorkflow workflow =
+        testWorkflowRule.newWorkflowStub(TestWorkflows.QueryableWorkflow.class);
+
+    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+
+    assertEquals("my-state", workflow.getState());
+    assertEquals("There was only one execution.", 1, workflowCodeExecutionCount.get());
+
+    testWorkflowRule.invalidateWorkflowCache();
+    assertEquals("my-state", workflow.getState());
+    assertEquals(
+        "There was two executions - one original and one full replay for query.",
+        2,
+        workflowCodeExecutionCount.get());
+
+    workflow.mySignal("exit");
+    assertEquals("exit", workflow.execute());
+    assertEquals("my-state", workflow.getState());
+    assertEquals(
+        "There was three executions - one original and two full replays for query.",
+        3,
+        workflowCodeExecutionCount.get());
+    assertEquals(
+        "Only the original exception should be logged.",
+        1,
+        workflowExecuteRunnableLoggerAppender.list.size());
+  }
+
+  public static class LogAndKeepRunningWorkflow implements TestWorkflows.QueryableWorkflow {
+    private final org.slf4j.Logger logger =
+        Workflow.getLogger("io.temporal.internal.sync.WorkflowExecutionHandler");
+    private final TestActivities.VariousTestActivities activities =
+        Workflow.newActivityStub(
+            TestActivities.VariousTestActivities.class,
+            ActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(10))
+                .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+                .build());
+    private boolean exit;
+
+    @Override
+    public String execute() {
+      workflowCodeExecutionCount.incrementAndGet();
+      while (true) {
+        try {
+          activities.throwIO();
+        } catch (ActivityFailure e) {
+          logger.error("Unexpected error on activity", e);
+          Workflow.await(() -> exit);
+          return "exit";
+        }
+      }
+    }
+
+    @Override
+    public String getState() {
+      return "my-state";
+    }
+
+    @Override
+    public void mySignal(String value) {
+      exit = true;
+    }
   }
 
   public static class TestWorkflowNonRetryableFlag implements TestWorkflows.TestWorkflowWithQuery {

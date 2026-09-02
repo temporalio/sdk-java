@@ -10,6 +10,8 @@ import ch.qos.logback.core.read.ListAppender;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import java.time.Duration;
@@ -21,9 +23,12 @@ import java.util.concurrent.ExecutionException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class LoggerTest {
 
   private static final ListAppender<ILoggingEvent> listAppender = new ListAppender<>();

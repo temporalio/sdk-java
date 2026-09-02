@@ -5,14 +5,19 @@ import io.nexusrpc.Service;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.util.Map;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 // Test the start operation handler receives the correct headers
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class HeaderTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

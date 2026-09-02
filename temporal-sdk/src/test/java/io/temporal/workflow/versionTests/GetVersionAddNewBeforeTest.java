@@ -3,6 +3,8 @@ package io.temporal.workflow.versionTests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeFalse;
 
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
@@ -11,6 +13,7 @@ import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,6 +38,8 @@ public class GetVersionAddNewBeforeTest extends BaseVersionTest {
     super(setVersioningFlag, upsertVersioningSA);
   }
 
+  @CloudTestExclusionNote("This versioning test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testGetVersionAddNewBefore() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

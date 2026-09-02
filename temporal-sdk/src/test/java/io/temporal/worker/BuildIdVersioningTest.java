@@ -8,6 +8,8 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.Signal;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -18,8 +20,11 @@ import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings("deprecation")
+@CloudTestExclusionNote("Cloud CI namespaces disable deprecated build-ID versioning.")
+@Category(RequiresCloudProvisioning.class)
 public class BuildIdVersioningTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

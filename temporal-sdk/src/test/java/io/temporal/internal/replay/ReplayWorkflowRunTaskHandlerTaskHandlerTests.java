@@ -40,6 +40,8 @@ import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
@@ -52,11 +54,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.junit.experimental.categories.Category;
 
 public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
   @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
 
+  @CloudTestExclusionNote("This cache test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void outstandingLocalActivityForcesANewWorkflowTask() throws Throwable {
     PollWorkflowTaskQueueResponse initialWorkflowTask =
@@ -154,6 +159,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assertFalse(result.getTaskCompleted().hasStickyAttributes());
   }
 
+  @CloudTestExclusionNote("This replay test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void workflowTaskFailOnIncompleteHistory() throws Throwable {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
@@ -472,6 +479,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assertEquals(5, laMeteringHelper.getNonfirstAttempts());
   }
 
+  @CloudTestExclusionNote("This cache test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void ifStickyExecutionAttributesAreSetThenWorkflowsAreCached() throws Throwable {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
@@ -503,6 +512,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     assertEquals(Durations.fromSeconds(5), attributes.getScheduleToStartTimeout());
   }
 
+  @CloudTestExclusionNote("This replay test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void setsSdkNameAndVersionIfNotSetInHistory() throws Throwable {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
