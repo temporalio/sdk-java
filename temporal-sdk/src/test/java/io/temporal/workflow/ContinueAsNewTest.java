@@ -6,6 +6,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -14,7 +16,11 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the custom search attribute used by this suite.")
+@Category(RequiresCloudProvisioning.class)
 public class ContinueAsNewTest {
   static final SearchAttributeKey<String> CUSTOM_KEYWORD_SA =
       SearchAttributeKey.forKeyword("CustomKeywordField");

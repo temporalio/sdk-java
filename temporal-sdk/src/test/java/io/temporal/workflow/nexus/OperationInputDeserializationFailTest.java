@@ -13,6 +13,8 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
@@ -23,12 +25,15 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies that a caller workflow sees input a handler cannot deserialize as a non-retryable {@link
  * HandlerException.ErrorType#BAD_REQUEST} rather than as a retryable internal error that is retried
  * until the operation's schedule-to-close timeout.
  */
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class OperationInputDeserializationFailTest {
   private static final AtomicInteger operationInvocations = new AtomicInteger();
 

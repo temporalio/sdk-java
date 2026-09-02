@@ -17,6 +17,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.nexus.Nexus;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationHandle;
 import io.temporal.workflow.NexusOperationOptions;
@@ -37,6 +39,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies link propagation in both directions when a Nexus operation handler interacts with a
@@ -57,6 +60,8 @@ import org.junit.Test;
  * in-memory test server does not implement this path so the class is skipped unless a real server
  * is in use.
  */
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class SignalOperationLinkingTest {
 
   private static final String MODE_SIGNAL_WITH_START = "signalWithStart";
