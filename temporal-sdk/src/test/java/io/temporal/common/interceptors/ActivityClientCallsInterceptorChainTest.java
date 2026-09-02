@@ -72,7 +72,7 @@ public class ActivityClientCallsInterceptorChainTest {
     return ActivityClient.newInstance(
         testRule.getWorkflowServiceStubs(),
         ActivityClientOptions.newBuilder()
-            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+            .setNamespace(testRule.getWorkflowClient().getOptions().getNamespace())
             .setInterceptors(Arrays.asList(interceptors))
             .build());
   }

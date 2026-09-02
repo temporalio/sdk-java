@@ -1,7 +1,5 @@
 package io.temporal.workflow.nexus;
 
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
-
 import com.google.common.collect.ImmutableMap;
 import com.uber.m3.tally.RootScopeBuilder;
 import io.nexusrpc.handler.HandlerException;
@@ -93,7 +91,9 @@ public class OperationInputDeserializationFailTest {
     // on the first successful evaluation and would not see a later attempt.
     Map<String, String> execFailedTags =
         ImmutableMap.<String, String>builder()
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
+            .putAll(
+                MetricsTag.defaultTags(
+                    testWorkflowRule.getWorkflowClient().getOptions().getNamespace()))
             .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.NEXUS_WORKER.getValue())
             .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
             .put(MetricsTag.NEXUS_SERVICE, "TestNexusService2")

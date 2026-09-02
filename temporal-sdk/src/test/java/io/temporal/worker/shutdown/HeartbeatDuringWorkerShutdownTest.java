@@ -99,7 +99,9 @@ public class HeartbeatDuringWorkerShutdownTest {
     ActivityClient client =
         ActivityClient.newInstance(
             testWorkflowRule.getWorkflowServiceStubs(),
-            ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
+            ActivityClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .build());
     StartActivityOptions options =
         StartActivityOptions.newBuilder()
             .setId("heartbeat-during-shutdown-" + UUID.randomUUID())

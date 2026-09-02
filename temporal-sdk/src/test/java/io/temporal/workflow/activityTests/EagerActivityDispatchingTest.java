@@ -20,6 +20,7 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.Config;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testUtils.CountingSlotSupplier;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -56,11 +57,19 @@ public class EagerActivityDispatchingTest {
   @Before
   public void setUp() throws Exception {
     eagerActivityRequestInterceptor.reset();
+    TestEnvironmentOptions.Builder environmentOptions =
+        ExternalServiceTestConfigurator.configuredTestEnvironmentOptions();
+    WorkflowServiceStubsOptions configuredServiceOptions =
+        environmentOptions.build().getWorkflowServiceStubsOptions();
+    WorkflowServiceStubsOptions.Builder serviceOptions =
+        configuredServiceOptions == null
+            ? WorkflowServiceStubsOptions.newBuilder()
+            : WorkflowServiceStubsOptions.newBuilder(configuredServiceOptions);
     this.env =
         TestWorkflowEnvironment.newInstance(
-            ExternalServiceTestConfigurator.configuredTestEnvironmentOptions()
+            environmentOptions
                 .setWorkflowServiceStubsOptions(
-                    WorkflowServiceStubsOptions.newBuilder()
+                    serviceOptions
                         .setGrpcClientInterceptors(
                             Collections.singletonList(eagerActivityRequestInterceptor))
                         .build())
