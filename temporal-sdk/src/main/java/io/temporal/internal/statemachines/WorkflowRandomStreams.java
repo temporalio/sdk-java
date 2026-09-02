@@ -1,5 +1,6 @@
 package io.temporal.internal.statemachines;
 
+import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.workflow.WorkflowRandomStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -60,6 +61,7 @@ final class WorkflowRandomStreams {
 
     @Override
     public void nextBytes(byte[] bytes) {
+      WorkflowInternal.assertNotReadOnly("random");
       Objects.requireNonNull(bytes, "bytes");
       int outputOffset = 0;
       while (outputOffset < bytes.length) {
@@ -75,11 +77,13 @@ final class WorkflowRandomStreams {
 
     @Override
     public long nextLong() {
-      byte[] bytes = new byte[Long.BYTES];
-      nextBytes(bytes);
+      WorkflowInternal.assertNotReadOnly("random");
       long value = 0;
-      for (byte current : bytes) {
-        value = (value << Byte.SIZE) | (current & 0xffL);
+      for (int i = 0; i < Long.BYTES; i++) {
+        if (blockOffset == block.length) {
+          refill();
+        }
+        value = (value << Byte.SIZE) | (block[blockOffset++] & 0xffL);
       }
       return value;
     }

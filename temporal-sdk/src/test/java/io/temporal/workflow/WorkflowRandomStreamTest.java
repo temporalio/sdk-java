@@ -6,6 +6,7 @@ import static org.junit.Assert.assertTrue;
 
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.internal.sync.ReadOnlyException;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
@@ -28,7 +29,8 @@ public class WorkflowRandomStreamTest {
               RandomLongWorkflowImpl.class,
               ContinueAsNewWorkflowImpl.class,
               ParentWorkflowImpl.class,
-              RandomIsolationWorkflow.class)
+              RandomIsolationWorkflow.class,
+              RetainedStreamWorkflowImpl.class)
           .setWorkerOptions(
               WorkerOptions.newBuilder()
                   .setStickyQueueScheduleToStartTimeout(Duration.ZERO)
@@ -86,6 +88,22 @@ public class WorkflowRandomStreamTest {
     WorkflowReplayer.replayWorkflowExecution(history, RandomIsolationWorkflow.class);
   }
 
+  @Test
+  public void retainedStreamRejectsReadOnlyDrawsWithoutAdvancing() throws Exception {
+    RetainedStreamWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(RetainedStreamWorkflow.class);
+    WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
+    untyped.start();
+
+    assertEquals("query rejected", workflow.query());
+    assertEquals("update rejected", workflow.update());
+    untyped.getResult(Long.class);
+
+    WorkflowExecutionHistory history =
+        testWorkflowRule.getWorkflowClient().fetchHistory(untyped.getExecution().getWorkflowId());
+    WorkflowReplayer.replayWorkflowExecution(history, RetainedStreamWorkflowImpl.class);
+  }
+
   @WorkflowInterface
   public interface RandomLongWorkflow {
     @WorkflowMethod
@@ -108,6 +126,21 @@ public class WorkflowRandomStreamTest {
   public interface RandomIsolation {
     @WorkflowMethod
     String run();
+  }
+
+  @WorkflowInterface
+  public interface RetainedStreamWorkflow {
+    @WorkflowMethod
+    long run();
+
+    @QueryMethod
+    String query();
+
+    @UpdateMethod
+    String update();
+
+    @UpdateValidatorMethod(updateName = "update")
+    void validateUpdate();
   }
 
   public static class RandomStreamWorkflow implements TestWorkflowReturnString {
@@ -164,6 +197,40 @@ public class WorkflowRandomStreamTest {
       int delayMillis = Workflow.newRandom().nextInt(100) + 1;
       Workflow.sleep(Duration.ofMillis(delayMillis));
       return "ok";
+    }
+  }
+
+  public static class RetainedStreamWorkflowImpl implements RetainedStreamWorkflow {
+    private final WorkflowRandomStream random = Workflow.getRandomStream("io.temporal.retained");
+    private boolean finished;
+
+    @Override
+    public long run() {
+      random.nextLong();
+      Workflow.await(() -> finished);
+      return random.nextLong();
+    }
+
+    @Override
+    public String query() {
+      ReadOnlyException error =
+          org.junit.Assert.assertThrows(
+              ReadOnlyException.class, () -> random.nextBytes(new byte[Long.BYTES]));
+      assertEquals("While in read-only function, action attempted: random", error.getMessage());
+      return "query rejected";
+    }
+
+    @Override
+    public String update() {
+      finished = true;
+      return "update rejected";
+    }
+
+    @Override
+    public void validateUpdate() {
+      ReadOnlyException error =
+          org.junit.Assert.assertThrows(ReadOnlyException.class, random::nextLong);
+      assertEquals("While in read-only function, action attempted: random", error.getMessage());
     }
   }
 }

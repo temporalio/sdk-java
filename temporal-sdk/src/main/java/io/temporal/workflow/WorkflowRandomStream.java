@@ -14,6 +14,8 @@ import io.temporal.workflow.unsafe.WorkflowUnsafe;
  * {@link WorkflowUnsafe#isReadOnly()}.
  *
  * <p>Use a stable package-style name. Stream names are retained for the life of the Workflow Run.
+ *
+ * <p>This stream provides deterministic pseudorandomness and is not cryptographically secure.
  */
 @Experimental
 public interface WorkflowRandomStream {

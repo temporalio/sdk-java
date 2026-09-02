@@ -932,7 +932,7 @@ public final class WorkflowInternal {
     return thread.isPresent() && getRootWorkflowContext().isReadOnly();
   }
 
-  static void assertNotReadOnly(String action) {
+  public static void assertNotReadOnly(String action) {
     if (isReadOnly()) {
       throw new ReadOnlyException(action);
     }
