@@ -1,88 +1,99 @@
-# Temporal Google Cloud Run support
+# Temporal Google Cloud Run module
 
-This module configures a Temporal worker for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**. It derives the worker's Temporal identity and its `WorkerDeploymentVersion` from Cloud Run instance metadata, so every Cloud Run revision registers as a distinct, `PINNED` Worker Deployment Version.
+This module provides an OpenTelemetry plugin with defaults for Temporal Java SDK workers running on Google Cloud Run. Cloud Run worker pools are the recommended deployment because Temporal workers are continuous, pull-based background workloads.
 
-The primary API is `WorkerIdPlugin`. Register it once on your workflow client and it propagates to every worker created from that client, setting the client identity and the worker deployment version automatically. This mirrors the `CloudRunOpenTelemetryPlugin` in this same module.
+> **Collector required by default:** The plugin exports metrics and traces to an OTLP collector at `http://localhost:4317`. It does not export directly to Google Cloud. Deploy the Google-Built OpenTelemetry Collector as a sidecar, configure another collector endpoint, or provide an application-owned `OpenTelemetry` instance. Without a collector at the configured endpoint, telemetry is not delivered to Google Cloud.
 
-> Experimental: Google Cloud Run support is experimental and may change without notice.
+This integration is for container-based Cloud Run workloads. It does not implement a Cloud Run functions invocation lifecycle.
 
-## Quick start
+A Cloud Run service can also host a Temporal worker, but it must use instance-based billing so CPU is available outside request handling, keep at least one instance active through minimum instances or manual scaling, and run an ingress container that listens on `PORT`. These are deployment requirements; the plugin cannot configure them from inside the worker process.
 
-Add `temporal-gcp-cloud-run` next to your Temporal SDK dependency, then register the plugin on the workflow client options:
+## Usage
 
-```java
-import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
-import io.temporal.gcp.cloudrun.WorkerIdPlugin;
-import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsOptions;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
-
-public final class Main {
-  public static void main(String[] args) {
-    WorkflowServiceStubs service =
-        WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder()
-                .setTarget("my-namespace.tmprl.cloud:7233")
-                .build());
-
-    // Registering the plugin on the client:
-    //  - reads Cloud Run instance metadata once while the client is configured, and
-    //  - sets the client identity to the derived worker identity (unless you set one yourself).
-    WorkflowClient client =
-        WorkflowClient.newInstance(
-            service,
-            WorkflowClientOptions.newBuilder()
-                .setNamespace("my-namespace")
-                .setPlugins(new WorkerIdPlugin())
-                .build());
-
-    WorkerFactory factory = WorkerFactory.newInstance(client);
-
-    // The plugin propagates from the client to workers and sets each worker's deployment version
-    // (with worker versioning enabled and a PINNED default behavior). No per-worker wiring needed.
-    Worker worker = factory.newWorker("orders");
-    worker.registerWorkflowImplementationTypes(OrderWorkflowImpl.class);
-    worker.registerActivitiesImplementations(new OrderActivitiesImpl());
-
-    factory.start();
-  }
-}
-```
-
-You can also register the plugin on `WorkflowServiceStubsOptions.Builder.setPlugins(...)`; from there it propagates to the client and workers as well.
-
-## How it works
-
-`WorkerIdPlugin` reads Cloud Run instance metadata through `GoogleCloudRunMetadata`, which resolves three values:
-
-- **name** (the Temporal deployment name): the first non-empty of `CLOUD_RUN_WORKER_POOL` (set on Cloud Run worker pools) then `K_SERVICE` (set on Cloud Run services).
-- **revision**: the first non-empty of `CLOUD_RUN_REVISION` (worker pools) then `K_REVISION` (services).
-- **instanceId**: read from the Cloud Run metadata server with a single HTTP `GET` to `http://metadata.google.internal/computeMetadata/v1/instance/id` with the required `Metadata-Flavor: Google` header. The metadata server is available on both worker pools and services.
-
-Worker pools receive `CLOUD_RUN_WORKER_POOL` and `CLOUD_RUN_REVISION` and no `K_*` variables, while services receive `K_SERVICE` and `K_REVISION`, so resolving each value from the worker-pool variable first and the service variable second supports both.
-
-The plugin then applies the metadata through the SDK's plugin hooks:
-
-- **Client** (`configureWorkflowClient`): sets the client identity to `<instanceId>@<revision>` (falling back to `<instanceId>@<name>` and then the bare `<instanceId>`), but only when you have not already set an identity, so a user-provided identity always wins. The metadata is fetched here, once, and cached.
-- **Worker** (`configureWorker`): sets the worker deployment version — the name becomes the deployment name and the revision becomes the build id — with worker versioning enabled and `VersioningBehavior.PINNED` as the default, so in-flight workflows stay on the Cloud Run revision that started them (a per-workflow `@WorkflowVersioningBehavior` takes precedence).
-
-Because the metadata server is only reachable from a Cloud Run instance, the plugin **fails fast**: the fetch in `configureWorkflowClient` throws `IllegalStateException` when the metadata server cannot be reached (which usually means the process is not running on Google Cloud Run), and `configureWorker` throws `IllegalStateException` when the name or revision is not set (which usually means the process is not running on a Cloud Run worker pool or service). The plugin does not silently no-op off-platform.
-
-## Reading the metadata directly
-
-If you prefer to read the values yourself, or to fetch the metadata once and pass it in, use `GoogleCloudRunMetadata` directly:
+Add `temporal-gcp-cloud-run` next to your Temporal SDK dependency, then install the plugin on service stubs options before creating clients and workers:
 
 ```java
-GoogleCloudRunMetadata metadata = GoogleCloudRunMetadata.fetch();
-String identity = metadata.workerIdentity();
-WorkerDeploymentVersion version = metadata.workerDeploymentVersion();
+CloudRunOpenTelemetryPlugin plugin = CloudRunOpenTelemetryPlugin.newBuilder().build();
 
-// Or hand the already-fetched metadata to the plugin to skip its own fetch:
-WorkerIdPlugin plugin = new WorkerIdPlugin(metadata);
+WorkflowServiceStubs service =
+    WorkflowServiceStubs.newServiceStubs(
+        WorkflowServiceStubsOptions.newBuilder()
+            .setPlugins(plugin)
+            .build());
+WorkflowClient client = WorkflowClient.newInstance(service);
+WorkerFactory factory = WorkerFactory.newInstance(client);
 ```
 
-`GoogleCloudRunMetadata.fetch(String metadataUrl, Duration timeout)` overrides the metadata URL or the request timeout.
+The plugin configures the SDK metrics scope, tracing interceptors, and OTLP metric and trace exporters through `temporal-opentelemetry`. Do not install both `CloudRunOpenTelemetryPlugin` and `OpenTelemetryPlugin` on the same service stubs.
 
-This module depends only on the Temporal SDK at compile time and uses the JDK's `HttpURLConnection` for the metadata request, so it adds no additional runtime dependencies.
+## Shutdown lifecycle
+
+`WorkerFactory.shutdown()` initiates asynchronous shutdown. The Cloud Run plugin therefore does not flush from the worker-factory shutdown callback by default: doing so could miss telemetry emitted while activities and workflows finish. Wait for the factory to terminate, then flush with the time remaining before Cloud Run sends `SIGKILL`. For example, the following JVM shutdown hook reserves six seconds for graceful shutdown, one second for forced shutdown, and two seconds for telemetry flushing within Cloud Run's ten-second termination window:
+
+```java
+Runtime.getRuntime()
+    .addShutdownHook(
+        new Thread(
+            () -> {
+              factory.shutdown();
+              factory.awaitTermination(6, TimeUnit.SECONDS);
+              if (!factory.isTerminated()) {
+                factory.shutdownNow();
+                factory.awaitTermination(1, TimeUnit.SECONDS);
+              }
+              plugin.newFlushHook().run(Duration.ofSeconds(2));
+            }));
+```
+
+Applications with an existing lifecycle manager should perform the same sequence there instead of registering another JVM hook. `Builder.setFlushOnWorkerFactoryShutdown(true)` restores the underlying plugin's immediate, best-effort flush, but it should only be used when no work can emit telemetry after the shutdown request.
+
+The OTLP endpoint is resolved in this order:
+
+1. `Builder.setEndpoint(...)`.
+2. `OTEL_EXPORTER_OTLP_ENDPOINT`.
+3. `http://localhost:4317`.
+
+When the plugin creates the OpenTelemetry SDK, metrics are reported and exported every sixty seconds by default. This matches the coordinated GCP plugin default across Temporal SDKs and exceeds Google Cloud's five-second minimum export interval. If you use `Builder.setMetricsReportInterval(...)`, keep the interval above that minimum. The collector also needs the unbatched metrics pipeline described below to make a forced shutdown flush safe regardless of its timing relative to the last periodic export.
+
+With an application-owned `OpenTelemetry` instance, the setting only controls how often the Temporal metrics scope reports into that instance. Configure the instance's metric reader to export at an interval above the Google Cloud minimum as well.
+
+The OpenTelemetry service name is resolved in this order:
+
+1. `Builder.setServiceName(...)`.
+2. `OTEL_SERVICE_NAME`.
+3. `CLOUD_RUN_WORKER_POOL` for a Cloud Run worker pool.
+4. `K_SERVICE` for a Cloud Run service.
+5. `temporal-worker`.
+
+The collector should use its GCP resource detector to add the Google Cloud attributes it recognizes. Do not rely on the detector to infer Cloud Run worker-pool-specific location or revision attributes; configure those explicitly with a collector resource processor if they are required. This module does not call the Google Cloud metadata server and adds no Google Cloud client libraries or exporters to the worker process.
+
+## Collector sidecar
+
+Google publishes the Google-Built OpenTelemetry Collector as a container image. Configure it as a second Cloud Run container, listen for OTLP gRPC on `localhost:4317`, and use its GCP exporters for metrics and traces. For the image, recommended collector configuration, IAM roles, health check, and Secret Manager mount, see [Deploy Google-Built OpenTelemetry Collector on Cloud Run](https://cloud.google.com/stackdriver/docs/instrumentation/opentelemetry-collector-cloud-run). That guide demonstrates a Cloud Run service; adapt its collector container and configuration when deploying a worker pool.
+
+Do not put a batch processor in the `googlemanagedprometheus` metrics pipeline. A periodic cumulative metric export followed closely by a forced shutdown flush can otherwise put two points for the same time series in one request, which Managed Service for Prometheus rejects. Pass metrics through the memory limiter, GCP resource detection, and any collision transforms directly to `googlemanagedprometheus`. Keep a dedicated five-second batch processor on the traces pipeline:
+
+```yaml
+processors:
+  batch/traces:
+    send_batch_max_size: 200
+    send_batch_size: 200
+    timeout: 5s
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, transform/collision]
+      exporters: [googlemanagedprometheus]
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, transform/set_project_id, batch/traces]
+      exporters: [otlp]
+```
+
+Cloud Run worker pools support sidecar containers over localhost and are intended for continuous background work. The deployment should start the collector before the Temporal worker and use the collector health extension as its startup probe.
+
+To use an external collector instead, set `OTEL_EXPORTER_OTLP_ENDPOINT` or call `Builder.setEndpoint(...)`.
+
+To use an application-owned provider, call `Builder.setOpenTelemetry(...)`. In that path, no exporters are created; the plugin installs the Temporal metrics scope, tracing interceptors, and shutdown flush hook around the supplied provider.

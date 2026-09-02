@@ -191,7 +191,6 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   input,
                   StartActivityOptions.newBuilder()
                       .setId("act-" + context.getRequestId())
-                      .setTaskQueue(input)
                       .setStartToCloseTimeout(Duration.ofSeconds(60))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -246,7 +245,6 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   input,
                   StartActivityOptions.newBuilder()
                       .setId("act-override-" + context.getRequestId())
-                      .setTaskQueue(input)
                       .setStartToCloseTimeout(Duration.ofSeconds(5))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())

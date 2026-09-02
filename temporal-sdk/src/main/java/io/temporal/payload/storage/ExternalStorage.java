@@ -13,8 +13,9 @@ import javax.annotation.Nullable;
 
 /** Configuration for offloading large payloads to external storage. */
 @Experimental
-public final class ExternalStorageOptions {
+public final class ExternalStorage {
   static final int DEFAULT_PAYLOAD_SIZE_THRESHOLD = 256 * 1024;
+  static final int DEFAULT_MAX_CONCURRENT_PAYLOAD_VISITS = 3;
 
   public static Builder newBuilder() {
     return new Builder();
@@ -23,14 +24,17 @@ public final class ExternalStorageOptions {
   private final @Nonnull List<StorageDriver> drivers;
   private final @Nonnull StorageDriverSelector driverSelector;
   private final int payloadSizeThreshold;
+  private final int maxConcurrentPayloadVisits;
 
-  private ExternalStorageOptions(
+  private ExternalStorage(
       @Nonnull List<StorageDriver> drivers,
       @Nonnull StorageDriverSelector driverSelector,
-      int payloadSizeThreshold) {
+      int payloadSizeThreshold,
+      int maxConcurrentPayloadVisits) {
     this.drivers = Collections.unmodifiableList(new ArrayList<>(drivers));
     this.driverSelector = driverSelector;
     this.payloadSizeThreshold = payloadSizeThreshold;
+    this.maxConcurrentPayloadVisits = maxConcurrentPayloadVisits;
   }
 
   @Nonnull
@@ -51,10 +55,19 @@ public final class ExternalStorageOptions {
     return payloadSizeThreshold;
   }
 
+  /**
+   * Maximum number of payload lists visited concurrently while offloading or restoring the payloads
+   * of a single message. Defaults to 3.
+   */
+  public int getMaxConcurrentPayloadVisits() {
+    return maxConcurrentPayloadVisits;
+  }
+
   public static final class Builder {
     private List<StorageDriver> drivers = Collections.emptyList();
     private StorageDriverSelector driverSelector;
-    private int payloadSizeThreshold = ExternalStorageOptions.DEFAULT_PAYLOAD_SIZE_THRESHOLD;
+    private int payloadSizeThreshold = ExternalStorage.DEFAULT_PAYLOAD_SIZE_THRESHOLD;
+    private int maxConcurrentPayloadVisits = ExternalStorage.DEFAULT_MAX_CONCURRENT_PAYLOAD_VISITS;
 
     private Builder() {}
 
@@ -84,10 +97,21 @@ public final class ExternalStorageOptions {
       return this;
     }
 
-    public ExternalStorageOptions build() {
+    /**
+     * Maximum number of payload lists visited concurrently while offloading or restoring the
+     * payloads of a single message. Must be at least 1. Defaults to 3.
+     */
+    public Builder setMaxConcurrentPayloadVisits(int maxConcurrentPayloadVisits) {
+      this.maxConcurrentPayloadVisits = maxConcurrentPayloadVisits;
+      return this;
+    }
+
+    public ExternalStorage build() {
       Preconditions.checkState(!drivers.isEmpty(), "At least one driver must be provided");
       Preconditions.checkState(
           payloadSizeThreshold >= 0, "payloadSizeThreshold must be greater than or equal to zero");
+      Preconditions.checkState(
+          maxConcurrentPayloadVisits >= 1, "maxConcurrentPayloadVisits must be at least 1");
       Set<String> names = new HashSet<>();
       for (StorageDriver driver : drivers) {
         String name = driver.getName();
@@ -102,7 +126,8 @@ public final class ExternalStorageOptions {
         StorageDriver driver = drivers.get(0);
         selector = (context, payload) -> driver;
       }
-      return new ExternalStorageOptions(drivers, selector, payloadSizeThreshold);
+      return new ExternalStorage(
+          drivers, selector, payloadSizeThreshold, maxConcurrentPayloadVisits);
     }
   }
 }

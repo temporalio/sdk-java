@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun;
+package io.temporal.gcp.cloudrun.workerid;
 
 import io.temporal.common.Experimental;
 import io.temporal.common.WorkerDeploymentVersion;

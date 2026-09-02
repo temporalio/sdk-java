@@ -137,6 +137,7 @@ public class ActivityFailedMetricsTests {
     tags.put("namespace", "UnitTest");
     tags.put("activity_type", "Execute");
     tags.put("exception", "ApplicationFailure");
+    tags.put("failure_reason", "ActivityError");
     tags.put("worker_type", workerType);
     tags.put("workflow_type", workflowType);
     return tags;

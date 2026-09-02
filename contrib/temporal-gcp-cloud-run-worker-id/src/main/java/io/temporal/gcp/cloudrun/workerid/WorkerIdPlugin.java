@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun;
+package io.temporal.gcp.cloudrun.workerid;
 
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
@@ -57,7 +57,7 @@ import java.util.function.Supplier;
 @Experimental
 public final class WorkerIdPlugin extends SimplePlugin {
   /** Unique plugin name, used for logging and duplicate detection. */
-  public static final String NAME = "io.temporal.gcp.cloudrun.workerid";
+  public static final String NAME = "io.temporal.gcp.cloudrun.workerid.WorkerIdPlugin";
 
   private final Supplier<GoogleCloudRunMetadata> metadataSupplier;
   private volatile GoogleCloudRunMetadata metadata;

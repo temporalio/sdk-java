@@ -94,6 +94,24 @@ Normal Gradle test filtering works, so a single dev-server-backed test can be ru
 
 Java 11 must be available to Gradle for these commands.
 
+To run an SDK test against an externally managed server using the standard Temporal client
+environment configuration, set `TEMPORAL_TEST_ENV_CONFIG_SERVER`. For example, the following runs
+one Cloud-safe workflow test:
+
+```bash
+TEMPORAL_TEST_ENV_CONFIG_SERVER=true \
+TEMPORAL_ADDRESS=your-namespace.tmprl.cloud:7233 \
+TEMPORAL_NAMESPACE=your-namespace \
+TEMPORAL_API_KEY=your-api-key \
+./gradlew :temporal-sdk:test \
+  --tests 'io.temporal.client.functional.SignalTest.signalCompletedWorkflow'
+```
+
+The harness also supports the standard `TEMPORAL_CONFIG_FILE` and `TEMPORAL_PROFILE` variables.
+Values from `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY`, `TEMPORAL_TLS_*`, and
+`TEMPORAL_GRPC_META_*` override the selected profile. Envconfig mode connects to an existing server
+and namespace; it does not create or register either one.
+
 ## Things to Avoid
 
 Avoid changes that make review harder without improving the contribution:
