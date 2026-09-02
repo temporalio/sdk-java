@@ -10,21 +10,13 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import io.temporal.api.activity.v1.ActivityExecutionInfo;
-import io.temporal.api.activity.v1.ActivityExecutionOutcome;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.failure.v1.Failure;
-import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.api.workflowservice.v1.PauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.ResetActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UnpauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
-import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityOptionsKeys;
-import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
@@ -130,66 +122,6 @@ public class ActivityHandleOperatorCommandsTest {
     assertTrue(e.getMessage().contains("at least one option"));
 
     verifyNoInteractions(genericClient);
-  }
-
-  @Test
-  public void unrequestedPayloadsAreStripped() {
-    when(genericClient.describeActivity(any())).thenReturn(overSharingResponse());
-
-    ActivityExecutionDescription bare = newHandle().describe();
-    assertFalse("input should be stripped", bare.hasInput());
-    assertFalse("outcome should be stripped", bare.hasResult());
-    assertFalse("heartbeat details should be stripped", bare.hasHeartbeatDetails());
-    assertFalse("last failure should be stripped", bare.hasLastFailure());
-  }
-
-  @Test
-  public void requestedPayloadsAreKept() {
-    when(genericClient.describeActivity(any())).thenReturn(overSharingResponse());
-
-    ActivityExecutionDescription full =
-        newHandle()
-            .describe(
-                DescribeActivityOptions.newBuilder()
-                    .setIncludeInput(true)
-                    .setIncludeOutcome(true)
-                    .setIncludeHeartbeatDetails(true)
-                    .setIncludeLastFailure(true)
-                    .build());
-    assertTrue(full.hasInput());
-    assertTrue(full.hasResult());
-    assertTrue(full.hasHeartbeatDetails());
-    assertTrue(full.hasLastFailure());
-  }
-
-  @Test
-  public void strippingIsPerField() {
-    when(genericClient.describeActivity(any())).thenReturn(overSharingResponse());
-
-    ActivityExecutionDescription desc =
-        newHandle().describe(DescribeActivityOptions.newBuilder().setIncludeInput(true).build());
-    assertTrue("input was requested", desc.hasInput());
-    assertFalse("outcome was not requested", desc.hasResult());
-    assertFalse("heartbeat details were not requested", desc.hasHeartbeatDetails());
-    assertFalse("last failure was not requested", desc.hasLastFailure());
-  }
-
-  /** A response carrying every payload field, as an older or buggy server might send. */
-  private static DescribeActivityExecutionResponse overSharingResponse() {
-    Payloads payloads =
-        Payloads.newBuilder()
-            .addPayloads(
-                Payload.newBuilder().setData(com.google.protobuf.ByteString.copyFromUtf8("x")))
-            .build();
-    return DescribeActivityExecutionResponse.newBuilder()
-        .setInfo(
-            ActivityExecutionInfo.newBuilder()
-                .setActivityId("act-1")
-                .setHeartbeatDetails(payloads)
-                .setLastFailure(Failure.newBuilder().setMessage("boom")))
-        .setInput(payloads)
-        .setOutcome(ActivityExecutionOutcome.newBuilder().setResult(payloads))
-        .build();
   }
 
   /**

@@ -352,8 +352,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }
-    DescribeActivityExecutionResponse response =
-        stripUnrequestedPayloads(genericClient.describeActivity(req.build()), input.getOptions());
+    DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
     return new DescribeActivityOutput(
         new ActivityExecutionDescription(
             response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
@@ -500,34 +499,6 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     CountActivityExecutionsResponse resp = genericClient.countActivities(req.build());
     return new CountActivitiesOutput(new ActivityExecutionCount(resp));
-  }
-
-  /**
-   * Clears payload-bearing fields the caller did not ask for, in case an older or buggy server sent
-   * them anyway.
-   */
-  private static DescribeActivityExecutionResponse stripUnrequestedPayloads(
-      DescribeActivityExecutionResponse response, DescribeActivityOptions options) {
-    if (options.isIncludeInput()
-        && options.isIncludeOutcome()
-        && options.isIncludeHeartbeatDetails()
-        && options.isIncludeLastFailure()) {
-      return response;
-    }
-    DescribeActivityExecutionResponse.Builder builder = response.toBuilder();
-    if (!options.isIncludeInput()) {
-      builder.clearInput();
-    }
-    if (!options.isIncludeOutcome()) {
-      builder.clearOutcome();
-    }
-    if (!options.isIncludeHeartbeatDetails()) {
-      builder.getInfoBuilder().clearHeartbeatDetails();
-    }
-    if (!options.isIncludeLastFailure()) {
-      builder.getInfoBuilder().clearLastFailure();
-    }
-    return builder.build();
   }
 
   /** Converts the server's resolved activity options into the public options type. */
