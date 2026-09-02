@@ -206,7 +206,9 @@ public class SlotInfoTest {
     assertEquals(runId, activityInfo.getWorkflowRunId());
     assertEquals(WORKFLOW_TYPE, activityInfo.getWorkflowType());
     assertEquals(testWorkflowRule.getTaskQueue(), activityInfo.getActivityTaskQueue());
-    assertEquals(SDKTestWorkflowRule.NAMESPACE, activityInfo.getNamespace());
+    assertEquals(
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
+        activityInfo.getNamespace());
     assertEquals(1, activityInfo.getAttempt());
     assertEquals(expectedLocal, activityInfo.isLocal());
     assertEquals(WORKER_IDENTITY, workerIdentity);

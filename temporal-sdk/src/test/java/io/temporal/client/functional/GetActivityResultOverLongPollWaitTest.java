@@ -66,7 +66,9 @@ public class GetActivityResultOverLongPollWaitTest {
     activityClient =
         ActivityClient.newInstance(
             clientStubs,
-            ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
+            ActivityClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .build());
   }
 
   @After

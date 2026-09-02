@@ -1,7 +1,5 @@
 package io.temporal.worker;
 
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
-
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.activity.ActivityInterface;
@@ -12,6 +10,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.*;
@@ -27,8 +27,6 @@ import org.junit.experimental.categories.Category;
 public class ResourceBasedTunerTests {
 
   private final TestStatsReporter reporter = new TestStatsReporter();
-  private static final Map<String, String> TAGS_NAMESPACE =
-      new ImmutableMap.Builder<String, String>().putAll(MetricsTag.defaultTags(NAMESPACE)).build();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -55,7 +53,9 @@ public class ResourceBasedTunerTests {
     workflow.execute(5, 5, 1000);
     Map<String, String> nsAndTaskQueue =
         new ImmutableMap.Builder<String, String>()
-            .putAll(TAGS_NAMESPACE)
+            .putAll(
+                MetricsTag.defaultTags(
+                    testWorkflowRule.getWorkflowClient().getOptions().getNamespace()))
             .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
             .build();
     reporter.assertGauge(MetricsType.RESOURCE_MEM_USAGE, nsAndTaskQueue, (val) -> val > 0);
@@ -76,7 +76,9 @@ public class ResourceBasedTunerTests {
         MetricsType.WORKER_TASK_SLOTS_USED, getWorkerTags("LocalActivityWorker"), 0);
   }
 
-  @Category(IndependentResourceBasedTests.class)
+  @CloudTestExclusionNote(
+      "This resource-heavy test still needs a dedicated Cloud execution strategy.")
+  @Category({IndependentResourceBasedTests.class, NeedsCloudAdaptation.class})
   @Test(timeout = 300 * 1000)
   public void canRunHeavyMemoryWithResourceBasedTuner() {
     ResourceTunerWorkflow workflow = testWorkflowRule.newWorkflowStub(ResourceTunerWorkflow.class);
@@ -190,6 +192,6 @@ public class ResourceBasedTunerTests {
         "task_queue",
         testWorkflowRule.getTaskQueue(),
         "namespace",
-        "UnitTest");
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace());
   }
 }

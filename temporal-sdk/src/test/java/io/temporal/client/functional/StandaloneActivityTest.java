@@ -23,6 +23,8 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
 import io.temporal.common.interceptors.ActivityClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.*;
@@ -32,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Integration tests for standalone activities started via {@link ActivityClient}.
@@ -257,7 +260,9 @@ public class StandaloneActivityTest {
   private ActivityClient newActivityClient() {
     return ActivityClient.newInstance(
         testWorkflowRule.getWorkflowServiceStubs(),
-        ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
+        ActivityClientOptions.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .build());
   }
 
   @Test
@@ -516,7 +521,7 @@ public class StandaloneActivityTest {
           ActivityClient.newInstance(
               testWorkflowRule.getWorkflowServiceStubs(),
               ActivityClientOptions.newBuilder()
-                  .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                  .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
                   .setInterceptors(Collections.singletonList(interceptor))
                   .build());
 
@@ -570,7 +575,7 @@ public class StandaloneActivityTest {
 
     assertEquals(activityId, info.activityId);
     assertEquals("InspectInfo", info.activityType);
-    assertEquals(SDKTestWorkflowRule.NAMESPACE, info.namespace);
+    assertEquals(testWorkflowRule.getWorkflowClient().getOptions().getNamespace(), info.namespace);
     assertEquals(testWorkflowRule.getTaskQueue(), info.taskQueue);
     assertFalse(info.isLocal);
     assertFalse(info.isInWorkflow);
@@ -831,6 +836,9 @@ public class StandaloneActivityTest {
     assertEquals(desc.getAttempt(), rawInfo.getAttempt());
   }
 
+  @CloudTestExclusionNote(
+      "Cloud describe does not expose the last failure during retry backoff within the test window.")
+  @Category(NeedsCloudAdaptation.class)
   @Test
   public void testDescribeLastFailureIsPopulatedDuringRetryBackoff() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
