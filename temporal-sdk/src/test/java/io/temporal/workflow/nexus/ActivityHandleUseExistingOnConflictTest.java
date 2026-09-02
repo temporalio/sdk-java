@@ -159,7 +159,6 @@ public class ActivityHandleUseExistingOnConflictTest {
                   activityId,
                   StartActivityOptions.newBuilder()
                       .setId(activityId)
-                      .setTaskQueue(testWorkflowRule.getTaskQueue())
                       .setScheduleToCloseTimeout(Duration.ofMinutes(1))
                       .setIdConflictPolicy(
                           ActivityIdConflictPolicy.ACTIVITY_ID_CONFLICT_POLICY_USE_EXISTING)

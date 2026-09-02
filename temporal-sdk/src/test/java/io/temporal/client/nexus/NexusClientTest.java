@@ -391,7 +391,6 @@ public class NexusClientTest {
                   activityId,
                   StartActivityOptions.newBuilder()
                       .setId(activityId)
-                      .setTaskQueue(testWorkflowRule.getTaskQueue())
                       .setScheduleToCloseTimeout(Duration.ofSeconds(30))
                       .build()));
     }

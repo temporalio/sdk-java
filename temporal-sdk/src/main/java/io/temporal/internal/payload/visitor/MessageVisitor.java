@@ -11,7 +11,7 @@ import com.google.protobuf.MessageOrBuilder;
  * @param <C> type of the contextual value
  */
 @FunctionalInterface
-interface MessageVisitor<C> {
+public interface MessageVisitor<C> {
   /**
    * Handles a message being entered and returns the contextual value for it and its contents.
    *

@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.Test;
 
 /** Tests external storage option validation and defaults. */
-public class ExternalStorageOptionsTest {
+public class ExternalStorageTest {
 
   private static StorageDriverStoreContext storeContext(StorageDriverTargetInfo target) {
     return new StorageDriverStoreContext() {
@@ -52,7 +52,7 @@ public class ExternalStorageOptionsTest {
   @Test
   public void singleDriverNoSelectorSynthesizesSelector() {
     StorageDriver a = driver("a");
-    ExternalStorageOptions storage = ExternalStorageOptions.newBuilder().setDriver(a).build();
+    ExternalStorage storage = ExternalStorage.newBuilder().setDriver(a).build();
     assertEquals(1, storage.getDrivers().size());
     StorageDriverSelector selector = storage.getDriverSelector();
     assertNotNull(selector);
@@ -62,8 +62,8 @@ public class ExternalStorageOptionsTest {
   @Test
   public void multipleDriversWithSelectorIsValid() {
     StorageDriver a = driver("a");
-    ExternalStorageOptions storage =
-        ExternalStorageOptions.newBuilder()
+    ExternalStorage storage =
+        ExternalStorage.newBuilder()
             .setDrivers(Arrays.asList(a, driver("b")))
             .setDriverSelector((context, payload) -> a)
             .build();
@@ -76,8 +76,8 @@ public class ExternalStorageOptionsTest {
     StorageDriver a = driver("a");
     StorageDriver b = driver("b");
     StorageDriver c = driver("c");
-    ExternalStorageOptions storage =
-        ExternalStorageOptions.newBuilder()
+    ExternalStorage storage =
+        ExternalStorage.newBuilder()
             .setDrivers(Arrays.asList(a, b))
             .setDrivers(Collections.singletonList(c))
             .build();
@@ -86,8 +86,8 @@ public class ExternalStorageOptionsTest {
 
   @Test
   public void zeroThresholdStoresAll() {
-    ExternalStorageOptions storage =
-        ExternalStorageOptions.newBuilder()
+    ExternalStorage storage =
+        ExternalStorage.newBuilder()
             .setDrivers(Collections.singletonList(driver("a")))
             .setPayloadSizeThreshold(0)
             .build();
@@ -96,26 +96,39 @@ public class ExternalStorageOptionsTest {
 
   @Test(expected = IllegalStateException.class)
   public void noDriversRejected() {
-    ExternalStorageOptions.newBuilder().build();
+    ExternalStorage.newBuilder().build();
   }
 
   @Test(expected = IllegalStateException.class)
   public void duplicateDriverNamesRejected() {
-    ExternalStorageOptions.newBuilder()
-        .setDrivers(Arrays.asList(driver("dup"), driver("dup")))
-        .build();
+    ExternalStorage.newBuilder().setDrivers(Arrays.asList(driver("dup"), driver("dup"))).build();
   }
 
   @Test(expected = IllegalStateException.class)
   public void multipleDriversRequireSelector() {
-    ExternalStorageOptions.newBuilder().setDrivers(Arrays.asList(driver("a"), driver("b"))).build();
+    ExternalStorage.newBuilder().setDrivers(Arrays.asList(driver("a"), driver("b"))).build();
   }
 
   @Test(expected = IllegalStateException.class)
   public void negativeThresholdRejected() {
-    ExternalStorageOptions.newBuilder()
+    ExternalStorage.newBuilder()
         .setDrivers(Collections.singletonList(driver("a")))
         .setPayloadSizeThreshold(-1)
         .build();
+  }
+
+  @Test
+  public void maxConcurrentPayloadVisitsDefaultsToThree() {
+    assertEquals(
+        3,
+        ExternalStorage.newBuilder()
+            .setDriver(driver("a"))
+            .build()
+            .getMaxConcurrentPayloadVisits());
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void zeroMaxConcurrentPayloadVisitsRejected() {
+    ExternalStorage.newBuilder().setDriver(driver("a")).setMaxConcurrentPayloadVisits(0).build();
   }
 }

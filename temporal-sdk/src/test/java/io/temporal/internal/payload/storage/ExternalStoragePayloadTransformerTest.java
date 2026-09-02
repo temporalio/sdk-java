@@ -12,7 +12,7 @@ import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -75,7 +75,7 @@ public class ExternalStoragePayloadTransformerTest {
     InMemoryDriver driver = new InMemoryDriver("d1");
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(driver)
                 .setDriverSelector((context, payload) -> null)
                 .setPayloadSizeThreshold(0)
@@ -101,7 +101,7 @@ public class ExternalStoragePayloadTransformerTest {
         (context, payload) -> byPrefix.get(payload.getData().toStringUtf8().substring(0, 1));
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDrivers(Arrays.asList(d1, d2))
                 .setDriverSelector(selector)
                 .setPayloadSizeThreshold(0)
@@ -198,7 +198,7 @@ public class ExternalStoragePayloadTransformerTest {
     InMemoryDriver stranger = new InMemoryDriver("d2");
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(registered)
                 .setDriverSelector((context, payload) -> stranger)
                 .setPayloadSizeThreshold(0)
@@ -232,7 +232,7 @@ public class ExternalStoragePayloadTransformerTest {
     byPrefix.put("2", doomed);
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDrivers(Arrays.asList(slow, doomed))
                 .setDriverSelector(
                     (context, payload) ->
@@ -314,7 +314,7 @@ public class ExternalStoragePayloadTransformerTest {
     AtomicReference<CancellationToken<CancellationException>> observed = new AtomicReference<>();
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(driver)
                 .setDriverSelector(
                     (context, payload) -> {
@@ -332,10 +332,7 @@ public class ExternalStoragePayloadTransformerTest {
   private static ExternalStoragePayloadTransformer transformer(
       StorageDriver driver, int threshold) {
     return ExternalStoragePayloadTransformer.fromOptions(
-        ExternalStorageOptions.newBuilder()
-            .setDriver(driver)
-            .setPayloadSizeThreshold(threshold)
-            .build());
+        ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build());
   }
 
   private static Payload payload(String data) {

@@ -55,6 +55,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public StartActivityOutput startActivity(StartActivityInput input) {
     StartActivityOptions options = input.getOptions();
+    if (Strings.isNullOrEmpty(options.getTaskQueue())) {
+      throw new IllegalArgumentException("taskQueue must not be null or empty");
+    }
     DataConverter dc = clientOptions.getDataConverter();
     InternalNexusOperationContext nexusContext =
         CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;

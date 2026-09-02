@@ -1,6 +1,5 @@
 package io.temporal.workflow;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /** MutableSideEffectOptions is used to specify options for a side effect. */
@@ -42,7 +41,6 @@ public class MutableSideEffectOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public MutableSideEffectOptions.Builder setSummary(String summary) {
       this.summary = summary;
       return this;

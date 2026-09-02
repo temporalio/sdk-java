@@ -2,8 +2,6 @@ package io.temporal.workflow.nexus;
 
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
-import io.nexusrpc.handler.OperationHandler;
-import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowFailedException;
@@ -11,7 +9,10 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.Signal;
-import io.temporal.nexus.TemporalOperationHandler;
+import io.temporal.nexus.TemporalNexusClient;
+import io.temporal.nexus.TemporalOperation;
+import io.temporal.nexus.TemporalOperationResult;
+import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
@@ -121,17 +122,16 @@ public class GenericHandlerCancelTest extends BaseNexusTest {
 
   @ServiceImpl(service = TestNexusCancelService.class)
   public class TestNexusServiceImpl {
-    @OperationImpl
-    public OperationHandler<String, Void> operation() {
-      return TemporalOperationHandler.create(
-          (context, client, input) ->
-              client.startWorkflow(
-                  WaitForCancelWorkflowInterface.class,
-                  WaitForCancelWorkflowInterface::execute,
-                  input,
-                  WorkflowOptions.newBuilder()
-                      .setWorkflowId("generic-cancel-test-" + context.getService())
-                      .build()));
+    @TemporalOperation
+    public TemporalOperationResult<Void> operation(
+        TemporalOperationStartContext context, TemporalNexusClient client, String input) {
+      return client.startWorkflow(
+          WaitForCancelWorkflowInterface.class,
+          WaitForCancelWorkflowInterface::execute,
+          input,
+          WorkflowOptions.newBuilder()
+              .setWorkflowId("generic-cancel-test-" + context.getService())
+              .build());
     }
   }
 }
