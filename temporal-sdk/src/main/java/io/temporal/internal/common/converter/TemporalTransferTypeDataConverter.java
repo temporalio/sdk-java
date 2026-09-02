@@ -69,11 +69,10 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     if (descriptor == null) {
       return delegate.fromPayload(payload, valueClass, valueType);
     }
-    TransferType transfer = descriptor.transferTypeFor(valueType);
+    Type requestedType = requestedType(valueClass, valueType);
+    TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayload(payload, transfer.rawType, transfer.type);
-    return value == null
-        ? null
-        : valueClass.cast(descriptor.converter().fromTransferType(value, valueType));
+    return valueClass.cast(fromTransferValue(value, descriptor, requestedType));
   }
 
   @Override
@@ -84,11 +83,10 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     if (descriptor == null || !hasPayload(index, content)) {
       return delegate.fromPayloads(index, content, valueClass, valueType);
     }
-    TransferType transfer = descriptor.transferTypeFor(valueType);
+    Type requestedType = requestedType(valueClass, valueType);
+    TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayloads(index, content, transfer.rawType, transfer.type);
-    return value == null
-        ? null
-        : valueClass.cast(descriptor.converter().fromTransferType(value, valueType));
+    return valueClass.cast(fromTransferValue(value, descriptor, requestedType));
   }
 
   @Override
@@ -104,15 +102,21 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
               + "<>"
               + Arrays.toString(genericParameterTypes));
     }
+    if (!content.isPresent() || content.get().getPayloadsCount() == 0) {
+      return delegate.fromPayloads(content, parameterTypes, genericParameterTypes);
+    }
+
     Class<?>[] transferClasses = parameterTypes.clone();
     Type[] transferTypes = genericParameterTypes.clone();
     ConverterDescriptor[] descriptors = new ConverterDescriptor[parameterTypes.length];
-    int payloadCount = content.isPresent() ? content.get().getPayloadsCount() : 0;
+    int payloadCount = content.get().getPayloadsCount();
+
     for (int i = 0; i < parameterTypes.length; i++) {
       ConverterDescriptor descriptor = descriptorFor(parameterTypes[i]);
       descriptors[i] = descriptor;
       if (descriptor != null && i < payloadCount) {
-        TransferType transfer = descriptor.transferTypeFor(genericParameterTypes[i]);
+        Type requestedType = requestedType(parameterTypes[i], genericParameterTypes[i]);
+        TransferType transfer = descriptor.transferTypeFor(requestedType);
         transferClasses[i] = transfer.rawType;
         transferTypes[i] = transfer.type;
       }
@@ -120,9 +124,9 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
 
     Object[] values = delegate.fromPayloads(content, transferClasses, transferTypes);
     for (int i = 0; i < values.length && i < payloadCount; i++) {
-      if (descriptors[i] != null && values[i] != null) {
-        values[i] =
-            descriptors[i].converter().fromTransferType(values[i], genericParameterTypes[i]);
+      if (descriptors[i] != null) {
+        Type requestedType = requestedType(parameterTypes[i], genericParameterTypes[i]);
+        values[i] = fromTransferValue(values[i], descriptors[i], requestedType);
       }
     }
     return values;
@@ -152,6 +156,15 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     }
     ConverterDescriptor descriptor = descriptorFor(value.getClass());
     return descriptor == null ? value : descriptor.converter().toTransferType(value);
+  }
+
+  private static Object fromTransferValue(
+      Object value, ConverterDescriptor descriptor, Type valueType) {
+    return value == null ? null : descriptor.converter().fromTransferType(value, valueType);
+  }
+
+  private static Type requestedType(Class<?> valueClass, Type valueType) {
+    return valueType == null ? valueClass : valueType;
   }
 
   private static ConverterDescriptor descriptorFor(Class<?> valueClass) {
