@@ -124,6 +124,8 @@ public interface WorkflowInfo {
    * @return Workflow ID of the root Workflow
    *     <p>Note: On server versions prior to v1.27.0, this method will be empty. Otherwise, it will
    *     be empty if the workflow is its own root.
+   *     <p>The root Workflow's namespace is not retained and may differ from this Workflow's
+   *     namespace for cross-namespace child Workflows. Track it separately if needed.
    */
   Optional<String> getRootWorkflowId();
 
@@ -131,6 +133,8 @@ public interface WorkflowInfo {
    * @return Run ID of the root Workflow
    *     <p>Note: On server versions prior to v1.27.0, this method will be empty. Otherwise, it will
    *     be empty if the workflow is its own root.
+   *     <p>The root Workflow's namespace is not retained and may differ from this Workflow's
+   *     namespace for cross-namespace child Workflows. Track it separately if needed.
    */
   Optional<String> getRootRunId();
 

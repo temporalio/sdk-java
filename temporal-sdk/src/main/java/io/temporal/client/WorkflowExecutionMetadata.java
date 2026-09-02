@@ -80,6 +80,12 @@ public class WorkflowExecutionMetadata {
     return info.hasParentExecution() ? info.getParentExecution() : null;
   }
 
+  /**
+   * Returns the root Workflow execution.
+   *
+   * <p>Its namespace is not retained and may differ from this Workflow's namespace for
+   * cross-namespace child Workflows. Track it separately if needed.
+   */
   @Nullable
   public WorkflowExecution getRootExecution() {
     return info.hasRootExecution() ? info.getRootExecution() : null;
