@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
@@ -40,6 +41,7 @@ public final class TestStorageDriver implements StorageDriver {
   public final AtomicInteger injectedFailures = new AtomicInteger();
 
   private volatile boolean neverAnswers;
+  private volatile boolean cancelInsteadOfFailing;
   private final AtomicInteger storeFailures = new AtomicInteger();
   private final AtomicInteger retrieveFailures = new AtomicInteger();
   private volatile @Nullable String failStoresContaining;
@@ -66,6 +68,13 @@ public final class TestStorageDriver implements StorageDriver {
 
   public TestStorageDriver failStores(int times) {
     this.storeFailures.set(times);
+    return this;
+  }
+
+  /** Fails the next {@code times} stores the way an abandoned call does. */
+  public TestStorageDriver cancelStores(int times) {
+    this.storeFailures.set(times);
+    this.cancelInsteadOfFailing = true;
     return this;
   }
 
@@ -122,7 +131,9 @@ public final class TestStorageDriver implements StorageDriver {
     }
     if (shouldFailStore(payloads)) {
       injectedFailures.incrementAndGet();
-      return failed("storage unavailable");
+      return cancelInsteadOfFailing
+          ? cancelled("external storage stopped")
+          : failed("storage unavailable");
     }
 
     List<StorageDriverClaim> claims = new ArrayList<>();
@@ -179,6 +190,7 @@ public final class TestStorageDriver implements StorageDriver {
     storeEntered = null;
     releaseStore = null;
     neverAnswers = false;
+    cancelInsteadOfFailing = false;
   }
 
   /** The target supplied when the payload with this data was stored. */
@@ -219,6 +231,12 @@ public final class TestStorageDriver implements StorageDriver {
       }
     }
     return false;
+  }
+
+  private static <T> CompletableFuture<T> cancelled(String message) {
+    CompletableFuture<T> future = new CompletableFuture<>();
+    future.completeExceptionally(new CancellationException(message));
+    return future;
   }
 
   private static <T> CompletableFuture<T> failed(String message) {

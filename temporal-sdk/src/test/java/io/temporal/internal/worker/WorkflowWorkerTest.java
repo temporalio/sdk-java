@@ -36,8 +36,10 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.replay.ReplayWorkflow;
@@ -57,6 +59,7 @@ import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.Test;
@@ -495,6 +498,8 @@ public class WorkflowWorkerTest {
     CountDownLatch handlerEntered = new CountDownLatch(1);
     CountDownLatch releaseHandler = new CountDownLatch(1);
     CountDownLatch escaped = new CountDownLatch(1);
+    CancelSource<CancellationException> storageCancellation =
+        new CancelSource<>(() -> new CancellationException("Worker shutdown"));
 
     WorkflowWorker worker =
         new WorkflowWorker(
@@ -512,6 +517,7 @@ public class WorkflowWorkerTest {
                         .setUncaughtExceptionHandler((thread, error) -> escaped.countDown())
                         .build())
                 .setMetricsScope(metricsScope)
+                .setStorageCancellation(storageCancellation.token())
                 .build(),
             runLockManager,
             cache,
@@ -564,6 +570,7 @@ public class WorkflowWorkerTest {
 
     assertTrue(worker.start());
     assertTrue(handlerEntered.await(10, TimeUnit.SECONDS));
+    storageCancellation.cancel();
     CompletableFuture<Void> shutdown = worker.shutdown(new ShutdownManager(), true);
     releaseHandler.countDown();
 
@@ -577,6 +584,36 @@ public class WorkflowWorkerTest {
         0,
         worker.getTaskCounter().getTotalFailed());
     shutdown.get();
+  }
+
+  @Test
+  public void storageBreakingDuringAForcedShutdownIsStillReported() throws Exception {
+    // Cancelling storage means we abandoned the work. Storage genuinely breaking at the same
+    // moment is a different thing and must not disappear with it.
+    TestStorageDriver driver = TestStorageDriver.create().failStores(1);
+    Payload result = Payload.newBuilder().setData(ByteString.copyFrom("result", UTF_8)).build();
+    RespondWorkflowTaskCompletedRequest taskCompleted =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setCompleteWorkflowExecutionCommandAttributes(
+                        CompleteWorkflowExecutionCommandAttributes.newBuilder()
+                            .setResult(Payloads.newBuilder().addPayloads(result))))
+            .build();
+    CancelSource<CancellationException> storageCancellation =
+        new CancelSource<>(() -> new CancellationException("Worker shutdown"));
+    storageCancellation.cancel();
+
+    runOneTask(
+        driver,
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null),
+        storageCancellation.token(),
+        blockingStub ->
+            verify(blockingStub)
+                .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class)));
+
+    assertEquals("expected one injected store failure", 1, driver.injectedFailures.get());
   }
 
   @Test
@@ -638,6 +675,15 @@ public class WorkflowWorkerTest {
       WorkflowTaskHandler.Result handlerResult,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
       throws Exception {
+    runOneTask(driver, handlerResult, CancellationToken.none(), verification);
+  }
+
+  private void runOneTask(
+      TestStorageDriver driver,
+      WorkflowTaskHandler.Result handlerResult,
+      CancellationToken<CancellationException> storageCancellation,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -671,6 +717,7 @@ public class WorkflowWorkerTest {
                             .setDriver(driver)
                             .setPayloadSizeThreshold(0)
                             .build()))
+                .setStorageCancellation(storageCancellation)
                 .build(),
             runLockManager,
             cache,
@@ -750,8 +797,10 @@ public class WorkflowWorkerTest {
       CountDownLatch storeEntered = new CountDownLatch(1);
       CountDownLatch releaseStore = new CountDownLatch(1);
       TestStorageDriver driver =
-          TestStorageDriver.create().blockStores(storeEntered, releaseStore).failStores(1);
+          TestStorageDriver.create().blockStores(storeEntered, releaseStore).cancelStores(1);
       CountDownLatch escaped = new CountDownLatch(1);
+      CancelSource<CancellationException> storageCancellation =
+          new CancelSource<>(() -> new CancellationException("Worker shutdown"));
 
       WorkflowWorker worker =
           new WorkflowWorker(
@@ -775,6 +824,7 @@ public class WorkflowWorkerTest {
                               .setDriver(driver)
                               .setPayloadSizeThreshold(0)
                               .build()))
+                  .setStorageCancellation(storageCancellation.token())
                   .build(),
               runLockManager,
               cache,
@@ -846,6 +896,7 @@ public class WorkflowWorkerTest {
       assertTrue(storeEntered.await(10, TimeUnit.SECONDS));
 
       CompletableFuture<Void> shutdown = worker.shutdown(new ShutdownManager(), true);
+      storageCancellation.cancel();
       releaseStore.countDown();
 
       assertFalse(

@@ -413,17 +413,12 @@ final class WorkflowWorker implements SuspendableWorker {
     }
     try {
       externalStorageRunner.store(builder, target, targetVisitor, options.getStorageCancellation());
-    } catch (Throwable e) {
-      if (isShutdown()) {
-        throw new WorkerShuttingDown();
-      }
+    } catch (CancellationException e) {
+      // if the worker is shutting down, extstore will throw a CancellationException and we need to
+      // rethrow it here so the handle() method can decide what to do.
+      throw e;
+    } catch (Exception e) {
       throw new ExternalStorageTaskFailure("External storage store failed", e);
-    }
-  }
-
-  private static final class WorkerShuttingDown extends RuntimeException {
-    WorkerShuttingDown() {
-      super(null, null, false, false);
     }
   }
 
@@ -577,15 +572,7 @@ final class WorkflowWorker implements SuspendableWorker {
           nextWFTResponse = Optional.empty();
           boolean iterationFailed = false;
           try {
-            WorkflowTaskHandler.Result result;
-            try {
-              result = handleTask(currentTask, workflowTypeScope);
-            } catch (CancellationException e) {
-              if (isShutdown()) {
-                return;
-              }
-              throw e;
-            }
+            WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
             WorkflowTaskFailedCause taskFailedCause = null;
             try {
               RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();
@@ -763,7 +750,11 @@ final class WorkflowWorker implements SuspendableWorker {
                       workflowStorageTarget(workflowExecution, workflowType));
                 }
               }
-            } catch (WorkerShuttingDown e) {
+            } catch (CancellationException e) {
+              if (!options.getStorageCancellation().isCancellationRequested()) {
+                throw e;
+              }
+              log.trace("Abandoned a workflow task while the worker was shutting down", e);
               return;
             } catch (Exception e) {
               iterationFailed = true;
@@ -800,6 +791,11 @@ final class WorkflowWorker implements SuspendableWorker {
               workflowTypeScope.counter(MetricsType.WORKFLOW_TASK_HEARTBEAT_COUNTER).inc(1);
             }
           } catch (Exception e) {
+            if (e instanceof CancellationException
+                && options.getStorageCancellation().isCancellationRequested()) {
+              log.trace("Abandoned a workflow task while the worker was shutting down", e);
+              return;
+            }
             iterationFailed = true;
             throw e;
           } finally {
