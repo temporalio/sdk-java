@@ -275,6 +275,7 @@ public final class WorkerFactory {
                     .build());
     namespaceCapabilities.setFromCapabilities(
         describeNamespaceResponse.getNamespaceInfo().getCapabilities());
+    namespaceCapabilities.setFromLimits(describeNamespaceResponse.getNamespaceInfo().getLimits());
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;

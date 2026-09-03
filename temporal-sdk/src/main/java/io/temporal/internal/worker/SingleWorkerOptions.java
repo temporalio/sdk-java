@@ -321,6 +321,9 @@ public final class SingleWorkerOptions {
   }
 
   public String getBuildId() {
+    if (deploymentOptions != null && deploymentOptions.getVersion() != null) {
+      return deploymentOptions.getVersion().getBuildId();
+    }
     if (buildId == null) {
       return binaryChecksum;
     }
