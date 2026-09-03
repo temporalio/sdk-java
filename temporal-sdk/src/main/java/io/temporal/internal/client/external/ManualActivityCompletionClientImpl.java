@@ -208,9 +208,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 .setIdentity(identity)
                 .setTaskToken(ByteString.copyFrom(taskToken));
         payloads.ifPresent(builder::setDetails);
+        RecordActivityTaskHeartbeatRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatResponse status =
-            ActivityClientHelper.sendHeartbeatRequest(
-                service, storeOutbound(builder.build()), metricsScope);
+            ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -227,9 +227,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 .setRunId(execution.getRunId())
                 .setActivityId(activityId);
         payloads.ifPresent(builder::setDetails);
+        RecordActivityTaskHeartbeatByIdRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatByIdResponse status =
-            ActivityClientHelper.recordActivityTaskHeartbeatById(
-                service, storeOutbound(builder.build()), metricsScope);
+            ActivityClientHelper.recordActivityTaskHeartbeatById(service, request, metricsScope);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
