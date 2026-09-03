@@ -68,6 +68,10 @@ public class NexusClientOptions {
     return dataConverter;
   }
 
+  /**
+   * Get the external storage used to offload large operation payloads, or null if payloads are sent
+   * inline.
+   */
   @Nullable
   public ExternalStorage getExternalStorage() {
     return externalStorage;
@@ -160,6 +164,12 @@ public class NexusClientOptions {
       return this;
     }
 
+    /**
+     * Offload operation payloads that exceed the storage threshold to {@code externalStorage},
+     * sending a reference to the server in their place. The client wraps its {@link DataConverter}
+     * to store outbound payloads and resolve inbound references. Defaults to null, meaning all
+     * payloads are sent inline.
+     */
     public NexusClientOptions.Builder setExternalStorage(
         @Nullable ExternalStorage externalStorage) {
       this.externalStorage = externalStorage;

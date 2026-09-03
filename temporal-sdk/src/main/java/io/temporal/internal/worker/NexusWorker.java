@@ -346,6 +346,10 @@ final class NexusWorker implements SuspendableWorker {
         try {
           task = retrieveInboundPayloads(task);
         } catch (Throwable e) {
+          if (isShutdownCancellation(e)) {
+            log.trace("Abandoned a nexus task while the worker was shutting down", e);
+            return;
+          }
           taskFailed = true;
           sendStorageFailure(
               pollResponse.getTaskToken(), supportsTemporalFailure(pollResponse), metricsScope, e);
@@ -354,6 +358,10 @@ final class NexusWorker implements SuspendableWorker {
 
         taskFailed = handleNexusTask(task, metricsScope);
       } catch (Throwable e) {
+        if (isShutdownCancellation(e)) {
+          log.trace("Abandoned a nexus task while the worker was shutting down", e);
+          return;
+        }
         taskFailed = true;
         throw e;
       } finally {
@@ -447,6 +455,9 @@ final class NexusWorker implements SuspendableWorker {
         sendStorageFailure(
             taskToken, supportsTemporalFailure(pollResponse), metricsScope, e.getCause());
         return true;
+      } catch (CancellationException e) {
+        // Absorbed by handle() when this worker is shutting down.
+        throw e;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         throw e;
@@ -574,6 +585,16 @@ final class NexusWorker implements SuspendableWorker {
           metricsScope);
     }
 
+    /**
+     * True when {@code e} is external storage aborting because this worker is shutting down. A
+     * storage driver that genuinely breaks at the same moment is a different thing and must still
+     * be reported to the server.
+     */
+    private boolean isShutdownCancellation(Throwable e) {
+      return e instanceof CancellationException
+          && storageCancellation.token().isCancellationRequested();
+    }
+
     private NexusTask retrieveInboundPayloads(NexusTask task) {
       ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
       PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
@@ -598,7 +619,11 @@ final class NexusWorker implements SuspendableWorker {
       }
       try {
         externalStorageRunner.store(builder, null, null, storageCancellation.token());
-      } catch (Throwable e) {
+      } catch (CancellationException e) {
+        // A shutdown cancellation is not a task failure. Let it reach handle(), which abandons the
+        // task rather than telling the server the handler failed.
+        throw e;
+      } catch (Exception e) {
         throw new ExternalStorageTaskFailure("External storage store failed", e);
       }
     }
