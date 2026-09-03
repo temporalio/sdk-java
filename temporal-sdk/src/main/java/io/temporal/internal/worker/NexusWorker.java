@@ -19,6 +19,7 @@ import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
@@ -320,29 +321,29 @@ final class NexusWorker implements SuspendableWorker {
 
     @Override
     public void handle(NexusTask task) {
+      PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
+      // Extract service and operation from the request and set them as MDC and metrics
+      // scope tags. If the request does not have a service or operation, do not set the tags.
+      // If we don't know how to handle the task, we will fail the task further down the line.
+      Scope metricsScope = workerMetricsScope;
+      String service = getNexusTaskService(pollResponse);
+      if (!service.isEmpty()) {
+        MDC.put(LoggerTag.NEXUS_SERVICE, service);
+        metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
+      }
+      String operation = getNexusTaskOperation(pollResponse);
+      if (!operation.isEmpty()) {
+        MDC.put(LoggerTag.NEXUS_OPERATION, operation);
+        metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
+      }
+      // Must happen before payload retrieval so the slot is accounted for while storage runs.
+      slotSupplier.markSlotUsed(
+          new NexusSlotInfo(
+              service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
+          task.getPermit());
+
       boolean taskFailed = false;
       try {
-        PollNexusTaskQueueResponseOrBuilder pollResponse = task.getResponse();
-        // Extract service and operation from the request and set them as MDC and metrics
-        // scope tags. If the request does not have a service or operation, do not set the tags.
-        // If we don't know how to handle the task, we will fail the task further down the line.
-        Scope metricsScope = workerMetricsScope;
-        String service = getNexusTaskService(pollResponse);
-        if (!service.isEmpty()) {
-          MDC.put(LoggerTag.NEXUS_SERVICE, service);
-          metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
-        }
-        String operation = getNexusTaskOperation(pollResponse);
-        if (!operation.isEmpty()) {
-          MDC.put(LoggerTag.NEXUS_OPERATION, operation);
-          metricsScope =
-              metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
-        }
-        slotSupplier.markSlotUsed(
-            new NexusSlotInfo(
-                service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
-            task.getPermit());
-
         try {
           task = retrieveInboundPayloads(task);
         } catch (Throwable e) {
@@ -569,20 +570,37 @@ final class NexusWorker implements SuspendableWorker {
 
     private void sendStorageFailure(
         ByteString taskToken, boolean supportTemporalFailure, Scope metricsScope, Throwable e) {
-      log.warn("External storage failed for a nexus task", e);
+      String message =
+          e instanceof ExternalStorageNotConfiguredException
+              ? "Nexus task has externally stored payloads but this worker has no external storage"
+                  + " configured"
+              : "External storage failed for a nexus task";
+      log.warn(message, e);
       metricsScope
           .tagged(
               Collections.singletonMap(
                   TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL))
           .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
           .inc(1);
-      HandlerException handlerException =
-          new HandlerException(HandlerException.ErrorType.INTERNAL, "External storage failed", e);
-      sendReply(
-          taskToken,
-          supportTemporalFailure,
-          new NexusTaskHandler.Result(handlerException),
-          metricsScope);
+      try {
+        sendReply(
+            taskToken,
+            supportTemporalFailure,
+            new NexusTaskHandler.Result(
+                new HandlerException(HandlerException.ErrorType.INTERNAL, message, e)),
+            metricsScope);
+      } catch (ExternalStorageTaskFailure reportFailed) {
+        // report failure without extstore (since it was unavailable)
+        sendReply(
+            taskToken,
+            supportTemporalFailure,
+            new NexusTaskHandler.Result(
+                new HandlerException(
+                    HandlerException.ErrorType.INTERNAL,
+                    message,
+                    new IllegalStateException("external storage unavailable"))),
+            metricsScope);
+      }
     }
 
     /**

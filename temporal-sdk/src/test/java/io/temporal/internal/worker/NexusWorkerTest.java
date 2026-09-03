@@ -17,6 +17,7 @@ import io.temporal.api.nexus.v1.Request;
 import io.temporal.api.nexus.v1.Response;
 import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.nexus.v1.StartOperationResponse;
+import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
@@ -131,6 +132,10 @@ public class NexusWorkerTest {
     final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
 
     Fixture(StorageDriver driver) throws Exception {
+      this(driver, null);
+    }
+
+    Fixture(StorageDriver driver, Payload inboundPayload) throws Exception {
       WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
       when(service.getServerCapabilities())
           .thenReturn(() -> GetSystemInfoResponse.Capabilities.getDefaultInstance());
@@ -147,12 +152,7 @@ public class NexusWorkerTest {
       PollNexusTaskQueueResponse pollResponse =
           PollNexusTaskQueueResponse.newBuilder()
               .setTaskToken(ByteString.copyFrom("token", UTF_8))
-              .setRequest(
-                  Request.newBuilder()
-                      .setStartOperation(
-                          StartOperationRequest.newBuilder()
-                              .setService("service")
-                              .setOperation("operation")))
+              .setRequest(Request.newBuilder().setStartOperation(startOperation(inboundPayload)))
               .build();
       CountDownLatch blockPolls = new CountDownLatch(1);
       when(blockingStub.pollNexusTaskQueue(any(PollNexusTaskQueueRequest.class)))
@@ -192,17 +192,41 @@ public class NexusWorkerTest {
                           .build())
                   .setMetricsScope(new NoopScope())
                   .setExternalStorageRunner(
-                      ExternalStorageRunner.create(
-                          ExternalStorage.newBuilder()
-                              .setDriver(driver)
-                              .setPayloadSizeThreshold(0)
-                              .build()))
+                      driver == null
+                          ? null
+                          : ExternalStorageRunner.create(
+                              ExternalStorage.newBuilder()
+                                  .setDriver(driver)
+                                  .setPayloadSizeThreshold(0)
+                                  .build()))
                   .build(),
               handler,
               DefaultDataConverter.newDefaultInstance(),
               new FixedSizeSlotSupplier<>(10),
               new NamespaceCapabilities());
     }
+  }
+
+  private static StartOperationRequest.Builder startOperation(Payload inboundPayload) {
+    StartOperationRequest.Builder request =
+        StartOperationRequest.newBuilder().setService("service").setOperation("operation");
+    if (inboundPayload != null) {
+      request.setPayload(inboundPayload);
+    }
+    return request;
+  }
+
+  /**
+   * A payload that looks like an external storage reference to {@code throwIfContainsReference}.
+   */
+  private static Payload storageReference() {
+    return Payload.newBuilder()
+        .putMetadata("encoding", ByteString.copyFrom("json/protobuf", UTF_8))
+        .putMetadata(
+            "messageType",
+            ByteString.copyFrom(ExternalStorageReference.getDescriptor().getFullName(), UTF_8))
+        .setData(ByteString.copyFrom("{}", UTF_8))
+        .build();
   }
 
   /** Signals when a store is reached and answers every store with {@code answer}. */
