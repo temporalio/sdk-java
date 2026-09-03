@@ -4,6 +4,9 @@ import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.NexusClientInterceptor;
+import io.temporal.internal.client.NexusClientResolvedOptions;
+import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
@@ -83,6 +86,22 @@ public class NexusClientOptions {
    */
   public String getIdentity() {
     return identity;
+  }
+
+  /**
+   * Converts this {@link NexusClientOptions} instance into a {@link NexusClientResolvedOptions}
+   * instance, which contains the fully resolved runtime settings used by the internal Nexus client.
+   *
+   * @return a {@link NexusClientResolvedOptions} instance with the resolved options
+   */
+  NexusClientResolvedOptions toResolvedOptions() {
+    DataConverter resolvedDataConverter = dataConverter;
+    if (externalStorage != null) {
+      resolvedDataConverter =
+          new ExternalStorageDataConverter(
+              resolvedDataConverter, ExternalStorageRunner.create(externalStorage));
+    }
+    return new NexusClientResolvedOptions(namespace, interceptors, resolvedDataConverter, identity);
   }
 
   /** Returns a fresh builder. */
