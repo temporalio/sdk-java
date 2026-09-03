@@ -150,6 +150,30 @@ task registerNamespace(type: JavaExec) {
 
 test.dependsOn 'registerNamespace'
 
+tasks.register('createCloudTestNamespace', JavaExec) {
+    group = 'verification'
+    description = 'Creates an isolated Temporal Cloud namespace for SDK tests.'
+    dependsOn testClasses
+    getMainClass().set('io.temporal.client.CloudTestNamespaceManager')
+    classpath = sourceSets.test.runtimeClasspath
+    args 'create'
+}
+
+tasks.register('deleteCloudTestNamespace', JavaExec) {
+    group = 'verification'
+    description = 'Deletes the isolated Temporal Cloud namespace used by SDK tests.'
+    dependsOn testClasses
+    getMainClass().set('io.temporal.client.CloudTestNamespaceManager')
+    classpath = sourceSets.test.runtimeClasspath
+    doFirst {
+        String namespace = System.getenv('TEMPORAL_CLOUD_TEST_NAMESPACE')
+        if (namespace == null || namespace.isEmpty()) {
+            throw new GradleException('TEMPORAL_CLOUD_TEST_NAMESPACE must be set.')
+        }
+        setArgs(['delete', namespace])
+    }
+}
+
 test {
     useJUnit {
         excludeCategories 'io.temporal.worker.IndependentResourceBasedTests'
