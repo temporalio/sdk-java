@@ -9,6 +9,7 @@ import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Contains support for asynchronous invocations. The basic idea is that any code is invoked in a
@@ -247,6 +248,10 @@ public final class AsyncInternal {
       A5 arg5,
       A6 arg6) {
     return procedure(isAsync(procedure), () -> procedure.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
+  public static Promise<Boolean> await(Duration timeout, Supplier<Boolean> unblockCondition) {
+    return execute(false, () -> Workflow.await(timeout, unblockCondition));
   }
 
   public static <R> Promise<R> retry(
