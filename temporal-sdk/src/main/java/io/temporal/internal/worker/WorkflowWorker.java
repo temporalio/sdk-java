@@ -597,11 +597,8 @@ final class WorkflowWorker implements SuspendableWorker {
                           .setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
                           .setErrorMessage(failure.getMessage())
                           .setFailure(failure);
-                  sendDirectQueryCompletedResponse(
-                      currentTask.getTaskToken(),
-                      queryFailedBuilder,
-                      workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                  sendDirectQueryCompletedResponseWithoutExternalStorage(
+                      currentTask.getTaskToken(), queryFailedBuilder, workflowTypeScope);
                 } catch (StatusRuntimeException e) {
                   GrpcMessageTooLargeException tooLargeException =
                       GrpcMessageTooLargeException.tryWrap(e);
@@ -742,12 +739,11 @@ final class WorkflowWorker implements SuspendableWorker {
                           .setCause(
                               WorkflowTaskFailedCause
                                   .WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE);
-                  sendTaskFailed(
+                  sendTaskFailedWithoutExternalStorage(
                       currentTask.getTaskToken(),
                       storageFailedBuilder,
                       result.getRequestRetryOptions(),
-                      workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                      workflowTypeScope);
                 }
               }
             } catch (CancellationException e) {
@@ -969,13 +965,23 @@ final class WorkflowWorker implements SuspendableWorker {
           .respondWorkflowTaskCompleted(request);
     }
 
-    @SuppressWarnings("deprecation")
     private void sendTaskFailed(
         ByteString taskToken,
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
         RpcRetryOptions retryOptions,
         Scope workflowTypeMetricsScope,
-        @Nullable StorageDriverTargetInfo storageTarget) {
+        StorageDriverTargetInfo storageTarget) {
+      storeOutboundPayloads(taskFailed, storageTarget);
+      sendTaskFailedWithoutExternalStorage(
+          taskToken, taskFailed, retryOptions, workflowTypeMetricsScope);
+    }
+
+    @SuppressWarnings("deprecation")
+    private void sendTaskFailedWithoutExternalStorage(
+        ByteString taskToken,
+        RespondWorkflowTaskFailedRequest.Builder taskFailed,
+        RpcRetryOptions retryOptions,
+        Scope workflowTypeMetricsScope) {
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
           new GrpcRetryer.GrpcRetryerOptions(
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
@@ -989,7 +995,6 @@ final class WorkflowWorker implements SuspendableWorker {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 
-      storeOutboundPayloads(taskFailed, storageTarget);
       RespondWorkflowTaskFailedRequest request = taskFailed.build();
       grpcRetryer.retry(
           () ->
@@ -1004,9 +1009,17 @@ final class WorkflowWorker implements SuspendableWorker {
         ByteString taskToken,
         RespondQueryTaskCompletedRequest.Builder queryCompleted,
         Scope workflowTypeMetricsScope,
-        @Nullable StorageDriverTargetInfo storageTarget) {
-      queryCompleted.setTaskToken(taskToken).setNamespace(namespace);
+        StorageDriverTargetInfo storageTarget) {
       storeOutboundPayloads(queryCompleted, storageTarget);
+      sendDirectQueryCompletedResponseWithoutExternalStorage(
+          taskToken, queryCompleted, workflowTypeMetricsScope);
+    }
+
+    private void sendDirectQueryCompletedResponseWithoutExternalStorage(
+        ByteString taskToken,
+        RespondQueryTaskCompletedRequest.Builder queryCompleted,
+        Scope workflowTypeMetricsScope) {
+      queryCompleted.setTaskToken(taskToken).setNamespace(namespace);
       RespondQueryTaskCompletedRequest request = queryCompleted.build();
       // Do not retry query response
       service

@@ -31,12 +31,16 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.enums.v1.QueryResultType;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.common.CancellationToken;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.FailureConverter;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
@@ -62,6 +66,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
@@ -669,6 +674,96 @@ public class WorkflowWorkerTest {
         sent.getValue().getQueryResult().getPayloads(0));
   }
 
+  @Test
+  public void theWorkflowTaskFailureReportingAStorageFailureIsNotOffloaded() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.create().failStores(10);
+    Payload result = Payload.newBuilder().setData(ByteString.copyFrom("result", UTF_8)).build();
+    RespondWorkflowTaskCompletedRequest taskCompleted =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setCompleteWorkflowExecutionCommandAttributes(
+                        CompleteWorkflowExecutionCommandAttributes.newBuilder()
+                            .setResult(Payloads.newBuilder().addPayloads(result))))
+            .build();
+
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+    runOneTask(
+        driver,
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null),
+        CancellationToken.none(),
+        converterAttachingDetailsToFailures(),
+        blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
+
+    assertEquals(
+        "only the original completion may reach storage", 1, driver.injectedFailures.get());
+    assertEquals(
+        "the failure details must reach the server untouched",
+        FAILURE_DETAIL,
+        sent.getValue().getFailure().getApplicationFailureInfo().getDetails().getPayloads(0));
+  }
+
+  @Test
+  public void theQueryResponseReportingAStorageFailureIsNotOffloaded() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.create().failStores(10);
+    Payload answer = Payload.newBuilder().setData(ByteString.copyFrom("answer", UTF_8)).build();
+    RespondQueryTaskCompletedRequest queryCompleted =
+        RespondQueryTaskCompletedRequest.newBuilder()
+            .setQueryResult(Payloads.newBuilder().addPayloads(answer))
+            .build();
+
+    ArgumentCaptor<RespondQueryTaskCompletedRequest> sent =
+        ArgumentCaptor.forClass(RespondQueryTaskCompletedRequest.class);
+    runOneTask(
+        driver,
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, null, null, queryCompleted, null, false, null, null),
+        CancellationToken.none(),
+        converterAttachingDetailsToFailures(),
+        blockingStub -> verify(blockingStub).respondQueryTaskCompleted(sent.capture()));
+
+    assertEquals("only the original answer may reach storage", 1, driver.injectedFailures.get());
+    assertEquals(QueryResultType.QUERY_RESULT_TYPE_FAILED, sent.getValue().getCompletedType());
+    assertEquals(
+        "the failure details must reach the server untouched",
+        FAILURE_DETAIL,
+        sent.getValue().getFailure().getApplicationFailureInfo().getDetails().getPayloads(0));
+  }
+
+  private static final Payload FAILURE_DETAIL =
+      Payload.newBuilder().setData(ByteString.copyFrom("failure-detail", UTF_8)).build();
+
+  /**
+   * The default failure converter produces failures with no payloads, so a response reporting a
+   * storage failure would have nothing to offload. This one gives it something.
+   */
+  private static DataConverter converterAttachingDetailsToFailures() {
+    return DefaultDataConverter.newDefaultInstance()
+        .withFailureConverter(
+            new FailureConverter() {
+              @Nonnull
+              @Override
+              public RuntimeException failureToException(
+                  @Nonnull Failure failure, @Nonnull DataConverter dataConverter) {
+                throw new UnsupportedOperationException();
+              }
+
+              @Nonnull
+              @Override
+              public Failure exceptionToFailure(
+                  @Nonnull Throwable throwable, @Nonnull DataConverter dataConverter) {
+                return Failure.newBuilder()
+                    .setMessage(throwable.getMessage())
+                    .setApplicationFailureInfo(
+                        ApplicationFailureInfo.newBuilder()
+                            .setDetails(Payloads.newBuilder().addPayloads(FAILURE_DETAIL)))
+                    .build();
+              }
+            });
+  }
+
   /** Runs a single workflow task through a worker wired to {@code driver}, then verifies. */
   private void runOneTask(
       TestStorageDriver driver,
@@ -682,6 +777,21 @@ public class WorkflowWorkerTest {
       TestStorageDriver driver,
       WorkflowTaskHandler.Result handlerResult,
       CancellationToken<CancellationException> storageCancellation,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
+    runOneTask(
+        driver,
+        handlerResult,
+        storageCancellation,
+        DefaultDataConverter.newDefaultInstance(),
+        verification);
+  }
+
+  private void runOneTask(
+      TestStorageDriver driver,
+      WorkflowTaskHandler.Result handlerResult,
+      CancellationToken<CancellationException> storageCancellation,
+      DataConverter dataConverter,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
       throws Exception {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
@@ -718,6 +828,7 @@ public class WorkflowWorkerTest {
                             .setPayloadSizeThreshold(0)
                             .build()))
                 .setStorageCancellation(storageCancellation)
+                .setDataConverter(dataConverter)
                 .build(),
             runLockManager,
             cache,
