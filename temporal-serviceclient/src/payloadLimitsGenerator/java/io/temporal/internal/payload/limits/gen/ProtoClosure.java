@@ -1,9 +1,8 @@
-package io.temporal.internal.payload.visitor.gen;
+package io.temporal.internal.payload.limits.gen;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
-import io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator.FieldPlan;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -15,24 +14,26 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Proto-descriptor model for {@link PayloadVisitorGenerator}: the message closure reachable from a
- * set of seed services, and which of those messages can transitively contain a {@code Payload}.
+ * The message closure reachable from a set of seed services, and which of those messages can
+ * transitively contain a {@code Payload}.
  *
- * <p><b>A near-copy of this class exists in {@code temporal-serviceclient}</b>, as {@code
- * io.temporal.internal.payload.limits.gen.ProtoClosure}, serving the payload-limits generator. The
- * duplication is deliberate: the two generators live in different modules (the limits validator has
- * to sit next to the gRPC interceptor in {@code temporal-serviceclient}, whose protos its own build
- * generates), and sharing one copy would need cross-project build wiring this repo has no other
- * instance of. The copies differ only in how each obtains its {@code Descriptor}s — compiled proto
- * classes here, a descriptor set file there.
+ * <p>Reachability is deliberately the same notion the payload visitor uses: a {@code
+ * google.protobuf.Any} counts as payload-bearing, because its contents are opaque here and may hold
+ * payloads.
  *
- * <p><b>Payload reachability must stay identical in both.</b> A change here that narrows
- * reachability would silently make the visitor traverse fewer messages, which is how payloads
- * quietly stop being offloaded; the same change there surfaces loudly as an unclassified-field
- * build failure. Keep the two in sync, and prefer verifying a change by confirming both generators'
- * output is byte-identical before and after it.
+ * <p><b>A near-copy of this class exists in {@code temporal-sdk}</b>, as {@code
+ * io.temporal.internal.payload.visitor.gen.ProtoClosure}, serving the payload visitor. See that
+ * class for why the duplication is deliberate. The copies differ only in how each obtains its
+ * {@code Descriptor}s (a descriptor set file here, compiled proto classes there) and in that this
+ * one computes reachability without the visitor generator's {@code FieldPlan}/{@code classify}
+ * model. <b>Payload reachability must stay identical in both</b>; verify any change by confirming
+ * both generators' output is byte-identical before and after it.
  */
 final class ProtoClosure {
+
+  private static final String PAYLOAD = "temporal.api.common.v1.Payload";
+  private static final String PAYLOADS = "temporal.api.common.v1.Payloads";
+  private static final String ANY = "google.protobuf.Any";
 
   /** All non-map-entry messages in the closure, in discovery order. */
   final List<Descriptor> allMessages;
@@ -105,26 +106,13 @@ final class ProtoClosure {
       boolean direct = false;
       List<Descriptor> refs = new ArrayList<>();
       for (FieldDescriptor f : d.getFields()) {
-        FieldPlan plan = PayloadVisitorGenerator.classify(f);
-        switch (plan.kind) {
-          case SINGLE_PAYLOAD:
-          case REPEATED_PAYLOAD:
-          case PAYLOADS_SINGLE:
-          case PAYLOADS_REPEATED:
-          case MAP_PAYLOAD:
-          case MAP_PAYLOADS:
-          case ANY_SINGLE:
-          case ANY_REPEATED:
-          case MAP_ANY:
+        Descriptor referenced = referencedMessage(f);
+        if (referenced == null) {
+          if (carriesPayloadDirectly(f)) {
             direct = true;
-            break;
-          case MESSAGE_SINGLE:
-          case MESSAGE_REPEATED:
-          case MAP_MESSAGE:
-            refs.add(plan.child);
-            break;
-          case IGNORE:
-            break;
+          }
+        } else {
+          refs.add(referenced);
         }
       }
       if (direct) {
@@ -149,5 +137,42 @@ final class ProtoClosure {
       }
     }
     return reaches;
+  }
+
+  /** Whether {@code f} holds payload data itself, in singular, repeated or map-valued form. */
+  private static boolean carriesPayloadDirectly(FieldDescriptor f) {
+    String name = valueMessageName(f);
+    return PAYLOAD.equals(name) || PAYLOADS.equals(name) || ANY.equals(name);
+  }
+
+  /**
+   * The Temporal message {@code f} refers to and should be recursed into, or {@code null} if it
+   * carries payload data directly or leads nowhere interesting.
+   */
+  private static Descriptor referencedMessage(FieldDescriptor f) {
+    if (carriesPayloadDirectly(f)) {
+      return null;
+    }
+    Descriptor value = valueMessage(f);
+    if (value == null || !ProtoNames.isTemporal(value)) {
+      return null;
+    }
+    return value;
+  }
+
+  /** The message type a field holds, unwrapping map values; {@code null} for non-message fields. */
+  private static Descriptor valueMessage(FieldDescriptor f) {
+    if (f.isMapField()) {
+      FieldDescriptor value = f.getMessageType().findFieldByNumber(2);
+      return value.getJavaType() == FieldDescriptor.JavaType.MESSAGE
+          ? value.getMessageType()
+          : null;
+    }
+    return f.getJavaType() == FieldDescriptor.JavaType.MESSAGE ? f.getMessageType() : null;
+  }
+
+  private static String valueMessageName(FieldDescriptor f) {
+    Descriptor value = valueMessage(f);
+    return value == null ? null : value.getFullName();
   }
 }
