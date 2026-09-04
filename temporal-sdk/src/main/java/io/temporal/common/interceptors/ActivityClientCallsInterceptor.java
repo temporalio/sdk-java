@@ -1,11 +1,18 @@
 package io.temporal.common.interceptors;
 
+import com.google.protobuf.FieldMask;
+import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
+import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityFailedException;
+import io.temporal.client.DescribeActivityOptions;
+import io.temporal.client.PauseActivityOptions;
+import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -79,6 +86,42 @@ public interface ActivityClientCallsInterceptor {
    * @return an empty output object (reserved for future use)
    */
   TerminateActivityOutput terminateActivity(TerminateActivityInput input);
+
+  /**
+   * Pauses a running standalone activity. A paused activity stops being dispatched to workers until
+   * it is unpaused.
+   *
+   * @param input activity ID, optional run ID, and optional human-readable reason
+   * @return an empty output object (reserved for future use)
+   */
+  PauseActivityOutput pauseActivity(PauseActivityInput input);
+
+  /**
+   * Unpauses a previously paused standalone activity, optionally resetting its attempt counter and
+   * heartbeat details.
+   *
+   * @param input activity ID, optional run ID, and unpause options
+   * @return an empty output object (reserved for future use)
+   */
+  UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input);
+
+  /**
+   * Resets a standalone activity, scheduling a fresh attempt.
+   *
+   * @param input activity ID, optional run ID, and reset options
+   * @return an empty output object (reserved for future use)
+   */
+  ResetActivityOutput resetActivity(ResetActivityInput input);
+
+  /**
+   * Updates the options of a standalone activity. The {@code updateMask} controls which fields of
+   * {@code activityOptions} are applied; alternatively {@code restoreOriginal} reverts the options
+   * to the values the activity was created with.
+   *
+   * @param input activity ID, optional run ID, options, update mask, and restore flag
+   * @return output carrying the activity options as resolved by the server after the update
+   */
+  UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);
 
   /**
    * Returns a lazy {@link java.util.stream.Stream} of activity execution metadata matching the
@@ -250,10 +293,13 @@ public interface ActivityClientCallsInterceptor {
   final class DescribeActivityInput {
     private final String id;
     private final @Nullable String runId;
+    private final DescribeActivityOptions options;
 
-    public DescribeActivityInput(String id, @Nullable String runId) {
+    public DescribeActivityInput(
+        String id, @Nullable String runId, DescribeActivityOptions options) {
       this.id = id;
       this.runId = runId;
+      this.options = options;
     }
 
     public String getId() {
@@ -263,6 +309,10 @@ public interface ActivityClientCallsInterceptor {
     @Nullable
     public String getRunId() {
       return runId;
+    }
+
+    public DescribeActivityOptions getOptions() {
+      return options;
     }
   }
 
@@ -338,6 +388,150 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class TerminateActivityOutput {}
+
+  @Experimental
+  final class PauseActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final PauseActivityOptions options;
+
+    public PauseActivityInput(String id, @Nullable String runId, PauseActivityOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public PauseActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class PauseActivityOutput {}
+
+  @Experimental
+  final class UnpauseActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final UnpauseActivityOptions options;
+
+    public UnpauseActivityInput(String id, @Nullable String runId, UnpauseActivityOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public UnpauseActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class UnpauseActivityOutput {}
+
+  @Experimental
+  final class ResetActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final ResetActivityOptions options;
+
+    public ResetActivityInput(String id, @Nullable String runId, ResetActivityOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public ResetActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class ResetActivityOutput {}
+
+  @Experimental
+  final class UpdateActivityOptionsInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final ActivityOptions activityOptions;
+    private final FieldMask updateMask;
+    private final boolean restoreOriginal;
+
+    public UpdateActivityOptionsInput(
+        String id,
+        @Nullable String runId,
+        ActivityOptions activityOptions,
+        FieldMask updateMask,
+        boolean restoreOriginal) {
+      this.id = id;
+      this.runId = runId;
+      this.activityOptions = activityOptions;
+      this.updateMask = updateMask;
+      this.restoreOriginal = restoreOriginal;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public ActivityOptions getActivityOptions() {
+      return activityOptions;
+    }
+
+    public FieldMask getUpdateMask() {
+      return updateMask;
+    }
+
+    public boolean isRestoreOriginal() {
+      return restoreOriginal;
+    }
+  }
+
+  @Experimental
+  final class UpdateActivityOptionsOutput {
+    private final ActivityExecutionOptions options;
+
+    public UpdateActivityOptionsOutput(ActivityExecutionOptions options) {
+      this.options = options;
+    }
+
+    /** The activity options as resolved by the server after the update. */
+    public ActivityExecutionOptions getOptions() {
+      return options;
+    }
+  }
 
   @Experimental
   final class ListActivitiesInput {

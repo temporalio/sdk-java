@@ -123,6 +123,19 @@ public interface GenericWorkflowClient {
   void terminateActivity(TerminateActivityExecutionRequest request);
 
   @Experimental
+  void pauseActivity(PauseActivityExecutionRequest request);
+
+  @Experimental
+  void unpauseActivity(UnpauseActivityExecutionRequest request);
+
+  @Experimental
+  void resetActivity(ResetActivityExecutionRequest request);
+
+  @Experimental
+  UpdateActivityExecutionOptionsResponse updateActivityOptions(
+      UpdateActivityExecutionOptionsRequest request);
+
+  @Experimental
   ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request);
 
   @Experimental

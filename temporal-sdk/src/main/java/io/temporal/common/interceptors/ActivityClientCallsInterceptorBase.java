@@ -1,9 +1,11 @@
 package io.temporal.common.interceptors;
 
+import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 /** Convenience base class for {@link ActivityClientCallsInterceptor} implementations. */
+@Experimental
 public class ActivityClientCallsInterceptorBase implements ActivityClientCallsInterceptor {
 
   private final ActivityClientCallsInterceptor next;
@@ -42,6 +44,26 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   @Override
   public TerminateActivityOutput terminateActivity(TerminateActivityInput input) {
     return next.terminateActivity(input);
+  }
+
+  @Override
+  public PauseActivityOutput pauseActivity(PauseActivityInput input) {
+    return next.pauseActivity(input);
+  }
+
+  @Override
+  public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
+    return next.unpauseActivity(input);
+  }
+
+  @Override
+  public ResetActivityOutput resetActivity(ResetActivityInput input) {
+    return next.resetActivity(input);
+  }
+
+  @Override
+  public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
+    return next.updateActivityOptions(input);
   }
 
   @Override
