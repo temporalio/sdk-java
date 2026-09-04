@@ -96,18 +96,18 @@ public interface ActivityClientCallsInterceptor {
   PauseActivityOutput pauseActivity(PauseActivityInput input);
 
   /**
-   * Unpauses a previously paused standalone activity, optionally resetting its attempt counter and
-   * heartbeat details.
+   * Unpauses a previously paused standalone activity, allowing it to be dispatched again.
    *
-   * @param input activity ID, optional run ID, and unpause options
+   * @param input activity ID, optional run ID, and unpause options (reason, jitter)
    * @return an empty output object (reserved for future use)
    */
   UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input);
 
   /**
-   * Resets a standalone activity, scheduling a fresh attempt.
+   * Updates the options of a standalone activity, or restores its original options.
    *
-   * @param input activity ID, optional run ID, and reset options
+   * @param input activity ID, optional run ID, the new options with the field mask naming which of
+   *     them to apply, and whether to restore the original options instead
    * @return an empty output object (reserved for future use)
    */
   UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);

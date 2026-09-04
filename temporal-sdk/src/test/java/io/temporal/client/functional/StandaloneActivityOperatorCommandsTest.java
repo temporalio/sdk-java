@@ -41,7 +41,7 @@ import org.junit.Test;
 
 /**
  * Integration tests for the standalone-activity operator commands on {@link ActivityHandle}: pause,
- * unpause, reset and updateOptions. Each asserts an observable server state change.
+ * unpause and updateOptions. Each asserts an observable server state change.
  *
  * <p>Gated behind {@link SDKTestWorkflowRule#useExternalService} because the embedded test server
  * does not support the standalone activity APIs.
@@ -145,8 +145,8 @@ public class StandaloneActivityOperatorCommandsTest {
   /**
    * Records heartbeat details on attempt 1, then blocks waiting for cancellation. The heartbeat
    * runs on its own — not adjacent to any completion RPC — so the details reliably persist and are
-   * observable via describe. Later attempts (after a reset or an unpause that spawns a new attempt)
-   * do not heartbeat, so any operator-driven clearing of the details stays observable.
+   * observable via describe. Later attempts (after an unpause that spawns a new attempt) do not
+   * heartbeat, so any operator-driven clearing of the details stays observable.
    */
   @ActivityInterface
   public interface HeartbeatOnceActivity {
