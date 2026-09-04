@@ -110,8 +110,9 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .getMetricsScope()
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     ExternalStorage externalStorage = options.getExternalStorage();
-    this.externalStorageRunner =
+    ExternalStorageRunner externalStorageRunner =
         externalStorage == null ? null : ExternalStorageRunner.create(externalStorage);
+    this.externalStorageRunner = externalStorageRunner;
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
     this.workflowClientCallsInvoker = initializeClientInvoker();
@@ -120,7 +121,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             workflowServiceStubs,
             options.getNamespace(),
             options.getIdentity(),
-            options.getDataConverter());
+            options.getDataConverter(),
+            externalStorageRunner);
 
     java.time.Duration heartbeatInterval = options.getWorkerHeartbeatInterval();
     if (!heartbeatInterval.isNegative()) {
@@ -133,7 +135,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
     WorkflowClientCallsInterceptor workflowClientInvoker =
-        new RootWorkflowClientInvoker(genericClient, options, workerFactoryRegistry);
+        new RootWorkflowClientInvoker(
+            genericClient, options, workerFactoryRegistry, externalStorageRunner);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
           clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);

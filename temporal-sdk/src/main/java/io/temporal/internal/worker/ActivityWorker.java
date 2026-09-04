@@ -2,7 +2,9 @@ package io.temporal.internal.worker;
 
 import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
 
+import com.google.common.base.Strings;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -10,11 +12,16 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ActivityStorageTargets;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
@@ -24,9 +31,11 @@ import io.temporal.worker.tuning.*;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -51,6 +60,9 @@ final class ActivityWorker implements SuspendableWorker {
   private final TaskCounter taskCounter = new TaskCounter();
   private final PollerTracker pollerTracker;
   private final NamespaceCapabilities namespaceCapabilities;
+
+  final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
 
   public ActivityWorker(
       @Nonnull WorkflowServiceStubs service,
@@ -159,6 +171,9 @@ final class ActivityWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
     String supplierName = this + "#executorSlots";
     return poller
         .shutdown(shutdownManager, interruptTasks)
@@ -257,6 +272,27 @@ final class ActivityWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  static StorageDriverTargetInfo storageTargetForActivityTask(
+      String namespace, PollActivityTaskQueueResponseOrBuilder pollResponse) {
+    WorkflowExecution execution = pollResponse.getWorkflowExecution();
+    return ActivityStorageTargets.newBuilder(namespace)
+        .setActivity(
+            pollResponse.getActivityId(),
+            Strings.emptyToNull(pollResponse.getActivityRunId()),
+            pollResponse.getActivityType().getName())
+        .setWorkflow(
+            Strings.emptyToNull(execution.getWorkflowId()),
+            Strings.emptyToNull(execution.getRunId()),
+            pollResponse.getWorkflowType().getName())
+        .build();
+  }
+
+  private static final class ExternalStorageTaskFailure extends RuntimeException {
+    ExternalStorageTaskFailure(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<ActivityTask> {
 
     final ActivityTaskHandler handler;
@@ -331,6 +367,7 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleActivity(ActivityTask task, Scope metricsScope) {
+      task = retrieveInboundPayloads(task);
       PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
       ByteString taskToken = pollResponse.getTaskToken();
       metricsScope
@@ -354,7 +391,10 @@ final class ActivityWorker implements SuspendableWorker {
       }
 
       try {
-        sendReply(taskToken, result, metricsScope);
+        sendReply(taskToken, result, metricsScope, activityStorageTarget(pollResponse));
+      } catch (ExternalStorageTaskFailure e) {
+        sendStorageFailure(taskToken, pollResponse, metricsScope, e.getCause());
+        return result;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         // TODO this class doesn't report activity success and failure metrics now, instead it's
@@ -392,16 +432,20 @@ final class ActivityWorker implements SuspendableWorker {
     // TODO: Suppress warning until the SDK supports deployment
     @SuppressWarnings("deprecation")
     private void sendReply(
-        ByteString taskToken, ActivityTaskHandler.Result response, Scope metricsScope) {
+        ByteString taskToken,
+        ActivityTaskHandler.Result response,
+        Scope metricsScope,
+        @Nullable StorageDriverTargetInfo storageTarget) {
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
-        RespondActivityTaskCompletedRequest request =
+        RespondActivityTaskCompletedRequest.Builder completedBuilder =
             taskCompleted.toBuilder()
                 .setTaskToken(taskToken)
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
-                .setWorkerVersion(options.workerVersionStamp())
-                .build();
+                .setWorkerVersion(options.workerVersionStamp());
+        storeOutboundPayloads(completedBuilder, storageTarget);
+        RespondActivityTaskCompletedRequest request = completedBuilder.build();
 
         grpcRetryer.retry(
             () ->
@@ -413,13 +457,14 @@ final class ActivityWorker implements SuspendableWorker {
       } else {
         Result.TaskFailedResult taskFailed = response.getTaskFailed();
         if (taskFailed != null) {
-          RespondActivityTaskFailedRequest request =
+          RespondActivityTaskFailedRequest.Builder failedBuilder =
               taskFailed.getTaskFailedRequest().toBuilder()
                   .setTaskToken(taskToken)
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
-                  .setWorkerVersion(options.workerVersionStamp())
-                  .build();
+                  .setWorkerVersion(options.workerVersionStamp());
+          storeOutboundPayloads(failedBuilder, storageTarget);
+          RespondActivityTaskFailedRequest request = failedBuilder.build();
 
           grpcRetryer.retry(
               () ->
@@ -431,13 +476,14 @@ final class ActivityWorker implements SuspendableWorker {
         } else {
           RespondActivityTaskCanceledRequest taskCanceled = response.getTaskCanceled();
           if (taskCanceled != null) {
-            RespondActivityTaskCanceledRequest request =
+            RespondActivityTaskCanceledRequest.Builder canceledBuilder =
                 taskCanceled.toBuilder()
                     .setTaskToken(taskToken)
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
-                    .setWorkerVersion(options.workerVersionStamp())
-                    .build();
+                    .setWorkerVersion(options.workerVersionStamp());
+            storeOutboundPayloads(canceledBuilder, storageTarget);
+            RespondActivityTaskCanceledRequest request = canceledBuilder.build();
 
             grpcRetryer.retry(
                 () ->
@@ -450,6 +496,76 @@ final class ActivityWorker implements SuspendableWorker {
         }
       }
       // Manual activity completion
+    }
+
+    private ActivityTask retrieveInboundPayloads(ActivityTask task) {
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      PollActivityTaskQueueResponseOrBuilder response = task.getResponse();
+      PollActivityTaskQueueResponse built =
+          response instanceof PollActivityTaskQueueResponse
+              ? (PollActivityTaskQueueResponse) response
+              : ((PollActivityTaskQueueResponse.Builder) response).build();
+      if (externalStorageRunner == null) {
+        ExternalStorageRunner.throwIfContainsReference(built);
+        return task;
+      }
+      return new ActivityTask(
+          externalStorageRunner.retrieve(built, storageCancellation.token()),
+          task.getPermit(),
+          task.getCompletionCallback());
+    }
+
+    private void storeOutboundPayloads(
+        Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner == null) {
+        return;
+      }
+      try {
+        externalStorageRunner.store(builder, target, null, storageCancellation.token());
+      } catch (Throwable e) {
+        throw new ExternalStorageTaskFailure("External storage store failed", e);
+      }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void sendStorageFailure(
+        ByteString taskToken,
+        PollActivityTaskQueueResponseOrBuilder pollResponse,
+        Scope metricsScope,
+        Throwable e) {
+      log.warn("External storage failed for an activity task", e);
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage("External storage failed: " + e.getMessage())
+              .setType(ExternalStorageTaskFailure.class.getSimpleName())
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]);
+      RespondActivityTaskFailedRequest.Builder failedBuilder =
+          RespondActivityTaskFailedRequest.newBuilder()
+              .setTaskToken(taskToken)
+              .setIdentity(options.getIdentity())
+              .setNamespace(namespace)
+              .setWorkerVersion(options.workerVersionStamp())
+              .setFailure(options.getDataConverter().exceptionToFailure(applicationFailure));
+      storeOutboundPayloads(failedBuilder, activityStorageTarget(pollResponse));
+      RespondActivityTaskFailedRequest request = failedBuilder.build();
+      grpcRetryer.retry(
+          () ->
+              service
+                  .blockingStub()
+                  .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                  .respondActivityTaskFailed(request),
+          replyGrpcRetryerOptions);
+    }
+
+    @Nullable
+    private StorageDriverTargetInfo activityStorageTarget(
+        PollActivityTaskQueueResponseOrBuilder pollResponse) {
+      if (options.getExternalStorageRunner() == null) {
+        return null;
+      }
+      return storageTargetForActivityTask(namespace, pollResponse);
     }
 
     private void logExceptionDuringResultReporting(

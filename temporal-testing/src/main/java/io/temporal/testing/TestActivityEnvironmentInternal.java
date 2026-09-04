@@ -30,7 +30,10 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.*;
 import io.temporal.internal.testservice.InProcessGRPCServer;
 import io.temporal.internal.worker.ActivityTask;
@@ -77,6 +80,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
   private final TestEnvironmentOptions testEnvironmentOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final AtomicReference<Object> heartbeatDetails = new AtomicReference<>();
+  private final DataConverter heartbeatDetailsConverter;
   private ClassConsumerPair<Object> activityHeartbeatListener;
 
   public TestActivityEnvironmentInternal(@Nullable TestEnvironmentOptions options) {
@@ -100,16 +104,27 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     this.workflowServiceStubs =
         WorkflowServiceStubs.newServiceStubs(serviceStubsOptionsBuilder.build());
 
+    WorkflowClient client =
+        WorkflowClient.newInstance(
+            this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions());
+    ExternalStorageRunner externalStorageRunner =
+        ((WorkflowClientInternal) client.getInternal()).getExternalStorageRunner();
+    DataConverter clientDataConverter =
+        testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
+    this.heartbeatDetailsConverter =
+        externalStorageRunner == null
+            ? clientDataConverter
+            : new ExternalStorageDataConverter(clientDataConverter, externalStorageRunner);
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
-            WorkflowClient.newInstance(
-                this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions()),
+            client,
             testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
-            testEnvironmentOptions.getWorkflowClientOptions().getDataConverter(),
-            heartbeatExecutor);
+            clientDataConverter,
+            heartbeatExecutor,
+            externalStorageRunner);
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
             testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
@@ -138,14 +153,11 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
               request.hasDetails() ? Optional.of(request.getDetails()) : Optional.empty();
 
           Object details =
-              testEnvironmentOptions
-                  .getWorkflowClientOptions()
-                  .getDataConverter()
-                  .fromPayloads(
-                      0,
-                      requestDetails,
-                      activityHeartbeatListener.valueClass,
-                      activityHeartbeatListener.valueType);
+              heartbeatDetailsConverter.fromPayloads(
+                  0,
+                  requestDetails,
+                  activityHeartbeatListener.valueClass,
+                  activityHeartbeatListener.valueType);
           activityHeartbeatListener.consumer.apply(details);
         }
         responseObserver.onNext(
