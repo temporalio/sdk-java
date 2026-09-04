@@ -352,6 +352,7 @@ final class NexusWorker implements SuspendableWorker {
             return;
           }
           taskFailed = true;
+          recordStorageFailure(metricsScope);
           sendStorageFailure(
               pollResponse.getTaskToken(), supportsTemporalFailure(pollResponse), metricsScope, e);
           return;
@@ -451,8 +452,11 @@ final class NexusWorker implements SuspendableWorker {
       }
 
       try {
-        sendReply(taskToken, supportsTemporalFailure(pollResponse), result, metricsScope);
+        sendReply(taskToken, supportsTemporalFailure(pollResponse), result, metricsScope, true);
       } catch (ExternalStorageTaskFailure e) {
+        if (!failed) {
+          recordStorageFailure(metricsScope);
+        }
         sendStorageFailure(
             taskToken, supportsTemporalFailure(pollResponse), metricsScope, e.getCause());
         return true;
@@ -511,7 +515,8 @@ final class NexusWorker implements SuspendableWorker {
         ByteString taskToken,
         boolean supportTemporalFailure,
         NexusTaskHandler.Result response,
-        Scope metricsScope) {
+        Scope metricsScope,
+        boolean useExternalStorage) {
       Response taskResponse = response.getResponse();
       if (taskResponse != null) {
         // For old servers that do not support TemporalFailure in Failure proto,
@@ -525,7 +530,9 @@ final class NexusWorker implements SuspendableWorker {
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .setResponse(taskResponse);
-        storeOutbound(requestBuilder);
+        if (useExternalStorage) {
+          storeOutbound(requestBuilder);
+        }
         RespondNexusTaskCompletedRequest request = requestBuilder.build();
 
         grpcRetryer.retry(
@@ -548,7 +555,9 @@ final class NexusWorker implements SuspendableWorker {
           } else {
             request.setError(NexusUtil.handlerErrorToNexusError(handlerException, dataConverter));
           }
-          storeOutbound(request);
+          if (useExternalStorage) {
+            storeOutbound(request);
+          }
           RespondNexusTaskFailedRequest failedRequest = request.build();
           grpcRetryer.retry(
               () ->
@@ -568,6 +577,19 @@ final class NexusWorker implements SuspendableWorker {
           && pollResponse.getRequest().getCapabilities().getTemporalFailureResponses();
     }
 
+    private void recordStorageFailure(Scope metricsScope) {
+      metricsScope
+          .tagged(
+              Collections.singletonMap(
+                  TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL))
+          .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+          .inc(1);
+    }
+
+    /**
+     * Reports a storage failure to the server as an internal handler error. This is the only
+     * recovery attempt and it bypasses external storage.
+     */
     private void sendStorageFailure(
         ByteString taskToken, boolean supportTemporalFailure, Scope metricsScope, Throwable e) {
       String message =
@@ -576,31 +598,13 @@ final class NexusWorker implements SuspendableWorker {
                   + " configured"
               : "External storage failed for a nexus task";
       log.warn(message, e);
-      metricsScope
-          .tagged(
-              Collections.singletonMap(
-                  TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL))
-          .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
-          .inc(1);
-      try {
-        sendReply(
-            taskToken,
-            supportTemporalFailure,
-            new NexusTaskHandler.Result(
-                new HandlerException(HandlerException.ErrorType.INTERNAL, message, e)),
-            metricsScope);
-      } catch (ExternalStorageTaskFailure reportFailed) {
-        // report failure without extstore (since it was unavailable)
-        sendReply(
-            taskToken,
-            supportTemporalFailure,
-            new NexusTaskHandler.Result(
-                new HandlerException(
-                    HandlerException.ErrorType.INTERNAL,
-                    message,
-                    new IllegalStateException("external storage unavailable"))),
-            metricsScope);
-      }
+      sendReply(
+          taskToken,
+          supportTemporalFailure,
+          new NexusTaskHandler.Result(
+              new HandlerException(HandlerException.ErrorType.INTERNAL, message, e)),
+          metricsScope,
+          false);
     }
 
     /**
