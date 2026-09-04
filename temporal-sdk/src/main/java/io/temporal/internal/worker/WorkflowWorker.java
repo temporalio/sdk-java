@@ -981,7 +981,7 @@ final class WorkflowWorker implements SuspendableWorker {
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
         RpcRetryOptions retryOptions,
         Scope workflowTypeMetricsScope,
-        StorageDriverTargetInfo storageTarget) {
+        @Nullable StorageDriverTargetInfo storageTarget) {
       storeOutboundPayloads(taskFailed, storageTarget);
       sendTaskFailedWithoutExternalStorage(
           taskToken, taskFailed, retryOptions, workflowTypeMetricsScope);
@@ -1020,7 +1020,7 @@ final class WorkflowWorker implements SuspendableWorker {
         ByteString taskToken,
         RespondQueryTaskCompletedRequest.Builder queryCompleted,
         Scope workflowTypeMetricsScope,
-        StorageDriverTargetInfo storageTarget) {
+        @Nullable StorageDriverTargetInfo storageTarget) {
       storeOutboundPayloads(queryCompleted, storageTarget);
       sendDirectQueryCompletedResponseWithoutExternalStorage(
           taskToken, queryCompleted, workflowTypeMetricsScope);
