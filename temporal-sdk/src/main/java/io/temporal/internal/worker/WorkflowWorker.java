@@ -617,11 +617,16 @@ final class WorkflowWorker implements SuspendableWorker {
                           .setCompletedType(QueryResultType.QUERY_RESULT_TYPE_FAILED)
                           .setErrorMessage(failure.getMessage())
                           .setFailure(failure);
-                  sendDirectQueryCompletedResponse(
-                      currentTask.getTaskToken(),
-                      queryFailedBuilder,
-                      workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                  try {
+                    sendDirectQueryCompletedResponse(
+                        currentTask.getTaskToken(),
+                        queryFailedBuilder,
+                        workflowTypeScope,
+                        workflowStorageTarget(workflowExecution, workflowType));
+                  } catch (ExternalStorageTaskFailure storageFailure) {
+                    iterationFailed = true;
+                    logAbandonedReport(storageFailure, workflowExecution, "query response");
+                  }
                 }
               } else {
                 try {
@@ -714,12 +719,18 @@ final class WorkflowWorker implements SuspendableWorker {
                           .setCause(
                               WorkflowTaskFailedCause
                                   .WORKFLOW_TASK_FAILED_CAUSE_GRPC_MESSAGE_TOO_LARGE);
-                  sendTaskFailed(
-                      currentTask.getTaskToken(),
-                      taskFailedBuilder,
-                      result.getRequestRetryOptions(),
-                      workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                  try {
+                    sendTaskFailed(
+                        currentTask.getTaskToken(),
+                        taskFailedBuilder,
+                        result.getRequestRetryOptions(),
+                        workflowTypeScope,
+                        workflowStorageTarget(workflowExecution, workflowType));
+                  } catch (ExternalStorageTaskFailure storageFailure) {
+                    iterationFailed = true;
+                    taskFailedCause = null;
+                    logAbandonedReport(storageFailure, workflowExecution, "workflow task failure");
+                  }
                 } catch (ExternalStorageTaskFailure e) {
                   releaseReason = SlotReleaseReason.error(e);
                   handleReportingFailure(
@@ -1111,6 +1122,16 @@ final class WorkflowWorker implements SuspendableWorker {
           .getDataConverter()
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
           .exceptionToFailure(applicationFailure);
+    }
+
+    private void logAbandonedReport(
+        ExternalStorageTaskFailure e, WorkflowExecution workflowExecution, String reportType) {
+      log.warn(
+          "Failed to store the payloads of a {}, abandoning the report to the server. WorkflowId={}, RunId={}",
+          reportType,
+          workflowExecution.getWorkflowId(),
+          workflowExecution.getRunId(),
+          e);
     }
 
     private Failure storageFailure(

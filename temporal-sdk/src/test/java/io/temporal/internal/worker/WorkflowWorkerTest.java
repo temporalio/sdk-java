@@ -20,6 +20,8 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
@@ -695,6 +697,7 @@ public class WorkflowWorkerTest {
             WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null),
         CancellationToken.none(),
         converterAttachingDetailsToFailures(),
+        blockingStub -> {},
         blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
 
     assertEquals(
@@ -722,6 +725,7 @@ public class WorkflowWorkerTest {
             WORKFLOW_TYPE, null, null, queryCompleted, null, false, null, null),
         CancellationToken.none(),
         converterAttachingDetailsToFailures(),
+        blockingStub -> {},
         blockingStub -> verify(blockingStub).respondQueryTaskCompleted(sent.capture()));
 
     assertEquals("only the original answer may reach storage", 1, driver.injectedFailures.get());
@@ -730,6 +734,106 @@ public class WorkflowWorkerTest {
         "the failure details must reach the server untouched",
         FAILURE_DETAIL,
         sent.getValue().getFailure().getApplicationFailureInfo().getDetails().getPayloads(0));
+  }
+
+  @Test
+  public void aTooLargeWorkflowTaskReportThatCannotBeStoredIsAbandoned() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.create().failStoresContaining("failure-detail", 1);
+    Payload result = Payload.newBuilder().setData(ByteString.copyFrom("result", UTF_8)).build();
+    RespondWorkflowTaskCompletedRequest taskCompleted =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setCompleteWorkflowExecutionCommandAttributes(
+                        CompleteWorkflowExecutionCommandAttributes.newBuilder()
+                            .setResult(Payloads.newBuilder().addPayloads(result))))
+            .build();
+
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    WorkflowWorker worker;
+    try {
+      worker =
+          runOneTask(
+              driver,
+              new WorkflowTaskHandler.Result(
+                  WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null),
+              CancellationToken.none(),
+              converterAttachingDetailsToFailures(),
+              blockingStub ->
+                  when(blockingStub.respondWorkflowTaskCompleted(
+                          any(RespondWorkflowTaskCompletedRequest.class)))
+                      .thenThrow(messageTooLarge()),
+              blockingStub ->
+                  verify(blockingStub, never())
+                      .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class)));
+    } finally {
+      releaseWorkerLogs(logs);
+    }
+
+    assertTrue(
+        "the abandoned report must be logged",
+        logs.list.stream().anyMatch(event -> event.getFormattedMessage().contains("abandoning")));
+    assertEquals(
+        "the abandoned report must still count as a failed task",
+        1,
+        worker.getTaskCounter().getTotalFailed());
+    reporter.assertNoMetric(
+        MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER,
+        ImmutableMap.of("worker_type", "WorkflowWorker", "workflow_type", WORKFLOW_TYPE));
+  }
+
+  @Test
+  public void aTooLargeQueryReportThatCannotBeStoredIsAbandoned() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.create().failStoresContaining("failure-detail", 1);
+    Payload answer = Payload.newBuilder().setData(ByteString.copyFrom("answer", UTF_8)).build();
+    RespondQueryTaskCompletedRequest queryCompleted =
+        RespondQueryTaskCompletedRequest.newBuilder()
+            .setQueryResult(Payloads.newBuilder().addPayloads(answer))
+            .build();
+
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      runOneTask(
+          driver,
+          new WorkflowTaskHandler.Result(
+              WORKFLOW_TYPE, null, null, queryCompleted, null, false, null, null),
+          CancellationToken.none(),
+          converterAttachingDetailsToFailures(),
+          blockingStub ->
+              when(blockingStub.respondQueryTaskCompleted(
+                      any(RespondQueryTaskCompletedRequest.class)))
+                  .thenThrow(messageTooLarge()),
+          blockingStub ->
+              verify(blockingStub)
+                  .respondQueryTaskCompleted(any(RespondQueryTaskCompletedRequest.class)));
+    } finally {
+      releaseWorkerLogs(logs);
+    }
+
+    assertTrue(
+        "the abandoned report must be logged",
+        logs.list.stream().anyMatch(event -> event.getFormattedMessage().contains("abandoning")));
+  }
+
+  private static StatusRuntimeException messageTooLarge() {
+    return new StatusRuntimeException(
+        Status.RESOURCE_EXHAUSTED.withDescription(
+            "grpc: received message larger than max (1 vs. 0)"));
+  }
+
+  private static ListAppender<ILoggingEvent> captureWorkerLogs() {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.setContext(loggerContext);
+    logs.start();
+    loggerContext.getLogger(WorkflowWorker.class.getName()).addAppender(logs);
+    return logs;
+  }
+
+  private static void releaseWorkerLogs(ListAppender<ILoggingEvent> logs) {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    loggerContext.getLogger(WorkflowWorker.class.getName()).detachAppender(logs);
+    logs.stop();
   }
 
   private static final Payload FAILURE_DETAIL =
@@ -784,14 +888,16 @@ public class WorkflowWorkerTest {
         handlerResult,
         storageCancellation,
         DefaultDataConverter.newDefaultInstance(),
+        blockingStub -> {},
         verification);
   }
 
-  private void runOneTask(
+  private WorkflowWorker runOneTask(
       TestStorageDriver driver,
       WorkflowTaskHandler.Result handlerResult,
       CancellationToken<CancellationException> storageCancellation,
       DataConverter dataConverter,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> stubSetup,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
       throws Exception {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
@@ -847,6 +953,7 @@ public class WorkflowWorkerTest {
     when(client.blockingStub()).thenReturn(blockingStub);
     when(client.futureStub()).thenReturn(futureStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    stubSetup.accept(blockingStub);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()
@@ -878,6 +985,7 @@ public class WorkflowWorkerTest {
     assertTrue(handled.await(10, TimeUnit.SECONDS));
     worker.shutdown(new ShutdownManager(), false).get();
     verification.accept(blockingStub);
+    return worker;
   }
 
   @Test
