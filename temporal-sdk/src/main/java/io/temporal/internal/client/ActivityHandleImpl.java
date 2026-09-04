@@ -12,7 +12,6 @@ import io.temporal.client.ActivityOptionsKeys;
 import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
-import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.Priority;
@@ -178,17 +177,6 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
     clientCallsInterceptor.unpauseActivity(
         new ActivityClientCallsInterceptor.UnpauseActivityInput(
             activityId, activityRunId, options));
-  }
-
-  @Override
-  public void reset() {
-    reset(ResetActivityOptions.getDefaultInstance());
-  }
-
-  @Override
-  public void reset(ResetActivityOptions options) {
-    clientCallsInterceptor.resetActivity(
-        new ActivityClientCallsInterceptor.ResetActivityInput(activityId, activityRunId, options));
   }
 
   @Override

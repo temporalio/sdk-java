@@ -19,7 +19,6 @@ import io.temporal.client.ActivityHandle;
 import io.temporal.client.ActivityOptionsKeys;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
-import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.common.CancellationToken;
@@ -301,41 +300,6 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.terminate("cleanup");
   }
 
-  // Overrides the rule's default 10s global timeout: driving retries + reset takes longer.
-  @Test(timeout = 60_000)
-  public void reset() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    ActivityClient client = newActivityClient();
-    StartActivityOptions opts =
-        StartActivityOptions.newBuilder()
-            .setId(uniqueId())
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setStartToCloseTimeout(Duration.ofSeconds(60))
-            .setRetryOptions(
-                RetryOptions.newBuilder()
-                    .setInitialInterval(Duration.ofMillis(200))
-                    .setBackoffCoefficient(1.0)
-                    .setMaximumInterval(Duration.ofMillis(200))
-                    .setMaximumAttempts(50)
-                    .build())
-            .build();
-    ActivityHandle<String> handle =
-        client.start(FailThenSucceedActivity.class, FailThenSucceedActivity::run, opts);
-
-    // Wait until the activity has recorded more than one attempt (i.e. it has retried).
-    assertEventually(
-        Duration.ofSeconds(30),
-        () -> assertTrue("expected attempt > 1 before reset", handle.describe().getAttempt() > 1));
-
-    handle.reset();
-
-    // After reset the attempt counter goes back to the start.
-    assertEventually(
-        Duration.ofSeconds(30),
-        () -> assertEquals("attempt should be reset to 1", 1, handle.describe().getAttempt()));
-    handle.terminate("cleanup");
-  }
-
   @Test
   public void updateOptionsRespectsMask() {
     assumeTrue(SDKTestWorkflowRule.useExternalService);
@@ -481,76 +445,6 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED, desc.getRunState());
     assertEquals(ActivityExecutionStatus.ACTIVITY_EXECUTION_STATUS_PAUSED, desc.getStatus());
 
-    handle.terminate("cleanup");
-  }
-
-  @Test(timeout = 60_000)
-  public void resetKeepsPaused() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    // Start delayed so the activity sits SCHEDULED and pauses to a true PAUSED state (not the
-    // PAUSE_REQUESTED of a running activity), which is what keep_paused must preserve across reset.
-    StartActivityOptions opts =
-        StartActivityOptions.newBuilder()
-            .setId(uniqueId())
-            .setTaskQueue(testWorkflowRule.getTaskQueue())
-            .setStartToCloseTimeout(Duration.ofSeconds(60))
-            .setStartDelay(Duration.ofSeconds(30))
-            .build();
-    ActivityHandle<String> handle =
-        newActivityClient().start(QuickActivity.class, QuickActivity::run, opts);
-
-    handle.pause(PauseActivityOptions.newBuilder().setReason("hold").build());
-    assertEventually(
-        Duration.ofSeconds(30),
-        () ->
-            assertEquals(
-                PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED,
-                handle.describe().getRunState()));
-
-    handle.reset(ResetActivityOptions.newBuilder().setKeepPaused(true).build());
-
-    // keep_paused keeps the activity paused across the reset.
-    assertEventually(
-        Duration.ofSeconds(30),
-        () ->
-            assertEquals(
-                "expected activity to stay paused after reset",
-                PendingActivityState.PENDING_ACTIVITY_STATE_PAUSED,
-                handle.describe().getRunState()));
-    handle.terminate("cleanup");
-  }
-
-  @Test(timeout = 60_000)
-  public void resetRestoresOriginalOptions() {
-    assumeTrue(SDKTestWorkflowRule.useExternalService);
-    // Start delayed so the restore is applied immediately.
-    ActivityHandle<String> handle =
-        newActivityClient()
-            .start(
-                QuickActivity.class,
-                QuickActivity::run,
-                StartActivityOptions.newBuilder()
-                    .setId(uniqueId())
-                    .setTaskQueue(testWorkflowRule.getTaskQueue())
-                    .setStartToCloseTimeout(Duration.ofSeconds(45))
-                    .setStartDelay(Duration.ofSeconds(300))
-                    .build());
-
-    ActivityExecutionOptions updated =
-        handle.updateOptions(
-            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
-    assertEquals(Duration.ofSeconds(90), updated.getStartToCloseTimeout());
-
-    handle.reset(ResetActivityOptions.newBuilder().setRestoreOriginalOptions(true).build());
-
-    // restore_original_options reverts start_to_close back to the value the activity started with.
-    assertEventually(
-        Duration.ofSeconds(30),
-        () ->
-            assertEquals(
-                "start_to_close should be restored to original",
-                Duration.ofSeconds(45),
-                handle.describe().getStartToCloseTimeout()));
     handle.terminate("cleanup");
   }
 
@@ -752,12 +646,10 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.unpause();
     handle.updateOptions(
         ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
-    handle.reset();
     handle.terminate("cleanup");
 
     assertTrue("pause should flow through the interceptor", events.contains("pause"));
     assertTrue("unpause should flow through the interceptor", events.contains("unpause"));
-    assertTrue("reset should flow through the interceptor", events.contains("reset"));
     assertTrue(
         "updateOptions should flow through the interceptor", events.contains("updateOptions"));
   }
@@ -797,23 +689,17 @@ public class StandaloneActivityOperatorCommandsTest {
             .setReason("unpause-reason")
             .setJitter(Duration.ofSeconds(5))
             .build());
-    handle.reset(
-        ResetActivityOptions.newBuilder().setKeepPaused(true).setResetHeartbeat(true).build());
     handle.terminate("cleanup");
 
     assertEquals("pause-reason", recorder.pauseInput.getOptions().getReason());
     assertEquals("unpause-reason", recorder.unpauseInput.getOptions().getReason());
     assertEquals(Duration.ofSeconds(5), recorder.unpauseInput.getOptions().getJitter());
-    assertTrue(recorder.resetInput.getOptions().isKeepPaused());
-    assertTrue(recorder.resetInput.getOptions().isResetHeartbeat());
-    assertFalse(recorder.resetInput.getOptions().isRestoreOriginalOptions());
   }
 
   private static class RecordingInterceptor extends ActivityClientInterceptorBase {
     private final List<String> events;
     PauseActivityInput pauseInput;
     UnpauseActivityInput unpauseInput;
-    ResetActivityInput resetInput;
 
     RecordingInterceptor(List<String> events) {
       this.events = events;
@@ -835,13 +721,6 @@ public class StandaloneActivityOperatorCommandsTest {
           events.add("unpause");
           unpauseInput = input;
           return super.unpauseActivity(input);
-        }
-
-        @Override
-        public ResetActivityOutput resetActivity(ResetActivityInput input) {
-          events.add("reset");
-          resetInput = input;
-          return super.resetActivity(input);
         }
 
         @Override

@@ -148,16 +148,6 @@ final class ActivityHandleImpl<R> implements ActivityHandle<R> {
   }
 
   @Override
-  public void reset() {
-    delegate.reset();
-  }
-
-  @Override
-  public void reset(ResetActivityOptions options) {
-    delegate.reset(options);
-  }
-
-  @Override
   public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
     return delegate.updateOptions(updates);
   }

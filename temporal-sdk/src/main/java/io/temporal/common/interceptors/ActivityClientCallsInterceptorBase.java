@@ -57,11 +57,6 @@ public class ActivityClientCallsInterceptorBase implements ActivityClientCallsIn
   }
 
   @Override
-  public ResetActivityOutput resetActivity(ResetActivityInput input) {
-    return next.resetActivity(input);
-  }
-
-  @Override
   public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
     return next.updateActivityOptions(input);
   }

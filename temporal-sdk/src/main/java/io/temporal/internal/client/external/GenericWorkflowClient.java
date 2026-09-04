@@ -129,9 +129,6 @@ public interface GenericWorkflowClient {
   void unpauseActivity(UnpauseActivityExecutionRequest request);
 
   @Experimental
-  void resetActivity(ResetActivityExecutionRequest request);
-
-  @Experimental
   UpdateActivityExecutionOptionsResponse updateActivityOptions(
       UpdateActivityExecutionOptionsRequest request);
 

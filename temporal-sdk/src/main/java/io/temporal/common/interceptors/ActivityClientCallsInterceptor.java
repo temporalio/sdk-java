@@ -10,7 +10,6 @@ import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityFailedException;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
-import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.common.Experimental;
@@ -110,16 +109,6 @@ public interface ActivityClientCallsInterceptor {
    *
    * @param input activity ID, optional run ID, and reset options
    * @return an empty output object (reserved for future use)
-   */
-  ResetActivityOutput resetActivity(ResetActivityInput input);
-
-  /**
-   * Updates the options of a standalone activity. The {@code updateMask} controls which fields of
-   * {@code activityOptions} are applied; alternatively {@code restoreOriginal} reverts the options
-   * to the values the activity was created with.
-   *
-   * @param input activity ID, optional run ID, options, update mask, and restore flag
-   * @return output carrying the activity options as resolved by the server after the update
    */
   UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);
 
@@ -446,35 +435,6 @@ public interface ActivityClientCallsInterceptor {
 
   @Experimental
   final class UnpauseActivityOutput {}
-
-  @Experimental
-  final class ResetActivityInput {
-    private final String id;
-    private final @Nullable String runId;
-    private final ResetActivityOptions options;
-
-    public ResetActivityInput(String id, @Nullable String runId, ResetActivityOptions options) {
-      this.id = id;
-      this.runId = runId;
-      this.options = options;
-    }
-
-    public String getId() {
-      return id;
-    }
-
-    @Nullable
-    public String getRunId() {
-      return runId;
-    }
-
-    public ResetActivityOptions getOptions() {
-      return options;
-    }
-  }
-
-  @Experimental
-  final class ResetActivityOutput {}
 
   @Experimental
   final class UpdateActivityOptionsInput {

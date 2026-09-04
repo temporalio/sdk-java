@@ -24,7 +24,7 @@ to docs, or any other relevant information.
 #### Standalone Activity operator commands
 
 - `UntypedActivityHandle` and `ActivityHandle` now support operator commands for standalone
-   activities: `pause()`, `unpause()`, `reset()`, `updateOptions()` and `restoreOriginalOptions()`.
+   activities: `pause()`, `unpause()`, `updateOptions()` and `restoreOriginalOptions()`.
   `updateOptions()` takes `ActivityOptionsUpdate` values built from the keys on
   `ActivityOptionsKeys`, via `ActivityOptionsKey.valueSet()` to set an option or
   `ActivityOptionsKey.valueUnset()` to clear it, and returns the server's resolved

@@ -664,17 +664,6 @@ public final class GenericWorkflowClientImpl implements GenericWorkflowClient {
   }
 
   @Override
-  public void resetActivity(ResetActivityExecutionRequest request) {
-    grpcRetryer.retry(
-        () ->
-            service
-                .blockingStub()
-                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                .resetActivityExecution(request),
-        grpcRetryerOptions);
-  }
-
-  @Override
   public UpdateActivityExecutionOptionsResponse updateActivityOptions(
       UpdateActivityExecutionOptionsRequest request) {
     return grpcRetryer.retryWithResult(

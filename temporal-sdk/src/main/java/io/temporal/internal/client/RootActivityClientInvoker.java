@@ -434,27 +434,6 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   @Override
-  public ResetActivityOutput resetActivity(ResetActivityInput input) {
-    ResetActivityExecutionRequest.Builder req =
-        ResetActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
-            .setActivityId(input.getId())
-            .setRequestId(UUID.randomUUID().toString())
-            .setKeepPaused(input.getOptions().isKeepPaused())
-            .setRestoreOriginalOptions(input.getOptions().isRestoreOriginalOptions())
-            .setResetHeartbeat(input.getOptions().isResetHeartbeat());
-    if (input.getRunId() != null) {
-      req.setRunId(input.getRunId());
-    }
-    if (input.getOptions().getJitter() != null) {
-      req.setJitter(ProtobufTimeUtils.toProtoDuration(input.getOptions().getJitter()));
-    }
-    genericClient.resetActivity(req.build());
-    return new ResetActivityOutput();
-  }
-
-  @Override
   public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
     UpdateActivityExecutionOptionsRequest.Builder req =
         UpdateActivityExecutionOptionsRequest.newBuilder()

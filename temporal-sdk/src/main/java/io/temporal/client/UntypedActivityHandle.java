@@ -179,16 +179,6 @@ public interface UntypedActivityHandle {
    */
   void unpause(UnpauseActivityOptions options);
 
-  /** Resets the activity with default options, scheduling a fresh attempt. */
-  void reset();
-
-  /**
-   * Resets the activity with the given options.
-   *
-   * @param options reset options (reset heartbeat, keep paused, jitter, restore original options)
-   */
-  void reset(ResetActivityOptions options);
-
   /**
    * Updates the activity's options. Only the options named by {@code updates} are changed; a
    * derived field mask leaves the rest untouched. To revert to the options the activity was created

@@ -11,14 +11,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.temporal.api.workflowservice.v1.PauseActivityExecutionRequest;
-import io.temporal.api.workflowservice.v1.ResetActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UnpauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ActivityOptionsKeys;
 import io.temporal.client.PauseActivityOptions;
-import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -56,13 +54,6 @@ public class ActivityHandleOperatorCommandsTest {
             .setReason("go")
             .setJitter(Duration.ofSeconds(5))
             .build());
-    handle.reset(
-        ResetActivityOptions.newBuilder()
-            .setJitter(Duration.ofSeconds(2))
-            .setResetHeartbeat(true)
-            .setKeepPaused(true)
-            .setRestoreOriginalOptions(true)
-            .build());
     handle.updateOptions(ActivityOptionsKeys.START_DELAY.valueSet(Duration.ofSeconds(7)));
 
     // pause carries the reason, which is not returned by describe.
@@ -74,15 +65,6 @@ public class ActivityHandleOperatorCommandsTest {
     assertEquals("go", unpauseReq.getReason());
     assertEquals(5, unpauseReq.getJitter().getSeconds());
     assertEquals(0, unpauseReq.getJitter().getNanos());
-
-    // reset carries jitter and reset_heartbeat.
-    ResetActivityExecutionRequest resetReq = captureReset();
-    assertEquals(2, resetReq.getJitter().getSeconds());
-    assertEquals(0, resetReq.getJitter().getNanos());
-    assertTrue("reset should carry reset_heartbeat=true", resetReq.getResetHeartbeat());
-    assertTrue("reset should carry keep_paused=true", resetReq.getKeepPaused());
-    assertTrue(
-        "reset should carry restore_original_options=true", resetReq.getRestoreOriginalOptions());
 
     // updateOptions carries start_delay in activity_options with a matching update_mask path.
     UpdateActivityExecutionOptionsRequest updateReq = captureUpdate();
@@ -170,10 +152,8 @@ public class ActivityHandleOperatorCommandsTest {
     UntypedActivityHandle handle = newHandle();
 
     handle.unpause(UnpauseActivityOptions.newBuilder().build());
-    handle.reset(ResetActivityOptions.newBuilder().build());
 
     assertFalse("unpause should not send jitter", captureUnpause().hasJitter());
-    assertFalse("reset should not send jitter", captureReset().hasJitter());
   }
 
   /** A repeated key resolves to its last update: a later valueUnset overrides an earlier set. */
@@ -214,13 +194,6 @@ public class ActivityHandleOperatorCommandsTest {
     assertFalse(req.getRestoreOriginal());
     assertEquals("new-tq", req.getActivityOptions().getTaskQueue().getName());
     assertEquals(90, req.getActivityOptions().getStartToCloseTimeout().getSeconds());
-  }
-
-  private ResetActivityExecutionRequest captureReset() {
-    ArgumentCaptor<ResetActivityExecutionRequest> captor =
-        ArgumentCaptor.forClass(ResetActivityExecutionRequest.class);
-    verify(genericClient).resetActivity(captor.capture());
-    return captor.getValue();
   }
 
   private UpdateActivityExecutionOptionsRequest captureUpdate() {
