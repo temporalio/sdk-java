@@ -650,7 +650,8 @@ final class WorkflowWorker implements SuspendableWorker {
                         currentTask.getTaskToken(),
                         taskFailedBuilder,
                         result.getRequestRetryOptions(),
-                        workflowTypeScope);
+                        workflowTypeScope,
+                        workflowStorageTarget(workflowExecution, workflowType));
                   } else if (taskCompleted != null) {
                     RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
                         taskCompleted.toBuilder();
