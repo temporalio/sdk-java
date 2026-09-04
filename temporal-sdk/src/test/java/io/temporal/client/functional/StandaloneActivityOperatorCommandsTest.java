@@ -21,6 +21,7 @@ import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.ResetActivityOptions;
 import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
@@ -762,8 +763,57 @@ public class StandaloneActivityOperatorCommandsTest {
   }
 
   /** Records each operator command as it flows through the client interceptor chain. */
+  /**
+   * Asserts the values a caller passes reach the interceptor chain, not merely that the hook fired.
+   * A dropped argument between the handle and the chain is invisible to a test that only checks
+   * which events were recorded.
+   */
+  @Test
+  public void interceptorReceivesCommandArguments() {
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+    List<String> events = Collections.synchronizedList(new ArrayList<>());
+    RecordingInterceptor recorder = new RecordingInterceptor(events);
+    ActivityClient client =
+        ActivityClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            ActivityClientOptions.newBuilder()
+                .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                .setInterceptors(Collections.singletonList(recorder))
+                .build());
+
+    ActivityHandle<Void> handle =
+        client.start(SlowActivity.class, SlowActivity::run, slowOpts().build());
+    assertEventually(
+        Duration.ofSeconds(30),
+        () ->
+            assertEquals(
+                PendingActivityState.PENDING_ACTIVITY_STATE_STARTED,
+                handle.describe().getRunState()));
+
+    handle.pause(PauseActivityOptions.newBuilder().setReason("pause-reason").build());
+    assertEventuallyPaused(handle);
+    handle.unpause(
+        UnpauseActivityOptions.newBuilder()
+            .setReason("unpause-reason")
+            .setJitter(Duration.ofSeconds(5))
+            .build());
+    handle.reset(
+        ResetActivityOptions.newBuilder().setKeepPaused(true).setResetHeartbeat(true).build());
+    handle.terminate("cleanup");
+
+    assertEquals("pause-reason", recorder.pauseInput.getOptions().getReason());
+    assertEquals("unpause-reason", recorder.unpauseInput.getOptions().getReason());
+    assertEquals(Duration.ofSeconds(5), recorder.unpauseInput.getOptions().getJitter());
+    assertTrue(recorder.resetInput.getOptions().isKeepPaused());
+    assertTrue(recorder.resetInput.getOptions().isResetHeartbeat());
+    assertFalse(recorder.resetInput.getOptions().isRestoreOriginalOptions());
+  }
+
   private static class RecordingInterceptor extends ActivityClientInterceptorBase {
     private final List<String> events;
+    PauseActivityInput pauseInput;
+    UnpauseActivityInput unpauseInput;
+    ResetActivityInput resetInput;
 
     RecordingInterceptor(List<String> events) {
       this.events = events;
@@ -776,18 +826,21 @@ public class StandaloneActivityOperatorCommandsTest {
         @Override
         public PauseActivityOutput pauseActivity(PauseActivityInput input) {
           events.add("pause");
+          pauseInput = input;
           return super.pauseActivity(input);
         }
 
         @Override
         public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
           events.add("unpause");
+          unpauseInput = input;
           return super.unpauseActivity(input);
         }
 
         @Override
         public ResetActivityOutput resetActivity(ResetActivityInput input) {
           events.add("reset");
+          resetInput = input;
           return super.resetActivity(input);
         }
 
