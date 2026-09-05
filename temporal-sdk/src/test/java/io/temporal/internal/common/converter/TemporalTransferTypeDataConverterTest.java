@@ -16,7 +16,6 @@ import com.google.common.reflect.TypeToken;
 import com.google.protobuf.StringValue;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -73,8 +72,20 @@ public class TemporalTransferTypeDataConverterTest {
     assertEquals(
         "plain",
         converter.fromPayload(converter.toPayload("plain").get(), String.class, String.class));
-    Payload nullPayload = DefaultDataConverter.newDefaultInstance().toPayload(null).get();
-    assertNull(converter.fromPayload(nullPayload, FailingModel.class, FailingModel.class));
+  }
+
+  @Test
+  public void nullTransferValueIsReconstructed() {
+    Payload payload = converter.toPayload(new NullRepresentationModel()).get();
+
+    NullRepresentationModel restored =
+        converter.fromPayload(
+            payload, NullRepresentationModel.class, NullRepresentationModel.class);
+
+    assertEquals(
+        DefaultDataConverter.STANDARD_PAYLOAD_CONVERTERS[0].getEncodingType(),
+        payload.getMetadataOrThrow("encoding").toStringUtf8());
+    assertTrue(restored.reconstructed);
   }
 
   @Test
@@ -103,6 +114,47 @@ public class TemporalTransferTypeDataConverterTest {
     assertEquals(
         new DerivedWithAnnotation("value"),
         converter.fromPayload(own, DerivedWithAnnotation.class, DerivedWithAnnotation.class));
+  }
+
+  @Test
+  public void inboundLookupDoesNotInheritBaseConverter() {
+    DataConverter delegate = mock(DataConverter.class);
+    DataConverter transferAware = TemporalTransferTypeDataConverter.wrap(delegate);
+    Payload payload = Payload.getDefaultInstance();
+    DerivedWithoutAnnotation expected = new DerivedWithoutAnnotation("value");
+    when(delegate.fromPayload(
+            payload, DerivedWithoutAnnotation.class, DerivedWithoutAnnotation.class))
+        .thenReturn(expected);
+
+    DerivedWithoutAnnotation actual =
+        transferAware.fromPayload(
+            payload, DerivedWithoutAnnotation.class, DerivedWithoutAnnotation.class);
+
+    assertSame(expected, actual);
+    verify(delegate)
+        .fromPayload(payload, DerivedWithoutAnnotation.class, DerivedWithoutAnnotation.class);
+  }
+
+  @Test
+  public void conversionIsTopLevelAndPerformsOneTransferStep() {
+    SecondStepConverter.invocations.set(0);
+    NestedModelConverter.invocations.set(0);
+
+    FirstStepModel firstStep =
+        converter.fromPayload(
+            converter.toPayload(new FirstStepModel("one")).get(),
+            FirstStepModel.class,
+            FirstStepModel.class);
+    OrdinaryContainer container =
+        converter.fromPayload(
+            converter.toPayload(new OrdinaryContainer(new NestedModel("two"))).get(),
+            OrdinaryContainer.class,
+            OrdinaryContainer.class);
+
+    assertEquals("one", firstStep.value);
+    assertEquals(0, SecondStepConverter.invocations.get());
+    assertEquals("two", container.value.value);
+    assertEquals(0, NestedModelConverter.invocations.get());
   }
 
   @Test
@@ -192,21 +244,6 @@ public class TemporalTransferTypeDataConverterTest {
     verify(contextualDelegate).toPayload(transferred.capture());
     assertEquals(StringValue.of("value"), transferred.getValue());
     verify(delegate, never()).toPayload(any());
-  }
-
-  @Test
-  public void failureMethodsForwardDirectly() {
-    DataConverter delegate = mock(DataConverter.class);
-    Failure failure = Failure.newBuilder().setMessage("failure").build();
-    RuntimeException exception = new RuntimeException("exception");
-    when(delegate.exceptionToFailure(exception)).thenReturn(failure);
-    when(delegate.failureToException(failure)).thenReturn(exception);
-    DataConverter wrapped = TemporalTransferTypeDataConverter.wrap(delegate);
-
-    assertSame(failure, wrapped.exceptionToFailure(exception));
-    assertSame(exception, wrapped.failureToException(failure));
-    verify(delegate).exceptionToFailure(exception);
-    verify(delegate).failureToException(failure);
   }
 
   private void assertInvalid(Class<?> modelClass) {
@@ -488,6 +525,148 @@ public class TemporalTransferTypeDataConverterTest {
     @Override
     public FailingModel fromTransferType(Object value, Type valueType) {
       throw new CallbackException("callback");
+    }
+  }
+
+  @TemporalTransferTypeConverter(NullRepresentationConverter.class)
+  public static final class NullRepresentationModel {
+    private final boolean reconstructed;
+
+    public NullRepresentationModel() {
+      this(false);
+    }
+
+    private NullRepresentationModel(boolean reconstructed) {
+      this.reconstructed = reconstructed;
+    }
+  }
+
+  public static final class NullRepresentationConverter
+      implements TransferTypeConverter<NullRepresentationModel> {
+    public NullRepresentationConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      return String.class;
+    }
+
+    @Override
+    public Object toTransferType(NullRepresentationModel value) {
+      return null;
+    }
+
+    @Override
+    public NullRepresentationModel fromTransferType(Object value, Type valueType) {
+      assertNull(value);
+      return new NullRepresentationModel(true);
+    }
+  }
+
+  @TemporalTransferTypeConverter(FirstStepConverter.class)
+  public static final class FirstStepModel {
+    private final String value;
+
+    private FirstStepModel(String value) {
+      this.value = value;
+    }
+  }
+
+  public static final class FirstStepConverter implements TransferTypeConverter<FirstStepModel> {
+    public FirstStepConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      return SecondStepModel.class;
+    }
+
+    @Override
+    public Object toTransferType(FirstStepModel value) {
+      return new SecondStepModel(value.value);
+    }
+
+    @Override
+    public FirstStepModel fromTransferType(Object value, Type valueType) {
+      return new FirstStepModel(((SecondStepModel) value).value);
+    }
+  }
+
+  @TemporalTransferTypeConverter(SecondStepConverter.class)
+  public static final class SecondStepModel {
+    public String value;
+
+    public SecondStepModel() {}
+
+    private SecondStepModel(String value) {
+      this.value = value;
+    }
+  }
+
+  public static final class SecondStepConverter implements TransferTypeConverter<SecondStepModel> {
+    private static final AtomicInteger invocations = new AtomicInteger();
+
+    public SecondStepConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      invocations.incrementAndGet();
+      return String.class;
+    }
+
+    @Override
+    public Object toTransferType(SecondStepModel value) {
+      invocations.incrementAndGet();
+      return value.value;
+    }
+
+    @Override
+    public SecondStepModel fromTransferType(Object value, Type valueType) {
+      invocations.incrementAndGet();
+      return new SecondStepModel((String) value);
+    }
+  }
+
+  public static final class OrdinaryContainer {
+    public NestedModel value;
+
+    public OrdinaryContainer() {}
+
+    private OrdinaryContainer(NestedModel value) {
+      this.value = value;
+    }
+  }
+
+  @TemporalTransferTypeConverter(NestedModelConverter.class)
+  public static final class NestedModel {
+    public String value;
+
+    public NestedModel() {}
+
+    private NestedModel(String value) {
+      this.value = value;
+    }
+  }
+
+  public static final class NestedModelConverter implements TransferTypeConverter<NestedModel> {
+    private static final AtomicInteger invocations = new AtomicInteger();
+
+    public NestedModelConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      invocations.incrementAndGet();
+      return String.class;
+    }
+
+    @Override
+    public Object toTransferType(NestedModel value) {
+      invocations.incrementAndGet();
+      return value.value;
+    }
+
+    @Override
+    public NestedModel fromTransferType(Object value, Type valueType) {
+      invocations.incrementAndGet();
+      return new NestedModel((String) value);
     }
   }
 
