@@ -21,6 +21,15 @@ ext.getTag = { ->
 // 0.20.2-RC1-g000a42a -> 0.20.2-SNAPSHOT
 // 0.20.2-RC1-somepostfix-g000a42a -> 0.20.2-SNAPSHOT
 ext.getVersionName = { ->
+    if (rootProject.hasProperty('releaseVersion')) {
+        String releaseVersion = rootProject.property('releaseVersion').toString()
+        if (!(releaseVersion ==~ /^\d+[.]\d+[.]\d+(?:-RC\d+)?$/)) {
+            throw new GradleException(
+                    "Invalid releaseVersion '${releaseVersion}'. Expected X.Y.Z or X.Y.Z-RCN.")
+        }
+        return releaseVersion
+    }
+
     String tag = getTag()
 
     // The last element of describe should start with g according to git describe format
