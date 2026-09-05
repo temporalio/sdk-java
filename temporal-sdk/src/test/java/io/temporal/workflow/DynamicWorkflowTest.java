@@ -1,7 +1,6 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityOptions;
@@ -14,6 +13,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,6 +74,13 @@ public class DynamicWorkflowTest {
     }
   }
 
+  public static class FailingDynamicWorkflowImpl implements DynamicWorkflow {
+    @Override
+    public Object execute(EncodedValues args) {
+      throw new NullPointerException("simulated");
+    }
+  }
+
   @Test
   public void testDynamicWorkflow() {
     TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
@@ -122,6 +129,43 @@ public class DynamicWorkflowTest {
     WorkflowStub workflow =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub("workflowFoo", workflowOptions);
     workflow.start("startArg0", true /* fail */);
+    workflow.getResult(String.class);
+  }
+
+  @Test(expected = WorkflowFailedException.class)
+  public void testDynamicWorkflowFailureTypes() {
+    TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
+    testEnvironment
+        .getWorkerFactory()
+        .getWorker(testWorkflowRule.getTaskQueue())
+        .registerWorkflowImplementationTypes(
+            WorkflowImplementationOptions.newBuilder()
+                .setFailWorkflowExceptionTypes(NullPointerException.class)
+                .build(),
+            FailingDynamicWorkflowImpl.class);
+    testEnvironment.start();
+
+    WorkflowStub workflow = testWorkflowRule.newUntypedWorkflowStub("workflowFoo");
+    workflow.start();
+    workflow.getResult(String.class);
+  }
+
+  @Test(expected = WorkflowFailedException.class)
+  public void testDynamicWorkflowFactoryFailureTypes() {
+    TestWorkflowEnvironment testEnvironment = testWorkflowRule.getTestEnvironment();
+    testEnvironment
+        .getWorkerFactory()
+        .getWorker(testWorkflowRule.getTaskQueue())
+        .registerWorkflowImplementationFactory(
+            FailingDynamicWorkflowImpl.class,
+            FailingDynamicWorkflowImpl::new,
+            WorkflowImplementationOptions.newBuilder()
+                .setFailWorkflowExceptionTypes(NullPointerException.class)
+                .build());
+    testEnvironment.start();
+
+    WorkflowStub workflow = testWorkflowRule.newUntypedWorkflowStub("workflowFoo");
+    workflow.start();
     workflow.getResult(String.class);
   }
 }
