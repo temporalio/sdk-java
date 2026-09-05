@@ -4,6 +4,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.internal.sync.AsyncInternal;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /** Supports invoking lambdas and activity and child workflow references asynchronously. */
 public final class Async {
@@ -215,6 +216,28 @@ public final class Async {
       A5 arg5,
       A6 arg6) {
     return AsyncInternal.procedure(procedure, arg1, arg2, arg3, arg4, arg5, arg6);
+  }
+
+  /**
+   * Returns a promise that completes with {@code true} when {@code unblockCondition} evaluates to
+   * {@code true}, or with {@code false} when {@code timeout} expires. Unlike {@link
+   * Workflow#await(Duration, Supplier)}, this method does not block the calling workflow thread.
+   *
+   * <p>The condition is evaluated on every workflow state transition. It must not call blocking
+   * operations or mutate workflow state. It must also not contain time-based conditions; use the
+   * {@code timeout} parameter for those.
+   *
+   * <p>If the {@link CancellationScope} active when this method is invoked is canceled, the promise
+   * completes exceptionally with a {@link io.temporal.failure.CanceledFailure}. An exception thrown
+   * by the condition also completes the promise exceptionally.
+   *
+   * @param timeout time after which the promise completes with {@code false} if the condition is
+   *     not satisfied.
+   * @param unblockCondition condition that completes the promise with {@code true} when satisfied.
+   * @return promise that contains whether the condition was satisfied before the timeout.
+   */
+  public static Promise<Boolean> await(Duration timeout, Supplier<Boolean> unblockCondition) {
+    return AsyncInternal.await(timeout, unblockCondition);
   }
 
   /**
