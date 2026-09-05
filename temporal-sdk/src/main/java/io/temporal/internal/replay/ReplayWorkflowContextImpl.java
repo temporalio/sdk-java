@@ -22,6 +22,7 @@ import io.temporal.worker.PreferredVersionProviderInput;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
+import io.temporal.workflow.WorkflowRandomStream;
 import java.time.Duration;
 import java.util.*;
 import javax.annotation.Nonnull;
@@ -79,6 +80,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Random newRandom() {
     return workflowStateMachines.newRandom();
+  }
+
+  @Override
+  public WorkflowRandomStream getRandomStream(String name) {
+    return workflowStateMachines.getRandomStream(name);
   }
 
   @Override
