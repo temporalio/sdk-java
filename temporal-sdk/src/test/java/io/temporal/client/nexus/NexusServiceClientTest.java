@@ -2,6 +2,8 @@ package io.temporal.client.nexus;
 
 import static org.junit.Assume.assumeTrue;
 
+import io.nexusrpc.Operation;
+import io.nexusrpc.Service;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
@@ -13,6 +15,7 @@ import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.NexusServiceClient;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
+import io.temporal.common.converter.TransferTypeTestModel;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -36,6 +39,7 @@ public class NexusServiceClientTest {
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
           .setNexusServiceImplementation(
               new EchoNexusServiceImpl(),
+              new TransferServiceImpl(),
               new VoidInputServiceImpl(),
               new VoidReturnServiceImpl(),
               new VoidServiceImpl())
@@ -57,6 +61,18 @@ public class NexusServiceClientTest {
         client.execute(TestNexusServices.TestNexusService1::operation, newOptionsWithId(), "hello");
 
     Assert.assertEquals("echo:hello", result);
+  }
+
+  @Test
+  public void executeRoundTripsTransferTypes() {
+    NexusServiceClient<TransferService> client = buildServiceClientFor(TransferService.class);
+
+    TransferTypeTestModel result =
+        client.execute(
+            TransferService::operation, newOptionsWithId(), new TransferTypeTestModel("input"));
+
+    Assert.assertEquals(new TransferTypeTestModel("input-nexus"), result);
+    Assert.assertTrue(result.wasTransferred());
   }
 
   @Test
@@ -215,6 +231,27 @@ public class NexusServiceClientTest {
     @Override
     public String execute(String input) {
       return input;
+    }
+  }
+
+  @Service
+  public interface TransferService {
+    @Operation
+    TransferTypeTestModel operation(TransferTypeTestModel input);
+  }
+
+  @ServiceImpl(service = TransferService.class)
+  public static class TransferServiceImpl {
+    @OperationImpl
+    public OperationHandler<TransferTypeTestModel, TransferTypeTestModel> operation() {
+      return OperationHandler.sync(
+          (ctx, details, input) -> {
+            if (!input.wasTransferred()) {
+              throw new IllegalStateException(
+                  "Nexus input did not use its transfer type converter");
+            }
+            return new TransferTypeTestModel(input.value() + "-nexus");
+          });
     }
   }
 

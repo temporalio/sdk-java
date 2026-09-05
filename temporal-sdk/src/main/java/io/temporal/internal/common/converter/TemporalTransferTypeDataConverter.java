@@ -160,7 +160,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
 
   private static Object fromTransferValue(
       Object value, ConverterDescriptor descriptor, Type valueType) {
-    return value == null ? null : descriptor.converter().fromTransferType(value, valueType);
+    return descriptor.converter().fromTransferType(value, valueType);
   }
 
   private static Type requestedType(Class<?> valueClass, Type valueType) {

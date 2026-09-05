@@ -2,6 +2,7 @@ package io.temporal.common.converter;
 
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
+import javax.annotation.Nullable;
 
 /**
  * Converts a model to and from a representation handled by the configured {@link DataConverter}.
@@ -22,14 +23,16 @@ public interface TransferTypeConverter<T> {
    */
   Type getTransferType(Type valueType);
 
-  /** Converts a model value to its transfer representation. */
+  /** Converts a model value to its transfer representation, which may be null. */
+  @Nullable
   Object toTransferType(T value);
 
   /**
    * Reconstructs a model value from its transfer representation.
    *
-   * @param value transfer representation decoded by the configured data converter
+   * @param value transfer representation decoded by the configured data converter, which may be
+   *     null
    * @param valueType complete requested model type, including generic arguments
    */
-  T fromTransferType(Object value, Type valueType);
+  T fromTransferType(@Nullable Object value, Type valueType);
 }

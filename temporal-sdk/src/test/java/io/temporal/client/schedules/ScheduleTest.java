@@ -7,7 +7,9 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.converter.TransferTypeTestModel;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -113,6 +115,49 @@ public class ScheduleTest {
       badHandle.delete();
       Assert.fail();
     } catch (ScheduleException e) {
+    }
+  }
+
+  @Test
+  public void scheduleArgumentsRoundTripTransferTypes() {
+    ScheduleClient client =
+        ScheduleClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            ScheduleClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .setIdentity(testWorkflowRule.getWorkflowClient().getOptions().getIdentity())
+                .setDataConverter(DefaultDataConverter.newDefaultInstance())
+                .build());
+    String scheduleId = UUID.randomUUID().toString();
+    Schedule schedule =
+        Schedule.newBuilder()
+            .setAction(
+                ScheduleActionStartWorkflow.newBuilder()
+                    .setWorkflowType("TestWorkflow1")
+                    .setArguments(new TransferTypeTestModel("scheduled"))
+                    .setOptions(
+                        WorkflowOptions.newBuilder()
+                            .setWorkflowId("workflow-" + scheduleId)
+                            .setTaskQueue(testWorkflowRule.getTaskQueue())
+                            .build())
+                    .build())
+            .setSpec(
+                ScheduleSpec.newBuilder()
+                    .setIntervals(Arrays.asList(new ScheduleIntervalSpec(Duration.ofMinutes(1))))
+                    .build())
+            .setState(ScheduleState.newBuilder().setPaused(true).build())
+            .build();
+    ScheduleHandle handle =
+        client.createSchedule(scheduleId, schedule, ScheduleOptions.newBuilder().build());
+    try {
+      ScheduleActionStartWorkflow action =
+          (ScheduleActionStartWorkflow) handle.describe().getSchedule().getAction();
+
+      TransferTypeTestModel argument = action.getArguments().get(0, TransferTypeTestModel.class);
+      Assert.assertEquals(new TransferTypeTestModel("scheduled"), argument);
+      Assert.assertTrue(argument.wasTransferred());
+    } finally {
+      handle.delete();
     }
   }
 
