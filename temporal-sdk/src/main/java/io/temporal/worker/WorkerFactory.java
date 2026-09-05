@@ -181,7 +181,8 @@ public final class WorkerFactory {
    */
   public synchronized Worker newWorker(String taskQueue, WorkerOptions options) {
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
+        !Strings.isNullOrEmpty(taskQueue) && !taskQueue.trim().isEmpty(),
+        "taskQueue should not be an empty or blank string");
     Preconditions.checkState(
         state == State.Initial,
         String.format(statusErrorMessage, "create new worker", state.name(), State.Initial.name()));
