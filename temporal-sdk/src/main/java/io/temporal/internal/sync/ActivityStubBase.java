@@ -2,6 +2,7 @@ package io.temporal.internal.sync;
 
 import com.google.common.base.Defaults;
 import io.temporal.failure.ActivityFailure;
+import io.temporal.workflow.ActivityInvocationOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
@@ -40,4 +41,50 @@ abstract class ActivityStubBase implements ActivityStub {
   @Override
   public abstract <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args);
+
+  @Override
+  public <R> R execute(
+      String activityName,
+      Class<R> resultClass,
+      ActivityInvocationOptions options,
+      Object... args) {
+    return execute(activityName, resultClass, resultClass, options, args);
+  }
+
+  @Override
+  public <R> R execute(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      ActivityInvocationOptions options,
+      Object... args) {
+    Promise<R> result = executeAsync(activityName, resultClass, resultType, options, args);
+    if (AsyncInternal.isAsync()) {
+      AsyncInternal.setAsyncResult(result);
+      return Defaults.defaultValue(resultClass);
+    }
+    try {
+      return result.get();
+    } catch (ActivityFailure e) {
+      e.setStackTrace(Thread.currentThread().getStackTrace());
+      throw e;
+    }
+  }
+
+  @Override
+  public <R> Promise<R> executeAsync(
+      String activityName,
+      Class<R> resultClass,
+      ActivityInvocationOptions options,
+      Object... args) {
+    return executeAsync(activityName, resultClass, resultClass, options, args);
+  }
+
+  @Override
+  public abstract <R> Promise<R> executeAsync(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      ActivityInvocationOptions options,
+      Object... args);
 }

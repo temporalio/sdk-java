@@ -61,4 +61,68 @@ public interface ActivityStub {
    */
   <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args);
+
+  /**
+   * Executes an Activity with options that apply only to this invocation. Blocks until completion.
+   *
+   * @param activityName name of an Activity type to execute.
+   * @param resultClass expected return type of the Activity.
+   * @param options options for this invocation.
+   * @param args arguments of the Activity.
+   * @param <R> return type.
+   * @return Activity result.
+   */
+  <R> R execute(
+      String activityName, Class<R> resultClass, ActivityInvocationOptions options, Object... args);
+
+  /**
+   * Executes an Activity with options that apply only to this invocation. Blocks until completion.
+   *
+   * @param activityName name of an Activity type to execute.
+   * @param resultClass expected return class of the Activity.
+   * @param resultType expected return type of the Activity. Differs from {@code resultClass} for
+   *     generic types.
+   * @param options options for this invocation.
+   * @param args arguments of the Activity.
+   * @param <R> return type.
+   * @return Activity result.
+   */
+  <R> R execute(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      ActivityInvocationOptions options,
+      Object... args);
+
+  /**
+   * Executes an Activity asynchronously with options that apply only to this invocation.
+   *
+   * @param activityName name of an Activity type to execute.
+   * @param resultClass expected return type of the Activity.
+   * @param options options for this invocation.
+   * @param args arguments of the Activity.
+   * @param <R> return type.
+   * @return Promise to the Activity result.
+   */
+  <R> Promise<R> executeAsync(
+      String activityName, Class<R> resultClass, ActivityInvocationOptions options, Object... args);
+
+  /**
+   * Executes an Activity asynchronously with options that apply only to this invocation.
+   *
+   * @param activityName name of an Activity type to execute.
+   * @param resultClass expected return class of the Activity.
+   * @param resultType expected return type of the Activity. Differs from {@code resultClass} for
+   *     generic types.
+   * @param options options for this invocation.
+   * @param args arguments of the Activity.
+   * @param <R> return type.
+   * @return Promise to the Activity result.
+   */
+  <R> Promise<R> executeAsync(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      ActivityInvocationOptions options,
+      Object... args);
 }
