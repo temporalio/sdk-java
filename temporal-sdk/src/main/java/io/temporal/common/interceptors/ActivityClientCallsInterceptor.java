@@ -104,11 +104,12 @@ public interface ActivityClientCallsInterceptor {
   UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input);
 
   /**
-   * Updates the options of a standalone activity, or restores its original options.
+   * Updates the options of a standalone activity. The {@code updateMask} controls which fields of
+   * {@code activityOptions} are applied; alternatively {@code restoreOriginal} reverts the options
+   * to the values the activity was created with.
    *
-   * @param input activity ID, optional run ID, the new options with the field mask naming which of
-   *     them to apply, and whether to restore the original options instead
-   * @return an empty output object (reserved for future use)
+   * @param input activity ID, optional run ID, options, update mask, and restore flag
+   * @return output carrying the activity options as resolved by the server after the update
    */
   UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);
 
