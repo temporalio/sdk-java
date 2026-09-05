@@ -313,6 +313,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               }
             });
     CurrentNexusOperationContext.get().setRequestLinks(inboundCommonLinks);
+    // Ambient for the whole operation-handler invocation, independent of NexusOperationMetadata.
+    // see InternalNexusOperationContext.requestId.
+    CurrentNexusOperationContext.get().setRequestId(task.getRequestId());
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
