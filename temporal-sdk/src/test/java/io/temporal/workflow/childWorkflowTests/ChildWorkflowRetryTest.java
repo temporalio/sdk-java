@@ -1,6 +1,5 @@
 package io.temporal.workflow.childWorkflowTests;
 
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static org.junit.Assert.*;
 
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -14,6 +13,8 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -27,6 +28,7 @@ import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class ChildWorkflowRetryTest {
 
@@ -67,11 +69,13 @@ public class ChildWorkflowRetryTest {
                           };
                         }
                       })
-                  .setNamespace(NAMESPACE)
                   .build())
           .build();
 
   @Test
+  @CloudTestExclusionNote(
+      "Requires a workflow client interceptor in addition to envconfig client options.")
+  @Category(NeedsCloudAdaptation.class)
   public void testChildWorkflowRetry() {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()

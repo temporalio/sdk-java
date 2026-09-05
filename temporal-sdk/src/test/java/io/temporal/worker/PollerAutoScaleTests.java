@@ -3,6 +3,8 @@ package io.temporal.worker;
 import static org.junit.Assume.assumeTrue;
 
 import io.temporal.client.WorkflowClient;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.ArrayList;
@@ -33,7 +35,9 @@ public class PollerAutoScaleTests {
         "Test Server doesn't support poller autoscaling", SDKTestWorkflowRule.useExternalService);
   }
 
-  @Category(IndependentResourceBasedTests.class)
+  @CloudTestExclusionNote(
+      "This resource-heavy test still needs a dedicated Cloud execution strategy.")
+  @Category({IndependentResourceBasedTests.class, NeedsCloudAdaptation.class})
   @Test(timeout = 300 * 1000)
   public void canRunHeavyLoadWithPollerAutoScaling() {
     List<CompletableFuture<String>> workflowResults = new ArrayList<>();

@@ -180,6 +180,62 @@ test {
     }
 }
 
+def cloudTestExclusionCategories = [
+        RequiresLocalServer: 'io.temporal.testing.CloudTestExclusion$RequiresLocalServer',
+        RequiresCloudProvisioning: 'io.temporal.testing.CloudTestExclusion$RequiresCloudProvisioning',
+        NeedsCloudAdaptation: 'io.temporal.testing.CloudTestExclusion$NeedsCloudAdaptation',
+]
+
+task listCloudExcludedTests(type: Test) {
+    group = 'verification'
+    description = 'Lists temporal-sdk tests that are excluded from Temporal Cloud.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    dryRun = true
+    String exclusionReason = providers.gradleProperty('cloudTestExclusionReason').getOrNull()
+    String exclusionCategory = exclusionReason == null
+            ? 'io.temporal.testing.CloudTestExclusion'
+            : cloudTestExclusionCategories.get(exclusionReason)
+    if (exclusionCategory == null) {
+        throw new GradleException(
+                "Unknown Cloud test exclusion reason '${exclusionReason}'. Expected one of: " +
+                        cloudTestExclusionCategories.keySet().join(', ') + '.')
+    }
+    useJUnit {
+        includeCategories exclusionCategory
+    }
+    testLogging {
+        events 'skipped'
+    }
+}
+
+task testCloud(type: Test) {
+    group = 'verification'
+    description = 'Runs temporal-sdk tests that are eligible for Temporal Cloud.'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    if (project.hasProperty('testJavaVersion')) {
+        javaLauncher = javaToolchains.launcherFor {
+            languageVersion = JavaLanguageVersion.of(project.property('testJavaVersion') as int)
+        }
+    }
+    useJUnit {
+        excludeCategories 'io.temporal.testing.CloudTestExclusion'
+    }
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
+        showStandardStreams true
+    }
+    forkEvery = 1
+    maxParallelForks = Math.max(Runtime.runtime.availableProcessors().intdiv(2), 1) ?: 1
+    afterTest { TestDescriptor descriptor, TestResult result ->
+        if (result.resultType == org.gradle.api.tasks.testing.TestResult.ResultType.FAILURE) {
+            failedTests << ["${descriptor.className}::${descriptor.name}"]
+        }
+    }
+}
+
 // On Java 17+, prepend java17 classes to all test classpaths so that Class.forName finds
 // the real Jackson3JsonPayloadConverter instead of the Java 8 stub. This lets us test
 // the present-java17-but-absent-jackson3 behavior (NoClassDefFoundError) in the same

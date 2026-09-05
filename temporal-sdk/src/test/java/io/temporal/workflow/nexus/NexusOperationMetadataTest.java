@@ -8,6 +8,8 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.testUtils.HistoryUtils;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -19,7 +21,10 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusOperationMetadataTest {
   static final String NEXUS_OPERATION_SUMMARY = "nexus-operation-summary";
 

@@ -186,7 +186,7 @@ public class WorkflowSlotGrpcInterceptedTests {
         "task_queue",
         testWorkflowRule.getTaskQueue(),
         "namespace",
-        "UnitTest");
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace());
   }
 
   private static class MaybeFailWFTResponseInterceptor implements ClientInterceptor {

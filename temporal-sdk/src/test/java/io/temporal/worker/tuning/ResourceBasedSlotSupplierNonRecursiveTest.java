@@ -13,6 +13,7 @@ import io.temporal.internal.worker.SlotReservationData;
 import io.temporal.internal.worker.TrackingSlotSupplier;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
@@ -190,14 +191,23 @@ public class ResourceBasedSlotSupplierNonRecursiveTest {
         "=== End-to-End Worker Test with Resource Starvation Recovery (External Service) ===");
 
     // Create connections to real Temporal server
-    WorkflowServiceStubs service =
-        WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder()
-                .setTarget(ExternalServiceTestConfigurator.getTemporalServiceAddress())
-                .build());
+    TestEnvironmentOptions environmentOptions =
+        ExternalServiceTestConfigurator.configuredTestEnvironmentOptions().build();
+    WorkflowServiceStubsOptions configuredOptions =
+        environmentOptions.getWorkflowServiceStubsOptions();
+    WorkflowServiceStubsOptions.Builder serviceOptions =
+        configuredOptions == null
+            ? WorkflowServiceStubsOptions.newBuilder()
+            : WorkflowServiceStubsOptions.newBuilder(configuredOptions);
+    if (environmentOptions.getTarget() != null) {
+      serviceOptions.setTarget(environmentOptions.getTarget());
+    }
+    WorkflowServiceStubs service = WorkflowServiceStubs.newServiceStubs(serviceOptions.build());
+    WorkflowClientOptions configuredClientOptions = environmentOptions.getWorkflowClientOptions();
     WorkflowClient client =
-        WorkflowClient.newInstance(
-            service, WorkflowClientOptions.newBuilder().setNamespace("default").build());
+        configuredClientOptions == null
+            ? WorkflowClient.newInstance(service)
+            : WorkflowClient.newInstance(service, configuredClientOptions);
     WorkerFactory workerFactory = WorkerFactory.newInstance(client);
 
     // Create our own resource controller that we can control

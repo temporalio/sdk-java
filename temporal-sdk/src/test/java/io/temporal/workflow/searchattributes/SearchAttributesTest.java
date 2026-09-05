@@ -23,6 +23,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowServiceException;
 import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -36,8 +38,12 @@ import java.util.*;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings("deprecation")
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the custom search attributes required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class SearchAttributesTest {
   private static final String TEST_KEY_STRING = "CustomStringField";
   private static final String TEST_VALUE_STRING = NAMESPACE;

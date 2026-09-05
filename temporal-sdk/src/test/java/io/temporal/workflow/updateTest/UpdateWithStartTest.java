@@ -107,7 +107,7 @@ public class UpdateWithStartTest {
     return new Results(theWorkflowResult, theUpdateResult);
   }
 
-  @Test
+  @Test(timeout = 30_000)
   public void startWorkflowAndUpdate() throws ExecutionException, InterruptedException {
     // no arg
     Results results =

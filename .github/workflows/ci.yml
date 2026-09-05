@@ -113,8 +113,8 @@ jobs:
 
   unit_test_cloud:
     name: Unit test with cloud
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    runs-on: ubuntu-latest-16-cores
+    timeout-minutes: 35
     steps:
       - name: Checkout repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -175,7 +175,7 @@ jobs:
 
       - name: Run cloud test
         if: ${{ steps.cloud-test-eligibility.outputs.enabled == 'true' }}
-        timeout-minutes: 15
+        timeout-minutes: 25
         env:
           USER: unittest
           TEMPORAL_TEST_ENV_CONFIG_SERVER: "true"
@@ -184,10 +184,7 @@ jobs:
           TEMPORAL_CLIENT_CLOUD_NAMESPACE: ${{ steps.create-cloud-namespace.outputs.namespace }}
           TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
           TEMPORAL_CLIENT_CLOUD_API_VERSION: v0.19.1
-        run: |
-          ./gradlew --no-daemon :temporal-sdk:test \
-            --tests '*CloudOperationsClientTest' \
-            --tests 'io.temporal.client.functional.SignalTest.signalCompletedWorkflow'
+        run: ./gradlew --no-daemon :temporal-sdk:testCloud
 
       - name: Delete Cloud namespace
         if: ${{ always() && steps.create-cloud-namespace.outputs.namespace != '' }}
@@ -201,7 +198,7 @@ jobs:
         uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
         if: success() || failure() # always run even if the previous step fails
         with:
-          report_paths: "**/build/test-results/test/TEST-*.xml"
+          report_paths: "**/build/test-results/testCloud/TEST-*.xml"
 
   code_format:
     name: Code format
