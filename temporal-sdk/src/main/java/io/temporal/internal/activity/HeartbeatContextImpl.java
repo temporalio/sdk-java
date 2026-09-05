@@ -7,12 +7,12 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
+import io.temporal.internal.client.ActivityHeartbeatResponse;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -332,7 +332,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   private void sendHeartbeatRequest(Object details) {
     try {
-      RecordActivityTaskHeartbeatResponse status =
+      ActivityHeartbeatResponse status =
           ActivityClientHelper.sendHeartbeatRequest(
               service,
               namespace,
