@@ -13,8 +13,8 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
+import io.temporal.internal.client.ActivityHeartbeatResponse;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.ActivitySerializationContext;
@@ -94,7 +94,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .respondActivityTaskCompleted(request.build()),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
-        processException(e);
+        throw wrapException(e);
       }
     } else {
       if (activityId == null) {
@@ -116,7 +116,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .respondActivityTaskCompletedById(request.build()),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
-        processException(e);
+        throw wrapException(e);
       }
     }
   }
@@ -169,16 +169,17 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                     .respondActivityTaskFailedById(request),
             replyGrpcRetryerOptions);
       } catch (Exception e) {
-        processException(e);
+        throw wrapException(e);
       }
     }
   }
 
   @Override
-  public void recordHeartbeat(@Nullable Object details) throws CanceledFailure {
+  public void recordHeartbeat(@Nullable Object details) throws ActivityCompletionException {
+    ActivityHeartbeatResponse status;
     try {
       if (taskToken != null) {
-        RecordActivityTaskHeartbeatResponse status =
+        status =
             ActivityClientHelper.sendHeartbeatRequest(
                 service,
                 namespace,
@@ -186,15 +187,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 taskToken,
                 dataConverterWithActivityExecutionContext.toPayloads(details),
                 metricsScope);
-        if (status.getCancelRequested()) {
-          throw new ActivityCanceledException();
-        } else if (status.getActivityReset()) {
-          throw new ActivityResetException();
-        } else if (status.getActivityPaused()) {
-          throw new ActivityPausedException();
-        }
       } else {
-        RecordActivityTaskHeartbeatByIdResponse status =
+        status =
             ActivityClientHelper.recordActivityTaskHeartbeatById(
                 service,
                 namespace,
@@ -203,16 +197,16 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
                 activityId,
                 dataConverterWithActivityExecutionContext.toPayloads(details),
                 metricsScope);
-        if (status.getCancelRequested()) {
-          throw new ActivityCanceledException();
-        } else if (status.getActivityReset()) {
-          throw new ActivityResetException();
-        } else if (status.getActivityPaused()) {
-          throw new ActivityPausedException();
-        }
       }
     } catch (Exception e) {
-      processException(e);
+      throw wrapException(e);
+    }
+    if (status.getCancelRequested()) {
+      throw new ActivityCanceledException();
+    } else if (status.getActivityReset()) {
+      throw new ActivityResetException();
+    } else if (status.getActivityPaused()) {
+      throw new ActivityPausedException();
     }
   }
 
@@ -266,13 +260,13 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
     }
   }
 
-  private void processException(Exception e) {
+  private ActivityCompletionException wrapException(Exception e) {
     if (e instanceof StatusRuntimeException) {
       StatusRuntimeException sre = (StatusRuntimeException) e;
       if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
-        throw new ActivityNotExistsException(activityId, sre);
+        return new ActivityNotExistsException(activityId, sre);
       }
     }
-    throw new ActivityCompletionFailureException(activityId, e);
+    return new ActivityCompletionFailureException(activityId, e);
   }
 }

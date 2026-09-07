@@ -1,6 +1,6 @@
 package io.temporal.activity;
 
-import io.temporal.failure.CanceledFailure;
+import io.temporal.client.ActivityCompletionException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -30,8 +30,14 @@ public interface ManualActivityCompletionClient {
    * Records heartbeat for an activity
    *
    * @param details to record with the heartbeat
+   * @throws ActivityCompletionException if the server reports the activity was cancelled, reset, or
+   *     paused ({@link io.temporal.client.ActivityCanceledException}, {@link
+   *     io.temporal.client.ActivityResetException}, {@link
+   *     io.temporal.client.ActivityPausedException}), or if the heartbeat RPC fails ({@link
+   *     io.temporal.client.ActivityCompletionFailureException}, {@link
+   *     io.temporal.client.ActivityNotExistsException}).
    */
-  void recordHeartbeat(@Nullable Object details) throws CanceledFailure;
+  void recordHeartbeat(@Nullable Object details) throws ActivityCompletionException;
 
   /**
    * Confirms successful cancellation to the server.
