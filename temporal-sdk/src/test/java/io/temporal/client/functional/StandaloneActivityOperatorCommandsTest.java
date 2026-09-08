@@ -687,17 +687,31 @@ public class StandaloneActivityOperatorCommandsTest {
             .setReason("unpause-reason")
             .setJitter(Duration.ofSeconds(5))
             .build());
+    handle.updateOptions(
+        ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)),
+        ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.unset());
     handle.terminate("cleanup");
 
     assertEquals("pause-reason", recorder.pauseInput.getOptions().getReason());
     assertEquals("unpause-reason", recorder.unpauseInput.getOptions().getReason());
     assertEquals(Duration.ofSeconds(5), recorder.unpauseInput.getOptions().getJitter());
+
+    List<ActivityOptionsUpdate<?>> updates = recorder.updateInput.getUpdates();
+    assertEquals(2, updates.size());
+    assertFalse(recorder.updateInput.isRestoreOriginal());
+    assertEquals(
+        ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.getName(), updates.get(0).getKey().getName());
+    assertEquals(Duration.ofSeconds(90), updates.get(0).getValue().orElse(null));
+    assertEquals(
+        ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.getName(), updates.get(1).getKey().getName());
+    assertFalse("an unset update carries no value", updates.get(1).getValue().isPresent());
   }
 
   private static class RecordingInterceptor extends ActivityClientInterceptorBase {
     private final List<String> events;
     PauseActivityInput pauseInput;
     UnpauseActivityInput unpauseInput;
+    UpdateActivityOptionsInput updateInput;
 
     RecordingInterceptor(List<String> events) {
       this.events = events;
@@ -724,6 +738,7 @@ public class StandaloneActivityOperatorCommandsTest {
         @Override
         public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
           events.add("updateOptions");
+          updateInput = input;
           return super.updateActivityOptions(input);
         }
       };

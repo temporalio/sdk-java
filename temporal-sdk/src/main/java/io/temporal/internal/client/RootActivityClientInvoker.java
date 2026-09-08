@@ -5,10 +5,12 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaDat
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+import com.google.protobuf.FieldMask;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
+import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Link;
@@ -18,6 +20,10 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.client.ActivityOptionsUpdate;
+import io.temporal.client.ActivityOptionsUpdate.ActivityOptionsKey;
+import io.temporal.common.Priority;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -31,7 +37,10 @@ import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
+import java.time.Duration;
 import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
@@ -445,7 +454,19 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (input.isRestoreOriginal()) {
       req.setRestoreOriginal(true);
     } else {
-      req.setActivityOptions(input.getActivityOptions()).setUpdateMask(input.getUpdateMask());
+      // For repeated keys, later values override previous ones.
+      Map<String, ActivityOptionsUpdate<?>> byPath = new LinkedHashMap<>();
+      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
+        byPath.put(update.getKey().getName(), update);
+      }
+      ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
+      for (ActivityOptionsUpdate<?> update : byPath.values()) {
+        // An unset update names its path but leaves the field absent, which is how the server is
+        // told to clear the option.
+        update.getValue().ifPresent(value -> applyUpdate(activityOptions, update.getKey(), value));
+      }
+      req.setActivityOptions(activityOptions.build())
+          .setUpdateMask(FieldMask.newBuilder().addAllPaths(byPath.keySet()).build());
     }
     UpdateActivityExecutionOptionsResponse response =
         genericClient.updateActivityOptions(req.build());
@@ -477,5 +498,41 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     CountActivityExecutionsResponse resp = genericClient.countActivities(req.build());
     return new CountActivitiesOutput(new ActivityExecutionCount(resp));
+  }
+
+  /**
+   * Writes one option's value onto the request. The cast is safe because every key is created by
+   * {@link ActivityOptionsUpdate} with the value type its path expects.
+   */
+  private static void applyUpdate(
+      ActivityOptions.Builder options, ActivityOptionsKey<?> key, Object value) {
+    switch (key.getName()) {
+      case "task_queue.name":
+        options.setTaskQueue(TaskQueue.newBuilder().setName((String) value).build());
+        break;
+      case "schedule_to_close_timeout":
+        options.setScheduleToCloseTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "schedule_to_start_timeout":
+        options.setScheduleToStartTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "start_to_close_timeout":
+        options.setStartToCloseTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "heartbeat_timeout":
+        options.setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "start_delay":
+        options.setStartDelay(ProtobufTimeUtils.toProtoDuration((Duration) value));
+        break;
+      case "retry_policy":
+        options.setRetryPolicy(toRetryPolicy((RetryOptions) value));
+        break;
+      case "priority":
+        options.setPriority(ProtoConverters.toProto((Priority) value));
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown activity option: " + key.getName());
+    }
   }
 }

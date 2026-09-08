@@ -1,13 +1,12 @@
 package io.temporal.common.interceptors;
 
-import com.google.protobuf.FieldMask;
-import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
 import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityFailedException;
+import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.StartActivityOptions;
@@ -441,20 +440,17 @@ public interface ActivityClientCallsInterceptor {
   final class UpdateActivityOptionsInput {
     private final String id;
     private final @Nullable String runId;
-    private final ActivityOptions activityOptions;
-    private final FieldMask updateMask;
+    private final List<ActivityOptionsUpdate<?>> updates;
     private final boolean restoreOriginal;
 
     public UpdateActivityOptionsInput(
         String id,
         @Nullable String runId,
-        ActivityOptions activityOptions,
-        FieldMask updateMask,
+        List<ActivityOptionsUpdate<?>> updates,
         boolean restoreOriginal) {
       this.id = id;
       this.runId = runId;
-      this.activityOptions = activityOptions;
-      this.updateMask = updateMask;
+      this.updates = updates;
       this.restoreOriginal = restoreOriginal;
     }
 
@@ -467,12 +463,12 @@ public interface ActivityClientCallsInterceptor {
       return runId;
     }
 
-    public ActivityOptions getActivityOptions() {
-      return activityOptions;
-    }
-
-    public FieldMask getUpdateMask() {
-      return updateMask;
+    /**
+     * The option updates to apply, in the order the caller supplied them. Empty when {@link
+     * #isRestoreOriginal()} is true. For a repeated key, the later update wins.
+     */
+    public List<ActivityOptionsUpdate<?>> getUpdates() {
+      return updates;
     }
 
     public boolean isRestoreOriginal() {
