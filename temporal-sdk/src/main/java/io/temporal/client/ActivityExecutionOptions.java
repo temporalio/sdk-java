@@ -3,8 +3,12 @@ package io.temporal.client;
 import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.internal.common.ProtoConverters;
+import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.common.RetryOptionsUtils;
 import java.time.Duration;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -13,93 +17,6 @@ import javax.annotation.Nullable;
  */
 @Experimental
 public final class ActivityExecutionOptions {
-
-  public static Builder newBuilder() {
-    return new Builder();
-  }
-
-  public static Builder newBuilder(ActivityExecutionOptions options) {
-    return new Builder(options);
-  }
-
-  public static final class Builder {
-    private @Nullable String taskQueue;
-    private @Nullable Duration scheduleToCloseTimeout;
-    private @Nullable Duration scheduleToStartTimeout;
-    private @Nullable Duration startToCloseTimeout;
-    private @Nullable Duration heartbeatTimeout;
-    private @Nullable RetryOptions retryOptions;
-    private @Nullable Priority priority;
-    private @Nullable Duration startDelay;
-
-    private Builder() {}
-
-    private Builder(ActivityExecutionOptions options) {
-      if (options == null) {
-        return;
-      }
-      this.taskQueue = options.taskQueue;
-      this.scheduleToCloseTimeout = options.scheduleToCloseTimeout;
-      this.scheduleToStartTimeout = options.scheduleToStartTimeout;
-      this.startToCloseTimeout = options.startToCloseTimeout;
-      this.heartbeatTimeout = options.heartbeatTimeout;
-      this.retryOptions = options.retryOptions;
-      this.priority = options.priority;
-      this.startDelay = options.startDelay;
-    }
-
-    /** New task queue for the activity. */
-    public Builder setTaskQueue(@Nullable String taskQueue) {
-      this.taskQueue = taskQueue;
-      return this;
-    }
-
-    /** New schedule-to-close timeout. */
-    public Builder setScheduleToCloseTimeout(@Nullable Duration scheduleToCloseTimeout) {
-      this.scheduleToCloseTimeout = scheduleToCloseTimeout;
-      return this;
-    }
-
-    /** New schedule-to-start timeout. */
-    public Builder setScheduleToStartTimeout(@Nullable Duration scheduleToStartTimeout) {
-      this.scheduleToStartTimeout = scheduleToStartTimeout;
-      return this;
-    }
-
-    /** New start-to-close timeout. */
-    public Builder setStartToCloseTimeout(@Nullable Duration startToCloseTimeout) {
-      this.startToCloseTimeout = startToCloseTimeout;
-      return this;
-    }
-
-    /** New heartbeat timeout. */
-    public Builder setHeartbeatTimeout(@Nullable Duration heartbeatTimeout) {
-      this.heartbeatTimeout = heartbeatTimeout;
-      return this;
-    }
-
-    /** New retry policy. */
-    public Builder setRetryOptions(@Nullable RetryOptions retryOptions) {
-      this.retryOptions = retryOptions;
-      return this;
-    }
-
-    /** New priority. */
-    public Builder setPriority(@Nullable Priority priority) {
-      this.priority = priority;
-      return this;
-    }
-
-    /** New start delay for the first attempt. */
-    public Builder setStartDelay(@Nullable Duration startDelay) {
-      this.startDelay = startDelay;
-      return this;
-    }
-
-    public ActivityExecutionOptions build() {
-      return new ActivityExecutionOptions(this);
-    }
-  }
 
   private final @Nullable String taskQueue;
   private final @Nullable Duration scheduleToCloseTimeout;
@@ -110,19 +27,33 @@ public final class ActivityExecutionOptions {
   private final @Nullable Priority priority;
   private final @Nullable Duration startDelay;
 
-  private ActivityExecutionOptions(Builder builder) {
-    this.taskQueue = builder.taskQueue;
-    this.scheduleToCloseTimeout = builder.scheduleToCloseTimeout;
-    this.scheduleToStartTimeout = builder.scheduleToStartTimeout;
-    this.startToCloseTimeout = builder.startToCloseTimeout;
-    this.heartbeatTimeout = builder.heartbeatTimeout;
-    this.retryOptions = builder.retryOptions;
-    this.priority = builder.priority;
-    this.startDelay = builder.startDelay;
-  }
-
-  public Builder toBuilder() {
-    return new Builder(this);
+  /**
+   * Converts the server's resolved activity options into this type. An option the server did not
+   * report is left null.
+   */
+  public ActivityExecutionOptions(@Nonnull io.temporal.api.activity.v1.ActivityOptions proto) {
+    this.taskQueue = proto.hasTaskQueue() ? proto.getTaskQueue().getName() : null;
+    this.scheduleToCloseTimeout =
+        proto.hasScheduleToCloseTimeout()
+            ? ProtobufTimeUtils.toJavaDuration(proto.getScheduleToCloseTimeout())
+            : null;
+    this.scheduleToStartTimeout =
+        proto.hasScheduleToStartTimeout()
+            ? ProtobufTimeUtils.toJavaDuration(proto.getScheduleToStartTimeout())
+            : null;
+    this.startToCloseTimeout =
+        proto.hasStartToCloseTimeout()
+            ? ProtobufTimeUtils.toJavaDuration(proto.getStartToCloseTimeout())
+            : null;
+    this.heartbeatTimeout =
+        proto.hasHeartbeatTimeout()
+            ? ProtobufTimeUtils.toJavaDuration(proto.getHeartbeatTimeout())
+            : null;
+    this.retryOptions =
+        proto.hasRetryPolicy() ? RetryOptionsUtils.toRetryOptions(proto.getRetryPolicy()) : null;
+    this.priority = proto.hasPriority() ? ProtoConverters.fromProto(proto.getPriority()) : null;
+    this.startDelay =
+        proto.hasStartDelay() ? ProtobufTimeUtils.toJavaDuration(proto.getStartDelay()) : null;
   }
 
   @Nullable

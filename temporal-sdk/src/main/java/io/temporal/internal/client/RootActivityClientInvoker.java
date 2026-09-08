@@ -9,7 +9,6 @@ import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
-import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Link;
@@ -26,7 +25,6 @@ import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
@@ -451,7 +449,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     UpdateActivityExecutionOptionsResponse response =
         genericClient.updateActivityOptions(req.build());
-    return new UpdateActivityOptionsOutput(toUpdateActivityOptions(response.getActivityOptions()));
+    return new UpdateActivityOptionsOutput(
+        new ActivityExecutionOptions(response.getActivityOptions()));
   }
 
   @Override
@@ -478,38 +477,5 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     CountActivityExecutionsResponse resp = genericClient.countActivities(req.build());
     return new CountActivitiesOutput(new ActivityExecutionCount(resp));
-  }
-
-  /** Converts the server's resolved activity options into the public options type. */
-  private static ActivityExecutionOptions toUpdateActivityOptions(ActivityOptions proto) {
-    ActivityExecutionOptions.Builder builder = ActivityExecutionOptions.newBuilder();
-    if (proto.hasTaskQueue()) {
-      builder.setTaskQueue(proto.getTaskQueue().getName());
-    }
-    if (proto.hasScheduleToCloseTimeout()) {
-      builder.setScheduleToCloseTimeout(
-          ProtobufTimeUtils.toJavaDuration(proto.getScheduleToCloseTimeout()));
-    }
-    if (proto.hasScheduleToStartTimeout()) {
-      builder.setScheduleToStartTimeout(
-          ProtobufTimeUtils.toJavaDuration(proto.getScheduleToStartTimeout()));
-    }
-    if (proto.hasStartToCloseTimeout()) {
-      builder.setStartToCloseTimeout(
-          ProtobufTimeUtils.toJavaDuration(proto.getStartToCloseTimeout()));
-    }
-    if (proto.hasHeartbeatTimeout()) {
-      builder.setHeartbeatTimeout(ProtobufTimeUtils.toJavaDuration(proto.getHeartbeatTimeout()));
-    }
-    if (proto.hasRetryPolicy()) {
-      builder.setRetryOptions(RetryOptionsUtils.toRetryOptions(proto.getRetryPolicy()));
-    }
-    if (proto.hasPriority()) {
-      builder.setPriority(ProtoConverters.fromProto(proto.getPriority()));
-    }
-    if (proto.hasStartDelay()) {
-      builder.setStartDelay(ProtobufTimeUtils.toJavaDuration(proto.getStartDelay()));
-    }
-    return builder.build();
   }
 }
