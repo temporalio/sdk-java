@@ -50,7 +50,7 @@ public class HeartbeatManagerTest {
             .setWorkerInstanceKey("worker-1")
             .setTaskQueue("test-queue")
             .build();
-    manager.registerWorker("default", "worker-1", () -> hb);
+    manager.registerWorker("default", "worker-1", () -> hb, () -> {});
 
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
@@ -79,8 +79,8 @@ public class HeartbeatManagerTest {
             .setWorkerInstanceKey("worker-2")
             .setTaskQueue("queue-2")
             .build();
-    manager.registerWorker("default", "worker-1", () -> hb1);
-    manager.registerWorker("default", "worker-2", () -> hb2);
+    manager.registerWorker("default", "worker-1", () -> hb1, () -> {});
+    manager.registerWorker("default", "worker-2", () -> hb2, () -> {});
 
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
 
@@ -98,7 +98,7 @@ public class HeartbeatManagerTest {
     manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
-    manager.registerWorker("default", "worker-1", () -> hb);
+    manager.registerWorker("default", "worker-1", () -> hb, () -> {});
 
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 
@@ -114,8 +114,8 @@ public class HeartbeatManagerTest {
 
     WorkerHeartbeat hb1 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns1").build();
     WorkerHeartbeat hb2 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns2").build();
-    manager.registerWorker("namespace-1", "worker-ns1", () -> hb1);
-    manager.registerWorker("namespace-2", "worker-ns2", () -> hb2);
+    manager.registerWorker("namespace-1", "worker-ns1", () -> hb1, () -> {});
+    manager.registerWorker("namespace-2", "worker-ns2", () -> hb2, () -> {});
 
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
 
@@ -143,7 +143,7 @@ public class HeartbeatManagerTest {
     manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
-    manager.registerWorker("default", "worker-1", () -> hb);
+    manager.registerWorker("default", "worker-1", () -> hb, () -> {});
 
     // Wait for at least 2 ticks — proves the scheduler survived the exception
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
@@ -164,7 +164,7 @@ public class HeartbeatManagerTest {
     manager = new HeartbeatManager(service, "test-identity", FAST_INTERVAL);
 
     WorkerHeartbeat hb = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
-    manager.registerWorker("default", "worker-1", () -> hb);
+    manager.registerWorker("default", "worker-1", () -> hb, () -> {});
 
     // Wait for the first tick to hit UNIMPLEMENTED
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
@@ -180,8 +180,8 @@ public class HeartbeatManagerTest {
 
     WorkerHeartbeat hb1 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns1").build();
     WorkerHeartbeat hb2 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-ns2").build();
-    manager.registerWorker("namespace-1", "worker-ns1", () -> hb1);
-    manager.registerWorker("namespace-2", "worker-ns2", () -> hb2);
+    manager.registerWorker("namespace-1", "worker-ns1", () -> hb1, () -> {});
+    manager.registerWorker("namespace-2", "worker-ns2", () -> hb2, () -> {});
 
     // Both namespaces heartbeating
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeast(2)).recordWorkerHeartbeat(any());
@@ -209,8 +209,8 @@ public class HeartbeatManagerTest {
 
     WorkerHeartbeat hb1 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-1").build();
     WorkerHeartbeat hb2 = WorkerHeartbeat.newBuilder().setWorkerInstanceKey("worker-2").build();
-    manager.registerWorker("default", "worker-1", () -> hb1);
-    manager.registerWorker("default", "worker-2", () -> hb2);
+    manager.registerWorker("default", "worker-1", () -> hb1, () -> {});
+    manager.registerWorker("default", "worker-2", () -> hb2, () -> {});
 
     verify(blockingStub, timeout(VERIFY_TIMEOUT_MS).atLeastOnce()).recordWorkerHeartbeat(any());
 

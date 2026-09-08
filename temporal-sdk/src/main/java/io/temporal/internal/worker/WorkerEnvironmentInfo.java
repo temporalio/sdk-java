@@ -50,7 +50,7 @@ public final class WorkerEnvironmentInfo {
         builder.setPlatform(platform);
       }
     } catch (RuntimeException e) {
-      log.warn("Failed to detect worker environment information, reporting partial results", e);
+      log.info("Failed to detect worker environment information, reporting partial results", e);
     }
     return builder.build();
   }

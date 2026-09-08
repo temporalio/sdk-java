@@ -36,15 +36,6 @@ public class HeartbeatManager {
    * is the first worker for the given namespace.
    */
   public void registerWorker(
-      String namespace, String workerInstanceKey, Supplier<WorkerHeartbeat> callback) {
-    registerWorker(namespace, workerInstanceKey, callback, () -> {});
-  }
-
-  /**
-   * @param onHeartbeatAccepted invoked, from the heartbeat thread, each time a heartbeat produced
-   *     by {@code callback} has been accepted by the server
-   */
-  public void registerWorker(
       String namespace,
       String workerInstanceKey,
       Supplier<WorkerHeartbeat> callback,
