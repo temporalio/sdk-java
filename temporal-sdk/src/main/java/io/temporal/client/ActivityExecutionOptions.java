@@ -8,10 +8,8 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
- * Options for {@link UntypedActivityHandle#updateOptions(ActivityOptionsUpdate<?>...)}.
- *
- * <p>Only the fields that are explicitly set are sent to the server; a derived field mask ensures
- * that unset fields are left unchanged (a partial update).
+ * The options an activity is running with, as resolved by the server. Returned by {@link
+ * UntypedActivityHandle#updateOptions} and {@link UntypedActivityHandle#restoreOriginalOptions}.
  */
 @Experimental
 public final class ActivityExecutionOptions {
