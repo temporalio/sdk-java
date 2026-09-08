@@ -15,8 +15,11 @@ import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
+import io.temporal.api.workflowservice.v1.DescribeActivityExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.client.*;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
@@ -854,7 +857,26 @@ public class StandaloneActivityTest {
       assertEventually(
           Duration.ofSeconds(60),
           () -> {
-            ActivityExecutionDescription desc = handle.describe();
+            // last_failure carries a payload, so the server returns it only when the
+            // DescribeActivityExecution request opts in via include_last_failure. handle.describe()
+            // has no way to request it yet (sdk-java PR #3013 adds DescribeActivityOptions), so the
+            // request is issued directly here and wrapped in the same description type the handle
+            // would return, keeping the failure-conversion assertions below intact.
+            DescribeActivityExecutionResponse raw =
+                testWorkflowRule
+                    .getWorkflowServiceStubs()
+                    .blockingStub()
+                    .describeActivityExecution(
+                        DescribeActivityExecutionRequest.newBuilder()
+                            .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                            .setActivityId(handle.getActivityId())
+                            .setIncludeLastFailure(true)
+                            .build());
+            ActivityExecutionDescription desc =
+                new ActivityExecutionDescription(
+                    raw.getInfo(),
+                    DefaultDataConverter.STANDARD_INSTANCE,
+                    SDKTestWorkflowRule.NAMESPACE);
             Exception lastFailure = desc.getLastFailure();
             assertNotNull("last_failure should be set after a failed attempt", lastFailure);
             assertThat(lastFailure, instanceOf(ApplicationFailure.class));
