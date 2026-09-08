@@ -700,10 +700,10 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEquals(2, updates.size());
     assertFalse(recorder.updateInput.isRestoreOriginal());
     assertEquals(
-        ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.getName(), updates.get(0).getKey().getName());
+        ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.getPath(), updates.get(0).getKey().getPath());
     assertEquals(Duration.ofSeconds(90), updates.get(0).getValue().orElse(null));
     assertEquals(
-        ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.getName(), updates.get(1).getKey().getName());
+        ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.getPath(), updates.get(1).getKey().getPath());
     assertFalse("an unset update carries no value", updates.get(1).getValue().isPresent());
   }
 

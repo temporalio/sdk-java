@@ -89,20 +89,20 @@ public final class ActivityOptionsUpdate<T> {
   @Experimental
   public static final class ActivityOptionsKey<T> {
 
-    private final String name;
+    private final String path;
     private final Class<T> valueType;
     private final BiConsumer<ActivityOptions.Builder, T> setter;
 
     ActivityOptionsKey(
-        String name, Class<T> valueType, BiConsumer<ActivityOptions.Builder, T> setter) {
-      this.name = name;
+        String path, Class<T> valueType, BiConsumer<ActivityOptions.Builder, T> setter) {
+      this.path = path;
       this.valueType = valueType;
       this.setter = setter;
     }
 
     /** Field-mask path this key updates. */
-    public String getName() {
-      return name;
+    public String getPath() {
+      return path;
     }
 
     /** Type of this key's value. */
@@ -130,7 +130,7 @@ public final class ActivityOptionsUpdate<T> {
 
     @Override
     public String toString() {
-      return "ActivityOptionsKey{name='" + name + "', valueType=" + valueType.getSimpleName() + '}';
+      return "ActivityOptionsKey{path='" + path + "', valueType=" + valueType.getSimpleName() + '}';
     }
   }
 
@@ -164,6 +164,6 @@ public final class ActivityOptionsUpdate<T> {
 
   @Override
   public String toString() {
-    return "ActivityOptionsUpdate{key=" + key.getName() + ", value=" + value + '}';
+    return "ActivityOptionsUpdate{key=" + key.getPath() + ", value=" + value + '}';
   }
 }

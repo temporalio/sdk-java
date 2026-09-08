@@ -453,7 +453,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       // For repeated keys, later values override previous ones.
       Map<String, ActivityOptionsUpdate<?>> byPath = new LinkedHashMap<>();
       for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
-        byPath.put(update.getKey().getName(), update);
+        byPath.put(update.getKey().getPath(), update);
       }
       ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
       for (ActivityOptionsUpdate<?> update : byPath.values()) {
