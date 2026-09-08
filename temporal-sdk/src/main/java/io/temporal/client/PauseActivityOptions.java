@@ -81,6 +81,6 @@ public final class PauseActivityOptions {
 
   @Override
   public String toString() {
-    return "PauseActivityOptions{" + "reason='" + reason + "'" + '}';
+    return "PauseActivityOptions{" + "reason='" + reason + "'}";
   }
 }
