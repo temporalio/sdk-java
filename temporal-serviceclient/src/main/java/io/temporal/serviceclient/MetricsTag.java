@@ -26,6 +26,7 @@ public class MetricsTag {
   public static final String TASK_FAILURE_TYPE = "failure_reason";
   public static final String TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR = "NonDeterminismError";
   public static final String TASK_FAILURE_VALUE_GRPC_MESSAGE_TOO_LARGE = "GrpcMessageTooLarge";
+  public static final String TASK_FAILURE_VALUE_REQUEST_TOO_LARGE = "RequestTooLarge";
   public static final String TASK_FAILURE_VALUE_WORKFLOW_ERROR = "WorkflowError";
   public static final String TASK_FAILURE_VALUE_ACTIVITY_ERROR = "ActivityError";
   public static final String TASK_FAILURE_VALUE_OPERATION_FAILED = "operation_failed";
