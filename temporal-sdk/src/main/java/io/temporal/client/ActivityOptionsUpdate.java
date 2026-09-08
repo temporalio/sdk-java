@@ -1,10 +1,17 @@
 package io.temporal.client;
 
+import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
+
+import io.temporal.api.activity.v1.ActivityOptions;
+import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.internal.common.ProtoConverters;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.BiConsumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -20,31 +27,60 @@ import javax.annotation.Nullable;
 public final class ActivityOptionsUpdate<T> {
 
   public static final ActivityOptionsKey<String> TASK_QUEUE =
-      new ActivityOptionsKey<>("task_queue.name", String.class);
+      new ActivityOptionsKey<>(
+          "task_queue.name",
+          String.class,
+          (options, value) -> options.setTaskQueue(TaskQueue.newBuilder().setName(value).build()));
 
   public static final ActivityOptionsKey<Duration> SCHEDULE_TO_CLOSE_TIMEOUT =
-      new ActivityOptionsKey<>("schedule_to_close_timeout", Duration.class);
+      new ActivityOptionsKey<>(
+          "schedule_to_close_timeout",
+          Duration.class,
+          (options, value) ->
+              options.setScheduleToCloseTimeout(ProtobufTimeUtils.toProtoDuration(value)));
 
   public static final ActivityOptionsKey<Duration> SCHEDULE_TO_START_TIMEOUT =
-      new ActivityOptionsKey<>("schedule_to_start_timeout", Duration.class);
+      new ActivityOptionsKey<>(
+          "schedule_to_start_timeout",
+          Duration.class,
+          (options, value) ->
+              options.setScheduleToStartTimeout(ProtobufTimeUtils.toProtoDuration(value)));
 
   public static final ActivityOptionsKey<Duration> START_TO_CLOSE_TIMEOUT =
-      new ActivityOptionsKey<>("start_to_close_timeout", Duration.class);
+      new ActivityOptionsKey<>(
+          "start_to_close_timeout",
+          Duration.class,
+          (options, value) ->
+              options.setStartToCloseTimeout(ProtobufTimeUtils.toProtoDuration(value)));
 
   public static final ActivityOptionsKey<Duration> HEARTBEAT_TIMEOUT =
-      new ActivityOptionsKey<>("heartbeat_timeout", Duration.class);
+      new ActivityOptionsKey<>(
+          "heartbeat_timeout",
+          Duration.class,
+          (options, value) ->
+              options.setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(value)));
 
   public static final ActivityOptionsKey<Duration> START_DELAY =
-      new ActivityOptionsKey<>("start_delay", Duration.class);
+      new ActivityOptionsKey<>(
+          "start_delay",
+          Duration.class,
+          (options, value) -> options.setStartDelay(ProtobufTimeUtils.toProtoDuration(value)));
 
   public static final ActivityOptionsKey<RetryOptions> RETRY_OPTIONS =
-      new ActivityOptionsKey<>("retry_policy", RetryOptions.class);
+      new ActivityOptionsKey<>(
+          "retry_policy",
+          RetryOptions.class,
+          (options, value) -> options.setRetryPolicy(toRetryPolicy(value)));
 
   public static final ActivityOptionsKey<Priority> PRIORITY =
-      new ActivityOptionsKey<>("priority", Priority.class);
+      new ActivityOptionsKey<>(
+          "priority",
+          Priority.class,
+          (options, value) -> options.setPriority(ProtoConverters.toProto(value)));
 
   /**
-   * Typed key for one updatable activity option.
+   * Typed key for one updatable activity option. Each key knows both its field-mask path and how to
+   * write its value onto the request.
    *
    * <p>Use the keys on {@link ActivityOptionsUpdate} rather than constructing these directly.
    *
@@ -55,10 +91,13 @@ public final class ActivityOptionsUpdate<T> {
 
     private final String name;
     private final Class<T> valueType;
+    private final BiConsumer<ActivityOptions.Builder, T> setter;
 
-    ActivityOptionsKey(String name, Class<T> valueType) {
+    ActivityOptionsKey(
+        String name, Class<T> valueType, BiConsumer<ActivityOptions.Builder, T> setter) {
       this.name = name;
       this.valueType = valueType;
+      this.setter = setter;
     }
 
     /** Field-mask path this key updates. */
@@ -84,6 +123,11 @@ public final class ActivityOptionsUpdate<T> {
       return new ActivityOptionsUpdate<>(this, null);
     }
 
+    /** Writes this option's value onto the request. */
+    void apply(ActivityOptions.Builder options, T value) {
+      setter.accept(options, value);
+    }
+
     @Override
     public String toString() {
       return "ActivityOptionsKey{name='" + name + "', valueType=" + valueType.getSimpleName() + '}';
@@ -106,6 +150,16 @@ public final class ActivityOptionsUpdate<T> {
   /** Get the value to set, or empty for unset. */
   public Optional<T> getValue() {
     return Optional.ofNullable(value);
+  }
+
+  /**
+   * Writes this update onto the request. An unset update writes nothing: it names its path in the
+   * field mask but leaves the field absent, which is how the server is told to clear the option.
+   */
+  public void applyTo(ActivityOptions.Builder options) {
+    if (value != null) {
+      key.apply(options, value);
+    }
   }
 
   @Override
