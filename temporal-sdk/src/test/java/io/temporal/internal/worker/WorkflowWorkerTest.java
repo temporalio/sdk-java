@@ -31,8 +31,10 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
+import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
@@ -62,6 +64,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
@@ -669,6 +672,74 @@ public class WorkflowWorkerTest {
         sent.getValue().getQueryResult().getPayloads(0));
   }
 
+  @Test
+  public void anOversizedCompletionIsOffloadedRatherThanFailed() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.create();
+
+    runOneTask(
+        driver,
+        completionSizeLimit(ONE_MEGABYTE),
+        oversizedCompletion(),
+        blockingStub -> {
+          verify(blockingStub)
+              .respondWorkflowTaskCompleted(any(RespondWorkflowTaskCompletedRequest.class));
+          verify(blockingStub, never())
+              .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class));
+        });
+
+    assertEquals("the oversized result must be offloaded", 1, driver.storedCount());
+  }
+
+  @Test
+  public void anOversizedCompletionStillFailsWithoutExternalStorage() throws Exception {
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+
+    runOneTask(
+        null,
+        completionSizeLimit(ONE_MEGABYTE),
+        oversizedCompletion(),
+        blockingStub -> {
+          verify(blockingStub).respondWorkflowTaskFailed(sent.capture());
+          verify(blockingStub, never())
+              .respondWorkflowTaskCompleted(any(RespondWorkflowTaskCompletedRequest.class));
+        });
+
+    assertEquals(
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_REQUEST_TOO_LARGE,
+        sent.getValue().getCause());
+  }
+
+  private static final int ONE_MEGABYTE = 1024 * 1024;
+
+  private static NamespaceCapabilities completionSizeLimit(long limitBytes) {
+    NamespaceCapabilities capabilities = new NamespaceCapabilities();
+    capabilities.setFromCapabilities(
+        NamespaceInfo.Capabilities.newBuilder().setWorkflowTaskCompletionPagination(true).build());
+    capabilities.setFromLimits(
+        NamespaceInfo.Limits.newBuilder()
+            .setWorkflowTaskCompletionSizeLimitError(limitBytes)
+            .build());
+    return capabilities;
+  }
+
+  private static WorkflowTaskHandler.Result oversizedCompletion() {
+    Payload result =
+        Payload.newBuilder()
+            .setData(ByteString.copyFrom(new byte[WorkflowTaskCompletionPaginator.MAX_PAGE_BYTES]))
+            .build();
+    RespondWorkflowTaskCompletedRequest taskCompleted =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setCompleteWorkflowExecutionCommandAttributes(
+                        CompleteWorkflowExecutionCommandAttributes.newBuilder()
+                            .setResult(Payloads.newBuilder().addPayloads(result))))
+            .build();
+    return new WorkflowTaskHandler.Result(
+        WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null);
+  }
+
   /** Runs a single workflow task through a worker wired to {@code driver}, then verifies. */
   private void runOneTask(
       TestStorageDriver driver,
@@ -679,7 +750,28 @@ public class WorkflowWorkerTest {
   }
 
   private void runOneTask(
+      @Nullable TestStorageDriver driver,
+      NamespaceCapabilities namespaceCapabilities,
+      WorkflowTaskHandler.Result handlerResult,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
+    runOneTask(
+        driver, namespaceCapabilities, handlerResult, CancellationToken.none(), verification);
+  }
+
+  private void runOneTask(
       TestStorageDriver driver,
+      WorkflowTaskHandler.Result handlerResult,
+      CancellationToken<CancellationException> storageCancellation,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
+    runOneTask(
+        driver, new NamespaceCapabilities(), handlerResult, storageCancellation, verification);
+  }
+
+  private void runOneTask(
+      @Nullable TestStorageDriver driver,
+      NamespaceCapabilities namespaceCapabilities,
       WorkflowTaskHandler.Result handlerResult,
       CancellationToken<CancellationException> storageCancellation,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
@@ -712,11 +804,13 @@ public class WorkflowWorkerTest {
                         .build())
                 .setMetricsScope(metricsScope)
                 .setExternalStorageRunner(
-                    ExternalStorageRunner.create(
-                        ExternalStorage.newBuilder()
-                            .setDriver(driver)
-                            .setPayloadSizeThreshold(0)
-                            .build()))
+                    driver == null
+                        ? null
+                        : ExternalStorageRunner.create(
+                            ExternalStorage.newBuilder()
+                                .setDriver(driver)
+                                .setPayloadSizeThreshold(0)
+                                .build()))
                 .setStorageCancellation(storageCancellation)
                 .build(),
             runLockManager,
@@ -725,7 +819,7 @@ public class WorkflowWorkerTest {
             mock(EagerActivityDispatcher.class),
             3,
             new FixedSizeSlotSupplier<>(10),
-            new NamespaceCapabilities());
+            namespaceCapabilities);
 
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
@@ -736,6 +830,8 @@ public class WorkflowWorkerTest {
     when(client.blockingStub()).thenReturn(blockingStub);
     when(client.futureStub()).thenReturn(futureStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.respondWorkflowTaskCompleted(any(RespondWorkflowTaskCompletedRequest.class)))
+        .thenReturn(RespondWorkflowTaskCompletedResponse.getDefaultInstance());
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()

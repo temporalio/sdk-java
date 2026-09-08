@@ -628,54 +628,55 @@ final class WorkflowWorker implements SuspendableWorker {
                 }
               } else {
                 try {
-                  WorkflowTaskFailedCause requestTooLargeCause =
-                      taskCompleted == null
-                          ? null
-                          : completionExceedingSizeLimitCause(taskCompleted);
-                  if (requestTooLargeCause != null) {
-                    // A completion whose recombined command bytes exceed the namespace limit would
-                    // be
-                    // rejected and the workflow terminated by the server, so fail it proactively
-                    // rather than sending doomed pages.
-                    taskFailedCause = requestTooLargeCause;
-                    RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
-                        RespondWorkflowTaskFailedRequest.newBuilder()
-                            .setFailure(
-                                requestTooLargeFailure(
-                                    workflowExecution.getWorkflowId(), taskCompleted))
-                            .setCause(requestTooLargeCause);
-                    sendTaskFailed(
-                        currentTask.getTaskToken(),
-                        taskFailedBuilder,
-                        result.getRequestRetryOptions(),
-                        workflowTypeScope);
-                  } else if (taskCompleted != null) {
+                  if (taskCompleted != null) {
                     RespondWorkflowTaskCompletedRequest.Builder requestBuilder =
                         taskCompleted.toBuilder();
                     try (EagerActivitySlotsReservation activitySlotsReservation =
                         new EagerActivitySlotsReservation(
                             eagerActivityDispatcher, maxEagerActivityReservationsPerWorkflowTask)) {
                       activitySlotsReservation.applyToRequest(requestBuilder);
-                      RespondWorkflowTaskCompletedResponse response =
-                          sendTaskCompleted(
+                      RespondWorkflowTaskCompletedRequest request =
+                          prepareTaskCompleted(
                               currentTask.getTaskToken(),
                               requestBuilder,
-                              result.getRequestRetryOptions(),
-                              workflowTypeScope,
                               workflowStorageTarget(workflowExecution, workflowType),
                               parentStorageTarget(result.getCompletionParentExecution()));
-                      // If we were processing a speculative WFT the server may instruct us that the
-                      // task was dropped by resting out event ID.
-                      long resetEventId = response.getResetHistoryEventId();
-                      if (resetEventId != 0) {
-                        result.getResetEventIdHandle().apply(resetEventId);
+                      WorkflowTaskFailedCause requestTooLargeCause =
+                          completionExceedingSizeLimitCause(request);
+                      if (requestTooLargeCause != null) {
+                        // A completion whose recombined command bytes exceed the namespace limit
+                        // would be rejected and the workflow terminated by the server, so fail it
+                        // proactively rather than sending doomed pages.
+                        taskFailedCause = requestTooLargeCause;
+                        RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
+                            RespondWorkflowTaskFailedRequest.newBuilder()
+                                .setFailure(
+                                    requestTooLargeFailure(
+                                        workflowExecution.getWorkflowId(), request))
+                                .setCause(requestTooLargeCause);
+                        sendTaskFailed(
+                            currentTask.getTaskToken(),
+                            taskFailedBuilder,
+                            result.getRequestRetryOptions(),
+                            workflowTypeScope,
+                            workflowStorageTarget(workflowExecution, workflowType));
+                      } else {
+                        RespondWorkflowTaskCompletedResponse response =
+                            sendTaskCompleted(
+                                request, result.getRequestRetryOptions(), workflowTypeScope);
+                        // If we were processing a speculative WFT the server may instruct us that
+                        // the task was dropped by resting out event ID.
+                        long resetEventId = response.getResetHistoryEventId();
+                        if (resetEventId != 0) {
+                          result.getResetEventIdHandle().apply(resetEventId);
+                        }
+                        nextWFTResponse =
+                            response.hasWorkflowTask()
+                                ? Optional.of(response.getWorkflowTask())
+                                : Optional.empty();
+                        // TODO we don't have to do this under the runId lock
+                        activitySlotsReservation.handleResponse(response);
                       }
-                      nextWFTResponse =
-                          response.hasWorkflowTask()
-                              ? Optional.of(response.getWorkflowTask())
-                              : Optional.empty();
-                      // TODO we don't have to do this under the runId lock
-                      activitySlotsReservation.handleResponse(response);
                     }
                   } else if (taskFailed != null) {
                     taskFailedCause = taskFailed.getCause();
@@ -864,11 +865,9 @@ final class WorkflowWorker implements SuspendableWorker {
     }
 
     @SuppressWarnings("deprecation")
-    private RespondWorkflowTaskCompletedResponse sendTaskCompleted(
+    private RespondWorkflowTaskCompletedRequest prepareTaskCompleted(
         ByteString taskToken,
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
-        RpcRetryOptions retryOptions,
-        Scope workflowTypeMetricsScope,
         @Nullable StorageDriverTargetInfo storageTarget,
         @Nullable StorageDriverTargetInfo completionTarget) {
       taskCompleted
@@ -889,12 +888,16 @@ final class WorkflowWorker implements SuspendableWorker {
         taskCompleted.setBinaryChecksum(options.getBuildId());
       }
 
-      // Offloading shrinks the request, so it has to happen before the request is sized for
-      // pagination.
       MessageVisitor<StorageDriverTargetInfo> storageTargetVisitor =
           (current, message) -> deriveStorageTarget(namespace, current, message, completionTarget);
       storeOutboundPayloads(taskCompleted, storageTarget, storageTargetVisitor);
-      RespondWorkflowTaskCompletedRequest request = taskCompleted.build();
+      return taskCompleted.build();
+    }
+
+    private RespondWorkflowTaskCompletedResponse sendTaskCompleted(
+        RespondWorkflowTaskCompletedRequest request,
+        RpcRetryOptions retryOptions,
+        Scope workflowTypeMetricsScope) {
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
           new GrpcRetryer.GrpcRetryerOptions(
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);

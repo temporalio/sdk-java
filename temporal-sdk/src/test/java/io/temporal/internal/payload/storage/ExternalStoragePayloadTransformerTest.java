@@ -120,16 +120,7 @@ public class ExternalStoragePayloadTransformerTest {
   @Test
   public void selectorReceivesSelectContextCarryingTheTarget() throws Exception {
     AtomicReference<StorageDriverSelectContext> seen = new AtomicReference<>();
-    AtomicReference<StorageDriverStoreContext> storeSeen = new AtomicReference<>();
-    InMemoryDriver driver =
-        new InMemoryDriver("d1") {
-          @Override
-          public CompletableFuture<List<StorageDriverClaim>> store(
-              StorageDriverStoreContext context, List<Payload> payloads) {
-            storeSeen.set(context);
-            return super.store(context, payloads);
-          }
-        };
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     StorageDriverSelector selector =
         (context, payload) -> {
           seen.set(context);
@@ -151,8 +142,7 @@ public class ExternalStoragePayloadTransformerTest {
 
     assertNotNull(seen.get());
     assertSame(target, seen.get().getTarget());
-    assertNotNull(storeSeen.get());
-    assertSame(target, storeSeen.get().getTarget());
+    assertEquals(Collections.singletonList(target), driver.targets);
   }
 
   @Test
