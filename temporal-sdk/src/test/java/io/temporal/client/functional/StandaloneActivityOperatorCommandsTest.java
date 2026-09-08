@@ -16,7 +16,7 @@ import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityHandle;
-import io.temporal.client.ActivityOptionsKeys;
+import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.StartActivityOptions;
@@ -311,7 +311,7 @@ public class StandaloneActivityOperatorCommandsTest {
 
     ActivityExecutionOptions updated =
         handle.updateOptions(
-            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
+            ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)));
 
     // Returned options: only start_to_close changed; schedule_to_close kept its original value.
     assertEquals(Duration.ofSeconds(90), updated.getStartToCloseTimeout());
@@ -347,19 +347,19 @@ public class StandaloneActivityOperatorCommandsTest {
 
     ActivityExecutionOptions updated =
         handle.updateOptions(
-            ActivityOptionsKeys.TASK_QUEUE.valueSet("updated-tq"),
-            ActivityOptionsKeys.SCHEDULE_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(200)),
-            ActivityOptionsKeys.SCHEDULE_TO_START_TIMEOUT.valueSet(Duration.ofSeconds(15)),
-            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)),
-            ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueSet(Duration.ofSeconds(25)),
-            ActivityOptionsKeys.RETRY_OPTIONS.valueSet(
+            ActivityOptionsUpdate.TASK_QUEUE.set("updated-tq"),
+            ActivityOptionsUpdate.SCHEDULE_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(200)),
+            ActivityOptionsUpdate.SCHEDULE_TO_START_TIMEOUT.set(Duration.ofSeconds(15)),
+            ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)),
+            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.set(Duration.ofSeconds(25)),
+            ActivityOptionsUpdate.RETRY_OPTIONS.set(
                 RetryOptions.newBuilder()
                     .setInitialInterval(Duration.ofSeconds(1))
                     .setBackoffCoefficient(2.0)
                     .setMaximumAttempts(7)
                     .build()),
-            ActivityOptionsKeys.PRIORITY.valueSet(Priority.newBuilder().setPriorityKey(3).build()),
-            ActivityOptionsKeys.START_DELAY.valueSet(Duration.ofSeconds(500)));
+            ActivityOptionsUpdate.PRIORITY.set(Priority.newBuilder().setPriorityKey(3).build()),
+            ActivityOptionsUpdate.START_DELAY.set(Duration.ofSeconds(500)));
 
     // Every field is settable and lands: the returned options reflect each new value.
     assertEquals("updated-tq", updated.getTaskQueue());
@@ -397,7 +397,7 @@ public class StandaloneActivityOperatorCommandsTest {
     // Change an option away from the original.
     ActivityExecutionOptions changed =
         handle.updateOptions(
-            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
+            ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)));
     assertEquals(Duration.ofSeconds(90), changed.getStartToCloseTimeout());
 
     // restore_original alone reverts to the value the activity was created with.
@@ -434,7 +434,7 @@ public class StandaloneActivityOperatorCommandsTest {
     // Updating options is legal while paused, and the new value lands.
     ActivityExecutionOptions updated =
         handle.updateOptions(
-            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
+            ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)));
     assertEquals(Duration.ofSeconds(90), updated.getStartToCloseTimeout());
 
     ActivityExecutionDescription desc = handle.describe();
@@ -610,8 +610,7 @@ public class StandaloneActivityOperatorCommandsTest {
     assertEventuallyPaused(handle);
 
     // UpdateOptions changes activity options only; it never touches heartbeat details.
-    handle.updateOptions(
-        ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
+    handle.updateOptions(ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)));
 
     assertTrue(
         "heartbeat details should be preserved after updateOptions",
@@ -644,8 +643,7 @@ public class StandaloneActivityOperatorCommandsTest {
     handle.pause(PauseActivityOptions.newBuilder().setReason("reason").build());
     assertEventuallyPaused(handle);
     handle.unpause();
-    handle.updateOptions(
-        ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
+    handle.updateOptions(ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)));
     handle.terminate("cleanup");
 
     assertTrue("pause should flow through the interceptor", events.contains("pause"));

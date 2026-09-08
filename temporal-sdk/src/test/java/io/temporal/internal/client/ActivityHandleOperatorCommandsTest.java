@@ -15,7 +15,7 @@ import io.temporal.api.workflowservice.v1.UnpauseActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsRequest;
 import io.temporal.api.workflowservice.v1.UpdateActivityExecutionOptionsResponse;
 import io.temporal.client.ActivityClientOptions;
-import io.temporal.client.ActivityOptionsKeys;
+import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
@@ -54,7 +54,7 @@ public class ActivityHandleOperatorCommandsTest {
             .setReason("go")
             .setJitter(Duration.ofSeconds(5))
             .build());
-    handle.updateOptions(ActivityOptionsKeys.START_DELAY.valueSet(Duration.ofSeconds(7)));
+    handle.updateOptions(ActivityOptionsUpdate.START_DELAY.set(Duration.ofSeconds(7)));
 
     // pause carries the reason, which is not returned by describe.
     PauseActivityExecutionRequest pauseReq = capturePause();
@@ -116,7 +116,7 @@ public class ActivityHandleOperatorCommandsTest {
     when(genericClient.updateActivityOptions(any()))
         .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
 
-    newHandle().updateOptions(ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueSet(Duration.ZERO));
+    newHandle().updateOptions(ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.set(Duration.ZERO));
 
     UpdateActivityExecutionOptionsRequest req = captureUpdate();
     assertEquals(
@@ -137,7 +137,7 @@ public class ActivityHandleOperatorCommandsTest {
     when(genericClient.updateActivityOptions(any()))
         .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
 
-    newHandle().updateOptions(ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueUnset());
+    newHandle().updateOptions(ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.unset());
 
     UpdateActivityExecutionOptionsRequest req = captureUpdate();
     assertEquals(
@@ -164,8 +164,8 @@ public class ActivityHandleOperatorCommandsTest {
 
     newHandle()
         .updateOptions(
-            ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueSet(Duration.ofSeconds(5)),
-            ActivityOptionsKeys.HEARTBEAT_TIMEOUT.valueUnset());
+            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.set(Duration.ofSeconds(5)),
+            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.unset());
 
     UpdateActivityExecutionOptionsRequest req = captureUpdate();
     // The later unset wins, and the path is named once.
@@ -183,8 +183,8 @@ public class ActivityHandleOperatorCommandsTest {
 
     newHandle()
         .updateOptions(
-            ActivityOptionsKeys.TASK_QUEUE.valueSet("new-tq"),
-            ActivityOptionsKeys.START_TO_CLOSE_TIMEOUT.valueSet(Duration.ofSeconds(90)));
+            ActivityOptionsUpdate.TASK_QUEUE.set("new-tq"),
+            ActivityOptionsUpdate.START_TO_CLOSE_TIMEOUT.set(Duration.ofSeconds(90)));
 
     UpdateActivityExecutionOptionsRequest req = captureUpdate();
     assertEquals(

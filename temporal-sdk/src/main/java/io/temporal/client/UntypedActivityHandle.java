@@ -184,9 +184,9 @@ public interface UntypedActivityHandle {
    * derived field mask leaves the rest untouched. To revert to the options the activity was created
    * with, use {@link #restoreOriginalOptions()}.
    *
-   * <p>Updates are created from the keys on {@link ActivityOptionsKeys}, via {@link
-   * ActivityOptionsKey#valueSet} to set an option or {@link ActivityOptionsKey#valueUnset} to clear
-   * it.
+   * <p>Updates are created from the keys on {@link ActivityOptionsUpdate}, via {@link
+   * ActivityOptionsUpdate.ActivityOptionsKey#set} to set an option or {@link
+   * ActivityOptionsUpdate.ActivityOptionsKey#unset} to clear it.
    *
    * @param updates the option updates to apply; at least one is required
    * @return the activity options as resolved by the server after the update

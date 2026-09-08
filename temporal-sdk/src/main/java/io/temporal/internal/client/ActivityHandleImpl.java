@@ -7,9 +7,8 @@ import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionOptions;
-import io.temporal.client.ActivityOptionsKey;
-import io.temporal.client.ActivityOptionsKeys;
 import io.temporal.client.ActivityOptionsUpdate;
+import io.temporal.client.ActivityOptionsUpdate.ActivityOptionsKey;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
@@ -215,7 +214,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   /**
    * Writes one option's value onto the request. The cast is safe because every key is created by
-   * {@link ActivityOptionsKeys} with the value type its path expects.
+   * {@link ActivityOptionsUpdate} with the value type its path expects.
    */
   private static void applyUpdate(
       ActivityOptions.Builder options, ActivityOptionsKey<?> key, Object value) {
