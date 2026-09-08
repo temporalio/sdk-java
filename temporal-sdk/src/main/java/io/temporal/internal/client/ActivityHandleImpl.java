@@ -10,6 +10,7 @@ import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -170,7 +171,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
-    List<ActivityOptionsUpdate<?>> list = new ArrayList<>(updates);
+    List<ActivityOptionsUpdate<?>> list = new ArrayList<>(Arrays.asList(updates));
 
     // An update naming nothing would send an empty mask and silently change nothing. Fail here
     // rather than making a round trip that looks like it worked. Use restoreOriginalOptions() to
