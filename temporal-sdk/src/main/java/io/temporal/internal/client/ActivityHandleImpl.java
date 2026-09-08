@@ -170,12 +170,7 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
-    List<ActivityOptionsUpdate<?>> list = new ArrayList<>(updates.length);
-    for (ActivityOptionsUpdate<?> update : updates) {
-      if (update != null) {
-        list.add(update);
-      }
-    }
+    List<ActivityOptionsUpdate<?>> list = new ArrayList<>(updates);
 
     // An update naming nothing would send an empty mask and silently change nothing. Fail here
     // rather than making a round trip that looks like it worked. Use restoreOriginalOptions() to
