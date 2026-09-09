@@ -36,7 +36,11 @@ public class HeartbeatManager {
    * is the first worker for the given namespace.
    */
   public void registerWorker(
-      String namespace, String workerInstanceKey, Supplier<WorkerHeartbeat> callback) {
+      String namespace,
+      String workerInstanceKey,
+      Supplier<WorkerHeartbeat> callback,
+      Runnable onHeartbeatAccepted) {
+    WorkerCallbacks callbacks = new WorkerCallbacks(callback, onHeartbeatAccepted);
     synchronized (lock) {
       if (unimplementedNamespaces.contains(namespace)) {
         return;
@@ -45,12 +49,12 @@ public class HeartbeatManager {
           namespace,
           (ns, existing) -> {
             if (existing != null && !existing.isShutdown()) {
-              existing.registerWorker(workerInstanceKey, callback);
+              existing.registerWorker(workerInstanceKey, callbacks);
               return existing;
             }
             SharedNamespaceWorker nsWorker =
                 new SharedNamespaceWorker(this, service, ns, identity, interval);
-            nsWorker.registerWorker(workerInstanceKey, callback);
+            nsWorker.registerWorker(workerInstanceKey, callbacks);
             return nsWorker;
           });
     }
@@ -96,6 +100,16 @@ public class HeartbeatManager {
     }
   }
 
+  private static final class WorkerCallbacks {
+    final Supplier<WorkerHeartbeat> heartbeat;
+    final Runnable heartbeatAccepted;
+
+    WorkerCallbacks(Supplier<WorkerHeartbeat> heartbeat, Runnable heartbeatAccepted) {
+      this.heartbeat = heartbeat;
+      this.heartbeatAccepted = heartbeatAccepted;
+    }
+  }
+
   /**
    * Handles heartbeating for all workers in a specific namespace. Each instance owns its own
    * scheduler thread and callback map.
@@ -105,8 +119,7 @@ public class HeartbeatManager {
     private final WorkflowServiceStubs service;
     private final String namespace;
     private final String identity;
-    private final ConcurrentHashMap<String, Supplier<WorkerHeartbeat>> callbacks =
-        new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, WorkerCallbacks> callbacks = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler;
 
     SharedNamespaceWorker(
@@ -130,8 +143,8 @@ public class HeartbeatManager {
           this::heartbeatTick, 0, interval.toMillis(), TimeUnit.MILLISECONDS);
     }
 
-    void registerWorker(String workerInstanceKey, Supplier<WorkerHeartbeat> callback) {
-      callbacks.put(workerInstanceKey, callback);
+    void registerWorker(String workerInstanceKey, WorkerCallbacks workerCallbacks) {
+      callbacks.put(workerInstanceKey, workerCallbacks);
     }
 
     void unregisterWorker(String workerInstanceKey) {
@@ -165,9 +178,11 @@ public class HeartbeatManager {
       if (callbacks.isEmpty()) return;
 
       List<WorkerHeartbeat> heartbeats = new ArrayList<>();
-      for (Map.Entry<String, Supplier<WorkerHeartbeat>> entry : callbacks.entrySet()) {
+      List<Runnable> acceptedCallbacks = new ArrayList<>();
+      for (Map.Entry<String, WorkerCallbacks> entry : callbacks.entrySet()) {
         try {
-          heartbeats.add(entry.getValue().get());
+          heartbeats.add(entry.getValue().heartbeat.get());
+          acceptedCallbacks.add(entry.getValue().heartbeatAccepted);
         } catch (Exception e) {
           log.warn(
               "Failed to build heartbeat for worker {} in namespace {}",
@@ -196,8 +211,18 @@ public class HeartbeatManager {
           return;
         }
         log.warn("Failed to send worker heartbeat for namespace {}", namespace, e);
+        return;
       } catch (Exception e) {
         log.warn("Failed to send worker heartbeat for namespace {}", namespace, e);
+        return;
+      }
+
+      for (Runnable accepted : acceptedCallbacks) {
+        try {
+          accepted.run();
+        } catch (Exception e) {
+          log.warn("Heartbeat accepted callback failed in namespace {}", namespace, e);
+        }
       }
     }
   }

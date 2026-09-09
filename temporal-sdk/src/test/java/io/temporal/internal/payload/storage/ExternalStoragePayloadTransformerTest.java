@@ -16,8 +16,11 @@ import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
+import io.temporal.payload.storage.StorageDriverSelectContext;
 import io.temporal.payload.storage.StorageDriverSelector;
 import io.temporal.payload.storage.StorageDriverStoreContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -113,6 +116,44 @@ public class ExternalStoragePayloadTransformerTest {
     assertEquals(Collections.singletonList(2), d1.storeBatchSizes);
     assertEquals(Collections.singletonList(1), d2.storeBatchSizes);
     assertEquals(input, transformer.retrieve(stored, CancellationToken.none()).get());
+  }
+
+  @Test
+  public void selectorReceivesSelectContextCarryingTheTarget() throws Exception {
+    AtomicReference<StorageDriverSelectContext> seen = new AtomicReference<>();
+    AtomicReference<StorageDriverStoreContext> storeSeen = new AtomicReference<>();
+    InMemoryDriver driver =
+        new InMemoryDriver("d1") {
+          @Override
+          public CompletableFuture<List<StorageDriverClaim>> store(
+              StorageDriverStoreContext context, List<Payload> payloads) {
+            storeSeen.set(context);
+            return super.store(context, payloads);
+          }
+        };
+    StorageDriverSelector selector =
+        (context, payload) -> {
+          seen.set(context);
+          return driver;
+        };
+    ExternalStoragePayloadTransformer transformer =
+        ExternalStoragePayloadTransformer.fromOptions(
+            ExternalStorage.newBuilder()
+                .setDriver(driver)
+                .setDriverSelector(selector)
+                .setPayloadSizeThreshold(0)
+                .build());
+    StorageDriverTargetInfo target =
+        new StorageDriverWorkflowInfo("ns", "wf-id", "run-id", "MyWorkflow");
+
+    transformer
+        .store(Collections.singletonList(payload("a")), target, CancellationToken.none())
+        .get();
+
+    assertNotNull(seen.get());
+    assertSame(target, seen.get().getTarget());
+    assertNotNull(storeSeen.get());
+    assertSame(target, storeSeen.get().getTarget());
   }
 
   @Test

@@ -12,6 +12,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.ListNexusOper
 import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
 import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
+import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.internal.client.NexusOperationHandleImpl;
 import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -30,7 +31,7 @@ public class NexusClientImpl implements NexusClient {
   private static final Logger log = LoggerFactory.getLogger(NexusClientImpl.class);
 
   private final WorkflowServiceStubs workflowServiceStubs;
-  private final NexusClientOptions options;
+  private final NexusClientResolvedOptions options;
   private final GenericWorkflowClient genericClient;
   private final Scope metricsScope;
   private final NexusClientCallsInterceptor nexusClientCallsInvoker;
@@ -39,10 +40,10 @@ public class NexusClientImpl implements NexusClient {
   public static NexusClient newInstance(WorkflowServiceStubs service, NexusClientOptions options) {
     enforceNonWorkflowThread();
     return WorkflowThreadMarker.protectFromWorkflowThread(
-        new NexusClientImpl(service, options), NexusClient.class);
+        new NexusClientImpl(service, options.toResolvedOptions()), NexusClient.class);
   }
 
-  NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientOptions options) {
+  NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientResolvedOptions options) {
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;
