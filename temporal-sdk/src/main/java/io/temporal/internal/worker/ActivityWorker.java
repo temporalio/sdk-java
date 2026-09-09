@@ -367,9 +367,19 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     private ActivityTaskHandler.Result handleActivity(ActivityTask task, Scope metricsScope) {
-      task = retrieveInboundPayloads(task);
+      ByteString taskToken = task.getResponse().getTaskToken();
+      try {
+        task = retrieveInboundPayloads(task);
+      } catch (Exception e) {
+        RespondActivityTaskFailedRequest sent = sendStorageFailure(taskToken, metricsScope, e);
+        return new ActivityTaskHandler.Result(
+            task.getResponse().getActivityId(),
+            null,
+            new ActivityTaskHandler.Result.TaskFailedResult(sent, e),
+            null,
+            false);
+      }
       PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
-      ByteString taskToken = pollResponse.getTaskToken();
       metricsScope
           .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
           .record(
@@ -393,7 +403,7 @@ final class ActivityWorker implements SuspendableWorker {
       try {
         sendReply(taskToken, result, metricsScope, activityStorageTarget(pollResponse));
       } catch (ExternalStorageTaskFailure e) {
-        sendStorageFailure(taskToken, pollResponse, metricsScope, e.getCause());
+        sendStorageFailure(taskToken, metricsScope, e.getCause());
         return result;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
@@ -529,11 +539,8 @@ final class ActivityWorker implements SuspendableWorker {
     }
 
     @SuppressWarnings("deprecation")
-    private void sendStorageFailure(
-        ByteString taskToken,
-        PollActivityTaskQueueResponseOrBuilder pollResponse,
-        Scope metricsScope,
-        Throwable e) {
+    private RespondActivityTaskFailedRequest sendStorageFailure(
+        ByteString taskToken, Scope metricsScope, Throwable e) {
       log.warn("External storage failed for an activity task", e);
       ApplicationFailure applicationFailure =
           ApplicationFailure.newBuilder()
@@ -541,15 +548,14 @@ final class ActivityWorker implements SuspendableWorker {
               .setType(ExternalStorageTaskFailure.class.getSimpleName())
               .build();
       applicationFailure.setStackTrace(new StackTraceElement[0]);
-      RespondActivityTaskFailedRequest.Builder failedBuilder =
+      RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setTaskToken(taskToken)
               .setIdentity(options.getIdentity())
               .setNamespace(namespace)
               .setWorkerVersion(options.workerVersionStamp())
-              .setFailure(options.getDataConverter().exceptionToFailure(applicationFailure));
-      storeOutboundPayloads(failedBuilder, activityStorageTarget(pollResponse));
-      RespondActivityTaskFailedRequest request = failedBuilder.build();
+              .setFailure(options.getDataConverter().exceptionToFailure(applicationFailure))
+              .build();
       grpcRetryer.retry(
           () ->
               service
@@ -557,6 +563,7 @@ final class ActivityWorker implements SuspendableWorker {
                   .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
                   .respondActivityTaskFailed(request),
           replyGrpcRetryerOptions);
+      return request;
     }
 
     @Nullable
