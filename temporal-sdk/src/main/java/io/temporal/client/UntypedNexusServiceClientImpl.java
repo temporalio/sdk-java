@@ -6,6 +6,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionOutput;
+import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.internal.client.NexusOperationHandleImpl;
 import java.lang.reflect.Type;
 import java.util.Collections;
@@ -28,7 +29,7 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
       NexusClientCallsInterceptor invoker,
       String endpoint,
       String serviceName,
-      NexusClientOptions clientOptions) {
+      NexusClientResolvedOptions clientOptions) {
     if (invoker == null || endpoint == null || serviceName == null || clientOptions == null) {
       throw new IllegalArgumentException(
           "invoker, endpoint, serviceName, and clientOptions are all required");

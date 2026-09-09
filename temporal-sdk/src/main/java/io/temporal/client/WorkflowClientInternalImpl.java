@@ -10,6 +10,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.TaskReachability;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowInvocationHandler.InvocationType;
 import io.temporal.common.WorkflowExecutionHistory;
@@ -25,6 +26,7 @@ import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.StubMarker;
 import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.internal.worker.WorkerEnvironmentInfo;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -58,6 +60,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private final WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
   private final String workerGroupingKey = java.util.UUID.randomUUID().toString();
   private final @Nullable HeartbeatManager heartbeatManager;
+  private final @Nullable EnvironmentInfo workerEnvironmentInfo;
   private final @Nullable ExternalStorageRunner externalStorageRunner;
 
   /**
@@ -126,8 +129,11 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     if (!heartbeatInterval.isNegative()) {
       this.heartbeatManager =
           new HeartbeatManager(workflowServiceStubs, options.getIdentity(), heartbeatInterval);
+      this.workerEnvironmentInfo =
+          options.isWorkerEnvironmentInfoDisabled() ? null : WorkerEnvironmentInfo.detect();
     } else {
       this.heartbeatManager = null;
+      this.workerEnvironmentInfo = null;
     }
   }
 
@@ -819,6 +825,12 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @Nullable
   public HeartbeatManager getHeartbeatManager() {
     return heartbeatManager;
+  }
+
+  @Override
+  @Nullable
+  public EnvironmentInfo getWorkerEnvironmentInfo() {
+    return workerEnvironmentInfo;
   }
 
   @Override

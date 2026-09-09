@@ -29,7 +29,13 @@ public class RootNexusClientInvokerTest {
 
   private final GenericWorkflowClient genericClient = mock(GenericWorkflowClient.class);
   private final RootNexusClientInvoker invoker =
-      new RootNexusClientInvoker(genericClient, NexusClientOptions.getDefaultInstance());
+      new RootNexusClientInvoker(
+          genericClient,
+          new NexusClientResolvedOptions(
+              NexusClientOptions.getDefaultInstance().getNamespace(),
+              NexusClientOptions.getDefaultInstance().getInterceptors(),
+              NexusClientOptions.getDefaultInstance().getDataConverter(),
+              NexusClientOptions.getDefaultInstance().getIdentity()));
 
   private static GetNexusOperationResultInput<String> input() {
     return new GetNexusOperationResultInput<>(

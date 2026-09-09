@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 import static io.temporal.serviceclient.MetricsTag.TASK_FAILURE_TYPE;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Message;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
@@ -16,7 +17,10 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -27,6 +31,7 @@ import io.temporal.worker.tuning.*;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -53,6 +58,9 @@ final class NexusWorker implements SuspendableWorker {
   private final GrpcRetryer.GrpcRetryerOptions replyGrpcRetryerOptions;
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final NamespaceCapabilities namespaceCapabilities;
+
+  final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
   private final boolean forceOldFailureFormat;
   private final boolean workerCommandsTaskQueue;
   private final TaskCounter taskCounter = new TaskCounter();
@@ -182,6 +190,9 @@ final class NexusWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
     String supplierName = this + "#executorSlots";
     return poller
         .shutdown(shutdownManager, interruptTasks)
@@ -274,6 +285,12 @@ final class NexusWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  private static final class ExternalStorageTaskFailure extends RuntimeException {
+    ExternalStorageTaskFailure(String message, Throwable cause) {
+      super(message, cause);
+    }
+  }
+
   private class TaskHandlerImpl implements PollTaskExecutor.TaskHandler<NexusTask> {
 
     final NexusTaskHandler handler;
@@ -319,6 +336,7 @@ final class NexusWorker implements SuspendableWorker {
         MDC.put(LoggerTag.NEXUS_OPERATION, operation);
         metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
       }
+      // Must happen before payload retrieval so the slot is accounted for while storage runs.
       slotSupplier.markSlotUsed(
           new NexusSlotInfo(
               service, operation, taskQueue, options.getIdentity(), options.getBuildId()),
@@ -326,8 +344,26 @@ final class NexusWorker implements SuspendableWorker {
 
       boolean taskFailed = false;
       try {
+        try {
+          task = retrieveInboundPayloads(task);
+        } catch (Throwable e) {
+          if (isShutdownCancellation(e)) {
+            log.trace("Abandoned a nexus task while the worker was shutting down", e);
+            return;
+          }
+          taskFailed = true;
+          recordStorageFailure(metricsScope);
+          sendStorageFailure(
+              pollResponse.getTaskToken(), supportsTemporalFailure(pollResponse), metricsScope, e);
+          return;
+        }
+
         taskFailed = handleNexusTask(task, metricsScope);
       } catch (Throwable e) {
+        if (isShutdownCancellation(e)) {
+          log.trace("Abandoned a nexus task while the worker was shutting down", e);
+          return;
+        }
         taskFailed = true;
         throw e;
       } finally {
@@ -416,14 +452,17 @@ final class NexusWorker implements SuspendableWorker {
       }
 
       try {
-        // Check if the server supports using the Failure directly in responses
-        boolean supportTemporalFailure =
-            task.getResponse().getRequest().getCapabilities().getTemporalFailureResponses();
-        if (forceOldFailureFormat) {
-          supportTemporalFailure = false;
+        sendReply(taskToken, supportsTemporalFailure(pollResponse), result, metricsScope, true);
+      } catch (ExternalStorageTaskFailure e) {
+        if (!failed) {
+          recordStorageFailure(metricsScope);
         }
-
-        sendReply(taskToken, supportTemporalFailure, result, metricsScope);
+        sendStorageFailure(
+            taskToken, supportsTemporalFailure(pollResponse), metricsScope, e.getCause());
+        return true;
+      } catch (CancellationException e) {
+        // Absorbed by handle() when this worker is shutting down.
+        throw e;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         throw e;
@@ -476,7 +515,8 @@ final class NexusWorker implements SuspendableWorker {
         ByteString taskToken,
         boolean supportTemporalFailure,
         NexusTaskHandler.Result response,
-        Scope metricsScope) {
+        Scope metricsScope,
+        boolean useExternalStorage) {
       Response taskResponse = response.getResponse();
       if (taskResponse != null) {
         // For old servers that do not support TemporalFailure in Failure proto,
@@ -484,13 +524,16 @@ final class NexusWorker implements SuspendableWorker {
         if (!supportTemporalFailure && taskResponse.getStartOperation().hasFailure()) {
           taskResponse = getResponseForOldServer(taskResponse);
         }
-        RespondNexusTaskCompletedRequest request =
+        RespondNexusTaskCompletedRequest.Builder requestBuilder =
             RespondNexusTaskCompletedRequest.newBuilder()
                 .setTaskToken(taskToken)
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
-                .setResponse(taskResponse)
-                .build();
+                .setResponse(taskResponse);
+        if (useExternalStorage) {
+          storeOutbound(requestBuilder);
+        }
+        RespondNexusTaskCompletedRequest request = requestBuilder.build();
 
         grpcRetryer.retry(
             () ->
@@ -512,16 +555,98 @@ final class NexusWorker implements SuspendableWorker {
           } else {
             request.setError(NexusUtil.handlerErrorToNexusError(handlerException, dataConverter));
           }
+          if (useExternalStorage) {
+            storeOutbound(request);
+          }
+          RespondNexusTaskFailedRequest failedRequest = request.build();
           grpcRetryer.retry(
               () ->
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                      .respondNexusTaskFailed(request.build()),
+                      .respondNexusTaskFailed(failedRequest),
               replyGrpcRetryerOptions);
         } else {
           throw new IllegalArgumentException("[BUG] Either response or failure must be set");
         }
+      }
+    }
+
+    private boolean supportsTemporalFailure(PollNexusTaskQueueResponseOrBuilder pollResponse) {
+      return !forceOldFailureFormat
+          && pollResponse.getRequest().getCapabilities().getTemporalFailureResponses();
+    }
+
+    private void recordStorageFailure(Scope metricsScope) {
+      metricsScope
+          .tagged(
+              Collections.singletonMap(
+                  TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL))
+          .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
+          .inc(1);
+    }
+
+    /**
+     * Reports a storage failure to the server as an internal handler error. This is the only
+     * recovery attempt and it bypasses external storage.
+     */
+    private void sendStorageFailure(
+        ByteString taskToken, boolean supportTemporalFailure, Scope metricsScope, Throwable e) {
+      String message =
+          e instanceof ExternalStorageNotConfiguredException
+              ? "Nexus task has externally stored payloads but this worker has no external storage"
+                  + " configured"
+              : "External storage failed for a nexus task";
+      log.warn(message, e);
+      sendReply(
+          taskToken,
+          supportTemporalFailure,
+          new NexusTaskHandler.Result(
+              new HandlerException(HandlerException.ErrorType.INTERNAL, message, e)),
+          metricsScope,
+          false);
+    }
+
+    /**
+     * True when {@code e} is external storage aborting because this worker is shutting down. A
+     * storage driver that genuinely breaks at the same moment is a different thing and must still
+     * be reported to the server.
+     */
+    private boolean isShutdownCancellation(Throwable e) {
+      return e instanceof CancellationException
+          && storageCancellation.token().isCancellationRequested();
+    }
+
+    private NexusTask retrieveInboundPayloads(NexusTask task) {
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      PollNexusTaskQueueResponseOrBuilder response = task.getResponse();
+      PollNexusTaskQueueResponse built =
+          response instanceof PollNexusTaskQueueResponse
+              ? (PollNexusTaskQueueResponse) response
+              : ((PollNexusTaskQueueResponse.Builder) response).build();
+      if (externalStorageRunner == null) {
+        ExternalStorageRunner.throwIfContainsReference(built);
+        return task;
+      }
+      return new NexusTask(
+          externalStorageRunner.retrieve(built, storageCancellation.token()),
+          task.getPermit(),
+          task.getCompletionCallback());
+    }
+
+    private void storeOutbound(Message.Builder builder) {
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner == null) {
+        return;
+      }
+      try {
+        externalStorageRunner.store(builder, null, null, storageCancellation.token());
+      } catch (CancellationException e) {
+        // A shutdown cancellation is not a task failure. Let it reach handle(), which abandons the
+        // task rather than telling the server the handler failed.
+        throw e;
+      } catch (Exception e) {
+        throw new ExternalStorageTaskFailure("External storage store failed", e);
       }
     }
   }

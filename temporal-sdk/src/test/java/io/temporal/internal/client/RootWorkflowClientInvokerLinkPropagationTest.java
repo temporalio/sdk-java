@@ -7,10 +7,15 @@ import static org.mockito.Mockito.when;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Link;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.query.v1.QueryRejected;
 import io.temporal.api.update.v1.UpdateRef;
+import io.temporal.api.workflowservice.v1.QueryWorkflowRequest;
+import io.temporal.api.workflowservice.v1.QueryWorkflowResponse;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
@@ -23,7 +28,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowUpdateStage;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.Header;
+import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.StartUpdateInput;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalInput;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalWithStartInput;
@@ -348,6 +355,116 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
             .build());
   }
 
+  /**
+   * A query never writes to history, so the server answers with a {@code Link.Workflow} naming the
+   * execution that processed it instead of a {@code Link.WorkflowEvent}. That link has to reach the
+   * operation context so the caller's Nexus operation event points back at the queried workflow.
+   */
+  @Test
+  public void queryCapturesWorkflowResponseLink() {
+    Link responseLink = workflowLink(WORKFLOW_ID, "target-run", "Query processed");
+    when(genericClient.query(any(QueryWorkflowRequest.class)))
+        .thenReturn(
+            QueryWorkflowResponse.newBuilder()
+                .setLink(responseLink)
+                .setQueryResult(queryResult("answer"))
+                .build());
+
+    WorkflowClientCallsInterceptor.QueryOutput<String> output = invoker.query(newQueryInput());
+
+    List<Link> captured = nexusCtx.getResponseLinks();
+    Assert.assertEquals("expected one captured response link", 1, captured.size());
+    Assert.assertEquals(responseLink, captured.get(0));
+
+    // Capturing the link must not disturb the query's own result.
+    Assert.assertFalse(output.isQueryRejected());
+    Assert.assertEquals("answer", output.getResult());
+  }
+
+  /**
+   * Two queries in a row each contribute a response link; both must accumulate in call order on the
+   * shared list, exactly as the signal path does.
+   */
+  @Test
+  public void multipleQueriesAccumulateAllResponseLinks() {
+    Link firstResponseLink = workflowLink("callee-a", "run-a", "Query processed");
+    Link secondResponseLink = workflowLink("callee-b", "run-b", "Query processed");
+    when(genericClient.query(any(QueryWorkflowRequest.class)))
+        .thenReturn(QueryWorkflowResponse.newBuilder().setLink(firstResponseLink).build())
+        .thenReturn(QueryWorkflowResponse.newBuilder().setLink(secondResponseLink).build());
+
+    invoker.query(newQueryInput());
+    invoker.query(newQueryInput());
+
+    Assert.assertEquals(
+        "expected one response link per query call, in call order",
+        Arrays.asList(firstResponseLink, secondResponseLink),
+        nexusCtx.getResponseLinks());
+  }
+
+  /**
+   * A rejected query still carries a link to the workflow that rejected it, and the link is
+   * captured before the rejection is surfaced. This matches sdk-go, where the link is recorded
+   * ahead of the QueryRejected branch. Pins the ordering so it is not "fixed" into the wrong
+   * behavior later.
+   */
+  @Test
+  public void rejectedQueryStillCapturesResponseLink() {
+    Link responseLink = workflowLink(WORKFLOW_ID, "target-run", "Query processed");
+    when(genericClient.query(any(QueryWorkflowRequest.class)))
+        .thenReturn(
+            QueryWorkflowResponse.newBuilder()
+                .setLink(responseLink)
+                .setQueryRejected(
+                    QueryRejected.newBuilder()
+                        .setStatus(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED))
+                .build());
+
+    WorkflowClientCallsInterceptor.QueryOutput<String> output = invoker.query(newQueryInput());
+
+    Assert.assertTrue("expected the query to be reported as rejected", output.isQueryRejected());
+    Assert.assertEquals(
+        "expected the response link to be captured even for a rejected query",
+        Collections.singletonList(responseLink),
+        nexusCtx.getResponseLinks());
+  }
+
+  /**
+   * Older-server compatibility: {@code QueryWorkflowResponse.link} is unset, so nothing is captured
+   * and the query itself still succeeds.
+   */
+  @Test
+  public void queryAgainstOlderServerCapturesNoResponseLink() {
+    when(genericClient.query(any(QueryWorkflowRequest.class)))
+        .thenReturn(QueryWorkflowResponse.getDefaultInstance());
+
+    invoker.query(newQueryInput());
+
+    Assert.assertTrue(
+        "expected no captured response link when server returned no link",
+        nexusCtx.getResponseLinks().isEmpty());
+  }
+
+  /**
+   * A query issued outside a Nexus operation handler must not touch the operation context at all.
+   * Guards against the propagation being reached without a context, which would throw.
+   */
+  @Test
+  public void queryOutsideNexusContextIgnoresResponseLink() {
+    CurrentNexusOperationContext.unset();
+    when(genericClient.query(any(QueryWorkflowRequest.class)))
+        .thenReturn(
+            QueryWorkflowResponse.newBuilder()
+                .setLink(workflowLink(WORKFLOW_ID, "target-run", "Query processed"))
+                .build());
+
+    invoker.query(newQueryInput());
+
+    Assert.assertTrue(
+        "a query outside a Nexus context must not record response links",
+        nexusCtx.getResponseLinks().isEmpty());
+  }
+
   // ── helpers ──────────────────────────────────────────────────────────────────────────────
 
   private static WorkflowSignalInput newSignalInput() {
@@ -372,6 +489,33 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
             WORKFLOW_ID, "TestWorkflow", Header.empty(), new Object[] {}, options);
     return new WorkflowSignalWithStartInput(
         startInput, "test-signal", new Object[] {"signal-payload"});
+  }
+
+  private static WorkflowClientCallsInterceptor.QueryInput<String> newQueryInput() {
+    return new WorkflowClientCallsInterceptor.QueryInput<>(
+        WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).build(),
+        "test-query",
+        Header.empty(),
+        new Object[] {},
+        String.class,
+        String.class);
+  }
+
+  private static Payloads queryResult(String value) {
+    return DefaultDataConverter.STANDARD_INSTANCE
+        .toPayloads(value)
+        .orElseThrow(() -> new IllegalStateException("expected payloads"));
+  }
+
+  private static Link workflowLink(String workflowId, String runId, String reason) {
+    return Link.newBuilder()
+        .setWorkflow(
+            Link.Workflow.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setWorkflowId(workflowId)
+                .setRunId(runId)
+                .setReason(reason))
+        .build();
   }
 
   private static Link workflowEventLink(String workflowId, String runId, EventType eventType) {
