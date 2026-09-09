@@ -13,8 +13,8 @@ import java.util.function.Supplier;
  * <p>Register the plugin once on the workflow client and it propagates to every worker created from
  * that client. It reads {@link GoogleCloudRunMetadata Cloud Run instance metadata} once while the
  * client is configured, caches it, and sets the workflow client <b>identity</b> to the {@linkplain
- * GoogleCloudRunMetadata#workerIdentity() derived worker identity}, but only when the caller has not
- * already set an identity (a user-provided identity always wins). The workers created from that
+ * GoogleCloudRunMetadata#workerIdentity() derived worker identity}, but only when the caller has
+ * not already set an identity (a user-provided identity always wins). The workers created from that
  * client inherit the client identity; the plugin sets nothing else on them.
  *
  * <p>The metadata is fetched lazily at client-configure time rather than in the constructor,
