@@ -1,9 +1,17 @@
 package io.temporal.internal.client;
 
 import io.temporal.client.ActivityExecutionDescription;
+import io.temporal.client.ActivityExecutionOptions;
+import io.temporal.client.ActivityOptionsUpdate;
+import io.temporal.client.DescribeActivityOptions;
+import io.temporal.client.PauseActivityOptions;
+import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -102,9 +110,15 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
 
   @Override
   public ActivityExecutionDescription describe() {
+    return describe(DescribeActivityOptions.getDefaultInstance());
+  }
+
+  @Override
+  public ActivityExecutionDescription describe(DescribeActivityOptions options) {
     return clientCallsInterceptor
         .describeActivity(
-            new ActivityClientCallsInterceptor.DescribeActivityInput(activityId, activityRunId))
+            new ActivityClientCallsInterceptor.DescribeActivityInput(
+                activityId, activityRunId, options))
         .getDescription();
   }
 
@@ -129,5 +143,56 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
     clientCallsInterceptor.terminateActivity(
         new ActivityClientCallsInterceptor.TerminateActivityInput(
             activityId, activityRunId, reason));
+  }
+
+  @Override
+  public void pause() {
+    pause(PauseActivityOptions.getDefaultInstance());
+  }
+
+  @Override
+  public void pause(PauseActivityOptions options) {
+    clientCallsInterceptor.pauseActivity(
+        new ActivityClientCallsInterceptor.PauseActivityInput(activityId, activityRunId, options));
+  }
+
+  @Override
+  public void unpause() {
+    unpause(UnpauseActivityOptions.getDefaultInstance());
+  }
+
+  @Override
+  public void unpause(UnpauseActivityOptions options) {
+    clientCallsInterceptor.unpauseActivity(
+        new ActivityClientCallsInterceptor.UnpauseActivityInput(
+            activityId, activityRunId, options));
+  }
+
+  @Override
+  public ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates) {
+    List<ActivityOptionsUpdate<?>> list = Arrays.asList(updates);
+
+    // An update naming nothing would send an empty mask and silently change nothing. Fail here
+    // rather than making a round trip that looks like it worked. Use restoreOriginalOptions() to
+    // revert options instead.
+    if (list.isEmpty()) {
+      throw new IllegalArgumentException("updateOptions requires at least one option update");
+    }
+
+    ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =
+        clientCallsInterceptor.updateActivityOptions(
+            new ActivityClientCallsInterceptor.UpdateActivityOptionsInput(
+                activityId, activityRunId, list, false));
+
+    return output.getOptions();
+  }
+
+  @Override
+  public ActivityExecutionOptions restoreOriginalOptions() {
+    ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =
+        clientCallsInterceptor.updateActivityOptions(
+            new ActivityClientCallsInterceptor.UpdateActivityOptionsInput(
+                activityId, activityRunId, Collections.emptyList(), true));
+    return output.getOptions();
   }
 }
