@@ -14,25 +14,18 @@ final class WorkflowClientDataConverterFactory {
 
   private final String namespace;
   private final DataConverter baseConverter;
-  private final boolean externalStorageConfigured;
 
   WorkflowClientDataConverterFactory(
       WorkflowClientOptions clientOptions, @Nullable ExternalStorageRunner externalStorage) {
     this.namespace = clientOptions.getNamespace();
-    this.externalStorageConfigured = externalStorage != null;
     this.baseConverter =
-        externalStorage == null
-            ? clientOptions.getDataConverter()
-            : new ExternalStorageDataConverter(clientOptions.getDataConverter(), externalStorage);
+        new ExternalStorageDataConverter(clientOptions.getDataConverter(), externalStorage);
   }
 
   DataConverter forWorkflow(
       String workflowId, @Nullable String runId, @Nullable String workflowType) {
     DataConverter converter =
         baseConverter.withContext(new WorkflowSerializationContext(namespace, workflowId));
-    if (!externalStorageConfigured) {
-      return converter;
-    }
     return ((ExternalStorageDataConverter) converter)
         .withStorageTarget(
             new StorageDriverWorkflowInfo(

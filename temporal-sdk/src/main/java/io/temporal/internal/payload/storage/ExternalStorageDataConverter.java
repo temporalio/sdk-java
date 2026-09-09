@@ -22,17 +22,17 @@ import javax.annotation.Nullable;
 public final class ExternalStorageDataConverter implements DataConverter {
 
   private final DataConverter delegate;
-  private final ExternalStorageRunner externalStorage;
+  private final @Nullable ExternalStorageRunner externalStorage;
   private final @Nullable StorageDriverTargetInfo storageTarget;
 
   public ExternalStorageDataConverter(
-      @Nonnull DataConverter delegate, @Nonnull ExternalStorageRunner externalStorage) {
+      @Nonnull DataConverter delegate, @Nullable ExternalStorageRunner externalStorage) {
     this(delegate, externalStorage, null);
   }
 
   private ExternalStorageDataConverter(
       @Nonnull DataConverter delegate,
-      @Nonnull ExternalStorageRunner externalStorage,
+      @Nullable ExternalStorageRunner externalStorage,
       @Nullable StorageDriverTargetInfo storageTarget) {
     this.delegate = delegate;
     this.externalStorage = externalStorage;
@@ -127,16 +127,25 @@ public final class ExternalStorageDataConverter implements DataConverter {
   }
 
   private Payloads store(Payloads payloads) {
+    if (externalStorage == null) {
+      return payloads;
+    }
     Payloads.Builder builder = payloads.toBuilder();
     externalStorage.store(builder, storageTarget, null, CancellationToken.none());
     return builder.build();
   }
 
   private <T extends com.google.protobuf.Message> T retrieveMessage(T message) {
+    if (externalStorage == null) {
+      throw new ExternalStorageNotConfiguredException();
+    }
     return externalStorage.retrieve(message, CancellationToken.none());
   }
 
   private Failure storeMessage(Failure failure) {
+    if (externalStorage == null) {
+      return failure;
+    }
     Failure.Builder builder = failure.toBuilder();
     externalStorage.store(builder, storageTarget, null, CancellationToken.none());
     return builder.build();

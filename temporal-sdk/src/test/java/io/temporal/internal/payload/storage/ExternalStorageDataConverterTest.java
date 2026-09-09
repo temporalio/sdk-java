@@ -4,6 +4,7 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
@@ -212,6 +213,46 @@ public class ExternalStorageDataConverterTest {
   }
 
   /** Obscures payload bytes so plaintext reaching a driver is detectable. */
+  @Test
+  public void withoutStorageAReferenceRaisesTheNotConfiguredError() {
+    Payload reference = storeAndTakeReference("offloaded");
+    DataConverter unconfigured = new ExternalStorageDataConverter(plain, null);
+
+    ExternalStorageNotConfiguredException thrown =
+        assertThrows(
+            ExternalStorageNotConfiguredException.class,
+            () -> unconfigured.fromPayload(reference, String.class, String.class));
+
+    assertTrue(
+        "the error should point at the option that fixes it",
+        thrown.getMessage().contains("TMPRL1105")
+            && thrown.getMessage().contains("setExternalStorage"));
+  }
+
+  @Test
+  public void withoutStorageInlinePayloadsStillRoundTrip() {
+    DataConverter unconfigured = new ExternalStorageDataConverter(plain, null);
+
+    Payload inline = unconfigured.toPayload("plain").get();
+
+    assertEquals("plain", unconfigured.fromPayload(inline, String.class, String.class));
+    assertNull(
+        "nothing should be offloaded when storage is not configured",
+        ExternalStorageReferences.tryParseReference(inline));
+  }
+
+  private Payload storeAndTakeReference(String value) {
+    ExternalStorageDataConverter configured =
+        new ExternalStorageDataConverter(
+            plain,
+            ExternalStorageRunner.create(
+                ExternalStorage.newBuilder()
+                    .setDriver(new RecordingDriver())
+                    .setPayloadSizeThreshold(0)
+                    .build()));
+    return configured.toPayload(value).get();
+  }
+
   private static final class CountingCodec implements PayloadCodec {
     private static final byte KEY = 0x5A;
 
