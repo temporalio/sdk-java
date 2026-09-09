@@ -57,7 +57,7 @@ You can also register the plugin on `WorkflowServiceStubsOptions.Builder.setPlug
 
 `WorkerIdPlugin` reads Cloud Run instance metadata through `GoogleCloudRunMetadata`, which resolves three values:
 
-- **name** (the Temporal deployment name): the first non-empty of `CLOUD_RUN_WORKER_POOL` (set on Cloud Run worker pools) then `K_SERVICE` (set on Cloud Run services).
+- **name**: the Cloud Run worker pool name — the first non-empty of `CLOUD_RUN_WORKER_POOL` (set on Cloud Run worker pools) then `K_SERVICE` (set on Cloud Run services).
 - **revision**: the first non-empty of `CLOUD_RUN_REVISION` (worker pools) then `K_REVISION` (services).
 - **instanceId**: read from the Cloud Run metadata server with a single HTTP `GET` to `http://metadata.google.internal/computeMetadata/v1/instance/id` with the required `Metadata-Flavor: Google` header. The metadata server is available on both worker pools and services.
 

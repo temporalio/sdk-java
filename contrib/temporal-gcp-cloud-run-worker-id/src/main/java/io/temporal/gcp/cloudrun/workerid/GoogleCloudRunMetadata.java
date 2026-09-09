@@ -20,7 +20,7 @@ import java.util.function.Function;
  * and applies the derived identity to the client. Use this class directly to read the {@linkplain
  * #workerIdentity() worker identity} yourself.
  *
- * <p>The deployment name and revision are resolved from environment variables Cloud Run injects
+ * <p>The name and revision are resolved from environment variables Cloud Run injects
  * into every instance. Cloud Run <b>worker pools</b> set {@code CLOUD_RUN_WORKER_POOL} and {@code
  * CLOUD_RUN_REVISION}; Cloud Run <b>services</b> set {@code K_SERVICE} and {@code K_REVISION}. The
  * name is the first non-empty of {@code CLOUD_RUN_WORKER_POOL} then {@code K_SERVICE}, and the
@@ -79,7 +79,7 @@ public final class GoogleCloudRunMetadata {
   /**
    * Fetches Cloud Run instance metadata from the supplied metadata server URL.
    *
-   * <p>The deployment name is read from {@code CLOUD_RUN_WORKER_POOL} then {@code K_SERVICE}, and
+   * <p>The name is read from {@code CLOUD_RUN_WORKER_POOL} then {@code K_SERVICE}, and
    * the revision from {@code CLOUD_RUN_REVISION} then {@code K_REVISION}. The unique instance id is
    * read from {@code metadataUrl} with the required {@code Metadata-Flavor: Google} request header.
    *
@@ -95,7 +95,7 @@ public final class GoogleCloudRunMetadata {
 
   /**
    * Package-private test seam that injects the environment-variable lookup used to resolve the
-   * deployment name and revision. This lets unit tests exercise the environment-variable precedence
+   * name and revision. This lets unit tests exercise the environment-variable precedence
    * and the metadata HTTP request deterministically, without depending on the real process
    * environment. It is not part of the public API and must not be relied on outside of tests; use
    * {@link #fetch(String, Duration)} instead.
@@ -145,8 +145,8 @@ public final class GoogleCloudRunMetadata {
   }
 
   /**
-   * @return the Cloud Run deployment name, resolved from {@code CLOUD_RUN_WORKER_POOL} then {@code
-   *     K_SERVICE}, or {@code null} when neither was set.
+   * @return the Cloud Run worker pool or service name, resolved from {@code CLOUD_RUN_WORKER_POOL}
+   *     then {@code K_SERVICE}, or {@code null} when neither was set.
    */
   public String getName() {
     return name;
