@@ -6,7 +6,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
-import io.temporal.common.WorkerDeploymentVersion;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -141,41 +140,6 @@ public class GoogleCloudRunMetadataTest {
     responseBody.set("instance-1");
 
     assertEquals("instance-1", fetch(new HashMap<>()).workerIdentity());
-  }
-
-  // --- Worker deployment version ---
-
-  @Test
-  public void workerDeploymentVersionMapsNameToDeploymentAndRevisionToBuildId() {
-    responseBody.set("instance-1");
-    Map<String, String> env = new HashMap<>();
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
-
-    WorkerDeploymentVersion version = fetch(env).workerDeploymentVersion();
-
-    assertEquals("worker-pool", version.getDeploymentName());
-    assertEquals("revision-1", version.getBuildId());
-  }
-
-  @Test
-  public void workerDeploymentVersionRequiresName() {
-    responseBody.set("instance-1");
-    Map<String, String> env = new HashMap<>();
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
-
-    IllegalStateException e =
-        assertThrows(IllegalStateException.class, () -> fetch(env).workerDeploymentVersion());
-    assertTrue(e.getMessage().contains("name and revision"));
-  }
-
-  @Test
-  public void workerDeploymentVersionRequiresRevision() {
-    responseBody.set("instance-1");
-    Map<String, String> env = new HashMap<>();
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
-
-    assertThrows(IllegalStateException.class, () -> fetch(env).workerDeploymentVersion());
   }
 
   // --- Metadata HTTP request ---

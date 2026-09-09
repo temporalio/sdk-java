@@ -3,9 +3,6 @@ package io.temporal.gcp.cloudrun.workerid;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
 import io.temporal.common.SimplePlugin;
-import io.temporal.common.VersioningBehavior;
-import io.temporal.worker.WorkerDeploymentOptions;
-import io.temporal.worker.WorkerOptions;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -15,17 +12,10 @@ import java.util.function.Supplier;
  *
  * <p>Register the plugin once on the workflow client and it propagates to every worker created from
  * that client. It reads {@link GoogleCloudRunMetadata Cloud Run instance metadata} once while the
- * client is configured, caches it, and then:
- *
- * <ul>
- *   <li>sets the workflow client <b>identity</b> to the {@linkplain
- *       GoogleCloudRunMetadata#workerIdentity() derived worker identity}, but only when the caller
- *       has not already set an identity (a user-provided identity always wins);
- *   <li>sets each worker's {@link WorkerDeploymentOptions} to the {@linkplain
- *       GoogleCloudRunMetadata#workerDeploymentVersion() derived deployment version} with worker
- *       versioning enabled and a {@link VersioningBehavior#PINNED PINNED} default behavior, so
- *       in-flight workflows stay on the Cloud Run revision that started them.
- * </ul>
+ * client is configured, caches it, and sets the workflow client <b>identity</b> to the {@linkplain
+ * GoogleCloudRunMetadata#workerIdentity() derived worker identity}, but only when the caller has not
+ * already set an identity (a user-provided identity always wins). The workers created from that
+ * client inherit the client identity; the plugin sets nothing else on them.
  *
  * <p>The metadata is fetched lazily at client-configure time rather than in the constructor,
  * because the fetch performs a network request to the Cloud Run metadata server that belongs at
@@ -78,7 +68,7 @@ public final class WorkerIdPlugin extends SimplePlugin {
    * @param metadata previously fetched Cloud Run instance metadata.
    */
   public WorkerIdPlugin(GoogleCloudRunMetadata metadata) {
-    this(pinnedSupplier(metadata));
+    this(fixedSupplier(metadata));
   }
 
   /**
@@ -112,26 +102,6 @@ public final class WorkerIdPlugin extends SimplePlugin {
     }
   }
 
-  /**
-   * Sets the worker's {@link WorkerDeploymentOptions} from the cached Cloud Run metadata, enabling
-   * worker versioning with a {@link VersioningBehavior#PINNED PINNED} default behavior.
-   *
-   * @param taskQueue the task queue name for the worker being created.
-   * @param builder the worker options builder to configure.
-   * @throws IllegalStateException if the Cloud Run name or revision is not set, which usually means
-   *     this process is not running on a Cloud Run worker pool or service.
-   */
-  @Override
-  public void configureWorker(String taskQueue, WorkerOptions.Builder builder) {
-    GoogleCloudRunMetadata resolved = metadata();
-    builder.setDeploymentOptions(
-        WorkerDeploymentOptions.newBuilder()
-            .setUseVersioning(true)
-            .setVersion(resolved.workerDeploymentVersion())
-            .setDefaultVersioningBehavior(VersioningBehavior.PINNED)
-            .build());
-  }
-
   private GoogleCloudRunMetadata metadata() {
     GoogleCloudRunMetadata local = metadata;
     if (local == null) {
@@ -146,7 +116,7 @@ public final class WorkerIdPlugin extends SimplePlugin {
     return local;
   }
 
-  private static Supplier<GoogleCloudRunMetadata> pinnedSupplier(GoogleCloudRunMetadata metadata) {
+  private static Supplier<GoogleCloudRunMetadata> fixedSupplier(GoogleCloudRunMetadata metadata) {
     Objects.requireNonNull(metadata, "metadata");
     return () -> metadata;
   }

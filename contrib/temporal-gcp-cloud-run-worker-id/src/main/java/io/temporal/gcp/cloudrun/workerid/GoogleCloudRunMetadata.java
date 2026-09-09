@@ -1,7 +1,6 @@
 package io.temporal.gcp.cloudrun.workerid;
 
 import io.temporal.common.Experimental;
-import io.temporal.common.WorkerDeploymentVersion;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,15 +12,13 @@ import java.util.Objects;
 import java.util.function.Function;
 
 /**
- * Reads Google Cloud Run instance metadata and derives a Temporal worker identity and a {@link
- * WorkerDeploymentVersion} from it.
+ * Reads Google Cloud Run instance metadata and derives a Temporal worker identity from it.
  *
  * <p>Cloud Run runs a long-lived container rather than a per-request handler, so this class is a
  * metadata helper rather than a worker wrapper. Most applications register {@link WorkerIdPlugin}
  * on their workflow client instead of using this class directly; the plugin fetches this metadata
- * and applies the derived identity and deployment version to the client and workers. Use this class
- * directly to read the {@linkplain #workerIdentity() worker identity} or {@linkplain
- * #workerDeploymentVersion() worker deployment version} yourself.
+ * and applies the derived identity to the client. Use this class directly to read the {@linkplain
+ * #workerIdentity() worker identity} yourself.
  *
  * <p>The deployment name and revision are resolved from environment variables Cloud Run injects
  * into every instance. Cloud Run <b>worker pools</b> set {@code CLOUD_RUN_WORKER_POOL} and {@code
@@ -180,25 +177,6 @@ public final class GoogleCloudRunMetadata {
       return instanceId + "@" + name;
     }
     return instanceId;
-  }
-
-  /**
-   * Builds a {@link WorkerDeploymentVersion} from the Cloud Run name and revision.
-   *
-   * <p>The name becomes the deployment name and the revision becomes the build id, so each Cloud
-   * Run revision maps to a distinct worker deployment version.
-   *
-   * @return a worker deployment version derived from the resolved name and revision.
-   * @throws IllegalStateException if the name or revision is blank, which usually means the process
-   *     is not running on a Cloud Run worker pool or service.
-   */
-  public WorkerDeploymentVersion workerDeploymentVersion() {
-    if (isBlank(name) || isBlank(revision)) {
-      throw new IllegalStateException(
-          "A Cloud Run name and revision are required to build a WorkerDeploymentVersion; "
-              + "this process may not be running on a Cloud Run worker pool or service");
-    }
-    return new WorkerDeploymentVersion(name, revision);
   }
 
   private static String readBody(HttpURLConnection connection) throws IOException {

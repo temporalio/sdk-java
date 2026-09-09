@@ -6,10 +6,6 @@ import static org.junit.Assert.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.common.VersioningBehavior;
-import io.temporal.common.WorkerDeploymentVersion;
-import io.temporal.worker.WorkerDeploymentOptions;
-import io.temporal.worker.WorkerOptions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -89,23 +85,6 @@ public class WorkerIdPluginTest {
   }
 
   @Test
-  public void configureWorkerEnablesPinnedVersioning() {
-    responseBody.set("instance-1");
-    Map<String, String> env = new HashMap<>();
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
-    env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
-
-    WorkerOptions.Builder builder = WorkerOptions.newBuilder();
-    pluginFor(env).configureWorker("orders", builder);
-
-    WorkerDeploymentOptions deploymentOptions = builder.build().getDeploymentOptions();
-    assertTrue(deploymentOptions.isUsingVersioning());
-    assertEquals(
-        new WorkerDeploymentVersion("worker-pool", "revision-1"), deploymentOptions.getVersion());
-    assertEquals(VersioningBehavior.PINNED, deploymentOptions.getDefaultVersioningBehavior());
-  }
-
-  @Test
   public void configureWorkflowClientFailsFastOffCloudRun() {
     String unreachableUrl =
         "http://127.0.0.1:" + reserveUnusedPort() + "/computeMetadata/v1/instance/id";
@@ -121,20 +100,7 @@ public class WorkerIdPluginTest {
   }
 
   @Test
-  public void configureWorkerFailsFastWhenNotWorkerPoolOrService() {
-    responseBody.set("instance-1");
-
-    // Metadata server is reachable (instance id is present) but no name/revision env is set, so the
-    // deployment version cannot be built. This is the "on some other platform" case.
-    WorkerIdPlugin plugin = new WorkerIdPlugin(metadata(new HashMap<>()));
-
-    assertThrows(
-        IllegalStateException.class,
-        () -> plugin.configureWorker("orders", WorkerOptions.newBuilder()));
-  }
-
-  @Test
-  public void metadataIsFetchedOnceAndSharedByBothHooks() {
+  public void metadataIsFetchedOnceAndCached() {
     responseBody.set("instance-1");
     Map<String, String> env = new HashMap<>();
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
@@ -150,7 +116,7 @@ public class WorkerIdPluginTest {
     WorkerIdPlugin plugin = new WorkerIdPlugin(countingSupplier);
 
     plugin.configureWorkflowClient(WorkflowClientOptions.newBuilder());
-    plugin.configureWorker("orders", WorkerOptions.newBuilder());
+    plugin.configureWorkflowClient(WorkflowClientOptions.newBuilder());
 
     assertEquals(1, supplierCalls.get());
   }

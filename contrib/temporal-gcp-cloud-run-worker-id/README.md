@@ -1,8 +1,8 @@
 # Temporal Google Cloud Run worker identity support
 
-This module configures a Temporal worker for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**. It derives the worker's Temporal identity and its `WorkerDeploymentVersion` from Cloud Run instance metadata, so every Cloud Run revision registers as a distinct, `PINNED` Worker Deployment Version.
+This module derives a Temporal worker **identity** for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**, so each Cloud Run instance reports a stable, recognizable identity to the Temporal service.
 
-The primary API is `WorkerIdPlugin`. Register it once on your workflow client and it propagates to every worker created from that client, setting the client identity and the worker deployment version automatically. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run` module.
+The primary API is `WorkerIdPlugin`. Register it once on your workflow client and it sets the client identity automatically; every worker created from that client inherits it. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run` module.
 
 > Experimental: Google Cloud Run support is experimental and may change without notice.
 
@@ -40,8 +40,8 @@ public final class Main {
 
     WorkerFactory factory = WorkerFactory.newInstance(client);
 
-    // The plugin propagates from the client to workers and sets each worker's deployment version
-    // (with worker versioning enabled and a PINNED default behavior). No per-worker wiring needed.
+    // Workers created from this client inherit the identity the plugin set on the client. No
+    // per-worker wiring needed.
     Worker worker = factory.newWorker("orders");
     worker.registerWorkflowImplementationTypes(OrderWorkflowImpl.class);
     worker.registerActivitiesImplementations(new OrderActivitiesImpl());
@@ -63,12 +63,11 @@ You can also register the plugin on `WorkflowServiceStubsOptions.Builder.setPlug
 
 Worker pools receive `CLOUD_RUN_WORKER_POOL` and `CLOUD_RUN_REVISION` and no `K_*` variables, while services receive `K_SERVICE` and `K_REVISION`, so resolving each value from the worker-pool variable first and the service variable second supports both.
 
-The plugin then applies the metadata through the SDK's plugin hooks:
+The plugin then applies the metadata through the SDK's client plugin hook:
 
-- **Client** (`configureWorkflowClient`): sets the client identity to `<instanceId>@<revision>` (falling back to `<instanceId>@<name>` and then the bare `<instanceId>`), but only when you have not already set an identity, so a user-provided identity always wins. The metadata is fetched here, once, and cached.
-- **Worker** (`configureWorker`): sets the worker deployment version — the name becomes the deployment name and the revision becomes the build id — with worker versioning enabled and `VersioningBehavior.PINNED` as the default, so in-flight workflows stay on the Cloud Run revision that started them (a per-workflow `@WorkflowVersioningBehavior` takes precedence).
+- **Client** (`configureWorkflowClient`): sets the client identity to `<instanceId>@<revision>` (falling back to `<instanceId>@<name>` and then the bare `<instanceId>`), but only when you have not already set an identity, so a user-provided identity always wins. The metadata is fetched here, once, and cached. Workers created from the client inherit this identity; the plugin sets nothing else on them.
 
-Because the metadata server is only reachable from a Cloud Run instance, the plugin **fails fast**: the fetch in `configureWorkflowClient` throws `IllegalStateException` when the metadata server cannot be reached (which usually means the process is not running on Google Cloud Run), and `configureWorker` throws `IllegalStateException` when the name or revision is not set (which usually means the process is not running on a Cloud Run worker pool or service). The plugin does not silently no-op off-platform.
+Because the metadata server is only reachable from a Cloud Run instance, the plugin **fails fast**: the fetch in `configureWorkflowClient` throws `IllegalStateException` when the metadata server cannot be reached (which usually means the process is not running on Google Cloud Run). The plugin does not silently no-op off-platform.
 
 ## Reading the metadata directly
 
@@ -77,7 +76,6 @@ If you prefer to read the values yourself, or to fetch the metadata once and pas
 ```java
 GoogleCloudRunMetadata metadata = GoogleCloudRunMetadata.fetch();
 String identity = metadata.workerIdentity();
-WorkerDeploymentVersion version = metadata.workerDeploymentVersion();
 
 // Or hand the already-fetched metadata to the plugin to skip its own fetch:
 WorkerIdPlugin plugin = new WorkerIdPlugin(metadata);
