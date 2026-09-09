@@ -1,6 +1,7 @@
 package io.temporal.internal.activity;
 
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
@@ -26,9 +27,12 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
@@ -369,15 +373,28 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private void offloadHeartbeat(RecordActivityTaskHeartbeatRequest.Builder builder) {
     CancelSource<CancellationException> offloadCancel =
         new CancelSource<>(CancellationException::new);
-    ScheduledFuture<?> timeout =
-        heartbeatExecutor.schedule(
-            (Runnable) offloadCancel::cancel, heartbeatIntervalMillis, TimeUnit.MILLISECONDS);
     CancellationToken.Registration onActivityCancel =
         cancellationSource.token().onCancel(offloadCancel::cancel);
     try {
-      externalStorage.store(builder, activityStorageTarget(), null, offloadCancel.token());
+      externalStorage
+          .storeAsync(builder, activityStorageTarget(), null, offloadCancel.token())
+          .get(heartbeatIntervalMillis, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException e) {
+      offloadCancel.cancel();
+      throw new CancellationException(
+          "External storage did not store the heartbeat details within the heartbeat interval");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      offloadCancel.cancel();
+      CancellationException cancelled =
+          new CancellationException("External storage store interrupted");
+      cancelled.initCause(e);
+      throw cancelled;
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause() != null ? e.getCause() : e;
+      Throwables.throwIfUnchecked(cause);
+      throw new CompletionException(cause);
     } finally {
-      timeout.cancel(false);
       onActivityCancel.close();
     }
   }
