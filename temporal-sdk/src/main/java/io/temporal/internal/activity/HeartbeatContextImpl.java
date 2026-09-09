@@ -27,12 +27,14 @@ import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.annotation.Nullable;
@@ -42,6 +44,12 @@ import org.slf4j.LoggerFactory;
 
 @ThreadSafe
 class HeartbeatContextImpl implements HeartbeatContext {
+  private static final class HeartbeatAbandonedException extends RuntimeException {
+    HeartbeatAbandonedException() {
+      super(null, null, false, false);
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(HeartbeatContextImpl.class);
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   // Buffer added to the heartbeat timeout to avoid racing with the server's own timeout tracking.
@@ -88,6 +96,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private long heartbeatTimeoutDeadlineNanos;
   private boolean heartbeatTimedOut;
   private boolean rejectNewHeartbeats;
+
+  private volatile CompletableFuture<Void> outstandingOffloadAbandon;
+  private final AtomicInteger pendingAbandons = new AtomicInteger();
 
   private ActivityCompletionException lastException;
   private final CancelSource<ActivityCanceledException> cancellationSource =
@@ -168,7 +179,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
     if (heartbeatExecutor.isShutdown()) {
       throw new ActivityWorkerShutdownException(info);
     }
+    requestOffloadAbandon();
     lock.lock();
+    pendingAbandons.decrementAndGet();
     try {
       checkHeartbeatTimeoutDeadlineLocked();
       if (rejectNewHeartbeats) {
@@ -241,7 +254,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   @Override
   public void cancelOutstandingHeartbeat() {
+    requestOffloadAbandon();
     lock.lock();
+    pendingAbandons.decrementAndGet();
     try {
       if (scheduledHeartbeat != null) {
         scheduledHeartbeat.cancel(false);
@@ -256,7 +271,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   @Override
   public void cancelFromWorkerCommand() {
+    requestOffloadAbandon();
     lock.lock();
+    pendingAbandons.decrementAndGet();
     try {
       requestCancelLocked();
     } finally {
@@ -291,6 +308,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
       if (heartbeatTimeoutDeadlineNanos != 0) {
         heartbeatTimeoutDeadlineNanos = computeHeartbeatTimeoutDeadlineNanos();
       }
+    } catch (HeartbeatAbandonedException e) {
+      scheduledHeartbeat = null;
+      return;
     } catch (StatusRuntimeException e) {
       // Not rethrowing to not fail activity implementation on intermittent connection or Temporal
       // errors.
@@ -368,17 +388,33 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   /**
    * Offloads large heartbeat payloads aborting if the store call runs longer than the heartbeat
-   * interval or if the activity is cancelled.
+   * interval, if a newer heartbeat supersedes this one, or if the activity is cancelled.
    */
   private void offloadHeartbeat(RecordActivityTaskHeartbeatRequest.Builder builder) {
     CancelSource<CancellationException> offloadCancel =
         new CancelSource<>(CancellationException::new);
+    CompletableFuture<Void> abandon = new CompletableFuture<>();
     CancellationToken.Registration onActivityCancel =
-        cancellationSource.token().onCancel(offloadCancel::cancel);
+        cancellationSource
+            .token()
+            .onCancel(
+                () -> {
+                  offloadCancel.cancel();
+                  abandon.complete(null);
+                });
+    outstandingOffloadAbandon = abandon;
     try {
-      externalStorage
-          .storeAsync(builder, activityStorageTarget(), null, offloadCancel.token())
-          .get(heartbeatIntervalMillis, TimeUnit.MILLISECONDS);
+      if (pendingAbandons.get() > 0) {
+        throw new HeartbeatAbandonedException();
+      }
+      CompletableFuture<Void> store =
+          externalStorage.storeAsync(builder, activityStorageTarget(), null, offloadCancel.token());
+      CompletableFuture.anyOf(store, abandon).get(heartbeatIntervalMillis, TimeUnit.MILLISECONDS);
+      if (!store.isDone()) {
+        offloadCancel.cancel();
+        throw new HeartbeatAbandonedException();
+      }
+      store.get();
     } catch (TimeoutException e) {
       offloadCancel.cancel();
       throw new CancellationException(
@@ -395,7 +431,16 @@ class HeartbeatContextImpl implements HeartbeatContext {
       Throwables.throwIfUnchecked(cause);
       throw new CompletionException(cause);
     } finally {
+      outstandingOffloadAbandon = null;
       onActivityCancel.close();
+    }
+  }
+
+  private void requestOffloadAbandon() {
+    pendingAbandons.incrementAndGet();
+    CompletableFuture<Void> outstanding = outstandingOffloadAbandon;
+    if (outstanding != null) {
+      outstanding.complete(null);
     }
   }
 
