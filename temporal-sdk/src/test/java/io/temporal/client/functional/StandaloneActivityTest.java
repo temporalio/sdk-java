@@ -854,7 +854,9 @@ public class StandaloneActivityTest {
       assertEventually(
           Duration.ofSeconds(60),
           () -> {
-            ActivityExecutionDescription desc = handle.describe();
+            ActivityExecutionDescription desc =
+                handle.describe(
+                    DescribeActivityOptions.newBuilder().setIncludeLastFailure(true).build());
             Exception lastFailure = desc.getLastFailure();
             assertNotNull("last_failure should be set after a failed attempt", lastFailure);
             assertThat(lastFailure, instanceOf(ApplicationFailure.class));

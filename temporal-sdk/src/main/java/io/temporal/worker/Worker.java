@@ -8,6 +8,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.deployment.v1.WorkerDeploymentVersion;
 import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.PluginInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.worker.v1.WorkerHostInfo;
@@ -79,6 +80,9 @@ public final class Worker {
   private final @Nonnull WorkflowExecutorCache cache;
   private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
   private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
+  // Reported in every heartbeat (including the one embedded in ShutdownWorkerRequest) until the
+  // server accepts one, then cleared so it is sent only once per worker.
+  private final AtomicReference<EnvironmentInfo> pendingEnvironmentInfo = new AtomicReference<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -595,7 +599,14 @@ public final class Worker {
     return types;
   }
 
-  Supplier<WorkerHeartbeat> buildHeartbeatCallback(String workerGroupingKey) {
+  /** Called by the heartbeat manager once a heartbeat produced by this worker was accepted. */
+  void onHeartbeatAccepted() {
+    pendingEnvironmentInfo.set(null);
+  }
+
+  Supplier<WorkerHeartbeat> buildHeartbeatCallback(
+      String workerGroupingKey, @Nullable EnvironmentInfo environmentInfo) {
+    pendingEnvironmentInfo.set(environmentInfo);
     // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
     final Object callbackLock = new Object();
     final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
@@ -629,6 +640,11 @@ public final class Worker {
                   .build());
         }
         lastHeartbeatTime.set(now);
+
+        EnvironmentInfo pendingEnvironment = pendingEnvironmentInfo.get();
+        if (pendingEnvironment != null) {
+          hb.setEnvironment(pendingEnvironment);
+        }
 
         // Deployment version
         if (options.getDeploymentOptions() != null
