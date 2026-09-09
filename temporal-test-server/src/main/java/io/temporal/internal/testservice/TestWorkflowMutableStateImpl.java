@@ -661,13 +661,33 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   private boolean unhandledCommand(RespondWorkflowTaskCompletedRequest request) {
     boolean newEvents = false;
+    outer:
     for (RequestContext ctx2 : workflowTaskStateMachine.getData().bufferedEvents) {
-      if (!ctx2.getEvents().isEmpty()) {
+      for (HistoryEvent event : ctx2.getEvents()) {
+        if (event.getEventType() == EventType.EVENT_TYPE_TIMER_FIRED
+            && isCancelledByCommands(event.getTimerFiredEventAttributes().getTimerId(), request)) {
+          // A CancelTimer command from this request replaces this buffered TIMER_FIRED event with a
+          // TIMER_CANCELED event, so it does not make the workflow completion command unhandled.
+          // A workflow completion command is always the last one, so it is processed after the
+          // cancel, like on the real server.
+          continue;
+        }
         newEvents = true;
-        break;
+        break outer;
       }
     }
     return (newEvents && hasCompletionCommand(request.getCommandsList()));
+  }
+
+  private boolean isCancelledByCommands(
+      String timerId, RespondWorkflowTaskCompletedRequest request) {
+    for (Command command : request.getCommandsList()) {
+      if (command.getCommandType() == CommandType.COMMAND_TYPE_CANCEL_TIMER
+          && command.getCancelTimerCommandAttributes().getTimerId().equals(timerId)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private boolean unhandledMessages(RespondWorkflowTaskCompletedRequest request) {
@@ -1004,12 +1024,48 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     String timerId = d.getTimerId();
     StateMachine<TimerData> timer = timers.get(timerId);
     if (timer == null) {
-      throw Status.INVALID_ARGUMENT
-          .withDescription("invalid history builder state for action")
-          .asRuntimeException();
+      // The timer may have fired while the current workflow task was still in progress. In that
+      // case its TIMER_FIRED event is buffered until the workflow task completion and this
+      // command should replace it with a TIMER_CANCELED event instead of failing the workflow
+      // task. This mirrors the real server, which removes the buffered TimerFired event.
+      HistoryEvent timerFiredEvent = removeBufferedTimerFiredEvent(timerId);
+      if (timerFiredEvent == null) {
+        throw Status.INVALID_ARGUMENT
+            .withDescription("invalid history builder state for action")
+            .asRuntimeException();
+      }
+      long startedEventId = timerFiredEvent.getTimerFiredEventAttributes().getStartedEventId();
+      StateMachines.cancelFiredTimer(ctx, timerId, startedEventId, workflowTaskCompletedId);
+      // The removal of the buffered TIMER_FIRED event may leave the buffered context empty, so
+      // request the next workflow task explicitly instead of relying on the leftover buffered
+      // context to trigger the scheduling.
+      ctx.setNeedWorkflowTask(true);
+      return;
     }
     timer.action(StateMachines.Action.CANCEL, ctx, d, workflowTaskCompletedId);
     timers.remove(timerId);
+  }
+
+  /**
+   * Removes a buffered TIMER_FIRED event of the specified timer, if any. Events are buffered only
+   * if the timer fired while a workflow task was in progress and the workflow task completion has
+   * not flushed them yet.
+   *
+   * @return the removed TIMER_FIRED event or {@code null} if there is no such buffered event.
+   */
+  private @Nullable HistoryEvent removeBufferedTimerFiredEvent(String timerId) {
+    List<RequestContext> bufferedEvents = workflowTaskStateMachine.getData().bufferedEvents;
+    for (RequestContext bufferedCtx : bufferedEvents) {
+      List<HistoryEvent> events = bufferedCtx.getEvents();
+      for (int i = 0; i < events.size(); i++) {
+        HistoryEvent event = events.get(i);
+        if (event.getEventType() == EventType.EVENT_TYPE_TIMER_FIRED
+            && event.getTimerFiredEventAttributes().getTimerId().equals(timerId)) {
+          return events.remove(i);
+        }
+      }
+    }
+    return null;
   }
 
   private void processRequestCancelActivityTask(
