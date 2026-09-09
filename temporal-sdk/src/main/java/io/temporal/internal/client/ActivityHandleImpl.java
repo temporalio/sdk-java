@@ -9,7 +9,6 @@ import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
