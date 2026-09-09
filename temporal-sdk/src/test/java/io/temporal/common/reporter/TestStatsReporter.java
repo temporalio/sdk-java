@@ -89,6 +89,38 @@ public final class TestStatsReporter implements StatsReporter {
     }
   }
 
+  /**
+   * Asserts that a timer metric was reported exactly {@code expectedCount} times for the given
+   * tags. Useful for verifying that a metric is not accidentally recorded more than once (e.g.
+   * duplicated by multiple code paths).
+   */
+  public synchronized void assertTimer(String name, Map<String, String> tags, long expectedCount) {
+    String metricName = getMetricName(name, tags);
+    StatsAccumulator value = timers.get(metricName);
+    if (value == null) {
+      fail(
+          "No metric '"
+              + metricName
+              + "', reported metrics: \n "
+              + String.join("\n ", timers.keySet()));
+    }
+    assertEquals(
+        "Timer '" + metricName + "' was reported an unexpected number of times",
+        expectedCount,
+        value.count());
+  }
+
+  public synchronized void assertNoTimer(String name, Map<String, String> tags) {
+    String metricName = getMetricName(name, tags);
+    if (timers.containsKey(metricName)) {
+      fail(
+          "Timer metric '"
+              + metricName
+              + "' was reported, but was not expected. Recorded count: "
+              + timers.get(metricName).count());
+    }
+  }
+
   public synchronized void assertTimerMinDuration(
       String name, Map<String, String> tags, Duration minDuration) {
     String metricName = getMetricName(name, tags);
