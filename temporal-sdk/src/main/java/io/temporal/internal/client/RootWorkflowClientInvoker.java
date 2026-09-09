@@ -5,6 +5,7 @@ import static io.temporal.api.workflowservice.v1.ExecuteMultiOperationResponse.R
 import static io.temporal.internal.common.HeaderUtils.intoPayloadMap;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import io.grpc.Deadline;
 import io.grpc.Status;
@@ -21,6 +22,7 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -32,6 +34,7 @@ import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.internal.nexus.OperationTokenUtil;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
 import java.lang.reflect.Type;
@@ -55,6 +58,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final EagerWorkflowTaskDispatcher eagerWorkflowTaskDispatcher;
   private final WorkflowClientRequestFactory requestsHelper;
   private final WorkflowClientDataConverterFactory converterFactory;
+  private final @Nullable ExternalStorageRunner externalStorage;
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
@@ -69,6 +73,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       WorkerFactoryRegistry workerFactoryRegistry,
       @Nullable ExternalStorageRunner externalStorage) {
     this.converterFactory = new WorkflowClientDataConverterFactory(clientOptions, externalStorage);
+    this.externalStorage = externalStorage;
     this.genericClient = genericClient;
     this.namespace = clientOptions.getNamespace();
     this.identity = clientOptions.getIdentity();
@@ -89,6 +94,25 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private DataConverter workflowConverter(
       String workflowId, @Nullable String runId, @Nullable String workflowType) {
     return converterFactory.forWorkflow(workflowId, runId, workflowType);
+  }
+
+  private void storeHeader(
+      Header.Builder header,
+      String workflowId,
+      @Nullable String runId,
+      @Nullable String workflowType) {
+    if (externalStorage == null || header.getFieldsCount() == 0) {
+      return;
+    }
+    externalStorage.store(
+        header,
+        new StorageDriverWorkflowInfo(
+            namespace,
+            Strings.emptyToNull(workflowId),
+            Strings.emptyToNull(runId),
+            Strings.emptyToNull(workflowType)),
+        null,
+        CancellationToken.none());
   }
 
   @Override
@@ -168,6 +192,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     Optional<Payloads> inputArgs = dataConverterWitSignalContext.toPayloads(input.getArguments());
     inputArgs.ifPresent(request::setInput);
+    storeHeader(
+        request.getHeaderBuilder(),
+        input.getWorkflowExecution().getWorkflowId(),
+        input.getWorkflowExecution().getRunId(),
+        null);
     SignalWorkflowExecutionResponse response = genericClient.signal(request.build());
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
     // event; older servers leave it unset. Propagate when present.
@@ -356,14 +385,21 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             workflowStartInput.getOptions().getStaticDetails(),
             dataConverterWithWorkflowContext);
 
-    return requestsHelper.newStartWorkflowExecutionRequest(
+    StartWorkflowExecutionRequest.Builder startRequest =
+        requestsHelper.newStartWorkflowExecutionRequest(
+            workflowStartInput.getWorkflowId(),
+            workflowStartInput.getWorkflowType(),
+            workflowStartInput.getHeader(),
+            workflowStartInput.getOptions(),
+            workflowInput.orElse(null),
+            memo,
+            userMetadata);
+    storeHeader(
+        startRequest.getHeaderBuilder(),
         workflowStartInput.getWorkflowId(),
-        workflowStartInput.getWorkflowType(),
-        workflowStartInput.getHeader(),
-        workflowStartInput.getOptions(),
-        workflowInput.orElse(null),
-        memo,
-        userMetadata);
+        null,
+        workflowStartInput.getWorkflowType());
+    return startRequest;
   }
 
   @Override
@@ -422,6 +458,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     Optional<Payloads> inputArgs =
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
     inputArgs.ifPresent(query::setQueryArgs);
+    storeHeader(
+        query.getHeaderBuilder(),
+        input.getWorkflowExecution().getWorkflowId(),
+        input.getWorkflowExecution().getRunId(),
+        null);
     QueryWorkflowRequest request =
         QueryWorkflowRequest.newBuilder()
             .setNamespace(namespace)
@@ -509,6 +550,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null))
             .setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
+    storeHeader(
+        updateInput.getHeaderBuilder(),
+        input.getWorkflowExecution().getWorkflowId(),
+        input.getWorkflowExecution().getRunId(),
+        null);
 
     Request.Builder requestBuilder =
         Request.newBuilder()
