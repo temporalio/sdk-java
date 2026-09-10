@@ -94,6 +94,10 @@ public final class ExternalStorageDataConverter implements DataConverter {
   @Override
   @Nonnull
   public RuntimeException failureToException(@Nonnull Failure failure) {
+    if (externalStorage == null) {
+      ExternalStorageRunner.throwIfContainsReference(failure);
+      return delegate.failureToException(failure);
+    }
     return delegate.failureToException(retrieveMessage(failure));
   }
 
