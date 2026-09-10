@@ -60,8 +60,8 @@ public class TryCancelActivityTest {
     }
     activitiesImpl.assertInvocations("activityWithDelay");
     HistoryEvent activityCancellationRequestedEvent =
-      testWorkflowRule.getHistoryEvent(
-        execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED);
+        testWorkflowRule.getHistoryEvent(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED);
     HistoryEvent workflowCanceledEvent =
         testWorkflowRule.getHistoryEvent(
             execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED);
@@ -71,11 +71,13 @@ public class TryCancelActivityTest {
             .getHistoryEvents(
                 execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
             .size());
-          Assert.assertTrue(activityCancellationRequestedEvent.getEventId() < workflowCanceledEvent.getEventId());
-          Assert.assertTrue(
-            testWorkflowRule
-              .getHistoryEvents(execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED)
-              .isEmpty());
+    Assert.assertTrue(
+        activityCancellationRequestedEvent.getEventId() < workflowCanceledEvent.getEventId());
+    Assert.assertTrue(
+        testWorkflowRule
+            .getHistoryEvents(
+                execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED)
+            .isEmpty());
   }
 
   public static class TestTryCancelActivity implements TestWorkflow1 {
