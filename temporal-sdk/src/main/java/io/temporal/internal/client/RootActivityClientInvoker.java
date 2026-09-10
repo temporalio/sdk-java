@@ -109,9 +109,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setSearchAttributes(
           SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
-    if (options.getStaticSummary() != null || options.getStaticDetails() != null) {
+    if (options.getSummary() != null || options.getStaticDetails() != null) {
       UserMetadata userMetadata =
-          makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
+          makeUserMetaData(options.getSummary(), options.getStaticDetails(), dc);
       if (userMetadata != null) {
         request.setUserMetadata(userMetadata);
       }

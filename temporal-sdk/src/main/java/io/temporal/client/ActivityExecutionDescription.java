@@ -355,7 +355,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * the result if called multiple times.
    */
   @Nullable
-  public String getStaticSummary() {
+  public String getSummary() {
     if (!response.getInfo().getUserMetadata().hasSummary()) {
       return null;
     }
