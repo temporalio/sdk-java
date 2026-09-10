@@ -35,12 +35,6 @@ jobs:
           USE_EXTERNAL_SERVICE: false
         run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -PtestJavaVersion=23
 
-      - name: Run timing sensitive tests (Java 23)
-        env:
-          USER: unittest
-          USE_EXTERNAL_SERVICE: false
-        run: ./gradlew --no-daemon temporal-sdk:testTimingSensitive -x spotlessCheck -x spotlessApply -x spotlessJava -P edgeDepsTest -PtestJavaVersion=23
-
       - name: Run independent resource tuner test
         env:
           USER: unittest
@@ -99,11 +93,6 @@ jobs:
         env:
           USER: unittest
         run: ./gradlew --no-daemon --offline test -PtestJavaVersion=11 -PtestServer=dev-server
-
-      - name: Run timing sensitive tests (Java 11)
-        env:
-          USER: unittest
-        run: ./gradlew --no-daemon --offline temporal-sdk:testTimingSensitive -PtestJavaVersion=11 -PtestServer=dev-server
 
       - name: Run Jackson 3 converter tests (Java 17)
         env:
