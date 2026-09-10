@@ -1,12 +1,14 @@
 package io.temporal.internal.replay;
 
 import io.temporal.api.command.v1.Command;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
 import io.temporal.common.VersioningBehavior;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 
 public final class WorkflowTaskResult {
 
@@ -26,6 +28,8 @@ public final class WorkflowTaskResult {
     private String writeSdkVersion;
     private VersioningBehavior versioningBehavior;
     private Runnable applyPostCompletionMetrics;
+    private @Nullable WorkflowExecution parentWorkflowExecution;
+    private boolean continuedAsNew;
 
     public Builder setCommands(List<Command> commands) {
       this.commands = commands;
@@ -77,6 +81,16 @@ public final class WorkflowTaskResult {
       return this;
     }
 
+    public Builder setParentWorkflowExecution(@Nullable WorkflowExecution parentWorkflowExecution) {
+      this.parentWorkflowExecution = parentWorkflowExecution;
+      return this;
+    }
+
+    public Builder setContinuedAsNew(boolean continuedAsNew) {
+      this.continuedAsNew = continuedAsNew;
+      return this;
+    }
+
     public Builder setApplyPostCompletionMetrics(Runnable applyPostCompletionMetrics) {
       this.applyPostCompletionMetrics = applyPostCompletionMetrics;
       return this;
@@ -94,7 +108,9 @@ public final class WorkflowTaskResult {
           writeSdkName,
           writeSdkVersion,
           versioningBehavior == null ? VersioningBehavior.UNSPECIFIED : versioningBehavior,
-          applyPostCompletionMetrics);
+          applyPostCompletionMetrics,
+          parentWorkflowExecution,
+          continuedAsNew);
     }
   }
 
@@ -109,6 +125,8 @@ public final class WorkflowTaskResult {
   private final String writeSdkVersion;
   private final VersioningBehavior versioningBehavior;
   private final Runnable applyPostCompletionMetrics;
+  private final @Nullable WorkflowExecution parentWorkflowExecution;
+  private final boolean continuedAsNew;
 
   private WorkflowTaskResult(
       List<Command> commands,
@@ -121,7 +139,9 @@ public final class WorkflowTaskResult {
       String writeSdkName,
       String writeSdkVersion,
       VersioningBehavior versioningBehavior,
-      Runnable applyPostCompletionMetrics) {
+      Runnable applyPostCompletionMetrics,
+      @Nullable WorkflowExecution parentWorkflowExecution,
+      boolean continuedAsNew) {
     this.commands = commands;
     this.messages = messages;
     this.nonfirstLocalActivityAttempts = nonfirstLocalActivityAttempts;
@@ -136,6 +156,19 @@ public final class WorkflowTaskResult {
     this.writeSdkVersion = writeSdkVersion;
     this.versioningBehavior = versioningBehavior;
     this.applyPostCompletionMetrics = applyPostCompletionMetrics;
+    this.parentWorkflowExecution = parentWorkflowExecution;
+    this.continuedAsNew = continuedAsNew;
+  }
+
+  /** The workflow that started this one as a child, or {@code null} if it has no parent. */
+  @Nullable
+  public WorkflowExecution getParentWorkflowExecution() {
+    return parentWorkflowExecution;
+  }
+
+  /** Whether this run was created by a continue-as-new rather than started directly. */
+  public boolean isContinuedAsNew() {
+    return continuedAsNew;
   }
 
   public List<Command> getCommands() {

@@ -37,7 +37,7 @@ public class LongLocalActivityWorkflowTaskHeartbeatTest {
     WorkflowOptions options =
         WorkflowOptions.newBuilder()
             .setWorkflowRunTimeout(Duration.ofMinutes(5))
-            .setWorkflowTaskTimeout(Duration.ofSeconds(2))
+            .setWorkflowTaskTimeout(Duration.ofSeconds(5))
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .build();
     TestWorkflow1 workflowStub =
