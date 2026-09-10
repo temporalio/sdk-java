@@ -32,6 +32,7 @@ import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -63,7 +64,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (Strings.isNullOrEmpty(options.getTaskQueue())) {
       throw new IllegalArgumentException("taskQueue must not be null or empty");
     }
-    DataConverter dc = clientOptions.getDataConverter();
+    DataConverter dc =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new ActivitySerializationContext(
+                    clientOptions.getNamespace(),
+                    null,
+                    null,
+                    input.getActivityType(),
+                    options.getTaskQueue(),
+                    false));
+
     InternalNexusOperationContext nexusContext =
         CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
     NexusOperationMetadata nexusOperationMetadata =
@@ -185,7 +197,11 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws TimeoutException {
     String namespace = clientOptions.getNamespace();
-    DataConverter dc = clientOptions.getDataConverter();
+    DataConverter dc =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new ActivitySerializationContext(namespace, null, null, null, null, false));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
