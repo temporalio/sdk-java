@@ -2,10 +2,14 @@ package io.temporal.workflow.activityTests;
 
 import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
@@ -22,6 +26,7 @@ public class TryCancelActivityTest {
 
   private static final CompletionClientActivitiesImpl activitiesImpl =
       new CompletionClientActivitiesImpl();
+  private final Signal activityStarted = new Signal();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -39,22 +44,38 @@ public class TryCancelActivityTest {
   public void testTryCancelActivity() throws InterruptedException {
     activitiesImpl.setCompletionClient(
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
+    activitiesImpl.setActivityWithDelayStartedCallback(activityStarted::signal);
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
-    WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
-    Thread.sleep(500);
+    WorkflowExecution execution =
+        WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
+    activityStarted.waitForSignal();
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    testWorkflowRule.waitForOKQuery(stub);
+    SDKTestWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
-    long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
       stub.getResult(String.class);
       Assert.fail("unreachable");
     } catch (WorkflowFailedException e) {
       Assert.assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
-    Assert.assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
+    HistoryEvent activityCancellationRequestedEvent =
+      testWorkflowRule.getHistoryEvent(
+        execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED);
+    HistoryEvent workflowCanceledEvent =
+        testWorkflowRule.getHistoryEvent(
+            execution.getWorkflowId(), EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CANCELED);
+    Assert.assertEquals(
+        1,
+        testWorkflowRule
+            .getHistoryEvents(
+                execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
+            .size());
+          Assert.assertTrue(activityCancellationRequestedEvent.getEventId() < workflowCanceledEvent.getEventId());
+          Assert.assertTrue(
+            testWorkflowRule
+              .getHistoryEvents(execution.getWorkflowId(), EventType.EVENT_TYPE_ACTIVITY_TASK_CANCELED)
+              .isEmpty());
   }
 
   public static class TestTryCancelActivity implements TestWorkflow1 {
