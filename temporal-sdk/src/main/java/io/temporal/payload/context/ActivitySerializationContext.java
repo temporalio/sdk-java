@@ -37,8 +37,8 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
     this.namespace = Objects.requireNonNull(namespace);
     this.workflowId = workflowId;
     this.workflowType = workflowType;
-    this.activityType = Objects.requireNonNull(activityType);
-    this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
+    this.activityType = activityType;
+    this.activityTaskQueue = activityTaskQueue;
     this.local = local;
   }
 
