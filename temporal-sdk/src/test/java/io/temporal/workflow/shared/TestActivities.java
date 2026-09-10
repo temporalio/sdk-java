@@ -413,9 +413,14 @@ public class TestActivities {
     private final ThreadPoolExecutor executor =
         new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     public ActivityCompletionClient completionClient;
+    private Runnable activityWithDelayStartedCallback = () -> {};
 
     public void setCompletionClient(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
+    }
+
+    public void setActivityWithDelayStartedCallback(Runnable activityWithDelayStartedCallback) {
+      this.activityWithDelayStartedCallback = activityWithDelayStartedCallback;
     }
 
     public void assertInvocations(String... expected) {
@@ -462,6 +467,7 @@ public class TestActivities {
       executor.execute(
           () -> {
             invocations.add("activityWithDelay");
+            activityWithDelayStartedCallback.run();
             long start = System.currentTimeMillis();
             try {
               int count = 0;

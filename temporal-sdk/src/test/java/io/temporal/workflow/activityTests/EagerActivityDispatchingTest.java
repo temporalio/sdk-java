@@ -251,7 +251,7 @@ public class EagerActivityDispatchingTest {
           Workflow.newActivityStub(
               TestActivities.VariousTestActivities.class,
               ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofMillis(200))
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(10))
                   .setDisableEagerExecution(!enableEagerActivityDispatch)
                   .build());
 

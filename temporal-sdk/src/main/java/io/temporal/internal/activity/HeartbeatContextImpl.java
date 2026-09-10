@@ -1,5 +1,8 @@
 package io.temporal.internal.activity;
 
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.protobuf.ByteString;
 import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -7,6 +10,7 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
 import io.temporal.common.CancellationToken;
@@ -14,22 +18,38 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.storage.ActivityStorageTargets;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @ThreadSafe
 class HeartbeatContextImpl implements HeartbeatContext {
+  private static final class HeartbeatAbandonedException extends RuntimeException {
+    HeartbeatAbandonedException() {
+      super(null, null, false, false);
+    }
+  }
+
   private static final Logger log = LoggerFactory.getLogger(HeartbeatContextImpl.class);
   private static final long HEARTBEAT_RETRY_WAIT_MILLIS = 1000;
   // Buffer added to the heartbeat timeout to avoid racing with the server's own timeout tracking.
@@ -58,6 +78,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
   private final DataConverter dataConverterWithActivityContext;
+  private final @Nullable ExternalStorageRunner externalStorage;
 
   private final Scope metricsScope;
   private final Optional<Payloads> prevAttemptHeartbeatDetails;
@@ -76,6 +97,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private boolean heartbeatTimedOut;
   private boolean rejectNewHeartbeats;
 
+  private volatile CompletableFuture<Void> outstandingOffloadAbandon;
+  private final AtomicInteger pendingAbandons = new AtomicInteger();
+
   private ActivityCompletionException lastException;
   private final CancelSource<ActivityCanceledException> cancellationSource =
       new CancelSource<>(ActivityCanceledException::new);
@@ -89,7 +113,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
       Scope metricsScope,
       String identity,
       Duration maxHeartbeatThrottleInterval,
-      Duration defaultHeartbeatThrottleInterval) {
+      Duration defaultHeartbeatThrottleInterval,
+      @Nullable ExternalStorageRunner externalStorage) {
     this(
         service,
         namespace,
@@ -100,6 +125,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
         identity,
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
+        externalStorage,
         getLocalHeartbeatTimeoutBufferMillis());
   }
 
@@ -113,10 +139,12 @@ class HeartbeatContextImpl implements HeartbeatContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
+      @Nullable ExternalStorageRunner externalStorage,
       long localHeartbeatTimeoutBufferMillis) {
     this.service = service;
     this.metricsScope = metricsScope;
     this.dataConverter = dataConverter;
+    this.externalStorage = externalStorage;
     this.dataConverterWithActivityContext =
         dataConverter.withContext(
             new ActivitySerializationContext(
@@ -151,7 +179,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
     if (heartbeatExecutor.isShutdown()) {
       throw new ActivityWorkerShutdownException(info);
     }
+    requestOffloadAbandon();
     lock.lock();
+    pendingAbandons.decrementAndGet();
     try {
       checkHeartbeatTimeoutDeadlineLocked();
       if (rejectNewHeartbeats) {
@@ -224,7 +254,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   @Override
   public void cancelOutstandingHeartbeat() {
+    requestOffloadAbandon();
     lock.lock();
+    pendingAbandons.decrementAndGet();
     try {
       if (scheduledHeartbeat != null) {
         scheduledHeartbeat.cancel(false);
@@ -239,7 +271,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
 
   @Override
   public void cancelFromWorkerCommand() {
+    requestOffloadAbandon();
     lock.lock();
+    pendingAbandons.decrementAndGet();
     try {
       requestCancelLocked();
     } finally {
@@ -274,6 +308,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
       if (heartbeatTimeoutDeadlineNanos != 0) {
         heartbeatTimeoutDeadlineNanos = computeHeartbeatTimeoutDeadlineNanos();
       }
+    } catch (HeartbeatAbandonedException e) {
+      scheduledHeartbeat = null;
+      return;
     } catch (StatusRuntimeException e) {
       // Not rethrowing to not fail activity implementation on intermittent connection or Temporal
       // errors.
@@ -330,16 +367,97 @@ class HeartbeatContextImpl implements HeartbeatContext {
     }
   }
 
+  private StorageDriverTargetInfo activityStorageTarget() {
+    return storageTargetForActivity(namespace, info);
+  }
+
+  /**
+   * Standalone activities target the activity; workflow activities target their workflow, matching
+   * where {@link io.temporal.internal.worker.ActivityWorker} stores the activity task payloads. A
+   * non-empty {@code activityRunId} marks a standalone activity.
+   */
+  static StorageDriverTargetInfo storageTargetForActivity(String namespace, ActivityInfo info) {
+    return ActivityStorageTargets.newBuilder(namespace)
+        .setActivity(info.getActivityId(), info.getActivityRunId(), info.getActivityType())
+        .setWorkflow(
+            Strings.emptyToNull(info.getWorkflowId()),
+            Strings.emptyToNull(info.getWorkflowRunId()),
+            info.getWorkflowType())
+        .build();
+  }
+
+  /**
+   * Offloads large heartbeat payloads aborting if the store call runs longer than the heartbeat
+   * interval, if a newer heartbeat supersedes this one, or if the activity is cancelled.
+   */
+  private void offloadHeartbeat(RecordActivityTaskHeartbeatRequest.Builder builder) {
+    CancelSource<CancellationException> offloadCancel =
+        new CancelSource<>(CancellationException::new);
+    CompletableFuture<Void> abandon = new CompletableFuture<>();
+    CancellationToken.Registration onActivityCancel =
+        cancellationSource
+            .token()
+            .onCancel(
+                () -> {
+                  offloadCancel.cancel();
+                  abandon.complete(null);
+                });
+    outstandingOffloadAbandon = abandon;
+    try {
+      if (pendingAbandons.get() > 0) {
+        throw new HeartbeatAbandonedException();
+      }
+      CompletableFuture<Void> store =
+          externalStorage.storeAsync(builder, activityStorageTarget(), null, offloadCancel.token());
+      CompletableFuture.anyOf(store, abandon).get(heartbeatIntervalMillis, TimeUnit.MILLISECONDS);
+      if (!store.isDone()) {
+        offloadCancel.cancel();
+        throw new HeartbeatAbandonedException();
+      }
+      store.get();
+    } catch (TimeoutException e) {
+      offloadCancel.cancel();
+      throw new CancellationException(
+          "External storage did not store the heartbeat details within the heartbeat interval");
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      offloadCancel.cancel();
+      CancellationException cancelled =
+          new CancellationException("External storage store interrupted");
+      cancelled.initCause(e);
+      throw cancelled;
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause() != null ? e.getCause() : e;
+      Throwables.throwIfUnchecked(cause);
+      throw new CompletionException(cause);
+    } finally {
+      outstandingOffloadAbandon = null;
+      onActivityCancel.close();
+    }
+  }
+
+  private void requestOffloadAbandon() {
+    pendingAbandons.incrementAndGet();
+    CompletableFuture<Void> outstanding = outstandingOffloadAbandon;
+    if (outstanding != null) {
+      outstanding.complete(null);
+    }
+  }
+
   private void sendHeartbeatRequest(Object details) {
     try {
+      RecordActivityTaskHeartbeatRequest.Builder builder =
+          RecordActivityTaskHeartbeatRequest.newBuilder()
+              .setTaskToken(ByteString.copyFrom(info.getTaskToken()))
+              .setNamespace(namespace)
+              .setIdentity(identity);
+      dataConverterWithActivityContext.toPayloads(details).ifPresent(builder::setDetails);
+      if (externalStorage != null) {
+        offloadHeartbeat(builder);
+      }
+      RecordActivityTaskHeartbeatRequest request = builder.build();
       RecordActivityTaskHeartbeatResponse status =
-          ActivityClientHelper.sendHeartbeatRequest(
-              service,
-              namespace,
-              identity,
-              info.getTaskToken(),
-              dataConverterWithActivityContext.toPayloads(details),
-              metricsScope);
+          ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
       if (status.getCancelRequested()) {
         requestCancelLocked();
       } else if (status.getActivityReset()) {

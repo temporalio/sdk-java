@@ -14,11 +14,13 @@ import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.visitor.MessageVisitor;
@@ -50,6 +52,49 @@ public class ExternalStorageRunnerTest {
 
     Payloads retrieved = transformer.retrieve(stored, CancellationToken.none());
     assertEquals(message, retrieved);
+  }
+
+  @Test
+  public void storeOffloadsHeaders() throws Exception {
+    InMemoryDriver driver = new InMemoryDriver("d1");
+    ExternalStorageRunner transformer = transformer(driver, 0);
+    SignalWorkflowExecutionRequest request =
+        SignalWorkflowExecutionRequest.newBuilder()
+            .setHeader(Header.newBuilder().putFields("trace", payload("ctx")))
+            .setInput(Payloads.newBuilder().addPayloads(payload("arg")))
+            .build();
+
+    SignalWorkflowExecutionRequest.Builder builder = request.toBuilder();
+    transformer.store(builder, null, null, CancellationToken.none());
+    SignalWorkflowExecutionRequest stored = builder.build();
+
+    assertNotNull(
+        "headers must be offloaded like any other payload",
+        ExternalStorageReferences.tryParseReference(stored.getHeader().getFieldsOrThrow("trace")));
+    assertNotNull(
+        "input must be offloaded",
+        ExternalStorageReferences.tryParseReference(stored.getInput().getPayloads(0)));
+  }
+
+  @Test
+  public void retrieveStillResolvesAHeaderStoredElsewhere() throws Exception {
+    InMemoryDriver driver = new InMemoryDriver("d1");
+    ExternalStorageRunner transformer = transformer(driver, 0);
+
+    Payloads.Builder headerValue = Payloads.newBuilder().addPayloads(payload("ctx"));
+    transformer.store(headerValue, null, null, CancellationToken.none());
+    Payload storedHeader = headerValue.build().getPayloads(0);
+    assertNotNull(ExternalStorageReferences.tryParseReference(storedHeader));
+
+    SignalWorkflowExecutionRequest request =
+        SignalWorkflowExecutionRequest.newBuilder()
+            .setHeader(Header.newBuilder().putFields("trace", storedHeader))
+            .build();
+
+    SignalWorkflowExecutionRequest retrieved =
+        transformer.retrieve(request, CancellationToken.none());
+
+    assertEquals(payload("ctx"), retrieved.getHeader().getFieldsOrThrow("trace"));
   }
 
   @Test
