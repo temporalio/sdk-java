@@ -14,6 +14,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.Issue;
+import io.temporal.testUtils.TimingSensitiveTests;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
  * workflow exceptions that look like original workflow execution exceptions.
  */
 @Issue("https://github.com/temporalio/sdk-java/issues/1348")
+@Category(TimingSensitiveTests.class)
 public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
 
   private static final AtomicInteger workflowCodeExecutionCount = new AtomicInteger();
@@ -85,18 +88,18 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
 
     testWorkflowRule.invalidateWorkflowCache();
     assertEquals("my-state", workflow.getState());
-    assertTrue(
-        "The query should have forced at least one full replay, got "
-            + workflowCodeExecutionCount.get(),
-        workflowCodeExecutionCount.get() >= 2);
+    assertEquals(
+        "There was two executions - one original and one full replay for query.",
+        2,
+        workflowCodeExecutionCount.get());
 
     workflow.mySignal("exit");
     assertEquals("exit", workflow.execute());
     assertEquals("my-state", workflow.getState());
-    assertTrue(
-        "The second query should have forced another full replay, got "
-            + workflowCodeExecutionCount.get(),
-        workflowCodeExecutionCount.get() >= 3);
+    assertEquals(
+        "There was three executions - one original and two full replays for query.",
+        3,
+        workflowCodeExecutionCount.get());
     assertEquals(
         "Only the original exception should be logged.",
         1,

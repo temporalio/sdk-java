@@ -177,6 +177,7 @@ tasks.register('deleteCloudTestNamespace', JavaExec) {
 test {
     useJUnit {
         excludeCategories 'io.temporal.worker.IndependentResourceBasedTests'
+        excludeCategories 'io.temporal.testUtils.TimingSensitiveTests'
     }
 }
 
@@ -198,6 +199,21 @@ task testResourceIndependent(type: Test) {
     useJUnit {
         includeCategories 'io.temporal.worker.IndependentResourceBasedTests'
         maxParallelForks = 1
+    }
+}
+
+// Tests that measure real elapsed time or count workflow replays. They are unreliable when many
+// test JVMs compete for the same cores, so they run alone.
+task testTimingSensitive(type: Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnit {
+        includeCategories 'io.temporal.testUtils.TimingSensitiveTests'
+    }
+    maxParallelForks = 1
+    testLogging {
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
     }
 }
 
