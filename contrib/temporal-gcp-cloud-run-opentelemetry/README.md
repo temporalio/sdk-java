@@ -1,4 +1,4 @@
-# Temporal Google Cloud Run module
+# Temporal Google Cloud Run OpenTelemetry module
 
 This module provides an OpenTelemetry plugin with defaults for Temporal Java SDK workers running on Google Cloud Run. Cloud Run worker pools are the recommended deployment because Temporal workers are continuous, pull-based background workloads.
 
@@ -10,7 +10,7 @@ A Cloud Run service can also host a Temporal worker, but it must use instance-ba
 
 ## Usage
 
-Add `temporal-gcp-cloud-run` next to your Temporal SDK dependency, then install the plugin on service stubs options before creating clients and workers:
+Add `temporal-gcp-cloud-run-opentelemetry` next to your Temporal SDK dependency, then install the plugin on service stubs options before creating clients and workers:
 
 ```java
 CloudRunOpenTelemetryPlugin plugin = CloudRunOpenTelemetryPlugin.newBuilder().build();
