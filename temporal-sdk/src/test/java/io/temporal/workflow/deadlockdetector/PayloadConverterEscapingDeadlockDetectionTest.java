@@ -7,6 +7,8 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
@@ -16,8 +18,12 @@ import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 
+@CloudTestExclusionNote(
+    "Requires a test-specific data converter in addition to envconfig client options.")
+@Category(NeedsCloudAdaptation.class)
 public class PayloadConverterEscapingDeadlockDetectionTest {
   public @Rule Timeout timeout = Timeout.seconds(20);
 

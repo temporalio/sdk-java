@@ -7,6 +7,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.VersionPreference;
@@ -24,7 +26,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class PreferredVersionProviderRolloutTest {
   private static final String CHANGE_ID = "preferred-change";
   private static final AtomicInteger unactivatedProviderCalls = new AtomicInteger();

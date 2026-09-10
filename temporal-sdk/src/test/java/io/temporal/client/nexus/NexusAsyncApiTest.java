@@ -12,6 +12,8 @@ import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -25,6 +27,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Coverage tests for the {@link CompletableFuture}-returning surface on the standalone Nexus
@@ -33,6 +36,9 @@ import org.junit.Test;
  * UntypedNexusOperationHandle}. Each overload is asserted against the existing sync echo handler so
  * the Java async API is exercised without depending on server-side async completion.
  */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusAsyncApiTest {
 
   @Rule

@@ -14,6 +14,8 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.Issue;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities;
@@ -23,6 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -72,6 +75,9 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
   }
 
   @Test
+  @CloudTestExclusionNote(
+      "Uses an exact replay count that is not stable when queries run against Cloud.")
+  @Category(NeedsCloudAdaptation.class)
   public void queriedWorkflowFailureDoesntProduceAdditionalLogsWhenWorkflowIsNotCompleted() {
     assumeTrue("This test is flaky on the Test Server", SDKTestWorkflowRule.useExternalService);
 

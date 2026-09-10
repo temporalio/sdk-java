@@ -11,6 +11,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.testing.WorkflowTestingTest;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -23,10 +25,13 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 import org.slf4j.MDC;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class ContextPropagationTest {
   private static final String TASK_QUEUE = "test-workflow";
   private TestWorkflowEnvironment testEnvironment;

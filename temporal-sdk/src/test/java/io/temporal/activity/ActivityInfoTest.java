@@ -73,7 +73,8 @@ public class ActivityInfoTest {
     Assert.assertEquals(ACTIVITY_OPTIONS.getStartToCloseTimeout(), info.startToCloseTimeout);
     Assert.assertEquals(ACTIVITY_OPTIONS.getHeartbeatTimeout(), info.heartbeatTimeout);
     Assert.assertEquals(ActivityInfoWorkflow.class.getSimpleName(), info.workflowType);
-    Assert.assertEquals(SDKTestWorkflowRule.NAMESPACE, info.namespace);
+    Assert.assertEquals(
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace(), info.namespace);
     Assert.assertEquals(testWorkflowRule.getTaskQueue(), info.activityTaskQueue);
     Assert.assertFalse(info.isLocal);
     Assert.assertEquals(0, info.priorityKey);
@@ -98,7 +99,8 @@ public class ActivityInfoTest {
     Assert.assertTrue(info.startToCloseTimeout.isZero());
     Assert.assertTrue(info.heartbeatTimeout.isZero());
     Assert.assertEquals(ActivityInfoWorkflow.class.getSimpleName(), info.workflowType);
-    Assert.assertEquals(SDKTestWorkflowRule.NAMESPACE, info.namespace);
+    Assert.assertEquals(
+        testWorkflowRule.getWorkflowClient().getOptions().getNamespace(), info.namespace);
     Assert.assertEquals(testWorkflowRule.getTaskQueue(), info.activityTaskQueue);
     Assert.assertTrue(info.isLocal);
     Assert.assertEquals(0, info.priorityKey);

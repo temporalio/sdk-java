@@ -12,6 +12,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestMultiArgWorkflowFunctions.*;
@@ -21,6 +23,7 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class StartTest {
 
@@ -70,6 +73,9 @@ public class StartTest {
         "func", stubF.func()); // Check that duplicated start just returns the result.
   }
 
+  @CloudTestExclusionNote(
+      "This test exercises behavior that is only supported by the local test server.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void startOneArgsFuncWithDefault() {
     // TODO why it doesn't work with external service?

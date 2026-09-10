@@ -11,6 +11,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.worker.WorkerFactory;
 import java.util.concurrent.TimeUnit;
@@ -19,13 +22,12 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class WorkerFactoryTests {
 
   private static final boolean useExternalService =
       ExternalServiceTestConfigurator.isUseExternalService();
-  private static final String serviceAddress =
-      ExternalServiceTestConfigurator.getTemporalServiceAddress();
 
   @BeforeClass
   public static void beforeClass() {
@@ -37,10 +39,10 @@ public class WorkerFactoryTests {
 
   @Before
   public void setUp() {
-    service =
-        WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
-    WorkflowClient client = WorkflowClient.newInstance(service);
+    TestEnvironmentOptions environmentOptions =
+        ExternalServiceTestConfigurator.configuredTestEnvironmentOptions().build();
+    service = newServiceStubs(environmentOptions);
+    WorkflowClient client = newWorkflowClient(service, environmentOptions);
     factory = WorkerFactory.newInstance(client);
   }
 
@@ -137,13 +139,16 @@ public class WorkerFactoryTests {
   }
 
   @Test
+  @CloudTestExclusionNote("Cloud hides nonexistent namespaces from namespace-scoped credentials.")
+  @Category(NeedsCloudAdaptation.class)
   public void startFailsOnNonexistentNamespace() {
-    WorkflowServiceStubs serviceLocal =
-        WorkflowServiceStubs.newServiceStubs(
-            WorkflowServiceStubsOptions.newBuilder().setTarget(serviceAddress).build());
+    TestEnvironmentOptions environmentOptions =
+        ExternalServiceTestConfigurator.configuredTestEnvironmentOptions().build();
+    WorkflowServiceStubs serviceLocal = newServiceStubs(environmentOptions);
     WorkflowClient clientLocal =
         WorkflowClient.newInstance(
-            serviceLocal, WorkflowClientOptions.newBuilder().setNamespace("i_dont_exist").build());
+            serviceLocal,
+            newWorkflowClientOptions(environmentOptions).setNamespace("i_dont_exist").build());
     WorkerFactory factoryLocal = WorkerFactory.newInstance(clientLocal);
     factoryLocal.newWorker("task-queue");
 
@@ -154,5 +159,34 @@ public class WorkerFactoryTests {
     factoryLocal.awaitTermination(5, TimeUnit.SECONDS);
     serviceLocal.shutdownNow();
     serviceLocal.awaitTermination(5, TimeUnit.SECONDS);
+  }
+
+  private static WorkflowServiceStubs newServiceStubs(TestEnvironmentOptions environmentOptions) {
+    WorkflowServiceStubsOptions configuredOptions =
+        environmentOptions.getWorkflowServiceStubsOptions();
+    WorkflowServiceStubsOptions.Builder serviceOptions =
+        configuredOptions == null
+            ? WorkflowServiceStubsOptions.newBuilder()
+            : WorkflowServiceStubsOptions.newBuilder(configuredOptions);
+    if (environmentOptions.getTarget() != null) {
+      serviceOptions.setTarget(environmentOptions.getTarget());
+    }
+    return WorkflowServiceStubs.newServiceStubs(serviceOptions.build());
+  }
+
+  private static WorkflowClient newWorkflowClient(
+      WorkflowServiceStubs service, TestEnvironmentOptions environmentOptions) {
+    WorkflowClientOptions configuredOptions = environmentOptions.getWorkflowClientOptions();
+    return configuredOptions == null
+        ? WorkflowClient.newInstance(service)
+        : WorkflowClient.newInstance(service, configuredOptions);
+  }
+
+  private static WorkflowClientOptions.Builder newWorkflowClientOptions(
+      TestEnvironmentOptions environmentOptions) {
+    WorkflowClientOptions configuredOptions = environmentOptions.getWorkflowClientOptions();
+    return configuredOptions == null
+        ? WorkflowClientOptions.newBuilder()
+        : WorkflowClientOptions.newBuilder(configuredOptions);
   }
 }

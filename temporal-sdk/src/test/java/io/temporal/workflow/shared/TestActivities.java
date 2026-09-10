@@ -17,7 +17,6 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.converter.RawValue;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
@@ -352,7 +351,7 @@ public class TestActivities {
     @Override
     public void throwIO() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getNamespace());
+      assertFalse(info.getNamespace().isEmpty());
       assertNotNull(info.getWorkflowId());
       assertNotNull(info.getWorkflowRunId());
       assertFalse(info.getWorkflowId().isEmpty());

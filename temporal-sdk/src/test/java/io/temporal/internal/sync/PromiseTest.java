@@ -7,6 +7,8 @@ import static org.junit.Assert.fail;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.CompletablePromise;
@@ -21,7 +23,10 @@ import java.util.IllegalFormatCodePointException;
 import java.util.List;
 import java.util.concurrent.*;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class PromiseTest {
 
   @Rule public final Tracer trace = new Tracer();

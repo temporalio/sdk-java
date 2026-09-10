@@ -14,6 +14,8 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.tuning.ResourceBasedControllerOptions;
 import io.temporal.worker.tuning.ResourceBasedTuner;
@@ -29,7 +31,11 @@ import java.util.stream.Collectors;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Requires a one-second worker heartbeat interval in addition to envconfig client options.")
+@Category(NeedsCloudAdaptation.class)
 public class WorkerHeartbeatIntegrationTest {
 
   private static final Duration EVENTUALLY_TIMEOUT = Duration.ofSeconds(10);

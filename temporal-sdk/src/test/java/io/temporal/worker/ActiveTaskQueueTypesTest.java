@@ -8,6 +8,8 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.api.enums.v1.TaskQueueType;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.WorkflowInterface;
@@ -15,7 +17,10 @@ import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestNexusServices;
 import java.util.List;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class ActiveTaskQueueTypesTest {
 
   @WorkflowInterface

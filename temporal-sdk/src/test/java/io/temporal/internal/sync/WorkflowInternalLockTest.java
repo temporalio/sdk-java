@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.*;
@@ -19,7 +21,10 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class WorkflowInternalLockTest {
   @Rule public final Tracer trace = new Tracer();
 

@@ -16,7 +16,7 @@ public class NoQueryThreadLeakTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestNoQueryWorkflowImpl.class).build();
 
-  @Test
+  @Test(timeout = 30_000)
   public void testNoQueryThreadLeak() throws InterruptedException {
     QueryableWorkflow client =
         testWorkflowRule.newWorkflowStubTimeoutOptions(QueryableWorkflow.class);

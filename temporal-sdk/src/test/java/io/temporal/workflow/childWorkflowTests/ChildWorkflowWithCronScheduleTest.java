@@ -7,6 +7,8 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflowWithCronScheduleImpl;
@@ -16,6 +18,7 @@ import java.time.Duration;
 import java.util.Map;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 
 public class ChildWorkflowWithCronScheduleTest {
@@ -28,6 +31,8 @@ public class ChildWorkflowWithCronScheduleTest {
           .setWorkflowTypes(TestCronParentWorkflow.class, TestWorkflowWithCronScheduleImpl.class)
           .build();
 
+  @CloudTestExclusionNote("This test advances time through the local test service.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testChildWorkflowWithCronSchedule() {
     // Min interval in cron is 1min. So we will not test it against real service in Jenkins.

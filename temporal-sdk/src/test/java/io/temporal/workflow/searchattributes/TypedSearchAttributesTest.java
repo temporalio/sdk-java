@@ -18,6 +18,8 @@ import io.temporal.client.WorkflowServiceException;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.internal.client.WorkflowClientHelper;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.ChildWorkflowOptions;
@@ -31,8 +33,12 @@ import java.util.Arrays;
 import java.util.List;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /** Typed attribute translation of {@link SearchAttributesTest} */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the custom search attributes required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class TypedSearchAttributesTest {
   private static final SearchAttributeKey<List<String>> TEST_NEW_KEY =
       SearchAttributeKey.forKeywordList("NewKeyList");

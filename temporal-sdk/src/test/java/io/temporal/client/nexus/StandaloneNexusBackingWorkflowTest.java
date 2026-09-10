@@ -24,6 +24,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowRunOperation;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -36,6 +38,7 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Behavior tests for standalone Nexus operations whose handler is {@link WorkflowRunOperation},
@@ -43,6 +46,9 @@ import org.junit.Test;
  * individual tests can exercise cancel propagation, bidirectional link plumbing, and any other
  * behavior that depends on the SANO ↔ backing-workflow relationship.
  */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class StandaloneNexusBackingWorkflowTest {
 
   static final AtomicReference<String> capturedWorkflowId = new AtomicReference<>();
