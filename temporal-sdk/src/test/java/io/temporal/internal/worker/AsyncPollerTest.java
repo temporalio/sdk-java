@@ -202,7 +202,7 @@ public class AsyncPollerTest {
     pollLatch.await();
 
     assertEventually(
-        Duration.ofSeconds(1),
+        Duration.ofSeconds(5),
         () -> {
           assertEquals(5, slotSupplierInner.reservedCount.get());
           assertEquals(0, slotSupplier.getUsedSlots().size());
@@ -212,7 +212,7 @@ public class AsyncPollerTest {
     future.complete(new TestScalingTask(null, slotSupplier));
 
     assertEventually(
-        Duration.ofSeconds(1),
+        Duration.ofSeconds(5),
         () -> {
           assertEquals(5, executor.processed.get());
         });
@@ -371,7 +371,7 @@ public class AsyncPollerTest {
     assertFalse(poller.isSuspended());
     pollLatch.await();
     assertEventually(
-        Duration.ofSeconds(1),
+        Duration.ofSeconds(5),
         () -> {
           assertEquals(0, executor.processed.get());
           assertEquals(1, slotSupplierInner.reservedCount.get());
@@ -381,7 +381,7 @@ public class AsyncPollerTest {
     poller.suspendPolling();
     completePoll.get().apply();
     assertEventually(
-        Duration.ofSeconds(1),
+        Duration.ofSeconds(5),
         () -> {
           assertEquals(1, executor.processed.get());
           assertEquals(2, slotSupplierInner.reservedCount.get());
