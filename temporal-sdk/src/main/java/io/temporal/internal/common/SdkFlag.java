@@ -36,6 +36,17 @@ public enum SdkFlag {
    * Bug: https://github.com/temporalio/sdk-java/issues/2796
    */
   VERSION_WAIT_FOR_MARKER(5),
+  /*
+   * Prevents cancellation of the enclosing CancellationScope from canceling the timeout timer
+   * used by non-cancellable Promise.get(timeout, unit).
+   *
+   * Introduced: 1.39.0
+   *
+   * Enabled: (pending)
+   *
+   * Bug: https://github.com/temporalio/sdk-java/issues/3026
+   */
+  DETACH_NON_CANCELLABLE_PROMISE_GET_TIMER(6),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;
