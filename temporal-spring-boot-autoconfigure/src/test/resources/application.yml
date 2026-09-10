@@ -125,6 +125,22 @@ spring:
 spring:
   config:
     activate:
+      on-profile: auto-discovery-by-worker-name-resolver
+  temporal:
+    workers:
+      - task-queue: UnitTest
+        name: mainWorker
+    workers-auto-discovery:
+      workflow-packages:
+        - io.temporal.spring.boot.autoconfigure.byworkernameresolver
+      register-activity-beans: true
+worker:
+  name: mainWorker
+
+---
+spring:
+  config:
+    activate:
       on-profile: auto-discovery-with-profile
   temporal:
     workers:
