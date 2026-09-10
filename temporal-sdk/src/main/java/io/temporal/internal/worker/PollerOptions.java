@@ -42,7 +42,7 @@ public final class PollerOptions {
         && namespaceCapabilities.isPollerAutoscalingAutoEnroll()
         && !(options.getPollerBehavior() instanceof PollerBehaviorAutoscaling)) {
       return PollerOptions.newBuilder(options)
-          .setPollerBehavior(new PollerBehaviorAutoscaling())
+          .setPollerBehavior(new PollerBehaviorAutoscaling(5, 100, 5))
           .build();
     }
     return options;
