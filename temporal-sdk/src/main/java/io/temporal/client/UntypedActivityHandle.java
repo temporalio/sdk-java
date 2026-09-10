@@ -188,8 +188,13 @@ public interface UntypedActivityHandle {
    * ActivityOptionsUpdate.ActivityOptionsKey#set} to set an option or {@link
    * ActivityOptionsUpdate.ActivityOptionsKey#unset} to clear it.
    *
-   * @param updates the option updates to apply; at least one is required
+   * <p>Each option may be named at most once; naming the same option twice throws {@link
+   * IllegalArgumentException}.
+   *
+   * @param updates the option updates to apply; at least one is required, and no option may be
+   *     named more than once
    * @return the activity options as resolved by the server after the update
+   * @throws IllegalArgumentException if {@code updates} is empty or names an option twice
    */
   ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates);
 

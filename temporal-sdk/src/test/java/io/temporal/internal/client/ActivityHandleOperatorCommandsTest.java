@@ -6,6 +6,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -19,8 +20,10 @@ import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.client.UntypedActivityHandle;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import java.time.Duration;
+import java.util.Arrays;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -156,23 +159,44 @@ public class ActivityHandleOperatorCommandsTest {
     assertFalse("unpause should not send jitter", captureUnpause().hasJitter());
   }
 
-  /** A repeated key resolves to its last update: a later valueUnset overrides an earlier set. */
+  /**
+   * The handle rejects a repeat, so only a hand-built interceptor input can carry one. Asserts the
+   * invoker rejects it too rather than sending a mask with a duplicate path.
+   */
   @Test
-  public void aRepeatedKeyResolvesToItsLastUpdate() {
-    when(genericClient.updateActivityOptions(any()))
-        .thenReturn(UpdateActivityExecutionOptionsResponse.getDefaultInstance());
+  public void aRepeatedKeyFromAnInterceptorIsRejected() {
+    RootActivityClientInvoker invoker = new RootActivityClientInvoker(genericClient, clientOptions);
 
-    newHandle()
-        .updateOptions(
-            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.set(Duration.ofSeconds(5)),
-            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.unset());
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                invoker.updateActivityOptions(
+                    new ActivityClientCallsInterceptor.UpdateActivityOptionsInput(
+                        "act-1",
+                        "run-1",
+                        Arrays.asList(
+                            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.set(Duration.ofSeconds(5)),
+                            ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.unset()),
+                        false)));
+    assertTrue(e.getMessage().contains("more than one update for heartbeat_timeout"));
+    verify(genericClient, never()).updateActivityOptions(any());
+  }
 
-    UpdateActivityExecutionOptionsRequest req = captureUpdate();
-    // The later unset wins, and the path is named once.
-    assertEquals(
-        java.util.Collections.singleton("heartbeat_timeout"),
-        new java.util.HashSet<>(req.getUpdateMask().getPathsList()));
-    assertFalse(req.getActivityOptions().hasHeartbeatTimeout());
+  /** Naming the same option twice is rejected rather than silently resolved. */
+  @Test
+  public void aRepeatedKeyIsRejected() {
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                newHandle()
+                    .updateOptions(
+                        ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.set(Duration.ofSeconds(5)),
+                        ActivityOptionsUpdate.HEARTBEAT_TIMEOUT.unset()));
+    assertTrue(e.getMessage().contains("more than one update for heartbeat_timeout"));
+    // Rejected before any request is sent.
+    verify(genericClient, never()).updateActivityOptions(any());
   }
 
   /** The mask names exactly the options that were updated, and nothing else. */
