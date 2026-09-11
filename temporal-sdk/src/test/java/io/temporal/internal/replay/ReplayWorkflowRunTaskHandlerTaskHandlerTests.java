@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.util.Durations;
 import com.uber.m3.tally.NoopScope;
+import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.EventType;
@@ -28,6 +29,9 @@ import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
+import io.temporal.internal.statemachines.WorkflowStateMachines;
+import io.temporal.internal.worker.LocalActivityDispatcher;
+import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -37,11 +41,14 @@ import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,6 +56,77 @@ import org.mockito.ArgumentCaptor;
 public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
   @Rule public SDKTestWorkflowRule testWorkflowRule = SDKTestWorkflowRule.newBuilder().build();
+
+  @Test
+  public void outstandingLocalActivityForcesANewWorkflowTask() throws Throwable {
+    PollWorkflowTaskQueueResponse initialWorkflowTask =
+        HistoryUtils.generateWorkflowTaskWithInitialHistory();
+    HistoryEvent startedEvent = initialWorkflowTask.getHistory().getEvents(0);
+    PollWorkflowTaskQueueResponse workflowTask =
+        initialWorkflowTask.toBuilder()
+            .setHistory(
+                initialWorkflowTask.getHistory().toBuilder()
+                    .setEvents(
+                        0,
+                        startedEvent
+                            .toBuilder()
+                            .setWorkflowExecutionStartedEventAttributes(
+                                startedEvent
+                                    .getWorkflowExecutionStartedEventAttributes()
+                                    .toBuilder()
+                                    .setWorkflowTaskTimeout(Durations.ZERO))))
+            .build();
+    AtomicReference<WorkflowStateMachines> stateMachines = new AtomicReference<>();
+    AtomicReference<Functions.Proc1<LocalActivityResult>> completion = new AtomicReference<>();
+    AtomicBoolean scheduled = new AtomicBoolean();
+    ReplayWorkflow workflow = mock(ReplayWorkflow.class);
+    WorkflowContext workflowContext = mock(WorkflowContext.class);
+    when(workflow.getWorkflowContext()).thenReturn(workflowContext);
+    when(workflowContext.getRunningUpdateHandlers()).thenReturn(new HashMap<>());
+    when(workflow.eventLoop())
+        .thenAnswer(
+            ignored -> {
+              if (scheduled.compareAndSet(false, true)) {
+                stateMachines
+                    .get()
+                    .scheduleLocalActivityTask(
+                        new ExecuteLocalActivityParameters(
+                            PollActivityTaskQueueResponse.newBuilder()
+                                .setActivityId("local-activity")
+                                .setActivityType(ActivityType.newBuilder().setName("activity")),
+                            null,
+                            0,
+                            null,
+                            false,
+                            Duration.ZERO,
+                            null),
+                        (result, failure) -> {});
+              }
+              return false;
+            });
+    LocalActivityDispatcher dispatcher =
+        (parameters, callback, acceptanceDeadline) -> {
+          completion.set(callback);
+          return true;
+        };
+    ReplayWorkflowRunTaskHandler handler =
+        new ReplayWorkflowRunTaskHandler(
+            "namespace",
+            workflow,
+            workflowTask,
+            SingleWorkerOptions.newBuilder().build(),
+            new NoopScope(),
+            dispatcher,
+            GetSystemInfoResponse.Capabilities.newBuilder().build());
+    stateMachines.set(handler.getWorkflowStateMachines());
+
+    WorkflowTaskResult result =
+        handler.handleWorkflowTask(
+            workflowTask, new FullHistoryIterator(workflowTask.getHistory().getEventsList()));
+
+    assertNotNull(completion.get());
+    assertTrue(result.isForceWorkflowTask());
+  }
 
   @Test
   public void ifStickyExecutionAttributesAreNotSetThenWorkflowsAreNotCached() throws Throwable {
