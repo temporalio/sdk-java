@@ -41,6 +41,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class ActivityInput<R> {
     private final String activityName;
+    private final @Nullable String activityId;
     private final Class<R> resultClass;
     private final Type resultType;
     private final Object[] args;
@@ -54,7 +55,19 @@ public interface WorkflowOutboundCallsInterceptor {
         Object[] args,
         ActivityOptions options,
         Header header) {
+      this(activityName, null, resultClass, resultType, args, options, header);
+    }
+
+    public ActivityInput(
+        String activityName,
+        @Nullable String activityId,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        ActivityOptions options,
+        Header header) {
       this.activityName = activityName;
+      this.activityId = activityId;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
@@ -64,6 +77,12 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getActivityName() {
       return activityName;
+    }
+
+    /** Returns the caller-supplied Activity ID, or {@code null} if the SDK should generate one. */
+    @Nullable
+    public String getActivityId() {
+      return activityId;
     }
 
     public Class<R> getResultClass() {
@@ -107,6 +126,7 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class LocalActivityInput<R> {
     private final String activityName;
+    private final @Nullable String activityId;
     private final Class<R> resultClass;
     private final Type resultType;
     private final Object[] args;
@@ -120,7 +140,19 @@ public interface WorkflowOutboundCallsInterceptor {
         Object[] args,
         LocalActivityOptions options,
         Header header) {
+      this(activityName, null, resultClass, resultType, args, options, header);
+    }
+
+    public LocalActivityInput(
+        String activityName,
+        @Nullable String activityId,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        LocalActivityOptions options,
+        Header header) {
       this.activityName = activityName;
+      this.activityId = activityId;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
@@ -130,6 +162,12 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public String getActivityName() {
       return activityName;
+    }
+
+    /** Returns the caller-supplied Activity ID, or {@code null} if the SDK should generate one. */
+    @Nullable
+    public String getActivityId() {
+      return activityId;
     }
 
     public Class<R> getResultClass() {

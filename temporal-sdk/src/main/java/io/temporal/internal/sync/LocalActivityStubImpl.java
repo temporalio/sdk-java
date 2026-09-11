@@ -3,10 +3,13 @@ package io.temporal.internal.sync;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.ActivityInvocationOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
+import java.util.Objects;
+import javax.annotation.Nullable;
 
 class LocalActivityStubImpl extends ActivityStubBase {
   protected final LocalActivityOptions options;
@@ -34,11 +37,35 @@ class LocalActivityStubImpl extends ActivityStubBase {
   @Override
   public <R> Promise<R> executeAsync(
       String activityName, Class<R> resultClass, Type resultType, Object... args) {
+    return executeAsyncInternal(activityName, resultClass, resultType, null, args);
+  }
+
+  @Override
+  public <R> Promise<R> executeAsync(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      ActivityInvocationOptions invocationOptions,
+      Object... args) {
+    Objects.requireNonNull(invocationOptions, "invocationOptions");
+    if (invocationOptions.getActivityOptions() != null) {
+      throw new IllegalArgumentException("ActivityOptions are not supported for Local Activities");
+    }
+    return executeAsyncInternal(
+        activityName, resultClass, resultType, invocationOptions.getActivityId(), args);
+  }
+
+  private <R> Promise<R> executeAsyncInternal(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      @Nullable String activityId,
+      Object... args) {
     this.assertReadOnly.apply();
     return activityExecutor
         .executeLocalActivity(
             new WorkflowOutboundCallsInterceptor.LocalActivityInput<>(
-                activityName, resultClass, resultType, args, options, Header.empty()))
+                activityName, activityId, resultClass, resultType, args, options, Header.empty()))
         .getResult();
   }
 }

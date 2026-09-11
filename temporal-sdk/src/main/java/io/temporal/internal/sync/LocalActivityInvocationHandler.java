@@ -4,8 +4,10 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.ActivityInvocationOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
+import io.temporal.workflow.Promise;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -47,7 +49,6 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
   @Override
   public Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
-    Function<Object[], Object> function;
     LocalActivityOptions mergedOptions =
         LocalActivityOptions.newBuilder(options)
             .mergeActivityOptions(activityMethodOptions.get(activityName))
@@ -55,9 +56,24 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
             .build();
     ActivityStub stub =
         LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor, assertReadOnly);
-    function =
-        (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
-    return function;
+
+    if (ActivityInvocationInternal.isActive()) {
+      ActivityInvocationOptions invocationOptions = ActivityInvocationInternal.consumeOptions();
+      return (a) -> {
+        Promise<?> result =
+            stub.executeAsync(
+                activityName,
+                method.getReturnType(),
+                method.getGenericReturnType(),
+                invocationOptions,
+                a);
+        ActivityInvocationInternal.setResult(result);
+        return null;
+      };
+    }
+
+    return (a) ->
+        stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
   }
 
   @Override
