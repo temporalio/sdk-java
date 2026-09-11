@@ -465,7 +465,7 @@ public interface ActivityClientCallsInterceptor {
 
     /**
      * The option updates to apply, in the order the caller supplied them. Empty when {@link
-     * #isRestoreOriginal()} is true. For a repeated key, the later update wins.
+     * #isRestoreOriginal()} is true. Each option is named at most once.
      */
     public List<ActivityOptionsUpdate<?>> getUpdates() {
       return updates;

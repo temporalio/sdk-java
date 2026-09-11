@@ -35,8 +35,6 @@ import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
@@ -450,17 +448,20 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (input.isRestoreOriginal()) {
       req.setRestoreOriginal(true);
     } else {
-      // For repeated keys, later values override previous ones.
-      Map<String, ActivityOptionsUpdate<?>> byPath = new LinkedHashMap<>();
-      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
-        byPath.put(update.getKey().getPath(), update);
-      }
+      // The handle rejects a repeated option, but an interceptor could still add one.
       ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
-      for (ActivityOptionsUpdate<?> update : byPath.values()) {
+      FieldMask.Builder updateMask = FieldMask.newBuilder();
+      Set<String> seen = new HashSet<>();
+      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
+        String path = update.getKey().getPath();
+        if (!seen.add(path)) {
+          throw new IllegalArgumentException(
+              "updateActivityOptions received more than one update for " + path);
+        }
+        updateMask.addPaths(path);
         update.applyTo(activityOptions);
       }
-      req.setActivityOptions(activityOptions.build())
-          .setUpdateMask(FieldMask.newBuilder().addAllPaths(byPath.keySet()).build());
+      req.setActivityOptions(activityOptions.build()).setUpdateMask(updateMask.build());
     }
     UpdateActivityExecutionOptionsResponse response =
         genericClient.updateActivityOptions(req.build());
