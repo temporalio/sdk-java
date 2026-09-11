@@ -3625,6 +3625,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setIdentity(signalRequest.getIdentity())
             .setInput(signalRequest.getInput())
             .setSignalName(signalRequest.getSignalName());
+    if (signalRequest.hasHeader()) {
+      a.setHeader(signalRequest.getHeader());
+    }
 
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
