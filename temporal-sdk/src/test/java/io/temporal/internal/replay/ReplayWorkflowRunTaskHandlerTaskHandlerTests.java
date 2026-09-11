@@ -68,8 +68,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
                 initialWorkflowTask.getHistory().toBuilder()
                     .setEvents(
                         0,
-                        startedEvent
-                            .toBuilder()
+                        startedEvent.toBuilder()
                             .setWorkflowExecutionStartedEventAttributes(
                                 startedEvent
                                     .getWorkflowExecutionStartedEventAttributes()
