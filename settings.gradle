@@ -15,8 +15,8 @@ include 'temporal-workflowstreams'
 project(':temporal-workflowstreams').projectDir = file('contrib/temporal-workflowstreams')
 include 'temporal-aws-lambda'
 project(':temporal-aws-lambda').projectDir = file('contrib/temporal-aws-lambda')
-include 'temporal-gcp-cloud-run'
-project(':temporal-gcp-cloud-run').projectDir = file('contrib/temporal-gcp-cloud-run')
+include 'temporal-gcp-cloud-run-opentelemetry'
+project(':temporal-gcp-cloud-run-opentelemetry').projectDir = file('contrib/temporal-gcp-cloud-run-opentelemetry')
 include 'temporal-spring-boot-autoconfigure'
 include 'temporal-spring-boot-starter'
 include 'temporal-remote-data-encoder'
