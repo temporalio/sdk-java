@@ -240,7 +240,7 @@ public class ExternalStorageDataConverterTest {
             plain,
             ExternalStorageRunner.create(
                 ExternalStorage.newBuilder()
-                    .setDriver(new RecordingDriver())
+                    .setDriver(TestStorageDriver.create())
                     .setPayloadSizeThreshold(0)
                     .build()));
     return configured.toPayload(value).get();
