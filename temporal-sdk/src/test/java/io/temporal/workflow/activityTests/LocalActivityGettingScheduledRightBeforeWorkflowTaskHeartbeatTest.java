@@ -24,6 +24,7 @@ public class LocalActivityGettingScheduledRightBeforeWorkflowTaskHeartbeatTest {
   private static final Duration WORKFLOW_TASK_TIMEOUT = Duration.ofSeconds(5);
   private static final Duration SLEEP_DURATION =
       Duration.ofMillis(800); // << 1000 to avoid deadlock detection
+  private static final int CONCURRENT_WORKFLOW_COUNT = 2;
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
 
@@ -45,9 +46,9 @@ public class LocalActivityGettingScheduledRightBeforeWorkflowTaskHeartbeatTest {
 
     List<WorkflowStub> stubs = new ArrayList<>();
 
-    // this test is actually pretty stable,
-    // but run several instances to increase the chances of the right timing being hit
-    for (int i = 0; i < 5; i++) {
+    // Concurrent runs exercise the timing boundary without delaying their first workflow tasks
+    // long enough to consume the workflow run timeout on an external service.
+    for (int i = 0; i < CONCURRENT_WORKFLOW_COUNT; i++) {
       TestWorkflow1 workflow =
           testWorkflowRule.getWorkflowClient().newWorkflowStub(TestWorkflow1.class, options);
       WorkflowStub stub = WorkflowStub.fromTyped(workflow);
