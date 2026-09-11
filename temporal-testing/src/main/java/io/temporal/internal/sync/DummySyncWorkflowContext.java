@@ -15,6 +15,7 @@ import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
+import io.temporal.workflow.WorkflowRandomStream;
 import java.time.Duration;
 import java.util.*;
 import javax.annotation.Nonnull;
@@ -285,6 +286,11 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Random newRandom() {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public WorkflowRandomStream getRandomStream(String name) {
       throw new UnsupportedOperationException("not implemented");
     }
 

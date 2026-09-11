@@ -35,6 +35,7 @@ import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.NexusOperationCancellationType;
+import io.temporal.workflow.WorkflowRandomStream;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiFunction;
@@ -114,6 +115,8 @@ public final class WorkflowStateMachines {
 
   /** Used Workflow.newRandom and randomUUID together with currentRunId. */
   private long idCounter;
+
+  private final WorkflowRandomStreams randomStreams = new WorkflowRandomStreams();
 
   /** Current workflow time. */
   private long currentTimeMillis = -1;
@@ -845,6 +848,7 @@ public final class WorkflowStateMachines {
       case EVENT_TYPE_WORKFLOW_EXECUTION_STARTED:
         this.currentRunId =
             event.getWorkflowExecutionStartedEventAttributes().getOriginalExecutionRunId();
+        randomStreams.updateRunId(currentRunId);
         callbacks.start(event);
         break;
       case EVENT_TYPE_WORKFLOW_TASK_SCHEDULED:
@@ -1193,6 +1197,11 @@ public final class WorkflowStateMachines {
   public Random newRandom() {
     checkEventLoopExecuting();
     return new Random(randomUUID().getLeastSignificantBits());
+  }
+
+  public WorkflowRandomStream getRandomStream(String name) {
+    checkEventLoopExecuting();
+    return randomStreams.get(name);
   }
 
   public void sideEffect(
@@ -1548,6 +1557,7 @@ public final class WorkflowStateMachines {
     @Override
     public void updateRunId(String currentRunId) {
       WorkflowStateMachines.this.currentRunId = currentRunId;
+      randomStreams.updateRunId(currentRunId);
     }
   }
 
