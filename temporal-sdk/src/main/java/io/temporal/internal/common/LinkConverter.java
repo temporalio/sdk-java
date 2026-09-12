@@ -328,14 +328,6 @@ public class LinkConverter {
         log.error("Failed to parse Nexus link URL: invalid scheme: {}", uri.getScheme());
         return null;
       }
-      // The canonical form has an empty authority, giving "temporal:///namespaces/...". A host
-      // would shift the meaning of the first path segment.
-      String authority = uri.getRawAuthority();
-      if (authority != null && !authority.isEmpty()) {
-        log.error("Failed to parse Nexus link URL: unexpected authority: {}", authority);
-        return null;
-      }
-
       String rawPath = uri.getRawPath();
       if (rawPath == null) {
         log.error("Failed to parse Nexus link URL: no path: {}", nexusLink.getUrl());

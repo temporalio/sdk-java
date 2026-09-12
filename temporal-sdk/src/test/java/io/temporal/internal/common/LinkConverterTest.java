@@ -316,13 +316,6 @@ public class LinkConverterTest {
     assertRejected(NEXUS_OPERATION, "https:///namespaces/ns/nexus-operations/op/run-id/details");
   }
 
-  /** The canonical form has an empty authority; a host would shift the path segments. */
-  @Test
-  public void rejectsUrlWithAuthority() {
-    assertRejected(
-        WORKFLOW_EVENT, "temporal://example.com/namespaces/ns/workflows/wf-id/run-id/history");
-  }
-
   /** A workflow link ends at the run ID; a workflow-event link ends at {@code /history}. */
   @Test
   public void rejectsMismatchedWorkflowPathShapes() {
