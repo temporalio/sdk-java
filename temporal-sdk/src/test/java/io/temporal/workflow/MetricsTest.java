@@ -4,6 +4,7 @@ import static io.temporal.serviceclient.MetricsType.TEMPORAL_LONG_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_FAILURE;
 import static io.temporal.serviceclient.MetricsType.TEMPORAL_REQUEST_LATENCY;
+import static io.temporal.testUtils.Eventually.assertEventually;
 import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static io.temporal.worker.MetricsType.*;
 import static org.junit.Assert.assertEquals;
@@ -506,9 +507,13 @@ public class MetricsTest {
     CompletableFuture<Void> wfFuture = WorkflowClient.execute(workflow::execute);
     SDKTestWorkflowRule.waitForOKQuery(WorkflowStub.fromTyped(workflow));
 
-    Thread.sleep(REPORTING_FLUSH_TIME);
-    reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
-    reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, val -> val == 1 || val == 2);
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
+          reporter.assertGauge(
+              WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, val -> val == 1 || val == 2);
+        });
 
     workflow.complete();
     wfFuture.get();
