@@ -99,27 +99,20 @@ public interface GenericWorkflowClient {
 
   // ---- Standalone Activity RPCs ----
 
-  @Experimental
   StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request);
 
-  @Experimental
   PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request);
 
-  @Experimental
   PollActivityExecutionResponse pollActivity(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline);
 
-  @Experimental
   CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
       PollActivityExecutionRequest request, @Nonnull Deadline deadline);
 
-  @Experimental
   DescribeActivityExecutionResponse describeActivity(DescribeActivityExecutionRequest request);
 
-  @Experimental
   void cancelActivity(RequestCancelActivityExecutionRequest request);
 
-  @Experimental
   void terminateActivity(TerminateActivityExecutionRequest request);
 
   @Experimental
@@ -132,14 +125,11 @@ public interface GenericWorkflowClient {
   UpdateActivityExecutionOptionsResponse updateActivityOptions(
       UpdateActivityExecutionOptionsRequest request);
 
-  @Experimental
   ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request);
 
-  @Experimental
   CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(
       ListActivityExecutionsRequest request);
 
-  @Experimental
   CountActivityExecutionsResponse countActivities(CountActivityExecutionsRequest request);
 
   @Experimental

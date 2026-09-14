@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
-import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributes;
@@ -18,7 +17,6 @@ import javax.annotation.Nullable;
  * <p>At least one of {@link #getScheduleToCloseTimeout()} or {@link #getStartToCloseTimeout()} must
  * be set.
  */
-@Experimental
 public final class StartActivityOptions {
 
   public static Builder newBuilder() {

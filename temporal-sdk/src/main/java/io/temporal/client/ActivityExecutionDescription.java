@@ -4,7 +4,6 @@ import io.temporal.api.activity.v1.ActivityExecutionInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
 import io.temporal.api.enums.v1.PendingActivityState;
 import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
-import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkerDeploymentVersion;
@@ -26,7 +25,6 @@ import javax.annotation.Nullable;
  * Detailed information about a standalone activity execution, returned by {@link
  * ActivityHandle#describe()}.
  */
-@Experimental
 public final class ActivityExecutionDescription extends ActivityExecutionMetadata {
 
   private final DescribeActivityExecutionResponse response;
