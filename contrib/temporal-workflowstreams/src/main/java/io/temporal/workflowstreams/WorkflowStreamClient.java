@@ -6,9 +6,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.workflowstreams.internal.StreamPublisher;
 import io.temporal.workflowstreams.internal.SubscriptionDriver;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -32,6 +32,7 @@ public final class WorkflowStreamClient implements AutoCloseable {
   private final WorkflowClient client;
   private final String workflowId;
   private final StreamPublisher publisher;
+  private final DataConverter itemDataConverter;
   @Nullable private final ScheduledExecutorService userPollExecutor;
 
   private final Map<String, TopicHandle> topicHandles = new HashMap<>();
@@ -83,14 +84,7 @@ public final class WorkflowStreamClient implements AutoCloseable {
     this.client = client;
     this.workflowId = workflowId;
 
-    // A converter built only from PayloadConverters is codec-free, so items are never
-    // double-encoded against the codec on the client's signal/update envelope.
-    DataConverter dataConverter;
-    if (options.getPayloadConverters().length > 0) {
-      dataConverter = new DefaultDataConverter(options.getPayloadConverters());
-    } else {
-      dataConverter = DefaultDataConverter.STANDARD_INSTANCE;
-    }
+    this.itemDataConverter = WorkflowStreamDataConverter.create(options.getPayloadConverters());
 
     this.userPollExecutor = options.getPollExecutor();
 
@@ -98,7 +92,7 @@ public final class WorkflowStreamClient implements AutoCloseable {
     this.publisher =
         new StreamPublisher(
             input -> stub.signal(WorkflowStreamConstants.PUBLISH_SIGNAL_NAME, input),
-            dataConverter,
+            itemDataConverter,
             options.getBatchInterval(),
             options.getMaxBatchSize(),
             options.getMaxRetryDuration());
@@ -110,6 +104,16 @@ public final class WorkflowStreamClient implements AutoCloseable {
    */
   public synchronized TopicHandle topic(String name) {
     return topicHandles.computeIfAbsent(name, n -> new TopicHandle(n, this));
+  }
+
+  /** Decodes an item using this client's configured, codec-free item converter. */
+  public <T> T decodeItem(WorkflowStreamItem item, Class<T> valueClass) {
+    return decodeItem(item, valueClass, valueClass);
+  }
+
+  /** Decodes an item using this client's configured, codec-free item converter. */
+  public <T> T decodeItem(WorkflowStreamItem item, Class<T> valueClass, Type valueType) {
+    return itemDataConverter.fromPayload(item.getPayload(), valueClass, valueType);
   }
 
   /**
@@ -141,9 +145,9 @@ public final class WorkflowStreamClient implements AutoCloseable {
    * }</pre>
    *
    * <p>The consuming thread blocks waiting for items; polling itself runs on the client's poll
-   * executor. Each item carries the raw {@link io.temporal.api.common.v1.Payload}; decode it with
-   * your data converter. The subscription ends cleanly when the workflow reaches a terminal state,
-   * automatically follows continue-as-new chains, and also ends when this client is closed.
+   * executor. Decode each item with {@link #decodeItem(WorkflowStreamItem, Class)}. The
+   * subscription ends cleanly when the workflow reaches a terminal state, automatically follows
+   * continue-as-new chains, and also ends when this client is closed.
    */
   public WorkflowStreamSubscription subscribe(SubscribeOptions options) {
     return new WorkflowStreamSubscription(listener -> newSubscriptionDriver(options, listener));

@@ -7,8 +7,8 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.RawValue;
-import io.temporal.common.converter.TemporalTransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConverter;
+import io.temporal.common.converter.TransferTypeConvertible;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
@@ -23,8 +23,8 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
       new ClassValue<ConverterDescriptor>() {
         @Override
         protected ConverterDescriptor computeValue(Class<?> type) {
-          TemporalTransferTypeConverter annotation =
-              type.getDeclaredAnnotation(TemporalTransferTypeConverter.class);
+          TransferTypeConvertible annotation =
+              type.getDeclaredAnnotation(TransferTypeConvertible.class);
           return annotation == null
               ? ConverterDescriptor.NONE
               : new ConverterDescriptor(type, annotation.value());
@@ -72,6 +72,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     Type requestedType = requestedType(valueClass, valueType);
     TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayload(payload, transfer.rawType, transfer.type);
+    // Prevent a converter from returning a value that cannot be passed to the requested model type.
     return valueClass.cast(fromTransferValue(value, descriptor, requestedType));
   }
 
@@ -86,6 +87,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     Type requestedType = requestedType(valueClass, valueType);
     TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayloads(index, content, transfer.rawType, transfer.type);
+    // Prevent a converter from returning a value that cannot be passed to the requested model type.
     return valueClass.cast(fromTransferValue(value, descriptor, requestedType));
   }
 
@@ -220,6 +222,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
 
     private TransferType transferTypeFor(Type valueType) {
       Type type = converter().getTransferType(valueType);
+      // The delegate and TypeToken require a concrete type to decode the transfer representation.
       if (type == null) {
         throw new DataConverterException(
             "Transfer type converter "
@@ -249,13 +252,17 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     }
 
     private TransferTypeConverter<?> instantiateConverter() {
+      // Interfaces and abstract classes cannot provide the converter instance used at runtime.
       if (converterClass.isInterface() || Modifier.isAbstract(converterClass.getModifiers())) {
         throw declarationFailure("must be a concrete class", null);
       }
+      // A non-static member class requires an enclosing instance that the SDK does not own.
       if (converterClass.isMemberClass() && !Modifier.isStatic(converterClass.getModifiers())) {
         throw declarationFailure("must be static when declared as an inner class", null);
       }
       try {
+        // A public no-argument constructor keeps converter creation independent of application
+        // state.
         Constructor<? extends TransferTypeConverter<?>> constructor =
             converterClass.getConstructor();
         return constructor.newInstance();

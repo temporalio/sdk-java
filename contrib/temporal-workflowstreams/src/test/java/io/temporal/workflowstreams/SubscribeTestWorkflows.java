@@ -25,6 +25,9 @@ public final class SubscribeTestWorkflows {
     @SignalMethod
     void publishLocal(String topic, String value);
 
+    @SignalMethod
+    void publishTransfer(String topic, TransferStreamTestModel value);
+
     @UpdateMethod
     void truncate(long upToOffset);
   }
@@ -63,6 +66,11 @@ public final class SubscribeTestWorkflows {
 
     @Override
     public void publishLocal(String topic, String value) {
+      stream.topic(topic).publish(value);
+    }
+
+    @Override
+    public void publishTransfer(String topic, TransferStreamTestModel value) {
       stream.topic(topic).publish(value);
     }
 

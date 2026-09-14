@@ -4,7 +4,7 @@ import com.google.protobuf.StringValue;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
-@TemporalTransferTypeConverter(TransferTypeTestModel.Converter.class)
+@TransferTypeConvertible(TransferTypeTestModel.Converter.class)
 public final class TransferTypeTestModel {
   private final String value;
   private final boolean transferred;

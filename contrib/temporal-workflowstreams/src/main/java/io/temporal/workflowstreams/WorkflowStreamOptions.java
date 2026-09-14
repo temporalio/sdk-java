@@ -40,7 +40,8 @@ public final class WorkflowStreamOptions {
      * <p>As on the client side, only payload conversion happens here — never a payload codec. The
      * worker's codec chain runs once on the poll-update response that carries each batch to
      * subscribers, so encoding items here too would double-encode them; the {@code
-     * PayloadConverter[]} type makes that impossible.
+     * PayloadConverter[]} type makes that impossible. Transfer conversion and payload conversion
+     * apply to each item.
      *
      * <p>There is no public accessor for the worker's configured data converter inside workflow
      * code, so it cannot be picked up automatically; pass the matching payload converters here to

@@ -21,7 +21,7 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
-public @interface TemporalTransferTypeConverter {
+public @interface TransferTypeConvertible {
   /** The converter associated with the annotated model class. */
   Class<? extends TransferTypeConverter<?>> value();
 }

@@ -124,9 +124,13 @@ automatically follows continue-as-new chains, recovers from truncation by
 restarting from the current base offset, and also ends when the owning
 `WorkflowStreamClient` is closed.
 
-Items carry the raw `io.temporal.api.common.v1.Payload`; decode at the call
-site with your data converter. Offsets are **global** (across all topics), not
-per-topic.
+Items carry the raw `io.temporal.api.common.v1.Payload`. Use
+`WorkflowStreamClient.decodeItem` to decode them with the configured stream
+item converter. Transfer conversion and payload conversion apply to each item.
+Payload codecs apply only once to the surrounding Temporal signal or update
+envelope, never to an individual item. Configure matching payload converters
+on the workflow and client sides. Offsets are **global** (across all topics),
+not per-topic.
 
 ### Listener (non-blocking)
 
@@ -147,9 +151,7 @@ WorkflowStreamSubscriptionHandle handle =
         new WorkflowStreamListener() {
           @Override
           public CompletionStage<Void> onNext(WorkflowStreamItem item) {
-            String value =
-                DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-                    item.getPayload(), String.class, String.class);
+            String value = client.decodeItem(item, String.class);
             System.out.printf(
                 "offset=%d topic=%s value=%s%n", item.getOffset(), item.getTopic(), value);
             return null; // or a pending stage to apply backpressure
@@ -176,9 +178,7 @@ polling still runs on the shared executor:
 ```java
 try (WorkflowStreamSubscription subscription = client.subscribe(options)) {
   for (WorkflowStreamItem item : subscription) {
-    String value =
-        DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
-            item.getPayload(), String.class, String.class);
+    String value = client.decodeItem(item, String.class);
     System.out.printf("offset=%d topic=%s value=%s%n", item.getOffset(), item.getTopic(), value);
   }
 }
@@ -194,7 +194,7 @@ unrecoverable poll failure is rethrown from `hasNext()`.
 | `batchInterval` | 2s | Automatic flush interval |
 | `maxBatchSize` | unset | Flush once the buffer reaches this size |
 | `maxRetryDuration` | 10m | Max time to retry a failed flush before `FlushTimeoutException`. Must be < the workflow's publisher TTL (15m) to preserve exactly-once delivery |
-| `payloadConverters` | standard set | Per-item serialization. Payload conversion only — the client's codec chain runs once on the envelope, never per item |
+| `payloadConverters` | standard set | Per-item transfer and payload conversion. The client's codec chain runs once on the envelope, never per item |
 | `pollExecutor` | 2 daemon threads, client-owned | Scheduler shared by the client's subscriptions. It runs the short update-admission and delivery steps and poll cooldowns — never held during the long poll itself. A user-supplied executor is never shut down by the client; supply a bigger pool for many subscriptions against slow workflows |
 | `SubscribeOptions.pollCooldown` | 100ms | Min interval between polls |
 

@@ -32,7 +32,6 @@ import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.ProtobufTimeUtils;
-import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.*;
@@ -93,9 +92,6 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
         options != null
             ? TestEnvironmentOptions.newBuilder(options).validateAndBuildWithDefaults()
             : TestEnvironmentOptions.newBuilder().validateAndBuildWithDefaults();
-    this.dataConverter =
-        TemporalTransferTypeDataConverter.wrap(
-            this.testEnvironmentOptions.getWorkflowClientOptions().getDataConverter());
     WorkflowServiceStubsOptions.Builder serviceStubsOptionsBuilder =
         WorkflowServiceStubsOptions.newBuilder(
                 testEnvironmentOptions.getWorkflowServiceStubsOptions())
@@ -109,23 +105,19 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     this.workflowServiceStubs =
         WorkflowServiceStubs.newServiceStubs(serviceStubsOptionsBuilder.build());
 
-    WorkflowClient client =
+    WorkflowClient workflowClient =
         WorkflowClient.newInstance(
             this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions());
+    this.dataConverter = workflowClient.getOptions().getDataConverter();
     ExternalStorageRunner externalStorageRunner =
-        ((WorkflowClientInternal) client.getInternal()).getExternalStorageRunner();
-    DataConverter clientDataConverter =
-        testEnvironmentOptions.getWorkflowClientOptions().getDataConverter();
+        ((WorkflowClientInternal) workflowClient.getInternal()).getExternalStorageRunner();
     this.heartbeatDetailsConverter =
-        TemporalTransferTypeDataConverter.wrap(
-            externalStorageRunner == null
-                ? clientDataConverter
-                : new ExternalStorageDataConverter(clientDataConverter, externalStorageRunner));
+        new ExternalStorageDataConverter(dataConverter, externalStorageRunner);
     ActivityExecutionContextFactory activityExecutionContextFactory =
         new ActivityExecutionContextFactoryImpl(
-            client,
-            testEnvironmentOptions.getWorkflowClientOptions().getIdentity(),
-            testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
+            workflowClient,
+            workflowClient.getOptions().getIdentity(),
+            workflowClient.getOptions().getNamespace(),
             WorkerOptions.getDefaultInstance().getMaxHeartbeatThrottleInterval(),
             WorkerOptions.getDefaultInstance().getDefaultHeartbeatThrottleInterval(),
             dataConverter,
@@ -133,12 +125,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             externalStorageRunner);
     activityTaskHandler =
         new ActivityTaskHandlerImpl(
-            testEnvironmentOptions.getWorkflowClientOptions().getNamespace(),
+            workflowClient.getOptions().getNamespace(),
             "test-activity-env-task-queue",
             dataConverter,
             activityExecutionContextFactory,
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
-            testEnvironmentOptions.getWorkflowClientOptions().getContextPropagators());
+            workflowClient.getOptions().getContextPropagators());
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {

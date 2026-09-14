@@ -27,8 +27,8 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.common.converter.TemporalTransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConverter;
+import io.temporal.common.converter.TransferTypeConvertible;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -86,7 +86,7 @@ public class PluginPropagationTest {
     }
   }
 
-  @TemporalTransferTypeConverter(TransferModelConverter.class)
+  @TransferTypeConvertible(TransferModelConverter.class)
   private static final class TransferModel {}
 
   public static final class TransferModelConverter implements TransferTypeConverter<TransferModel> {

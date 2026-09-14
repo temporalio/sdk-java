@@ -20,8 +20,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
-import io.temporal.common.converter.TemporalTransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConverter;
+import io.temporal.common.converter.TransferTypeConvertible;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -254,7 +254,7 @@ public class TemporalTransferTypeDataConverterTest {
     assertTrue(exception.getMessage().contains(modelClass.getName()));
   }
 
-  @TemporalTransferTypeConverter(ModelConverter.class)
+  @TransferTypeConvertible(ModelConverter.class)
   public static class Model {
     public final String value;
 
@@ -297,7 +297,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(ReuseModelConverter.class)
+  @TransferTypeConvertible(ReuseModelConverter.class)
   public static final class ReuseModel extends Model {
     public ReuseModel(String value) {
       super(value);
@@ -333,7 +333,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(DerivedConverter.class)
+  @TransferTypeConvertible(DerivedConverter.class)
   public static class DerivedWithAnnotation extends Model {
     public DerivedWithAnnotation(String value) {
       super(value);
@@ -360,7 +360,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(GenericValueConverter.class)
+  @TransferTypeConvertible(GenericValueConverter.class)
   public static final class GenericValue<T> {
     final T value;
 
@@ -393,7 +393,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(ListModelConverter.class)
+  @TransferTypeConvertible(ListModelConverter.class)
   public static final class ListModel<T> {
     final List<T> values;
 
@@ -424,14 +424,14 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(AbstractConverter.class)
+  @TransferTypeConvertible(AbstractConverter.class)
   public static final class AbstractModel {
     public AbstractModel() {}
   }
 
   public abstract static class AbstractConverter implements TransferTypeConverter<AbstractModel> {}
 
-  @TemporalTransferTypeConverter(MissingPublicConstructorConverter.class)
+  @TransferTypeConvertible(MissingPublicConstructorConverter.class)
   public static final class MissingPublicConstructorModel {
     public MissingPublicConstructorModel() {}
   }
@@ -456,7 +456,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(ThrowingConstructorConverter.class)
+  @TransferTypeConvertible(ThrowingConstructorConverter.class)
   public static final class ThrowingConstructorModel {
     public ThrowingConstructorModel() {}
   }
@@ -483,7 +483,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(NullTransferConverter.class)
+  @TransferTypeConvertible(NullTransferConverter.class)
   public static final class NullTransferModel {}
 
   public static final class NullTransferConverter
@@ -506,7 +506,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(FailingConverter.class)
+  @TransferTypeConvertible(FailingConverter.class)
   public static final class FailingModel {}
 
   public static final class FailingConverter implements TransferTypeConverter<FailingModel> {
@@ -528,7 +528,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(NullRepresentationConverter.class)
+  @TransferTypeConvertible(NullRepresentationConverter.class)
   public static final class NullRepresentationModel {
     private final boolean reconstructed;
 
@@ -562,7 +562,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(FirstStepConverter.class)
+  @TransferTypeConvertible(FirstStepConverter.class)
   public static final class FirstStepModel {
     private final String value;
 
@@ -590,7 +590,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(SecondStepConverter.class)
+  @TransferTypeConvertible(SecondStepConverter.class)
   public static final class SecondStepModel {
     public String value;
 
@@ -635,7 +635,7 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  @TemporalTransferTypeConverter(NestedModelConverter.class)
+  @TransferTypeConvertible(NestedModelConverter.class)
   public static final class NestedModel {
     public String value;
 

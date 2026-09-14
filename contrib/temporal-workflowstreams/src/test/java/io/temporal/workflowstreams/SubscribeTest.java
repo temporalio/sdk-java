@@ -5,6 +5,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.EncodingKeys;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflow;
 import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflowImpl;
@@ -64,6 +65,48 @@ public class SubscribeTest {
       }
 
       Assert.assertEquals(2, streamClient.getOffset());
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testClientPublishedItemUsesTransferConverter() {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      streamClient.topic("evt").publish(new TransferStreamTestModel("client"), true);
+      streamClient.flush();
+
+      try (WorkflowStreamSubscription subscription = streamClient.subscribe(FAST_POLL)) {
+        WorkflowStreamItem item = subscription.next();
+        Assert.assertEquals(
+            "The configured payload converter must receive the protobuf transfer representation",
+            "json/protobuf",
+            item.getPayload()
+                .getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY)
+                .toStringUtf8());
+        TransferStreamTestModel result =
+            streamClient.decodeItem(item, TransferStreamTestModel.class);
+        Assert.assertEquals(new TransferStreamTestModel("client"), result);
+        Assert.assertTrue(result.wasTransferred());
+      }
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testWorkflowPublishedItemUsesTransferConverter() {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      stub.signal("publishTransfer", "evt", new TransferStreamTestModel("workflow"));
+
+      try (WorkflowStreamSubscription subscription = streamClient.subscribe(FAST_POLL)) {
+        TransferStreamTestModel result =
+            streamClient.decodeItem(subscription.next(), TransferStreamTestModel.class);
+        Assert.assertEquals(new TransferStreamTestModel("workflow"), result);
+        Assert.assertTrue(result.wasTransferred());
+      }
     }
     stub.signal("finish");
     stub.getResult(Void.class);

@@ -8,22 +8,30 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.SimplePlugin;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
-import io.temporal.common.converter.TemporalTransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConverter;
+import io.temporal.common.converter.TransferTypeConvertible;
+import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
 class TestActivityEnvironmentTransferTypeTest {
 
   @Test
   void wrapsConfiguredConverterForArgumentsAndResults() {
-    TestActivityEnvironment environment = newEnvironment();
+    TrackingDataConverter trackingConverter = new TrackingDataConverter();
+    TestActivityEnvironment environment = newEnvironment(trackingConverter);
     try {
       environment.registerActivitiesImplementations(new TransferActivityImpl());
       TransferActivity activity = environment.newActivityStub(TransferActivity.class);
@@ -31,6 +39,8 @@ class TestActivityEnvironmentTransferTypeTest {
       TransferModel result = activity.execute(new TransferModel("value"));
       assertEquals(new TransferModel("value-result"), result);
       assertTrue(result.wasTransferred());
+      assertTrue(trackingConverter.toPayloadCalls >= 2);
+      assertTrue(trackingConverter.fromPayloadCalls >= 2);
     } finally {
       environment.close();
     }
@@ -38,7 +48,8 @@ class TestActivityEnvironmentTransferTypeTest {
 
   @Test
   void wrapsConfiguredConverterForLocalActivityArgumentsAndResults() {
-    TestActivityEnvironment environment = newEnvironment();
+    TrackingDataConverter trackingConverter = new TrackingDataConverter();
+    TestActivityEnvironment environment = newEnvironment(trackingConverter);
     try {
       environment.registerActivitiesImplementations(new TransferActivityImpl());
       TransferActivity activity =
@@ -52,6 +63,8 @@ class TestActivityEnvironmentTransferTypeTest {
       TransferModel result = activity.execute(new TransferModel("value"));
       assertEquals(new TransferModel("value-result"), result);
       assertTrue(result.wasTransferred());
+      assertTrue(trackingConverter.toPayloadCalls >= 2);
+      assertTrue(trackingConverter.fromPayloadCalls >= 2);
     } finally {
       environment.close();
     }
@@ -59,7 +72,8 @@ class TestActivityEnvironmentTransferTypeTest {
 
   @Test
   void wrapsConfiguredConverterForHeartbeatDetails() {
-    TestActivityEnvironment environment = newEnvironment();
+    TrackingDataConverter trackingConverter = new TrackingDataConverter();
+    TestActivityEnvironment environment = newEnvironment(trackingConverter);
     try {
       environment.registerActivitiesImplementations(new HeartbeatActivityImpl());
       AtomicReference<TransferModel> heartbeat = new AtomicReference<>();
@@ -72,20 +86,77 @@ class TestActivityEnvironmentTransferTypeTest {
       assertTrue(result.wasTransferred());
       assertEquals(new TransferModel("initial-heartbeat"), heartbeat.get());
       assertTrue(heartbeat.get().wasTransferred());
+      assertTrue(trackingConverter.toPayloadCalls >= 3);
+      assertTrue(trackingConverter.fromPayloadCalls >= 3);
     } finally {
       environment.close();
     }
   }
 
-  private TestActivityEnvironment newEnvironment() {
+  private TestActivityEnvironment newEnvironment(TrackingDataConverter trackingConverter) {
+    DataConverter originalConverter = DefaultDataConverter.newDefaultInstance();
     TestEnvironmentOptions options =
         TestEnvironmentOptions.newBuilder()
             .setWorkflowClientOptions(
                 WorkflowClientOptions.newBuilder()
-                    .setDataConverter(DefaultDataConverter.newDefaultInstance())
+                    .setDataConverter(originalConverter)
+                    .setPlugins(new ConverterPlugin(trackingConverter))
                     .build())
             .build();
+    assertEquals(originalConverter, options.getWorkflowClientOptions().getDataConverter());
     return TestActivityEnvironment.newInstance(options);
+  }
+
+  private static final class ConverterPlugin extends SimplePlugin {
+    private final DataConverter dataConverter;
+
+    private ConverterPlugin(DataConverter dataConverter) {
+      super("test-activity-environment-converter");
+      this.dataConverter = dataConverter;
+    }
+
+    @Override
+    public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
+      builder.setDataConverter(dataConverter);
+    }
+  }
+
+  private static final class TrackingDataConverter implements DataConverter {
+    private final DataConverter delegate = DefaultDataConverter.newDefaultInstance();
+    private int toPayloadCalls;
+    private int fromPayloadCalls;
+
+    @Override
+    public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
+      toPayloadCalls++;
+      return delegate.toPayload(value);
+    }
+
+    @Override
+    public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
+        throws DataConverterException {
+      fromPayloadCalls++;
+      return delegate.fromPayload(payload, valueClass, valueType);
+    }
+
+    @Override
+    public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
+      toPayloadCalls++;
+      return delegate.toPayloads(values);
+    }
+
+    @Override
+    public <T> T fromPayloads(
+        int index, Optional<Payloads> content, Class<T> valueClass, Type valueType)
+        throws DataConverterException {
+      fromPayloadCalls++;
+      return delegate.fromPayloads(index, content, valueClass, valueType);
+    }
+
+    @Override
+    public DataConverter withContext(@Nonnull SerializationContext context) {
+      return this;
+    }
   }
 
   @ActivityInterface
@@ -124,7 +195,7 @@ class TestActivityEnvironmentTransferTypeTest {
     }
   }
 
-  @TemporalTransferTypeConverter(TransferModelConverter.class)
+  @TransferTypeConvertible(TransferModelConverter.class)
   public static final class TransferModel {
     private final String value;
     private final boolean transferred;
