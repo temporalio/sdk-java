@@ -64,24 +64,19 @@ v0/d/{hash-algorithm}/{hex-digest}
 
 ### Percent-encoding rules
 
-The Temporal SDKs escape anything that isn't listed in S3's safe character set: https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html
+Every byte of a dynamic path segment is percent-encoded as uppercase `%XX` except these, which are
+left literal:
 
-Safe Characters:
 ```text
-Alphanumeric characters	
+Alphanumeric characters
   0-9
   a-z
   A-Z
 
-Special characters	
-  Exclamation point (!)
+Special characters
   Hyphen (-)
   Underscore (_)
   Period (.)
-  Asterisk (*)
-  Single quotation mark (')
-  Opening parenthesis (()
-  Closing parenthesis ())
 ```
 
 ### Examples

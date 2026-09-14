@@ -12,7 +12,6 @@ final class PayloadHasher {
   static String sha256Hex(byte[] data) {
     byte[] digest;
     try {
-      // If we ever move to Java 17+ we can use HexFormat.of().formatHex() instead.
       digest = MessageDigest.getInstance("SHA-256").digest(data);
     } catch (NoSuchAlgorithmException e) {
       throw new AssertionError("SHA-256 MessageDigest cannot be found", e);
