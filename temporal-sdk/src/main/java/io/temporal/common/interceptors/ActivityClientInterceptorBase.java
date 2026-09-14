@@ -1,7 +1,5 @@
 package io.temporal.common.interceptors;
 
-import io.temporal.common.Experimental;
-
 /**
  * Convenience no-op base class for {@link ActivityClientInterceptor} implementations. Override
  * {@link #activityClientCallsInterceptor} to install a custom {@link
