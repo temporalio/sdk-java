@@ -1,0 +1,19 @@
+description = '''Temporal Java SDK External Storage S3 Driver - AWS SDK v2 Client'''
+
+ext {
+    awsSdkVersion = '2.31.0'
+}
+
+dependencies {
+    api project(':temporal-payload-storage-s3driver')
+    api platform("software.amazon.awssdk:bom:$awsSdkVersion")
+    api "software.amazon.awssdk:s3"
+
+    // For the @Experimental annotation only.
+    compileOnly project(':temporal-sdk')
+
+    testImplementation project(':temporal-payload-storage-s3driver')
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
