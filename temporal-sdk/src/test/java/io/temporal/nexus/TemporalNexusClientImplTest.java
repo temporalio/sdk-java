@@ -6,6 +6,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
 import com.uber.m3.tally.NoopScope;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
@@ -15,9 +16,12 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowUpdateHandle;
+import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.ActivityClientInternal;
@@ -55,6 +59,8 @@ public class TemporalNexusClientImplTest {
   private TemporalNexusClientImpl client;
   private MockedStatic<ActivityClient> activityClientFactory;
   private AtomicReference<ActivityClientCallsInterceptor.StartActivityInput> activityInput;
+  private MockedStatic<WorkflowClient> workflowClientStatic;
+  private AtomicReference<UpdateOptions<?>> updateOptionsInput;
 
   @Before
   public void setUp() {
@@ -134,11 +140,30 @@ public class TemporalNexusClientImplTest {
                     org.mockito.ArgumentMatchers.any(WorkflowServiceStubs.class),
                     org.mockito.ArgumentMatchers.any(ActivityClientOptions.class)))
         .thenReturn(activityClient);
+
+    WorkflowUpdateHandle<String> updateHandle = mock(WorkflowUpdateHandle.class);
+    when(updateHandle.getResult()).thenReturn("update-result");
+    updateOptionsInput = new AtomicReference<>();
+    workflowClientStatic = mockStatic(WorkflowClient.class);
+    workflowClientStatic
+        .when(
+            () ->
+                WorkflowClient.startUpdate(
+                    org.mockito.ArgumentMatchers.any(Functions.Func.class),
+                    org.mockito.ArgumentMatchers.any(UpdateOptions.class)))
+        .thenAnswer(
+            invocation -> {
+              updateOptionsInput.set(invocation.getArgument(1));
+              CurrentNexusOperationContext.get().getNexusOperationMetadata().operationCompleted =
+                  true;
+              return updateHandle;
+            });
   }
 
   @After
   public void tearDown() {
     activityClientFactory.close();
+    workflowClientStatic.close();
     CurrentNexusOperationContext.unset();
   }
 
@@ -290,6 +315,54 @@ public class TemporalNexusClientImplTest {
     Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, ex.getErrorType());
   }
 
+  // ---------- Update waitForStage defaulting ----------
+
+  @Test
+  public void startWorkflowUpdate_unsetWaitForStageDefaultsToAccepted() throws OperationException {
+    UpdateOptions<String> options =
+        UpdateOptions.newBuilder(String.class).setUpdateName("setValue").build();
+
+    client.startWorkflowUpdate(
+        BlockingWorkflow.class, "wf-update", BlockingWorkflow::setValue, options);
+
+    Assert.assertEquals(WorkflowUpdateStage.ACCEPTED, updateOptionsInput.get().getWaitForStage());
+  }
+
+  @Test
+  public void startWorkflowUpdate_explicitAcceptedWaitForStageIsPreserved()
+      throws OperationException {
+    UpdateOptions<String> options =
+        UpdateOptions.newBuilder(String.class)
+            .setUpdateName("setValue")
+            .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
+            .build();
+
+    client.startWorkflowUpdate(
+        BlockingWorkflow.class, "wf-update", BlockingWorkflow::setValue, options);
+
+    Assert.assertEquals(WorkflowUpdateStage.ACCEPTED, updateOptionsInput.get().getWaitForStage());
+  }
+
+  @Test
+  public void startWorkflowUpdate_nonAcceptedWaitForStageIsRejected() {
+    UpdateOptions<String> options =
+        UpdateOptions.newBuilder(String.class)
+            .setUpdateName("setValue")
+            .setWaitForStage(WorkflowUpdateStage.COMPLETED)
+            .build();
+
+    // Rejected by checkNexusUpdateOptionsValid, so startUpdate is never reached
+    HandlerException ex =
+        Assert.assertThrows(
+            HandlerException.class,
+            () ->
+                client.startWorkflowUpdate(
+                    BlockingWorkflow.class, "wf-update", BlockingWorkflow::setValue, options));
+
+    Assert.assertEquals(HandlerException.ErrorType.INTERNAL, ex.getErrorType());
+    Assert.assertNull(updateOptionsInput.get());
+  }
+
   // ---------- Minimal stubs ----------
 
   @io.temporal.activity.ActivityInterface
@@ -302,12 +375,20 @@ public class TemporalNexusClientImplTest {
   public interface BlockingWorkflow {
     @io.temporal.workflow.WorkflowMethod
     String execute(String input);
+
+    @io.temporal.workflow.UpdateMethod(name = "setValue")
+    String setValue();
   }
 
   public static class BlockingWorkflowImpl implements BlockingWorkflow {
     @Override
     public String execute(String input) {
       return input;
+    }
+
+    @Override
+    public String setValue() {
+      return "update-result";
     }
   }
 }

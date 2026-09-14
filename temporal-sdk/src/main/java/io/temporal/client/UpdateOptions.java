@@ -61,7 +61,7 @@ public final class UpdateOptions<T> {
     return firstExecutionRunId;
   }
 
-  public WorkflowUpdateStage getWaitForStage() {
+  public @Nullable WorkflowUpdateStage getWaitForStage() {
     return waitForStage;
   }
 
@@ -81,13 +81,13 @@ public final class UpdateOptions<T> {
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    UpdateOptions that = (UpdateOptions) o;
+    UpdateOptions<?> that = (UpdateOptions<?>) o;
     return Objects.equal(updateName, that.updateName)
-        && updateId == that.updateId
-        && firstExecutionRunId == that.firstExecutionRunId
-        && waitForStage.equals(that.waitForStage)
-        && resultClass.equals(that.resultClass)
-        && resultType.equals(that.resultType);
+        && Objects.equal(updateId, that.updateId)
+        && Objects.equal(firstExecutionRunId, that.firstExecutionRunId)
+        && Objects.equal(waitForStage, that.waitForStage)
+        && Objects.equal(resultClass, that.resultClass)
+        && Objects.equal(resultType, that.resultType);
   }
 
   @Override
@@ -192,8 +192,8 @@ public final class UpdateOptions<T> {
     }
 
     /**
-     * Specifies at what point in the update request life cycles this request should return.
-     * Required to be set to one of the following values:
+     * Specifies at what point in the update request life cycles this request should return. Allowed
+     * values:
      *
      * <ul>
      *   <li><b>Accepted</b> Wait for the update to be accepted by the workflow.
@@ -201,6 +201,9 @@ public final class UpdateOptions<T> {
      * </ul>
      *
      * Admitted is not allowed as a value.
+     *
+     * <p>Required when starting an update through {@link WorkflowStub#startUpdateWithStart}. For
+     * Nexus workflow updates, this defaults to <b>Accepted</b>.
      */
     public Builder<T> setWaitForStage(WorkflowUpdateStage waitForStage) {
       this.waitForStage = waitForStage;

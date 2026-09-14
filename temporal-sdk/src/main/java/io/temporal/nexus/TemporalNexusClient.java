@@ -522,10 +522,10 @@ public interface TemporalNexusClient {
    * workflowClass} (as opposed to {@link #startWorkflow}, which creates a new workflow, this
    * targets the existing workflow identified by {@code workflowId}).
    *
-   * <p>{@code options}' {@code waitForStage} has to be set to {@code WaitForStage = ACCEPTED} as
-   * Nexus Operations only support async Update requests. If not, the operation will be marked as
-   * failed. If {@code options} does not set an update ID, it defaults to the Nexus request ID which
-   * is consistent with other SDKs usage.
+   * <p>{@code options}' {@code waitForStage} defaults to {@code WorkflowUpdateStage.ACCEPTED} as
+   * Nexus Operations only support async Update requests; setting any other stage fails the
+   * operation. If {@code options} does not set an update ID, it defaults to the Nexus request ID
+   * which is consistent with other SDKs usage.
    *
    * <p>A Nexus callback URL is required for this operation; if the caller did not provide one, this
    * method throws a {@code BAD_REQUEST} {@code HandlerException}.
@@ -538,7 +538,6 @@ public interface TemporalNexusClient {
    *     MyWorkflow::myUpdate, input.getArg(),
    *     UpdateOptions.newBuilder(String.class)
    *         .setUpdateName("myUpdate")
-   *         .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
    *         .build())
    * }</pre>
    *

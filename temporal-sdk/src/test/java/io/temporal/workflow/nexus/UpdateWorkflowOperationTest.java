@@ -11,7 +11,6 @@ import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.internal.nexus.OperationToken;
@@ -226,9 +225,7 @@ public class UpdateWorkflowOperationTest extends BaseNexusTest {
       return TemporalOperationHandler.create(
           (context, client, input) -> {
             UpdateOptions.Builder<String> optionsBuilder =
-                UpdateOptions.newBuilder(String.class)
-                    .setUpdateName("setValue")
-                    .setWaitForStage(WorkflowUpdateStage.ACCEPTED);
+                UpdateOptions.newBuilder(String.class).setUpdateName("setValue");
             if (input.getUpdateId() != null) {
               optionsBuilder.setUpdateId(input.getUpdateId());
             }

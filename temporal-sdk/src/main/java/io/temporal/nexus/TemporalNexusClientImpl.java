@@ -552,6 +552,10 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       // if updateId is unset, use requestId - consistent with other SDKs
       effectiveOptsBuilder.setUpdateId(requestId);
     }
+    if (options.getWaitForStage() == null) {
+      // ACCEPTED is the only stage supported for async Nexus updates
+      effectiveOptsBuilder.setWaitForStage(WorkflowUpdateStage.ACCEPTED);
+    }
     options = effectiveOptsBuilder.build();
     checkNexusUpdateOptionsValid(options);
     markAsyncOperationStarted();
