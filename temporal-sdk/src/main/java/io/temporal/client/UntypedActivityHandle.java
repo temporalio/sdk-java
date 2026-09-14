@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -17,7 +16,6 @@ import javax.annotation.Nullable;
  * @see ActivityHandle
  * @see ActivityClient
  */
-@Experimental
 public interface UntypedActivityHandle {
 
   /** The user-assigned activity ID. */

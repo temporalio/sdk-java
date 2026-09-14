@@ -7,7 +7,6 @@ import io.temporal.common.Experimental;
  * {@link #activityClientCallsInterceptor} to install a custom {@link
  * ActivityClientCallsInterceptor} into the chain.
  */
-@Experimental
 public class ActivityClientInterceptorBase implements ActivityClientInterceptor {
 
   @Override
