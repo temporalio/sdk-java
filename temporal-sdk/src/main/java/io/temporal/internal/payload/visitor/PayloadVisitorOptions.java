@@ -69,7 +69,7 @@ public final class PayloadVisitorOptions<C> {
       this.payloadVisitor = Objects.requireNonNull(payloadVisitor, "payloadVisitor");
     }
 
-    Builder<C> setMessageVisitor(@Nullable MessageVisitor<C> messageVisitor) {
+    public Builder<C> setMessageVisitor(@Nullable MessageVisitor<C> messageVisitor) {
       this.messageVisitor = messageVisitor;
       return this;
     }

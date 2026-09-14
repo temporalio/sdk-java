@@ -13,7 +13,7 @@ public final class SdkJavaTestServerProfile {
   public static final String ACTIVE_PROPERTY = "io.temporal.testing.internal.devServerProfile";
 
   // This is intentionally the sole Temporal CLI version used by sdk-java repository tests.
-  private static final String TEST_CLI_VERSION = "1.7.4-standalone-nexus-operations";
+  private static final String TEST_CLI_VERSION = "1.8.3-server-1.32.0-162.0";
   private static final String TEST_NAMESPACE = "UnitTest";
   private static final String DATABASE_FILENAME = "temporal.sqlite";
 

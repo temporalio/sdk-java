@@ -12,13 +12,15 @@ import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
+import io.temporal.payload.storage.StorageDriverSelectContext;
 import io.temporal.payload.storage.StorageDriverSelector;
 import io.temporal.payload.storage.StorageDriverStoreContext;
-import java.util.ArrayList;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -36,7 +38,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void storesAndRetrievesRoundTrip() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
     List<Payload> input = Arrays.asList(payload("a"), payload("b"));
 
@@ -56,7 +58,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void payloadBelowThresholdStaysInline() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 100);
     Payload small = payload("x");
     Payload large = payload(repeat("y", 200));
@@ -72,10 +74,10 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void selectorReturningNullKeepsInline() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(driver)
                 .setDriverSelector((context, payload) -> null)
                 .setPayloadSizeThreshold(0)
@@ -92,8 +94,8 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void multipleDriversBatchPerDriverAndPreserveOrder() throws Exception {
-    InMemoryDriver d1 = new InMemoryDriver("d1");
-    InMemoryDriver d2 = new InMemoryDriver("d2");
+    TestStorageDriver d1 = TestStorageDriver.named("d1");
+    TestStorageDriver d2 = TestStorageDriver.named("d2");
     Map<String, StorageDriver> byPrefix = new HashMap<>();
     byPrefix.put("1", d1);
     byPrefix.put("2", d2);
@@ -101,7 +103,7 @@ public class ExternalStoragePayloadTransformerTest {
         (context, payload) -> byPrefix.get(payload.getData().toStringUtf8().substring(0, 1));
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDrivers(Arrays.asList(d1, d2))
                 .setDriverSelector(selector)
                 .setPayloadSizeThreshold(0)
@@ -113,6 +115,34 @@ public class ExternalStoragePayloadTransformerTest {
     assertEquals(Collections.singletonList(2), d1.storeBatchSizes);
     assertEquals(Collections.singletonList(1), d2.storeBatchSizes);
     assertEquals(input, transformer.retrieve(stored, CancellationToken.none()).get());
+  }
+
+  @Test
+  public void selectorReceivesSelectContextCarryingTheTarget() throws Exception {
+    AtomicReference<StorageDriverSelectContext> seen = new AtomicReference<>();
+    TestStorageDriver driver = TestStorageDriver.named("d1");
+    StorageDriverSelector selector =
+        (context, payload) -> {
+          seen.set(context);
+          return driver;
+        };
+    ExternalStoragePayloadTransformer transformer =
+        ExternalStoragePayloadTransformer.fromOptions(
+            ExternalStorage.newBuilder()
+                .setDriver(driver)
+                .setDriverSelector(selector)
+                .setPayloadSizeThreshold(0)
+                .build());
+    StorageDriverTargetInfo target =
+        new StorageDriverWorkflowInfo("ns", "wf-id", "run-id", "MyWorkflow");
+
+    transformer
+        .store(Collections.singletonList(payload("a")), target, CancellationToken.none())
+        .get();
+
+    assertNotNull(seen.get());
+    assertSame(target, seen.get().getTarget());
+    assertEquals(Collections.singletonList(target), driver.targets);
   }
 
   @Test
@@ -179,7 +209,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void unknownDriverOnRetrieveFails() {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
     Payload reference =
         ExternalStorageReferences.toReferencePayload(
@@ -194,11 +224,11 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void selectorReturningUnregisteredDriverFails() {
-    InMemoryDriver registered = new InMemoryDriver("d1");
-    InMemoryDriver stranger = new InMemoryDriver("d2");
+    TestStorageDriver registered = TestStorageDriver.named("d1");
+    TestStorageDriver stranger = TestStorageDriver.named("d2");
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(registered)
                 .setDriverSelector((context, payload) -> stranger)
                 .setPayloadSizeThreshold(0)
@@ -232,7 +262,7 @@ public class ExternalStoragePayloadTransformerTest {
     byPrefix.put("2", doomed);
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDrivers(Arrays.asList(slow, doomed))
                 .setDriverSelector(
                     (context, payload) ->
@@ -309,12 +339,12 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void selectorObservesCallerCancellationToken() {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     CancelSource<CancellationException> caller = new CancelSource<>(CancellationException::new);
     AtomicReference<CancellationToken<CancellationException>> observed = new AtomicReference<>();
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
-            ExternalStorageOptions.newBuilder()
+            ExternalStorage.newBuilder()
                 .setDriver(driver)
                 .setDriverSelector(
                     (context, payload) -> {
@@ -332,10 +362,7 @@ public class ExternalStoragePayloadTransformerTest {
   private static ExternalStoragePayloadTransformer transformer(
       StorageDriver driver, int threshold) {
     return ExternalStoragePayloadTransformer.fromOptions(
-        ExternalStorageOptions.newBuilder()
-            .setDriver(driver)
-            .setPayloadSizeThreshold(threshold)
-            .build());
+        ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build());
   }
 
   private static Payload payload(String data) {
@@ -401,41 +428,6 @@ public class ExternalStoragePayloadTransformerTest {
     public CompletableFuture<List<Payload>> retrieve(
         StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
       throw new UnsupportedOperationException();
-    }
-  }
-
-  private static class InMemoryDriver extends FakeDriver {
-    final Map<String, Payload> objects = new HashMap<>();
-    final List<Integer> storeBatchSizes = new ArrayList<>();
-    final List<Integer> retrieveBatchSizes = new ArrayList<>();
-    private int counter = 0;
-
-    InMemoryDriver(String name) {
-      super(name);
-    }
-
-    @Override
-    public CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      storeBatchSizes.add(payloads.size());
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        String key = getName() + "-" + (counter++);
-        objects.put(key, payload);
-        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    @Override
-    public CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      retrieveBatchSizes.add(claims.size());
-      List<Payload> payloads = new ArrayList<>();
-      for (StorageDriverClaim claim : claims) {
-        payloads.add(objects.get(claim.getClaimData().get("key")));
-      }
-      return CompletableFuture.completedFuture(payloads);
     }
   }
 }

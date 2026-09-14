@@ -12,6 +12,7 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.WorkflowExecutorCache;
@@ -43,6 +44,7 @@ public class WorkerPollerAutoEnrollEligibilityTest {
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
     WorkflowClient client = mock(WorkflowClient.class);
+    when(client.getInternal()).thenReturn(mock(WorkflowClientInternal.class));
     when(client.getWorkflowServiceStubs()).thenReturn(service);
     when(client.getOptions())
         .thenReturn(

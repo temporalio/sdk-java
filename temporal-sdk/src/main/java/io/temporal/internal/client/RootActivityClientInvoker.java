@@ -5,10 +5,12 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaDat
 
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+import com.google.protobuf.FieldMask;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
+import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Link;
@@ -18,6 +20,7 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -104,9 +107,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setSearchAttributes(
           SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
-    if (options.getStaticSummary() != null || options.getStaticDetails() != null) {
+    if (options.getSummary() != null || options.getStaticDetails() != null) {
       UserMetadata userMetadata =
-          makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
+          makeUserMetaData(options.getSummary(), options.getStaticDetails(), dc);
       if (userMetadata != null) {
         request.setUserMetadata(userMetadata);
       }
@@ -342,14 +345,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     DescribeActivityExecutionRequest.Builder req =
         DescribeActivityExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
-            .setActivityId(input.getId());
+            .setActivityId(input.getId())
+            .setIncludeInput(input.getOptions().isIncludeInput())
+            .setIncludeOutcome(input.getOptions().isIncludeOutcome())
+            .setIncludeHeartbeatDetails(input.getOptions().isIncludeHeartbeatDetails())
+            .setIncludeLastFailure(input.getOptions().isIncludeLastFailure());
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }
     DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
     return new DescribeActivityOutput(
         new ActivityExecutionDescription(
-            response.getInfo(), clientOptions.getDataConverter(), clientOptions.getNamespace()));
+            response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
   }
 
   @Override
@@ -386,6 +393,80 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     genericClient.terminateActivity(req.build());
     return new TerminateActivityOutput();
+  }
+
+  @Override
+  public PauseActivityOutput pauseActivity(PauseActivityInput input) {
+    PauseActivityExecutionRequest.Builder req =
+        PauseActivityExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setRequestId(UUID.randomUUID().toString())
+            .setActivityId(input.getId());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getOptions().getReason() != null) {
+      req.setReason(input.getOptions().getReason());
+    }
+    genericClient.pauseActivity(req.build());
+    return new PauseActivityOutput();
+  }
+
+  @Override
+  public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
+    UnpauseActivityExecutionRequest.Builder req =
+        UnpauseActivityExecutionRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setActivityId(input.getId())
+            .setRequestId(UUID.randomUUID().toString());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getOptions().getReason() != null) {
+      req.setReason(input.getOptions().getReason());
+    }
+    if (input.getOptions().getJitter() != null) {
+      req.setJitter(ProtobufTimeUtils.toProtoDuration(input.getOptions().getJitter()));
+    }
+    genericClient.unpauseActivity(req.build());
+    return new UnpauseActivityOutput();
+  }
+
+  @Override
+  public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
+    UpdateActivityExecutionOptionsRequest.Builder req =
+        UpdateActivityExecutionOptionsRequest.newBuilder()
+            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(clientOptions.getIdentity())
+            .setActivityId(input.getId())
+            .setRequestId(UUID.randomUUID().toString());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.isRestoreOriginal()) {
+      req.setRestoreOriginal(true);
+    } else {
+      // The handle rejects a repeated option, but an interceptor could still add one.
+      ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
+      FieldMask.Builder updateMask = FieldMask.newBuilder();
+      Set<String> seen = new HashSet<>();
+      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
+        String path = update.getKey().getPath();
+        if (!seen.add(path)) {
+          throw new IllegalArgumentException(
+              "updateActivityOptions received more than one update for " + path);
+        }
+        updateMask.addPaths(path);
+        update.applyTo(activityOptions);
+      }
+      req.setActivityOptions(activityOptions.build()).setUpdateMask(updateMask.build());
+    }
+    UpdateActivityExecutionOptionsResponse response =
+        genericClient.updateActivityOptions(req.build());
+    return new UpdateActivityOptionsOutput(
+        new ActivityExecutionOptions(response.getActivityOptions()));
   }
 
   @Override

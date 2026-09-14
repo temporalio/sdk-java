@@ -4,10 +4,11 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.common.ListUtils;
 import io.temporal.internal.concurrent.structured.TaskScope;
-import io.temporal.payload.storage.ExternalStorageOptions;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
+import io.temporal.payload.storage.StorageDriverSelectContext;
 import io.temporal.payload.storage.StorageDriverSelector;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -30,7 +31,7 @@ final class ExternalStoragePayloadTransformer {
   private final StorageDriverSelector selector;
   private final int payloadSizeThreshold;
 
-  static ExternalStoragePayloadTransformer fromOptions(ExternalStorageOptions options) {
+  static ExternalStoragePayloadTransformer fromOptions(ExternalStorage options) {
     Map<String, StorageDriver> driversByName = new LinkedHashMap<>();
     for (StorageDriver driver : options.getDrivers()) {
       driversByName.put(driver.getName(), driver);
@@ -52,11 +53,11 @@ final class ExternalStoragePayloadTransformer {
       List<Payload> payloads,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken) {
-    StorageDriverStoreContext context =
-        new StorageDriverStoreContextImpl(target, cancellationToken);
+    StorageDriverSelectContext selectContext =
+        new StorageDriverSelectContextImpl(target, cancellationToken);
     Map<String, Batch<Payload>> batches;
     try {
-      batches = buildStoreBatches(payloads, context);
+      batches = buildStoreBatches(payloads, selectContext);
     } catch (RuntimeException e) {
       return failedFuture(e);
     }
@@ -68,7 +69,7 @@ final class ExternalStoragePayloadTransformer {
   }
 
   private Map<String, Batch<Payload>> buildStoreBatches(
-      List<Payload> payloads, StorageDriverStoreContext context) {
+      List<Payload> payloads, StorageDriverSelectContext context) {
     Map<String, Batch<Payload>> batches = new LinkedHashMap<>();
     for (int i = 0; i < payloads.size(); i++) {
       Payload payload = payloads.get(i);

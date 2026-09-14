@@ -20,7 +20,6 @@ import io.temporal.api.workflowservice.v1.RequestCancelNexusOperationExecutionRe
 import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartNexusOperationExecutionResponse;
 import io.temporal.api.workflowservice.v1.TerminateNexusOperationExecutionRequest;
-import io.temporal.client.NexusClientOptions;
 import io.temporal.client.NexusOperationAlreadyStartedException;
 import io.temporal.client.NexusOperationExecutionCount;
 import io.temporal.client.NexusOperationExecutionDescription;
@@ -53,10 +52,10 @@ import javax.annotation.Nullable;
 public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
 
   private final GenericWorkflowClient genericClient;
-  private final NexusClientOptions clientOptions;
+  private final NexusClientResolvedOptions clientOptions;
 
   public RootNexusClientInvoker(
-      GenericWorkflowClient genericClient, NexusClientOptions clientOptions) {
+      GenericWorkflowClient genericClient, NexusClientResolvedOptions clientOptions) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
   }

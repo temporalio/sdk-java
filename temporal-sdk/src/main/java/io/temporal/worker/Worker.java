@@ -8,6 +8,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.deployment.v1.WorkerDeploymentVersion;
 import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.PluginInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.worker.v1.WorkerHostInfo;
@@ -22,6 +23,8 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -77,6 +80,9 @@ public final class Worker {
   private final @Nonnull WorkflowExecutorCache cache;
   private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
   private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
+  // Reported in every heartbeat (including the one embedded in ShutdownWorkerRequest) until the
+  // server accepts one, then cleared so it is sent only once per worker.
+  private final AtomicReference<EnvironmentInfo> pendingEnvironmentInfo = new AtomicReference<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -123,6 +129,8 @@ public final class Worker {
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.clientOptions = client.getOptions();
     this.cache = cache;
+    ExternalStorageRunner externalStorageRunner =
+        ((WorkflowClientInternal) client.getInternal()).getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
@@ -150,6 +158,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorageRunner,
             activityTaskAutoEnrollEligible);
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
@@ -185,6 +194,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorageRunner,
             nexusTaskAutoEnrollEligible);
     SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -206,6 +216,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorageRunner,
             workflowTaskAutoEnrollEligible);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
@@ -215,7 +226,8 @@ public final class Worker {
             contextPropagators,
             taggedScope,
             workerInstanceKey,
-            workerControlTaskQueue);
+            workerControlTaskQueue,
+            externalStorageRunner);
 
     SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -587,7 +599,14 @@ public final class Worker {
     return types;
   }
 
-  Supplier<WorkerHeartbeat> buildHeartbeatCallback(String workerGroupingKey) {
+  /** Called by the heartbeat manager once a heartbeat produced by this worker was accepted. */
+  void onHeartbeatAccepted() {
+    pendingEnvironmentInfo.set(null);
+  }
+
+  Supplier<WorkerHeartbeat> buildHeartbeatCallback(
+      String workerGroupingKey, @Nullable EnvironmentInfo environmentInfo) {
+    pendingEnvironmentInfo.set(environmentInfo);
     // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
     final Object callbackLock = new Object();
     final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
@@ -621,6 +640,11 @@ public final class Worker {
                   .build());
         }
         lastHeartbeatTime.set(now);
+
+        EnvironmentInfo pendingEnvironment = pendingEnvironmentInfo.get();
+        if (pendingEnvironment != null) {
+          hb.setEnvironment(pendingEnvironment);
+        }
 
         // Deployment version
         if (options.getDeploymentOptions() != null
@@ -915,6 +939,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -922,7 +947,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
         .setAllowActivityHeartbeatDuringShutdown(options.getAllowActivityHeartbeatDuringShutdown())
         .setPollerOptions(
@@ -948,6 +974,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -955,7 +982,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -980,6 +1008,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       boolean autoEnrollEligible) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
@@ -1015,7 +1044,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -1040,14 +1070,16 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner) {
     return toSingleWorkerOptions(
             factoryOptions,
             options,
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -1066,7 +1098,8 @@ public final class Worker {
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner) {
     String buildId = null;
     if (options.getBuildId() != null) {
       buildId = options.getBuildId();
@@ -1081,6 +1114,7 @@ public final class Worker {
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
+        .setExternalStorageRunner(externalStorageRunner)
         .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())
