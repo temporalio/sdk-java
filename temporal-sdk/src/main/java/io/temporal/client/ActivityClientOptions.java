@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
@@ -11,7 +10,6 @@ import java.util.List;
 import java.util.Objects;
 
 /** Options for {@link ActivityClient} configuration. */
-@Experimental
 public final class ActivityClientOptions {
 
   public static ActivityClientOptions.Builder newBuilder() {
