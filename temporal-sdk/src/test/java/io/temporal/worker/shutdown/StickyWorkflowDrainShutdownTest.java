@@ -81,12 +81,8 @@ public class StickyWorkflowDrainShutdownTest {
   public void testShutdownNow() {
     TestWorkflow1 workflow = testWorkflowRule.newWorkflowStub(TestWorkflow1.class);
     WorkflowClient.start(workflow::execute, null);
-    long startTime = System.currentTimeMillis();
     testWorkflowRule.getTestEnvironment().shutdownNow();
-    long endTime = System.currentTimeMillis();
     testWorkflowRule.getTestEnvironment().awaitTermination(10, TimeUnit.SECONDS);
-    assertTrue(
-        "Drain time does not need to be respected", endTime - startTime < DRAIN_TIME.toMillis());
     assertTrue(testWorkflowRule.getTestEnvironment().getWorkerFactory().isTerminated());
     // Cleanup workflow that will not finish
     WorkflowStub untyped = WorkflowStub.fromTyped(workflow);

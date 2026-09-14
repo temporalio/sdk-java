@@ -2,7 +2,6 @@ package io.temporal.client;
 
 import io.temporal.api.activity.v1.ActivityExecutionListInfo;
 import io.temporal.api.enums.v1.ActivityExecutionStatus;
-import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributes;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -16,7 +15,6 @@ import javax.annotation.Nullable;
  * Information about a standalone activity execution returned by {@link
  * ActivityClient#listExecutions}.
  */
-@Experimental
 public class ActivityExecutionMetadata {
 
   private final @Nullable ActivityExecutionListInfo rawListInfo;

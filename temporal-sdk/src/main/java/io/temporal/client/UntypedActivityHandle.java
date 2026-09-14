@@ -17,7 +17,6 @@ import javax.annotation.Nullable;
  * @see ActivityHandle
  * @see ActivityClient
  */
-@Experimental
 public interface UntypedActivityHandle {
 
   /** The user-assigned activity ID. */
@@ -160,6 +159,7 @@ public interface UntypedActivityHandle {
   /**
    * Pauses the activity. A paused activity stops being dispatched to workers until it is unpaused.
    */
+  @Experimental
   void pause();
 
   /**
@@ -167,9 +167,11 @@ public interface UntypedActivityHandle {
    *
    * @param options pause options (reason)
    */
+  @Experimental
   void pause(PauseActivityOptions options);
 
   /** Unpauses the activity with default options, allowing it to be dispatched again. */
+  @Experimental
   void unpause();
 
   /**
@@ -177,6 +179,7 @@ public interface UntypedActivityHandle {
    *
    * @param options unpause options (reason, jitter)
    */
+  @Experimental
   void unpause(UnpauseActivityOptions options);
 
   /**
@@ -188,9 +191,15 @@ public interface UntypedActivityHandle {
    * ActivityOptionsUpdate.ActivityOptionsKey#set} to set an option or {@link
    * ActivityOptionsUpdate.ActivityOptionsKey#unset} to clear it.
    *
-   * @param updates the option updates to apply; at least one is required
+   * <p>Each option may be named at most once; naming the same option twice throws {@link
+   * IllegalArgumentException}.
+   *
+   * @param updates the option updates to apply; at least one is required, and no option may be
+   *     named more than once
    * @return the activity options as resolved by the server after the update
+   * @throws IllegalArgumentException if {@code updates} is empty or names an option twice
    */
+  @Experimental
   ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates);
 
   /**
@@ -198,5 +207,6 @@ public interface UntypedActivityHandle {
    *
    * @return the activity options as resolved by the server after the restore
    */
+  @Experimental
   ActivityExecutionOptions restoreOriginalOptions();
 }

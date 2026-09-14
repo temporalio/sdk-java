@@ -8,6 +8,7 @@ import com.uber.m3.tally.NoopScope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityInfo;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
@@ -18,14 +19,29 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.StorageDriver;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
+import io.temporal.payload.storage.StorageDriverClaim;
+import io.temporal.payload.storage.StorageDriverRetrieveContext;
+import io.temporal.payload.storage.StorageDriverStoreContext;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.Eventually;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
@@ -329,7 +345,8 @@ public class HeartbeatContextImplTest {
             Duration.ofSeconds(60),
             Duration.ofSeconds(30),
             GlobalDataConverter.get(),
-            heartbeatExecutor);
+            heartbeatExecutor,
+            null);
 
     ActivityInfoInternal info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
     InternalActivityExecutionContext context =
@@ -363,6 +380,7 @@ public class HeartbeatContextImplTest {
         "test-identity",
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
+        null,
         TEST_BUFFER_MILLIS);
   }
 
@@ -389,5 +407,169 @@ public class HeartbeatContextImplTest {
     when(info.getHeartbeatDetails()).thenReturn(Optional.empty());
     when(info.getCompletionHandle()).thenReturn(() -> {});
     return info;
+  }
+
+  @Test
+  public void storageTargetForStandaloneActivityTargetsTheActivity() {
+    ActivityInfo info = mock(ActivityInfo.class);
+    when(info.getActivityRunId()).thenReturn("act-run-1");
+    when(info.getActivityId()).thenReturn("act-1");
+    when(info.getActivityType()).thenReturn("MyActivity");
+
+    assertEquals(
+        new StorageDriverActivityInfo("ns", "act-1", "act-run-1", "MyActivity"),
+        HeartbeatContextImpl.storageTargetForActivity("ns", info));
+  }
+
+  @Test
+  public void storageTargetForWorkflowActivityTargetsTheWorkflow() {
+    ActivityInfo info = mock(ActivityInfo.class);
+    when(info.getActivityRunId()).thenReturn(null);
+    when(info.getWorkflowId()).thenReturn("wf-1");
+    when(info.getWorkflowRunId()).thenReturn("wf-run-1");
+    when(info.getWorkflowType()).thenReturn("MyWorkflow");
+
+    assertEquals(
+        new StorageDriverWorkflowInfo("ns", "wf-1", "wf-run-1", "MyWorkflow"),
+        HeartbeatContextImpl.storageTargetForActivity("ns", info));
+  }
+
+  private static final Duration OFFLOAD_INTERVAL = Duration.ofMillis(500);
+
+  @Test
+  public void aNewerHeartbeatAbandonsAnInFlightOffload() throws Exception {
+    BlockingDriver driver = new BlockingDriver();
+    HeartbeatContextImpl ctx = createHeartbeatContextWithStorage(driver);
+
+    Thread first = new Thread(() -> ctx.heartbeat(largeDetails("first")));
+    first.start();
+    assertTrue("the first store should start", driver.storeStarted.await(5, TimeUnit.SECONDS));
+
+    ctx.heartbeat(largeDetails("second"));
+    first.join(5000);
+    assertFalse("the superseded heartbeat should not still be running", first.isAlive());
+
+    assertEquals("both heartbeats should attempt a store", 2, driver.stores.get());
+    verify(blockingStub, times(1))
+        .recordActivityTaskHeartbeat(any(RecordActivityTaskHeartbeatRequest.class));
+    assertTrue(
+        "the abandoned store should have its cancellation token tripped", driver.firstCancelled());
+  }
+
+  @Test
+  public void aThrottledOffloadIsAbandonedWhenTheHeartbeatPoolHasNoSpareThread() throws Exception {
+    when(blockingStub.recordActivityTaskHeartbeat(any(RecordActivityTaskHeartbeatRequest.class)))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+    BlockingDriver driver = new BlockingDriver();
+    HeartbeatContextImpl ctx = createHeartbeatContextWithStorage(driver);
+
+    ctx.heartbeat("small");
+    ctx.heartbeat(largeDetails("throttled"));
+
+    assertTrue(
+        "the throttled heartbeat should offload on the heartbeat pool",
+        driver.storeStarted.await(5, TimeUnit.SECONDS));
+    Eventually.assertEventually(
+        Duration.ofSeconds(5),
+        () ->
+            assertTrue(
+                "the offload must be abandoned even though it occupies the only pool thread",
+                driver.firstCancelled()));
+  }
+
+  @Test
+  public void activityCancellationAbandonsAnInFlightOffload() throws Exception {
+    BlockingDriver driver = new BlockingDriver();
+    HeartbeatContextImpl ctx = createHeartbeatContextWithStorage(driver);
+
+    Thread heartbeating = new Thread(() -> ctx.heartbeat(largeDetails("cancelled")));
+    heartbeating.start();
+    assertTrue("the store should start", driver.storeStarted.await(5, TimeUnit.SECONDS));
+
+    long startNanos = System.nanoTime();
+    ctx.cancelFromWorkerCommand();
+    heartbeating.join(5000);
+    long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+
+    assertFalse("cancellation should not wait for the driver", heartbeating.isAlive());
+    assertTrue(
+        "cancellation should abandon the store rather than wait out the heartbeat interval, took "
+            + elapsedMillis
+            + "ms",
+        elapsedMillis < OFFLOAD_INTERVAL.toMillis() / 2);
+    assertTrue("the abandoned store should be cancelled", driver.firstCancelled());
+  }
+
+  private HeartbeatContextImpl createHeartbeatContextWithStorage(StorageDriver driver) {
+    ExternalStorageRunner runner =
+        ExternalStorageRunner.create(
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(100).build());
+    return new HeartbeatContextImpl(
+        service,
+        "test-namespace",
+        activityInfoWithHeartbeatTimeout(Duration.ZERO),
+        GlobalDataConverter.get(),
+        heartbeatExecutor,
+        new NoopScope(),
+        "test-identity",
+        Duration.ofSeconds(60),
+        OFFLOAD_INTERVAL,
+        runner,
+        TEST_BUFFER_MILLIS);
+  }
+
+  private static String largeDetails(String tag) {
+    return tag + String.join("", Collections.nCopies(20, "0123456789"));
+  }
+
+  /** Never completes its first store, so the SDK has to abandon it. */
+  private static final class BlockingDriver implements StorageDriver {
+    final CountDownLatch storeStarted = new CountDownLatch(1);
+    final AtomicInteger stores = new AtomicInteger();
+    private final Map<String, Payload> objects = new HashMap<>();
+    private volatile CancellationToken<?> firstStoreToken;
+    private int counter = 0;
+
+    boolean firstCancelled() {
+      CancellationToken<?> token = firstStoreToken;
+      return token != null && token.isCancellationRequested();
+    }
+
+    @Override
+    public String getName() {
+      return "blocking";
+    }
+
+    @Override
+    public String getType() {
+      return "test.blocking";
+    }
+
+    @Override
+    public synchronized CompletableFuture<List<StorageDriverClaim>> store(
+        StorageDriverStoreContext context, List<Payload> payloads) {
+      if (stores.getAndIncrement() == 0) {
+        firstStoreToken = context.getCancellationToken();
+        storeStarted.countDown();
+        return new CompletableFuture<>();
+      }
+      List<StorageDriverClaim> claims = new ArrayList<>();
+      for (Payload payload : payloads) {
+        String key = "k-" + (counter++);
+        objects.put(key, payload);
+        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
+      }
+      return CompletableFuture.completedFuture(claims);
+    }
+
+    @Override
+    public synchronized CompletableFuture<List<Payload>> retrieve(
+        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
+      List<Payload> payloads = new ArrayList<>();
+      for (StorageDriverClaim claim : claims) {
+        payloads.add(objects.get(claim.getClaimData().get("key")));
+      }
+      return CompletableFuture.completedFuture(payloads);
+    }
   }
 }

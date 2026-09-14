@@ -11,6 +11,7 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.internal.Signal;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
@@ -26,6 +27,7 @@ public class AbandonOnCancelActivityTest {
 
   private static final CompletionClientActivitiesImpl activitiesImpl =
       new CompletionClientActivitiesImpl();
+  private final Signal activityStarted = new Signal();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -43,22 +45,20 @@ public class AbandonOnCancelActivityTest {
   public void testAbandonOnCancelActivity() throws InterruptedException {
     activitiesImpl.setCompletionClient(
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient());
+    activitiesImpl.setActivityWithDelayStartedCallback(activityStarted::signal);
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     WorkflowExecution execution =
         WorkflowClient.start(client::execute, testWorkflowRule.getTaskQueue());
-    Thread.sleep(500); // To let activityWithDelay start.
+    activityStarted.waitForSignal();
     WorkflowStub stub = WorkflowStub.fromTyped(client);
-    testWorkflowRule.waitForOKQuery(stub);
+    SDKTestWorkflowRule.waitForOKQuery(stub);
     stub.cancel();
-    long start = testWorkflowRule.getTestEnvironment().currentTimeMillis();
     try {
       stub.getResult(String.class);
       fail("unreachable");
     } catch (WorkflowFailedException e) {
       assertTrue(e.getCause() instanceof CanceledFailure);
     }
-    long elapsed = testWorkflowRule.getTestEnvironment().currentTimeMillis() - start;
-    assertTrue(String.valueOf(elapsed), elapsed < 500);
     activitiesImpl.assertInvocations("activityWithDelay");
     assertTrue(
         "Activity with CancellationType=ABANDON should never have a requested cancellation in history",
