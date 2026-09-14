@@ -14,11 +14,10 @@ import java.util.function.Function;
 /**
  * Reads Google Cloud Run instance metadata and derives a Temporal worker identity from it.
  *
- * <p>Cloud Run runs a long-lived container rather than a per-request handler, so this class is a
- * metadata helper rather than a worker wrapper. Most applications register {@link WorkerIdPlugin}
- * on their workflow client instead of using this class directly; the plugin fetches this metadata
- * and applies the derived identity to the client. Use this class directly to read the {@linkplain
- * #workerIdentity() worker identity} yourself.
+ * <p>Most applications register {@link WorkerIdPlugin} on their workflow client instead of using
+ * this class directly; the plugin fetches this metadata and applies the derived identity to the
+ * client. Use this class directly to read the {@linkplain #workerIdentity() worker identity}
+ * yourself.
  *
  * <p>The name and revision are resolved from environment variables Cloud Run injects into every
  * instance. Cloud Run <b>worker pools</b> set {@code CLOUD_RUN_WORKER_POOL} and {@code

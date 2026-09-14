@@ -17,10 +17,9 @@ import java.util.function.Supplier;
  * not already set an identity (a user-provided identity always wins). The workers created from that
  * client inherit the client identity; the plugin sets nothing else on them.
  *
- * <p>The metadata is fetched lazily at client-configure time rather than in the constructor,
- * because the fetch performs a network request to the Cloud Run metadata server that belongs at
- * connect time. The metadata server is only reachable from a Cloud Run instance, so the fetch fails
- * fast with an {@link IllegalStateException} when this process is not running on Cloud Run.
+ * <p>The metadata is fetched lazily when the client is configured. The metadata server is only
+ * reachable from a Cloud Run instance, so the fetch throws {@link IllegalStateException} when this
+ * process is not running on Cloud Run.
  *
  * <p>Register the plugin with {@link WorkflowClientOptions.Builder#setPlugins}:
  *

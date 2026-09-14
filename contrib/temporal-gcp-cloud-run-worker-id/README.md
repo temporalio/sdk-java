@@ -1,6 +1,6 @@
 # Temporal Google Cloud Run worker identity support
 
-This module derives a Temporal worker **identity** for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**, so each Cloud Run instance reports a stable, recognizable identity to the Temporal service.
+This module derives a Temporal worker **identity** for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**.
 
 The primary API is `WorkerIdPlugin`. Register it once on your workflow client and it sets the client identity automatically; every worker created from that client inherits it. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run` module.
 
@@ -67,7 +67,7 @@ The plugin then applies the metadata through the SDK's client plugin hook:
 
 - **Client** (`configureWorkflowClient`): sets the client identity to `<instanceId>@<revision>` (falling back to `<instanceId>@<name>` and then the bare `<instanceId>`), but only when you have not already set an identity, so a user-provided identity always wins. The metadata is fetched here, once, and cached. Workers created from the client inherit this identity; the plugin sets nothing else on them.
 
-Because the metadata server is only reachable from a Cloud Run instance, the plugin **fails fast**: the fetch in `configureWorkflowClient` throws `IllegalStateException` when the metadata server cannot be reached (which usually means the process is not running on Google Cloud Run). The plugin does not silently no-op off-platform.
+The metadata server is only reachable from a Cloud Run instance, so the fetch in `configureWorkflowClient` throws `IllegalStateException` when it cannot be reached (usually because the process is not running on Google Cloud Run).
 
 ## Reading the metadata directly
 
