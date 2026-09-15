@@ -8,6 +8,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.errordetails.v1.NexusOperationExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.nexus.v1.NexusOperationExecutionInfo;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsRequest;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsResponse;
@@ -28,10 +29,12 @@ import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.util.Iterator;
 import java.util.Objects;
@@ -140,9 +143,25 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     } catch (StatusRuntimeException e) {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
+    // The response names the endpoint, service and operation, so the description decodes its
+    // payloads and failures with the same context the operation was started with.
+    NexusOperationExecutionInfo info = response.getInfo();
+    DataConverter dataConverter =
+        dataConverterFor(
+            new NexusSerializationContext(
+                info.getEndpoint(), info.getService(), info.getOperation()));
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
-            response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
+            response, dataConverter, clientOptions.getNamespace()));
+  }
+
+  /**
+   * The client's data converter scoped to a Nexus operation, or left as-is when there is no context
+   * for the operation, which is the case for a handle obtained by operation ID.
+   */
+  private DataConverter dataConverterFor(@Nullable NexusSerializationContext context) {
+    DataConverter dataConverter = clientOptions.getDataConverter();
+    return context != null ? dataConverter.withContext(context) : dataConverter;
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(
@@ -246,13 +265,14 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       @Nullable String runId,
       PollNexusOperationExecutionResponse response,
       GetNexusOperationResultInput<R> input) {
+    DataConverter dataConverter = dataConverterFor(input.getSerializationContext());
     if (response.hasFailure()) {
       Failure failure = response.getFailure();
       throw new NexusOperationFailedException(
           "Nexus operation failed: operationId='" + operationId + "'",
           operationId,
           runId,
-          clientOptions.getDataConverter().failureToException(failure));
+          dataConverter.failureToException(failure));
     }
     if (!response.hasResult()) {
       throw new NexusOperationFailedException(
@@ -266,12 +286,10 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     }
     Payload payload = response.getResult();
     R deserialized =
-        clientOptions
-            .getDataConverter()
-            .fromPayload(
-                payload,
-                input.getResultClass(),
-                input.getResultType() != null ? input.getResultType() : input.getResultClass());
+        dataConverter.fromPayload(
+            payload,
+            input.getResultClass(),
+            input.getResultType() != null ? input.getResultType() : input.getResultClass());
     return new GetNexusOperationResultOutput<>(deserialized);
   }
 

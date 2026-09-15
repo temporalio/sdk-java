@@ -6,10 +6,12 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
 import io.temporal.nexus.NexusOperationContext;
 import io.temporal.nexus.NexusOperationInfo;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class InternalNexusOperationContext {
   private final String namespace;
@@ -39,6 +41,10 @@ public class InternalNexusOperationContext {
   private final List<Link> responseLinks = new ArrayList<>();
 
   private NexusOperationMetadata nexusOperationMetadata;
+  // Serialization context for the operation this task is for. Set by the task handler once the
+  // service and operation names are known, which is only after the request variant has been
+  // inspected, so it is null while the task is being dispatched.
+  private NexusSerializationContext serializationContext;
 
   public InternalNexusOperationContext(
       String namespace,
@@ -91,6 +97,22 @@ public class InternalNexusOperationContext {
 
   public NexusOperationMetadata getNexusOperationMetadata() {
     return nexusOperationMetadata;
+  }
+
+  /**
+   * Sets the serialization context describing the operation this task is for. Called by the task
+   * handler once the request variant has been inspected and the service and operation are known.
+   */
+  public void setSerializationContext(NexusSerializationContext serializationContext) {
+    this.serializationContext = serializationContext;
+  }
+
+  /**
+   * Serialization context for the operation this task is for, or {@code null} if the service and
+   * operation are not known yet.
+   */
+  public @Nullable NexusSerializationContext getSerializationContext() {
+    return serializationContext;
   }
 
   /**

@@ -46,6 +46,7 @@ import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.*;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.*;
@@ -798,9 +799,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<NexusOperationExecution> operationPromise = Workflow.newPromise();
     CompletablePromise<Optional<Payload>> resultPromise = Workflow.newPromise();
 
-    // Not using the context aware data converter because the context will not be available on the
-    // worker side
-    Optional<Payload> payload = dataConverter.toPayload(input.getArg());
+    // The caller workflow is not available to the operation handler, so Nexus payloads are
+    // contextualized by the endpoint, service and operation instead. The same converter decodes the
+    // result and converts failures, so each operation keeps the converter selected for it even when
+    // several operations are in flight at once.
+    DataConverter nexusDataConverter =
+        dataConverter.withContext(
+            new NexusSerializationContext(
+                input.getEndpoint(), input.getService(), input.getOperation()));
+
+    Optional<Payload> payload = nexusDataConverter.toPayload(input.getArg());
 
     ScheduleNexusOperationCommandAttributes.Builder attributes =
         ScheduleNexusOperationCommandAttributes.newBuilder();
@@ -835,7 +843,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     "nexus operation start failed callback",
                     () ->
                         operationPromise.completeExceptionally(
-                            dataConverter.failureToException(failure)));
+                            nexusDataConverter.failureToException(failure)));
               } else {
                 runner.executeInWorkflowThread(
                     "nexus operation started callback",
@@ -849,7 +857,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     "nexus operation failure callback",
                     () ->
                         resultPromise.completeExceptionally(
-                            dataConverter.failureToException(failure)));
+                            nexusDataConverter.failureToException(failure)));
               } else {
                 runner.executeInWorkflowThread(
                     "nexus operation completion callback", () -> resultPromise.complete(result));
@@ -869,7 +877,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         resultPromise.thenApply(
             (b) ->
                 input.getResultClass() != Void.class
-                    ? dataConverter.fromPayload(
+                    ? nexusDataConverter.fromPayload(
                         b.get(), input.getResultClass(), input.getResultType())
                     : null);
     // We register an empty handler to make sure that this promise is always "accessed" and never

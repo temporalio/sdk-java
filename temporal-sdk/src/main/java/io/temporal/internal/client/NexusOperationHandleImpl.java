@@ -10,6 +10,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.GetNexusOpera
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.GetNexusOperationResultOutput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.RequestCancelNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.TerminateNexusOperationExecutionInput;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -25,9 +26,21 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
   private final String operationId;
   private final @Nullable String runId;
   private final NexusClientCallsInterceptor interceptor;
+  // Context the operation was started with, retained so the result and failure are decoded with the
+  // converter that encoded them. Null for a handle obtained by operation ID, which has no endpoint,
+  // service or operation to build a context from.
+  private final @Nullable NexusSerializationContext serializationContext;
 
   public NexusOperationHandleImpl(
       String operationId, @Nullable String runId, NexusClientCallsInterceptor interceptor) {
+    this(operationId, runId, interceptor, null);
+  }
+
+  public NexusOperationHandleImpl(
+      String operationId,
+      @Nullable String runId,
+      NexusClientCallsInterceptor interceptor,
+      @Nullable NexusSerializationContext serializationContext) {
     if (operationId == null) {
       throw new IllegalArgumentException("operationId is required");
     }
@@ -37,6 +50,7 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
     this.operationId = operationId;
     this.runId = runId;
     this.interceptor = interceptor;
+    this.serializationContext = serializationContext;
   }
 
   @Override
@@ -116,7 +130,12 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
       throws TimeoutException {
     GetNexusOperationResultInput<R> input =
         new GetNexusOperationResultInput<>(
-            operationId, runId, Deadline.after(timeout, unit), resultClass, resultType);
+            operationId,
+            runId,
+            Deadline.after(timeout, unit),
+            resultClass,
+            resultType,
+            serializationContext);
     return interceptor.getNexusOperationResult(input).getResult();
   }
 
@@ -131,7 +150,12 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
       long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType) {
     GetNexusOperationResultInput<R> input =
         new GetNexusOperationResultInput<>(
-            operationId, runId, Deadline.after(timeout, unit), resultClass, resultType);
+            operationId,
+            runId,
+            Deadline.after(timeout, unit),
+            resultClass,
+            resultType,
+            serializationContext);
     return interceptor
         .getNexusOperationResultAsync(input)
         .thenApply(GetNexusOperationResultOutput::getResult);

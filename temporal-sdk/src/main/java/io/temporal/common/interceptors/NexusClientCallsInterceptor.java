@@ -10,6 +10,7 @@ import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
@@ -250,18 +251,35 @@ public interface NexusClientCallsInterceptor {
     private final @Nonnull Deadline deadline;
     private final Class<R> resultClass;
     private final @Nullable Type resultType;
+    private final @Nullable NexusSerializationContext serializationContext;
 
+    /**
+     * Equivalent to {@link #GetNexusOperationResultInput(String, String, Deadline, Class, Type,
+     * NexusSerializationContext)} with no serialization context, which is the case for a handle
+     * obtained by operation ID rather than by starting an operation.
+     */
     public GetNexusOperationResultInput(
         String operationId,
         @Nullable String runId,
         @Nonnull Deadline deadline,
         Class<R> resultClass,
         @Nullable Type resultType) {
+      this(operationId, runId, deadline, resultClass, resultType, null);
+    }
+
+    public GetNexusOperationResultInput(
+        String operationId,
+        @Nullable String runId,
+        @Nonnull Deadline deadline,
+        Class<R> resultClass,
+        @Nullable Type resultType,
+        @Nullable NexusSerializationContext serializationContext) {
       this.operationId = operationId;
       this.runId = runId;
       this.deadline = deadline;
       this.resultClass = resultClass;
       this.resultType = resultType;
+      this.serializationContext = serializationContext;
     }
 
     public String getOperationId() {
@@ -284,6 +302,16 @@ public interface NexusClientCallsInterceptor {
     @Nullable
     public Type getResultType() {
       return resultType;
+    }
+
+    /**
+     * Serialization context the operation was started with, used to decode its result and failure.
+     * {@code null} when the operation was not started through this handle and the endpoint, service
+     * and operation are therefore unknown, in which case the result is decoded without a context.
+     */
+    @Nullable
+    public NexusSerializationContext getSerializationContext() {
+      return serializationContext;
     }
   }
 
