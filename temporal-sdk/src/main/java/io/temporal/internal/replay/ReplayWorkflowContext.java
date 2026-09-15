@@ -292,6 +292,9 @@ public interface ReplayWorkflowContext extends ReplayAware {
   /** Replay safe random. */
   Random newRandom();
 
+  /** Replay safe named random stream. */
+  Random getRandomStream(String name);
+
   /**
    * @return scope to be used for metrics reporting.
    */

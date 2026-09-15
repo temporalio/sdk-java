@@ -1,5 +1,6 @@
 package io.temporal.workflow.unsafe;
 
+import io.temporal.common.Experimental;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.workflow.Functions;
 
@@ -44,6 +45,21 @@ public final class WorkflowUnsafe {
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();
+  }
+
+  /**
+   * Reports whether the current code is running where Workflow state cannot be mutated.
+   *
+   * <p>Read-only code includes Query handlers, Update validators, Side Effect functions, Await
+   * conditions, and other SDK callbacks that must not mutate Workflow state.
+   *
+   * <p>Must be called from Workflow code.
+   *
+   * @return true in a read-only Workflow context
+   */
+  @Experimental
+  public static boolean isReadOnly() {
+    return WorkflowInternal.isReadOnly();
   }
 
   /**
