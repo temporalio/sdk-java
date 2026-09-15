@@ -22,16 +22,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 /**
- * Unit tests for {@link CloudRunIDPlugin}.
+ * Unit tests for {@link CloudRunIdPlugin}.
  *
  * <p>The metadata request is served by an in-process {@link HttpServer} and the environment lookup
  * is injected through the {@link GoogleCloudRunMetadata#fetch(String, Duration,
  * java.util.function.Function)} test seam, so these tests touch neither the network nor the real
  * process environment. The plugin's package-private {@link
- * CloudRunIDPlugin#CloudRunIDPlugin(Supplier)} seam lets each test point the plugin at that
+ * CloudRunIdPlugin#CloudRunIdPlugin(Supplier)} seam lets each test point the plugin at that
  * in-process server (or at an unreachable address, to exercise the off-platform fail-fast path).
  */
-public class CloudRunIDPluginTest {
+public class CloudRunIdPluginTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(2);
 
   private HttpServer server;
@@ -88,8 +88,8 @@ public class CloudRunIDPluginTest {
   public void configureWorkflowClientFailsFastOffCloudRun() {
     String unreachableUrl =
         "http://127.0.0.1:" + reserveUnusedPort() + "/computeMetadata/v1/instance/id";
-    CloudRunIDPlugin plugin =
-        new CloudRunIDPlugin(
+    CloudRunIdPlugin plugin =
+        new CloudRunIdPlugin(
             () -> GoogleCloudRunMetadata.fetch(unreachableUrl, TIMEOUT, name -> null));
 
     IllegalStateException e =
@@ -113,7 +113,7 @@ public class CloudRunIDPluginTest {
           supplierCalls.incrementAndGet();
           return resolved;
         };
-    CloudRunIDPlugin plugin = new CloudRunIDPlugin(countingSupplier);
+    CloudRunIdPlugin plugin = new CloudRunIdPlugin(countingSupplier);
 
     plugin.configureWorkflowClient(WorkflowClientOptions.newBuilder());
     plugin.configureWorkflowClient(WorkflowClientOptions.newBuilder());
@@ -128,7 +128,7 @@ public class CloudRunIDPluginTest {
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
 
-    CloudRunIDPlugin plugin = new CloudRunIDPlugin(metadata(env));
+    CloudRunIdPlugin plugin = new CloudRunIdPlugin(metadata(env));
 
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
     plugin.configureWorkflowClient(builder);
@@ -136,8 +136,8 @@ public class CloudRunIDPluginTest {
     assertEquals("instance-1@revision-1", builder.build().getIdentity());
   }
 
-  private CloudRunIDPlugin pluginFor(Map<String, String> env) {
-    return new CloudRunIDPlugin(() -> metadata(env));
+  private CloudRunIdPlugin pluginFor(Map<String, String> env) {
+    return new CloudRunIdPlugin(() -> metadata(env));
   }
 
   private GoogleCloudRunMetadata metadata(Map<String, String> env) {

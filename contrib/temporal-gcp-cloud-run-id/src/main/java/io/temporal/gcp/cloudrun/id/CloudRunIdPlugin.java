@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  *         service,
  *         WorkflowClientOptions.newBuilder()
  *             .setNamespace(namespace)
- *             .setPlugins(new CloudRunIDPlugin())
+ *             .setPlugins(new CloudRunIdPlugin())
  *             .build());
  *
  * WorkerFactory factory = WorkerFactory.newInstance(client);
@@ -39,9 +39,9 @@ import java.util.function.Supplier;
  * <p><b>Experimental:</b> Google Cloud Run support is experimental and may change without notice.
  */
 @Experimental
-public final class CloudRunIDPlugin extends SimplePlugin {
+public final class CloudRunIdPlugin extends SimplePlugin {
   /** Unique plugin name, used for logging and duplicate detection. */
-  public static final String NAME = "io.temporal.gcp.cloudrun.id.CloudRunIDPlugin";
+  public static final String NAME = "io.temporal.gcp.cloudrun.id.CloudRunIdPlugin";
 
   private final Supplier<GoogleCloudRunMetadata> metadataSupplier;
   private volatile GoogleCloudRunMetadata metadata;
@@ -51,7 +51,7 @@ public final class CloudRunIDPlugin extends SimplePlugin {
    * GoogleCloudRunMetadata#DEFAULT_METADATA_URL default metadata server} while the workflow client
    * is configured.
    */
-  public CloudRunIDPlugin() {
+  public CloudRunIdPlugin() {
     this(GoogleCloudRunMetadata::fetch);
   }
 
@@ -61,7 +61,7 @@ public final class CloudRunIDPlugin extends SimplePlugin {
    *
    * @param metadata previously fetched Cloud Run instance metadata.
    */
-  CloudRunIDPlugin(GoogleCloudRunMetadata metadata) {
+  CloudRunIdPlugin(GoogleCloudRunMetadata metadata) {
     this(fixedSupplier(metadata));
   }
 
@@ -74,7 +74,7 @@ public final class CloudRunIDPlugin extends SimplePlugin {
    * @param metadataSupplier supplier invoked once, at client-configure time, to resolve the
    *     metadata.
    */
-  CloudRunIDPlugin(Supplier<GoogleCloudRunMetadata> metadataSupplier) {
+  CloudRunIdPlugin(Supplier<GoogleCloudRunMetadata> metadataSupplier) {
     super(NAME);
     this.metadataSupplier = Objects.requireNonNull(metadataSupplier, "metadataSupplier");
   }
