@@ -92,6 +92,7 @@ public interface ActivityClientCallsInterceptor {
    * @param input activity ID, optional run ID, and optional human-readable reason
    * @return an empty output object (reserved for future use)
    */
+  @Experimental
   PauseActivityOutput pauseActivity(PauseActivityInput input);
 
   /**
@@ -100,6 +101,7 @@ public interface ActivityClientCallsInterceptor {
    * @param input activity ID, optional run ID, and unpause options (reason, jitter)
    * @return an empty output object (reserved for future use)
    */
+  @Experimental
   UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input);
 
   /**
@@ -110,6 +112,7 @@ public interface ActivityClientCallsInterceptor {
    * @param input activity ID, optional run ID, options, update mask, and restore flag
    * @return output carrying the activity options as resolved by the server after the update
    */
+  @Experimental
   UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);
 
   /**
@@ -148,7 +151,6 @@ public interface ActivityClientCallsInterceptor {
   <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input);
 
-  @Experimental
   final class StartActivityInput {
     private final String activityType;
     private final List<Object> args;
@@ -180,7 +182,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class StartActivityOutput {
     private final String activityId;
     private final @Nullable String activityRunId;
@@ -200,7 +201,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class GetActivityResultInput<R> {
     private final String activityId;
     private final @Nullable String runId;
@@ -265,7 +265,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class GetActivityResultOutput<R> {
     private final R result;
 
@@ -278,7 +277,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class DescribeActivityInput {
     private final String id;
     private final @Nullable String runId;
@@ -305,7 +303,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class DescribeActivityOutput {
     private final ActivityExecutionDescription description;
 
@@ -318,7 +315,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CancelActivityInput {
     private final String id;
     private final @Nullable String runId;
@@ -345,10 +341,8 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CancelActivityOutput {}
 
-  @Experimental
   final class TerminateActivityInput {
     private final String id;
     private final @Nullable String runId;
@@ -375,7 +369,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class TerminateActivityOutput {}
 
   @Experimental
@@ -465,7 +458,7 @@ public interface ActivityClientCallsInterceptor {
 
     /**
      * The option updates to apply, in the order the caller supplied them. Empty when {@link
-     * #isRestoreOriginal()} is true. For a repeated key, the later update wins.
+     * #isRestoreOriginal()} is true. Each option is named at most once.
      */
     public List<ActivityOptionsUpdate<?>> getUpdates() {
       return updates;
@@ -490,7 +483,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class ListActivitiesInput {
     private final String query;
 
@@ -503,7 +495,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class ListActivitiesOutput {
     private final Stream<ActivityExecutionMetadata> stream;
 
@@ -516,7 +507,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CountActivitiesInput {
     private final String query;
 
@@ -529,7 +519,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CountActivitiesOutput {
     private final ActivityExecutionCount count;
 

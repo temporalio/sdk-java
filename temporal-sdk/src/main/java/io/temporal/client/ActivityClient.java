@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
@@ -33,7 +32,6 @@ import javax.annotation.Nullable;
  * String result = client.execute("MyActivityType", String.class, options, 1, 2);
  * }</pre>
  */
-@Experimental
 public interface ActivityClient {
 
   /** Creates a new {@code ActivityClient} with default options. */

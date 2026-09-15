@@ -19,6 +19,10 @@ include 'temporal-gcp-cloud-run'
 project(':temporal-gcp-cloud-run').projectDir = file('contrib/temporal-gcp-cloud-run')
 include 'temporal-gcp-cloud-run-worker-id'
 project(':temporal-gcp-cloud-run-worker-id').projectDir = file('contrib/temporal-gcp-cloud-run-worker-id')
+include 'temporal-payload-storage-s3driver'
+project(':temporal-payload-storage-s3driver').projectDir = file('contrib/temporal-payload-storage-s3driver')
+include 'temporal-payload-storage-s3driver-awssdkv2'
+project(':temporal-payload-storage-s3driver-awssdkv2').projectDir = file('contrib/temporal-payload-storage-s3driver-awssdkv2')
 include 'temporal-spring-boot-autoconfigure'
 include 'temporal-spring-boot-starter'
 include 'temporal-remote-data-encoder'
