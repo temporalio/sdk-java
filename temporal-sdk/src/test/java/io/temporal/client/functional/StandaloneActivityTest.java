@@ -18,7 +18,6 @@ import io.temporal.api.enums.v1.ActivityIdReusePolicy;
 import io.temporal.client.*;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
-import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
 import io.temporal.common.interceptors.ActivityClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
@@ -417,7 +416,7 @@ public class StandaloneActivityTest {
             .setId(uniqueId())
             .setTaskQueue(testWorkflowRule.getTaskQueue())
             .setScheduleToCloseTimeout(Duration.ofMinutes(5))
-            .setStaticSummary("Test summary")
+            .setSummary("Test summary")
             .setStaticDetails("Test details\nLine 2")
             .build();
 
@@ -426,7 +425,7 @@ public class StandaloneActivityTest {
     handle.getResult();
 
     ActivityExecutionDescription desc = handle.describe();
-    assertEquals("Test summary", desc.getStaticSummary());
+    assertEquals("Test summary", desc.getSummary());
     assertEquals("Test details\nLine 2", desc.getStaticDetails());
   }
 

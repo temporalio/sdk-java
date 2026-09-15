@@ -11,7 +11,9 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -177,6 +179,17 @@ public final class ActivityHandleImpl implements UntypedActivityHandle {
     // revert options instead.
     if (list.isEmpty()) {
       throw new IllegalArgumentException("updateOptions requires at least one option update");
+    }
+
+    // Each option may be named at most once. Silently resolving a repeat would hide a caller
+    // mistake behind whichever update happened to come last.
+    Set<String> seen = new HashSet<>();
+    for (ActivityOptionsUpdate<?> update : list) {
+      String path = update.getKey().getPath();
+      if (!seen.add(path)) {
+        throw new IllegalArgumentException(
+            "updateOptions received more than one update for " + path);
+      }
     }
 
     ActivityClientCallsInterceptor.UpdateActivityOptionsOutput output =

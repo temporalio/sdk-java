@@ -56,7 +56,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void storeOffloadsHeaders() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
     SignalWorkflowExecutionRequest request =
         SignalWorkflowExecutionRequest.newBuilder()
@@ -78,7 +78,7 @@ public class ExternalStorageRunnerTest {
 
   @Test
   public void retrieveStillResolvesAHeaderStoredElsewhere() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);
 
     Payloads.Builder headerValue = Payloads.newBuilder().addPayloads(payload("ctx"));
