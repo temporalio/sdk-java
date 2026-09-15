@@ -71,14 +71,11 @@ The metadata server is only reachable from a Cloud Run instance, so the fetch in
 
 ## Reading the metadata directly
 
-If you prefer to read the values yourself, or to fetch the metadata once and pass it in, use `GoogleCloudRunMetadata` directly:
+If you prefer to read the values yourself, use `GoogleCloudRunMetadata` directly:
 
 ```java
 GoogleCloudRunMetadata metadata = GoogleCloudRunMetadata.fetch();
 String identity = metadata.identity();
-
-// Or hand the already-fetched metadata to the plugin to skip its own fetch:
-CloudRunIDPlugin plugin = new CloudRunIDPlugin(metadata);
 ```
 
 `GoogleCloudRunMetadata.fetch(String metadataUrl, Duration timeout)` overrides the metadata URL or the request timeout.

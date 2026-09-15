@@ -56,14 +56,12 @@ public final class CloudRunIDPlugin extends SimplePlugin {
   }
 
   /**
-   * Creates a plugin that uses an already-resolved {@link GoogleCloudRunMetadata} instance instead
-   * of fetching it. No request is made to the Cloud Run metadata server. Useful when the
-   * application fetches the metadata itself (for example to log it) or when a test injects fixed
-   * metadata.
+   * Package-private seam that builds a plugin from already-resolved {@link GoogleCloudRunMetadata},
+   * skipping the fetch. Used by tests.
    *
    * @param metadata previously fetched Cloud Run instance metadata.
    */
-  public CloudRunIDPlugin(GoogleCloudRunMetadata metadata) {
+  CloudRunIDPlugin(GoogleCloudRunMetadata metadata) {
     this(fixedSupplier(metadata));
   }
 
@@ -71,8 +69,7 @@ public final class CloudRunIDPlugin extends SimplePlugin {
    * Package-private test seam that supplies the {@link GoogleCloudRunMetadata} lazily. It lets unit
    * tests point the fetch at an in-process metadata server and injected environment through the
    * {@link GoogleCloudRunMetadata#fetch(String, java.time.Duration, java.util.function.Function)}
-   * seam, and to exercise the off-platform fail-fast path. It is not part of the public API; use
-   * {@link #CloudRunIDPlugin()} or {@link #CloudRunIDPlugin(GoogleCloudRunMetadata)} instead.
+   * seam, and to exercise the off-platform fail-fast path. It is not part of the public API.
    *
    * @param metadataSupplier supplier invoked once, at client-configure time, to resolve the
    *     metadata.
