@@ -16,8 +16,7 @@ import java.util.function.Function;
  *
  * <p>Most applications register {@link CloudRunIDPlugin} on their workflow client instead of using
  * this class directly; the plugin fetches this metadata and applies the derived identity to the
- * client. Use this class directly to read the {@linkplain #identity() worker identity}
- * yourself.
+ * client. Use this class directly to read the {@linkplain #identity() worker identity} yourself.
  *
  * <p>The name and revision are resolved from environment variables Cloud Run injects into every
  * instance. Cloud Run <b>worker pools</b> set {@code CLOUD_RUN_WORKER_POOL} and {@code

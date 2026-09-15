@@ -27,9 +27,9 @@ import org.junit.Test;
  * <p>The metadata request is served by an in-process {@link HttpServer} and the environment lookup
  * is injected through the {@link GoogleCloudRunMetadata#fetch(String, Duration,
  * java.util.function.Function)} test seam, so these tests touch neither the network nor the real
- * process environment. The plugin's package-private {@link CloudRunIDPlugin#CloudRunIDPlugin(Supplier)}
- * seam lets each test point the plugin at that in-process server (or at an unreachable address, to
- * exercise the off-platform fail-fast path).
+ * process environment. The plugin's package-private {@link
+ * CloudRunIDPlugin#CloudRunIDPlugin(Supplier)} seam lets each test point the plugin at that
+ * in-process server (or at an unreachable address, to exercise the off-platform fail-fast path).
  */
 public class CloudRunIDPluginTest {
   private static final Duration TIMEOUT = Duration.ofSeconds(2);

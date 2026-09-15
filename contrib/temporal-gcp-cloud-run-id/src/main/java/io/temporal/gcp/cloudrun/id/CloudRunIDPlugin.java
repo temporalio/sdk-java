@@ -13,8 +13,8 @@ import java.util.function.Supplier;
  * <p>Register the plugin once on the workflow client and it propagates to every worker created from
  * that client. It reads {@link GoogleCloudRunMetadata Cloud Run instance metadata} once while the
  * client is configured, caches it, and sets the workflow client <b>identity</b> to the {@linkplain
- * GoogleCloudRunMetadata#identity() derived worker identity}, but only when the caller has
- * not already set an identity (a user-provided identity always wins). The workers created from that
+ * GoogleCloudRunMetadata#identity() derived worker identity}, but only when the caller has not
+ * already set an identity (a user-provided identity always wins). The workers created from that
  * client inherit the client identity.
  *
  * <p>The metadata is fetched lazily when the client is configured. The metadata server is only
@@ -35,11 +35,6 @@ import java.util.function.Supplier;
  * WorkerFactory factory = WorkerFactory.newInstance(client);
  * Worker worker = factory.newWorker("my-task-queue");
  * }</pre>
- *
- * <p><b>Advanced / testing:</b> {@link #CloudRunIDPlugin(GoogleCloudRunMetadata)} accepts an
- * already-resolved {@link GoogleCloudRunMetadata} instance, which skips the lazy fetch entirely.
- * This is useful when the application fetches the metadata itself (for example to log it) or when a
- * test injects fixed metadata.
  *
  * <p><b>Experimental:</b> Google Cloud Run support is experimental and may change without notice.
  */
@@ -62,7 +57,9 @@ public final class CloudRunIDPlugin extends SimplePlugin {
 
   /**
    * Creates a plugin that uses an already-resolved {@link GoogleCloudRunMetadata} instance instead
-   * of fetching it. No request is made to the Cloud Run metadata server.
+   * of fetching it. No request is made to the Cloud Run metadata server. Useful when the
+   * application fetches the metadata itself (for example to log it) or when a test injects fixed
+   * metadata.
    *
    * @param metadata previously fetched Cloud Run instance metadata.
    */
