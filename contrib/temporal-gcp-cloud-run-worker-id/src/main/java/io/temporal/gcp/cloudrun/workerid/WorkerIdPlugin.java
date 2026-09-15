@@ -15,7 +15,7 @@ import java.util.function.Supplier;
  * client is configured, caches it, and sets the workflow client <b>identity</b> to the {@linkplain
  * GoogleCloudRunMetadata#workerIdentity() derived worker identity}, but only when the caller has
  * not already set an identity (a user-provided identity always wins). The workers created from that
- * client inherit the client identity; the plugin sets nothing else on them.
+ * client inherit the client identity.
  *
  * <p>The metadata is fetched lazily when the client is configured. The metadata server is only
  * reachable from a Cloud Run instance, so the fetch throws {@link IllegalStateException} when this
