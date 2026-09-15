@@ -2,7 +2,7 @@
 
 This module derives a Temporal worker **identity** for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**.
 
-The primary API is `WorkerIdPlugin`. Register it once on your workflow client and it sets the client identity automatically; every worker created from that client inherits it. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run` module.
+The primary API is `CloudRunIDPlugin`. Register it once on your workflow client and it sets the client identity automatically; every worker created from that client inherits it. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run` module.
 
 > Experimental: Google Cloud Run support is experimental and may change without notice.
 
@@ -13,7 +13,7 @@ Add `temporal-gcp-cloud-run-worker-id` next to your Temporal SDK dependency, the
 ```java
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.gcp.cloudrun.workerid.WorkerIdPlugin;
+import io.temporal.gcp.cloudrun.workerid.CloudRunIDPlugin;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
@@ -35,7 +35,7 @@ public final class Main {
             service,
             WorkflowClientOptions.newBuilder()
                 .setNamespace("my-namespace")
-                .setPlugins(new WorkerIdPlugin())
+                .setPlugins(new CloudRunIDPlugin())
                 .build());
 
     WorkerFactory factory = WorkerFactory.newInstance(client);
@@ -55,7 +55,7 @@ You can also register the plugin on `WorkflowServiceStubsOptions.Builder.setPlug
 
 ## How it works
 
-`WorkerIdPlugin` reads Cloud Run instance metadata through `GoogleCloudRunMetadata`, which resolves three values:
+`CloudRunIDPlugin` reads Cloud Run instance metadata through `GoogleCloudRunMetadata`, which resolves three values:
 
 - **name**: the Cloud Run worker pool name — the first non-empty of `CLOUD_RUN_WORKER_POOL` (set on Cloud Run worker pools) then `K_SERVICE` (set on Cloud Run services).
 - **revision**: the first non-empty of `CLOUD_RUN_REVISION` (worker pools) then `K_REVISION` (services).
@@ -78,7 +78,7 @@ GoogleCloudRunMetadata metadata = GoogleCloudRunMetadata.fetch();
 String identity = metadata.workerIdentity();
 
 // Or hand the already-fetched metadata to the plugin to skip its own fetch:
-WorkerIdPlugin plugin = new WorkerIdPlugin(metadata);
+CloudRunIDPlugin plugin = new CloudRunIDPlugin(metadata);
 ```
 
 `GoogleCloudRunMetadata.fetch(String metadataUrl, Duration timeout)` overrides the metadata URL or the request timeout.

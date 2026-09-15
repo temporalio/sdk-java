@@ -29,14 +29,14 @@ import java.util.function.Supplier;
  *         service,
  *         WorkflowClientOptions.newBuilder()
  *             .setNamespace(namespace)
- *             .setPlugins(new WorkerIdPlugin())
+ *             .setPlugins(new CloudRunIDPlugin())
  *             .build());
  *
  * WorkerFactory factory = WorkerFactory.newInstance(client);
  * Worker worker = factory.newWorker("my-task-queue");
  * }</pre>
  *
- * <p><b>Advanced / testing:</b> {@link #WorkerIdPlugin(GoogleCloudRunMetadata)} accepts an
+ * <p><b>Advanced / testing:</b> {@link #CloudRunIDPlugin(GoogleCloudRunMetadata)} accepts an
  * already-resolved {@link GoogleCloudRunMetadata} instance, which skips the lazy fetch entirely.
  * This is useful when the application fetches the metadata itself (for example to log it) or when a
  * test injects fixed metadata.
@@ -44,9 +44,9 @@ import java.util.function.Supplier;
  * <p><b>Experimental:</b> Google Cloud Run support is experimental and may change without notice.
  */
 @Experimental
-public final class WorkerIdPlugin extends SimplePlugin {
+public final class CloudRunIDPlugin extends SimplePlugin {
   /** Unique plugin name, used for logging and duplicate detection. */
-  public static final String NAME = "io.temporal.gcp.cloudrun.workerid.WorkerIdPlugin";
+  public static final String NAME = "io.temporal.gcp.cloudrun.workerid.CloudRunIDPlugin";
 
   private final Supplier<GoogleCloudRunMetadata> metadataSupplier;
   private volatile GoogleCloudRunMetadata metadata;
@@ -56,7 +56,7 @@ public final class WorkerIdPlugin extends SimplePlugin {
    * GoogleCloudRunMetadata#DEFAULT_METADATA_URL default metadata server} while the workflow client
    * is configured.
    */
-  public WorkerIdPlugin() {
+  public CloudRunIDPlugin() {
     this(GoogleCloudRunMetadata::fetch);
   }
 
@@ -66,7 +66,7 @@ public final class WorkerIdPlugin extends SimplePlugin {
    *
    * @param metadata previously fetched Cloud Run instance metadata.
    */
-  public WorkerIdPlugin(GoogleCloudRunMetadata metadata) {
+  public CloudRunIDPlugin(GoogleCloudRunMetadata metadata) {
     this(fixedSupplier(metadata));
   }
 
@@ -75,12 +75,12 @@ public final class WorkerIdPlugin extends SimplePlugin {
    * tests point the fetch at an in-process metadata server and injected environment through the
    * {@link GoogleCloudRunMetadata#fetch(String, java.time.Duration, java.util.function.Function)}
    * seam, and to exercise the off-platform fail-fast path. It is not part of the public API; use
-   * {@link #WorkerIdPlugin()} or {@link #WorkerIdPlugin(GoogleCloudRunMetadata)} instead.
+   * {@link #CloudRunIDPlugin()} or {@link #CloudRunIDPlugin(GoogleCloudRunMetadata)} instead.
    *
    * @param metadataSupplier supplier invoked once, at client-configure time, to resolve the
    *     metadata.
    */
-  WorkerIdPlugin(Supplier<GoogleCloudRunMetadata> metadataSupplier) {
+  CloudRunIDPlugin(Supplier<GoogleCloudRunMetadata> metadataSupplier) {
     super(NAME);
     this.metadataSupplier = Objects.requireNonNull(metadataSupplier, "metadataSupplier");
   }
