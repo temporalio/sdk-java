@@ -45,8 +45,15 @@ public final class ExternalStorageRunner {
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
     getOrThrowIfCancelled(
-        PayloadVisitors.visit(builder, storeOptions(target, targetVisitor, cancellationToken)),
-        cancellationToken);
+        storeAsync(builder, target, targetVisitor, cancellationToken), cancellationToken);
+  }
+
+  public CompletableFuture<Void> storeAsync(
+      Message.Builder builder,
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
+      CancellationToken<CancellationException> cancellationToken) {
+    return PayloadVisitors.visit(builder, storeOptions(target, targetVisitor, cancellationToken));
   }
 
   public <T extends Message> T retrieve(

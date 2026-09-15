@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -10,7 +9,6 @@ import javax.annotation.Nullable;
  * <p>All fields are optional. An instance with no fields set pauses the activity with default
  * behavior.
  */
-@Experimental
 public final class PauseActivityOptions {
 
   public static Builder newBuilder() {

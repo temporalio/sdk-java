@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import java.util.Objects;
 
 /**
@@ -10,7 +9,6 @@ import java.util.Objects;
  * arbitrarily large, so none are returned unless explicitly requested. An instance with no fields
  * set describes the activity without any of them.
  */
-@Experimental
 public final class DescribeActivityOptions {
 
   public static Builder newBuilder() {

@@ -1,0 +1,65 @@
+# **Breaking changes**
+
+- `client.StartActivityOptions.Builder.setStaticSummary` was renamed to `setSummary` to align it with
+  `activity.ActivityOptions`.
+
+# **Highlights**
+
+## Standalone Activities are stable
+
+Standalone Activities feature is Generally Available. See feature guide at
+https://docs.temporal.io/develop/java/activities/standalone-activities
+
+## Static Summary and Details are stable
+
+`setSummary`/`setStaticSummary` and `setStaticDetails` for workflows and activities are stable. See feature guide at
+https://docs.temporal.io/develop/java/platform/enriching-ui
+
+## External Storage (Public Preview)
+
+This version adds experimental support for External Storage feature, allowing storing large payloads out-of-bounds,
+effectively lifting usual payload size restrictions. Includes a storage driver for AWS S3. See feature guide at
+https://docs.temporal.io/external-storage
+
+# What's Changed
+
+2026-08-12 - cd2b543e - Upgrade temporal-api to v1.63.5 (#3003)
+2026-08-12 - f9732502 - Add @TemporalOperation annotation for Nexus operations     (#2928)
+2026-08-13 - 28619b84 - Add test verifying worker command polls omit versioning metadata (#3004)
+2026-08-13 - 7cf35351 - 💥 Report Nexus input deserialization failures as non-retryable BAD_REQUEST (#3002)
+2026-08-13 - 87a3c568 - Fix exception ser. in update validator (#3001)
+2026-08-13 - ade44bc4 - 💥 Fix unbounded timeout failure chain in local activity  (#3006)
+2026-08-17 - af2f8537 - Report non-retryable PayloadValidationError as BAD_REQUEST (#3009)
+2026-08-20 - a0021f84 - Add payload validation failure factory (#3021)
+2026-08-21 - ee9abf08 - Omit null payload validation details (#3027)
+2026-08-24 - 12c21142 - Add SDK Sentinel PR responder (#3034)
+2026-08-25 - 1b2ffb18 - [SDK Sentinel] Allow activity retry delay test to complete (#3010)
+2026-08-26 - 37627549 - Default Nexus client activity task queue to the worker task queue (#3039)
+2026-08-26 - 809e57cf - Add failure_reason tag to activity execution failed metrics (#3036)
+2026-08-26 - 867ecf07 - Remove Experimental annotation for user metadata from a few APIs (#3038)
+2026-08-26 - c5f93b78 - Fix inconsistency in javadoc for WorkflowInterface (#2232) (#2233)
+2026-08-26 - e10c8e62 - Fix NPE when a workflow implementation uses a composed @WorkflowImpl annotation (#3024)
+2026-08-27 - 144ddea1 - Stabilize sticky cache metrics test (#3037)
+2026-08-27 - 394d8eec - Fix setRetryOptions merging initialInterval into congestionInitialInterval (#2956)
+2026-08-27 - 6d5ba591 - feat(#2790): Add ChildWorkflowOptions support to WorkflowImplementationOptions (#2887)
+2026-08-27 - b7dd8c8c - Include WorkflowType in wrapFailure error message (#2960)
+2026-08-27 - d730cff5 - Add GCP Cloud Run OpenTelemetry support (#3022)
+2026-08-28 - 6c60097d - External Storage Integration: Lazy resolving references, general refactoring (#3016)
+2026-08-31 - 4f5a1079 - Fix custom slot supplier SlotInfo fields (#3014)
+2026-09-02 - 496ddc0e - Add envconfig support to test harness (#2998)
+2026-09-03 - 8d6c936e - Provision isolated Cloud namespaces for SDK tests (#3032)
+2026-09-03 - dc0ad21c - Add workflow task completion pagination (#3051)
+2026-09-04 - 015fdc12 - Pass a dedicated context to the driver selector (#3047)
+2026-09-04 - 08171629 - External Storage Integration: NexusWorker (#3018)
+2026-09-04 - 108462ea - Bumping test CLI version (#3054)
+2026-09-04 - 479ea76c - Fix WorkerFactory command-worker cleanup race (#2952)
+2026-09-04 - b319d85a - Adding SDK Ergonomics Query link (#2988)
+2026-09-08 - c73480ff - Report runtime environment information in worker heartbeats (#3052)
+2026-09-09 - a49045eb - Implement operator commands for Standalone Activities (#3013)
+2026-09-10 - 77b2db51 - External Storage Integration: Activity worker, client (#3020)
+2026-09-10 - 895a65a2 - External Storage Integration: WorkflowWorker, replay, history (#3017)
+2026-09-11 - afdfac27 - fix broken test that referenced InMemoryDriver (#3065)
+2026-09-11 - dd28759b - Reject duplicates in SAA update options (#3061)
+2026-09-14 - 0eade162 - Add extstore s3 driver (#2907)
+2026-09-14 - c7f47b99 - Rename Standalone Activity StaticSummary to Summary (#3062)
+2026-09-14 - f6968a4e - Removed @Experimental annotations from Standalone Activities API (#3071)

@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.payload.context.WorkflowSerializationContext;
@@ -29,15 +30,13 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
     if (!response.getExecutionConfig().getUserMetadata().hasSummary()) {
       return null;
     }
+    Payload summary = response.getExecutionConfig().getUserMetadata().getSummary();
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
                 response.getWorkflowExecutionInfo().getParentNamespaceId(),
                 response.getWorkflowExecutionInfo().getExecution().getWorkflowId()))
-        .fromPayload(
-            response.getExecutionConfig().getUserMetadata().getSummary(),
-            String.class,
-            String.class);
+        .fromPayload(summary, String.class, String.class);
   }
 
   /**
@@ -51,15 +50,13 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
     if (!response.getExecutionConfig().getUserMetadata().hasDetails()) {
       return null;
     }
+    Payload details = response.getExecutionConfig().getUserMetadata().getDetails();
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
                 response.getWorkflowExecutionInfo().getParentNamespaceId(),
                 response.getWorkflowExecutionInfo().getExecution().getWorkflowId()))
-        .fromPayload(
-            response.getExecutionConfig().getUserMetadata().getDetails(),
-            String.class,
-            String.class);
+        .fromPayload(details, String.class, String.class);
   }
 
   /** Returns the raw response from the Temporal service. */
