@@ -66,6 +66,11 @@ public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCal
   }
 
   @Override
+  public void sleep(Duration duration, TimerOptions options) {
+    next.sleep(duration, options);
+  }
+
+  @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
     return next.await(timeout, reason, unblockCondition);
   }
