@@ -40,7 +40,7 @@ public enum SdkFlag {
    * Prevents cancellation of the enclosing CancellationScope from canceling the timeout timer
    * used by non-cancellable Promise.get(timeout, unit).
    *
-   * Introduced: 1.39.0
+   * Introduced: 1.40.0
    *
    * Enabled: (pending)
    *

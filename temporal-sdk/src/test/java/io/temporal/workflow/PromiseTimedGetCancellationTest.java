@@ -82,6 +82,8 @@ public class PromiseTimedGetCancellationTest {
   public void setUpSdkFlags() {
     savedInitialFlags = WorkflowStateMachines.initialFlags;
     List<SdkFlag> flags = new ArrayList<>(savedInitialFlags);
+    flags.remove(SdkFlag.DETACH_NON_CANCELLABLE_PROMISE_GET_TIMER);
+    flags.remove(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
     if (detachedTimer) {
       flags.add(SdkFlag.DETACH_NON_CANCELLABLE_PROMISE_GET_TIMER);
     }
