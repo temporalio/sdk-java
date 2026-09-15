@@ -12,6 +12,7 @@ import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
 import io.temporal.client.UntypedNexusServiceClient;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -45,8 +46,10 @@ public class StandaloneNexusSerializationContextTest {
   private static final String SERVICE = "TestNexusService1";
   private static final String OPERATION = "operation";
 
-  // Only the standalone client gets this codec. The worker keeps the default converter, so every
-  // context this codec records is one the client applied rather than the handler.
+  // Both sides share the codec so a signature written by one is checked by the other. Any payload
+  // the SDK encodes and decodes under different contexts therefore fails the decode, the way a
+  // codec keyed on the context would. Only the client gets the recording failure converter, so the
+  // contexts it records are the client's.
   private static final RecordingCodec CODEC = new RecordingCodec();
   private static final RecordingFailureConverter FAILURE_CONVERTER =
       new RecordingFailureConverter();
@@ -56,6 +59,12 @@ public class StandaloneNexusSerializationContextTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(PlaceholderWorkflowImpl.class)
           .setNexusServiceImplementation(new EchoNexusServiceImpl())
+          .setWorkflowClientOptions(
+              WorkflowClientOptions.newBuilder()
+                  .setDataConverter(
+                      new CodecDataConverter(
+                          DefaultDataConverter.STANDARD_INSTANCE, Collections.singletonList(CODEC)))
+                  .build())
           .build();
 
   private NexusClient nexusClient() {
@@ -142,6 +151,28 @@ public class StandaloneNexusSerializationContextTest {
         "the described failure should be converted under the context the server reported",
         Collections.singletonList(expectedContext()),
         FAILURE_CONVERTER.nexusContexts());
+  }
+
+  @Test
+  public void describeReadsTheUncontextualizedSummary() {
+    NexusClient client = nexusClient();
+    Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
+    UntypedNexusServiceClient serviceClient =
+        client.newUntypedNexusServiceClient(endpoint.getSpec().getName(), SERVICE);
+    UntypedNexusOperationHandle handle =
+        serviceClient.start(
+            OPERATION,
+            StartNexusOperationOptions.newBuilder()
+                .setId(UUID.randomUUID().toString())
+                .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+                .setSummary("the-summary")
+                .build(),
+            "ping-" + UUID.randomUUID());
+    handle.getResult(String.class);
+
+    // The summary is encoded without a Nexus context, so describe must read it back the same way.
+    // Decoding it under a context the encoder never used would corrupt it.
+    Assert.assertEquals("the-summary", handle.describe().getStaticSummary());
   }
 
   @Test
@@ -319,7 +350,12 @@ public class StandaloneNexusSerializationContextTest {
       for (Payload payload : payloads) {
         ByteString signature = payload.getMetadataMap().get(SIGNATURE_KEY);
         if (signature == null) {
-          // Payloads encoded without a context stay readable, as the contract requires.
+          // Decoding under a Nexus context something that was encoded without one means the SDK
+          // picked different contexts for the two halves of a round trip. A codec keyed on the
+          // context, such as a per-endpoint encryption key, could not recover this payload.
+          Assert.assertFalse(
+              "payload encoded without a context was decoded under " + context,
+              context instanceof NexusSerializationContext);
           decoded.add(payload);
           continue;
         }

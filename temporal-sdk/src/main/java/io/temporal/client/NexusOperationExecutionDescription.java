@@ -25,10 +25,22 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
   private final DescribeNexusOperationExecutionResponse response;
   private final NexusOperationExecutionInfo info;
   private final DataConverter dataConverter;
+  // User metadata is attached by the caller without a Nexus serialization context, so it must be
+  // decoded without one too. Everything else on a description belongs to the operation and is
+  // decoded with the operation's context.
+  private final DataConverter userMetadataDataConverter;
 
   public NexusOperationExecutionDescription(
       DescribeNexusOperationExecutionResponse response,
       DataConverter dataConverter,
+      String namespace) {
+    this(response, dataConverter, dataConverter, namespace);
+  }
+
+  public NexusOperationExecutionDescription(
+      DescribeNexusOperationExecutionResponse response,
+      DataConverter dataConverter,
+      DataConverter userMetadataDataConverter,
       String namespace) {
     super(
         null,
@@ -52,6 +64,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     this.response = response;
     this.info = response.getInfo();
     this.dataConverter = dataConverter;
+    this.userMetadataDataConverter = userMetadataDataConverter;
   }
 
   /** Underlying proto response. Exposed while the Nexus SDK surface is still experimental. */
@@ -183,7 +196,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     if (!info.hasUserMetadata() || !info.getUserMetadata().hasSummary()) {
       return null;
     }
-    return dataConverter.fromPayload(
+    return userMetadataDataConverter.fromPayload(
         info.getUserMetadata().getSummary(), String.class, String.class);
   }
 
@@ -196,7 +209,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     if (!info.hasUserMetadata() || !info.getUserMetadata().hasDetails()) {
       return null;
     }
-    return dataConverter.fromPayload(
+    return userMetadataDataConverter.fromPayload(
         info.getUserMetadata().getDetails(), String.class, String.class);
   }
 

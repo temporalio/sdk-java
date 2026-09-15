@@ -152,7 +152,12 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
                 info.getEndpoint(), info.getService(), info.getOperation()));
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
-            response, dataConverter, clientOptions.getNamespace()));
+            response,
+            dataConverter,
+            // The summary and details were attached without a Nexus context, so they have to be
+            // decoded without one for a converter that varies by context to round-trip them.
+            clientOptions.getDataConverter(),
+            clientOptions.getNamespace()));
   }
 
   /**
