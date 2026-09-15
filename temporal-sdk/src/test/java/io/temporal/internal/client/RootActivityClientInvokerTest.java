@@ -79,6 +79,7 @@ public class RootActivityClientInvokerTest {
         new NexusOperationMetadata(
             "nexus-request-id", "http://localhost/callback", callbackHeaders);
     nexusContext.setNexusOperationMetadata(metadata);
+    nexusContext.setRequestId("nexus-request-id");
     Link link = workflowEventLink();
     nexusContext.setRequestLinks(Collections.singletonList(link));
 
@@ -109,26 +110,12 @@ public class RootActivityClientInvokerTest {
   }
 
   @Test
-  public void metadataRequestIdTakesPrecedenceOverAmbientRequestId() {
-    NexusOperationMetadata metadata =
-        new NexusOperationMetadata(
-            "nexus-request-id", "http://localhost/callback", Collections.emptyMap());
-    nexusContext.setNexusOperationMetadata(metadata);
-
-    invoker.startActivity(newStartActivityInput());
-
-    ArgumentCaptor<StartActivityExecutionRequest> captor =
-        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
-    verify(genericClient).startActivity(captor.capture());
-    Assert.assertEquals("nexus-request-id", captor.getValue().getRequestId());
-  }
-
-  @Test
   public void nexusMetadataWithEmptyCallbackUrlOmitsCompletionCallback() {
     NexusOperationMetadata metadata =
         new NexusOperationMetadata(
             "nexus-request-id", "", Collections.singletonMap("Custom-Header", "value"));
     nexusContext.setNexusOperationMetadata(metadata);
+    nexusContext.setRequestId("nexus-request-id");
     Link link = workflowEventLink();
     nexusContext.setRequestLinks(Collections.singletonList(link));
 
@@ -154,6 +141,7 @@ public class RootActivityClientInvokerTest {
         new NexusOperationMetadata(
             "nexus-request-id", "", Collections.singletonMap("Custom-Header", "value"));
     nexusContext.setNexusOperationMetadata(metadata);
+    nexusContext.setRequestId("nexus-request-id");
 
     invoker.startActivity(newStartActivityInput());
 

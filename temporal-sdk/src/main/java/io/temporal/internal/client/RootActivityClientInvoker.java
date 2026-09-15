@@ -67,15 +67,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     NexusOperationMetadata nexusOperationMetadata =
         nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
-    String requestId;
-    if (nexusOperationMetadata != null
-        && !Strings.isNullOrEmpty(nexusOperationMetadata.requestId)) {
-      requestId = nexusOperationMetadata.requestId;
-    } else if (nexusContext != null && !Strings.isNullOrEmpty(nexusContext.getRequestId())) {
-      requestId = nexusContext.getRequestId();
-    } else {
-      requestId = UUID.randomUUID().toString();
-    }
+    String requestId =
+        nexusContext != null && !Strings.isNullOrEmpty(nexusContext.getRequestId())
+            ? nexusContext.getRequestId()
+            : UUID.randomUUID().toString();
 
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
@@ -144,7 +139,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     boolean willAttachCompletionCallback =
         nexusOperationMetadata != null
             && !Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl);
-    if (nexusContext != null && (!protoLinks.isEmpty() || willAttachCompletionCallback)) {
+    if (!protoLinks.isEmpty() || willAttachCompletionCallback) {
       // The server rejects attach_request_id unless the request also carries at least one link
       // or completion callback to attach on conflict.
       request.setOnConflictOptions(
