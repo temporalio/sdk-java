@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun.workerid;
+package io.temporal.gcp.cloudrun.id;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;

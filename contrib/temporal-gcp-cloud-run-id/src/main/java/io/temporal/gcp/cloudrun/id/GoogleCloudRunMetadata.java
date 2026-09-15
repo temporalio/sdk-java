@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun.workerid;
+package io.temporal.gcp.cloudrun.id;
 
 import io.temporal.common.Experimental;
 import java.io.ByteArrayOutputStream;
@@ -16,7 +16,7 @@ import java.util.function.Function;
  *
  * <p>Most applications register {@link CloudRunIDPlugin} on their workflow client instead of using
  * this class directly; the plugin fetches this metadata and applies the derived identity to the
- * client. Use this class directly to read the {@linkplain #workerIdentity() worker identity}
+ * client. Use this class directly to read the {@linkplain #identity() worker identity}
  * yourself.
  *
  * <p>The name and revision are resolved from environment variables Cloud Run injects into every
@@ -168,7 +168,7 @@ public final class GoogleCloudRunMetadata {
    * @return a worker identity string suitable for {@code WorkflowClientOptions} and {@code
    *     WorkerOptions}.
    */
-  public String workerIdentity() {
+  public String identity() {
     if (!isBlank(revision)) {
       return instanceId + "@" + revision;
     }

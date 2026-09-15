@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun.workerid;
+package io.temporal.gcp.cloudrun.id;
 
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
@@ -13,7 +13,7 @@ import java.util.function.Supplier;
  * <p>Register the plugin once on the workflow client and it propagates to every worker created from
  * that client. It reads {@link GoogleCloudRunMetadata Cloud Run instance metadata} once while the
  * client is configured, caches it, and sets the workflow client <b>identity</b> to the {@linkplain
- * GoogleCloudRunMetadata#workerIdentity() derived worker identity}, but only when the caller has
+ * GoogleCloudRunMetadata#identity() derived worker identity}, but only when the caller has
  * not already set an identity (a user-provided identity always wins). The workers created from that
  * client inherit the client identity.
  *
@@ -46,7 +46,7 @@ import java.util.function.Supplier;
 @Experimental
 public final class CloudRunIDPlugin extends SimplePlugin {
   /** Unique plugin name, used for logging and duplicate detection. */
-  public static final String NAME = "io.temporal.gcp.cloudrun.workerid.CloudRunIDPlugin";
+  public static final String NAME = "io.temporal.gcp.cloudrun.id.CloudRunIDPlugin";
 
   private final Supplier<GoogleCloudRunMetadata> metadataSupplier;
   private volatile GoogleCloudRunMetadata metadata;
@@ -97,7 +97,7 @@ public final class CloudRunIDPlugin extends SimplePlugin {
   public void configureWorkflowClient(WorkflowClientOptions.Builder builder) {
     GoogleCloudRunMetadata resolved = metadata();
     if (isBlank(builder.build().getIdentity())) {
-      builder.setIdentity(resolved.workerIdentity());
+      builder.setIdentity(resolved.identity());
     }
   }
 

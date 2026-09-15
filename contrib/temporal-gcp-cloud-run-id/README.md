@@ -8,12 +8,12 @@ The primary API is `CloudRunIDPlugin`. Register it once on your workflow client 
 
 ## Quick start
 
-Add `temporal-gcp-cloud-run-worker-id` next to your Temporal SDK dependency, then register the plugin on the workflow client options:
+Add `temporal-gcp-cloud-run-id` next to your Temporal SDK dependency, then register the plugin on the workflow client options:
 
 ```java
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
-import io.temporal.gcp.cloudrun.workerid.CloudRunIDPlugin;
+import io.temporal.gcp.cloudrun.id.CloudRunIDPlugin;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.Worker;
@@ -75,7 +75,7 @@ If you prefer to read the values yourself, or to fetch the metadata once and pas
 
 ```java
 GoogleCloudRunMetadata metadata = GoogleCloudRunMetadata.fetch();
-String identity = metadata.workerIdentity();
+String identity = metadata.identity();
 
 // Or hand the already-fetched metadata to the plugin to skip its own fetch:
 CloudRunIDPlugin plugin = new CloudRunIDPlugin(metadata);

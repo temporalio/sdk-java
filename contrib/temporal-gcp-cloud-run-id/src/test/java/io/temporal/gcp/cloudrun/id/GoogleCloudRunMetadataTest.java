@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun.workerid;
+package io.temporal.gcp.cloudrun.id;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -117,29 +117,29 @@ public class GoogleCloudRunMetadataTest {
   // --- Worker identity ---
 
   @Test
-  public void workerIdentityCombinesInstanceIdAndRevision() {
+  public void identityCombinesInstanceIdAndRevision() {
     responseBody.set("instance-1");
     Map<String, String> env = new HashMap<>();
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_REVISION, "revision-1");
 
-    assertEquals("instance-1@revision-1", fetch(env).workerIdentity());
+    assertEquals("instance-1@revision-1", fetch(env).identity());
   }
 
   @Test
-  public void workerIdentityFallsBackToNameWhenRevisionBlank() {
+  public void identityFallsBackToNameWhenRevisionBlank() {
     responseBody.set("instance-1");
     Map<String, String> env = new HashMap<>();
     env.put(GoogleCloudRunMetadata.CLOUD_RUN_WORKER_POOL, "worker-pool");
 
-    assertEquals("instance-1@worker-pool", fetch(env).workerIdentity());
+    assertEquals("instance-1@worker-pool", fetch(env).identity());
   }
 
   @Test
-  public void workerIdentityFallsBackToInstanceIdWhenNameAndRevisionBlank() {
+  public void identityFallsBackToInstanceIdWhenNameAndRevisionBlank() {
     responseBody.set("instance-1");
 
-    assertEquals("instance-1", fetch(new HashMap<>()).workerIdentity());
+    assertEquals("instance-1", fetch(new HashMap<>()).identity());
   }
 
   // --- Metadata HTTP request ---
