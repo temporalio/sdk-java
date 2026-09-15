@@ -2,7 +2,7 @@
 
 This module derives a Temporal worker **identity** for Google Cloud Run from instance metadata, for both Cloud Run **worker pools** and Cloud Run **services**.
 
-The primary API is `CloudRunIDPlugin`. Register it once on your workflow client and it sets the client identity automatically; every worker created from that client inherits it. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run` module.
+The primary API is `CloudRunIDPlugin`. Register it once on your workflow client and it sets the client identity automatically; every worker created from that client inherits it. This mirrors the `CloudRunOpenTelemetryPlugin` in the companion `temporal-gcp-cloud-run-opentelemetry` module.
 
 > Experimental: Google Cloud Run support is experimental and may change without notice.
 
