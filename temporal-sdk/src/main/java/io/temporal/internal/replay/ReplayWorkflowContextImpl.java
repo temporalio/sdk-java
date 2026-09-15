@@ -82,6 +82,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public Random getRandomStream(String name) {
+    return workflowStateMachines.getRandomStream(name);
+  }
+
+  @Override
   public Scope getMetricsScope() {
     return replayAwareWorkflowMetricsScope;
   }

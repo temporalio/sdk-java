@@ -744,6 +744,10 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().newRandom();
   }
 
+  public static Random getRandomStream(String name) {
+    return getRootWorkflowContext().getReplayContext().getRandomStream(name);
+  }
+
   public static Logger getLogger(Class<?> clazz) {
     Logger logger = LoggerFactory.getLogger(clazz);
     return new ReplayAwareLogger(
@@ -919,11 +923,11 @@ public final class WorkflowInternal {
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 
-  static boolean isReadOnly() {
+  public static boolean isReadOnly() {
     return getRootWorkflowContext().isReadOnly();
   }
 
-  static void assertNotReadOnly(String action) {
+  public static void assertNotReadOnly(String action) {
     if (isReadOnly()) {
       throw new ReadOnlyException(action);
     }
