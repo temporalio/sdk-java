@@ -66,8 +66,8 @@ public class PollerAutoscalingAutoEnrollTest {
     assertTrue(
         "defaulted poller type should switch to autoscaling",
         resolved.getPollerBehavior() instanceof PollerBehaviorAutoscaling);
-    // The enrolled behavior uses the PollerBehaviorAutoscaling defaults.
-    assertEquals(new PollerBehaviorAutoscaling(), resolved.getPollerBehavior());
+    // The enrolled behavior uses the explicit auto-enroll min/max/initial values.
+    assertEquals(new PollerBehaviorAutoscaling(5, 100, 5), resolved.getPollerBehavior());
   }
 
   @Test
