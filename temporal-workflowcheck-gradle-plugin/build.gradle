@@ -1,0 +1,21 @@
+plugins {
+    id 'java-gradle-plugin'
+}
+
+description = 'Temporal Java WorkflowCheck Gradle Plugin'
+
+gradlePlugin {
+    plugins {
+        workflowCheck {
+            id = 'io.temporal.workflowcheck'
+            implementationClass = 'io.temporal.workflowcheck.gradle.WorkflowCheckPlugin'
+            displayName = 'Temporal WorkflowCheck Plugin'
+            description = 'Runs temporal-workflowcheck bytecode analyzer to detect non-deterministic calls in Temporal workflow code'
+        }
+    }
+}
+
+dependencies {
+    testImplementation gradleTestKit()
+    testImplementation "junit:junit:${junitVersion}"
+}
