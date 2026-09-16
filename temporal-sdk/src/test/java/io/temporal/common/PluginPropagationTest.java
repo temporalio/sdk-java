@@ -29,6 +29,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -63,10 +64,10 @@ public class PluginPropagationTest {
     TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(testOptions);
     try {
       assertSame(originalConverter, originalOptions.getDataConverter());
+      assertSame(plugin.dataConverter, env.getWorkflowClient().getOptions().getDataConverter());
       Payload payload =
-          env.getWorkflowClient()
-              .getOptions()
-              .getDataConverter()
+          ((WorkflowClientInternal) env.getWorkflowClient().getInternal())
+              .getInternalDataConverter()
               .toPayload(new TransferModel())
               .get();
       assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
@@ -76,13 +77,15 @@ public class PluginPropagationTest {
   }
 
   private static final class TransferConverterPlugin extends SimplePlugin {
+    private final DataConverter dataConverter = DefaultDataConverter.newDefaultInstance();
+
     private TransferConverterPlugin() {
       super("transfer-converter");
     }
 
     @Override
     public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
-      builder.setDataConverter(DefaultDataConverter.newDefaultInstance());
+      builder.setDataConverter(dataConverter);
     }
   }
 

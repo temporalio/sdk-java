@@ -108,7 +108,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     WorkflowClient workflowClient =
         WorkflowClient.newInstance(
             this.workflowServiceStubs, testEnvironmentOptions.getWorkflowClientOptions());
-    this.dataConverter = workflowClient.getOptions().getDataConverter();
+    this.dataConverter =
+        ((WorkflowClientInternal) workflowClient.getInternal()).getInternalDataConverter();
     ExternalStorageRunner externalStorageRunner =
         ((WorkflowClientInternal) workflowClient.getInternal()).getExternalStorageRunner();
     this.heartbeatDetailsConverter =

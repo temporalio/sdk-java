@@ -97,15 +97,17 @@ public class WorkerPollerAutoEnrollStartupTest {
     when(service.blockingStub()).thenReturn(blockingStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
+    WorkflowClientOptions clientOptions =
+        WorkflowClientOptions.newBuilder()
+            .setNamespace("test-ns")
+            .setIdentity("test-worker")
+            .validateAndBuildWithDefaults();
+    WorkflowClientInternal clientInternal = mock(WorkflowClientInternal.class);
+    when(clientInternal.getInternalDataConverter()).thenReturn(clientOptions.getDataConverter());
     WorkflowClient client = mock(WorkflowClient.class);
-    when(client.getInternal()).thenReturn(mock(WorkflowClientInternal.class));
+    when(client.getInternal()).thenReturn(clientInternal);
     when(client.getWorkflowServiceStubs()).thenReturn(service);
-    when(client.getOptions())
-        .thenReturn(
-            WorkflowClientOptions.newBuilder()
-                .setNamespace("test-ns")
-                .setIdentity("test-worker")
-                .validateAndBuildWithDefaults());
+    when(client.getOptions()).thenReturn(clientOptions);
 
     // Namespace advertises the auto-enroll capability.
     NamespaceCapabilities capabilities = new NamespaceCapabilities();

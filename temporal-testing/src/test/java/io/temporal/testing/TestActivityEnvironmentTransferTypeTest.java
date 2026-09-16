@@ -29,6 +29,20 @@ import org.junit.jupiter.api.Test;
 class TestActivityEnvironmentTransferTypeTest {
 
   @Test
+  void activityContextExposesConfiguredConverter() {
+    TrackingDataConverter trackingConverter = new TrackingDataConverter();
+    TestActivityEnvironment environment = newEnvironment(trackingConverter);
+    try {
+      environment.registerActivitiesImplementations(new ConverterActivityImpl(trackingConverter));
+      ConverterActivity activity = environment.newActivityStub(ConverterActivity.class);
+
+      assertTrue(activity.usesConfiguredConverter());
+    } finally {
+      environment.close();
+    }
+  }
+
+  @Test
   void wrapsConfiguredConverterForArgumentsAndResults() {
     TrackingDataConverter trackingConverter = new TrackingDataConverter();
     TestActivityEnvironment environment = newEnvironment(trackingConverter);
@@ -172,6 +186,26 @@ class TestActivityEnvironmentTransferTypeTest {
         throw new IllegalStateException("Activity input did not use its transfer type converter");
       }
       return new TransferModel(input.value + "-result");
+    }
+  }
+
+  @ActivityInterface
+  public interface ConverterActivity {
+    @ActivityMethod
+    boolean usesConfiguredConverter();
+  }
+
+  private static final class ConverterActivityImpl implements ConverterActivity {
+    private final DataConverter expectedConverter;
+
+    private ConverterActivityImpl(DataConverter expectedConverter) {
+      this.expectedConverter = expectedConverter;
+    }
+
+    @Override
+    public boolean usesConfiguredConverter() {
+      return Activity.getExecutionContext().getWorkflowClient().getOptions().getDataConverter()
+          == expectedConverter;
     }
   }
 
