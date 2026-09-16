@@ -8,6 +8,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOpe
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionOutput;
 import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.internal.client.NexusOperationHandleImpl;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import javax.annotation.Nullable;
@@ -43,12 +44,15 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
   @Override
   public UntypedNexusOperationHandle start(
       String operation, StartNexusOperationOptions options, @Nullable Object arg) {
-    Payload payload = serializeInput(arg);
+    Payload payload = serializeInput(arg, operation);
     StartNexusOperationExecutionInput input =
         new StartNexusOperationExecutionInput(
             endpoint, serviceName, operation, payload, options, Collections.emptyMap());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
-    return new NexusOperationHandleImpl(output.getOperationId(), output.getRunId(), invoker);
+    // The handle keeps what the start request was for, including when the server returned an
+    // operation that was already running, so the result is decoded the way it was encoded.
+    return new NexusOperationHandleImpl(
+        output.getOperationId(), output.getRunId(), invoker, endpoint, serviceName, operation);
   }
 
   @Override
@@ -71,12 +75,13 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
     return NexusOperationHandle.fromUntyped(handle, resultClass, resultType).getResult();
   }
 
-  private @Nullable Payload serializeInput(@Nullable Object arg) {
+  private @Nullable Payload serializeInput(@Nullable Object arg, String operation) {
     if (arg == null) {
       return null;
     }
     Class<?> argClass = arg.getClass();
     return dataConverter
+        .withContext(new NexusSerializationContext(endpoint, serviceName, operation))
         .toPayload(arg)
         .orElseThrow(
             () ->

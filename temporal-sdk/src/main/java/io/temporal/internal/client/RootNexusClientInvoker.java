@@ -8,6 +8,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.NexusOperationWaitStage;
 import io.temporal.api.errordetails.v1.NexusOperationExecutionAlreadyStartedFailure;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.nexus.v1.NexusOperationExecutionInfo;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsRequest;
 import io.temporal.api.workflowservice.v1.CountNexusOperationExecutionsResponse;
@@ -28,10 +29,12 @@ import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationNotFoundException;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.util.Iterator;
 import java.util.Objects;
@@ -140,9 +143,42 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     } catch (StatusRuntimeException e) {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
+    // The response names the endpoint, service and operation, so the description decodes its
+    // payloads and failures with the same context the operation was started with.
+    NexusOperationExecutionInfo info = response.getInfo();
+    DataConverter dataConverter =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new NexusSerializationContext(
+                    info.getEndpoint(), info.getService(), info.getOperation()));
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
-            response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
+            response,
+            dataConverter,
+            // The summary and details were attached without a Nexus context, so a converter that
+            // varies by context only round-trips them if they are decoded without one too.
+            clientOptions.getDataConverter(),
+            clientOptions.getNamespace()));
+  }
+
+  /**
+   * The client's data converter scoped to the Nexus operation the result is being read for, or left
+   * as-is when the operation is unknown, which is the case for a handle obtained by operation ID.
+   *
+   * <p>{@link GetNexusOperationResultInput} guarantees the endpoint, service and operation are set
+   * together or not at all, so one null means all three are null. Absence is tested with {@code
+   * null} rather than emptiness so an operation genuinely named with an empty string still gets a
+   * context.
+   */
+  private DataConverter dataConverterFor(GetNexusOperationResultInput<?> input) {
+    DataConverter dataConverter = clientOptions.getDataConverter();
+    if (input.getEndpoint() == null) {
+      return dataConverter;
+    }
+    return dataConverter.withContext(
+        new NexusSerializationContext(
+            input.getEndpoint(), input.getService(), input.getOperation()));
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(
@@ -246,13 +282,14 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       @Nullable String runId,
       PollNexusOperationExecutionResponse response,
       GetNexusOperationResultInput<R> input) {
+    DataConverter dataConverter = dataConverterFor(input);
     if (response.hasFailure()) {
       Failure failure = response.getFailure();
       throw new NexusOperationFailedException(
           "Nexus operation failed: operationId='" + operationId + "'",
           operationId,
           runId,
-          clientOptions.getDataConverter().failureToException(failure));
+          dataConverter.failureToException(failure));
     }
     if (!response.hasResult()) {
       throw new NexusOperationFailedException(
@@ -266,12 +303,10 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     }
     Payload payload = response.getResult();
     R deserialized =
-        clientOptions
-            .getDataConverter()
-            .fromPayload(
-                payload,
-                input.getResultClass(),
-                input.getResultType() != null ? input.getResultType() : input.getResultClass());
+        dataConverter.fromPayload(
+            payload,
+            input.getResultClass(),
+            input.getResultType() != null ? input.getResultType() : input.getResultClass());
     return new GetNexusOperationResultOutput<>(deserialized);
   }
 
