@@ -147,9 +147,11 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     // payloads and failures with the same context the operation was started with.
     NexusOperationExecutionInfo info = response.getInfo();
     DataConverter dataConverter =
-        dataConverterFor(
-            new NexusSerializationContext(
-                info.getEndpoint(), info.getService(), info.getOperation()));
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new NexusSerializationContext(
+                    info.getEndpoint(), info.getService(), info.getOperation()));
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
             response,
@@ -161,12 +163,22 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   }
 
   /**
-   * The client's data converter scoped to a Nexus operation, or left as-is when there is no context
-   * for the operation, which is the case for a handle obtained by operation ID.
+   * The client's data converter scoped to the Nexus operation the result is being read for, or left
+   * as-is when the operation is unknown, which is the case for a handle obtained by operation ID.
+   *
+   * <p>{@link GetNexusOperationResultInput} guarantees the endpoint, service and operation are set
+   * together or not at all, so one null means all three are null. Absence is tested with {@code
+   * null} rather than emptiness so an operation genuinely named with an empty string still gets a
+   * context.
    */
-  private DataConverter dataConverterFor(@Nullable NexusSerializationContext context) {
+  private DataConverter dataConverterFor(GetNexusOperationResultInput<?> input) {
     DataConverter dataConverter = clientOptions.getDataConverter();
-    return context != null ? dataConverter.withContext(context) : dataConverter;
+    if (input.getEndpoint() == null) {
+      return dataConverter;
+    }
+    return dataConverter.withContext(
+        new NexusSerializationContext(
+            input.getEndpoint(), input.getService(), input.getOperation()));
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(
@@ -270,7 +282,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       @Nullable String runId,
       PollNexusOperationExecutionResponse response,
       GetNexusOperationResultInput<R> input) {
-    DataConverter dataConverter = dataConverterFor(input.getSerializationContext());
+    DataConverter dataConverter = dataConverterFor(input);
     if (response.hasFailure()) {
       Failure failure = response.getFailure();
       throw new NexusOperationFailedException(

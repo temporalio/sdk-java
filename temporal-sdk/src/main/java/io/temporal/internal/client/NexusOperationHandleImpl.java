@@ -10,7 +10,6 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.GetNexusOpera
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.GetNexusOperationResultOutput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.RequestCancelNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.TerminateNexusOperationExecutionInput;
-import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -26,21 +25,25 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
   private final String operationId;
   private final @Nullable String runId;
   private final NexusClientCallsInterceptor interceptor;
-  // Context the operation was started with, retained so the result and failure are decoded with the
-  // converter that encoded them. Null for a handle obtained by operation ID, which has no endpoint,
-  // service or operation to build a context from.
-  private final @Nullable NexusSerializationContext serializationContext;
+  // What the operation was started on, retained so its result and failure are decoded with the
+  // same serialization context that encoded them. All null for a handle obtained by operation ID,
+  // which never saw a start request.
+  private final @Nullable String endpoint;
+  private final @Nullable String service;
+  private final @Nullable String operation;
 
   public NexusOperationHandleImpl(
       String operationId, @Nullable String runId, NexusClientCallsInterceptor interceptor) {
-    this(operationId, runId, interceptor, null);
+    this(operationId, runId, interceptor, null, null, null);
   }
 
   public NexusOperationHandleImpl(
       String operationId,
       @Nullable String runId,
       NexusClientCallsInterceptor interceptor,
-      @Nullable NexusSerializationContext serializationContext) {
+      @Nullable String endpoint,
+      @Nullable String service,
+      @Nullable String operation) {
     if (operationId == null) {
       throw new IllegalArgumentException("operationId is required");
     }
@@ -50,7 +53,9 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
     this.operationId = operationId;
     this.runId = runId;
     this.interceptor = interceptor;
-    this.serializationContext = serializationContext;
+    this.endpoint = endpoint;
+    this.service = service;
+    this.operation = operation;
   }
 
   @Override
@@ -135,7 +140,9 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
             Deadline.after(timeout, unit),
             resultClass,
             resultType,
-            serializationContext);
+            endpoint,
+            service,
+            operation);
     return interceptor.getNexusOperationResult(input).getResult();
   }
 
@@ -155,7 +162,9 @@ public final class NexusOperationHandleImpl implements UntypedNexusOperationHand
             Deadline.after(timeout, unit),
             resultClass,
             resultType,
-            serializationContext);
+            endpoint,
+            service,
+            operation);
     return interceptor
         .getNexusOperationResultAsync(input)
         .thenApply(GetNexusOperationResultOutput::getResult);

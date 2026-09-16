@@ -44,17 +44,15 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
   @Override
   public UntypedNexusOperationHandle start(
       String operation, StartNexusOperationOptions options, @Nullable Object arg) {
-    NexusSerializationContext serializationContext =
-        new NexusSerializationContext(endpoint, serviceName, operation);
-    Payload payload = serializeInput(arg, serializationContext);
+    Payload payload = serializeInput(arg, operation);
     StartNexusOperationExecutionInput input =
         new StartNexusOperationExecutionInput(
             endpoint, serviceName, operation, payload, options, Collections.emptyMap());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
-    // The handle keeps the context of the start request, including when the server returned an
+    // The handle keeps what the start request was for, including when the server returned an
     // operation that was already running, so the result is decoded the way it was encoded.
     return new NexusOperationHandleImpl(
-        output.getOperationId(), output.getRunId(), invoker, serializationContext);
+        output.getOperationId(), output.getRunId(), invoker, endpoint, serviceName, operation);
   }
 
   @Override
@@ -77,14 +75,13 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
     return NexusOperationHandle.fromUntyped(handle, resultClass, resultType).getResult();
   }
 
-  private @Nullable Payload serializeInput(
-      @Nullable Object arg, NexusSerializationContext serializationContext) {
+  private @Nullable Payload serializeInput(@Nullable Object arg, String operation) {
     if (arg == null) {
       return null;
     }
     Class<?> argClass = arg.getClass();
     return dataConverter
-        .withContext(serializationContext)
+        .withContext(new NexusSerializationContext(endpoint, serviceName, operation))
         .toPayload(arg)
         .orElseThrow(
             () ->
