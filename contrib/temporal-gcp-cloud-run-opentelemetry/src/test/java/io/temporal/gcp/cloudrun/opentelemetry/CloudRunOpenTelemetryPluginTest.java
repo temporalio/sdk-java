@@ -1,4 +1,4 @@
-package io.temporal.gcp.cloudrun;
+package io.temporal.gcp.cloudrun.opentelemetry;
 
 import static org.junit.Assert.*;
 
