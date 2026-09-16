@@ -56,11 +56,11 @@ public class WorkflowStreamCodecTest {
                 .build())) {
       client.topic("events").publish("value", true);
       client.flush();
-      try (WorkflowStreamSubscription subscription =
-          client.subscribe(SubscribeOptions.getDefaultInstance())) {
-        WorkflowStreamItem item = subscription.next();
+      try (WorkflowStreamSubscription<String> subscription =
+          client.subscribe(SubscribeOptions.getDefaultInstance(), String.class)) {
+        WorkflowStreamItem<String> item = subscription.next();
         Assert.assertFalse(item.getPayload().containsMetadata(CODEC_METADATA_KEY));
-        Assert.assertEquals("value", client.decodeItem(item, String.class));
+        Assert.assertEquals("value", item.getValue());
       }
     }
     Assert.assertTrue(CODEC.encodeCalls.get() > 0);

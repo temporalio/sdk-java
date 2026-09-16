@@ -19,6 +19,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -148,6 +149,75 @@ public class ListenerSubscribeTest {
         WorkflowStreamItem second = listener.items.get(1);
         Assert.assertEquals("3", decode(second));
         Assert.assertEquals(2, second.getOffset());
+      }
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testTypedListenerReceivesDecodedValue() throws Exception {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      streamClient.topic("evt").publish("value", true);
+      streamClient.flush();
+      CountDownLatch delivered = new CountDownLatch(1);
+      AtomicReference<WorkflowStreamItem<String>> received = new AtomicReference<>();
+
+      try (WorkflowStreamSubscriptionHandle handle =
+          streamClient
+              .topic("evt", String.class)
+              .subscribe(
+                  0,
+                  item -> {
+                    received.set(item);
+                    delivered.countDown();
+                    return null;
+                  })) {
+        await(delivered, "typed item");
+        Assert.assertEquals("value", received.get().getValue());
+        Assert.assertEquals("value", decode(received.get()));
+      }
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testTypedListenerConversionFailureCallsOnError() throws Exception {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      streamClient.topic("evt").publish("not-an-integer", true);
+      streamClient.flush();
+      CountDownLatch failed = new CountDownLatch(1);
+      AtomicReference<Throwable> error = new AtomicReference<>();
+      AtomicInteger deliveries = new AtomicInteger();
+
+      WorkflowStreamSubscriptionHandle handle =
+          streamClient.subscribe(
+              FAST_POLL,
+              Integer.class,
+              new WorkflowStreamListener<Integer>() {
+                @Override
+                public CompletionStage<Void> onNext(WorkflowStreamItem<Integer> item) {
+                  deliveries.incrementAndGet();
+                  return null;
+                }
+
+                @Override
+                public void onError(Throwable failure) {
+                  error.set(failure);
+                  failed.countDown();
+                }
+              });
+      await(failed, "conversion failure");
+      Assert.assertNotNull(error.get());
+      Assert.assertEquals(0, deliveries.get());
+      try {
+        handle.getDoneFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        Assert.fail("done future must complete exceptionally");
+      } catch (ExecutionException e) {
+        Assert.assertSame(error.get(), e.getCause());
       }
     }
     stub.signal("finish");

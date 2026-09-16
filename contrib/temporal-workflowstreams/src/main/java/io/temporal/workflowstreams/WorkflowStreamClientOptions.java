@@ -102,8 +102,7 @@ public final class WorkflowStreamClientOptions {
      * The codec chain configured on the Temporal client runs once on the signal/update envelope
      * that carries each batch, so encoding items here too would double-encode them; the {@code
      * PayloadConverter[]} type makes that mistake impossible. Transfer conversion and payload
-     * conversion apply to each item. Decode subscribed items with {@link
-     * WorkflowStreamClient#decodeItem(WorkflowStreamItem, Class)}.
+     * conversion apply to each item in a typed subscription.
      *
      * <p>Default: the standard converter set.
      */
