@@ -214,10 +214,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throws TimeoutException {
     String namespace = clientOptions.getNamespace();
     DataConverter dc =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new ActivitySerializationContext(namespace, null, null, null, null, false));
+        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
@@ -292,7 +289,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
-    DataConverter dc = clientOptions.getDataConverter();
+    DataConverter dc =
+        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     return pollActivityUntilOutcome(input, deadline)
         .handle(
@@ -372,6 +370,13 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
                 input.getRunId(),
                 null));
     }
+  }
+
+  private ActivitySerializationContext resultSerializationContext(GetActivityResultInput<?> input) {
+    // Currently, result doesn't have access to activity type and serialization context doesn't hold
+    // activity ID.
+    return new ActivitySerializationContext(
+        clientOptions.getNamespace(), null, null, null, null, false);
   }
 
   @Override

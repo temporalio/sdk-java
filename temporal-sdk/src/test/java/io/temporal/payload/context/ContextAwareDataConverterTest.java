@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -13,6 +14,7 @@ import io.temporal.client.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.GlobalDataConverter;
+import io.temporal.internal.history.LocalActivityMarkerUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -45,7 +47,7 @@ public class ContextAwareDataConverterTest {
   @WorkflowInterface
   public interface HelloWorkflow {
     @WorkflowMethod
-    TracedValue execute(TracedValue arg);
+    TracedValue execute(TracedValue arg, boolean local);
   }
 
   public static class HelloWorkflowImpl implements HelloWorkflow {
@@ -54,9 +56,20 @@ public class ContextAwareDataConverterTest {
             Activities.class,
             ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
 
+    private final Activities localActivities =
+        Workflow.newLocalActivityStub(
+            Activities.class,
+            LocalActivityOptions.newBuilder()
+                .setStartToCloseTimeout(Duration.ofSeconds(10))
+                .build());
+
     @Override
-    public TracedValue execute(TracedValue arg) {
-      return activities.hello(arg);
+    public TracedValue execute(TracedValue arg, boolean local) {
+      if (local) {
+        return localActivities.hello(arg);
+      } else {
+        return activities.hello(arg);
+      }
     }
   }
 
@@ -83,10 +96,10 @@ public class ContextAwareDataConverterTest {
   public void standaloneActivitySerializationContext() {
     String activityId = "act-" + UUID.randomUUID();
 
-    TracedValue result =
+    ActivityHandle<TracedValue> handle =
         testWorkflowRule
             .getActivityClient()
-            .execute(
+            .start(
                 Activities.class,
                 Activities::hello,
                 StartActivityOptions.newBuilder()
@@ -115,12 +128,14 @@ public class ContextAwareDataConverterTest {
             testWorkflowRule.getTaskQueue(),
             false);
 
-    Assert.assertEquals(
-        result,
+    TracedValue expected =
         new TracedValue("Hello world")
             .addTrace(
                 TraceEntry.encode(workerContext, TAG_WORKER),
-                TraceEntry.decode(clientContext, TAG_CLIENT)));
+                TraceEntry.decode(clientContext, TAG_CLIENT));
+
+    Assert.assertEquals(expected, handle.getResult());
+    Assert.assertEquals(expected, handle.getResultAsync().join());
   }
 
   @Test
@@ -135,7 +150,7 @@ public class ContextAwareDataConverterTest {
                 .setTaskQueue(testWorkflowRule.getTaskQueue())
                 .build());
 
-    TracedValue result = workflow.execute(new TracedValue("world"));
+    TracedValue result = workflow.execute(new TracedValue("world"), false);
     WorkflowExecution execution = WorkflowStub.fromTyped(workflow).getExecution();
     Assert.assertNotNull(execution);
     List<HistoryEvent> history =
@@ -172,35 +187,96 @@ public class ContextAwareDataConverterTest {
             false);
 
     Assert.assertEquals(
-        result,
         new TracedValue("Hello world")
             .addTrace(
                 TraceEntry.encode(activityContext, TAG_WORKER),
                 TraceEntry.decode(activityContext, TAG_WORKER),
                 TraceEntry.encode(workflowContext, TAG_WORKER),
-                TraceEntry.decode(workflowContext, TAG_CLIENT)));
+                TraceEntry.decode(workflowContext, TAG_CLIENT)),
+        result);
 
     Assert.assertEquals(
+        new TracedValue("world")
+            .addTrace(
+                TraceEntry.encode(workflowContext, TAG_CLIENT),
+                TraceEntry.decode(workflowContext, TAG_WORKER),
+                TraceEntry.encode(activityContext, TAG_WORKER)),
         GlobalDataConverter.get()
             .fromPayloads(
                 0,
                 Optional.of(scheduledEvent.getActivityTaskScheduledEventAttributes().getInput()),
                 TracedValue.class,
-                TracedValue.class),
-        new TracedValue("world")
-            .addTrace(
-                TraceEntry.encode(workflowContext, TAG_CLIENT),
-                TraceEntry.decode(workflowContext, TAG_WORKER),
-                TraceEntry.encode(activityContext, TAG_WORKER)));
+                TracedValue.class));
 
     Assert.assertEquals(
+        new TracedValue("Hello world").addTrace(TraceEntry.encode(activityContext, TAG_WORKER)),
         GlobalDataConverter.get()
             .fromPayloads(
                 0,
                 Optional.of(completedEvent.getActivityTaskCompletedEventAttributes().getResult()),
                 TracedValue.class,
-                TracedValue.class),
-        new TracedValue("Hello world").addTrace(TraceEntry.encode(activityContext, TAG_WORKER)));
+                TracedValue.class));
+  }
+
+  @Test
+  public void localActivitySerializationContext() {
+    WorkflowClient client = getWorkflowClient();
+
+    HelloWorkflow workflow =
+        client.newWorkflowStub(
+            HelloWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setWorkflowRunTimeout(Duration.ofSeconds(10))
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .build());
+
+    TracedValue result = workflow.execute(new TracedValue("world"), true);
+    WorkflowExecution execution = WorkflowStub.fromTyped(workflow).getExecution();
+    Assert.assertNotNull(execution);
+    List<HistoryEvent> history =
+        client
+            .fetchHistory(execution.getWorkflowId(), execution.getRunId())
+            .getHistory()
+            .getEventsList();
+    List<HistoryEvent> markerEvents =
+        history.stream()
+            .filter(HistoryEvent::hasMarkerRecordedEventAttributes)
+            .collect(Collectors.toList());
+    Assert.assertEquals(1, markerEvents.size());
+    HistoryEvent markerEvent = markerEvents.get(0);
+    Assert.assertTrue(LocalActivityMarkerUtils.hasLocalActivityStructure(markerEvent));
+
+    WorkflowSerializationContext workflowContext =
+        new WorkflowSerializationContext(SDKTestWorkflowRule.NAMESPACE, execution.getWorkflowId());
+
+    ActivitySerializationContext activityContext =
+        new ActivitySerializationContext(
+            SDKTestWorkflowRule.NAMESPACE,
+            execution.getWorkflowId(),
+            "HelloWorkflow",
+            "HelloActivity",
+            testWorkflowRule.getTaskQueue(),
+            true);
+
+    Assert.assertEquals(
+        new TracedValue("Hello world")
+            .addTrace(
+                TraceEntry.encode(activityContext, TAG_WORKER),
+                TraceEntry.decode(activityContext, TAG_WORKER),
+                TraceEntry.encode(workflowContext, TAG_WORKER),
+                TraceEntry.decode(workflowContext, TAG_CLIENT)),
+        result);
+
+    Assert.assertEquals(
+        new TracedValue("Hello world").addTrace(TraceEntry.encode(activityContext, TAG_WORKER)),
+        GlobalDataConverter.get()
+            .fromPayloads(
+                0,
+                Optional.ofNullable(
+                    LocalActivityMarkerUtils.getResult(
+                        markerEvent.getMarkerRecordedEventAttributes())),
+                TracedValue.class,
+                TracedValue.class));
   }
 
   private WorkflowClient getWorkflowClient() {
@@ -353,10 +429,15 @@ public class ContextAwareDataConverterTest {
     }
 
     public TraceEntry(
-        @NonNull SerializationContext context, @NonNull String tag, Operation operation) {
+        @Nullable SerializationContext context, @NonNull String tag, Operation operation) {
       this.tag = tag;
       this.operation = operation;
-      if (context instanceof WorkflowSerializationContext) {
+      if (context == null) {
+        namespace = null;
+        workflowId = null;
+        activityType = null;
+        local = null;
+      } else if (context instanceof WorkflowSerializationContext) {
         WorkflowSerializationContext c = (WorkflowSerializationContext) context;
         namespace = c.getNamespace();
         workflowId = c.getWorkflowId();
