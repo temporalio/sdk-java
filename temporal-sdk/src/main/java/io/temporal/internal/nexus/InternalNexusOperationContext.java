@@ -27,6 +27,12 @@ public class InternalNexusOperationContext {
   // workflow client can attach them to the outgoing requests it issues (e.g. signal,
   // signalWithStart) via the request's links field.
   private List<Link> requestLinks = Collections.emptyList();
+  // The inbound Nexus task's request ID, captured at the task-handler boundary and available to
+  // clients executing on the operation-handler thread. RootActivityClientInvoker reuses it for
+  // redelivery-safe activity-start deduplication. It is deliberately independent of
+  // nexusOperationMetadata, which is scoped to the single backing start because it carries
+  // completion-callback semantics.
+  private String requestId;
   // Links returned by outbound RPCs the operation handler issues (such as
   // SignalWorkflowExecutionResponse.link or SignalWithStartWorkflowExecutionResponse.signal_link).
   // One entry per outbound RPC that returned a link. Drained
@@ -104,6 +110,16 @@ public class InternalNexusOperationContext {
   /** Links from the inbound Nexus task; empty if none. */
   public @Nonnull List<Link> getRequestLinks() {
     return Collections.unmodifiableList(requestLinks);
+  }
+
+  /** Set the request ID of the inbound Nexus task, ambient for the whole invocation. */
+  public void setRequestId(String requestId) {
+    this.requestId = requestId;
+  }
+
+  /** The inbound Nexus task's request ID; {@code null} if not set. */
+  public String getRequestId() {
+    return requestId;
   }
 
   public void setStartWorkflowResponseLink(Link link) {
