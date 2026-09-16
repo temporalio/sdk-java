@@ -6,6 +6,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
@@ -78,6 +81,36 @@ public class ExternalStorageDataConverterTest {
 
     assertTrue(ExternalStorageReferences.isReference(stored.get()));
     assertEquals("value", converter.fromPayload(stored.get(), String.class, String.class));
+  }
+
+  @Test
+  public void singlePayloadPassesSerializationTypeHintToDelegate() {
+    DataConverter delegate = mock(DataConverter.class);
+    Type typeHint = new com.google.common.reflect.TypeToken<List<String>>() {}.getType();
+    List<String> value = Collections.singletonList("value");
+    Payload payload = Payload.getDefaultInstance();
+    when(delegate.toPayload(value, typeHint)).thenReturn(Optional.of(payload));
+    DataConverter converter = new ExternalStorageDataConverter(delegate, null);
+
+    Optional<Payload> converted = converter.toPayload(value, typeHint);
+
+    verify(delegate).toPayload(value, typeHint);
+    assertEquals(payload, converted.get());
+  }
+
+  @Test
+  public void payloadsPassSerializationTypeHintsToDelegate() {
+    DataConverter delegate = mock(DataConverter.class);
+    Type[] typeHints = {new com.google.common.reflect.TypeToken<List<String>>() {}.getType()};
+    Object[] values = {Collections.singletonList("value")};
+    Payloads payloads = Payloads.newBuilder().addPayloads(Payload.getDefaultInstance()).build();
+    when(delegate.toPayloads(values, typeHints)).thenReturn(Optional.of(payloads));
+    DataConverter converter = new ExternalStorageDataConverter(delegate, null);
+
+    Optional<Payloads> converted = converter.toPayloads(values, typeHints);
+
+    verify(delegate).toPayloads(values, typeHints);
+    assertEquals(payloads, converted.get());
   }
 
   @Test

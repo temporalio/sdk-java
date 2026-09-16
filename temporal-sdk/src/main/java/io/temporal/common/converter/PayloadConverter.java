@@ -42,6 +42,22 @@ public interface PayloadConverter {
   Optional<Payload> toData(Object value) throws DataConverterException;
 
   /**
+   * Serializes a value using the supplied type hint.
+   *
+   * <p>The type hint may be used by converters whose serialization format depends on the declared
+   * type of the value. The default implementation preserves compatibility with existing payload
+   * converters by delegating to {@link #toData(Object)}.
+   *
+   * @param value Java value to convert
+   * @param valueType declared type of {@code value}
+   * @return converted value
+   * @throws DataConverterException if conversion fails
+   */
+  default Optional<Payload> toData(Object value, Type valueType) throws DataConverterException {
+    return toData(value);
+  }
+
+  /**
    * Implements conversion of a single value.
    *
    * @param content Serialized value to convert to a Java object.

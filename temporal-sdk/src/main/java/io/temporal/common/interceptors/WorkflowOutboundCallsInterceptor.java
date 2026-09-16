@@ -44,6 +44,7 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Class<R> resultClass;
     private final Type resultType;
     private final Object[] args;
+    private final @Nullable Type[] argTypes;
     private final ActivityOptions options;
     private final Header header;
 
@@ -54,10 +55,22 @@ public interface WorkflowOutboundCallsInterceptor {
         Object[] args,
         ActivityOptions options,
         Header header) {
+      this(activityName, resultClass, resultType, args, null, options, header);
+    }
+
+    public ActivityInput(
+        String activityName,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        @Nullable Type[] argTypes,
+        ActivityOptions options,
+        Header header) {
       this.activityName = activityName;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
+      this.argTypes = argTypes;
       this.options = options;
       this.header = header;
     }
@@ -76,6 +89,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Object[] getArgs() {
       return args;
+    }
+
+    public @Nullable Type[] getArgTypes() {
+      return argTypes;
     }
 
     public ActivityOptions getOptions() {
@@ -110,6 +127,7 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Class<R> resultClass;
     private final Type resultType;
     private final Object[] args;
+    private final @Nullable Type[] argTypes;
     private final LocalActivityOptions options;
     private final Header header;
 
@@ -120,10 +138,22 @@ public interface WorkflowOutboundCallsInterceptor {
         Object[] args,
         LocalActivityOptions options,
         Header header) {
+      this(activityName, resultClass, resultType, args, null, options, header);
+    }
+
+    public LocalActivityInput(
+        String activityName,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        @Nullable Type[] argTypes,
+        LocalActivityOptions options,
+        Header header) {
       this.activityName = activityName;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
+      this.argTypes = argTypes;
       this.options = options;
       this.header = header;
     }
@@ -142,6 +172,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Object[] getArgs() {
       return args;
+    }
+
+    public @Nullable Type[] getArgTypes() {
+      return argTypes;
     }
 
     public LocalActivityOptions getOptions() {
@@ -171,6 +205,7 @@ public interface WorkflowOutboundCallsInterceptor {
     private final Class<R> resultClass;
     private final Type resultType;
     private final Object[] args;
+    private final @Nullable Type[] argTypes;
     private final ChildWorkflowOptions options;
     private final Header header;
 
@@ -182,11 +217,24 @@ public interface WorkflowOutboundCallsInterceptor {
         Object[] args,
         ChildWorkflowOptions options,
         Header header) {
+      this(workflowId, workflowType, resultClass, resultType, args, null, options, header);
+    }
+
+    public ChildWorkflowInput(
+        String workflowId,
+        String workflowType,
+        Class<R> resultClass,
+        Type resultType,
+        Object[] args,
+        @Nullable Type[] argTypes,
+        ChildWorkflowOptions options,
+        Header header) {
       this.workflowId = workflowId;
       this.workflowType = workflowType;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.args = args;
+      this.argTypes = argTypes;
       this.options = options;
       this.header = header;
     }
@@ -209,6 +257,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Object[] getArgs() {
       return args;
+    }
+
+    public @Nullable Type[] getArgTypes() {
+      return argTypes;
     }
 
     public ChildWorkflowOptions getOptions() {
@@ -338,13 +390,24 @@ public interface WorkflowOutboundCallsInterceptor {
     private final String signalName;
     private final Header header;
     private final Object[] args;
+    private final @Nullable Type[] argTypes;
 
     public SignalExternalInput(
         WorkflowExecution execution, String signalName, Header header, Object[] args) {
+      this(execution, signalName, header, args, null);
+    }
+
+    public SignalExternalInput(
+        WorkflowExecution execution,
+        String signalName,
+        Header header,
+        Object[] args,
+        @Nullable Type[] argTypes) {
       this.execution = execution;
       this.signalName = signalName;
       this.header = header;
       this.args = args;
+      this.argTypes = argTypes;
     }
 
     public WorkflowExecution getExecution() {
@@ -361,6 +424,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Object[] getArgs() {
       return args;
+    }
+
+    public @Nullable Type[] getArgTypes() {
+      return argTypes;
     }
   }
 
@@ -417,6 +484,7 @@ public interface WorkflowOutboundCallsInterceptor {
     private final @Nullable String workflowType;
     private final @Nullable ContinueAsNewOptions options;
     private final Object[] args;
+    private final @Nullable Type[] argTypes;
     private final Header header;
 
     public ContinueAsNewInput(
@@ -424,9 +492,19 @@ public interface WorkflowOutboundCallsInterceptor {
         @Nullable ContinueAsNewOptions options,
         Object[] args,
         Header header) {
+      this(workflowType, options, args, null, header);
+    }
+
+    public ContinueAsNewInput(
+        @Nullable String workflowType,
+        @Nullable ContinueAsNewOptions options,
+        Object[] args,
+        @Nullable Type[] argTypes,
+        Header header) {
       this.workflowType = workflowType;
       this.options = options;
       this.args = args;
+      this.argTypes = argTypes;
       this.header = header;
     }
 
@@ -448,6 +526,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Object[] getArgs() {
       return args;
+    }
+
+    public @Nullable Type[] getArgTypes() {
+      return argTypes;
     }
 
     public Header getHeader() {
@@ -551,6 +633,7 @@ public interface WorkflowOutboundCallsInterceptor {
     private final HandlerUnfinishedPolicy unfinishedPolicy;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
+    private final @Nullable Type resultType;
     private final Functions.Func1<Object[], Object> executeCallback;
     private final Functions.Proc1<Object[]> validateCallback;
 
@@ -562,13 +645,15 @@ public interface WorkflowOutboundCallsInterceptor {
         Type[] genericArgTypes,
         Functions.Proc1<Object[]> validateCallback,
         Functions.Func1<Object[], Object> executeCallback) {
-      this.updateName = updateName;
-      this.description = "";
-      this.unfinishedPolicy = unfinishedPolicy;
-      this.argTypes = argTypes;
-      this.genericArgTypes = genericArgTypes;
-      this.validateCallback = validateCallback;
-      this.executeCallback = executeCallback;
+      this(
+          updateName,
+          "",
+          unfinishedPolicy,
+          argTypes,
+          genericArgTypes,
+          null,
+          validateCallback,
+          executeCallback);
     }
 
     public UpdateRegistrationRequest(
@@ -579,11 +664,32 @@ public interface WorkflowOutboundCallsInterceptor {
         Type[] genericArgTypes,
         Functions.Proc1<Object[]> validateCallback,
         Functions.Func1<Object[], Object> executeCallback) {
+      this(
+          updateName,
+          description,
+          unfinishedPolicy,
+          argTypes,
+          genericArgTypes,
+          null,
+          validateCallback,
+          executeCallback);
+    }
+
+    public UpdateRegistrationRequest(
+        String updateName,
+        String description,
+        HandlerUnfinishedPolicy unfinishedPolicy,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        @Nullable Type resultType,
+        Functions.Proc1<Object[]> validateCallback,
+        Functions.Func1<Object[], Object> executeCallback) {
       this.updateName = updateName;
       this.description = description;
       this.unfinishedPolicy = unfinishedPolicy;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
+      this.resultType = resultType;
       this.validateCallback = validateCallback;
       this.executeCallback = executeCallback;
     }
@@ -607,6 +713,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Type[] getGenericArgTypes() {
       return genericArgTypes;
+    }
+
+    public @Nullable Type getResultType() {
+      return resultType;
     }
 
     public Functions.Proc1<Object[]> getValidateCallback() {
@@ -635,6 +745,7 @@ public interface WorkflowOutboundCallsInterceptor {
     private final String description;
     private final Class<?>[] argTypes;
     private final Type[] genericArgTypes;
+    private final @Nullable Type resultType;
     private final Functions.Func1<Object[], Object> callback;
 
     // Kept for backward compatibility
@@ -643,11 +754,7 @@ public interface WorkflowOutboundCallsInterceptor {
         Class<?>[] argTypes,
         Type[] genericArgTypes,
         Functions.Func1<Object[], Object> callback) {
-      this.queryType = queryType;
-      this.description = "";
-      this.argTypes = argTypes;
-      this.genericArgTypes = genericArgTypes;
-      this.callback = callback;
+      this(queryType, "", argTypes, genericArgTypes, null, callback);
     }
 
     public RegisterQueryInput(
@@ -656,10 +763,21 @@ public interface WorkflowOutboundCallsInterceptor {
         Class<?>[] argTypes,
         Type[] genericArgTypes,
         Functions.Func1<Object[], Object> callback) {
+      this(queryType, description, argTypes, genericArgTypes, null, callback);
+    }
+
+    public RegisterQueryInput(
+        String queryType,
+        String description,
+        Class<?>[] argTypes,
+        Type[] genericArgTypes,
+        @Nullable Type resultType,
+        Functions.Func1<Object[], Object> callback) {
       this.queryType = queryType;
       this.description = description;
       this.argTypes = argTypes;
       this.genericArgTypes = genericArgTypes;
+      this.resultType = resultType;
       this.callback = callback;
     }
 
@@ -678,6 +796,10 @@ public interface WorkflowOutboundCallsInterceptor {
 
     public Type[] getGenericArgTypes() {
       return genericArgTypes;
+    }
+
+    public @Nullable Type getResultType() {
+      return resultType;
     }
 
     public Functions.Func1<Object[], Object> getCallback() {

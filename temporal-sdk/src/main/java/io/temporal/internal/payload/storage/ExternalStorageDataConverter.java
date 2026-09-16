@@ -46,7 +46,15 @@ public final class ExternalStorageDataConverter implements DataConverter {
 
   @Override
   public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
-    Optional<Payload> converted = delegate.toPayload(value);
+    return storePayload(delegate.toPayload(value));
+  }
+
+  @Override
+  public <T> Optional<Payload> toPayload(T value, Type valueType) throws DataConverterException {
+    return storePayload(delegate.toPayload(value, valueType));
+  }
+
+  private Optional<Payload> storePayload(Optional<Payload> converted) {
     if (!converted.isPresent()) {
       return converted;
     }
@@ -56,7 +64,16 @@ public final class ExternalStorageDataConverter implements DataConverter {
 
   @Override
   public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
-    Optional<Payloads> converted = delegate.toPayloads(values);
+    return storePayloads(delegate.toPayloads(values));
+  }
+
+  @Override
+  public Optional<Payloads> toPayloads(Object[] values, Type[] valueTypes)
+      throws DataConverterException {
+    return storePayloads(delegate.toPayloads(values, valueTypes));
+  }
+
+  private Optional<Payloads> storePayloads(Optional<Payloads> converted) {
     if (!converted.isPresent()) {
       return converted;
     }

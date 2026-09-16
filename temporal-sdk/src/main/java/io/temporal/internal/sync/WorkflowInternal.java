@@ -159,6 +159,7 @@ public final class WorkflowInternal {
                   methodMetadata.getDescription(),
                   method.getParameterTypes(),
                   method.getGenericParameterTypes(),
+                  method.getGenericReturnType(),
                   (args) -> {
                     try {
                       return method.invoke(implementation, args);
@@ -237,6 +238,7 @@ public final class WorkflowInternal {
               updateMethod.unfinishedPolicy(),
               method.getParameterTypes(),
               method.getGenericParameterTypes(),
+              method.getGenericReturnType(),
               (args) -> {
                 try {
                   if (validatorMethod != null) {
@@ -670,11 +672,20 @@ public final class WorkflowInternal {
       @Nullable ContinueAsNewOptions options,
       Object[] args,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
+    continueAsNew(workflowType, options, args, null, outboundCallsInterceptor);
+  }
+
+  static void continueAsNew(
+      @Nullable String workflowType,
+      @Nullable ContinueAsNewOptions options,
+      Object[] args,
+      @Nullable Type[] argTypes,
+      WorkflowOutboundCallsInterceptor outboundCallsInterceptor) {
     assertNotReadOnly("continue as new");
     assertNotInUpdateHandler("ContinueAsNew is not supported in an update handler");
     outboundCallsInterceptor.continueAsNew(
         new WorkflowOutboundCallsInterceptor.ContinueAsNewInput(
-            workflowType, options, args, Header.empty()));
+            workflowType, options, args, argTypes, Header.empty()));
   }
 
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution) {

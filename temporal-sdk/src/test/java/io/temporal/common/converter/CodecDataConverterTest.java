@@ -3,6 +3,9 @@ package io.temporal.common.converter;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
@@ -12,6 +15,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
+import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -117,6 +121,41 @@ public class CodecDataConverterTest {
     assertTrue(isEncoded(data.get().getPayloads(0)));
     RawValue converted = dataConverter.fromPayloads(0, data, RawValue.class, RawValue.class);
     assertEquals(p, converted.getPayload());
+  }
+
+  @Test
+  public void testSerializationTypeHintIsPassedToDataConverter() {
+    DataConverter delegate = mock(DataConverter.class);
+    Type typeHint = new com.google.common.reflect.TypeToken<List<String>>() {}.getType();
+    List<String> value = Collections.singletonList("value");
+    Payload payload = Payload.newBuilder().setData(ByteString.copyFromUtf8("value")).build();
+    when(delegate.toPayload(value, typeHint)).thenReturn(Optional.of(payload));
+    CodecDataConverter converter =
+        new CodecDataConverter(
+            delegate, Collections.singletonList(new PrefixPayloadCodec()), false);
+
+    Optional<Payload> encoded = converter.toPayload(value, typeHint);
+
+    verify(delegate).toPayload(value, typeHint);
+    assertTrue(isEncoded(encoded.get()));
+  }
+
+  @Test
+  public void testSerializationTypeHintsArePassedToDataConverter() {
+    DataConverter delegate = mock(DataConverter.class);
+    Type[] typeHints = {new com.google.common.reflect.TypeToken<List<String>>() {}.getType()};
+    Object[] values = {Collections.singletonList("value")};
+    Payload payload = Payload.newBuilder().setData(ByteString.copyFromUtf8("value")).build();
+    when(delegate.toPayloads(values, typeHints))
+        .thenReturn(Optional.of(Payloads.newBuilder().addPayloads(payload).build()));
+    CodecDataConverter converter =
+        new CodecDataConverter(
+            delegate, Collections.singletonList(new PrefixPayloadCodec()), false);
+
+    Optional<Payloads> encoded = converter.toPayloads(values, typeHints);
+
+    verify(delegate).toPayloads(values, typeHints);
+    assertTrue(isEncoded(encoded.get().getPayloads(0)));
   }
 
   static boolean isEncoded(Payload payload) {

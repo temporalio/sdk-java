@@ -117,6 +117,7 @@ public interface WorkflowClientCallsInterceptor {
     private final String workflowType;
     private final Header header;
     private final Object[] arguments;
+    private final @Nullable Type[] argumentTypes;
     private final WorkflowOptions options;
 
     /**
@@ -133,10 +134,21 @@ public interface WorkflowClientCallsInterceptor {
         @Nonnull Header header,
         @Nonnull Object[] arguments,
         @Nonnull WorkflowOptions options) {
+      this(workflowId, workflowType, header, arguments, null, options);
+    }
+
+    public WorkflowStartInput(
+        @Nonnull String workflowId,
+        @Nonnull String workflowType,
+        @Nonnull Header header,
+        @Nonnull Object[] arguments,
+        @Nullable Type[] argumentTypes,
+        @Nonnull WorkflowOptions options) {
       this.workflowId = workflowId;
       this.workflowType = workflowType;
       this.header = header;
       this.arguments = arguments;
+      this.argumentTypes = argumentTypes;
       this.options = options;
     }
 
@@ -154,6 +166,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public Object[] getArguments() {
       return arguments;
+    }
+
+    public @Nullable Type[] getArgumentTypes() {
+      return argumentTypes;
     }
 
     public WorkflowOptions getOptions() {
@@ -179,16 +195,27 @@ public interface WorkflowClientCallsInterceptor {
     private final String signalName;
     private final Header header;
     private final Object[] arguments;
+    private final @Nullable Type[] argumentTypes;
 
     public WorkflowSignalInput(
         WorkflowExecution workflowExecution,
         String signalName,
         Header header,
         Object[] signalArguments) {
+      this(workflowExecution, signalName, header, signalArguments, null);
+    }
+
+    public WorkflowSignalInput(
+        WorkflowExecution workflowExecution,
+        String signalName,
+        Header header,
+        Object[] signalArguments,
+        @Nullable Type[] argumentTypes) {
       this.workflowExecution = workflowExecution;
       this.signalName = signalName;
       this.header = header;
       this.arguments = signalArguments;
+      this.argumentTypes = argumentTypes;
     }
 
     public WorkflowExecution getWorkflowExecution() {
@@ -206,6 +233,10 @@ public interface WorkflowClientCallsInterceptor {
     public Object[] getArguments() {
       return arguments;
     }
+
+    public @Nullable Type[] getArgumentTypes() {
+      return argumentTypes;
+    }
   }
 
   final class WorkflowSignalOutput {}
@@ -214,12 +245,22 @@ public interface WorkflowClientCallsInterceptor {
     private final WorkflowStartInput workflowStartInput;
     private final String signalName;
     private final Object[] signalArguments;
+    private final @Nullable Type[] signalArgumentTypes;
 
     public WorkflowSignalWithStartInput(
         WorkflowStartInput workflowStartInput, String signalName, Object[] signalArguments) {
+      this(workflowStartInput, signalName, signalArguments, null);
+    }
+
+    public WorkflowSignalWithStartInput(
+        WorkflowStartInput workflowStartInput,
+        String signalName,
+        Object[] signalArguments,
+        @Nullable Type[] signalArgumentTypes) {
       this.workflowStartInput = workflowStartInput;
       this.signalName = signalName;
       this.signalArguments = signalArguments;
+      this.signalArgumentTypes = signalArgumentTypes;
     }
 
     public WorkflowStartInput getWorkflowStartInput() {
@@ -232,6 +273,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public Object[] getSignalArguments() {
       return signalArguments;
+    }
+
+    public @Nullable Type[] getSignalArgumentTypes() {
+      return signalArgumentTypes;
     }
   }
 
@@ -362,6 +407,7 @@ public interface WorkflowClientCallsInterceptor {
     private final String queryType;
     private final Header header;
     private final Object[] arguments;
+    private final @Nullable Type[] argumentTypes;
     private final Class<R> resultClass;
     private final Type resultType;
 
@@ -372,10 +418,22 @@ public interface WorkflowClientCallsInterceptor {
         Object[] arguments,
         Class<R> resultClass,
         Type resultType) {
+      this(workflowExecution, queryType, header, arguments, null, resultClass, resultType);
+    }
+
+    public QueryInput(
+        WorkflowExecution workflowExecution,
+        String queryType,
+        Header header,
+        Object[] arguments,
+        @Nullable Type[] argumentTypes,
+        Class<R> resultClass,
+        Type resultType) {
       this.workflowExecution = workflowExecution;
       this.queryType = queryType;
       this.header = header;
       this.arguments = arguments;
+      this.argumentTypes = argumentTypes;
       this.resultClass = resultClass;
       this.resultType = resultType;
     }
@@ -394,6 +452,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public Object[] getArguments() {
       return arguments;
+    }
+
+    public @Nullable Type[] getArgumentTypes() {
+      return argumentTypes;
     }
 
     public Class<R> getResultClass() {
@@ -479,6 +541,7 @@ public interface WorkflowClientCallsInterceptor {
     private final String updateName;
     private final Header header;
     private final Object[] arguments;
+    private final @Nullable Type[] argumentTypes;
     private final Class<R> resultClass;
     private final Type resultType;
     private final String updateId;
@@ -496,12 +559,39 @@ public interface WorkflowClientCallsInterceptor {
         Type resultType,
         String firstExecutionRunId,
         WaitPolicy waitPolicy) {
+      this(
+          workflowExecution,
+          workflowType,
+          updateName,
+          header,
+          updateId,
+          arguments,
+          null,
+          resultClass,
+          resultType,
+          firstExecutionRunId,
+          waitPolicy);
+    }
+
+    public StartUpdateInput(
+        WorkflowExecution workflowExecution,
+        Optional<String> workflowType,
+        String updateName,
+        Header header,
+        String updateId,
+        Object[] arguments,
+        @Nullable Type[] argumentTypes,
+        Class<R> resultClass,
+        Type resultType,
+        String firstExecutionRunId,
+        WaitPolicy waitPolicy) {
       this.workflowExecution = workflowExecution;
       this.workflowType = workflowType;
       this.header = header;
       this.updateId = updateId;
       this.updateName = updateName;
       this.arguments = arguments;
+      this.argumentTypes = argumentTypes;
       this.resultClass = resultClass;
       this.resultType = resultType;
       this.firstExecutionRunId = firstExecutionRunId;
@@ -530,6 +620,10 @@ public interface WorkflowClientCallsInterceptor {
 
     public Object[] getArguments() {
       return arguments;
+    }
+
+    public @Nullable Type[] getArgumentTypes() {
+      return argumentTypes;
     }
 
     public Class<R> getResultClass() {

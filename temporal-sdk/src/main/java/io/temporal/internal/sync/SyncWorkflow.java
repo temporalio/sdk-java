@@ -5,6 +5,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.query.v1.WorkflowQuery;
+import io.temporal.api.sdk.v1.WorkflowMetadata;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -229,7 +230,7 @@ class SyncWorkflow implements ReplayWorkflow {
       // metadata should be readable independent of user DataConverter settings
       Payload payload =
           DefaultDataConverter.STANDARD_INSTANCE
-              .toPayload(workflowContext.getWorkflowMetadata())
+              .toPayload(workflowContext.getWorkflowMetadata(), WorkflowMetadata.class)
               .orElseThrow(() -> new IllegalStateException("Failed to serialize metadata"));
       return dataConverterWithWorkflowContext.toPayloads(new RawValue(payload));
     }

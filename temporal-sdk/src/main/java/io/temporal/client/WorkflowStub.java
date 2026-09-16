@@ -55,6 +55,15 @@ public interface WorkflowStub {
   void signal(String signalName, Object... args);
 
   /**
+   * Signals a workflow using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #signal(String, Object...)}.
+   */
+  default void signal(String signalName, Type[] argTypes, Object... args) {
+    signal(signalName, args);
+  }
+
+  /**
    * Synchronously update a workflow execution by invoking its update handler. Usually a update
    * handler is a method annotated with {@link io.temporal.workflow.UpdateMethod}.
    *
@@ -70,6 +79,16 @@ public interface WorkflowStub {
    *     availability issues.
    */
   <R> R update(String updateName, Class<R> resultClass, Object... args);
+
+  /**
+   * Updates a workflow using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #update(String, Class, Object...)}.
+   */
+  default <R> R update(
+      String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
+    return update(updateName, resultClass, args);
+  }
 
   /**
    * Asynchronously update a workflow execution by invoking its update handler and returning a
@@ -105,6 +124,16 @@ public interface WorkflowStub {
   <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args);
 
   /**
+   * Starts an update using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #startUpdate(UpdateOptions, Object...)}.
+   */
+  default <R> WorkflowUpdateHandle<R> startUpdate(
+      UpdateOptions<R> options, Type[] argTypes, Object... args) {
+    return startUpdate(options, args);
+  }
+
+  /**
    * Get an update handle to a previously started update request. Getting an update handle does not
    * guarantee the update ID exists.
    *
@@ -132,6 +161,15 @@ public interface WorkflowStub {
   WorkflowExecution start(Object... args);
 
   /**
+   * Starts a workflow using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #start(Object...)}.
+   */
+  default WorkflowExecution start(Type[] argTypes, Object... args) {
+    return start(args);
+  }
+
+  /**
    * Asynchronously update a workflow execution by invoking its update handler, and start the
    * workflow according to the option's {@link WorkflowIdConflictPolicy}. It returns a handle to the
    * update request. If {@link WorkflowUpdateStage#COMPLETED} is specified, in the options, the
@@ -145,6 +183,21 @@ public interface WorkflowStub {
    */
   <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs);
+
+  /**
+   * Starts an update and workflow using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #startUpdateWithStart(UpdateOptions,
+   * Object[], Object[])}.
+   */
+  default <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      UpdateOptions<R> updateOptions,
+      Object[] updateArgs,
+      Type[] updateArgTypes,
+      Object[] startArgs,
+      Type[] startArgTypes) {
+    return startUpdateWithStart(updateOptions, updateArgs, startArgs);
+  }
 
   /**
    * Synchronously update a workflow execution by invoking its update handler, and start the
@@ -169,6 +222,21 @@ public interface WorkflowStub {
    * @return workflow execution
    */
   WorkflowExecution signalWithStart(String signalName, Object[] signalArgs, Object[] startArgs);
+
+  /**
+   * Signals and starts a workflow using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #signalWithStart(String, Object[],
+   * Object[])}.
+   */
+  default WorkflowExecution signalWithStart(
+      String signalName,
+      Object[] signalArgs,
+      Type[] signalArgTypes,
+      Object[] startArgs,
+      Type[] startArgTypes) {
+    return signalWithStart(signalName, signalArgs, startArgs);
+  }
 
   /**
    * @return workflow type name if it was provided when the stub was created.
@@ -370,6 +438,16 @@ public interface WorkflowStub {
    *     availability issues
    */
   <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args);
+
+  /**
+   * Queries a workflow using declared argument types as serialization hints.
+   *
+   * <p>The default implementation delegates to {@link #query(String, Class, Type, Object...)}.
+   */
+  default <R> R query(
+      String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
+    return query(queryType, resultClass, resultType, args);
+  }
 
   /**
    * Request cancellation of a workflow execution.

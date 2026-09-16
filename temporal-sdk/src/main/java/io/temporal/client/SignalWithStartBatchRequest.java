@@ -2,6 +2,7 @@ package io.temporal.client;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,7 +14,9 @@ final class SignalWithStartBatchRequest implements BatchRequest {
   private WorkflowStub stub;
   private String signalName;
   private Object[] signalArgs;
+  private Type[] signalArgTypes;
   private Object[] startArgs;
+  private Type[] startArgTypes;
   private final AtomicBoolean invoked = new AtomicBoolean();
 
   WorkflowExecution invoke() {
@@ -34,18 +37,20 @@ final class SignalWithStartBatchRequest implements BatchRequest {
   }
 
   private WorkflowExecution signalWithStart() {
-    return stub.signalWithStart(signalName, signalArgs, startArgs);
+    return stub.signalWithStart(signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
   }
 
-  void signal(WorkflowStub stub, String signalName, Object[] args) {
+  void signal(WorkflowStub stub, String signalName, Object[] args, Type[] argTypes) {
     setStub(stub);
     this.signalName = signalName;
     this.signalArgs = args;
+    this.signalArgTypes = argTypes;
   }
 
-  void start(WorkflowStub stub, Object[] args) {
+  void start(WorkflowStub stub, Object[] args, Type[] argTypes) {
     setStub(stub);
     this.startArgs = args;
+    this.startArgTypes = argTypes;
   }
 
   private void setStub(WorkflowStub stub) {

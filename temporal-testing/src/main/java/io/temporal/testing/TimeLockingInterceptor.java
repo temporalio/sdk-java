@@ -50,14 +50,35 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public void signal(String signalName, Type[] argTypes, Object... args) {
+      next.signal(signalName, argTypes, args);
+    }
+
+    @Override
     public WorkflowExecution start(Object... args) {
       return next.start(args);
+    }
+
+    @Override
+    public WorkflowExecution start(Type[] argTypes, Object... args) {
+      return next.start(argTypes, args);
     }
 
     @Override
     public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
         UpdateOptions<R> options, Object[] updateArgs, Object[] startArgs) {
       return next.startUpdateWithStart(options, updateArgs, startArgs);
+    }
+
+    @Override
+    public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+        UpdateOptions<R> options,
+        Object[] updateArgs,
+        Type[] updateArgTypes,
+        Object[] startArgs,
+        Type[] startArgTypes) {
+      return next.startUpdateWithStart(
+          options, updateArgs, updateArgTypes, startArgs, startArgTypes);
     }
 
     @Override
@@ -70,6 +91,16 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     public WorkflowExecution signalWithStart(
         String signalName, Object[] signalArgs, Object[] startArgs) {
       return next.signalWithStart(signalName, signalArgs, startArgs);
+    }
+
+    @Override
+    public WorkflowExecution signalWithStart(
+        String signalName,
+        Object[] signalArgs,
+        Type[] signalArgTypes,
+        Object[] startArgs,
+        Type[] startArgTypes) {
+      return next.signalWithStart(signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
     }
 
     @Override
@@ -160,6 +191,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public <R> R query(
+        String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
+      return next.query(queryType, resultClass, resultType, argTypes, args);
+    }
+
+    @Override
     public void cancel() {
       next.cancel();
     }
@@ -243,6 +280,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public <R> R update(
+        String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
+      return next.update(updateName, resultClass, resultType, argTypes, args);
+    }
+
+    @Override
     public <R> WorkflowUpdateHandle<R> startUpdate(
         String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args) {
       return next.startUpdate(updateName, waitForStage, resultClass, args);
@@ -251,6 +294,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     @Override
     public <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
       return next.startUpdate(options, args);
+    }
+
+    @Override
+    public <R> WorkflowUpdateHandle<R> startUpdate(
+        UpdateOptions<R> options, Type[] argTypes, Object... args) {
+      return next.startUpdate(options, argTypes, args);
     }
 
     @Override

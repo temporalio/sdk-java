@@ -19,6 +19,7 @@ import io.temporal.internal.sync.StubMarker;
 import io.temporal.workflow.*;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.*;
 import javax.annotation.Nullable;
 
@@ -184,14 +185,14 @@ class WorkflowInvocationHandler implements InvocationHandler {
     return Defaults.defaultValue(method.getReturnType());
   }
 
-  private static void startWorkflow(WorkflowStub untyped, Object[] args) {
+  private static void startWorkflow(WorkflowStub untyped, Method method, Object[] args) {
     Optional<WorkflowOptions> options = untyped.getOptions();
     if (untyped.getExecution() == null
         || (options.isPresent()
             && options.get().getWorkflowIdReusePolicy()
                 == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)) {
       try {
-        untyped.start(args);
+        untyped.start(method.getGenericParameterTypes(), args);
       } catch (WorkflowExecutionAlreadyStarted e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
@@ -241,7 +242,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException(
             "WorkflowClient.start can be called only on a method annotated with @WorkflowMethod");
       }
-      result = untyped.start(args);
+      result = untyped.start(method.getGenericParameterTypes(), args);
     }
 
     @Override
@@ -298,7 +299,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException("Signal method must have void return type: " + method);
       }
       String signalName = methodMetadata.getName();
-      untyped.signal(signalName, args);
+      untyped.signal(signalName, method.getGenericParameterTypes(), args);
     }
 
     private Object queryWorkflow(
@@ -310,7 +311,12 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException("Query method cannot have void return type: " + method);
       }
       String queryType = methodMetadata.getName();
-      return untyped.query(queryType, method.getReturnType(), method.getGenericReturnType(), args);
+      return untyped.query(
+          queryType,
+          method.getReturnType(),
+          method.getGenericReturnType(),
+          method.getGenericParameterTypes(),
+          args);
     }
 
     private Object updateWorkflow(
@@ -319,12 +325,17 @@ class WorkflowInvocationHandler implements InvocationHandler {
         Method method,
         Object[] args) {
       String updateType = methodMetadata.getName();
-      return untyped.update(updateType, method.getReturnType(), args);
+      return untyped.update(
+          updateType,
+          method.getReturnType(),
+          method.getGenericReturnType(),
+          method.getGenericParameterTypes(),
+          args);
     }
 
     @SuppressWarnings("FutureReturnValueIgnored")
     private Object startWorkflow(WorkflowStub untyped, Method method, Object[] args) {
-      WorkflowInvocationHandler.startWorkflow(untyped, args);
+      WorkflowInvocationHandler.startWorkflow(untyped, method, args);
       return untyped.getResult(method.getReturnType(), method.getGenericReturnType());
     }
   }
@@ -349,7 +360,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException(
             "WorkflowClient.execute can be called only on a method annotated with @WorkflowMethod");
       }
-      WorkflowInvocationHandler.startWorkflow(untyped, args);
+      WorkflowInvocationHandler.startWorkflow(untyped, method, args);
       result = untyped.getResultAsync(method.getReturnType(), method.getGenericReturnType());
     }
 
@@ -389,10 +400,10 @@ class WorkflowInvocationHandler implements InvocationHandler {
           throw new IllegalArgumentException(
               "SignalWithStart batch doesn't accept methods annotated with @UpdateMethod");
         case WORKFLOW:
-          batch.start(untyped, args);
+          batch.start(untyped, args, method.getGenericParameterTypes());
           break;
         case SIGNAL:
-          batch.signal(untyped, methodMetadata.getName(), args);
+          batch.signal(untyped, methodMetadata.getName(), args, method.getGenericParameterTypes());
           break;
       }
     }
@@ -428,7 +439,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
             "Only on a method annotated with @WorkflowMethod can be used to start a Nexus operation.");
       }
 
-      result = createNexusBoundStub(untyped, request).start(args);
+      result =
+          createNexusBoundStub(untyped, request).start(method.getGenericParameterTypes(), args);
     }
 
     @Override
@@ -463,7 +475,11 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException(
             "Only a method annotated with @UpdateMethod can be used to start an Update.");
       }
-      result = untyped.startUpdate(mergeUpdateOptions(options, workflowMetadata, method), args);
+      result =
+          untyped.startUpdate(
+              mergeUpdateOptions(options, workflowMetadata, method),
+              method.getGenericParameterTypes(),
+              args);
     }
 
     @Override
@@ -506,7 +522,9 @@ class WorkflowInvocationHandler implements InvocationHandler {
 
     private final UpdateOptions<?> userProvidedUpdateOptions;
     private Object[] updateArgs;
+    private Type[] updateArgTypes;
     private Object[] startArgs;
+    private Type[] startArgTypes;
     private UpdateOptions updateOptions;
     private final WithStartWorkflowOperation<?> startOp;
     private State state = State.INIT;
@@ -541,6 +559,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         }
         this.setStub(untyped);
         this.updateArgs = args;
+        this.updateArgTypes = method.getGenericParameterTypes();
         this.updateOptions =
             UpdateInvocationHandler.mergeUpdateOptions(
                 userProvidedUpdateOptions, workflowMetadata, method);
@@ -556,11 +575,14 @@ class WorkflowInvocationHandler implements InvocationHandler {
         }
         this.setStub(untyped);
         this.startArgs = args;
+        this.startArgTypes = method.getGenericParameterTypes();
         this.startOp.setStub(untyped);
         this.startOp.setResultClass(method.getReturnType());
         state = State.START_RECEIVED;
 
-        this.result = untyped.startUpdateWithStart(updateOptions, updateArgs, this.startArgs);
+        this.result =
+            untyped.startUpdateWithStart(
+                updateOptions, updateArgs, updateArgTypes, this.startArgs, startArgTypes);
       } else {
         throw new IllegalArgumentException(
             "UpdateWithStartInvocationHandler called too many times");

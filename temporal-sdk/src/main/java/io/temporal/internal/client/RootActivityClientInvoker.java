@@ -83,7 +83,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             .setIdReusePolicy(options.getIdReusePolicy())
             .setIdConflictPolicy(options.getIdConflictPolicy());
 
-    Optional<Payloads> activityInput = dc.toPayloads(input.getArgs().toArray());
+    Optional<Payloads> activityInput =
+        dc.toPayloads(input.getArgs().toArray(), input.getArgTypes());
     activityInput.ifPresent(request::setInput);
 
     if (options.getScheduleToCloseTimeout() != null) {

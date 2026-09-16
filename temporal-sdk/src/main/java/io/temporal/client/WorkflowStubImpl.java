@@ -75,19 +75,25 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    signal(signalName, null, args);
+  }
+
+  @Override
+  public void signal(String signalName, Type[] argTypes, Object... args) {
     checkStarted();
     WorkflowExecution targetExecution = currentExecutionCheckLegacy();
     try {
       workflowClientInvoker.signal(
           new WorkflowClientCallsInterceptor.WorkflowSignalInput(
-              targetExecution, signalName, Header.empty(), args));
+              targetExecution, signalName, Header.empty(), args, argTypes));
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), throwable);
     }
   }
 
-  private WorkflowExecution startWithOptions(WorkflowOptions options, Object... args) {
+  private WorkflowExecution startWithOptions(
+      WorkflowOptions options, @Nullable Type[] argTypes, Object... args) {
     checkExecutionIsNotStarted();
     String workflowId = getWorkflowIdForStart(options);
     WorkflowExecution workflowExecution = null;
@@ -95,7 +101,7 @@ class WorkflowStubImpl implements WorkflowStub {
       WorkflowClientCallsInterceptor.WorkflowStartOutput workflowStartOutput =
           workflowClientInvoker.start(
               new WorkflowClientCallsInterceptor.WorkflowStartInput(
-                  workflowId, workflowType.get(), Header.empty(), args, options));
+                  workflowId, workflowType.get(), Header.empty(), args, argTypes, options));
       workflowExecution = workflowStartOutput.getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
       return workflowExecution;
@@ -115,15 +121,30 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public WorkflowExecution start(Object... args) {
+    return start(null, args);
+  }
+
+  @Override
+  public WorkflowExecution start(Type[] argTypes, Object... args) {
     if (options == null) {
       throw new IllegalStateException("Required parameter WorkflowOptions is missing");
     }
-    return startWithOptions(WorkflowOptions.merge(null, null, options), args);
+    return startWithOptions(WorkflowOptions.merge(null, null, options), argTypes, args);
   }
 
   @Override
   public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
+    return startUpdateWithStart(updateOptions, updateArgs, null, startArgs, null);
+  }
+
+  @Override
+  public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+      UpdateOptions<R> updateOptions,
+      Object[] updateArgs,
+      Type[] updateArgTypes,
+      Object[] startArgs,
+      Type[] startArgTypes) {
     if (options == null) {
       throw new IllegalStateException(
           "Required parameter WorkflowOptions is missing in WorkflowStub");
@@ -140,11 +161,12 @@ class WorkflowStubImpl implements WorkflowStub {
       // gather inputs
       WorkflowClientCallsInterceptor.WorkflowStartInput startInput =
           new WorkflowClientCallsInterceptor.WorkflowStartInput(
-              workflowId, workflowType.get(), Header.empty(), startArgs, options);
+              workflowId, workflowType.get(), Header.empty(), startArgs, startArgTypes, options);
       WorkflowClientCallsInterceptor.StartUpdateInput<R> updateInput =
           startUpdateInput(
               updateOptions,
               updateArgs,
+              updateArgTypes,
               WorkflowExecution.newBuilder().setWorkflowId(workflowId).build());
       WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<R> input =
           new WorkflowClientCallsInterceptor.WorkflowUpdateWithStartInput<>(
@@ -180,7 +202,12 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private WorkflowExecution signalWithStartWithOptions(
-      WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
+      WorkflowOptions options,
+      String signalName,
+      Object[] signalArgs,
+      @Nullable Type[] signalArgTypes,
+      Object[] startArgs,
+      @Nullable Type[] startArgTypes) {
     checkExecutionIsNotStarted();
     String workflowId = getWorkflowIdForStart(options);
     WorkflowExecution workflowExecution = null;
@@ -189,9 +216,15 @@ class WorkflowStubImpl implements WorkflowStub {
           workflowClientInvoker.signalWithStart(
               new WorkflowClientCallsInterceptor.WorkflowSignalWithStartInput(
                   new WorkflowClientCallsInterceptor.WorkflowStartInput(
-                      workflowId, workflowType.get(), Header.empty(), startArgs, options),
+                      workflowId,
+                      workflowType.get(),
+                      Header.empty(),
+                      startArgs,
+                      startArgTypes,
+                      options),
                   signalName,
-                  signalArgs));
+                  signalArgs,
+                  signalArgTypes));
       workflowExecution = workflowStartOutput.getWorkflowStartOutput().getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
       return workflowExecution;
@@ -220,11 +253,26 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public WorkflowExecution signalWithStart(
       String signalName, Object[] signalArgs, Object[] startArgs) {
+    return signalWithStart(signalName, signalArgs, null, startArgs, null);
+  }
+
+  @Override
+  public WorkflowExecution signalWithStart(
+      String signalName,
+      Object[] signalArgs,
+      Type[] signalArgTypes,
+      Object[] startArgs,
+      Type[] startArgTypes) {
     if (options == null) {
       throw new IllegalStateException("Required parameter WorkflowOptions is missing");
     }
     return signalWithStartWithOptions(
-        WorkflowOptions.merge(null, null, options), signalName, signalArgs, startArgs);
+        WorkflowOptions.merge(null, null, options),
+        signalName,
+        signalArgs,
+        signalArgTypes,
+        startArgs,
+        startArgTypes);
   }
 
   @Override
@@ -318,6 +366,12 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
+    return query(queryType, resultClass, resultType, null, args);
+  }
+
+  @Override
+  public <R> R query(
+      String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     checkStarted();
     WorkflowClientCallsInterceptor.QueryOutput<R> result;
     WorkflowExecution targetExecution = execution.get();
@@ -325,7 +379,13 @@ class WorkflowStubImpl implements WorkflowStub {
       result =
           workflowClientInvoker.query(
               new WorkflowClientCallsInterceptor.QueryInput<>(
-                  targetExecution, queryType, Header.empty(), args, resultClass, resultType));
+                  targetExecution,
+                  queryType,
+                  Header.empty(),
+                  args,
+                  argTypes,
+                  resultClass,
+                  resultType));
     } catch (Exception e) {
       return throwAsWorkflowFailureExceptionForQuery(e, resultClass, targetExecution);
     }
@@ -342,6 +402,12 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R update(String updateName, Class<R> resultClass, Object... args) {
+    return update(updateName, resultClass, resultClass, null, args);
+  }
+
+  @Override
+  public <R> R update(
+      String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     checkStarted();
     try {
       UpdateOptions<R> options =
@@ -349,9 +415,10 @@ class WorkflowStubImpl implements WorkflowStub {
               .setUpdateName(updateName)
               .setWaitForStage(WorkflowUpdateStage.COMPLETED)
               .setResultClass(resultClass)
+              .setResultType(resultType)
               .setFirstExecutionRunId(firstExecutionRunId)
               .build();
-      return startUpdate(options, args).getResultAsync().get();
+      return startUpdate(options, argTypes, args).getResultAsync().get();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } catch (ExecutionException e) {
@@ -379,12 +446,18 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
+    return startUpdate(options, null, args);
+  }
+
+  @Override
+  public <R> WorkflowUpdateHandle<R> startUpdate(
+      UpdateOptions<R> options, Type[] argTypes, Object... args) {
     checkStarted();
     options.validate();
     WorkflowExecution targetExecution = execution.get();
     try {
       WorkflowClientCallsInterceptor.StartUpdateInput<R> input =
-          startUpdateInput(options, args, targetExecution);
+          startUpdateInput(options, args, argTypes, targetExecution);
       return workflowClientInvoker.startUpdate(input);
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
@@ -393,7 +466,10 @@ class WorkflowStubImpl implements WorkflowStub {
   }
 
   private <R> WorkflowClientCallsInterceptor.StartUpdateInput<R> startUpdateInput(
-      UpdateOptions<R> options, Object[] args, WorkflowExecution targetExecution) {
+      UpdateOptions<R> options,
+      Object[] args,
+      @Nullable Type[] argTypes,
+      WorkflowExecution targetExecution) {
     String updateId =
         Strings.isNullOrEmpty(options.getUpdateId())
             ? UUID.randomUUID().toString()
@@ -405,6 +481,7 @@ class WorkflowStubImpl implements WorkflowStub {
         Header.empty(),
         updateId,
         args,
+        argTypes,
         options.getResultClass(),
         options.getResultType(),
         options.getFirstExecutionRunId(),
