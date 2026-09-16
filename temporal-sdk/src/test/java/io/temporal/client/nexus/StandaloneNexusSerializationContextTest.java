@@ -154,7 +154,7 @@ public class StandaloneNexusSerializationContextTest {
   }
 
   @Test
-  public void describeReadsTheUncontextualizedSummary() {
+  public void describeReadsTheSummaryUnderTheOperationsContext() {
     NexusClient client = nexusClient();
     Endpoint endpoint = testWorkflowRule.getNexusEndpoint();
     UntypedNexusServiceClient serviceClient =
@@ -170,8 +170,8 @@ public class StandaloneNexusSerializationContextTest {
             "ping-" + UUID.randomUUID());
     handle.getResult(String.class);
 
-    // The summary is encoded without a Nexus context, so describe must read it back the same way.
-    // Decoding it under a context the encoder never used would corrupt it.
+    // User metadata is serialized with the operation's context, so describe has to read it back
+    // under the same one. The strict codec below fails either half of a context mismatch.
     Assert.assertEquals("the-summary", handle.describe().getStaticSummary());
   }
 
@@ -359,6 +359,9 @@ public class StandaloneNexusSerializationContextTest {
           decoded.add(payload);
           continue;
         }
+        // Not asserting the reverse: a handle obtained by operation ID legitimately decodes a
+        // payload that was encoded under a context, without one. handleObtainedByIdHasNoContext
+        // covers that path.
         if (context instanceof NexusSerializationContext) {
           NexusSerializationContext nexus = (NexusSerializationContext) context;
           Assert.assertEquals(
