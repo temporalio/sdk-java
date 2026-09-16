@@ -191,7 +191,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   /**
    * Serialization context of the operation currently being handled, or null if there is no Nexus
-   * task in scope or the task named no operation.
+   * task in scope or the task did not report the endpoint it was addressed to.
    */
   private static @Nullable NexusSerializationContext currentSerializationContext() {
     if (!CurrentNexusOperationContext.isNexusContext()) {

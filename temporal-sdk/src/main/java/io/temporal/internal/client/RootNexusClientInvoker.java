@@ -111,7 +111,9 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
               options.getSummary(),
               null,
               // User metadata is serialized with the operation's context, the same way workflow
-              // and activity user metadata is serialized with theirs.
+              // and activity user metadata is serialized with theirs. This must be the same
+              // context UntypedNexusServiceClientImpl used to encode the input; both derive it
+              // from the endpoint, service and operation carried on this input.
               clientOptions
                   .getDataConverter()
                   .withContext(
@@ -152,14 +154,17 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
     // The response names the endpoint, service and operation, so the description decodes its
-    // payloads and failures with the same context the operation was started with.
+    // payloads and failures with the same context the operation was started with. A response that
+    // does not report the endpoint would otherwise scope by an empty one and silently disagree with
+    // the start request, so it falls back to no context, matching the handler path.
     NexusOperationExecutionInfo info = response.getInfo();
-    DataConverter dataConverter =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new NexusSerializationContext(
-                    info.getEndpoint(), info.getService(), info.getOperation()));
+    DataConverter dataConverter = clientOptions.getDataConverter();
+    if (!Strings.isNullOrEmpty(info.getEndpoint())) {
+      dataConverter =
+          dataConverter.withContext(
+              new NexusSerializationContext(
+                  info.getEndpoint(), info.getService(), info.getOperation()));
+    }
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
             response, dataConverter, clientOptions.getNamespace()));
