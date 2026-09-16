@@ -2,6 +2,7 @@ package io.temporal.internal.nexus;
 
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
+import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.grpc.StatusRuntimeException;
 import io.nexusrpc.Header;
@@ -37,6 +38,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,10 +140,13 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               (Throwable) null);
       }
     } catch (HandlerException e) {
-      return new Result(e);
+      // The context is still in scope here but not when the reply is encoded, so carry it out on
+      // the result.
+      return new Result(e, currentSerializationContext());
     } catch (Throwable e) {
       return new Result(
-          new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e));
+          new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e),
+          currentSerializationContext());
     } finally {
       // If the task timed out, we should not send a response back to the server
       if (timedOut.get()) {
@@ -159,21 +164,40 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
    * Records the serialization context for the operation this task is for, so that the data
    * converter used for its input, result and failures is scoped to the endpoint, service and
    * operation the request names.
+   *
+   * <p>Leaves the context unset when the task does not report an endpoint, which is the case on
+   * servers before 1.30.0. Scoping by an empty endpoint would silently disagree with the caller,
+   * which scoped by the real one.
    */
   private void setSerializationContext(String service, String operation) {
     InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+    String endpoint = nexusContext.getEndpoint();
+    if (Strings.isNullOrEmpty(endpoint)) {
+      return;
+    }
     nexusContext.setSerializationContext(
-        new NexusSerializationContext(nexusContext.getEndpoint(), service, operation));
+        new NexusSerializationContext(endpoint, service, operation));
   }
 
   /**
    * The data converter scoped to the operation this task is for. Falls back to the uncontextualized
-   * converter if the request variant did not name a service and operation.
+   * converter when there is no context for the operation, which is the case on a server that does
+   * not report the endpoint the task was addressed to.
    */
   private DataConverter dataConverterForCurrentOperation() {
-    NexusSerializationContext context =
-        CurrentNexusOperationContext.get().getSerializationContext();
+    NexusSerializationContext context = currentSerializationContext();
     return context != null ? dataConverter.withContext(context) : dataConverter;
+  }
+
+  /**
+   * Serialization context of the operation currently being handled, or null if there is no Nexus
+   * task in scope or the task named no operation.
+   */
+  private static @Nullable NexusSerializationContext currentSerializationContext() {
+    if (!CurrentNexusOperationContext.isNexusContext()) {
+      return null;
+    }
+    return CurrentNexusOperationContext.get().getSerializationContext();
   }
 
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {

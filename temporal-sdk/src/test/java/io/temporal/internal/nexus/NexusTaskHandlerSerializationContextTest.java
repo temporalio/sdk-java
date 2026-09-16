@@ -21,6 +21,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.payload.codec.PayloadCodec;
@@ -105,6 +106,10 @@ public class NexusTaskHandlerSerializationContextTest {
     Failure failure = result.getResponse().getStartOperation().getFailure();
     Assert.assertNotEquals(
         "the operation should have reported a failure", Failure.getDefaultInstance(), failure);
+    Assert.assertTrue(
+        "the failure conversion should have reached the codec; if it did not, this test cannot "
+            + "distinguish a contextual failure encode from a contextless one",
+        handlerCodec.contexts().size() > 1);
     Assert.assertEquals(
         "every converter call the handler made should be under the operation's context",
         Collections.singleton(expected),
@@ -178,7 +183,12 @@ public class NexusTaskHandlerSerializationContextTest {
     public OperationHandler<String, String> operation() {
       return io.nexusrpc.handler.OperationHandler.sync(
           (ctx, details, name) -> {
-            throw OperationException.failed(name);
+            // The cause carries details so the failure conversion actually reaches the codec. A
+            // failure with no details and no encoded attributes converts without touching it, and
+            // an assertion on the codec would then prove nothing.
+            throw OperationException.failed(
+                ApplicationFailure.newNonRetryableFailure(
+                    name, "ContextFailure", "failure-detail"));
           });
     }
   }
