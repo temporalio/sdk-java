@@ -156,8 +156,8 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
         new NexusOperationExecutionDescription(
             response,
             dataConverter,
-            // The summary and details were attached without a Nexus context, so they have to be
-            // decoded without one for a converter that varies by context to round-trip them.
+            // The summary and details were attached without a Nexus context, so a converter that
+            // varies by context only round-trips them if they are decoded without one too.
             clientOptions.getDataConverter(),
             clientOptions.getNamespace()));
   }
