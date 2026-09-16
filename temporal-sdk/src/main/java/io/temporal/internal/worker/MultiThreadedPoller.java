@@ -190,8 +190,15 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
         uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), e);
       } finally {
         if (!shouldTerminate()) {
-          // Resubmit itself back to pollExecutor
-          pollExecutor.execute(this);
+          try {
+            // Resubmit itself back to pollExecutor.
+            pollExecutor.execute(this);
+          } catch (RejectedExecutionException e) {
+            // Shutdown can race with the termination check above.
+            if (!pollExecutor.isShutdown()) {
+              throw e;
+            }
+          }
         } else {
           log.debug(
               "poll loop is terminated: {}",
