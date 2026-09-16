@@ -22,9 +22,9 @@ import java.util.function.Function;
  * server is not interrupted.
  */
 @Experimental
-public final class WorkflowStreamSubscription
-    implements Iterator<WorkflowStreamItem>, Iterable<WorkflowStreamItem>, AutoCloseable {
-  private final SubscriptionDriver driver;
+public final class WorkflowStreamSubscription<T>
+    implements Iterator<WorkflowStreamItem<T>>, Iterable<WorkflowStreamItem<T>>, AutoCloseable {
+  private final SubscriptionDriver<T> driver;
 
   private final Object lock = new Object();
 
@@ -32,7 +32,7 @@ public final class WorkflowStreamSubscription
   // at no more than one item: each onNext parks the driver on a gate that next() releases when
   // the consumer takes the item, so the next long poll only fires once the consumer drains what
   // the driver already fetched — the same pacing as driving the poll loop on the consumer thread.
-  private final Deque<WorkflowStreamItem> buffer = new ArrayDeque<>();
+  private final Deque<WorkflowStreamItem<T>> buffer = new ArrayDeque<>();
   private CompletableFuture<Void> pendingGate;
   private Throwable error;
   private boolean streamDone;
@@ -41,7 +41,8 @@ public final class WorkflowStreamSubscription
   private boolean started;
   private boolean errorThrown;
 
-  WorkflowStreamSubscription(Function<WorkflowStreamListener, SubscriptionDriver> driverFactory) {
+  WorkflowStreamSubscription(
+      Function<WorkflowStreamListener<T>, SubscriptionDriver<T>> driverFactory) {
     this.driver = driverFactory.apply(new AdapterListener());
     // One hook covers every way the stream ends: terminal state, failure, close(), and the
     // owning client closing. It wakes a consumer blocked in hasNext().
@@ -64,7 +65,7 @@ public final class WorkflowStreamSubscription
    * for-each loop).
    */
   @Override
-  public Iterator<WorkflowStreamItem> iterator() {
+  public Iterator<WorkflowStreamItem<T>> iterator() {
     return this;
   }
 
@@ -104,11 +105,11 @@ public final class WorkflowStreamSubscription
   }
 
   @Override
-  public WorkflowStreamItem next() {
+  public WorkflowStreamItem<T> next() {
     if (!hasNext()) {
       throw new NoSuchElementException();
     }
-    WorkflowStreamItem item;
+    WorkflowStreamItem<T> item;
     CompletableFuture<Void> gate = null;
     synchronized (lock) {
       item = buffer.poll();
@@ -139,9 +140,9 @@ public final class WorkflowStreamSubscription
     }
   }
 
-  private class AdapterListener implements WorkflowStreamListener {
+  private class AdapterListener implements WorkflowStreamListener<T> {
     @Override
-    public CompletionStage<Void> onNext(WorkflowStreamItem item) {
+    public CompletionStage<Void> onNext(WorkflowStreamItem<T> item) {
       CompletableFuture<Void> gate = new CompletableFuture<>();
       synchronized (lock) {
         buffer.add(item);

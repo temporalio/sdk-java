@@ -40,7 +40,7 @@ public class MyWorkflowImpl implements MyWorkflow {
   @Override
   public void execute(MyInput input) {
     // Optionally publish from workflow code:
-    stream.topic("events").publish("hello from the workflow");
+    stream.<String>topic("events").publish("hello from the workflow");
 
     // Run your workflow; the stream serves external publishers and subscribers
     // for as long as the workflow is running. Block until your workflow's exit
@@ -91,7 +91,7 @@ From an activity, use `fromActivity` to target the parent workflow:
 ```java
 public void publishActivity() {
   try (WorkflowStreamClient client = WorkflowStreamClient.fromActivity()) {
-    TopicHandle topic = client.topic("events");
+    TopicHandle<String> topic = client.topic("events", String.class);
     for (int i = 0; i < 100; i++) {
       topic.publish("item " + i);
     }
@@ -124,13 +124,19 @@ automatically follows continue-as-new chains, recovers from truncation by
 restarting from the current base offset, and also ends when the owning
 `WorkflowStreamClient` is closed.
 
-Items carry the raw `io.temporal.api.common.v1.Payload`. Use
-`WorkflowStreamClient.decodeItem` to decode them with the configured stream
-item converter. Transfer conversion and payload conversion apply to each item.
-Payload codecs apply only once to the surrounding Temporal signal or update
-envelope, never to an individual item. Configure matching payload converters
-on the workflow and client sides. Offsets are **global** (across all topics),
-not per-topic.
+Typed subscriptions decode each item with the stream client's configured item
+converter before delivery. Every `WorkflowStreamItem<T>` exposes the decoded
+value through `getValue()` and retains the raw
+`io.temporal.api.common.v1.Payload` through `getPayload()`. Calling
+`client.subscribe(options)` or `client.topic(name)` without a type is the raw
+escape hatch and yields `WorkflowStreamItem<Payload>`.
+
+Transfer conversion and payload conversion apply to each typed item. Payload
+codecs apply only once to the surrounding Temporal signal or update envelope,
+never to an individual item. Configure matching payload converters on the
+workflow and client sides. A topic may have multiple typed views; Java does not
+register or enforce one type for a topic name. Offsets are **global** (across
+all topics), not per-topic.
 
 ### Listener (non-blocking)
 
@@ -148,12 +154,13 @@ SubscribeOptions options = SubscribeOptions.newBuilder()
 WorkflowStreamSubscriptionHandle handle =
     client.subscribe(
         options,
-        new WorkflowStreamListener() {
+        String.class,
+        new WorkflowStreamListener<String>() {
           @Override
-          public CompletionStage<Void> onNext(WorkflowStreamItem item) {
-            String value = client.decodeItem(item, String.class);
+          public CompletionStage<Void> onNext(WorkflowStreamItem<String> item) {
             System.out.printf(
-                "offset=%d topic=%s value=%s%n", item.getOffset(), item.getTopic(), value);
+                "offset=%d topic=%s value=%s%n",
+                item.getOffset(), item.getTopic(), item.getValue());
             return null; // or a pending stage to apply backpressure
           }
 
@@ -176,10 +183,12 @@ single-use subscription; the consuming thread blocks waiting for items while
 polling still runs on the shared executor:
 
 ```java
-try (WorkflowStreamSubscription subscription = client.subscribe(options)) {
-  for (WorkflowStreamItem item : subscription) {
-    String value = client.decodeItem(item, String.class);
-    System.out.printf("offset=%d topic=%s value=%s%n", item.getOffset(), item.getTopic(), value);
+try (WorkflowStreamSubscription<String> subscription =
+    client.subscribe(options, String.class)) {
+  for (WorkflowStreamItem<String> item : subscription) {
+    System.out.printf(
+        "offset=%d topic=%s value=%s%n",
+        item.getOffset(), item.getTopic(), item.getValue());
   }
 }
 ```

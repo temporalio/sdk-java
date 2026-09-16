@@ -14,14 +14,14 @@ import org.slf4j.LoggerFactory;
  * delivery, return a pending stage from {@link #onNext}.
  */
 @Experimental
-public interface WorkflowStreamListener {
+public interface WorkflowStreamListener<T> {
   /**
    * Called with the next item on the stream. Return {@code null} or an already-completed stage to
    * receive the next item immediately; return a pending stage to defer both further delivery and
    * the next poll until it completes (backpressure). A stage that completes exceptionally — or an
    * exception thrown directly — stops the subscription and is reported to {@link #onError}.
    */
-  CompletionStage<Void> onNext(WorkflowStreamItem item);
+  CompletionStage<Void> onNext(WorkflowStreamItem<T> item);
 
   /**
    * Called once when the subscription stops because of an unrecoverable failure (including a

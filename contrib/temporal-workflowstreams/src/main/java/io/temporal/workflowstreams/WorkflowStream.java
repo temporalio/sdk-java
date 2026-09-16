@@ -50,7 +50,7 @@ public final class WorkflowStream {
   private final Map<String, Double> publisherLastSeen = new HashMap<>();
   private boolean draining;
 
-  private final Map<String, WorkflowTopicHandle> topicHandles = new HashMap<>();
+  private final Map<String, WorkflowTopicHandle<?>> topicHandles = new HashMap<>();
 
   /** Constructs a stream with no prior state and default options. */
   public static WorkflowStream newInstance() {
@@ -100,8 +100,10 @@ public final class WorkflowStream {
    * Returns a handle for publishing to {@code name}. Repeated calls with the same name return the
    * same handle.
    */
-  public WorkflowTopicHandle topic(String name) {
-    return topicHandles.computeIfAbsent(name, n -> new WorkflowTopicHandle(n, this));
+  @SuppressWarnings("unchecked")
+  public <T> WorkflowTopicHandle<T> topic(String name) {
+    return (WorkflowTopicHandle<T>)
+        topicHandles.computeIfAbsent(name, n -> new WorkflowTopicHandle<>(n, this));
   }
 
   /** Unblocks all waiting poll handlers and rejects new polls. Used before continue-as-new. */

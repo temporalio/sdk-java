@@ -2,6 +2,7 @@ package io.temporal.workflowstreams;
 
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.Experimental;
@@ -17,6 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import javax.annotation.Nullable;
 
 /**
@@ -35,8 +37,8 @@ public final class WorkflowStreamClient implements AutoCloseable {
   private final DataConverter itemDataConverter;
   @Nullable private final ScheduledExecutorService userPollExecutor;
 
-  private final Map<String, TopicHandle> topicHandles = new HashMap<>();
-  private final Set<SubscriptionDriver> liveSubscriptions = ConcurrentHashMap.newKeySet();
+  private final Map<String, TopicHandle<?>> topicHandles = new HashMap<>();
+  private final Set<SubscriptionDriver<?>> liveSubscriptions = ConcurrentHashMap.newKeySet();
 
   // Lazily created when the first subscription needs it and no user executor was supplied;
   // owned by this client and shut down in close(). Guarded by `this`.
@@ -103,17 +105,21 @@ public final class WorkflowStreamClient implements AutoCloseable {
    * same name return the same handle.
    */
   public synchronized TopicHandle topic(String name) {
-    return topicHandles.computeIfAbsent(name, n -> new TopicHandle(n, this));
+    return topicHandles.computeIfAbsent(name, n -> new TopicHandle<>(n, this));
   }
 
-  /** Decodes an item using this client's configured, codec-free item converter. */
-  public <T> T decodeItem(WorkflowStreamItem item, Class<T> valueClass) {
-    return decodeItem(item, valueClass, valueClass);
+  /** Returns a typed handle for publishing to and subscribing from {@code name}. */
+  public <T> TopicHandle<T> topic(String name, Class<T> valueClass) {
+    return topic(name, valueClass, valueClass);
   }
 
-  /** Decodes an item using this client's configured, codec-free item converter. */
-  public <T> T decodeItem(WorkflowStreamItem item, Class<T> valueClass, Type valueType) {
-    return itemDataConverter.fromPayload(item.getPayload(), valueClass, valueType);
+  /**
+   * Returns a typed handle for publishing to and subscribing from {@code name}. Each call creates
+   * an independent typed view, so the same topic may be consumed using more than one compatible
+   * type.
+   */
+  public <T> TopicHandle<T> topic(String name, Class<T> valueClass, Type valueType) {
+    return new TopicHandle<>(name, this, valueClass, valueType);
   }
 
   /**
@@ -137,20 +143,37 @@ public final class WorkflowStreamClient implements AutoCloseable {
    * Returns a subscription that long-polls for new items. Iterate with:
    *
    * <pre>{@code
-   * try (WorkflowStreamSubscription subscription = streamClient.subscribe(options)) {
-   *   for (WorkflowStreamItem item : subscription) {
+   * try (WorkflowStreamSubscription<Payload> subscription = streamClient.subscribe(options)) {
+   *   for (WorkflowStreamItem<Payload> item : subscription) {
    *     // use item
    *   }
    * }
    * }</pre>
    *
    * <p>The consuming thread blocks waiting for items; polling itself runs on the client's poll
-   * executor. Decode each item with {@link #decodeItem(WorkflowStreamItem, Class)}. The
-   * subscription ends cleanly when the workflow reaches a terminal state, automatically follows
-   * continue-as-new chains, and also ends when this client is closed.
+   * executor. The subscription ends cleanly when the workflow reaches a terminal state,
+   * automatically follows continue-as-new chains, and also ends when this client is closed.
    */
-  public WorkflowStreamSubscription subscribe(SubscribeOptions options) {
-    return new WorkflowStreamSubscription(listener -> newSubscriptionDriver(options, listener));
+  public WorkflowStreamSubscription<Payload> subscribe(SubscribeOptions options) {
+    return new WorkflowStreamSubscription<>(
+        listener -> newSubscriptionDriver(options, listener, payload -> payload));
+  }
+
+  /** Returns a typed subscription that decodes each item with this client's item converter. */
+  public <T> WorkflowStreamSubscription<T> subscribe(
+      SubscribeOptions options, Class<T> valueClass) {
+    return subscribe(options, valueClass, valueClass);
+  }
+
+  /** Returns a typed subscription that decodes each item with this client's item converter. */
+  public <T> WorkflowStreamSubscription<T> subscribe(
+      SubscribeOptions options, Class<T> valueClass, Type valueType) {
+    return new WorkflowStreamSubscription<>(
+        listener ->
+            newSubscriptionDriver(
+                options,
+                listener,
+                payload -> itemDataConverter.fromPayload(payload, valueClass, valueType)));
   }
 
   /**
@@ -165,17 +188,47 @@ public final class WorkflowStreamClient implements AutoCloseable {
    * WorkflowStreamSubscriptionHandle#close}; closing this client also stops it.
    */
   public WorkflowStreamSubscriptionHandle subscribe(
-      SubscribeOptions options, WorkflowStreamListener listener) {
-    SubscriptionDriver driver = newSubscriptionDriver(options, listener);
+      SubscribeOptions options, WorkflowStreamListener<Payload> listener) {
+    SubscriptionDriver<Payload> driver =
+        newSubscriptionDriver(options, listener, payload -> payload);
     driver.start();
     return driver;
   }
 
-  SubscriptionDriver newSubscriptionDriver(
-      SubscribeOptions options, WorkflowStreamListener listener) {
-    SubscriptionDriver driver =
-        new SubscriptionDriver(
-            client, workflowId, options, pollExecutor(), listener, liveSubscriptions::remove);
+  /** Subscribes a listener that receives items decoded with this client's item converter. */
+  public <T> WorkflowStreamSubscriptionHandle subscribe(
+      SubscribeOptions options, Class<T> valueClass, WorkflowStreamListener<T> listener) {
+    return subscribe(options, valueClass, valueClass, listener);
+  }
+
+  /** Subscribes a listener that receives items decoded with this client's item converter. */
+  public <T> WorkflowStreamSubscriptionHandle subscribe(
+      SubscribeOptions options,
+      Class<T> valueClass,
+      Type valueType,
+      WorkflowStreamListener<T> listener) {
+    SubscriptionDriver<T> driver =
+        newSubscriptionDriver(
+            options,
+            listener,
+            payload -> itemDataConverter.fromPayload(payload, valueClass, valueType));
+    driver.start();
+    return driver;
+  }
+
+  <T> SubscriptionDriver<T> newSubscriptionDriver(
+      SubscribeOptions options,
+      WorkflowStreamListener<T> listener,
+      Function<Payload, T> itemDecoder) {
+    SubscriptionDriver<T> driver =
+        new SubscriptionDriver<>(
+            client,
+            workflowId,
+            options,
+            pollExecutor(),
+            listener,
+            itemDecoder,
+            liveSubscriptions::remove);
     liveSubscriptions.add(driver);
     return driver;
   }
@@ -215,7 +268,7 @@ public final class WorkflowStreamClient implements AutoCloseable {
   @Override
   public void close() {
     publisher.close();
-    for (SubscriptionDriver driver : liveSubscriptions.toArray(new SubscriptionDriver[0])) {
+    for (SubscriptionDriver<?> driver : liveSubscriptions.toArray(new SubscriptionDriver<?>[0])) {
       driver.close();
     }
     ScheduledExecutorService owned;

@@ -1,10 +1,11 @@
 package io.temporal.workflowstreams;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
 
 /** Publishes to a single topic from workflow code. Obtained via {@link WorkflowStream#topic}. */
 @Experimental
-public final class WorkflowTopicHandle {
+public final class WorkflowTopicHandle<T> {
   private final String name;
   private final WorkflowStream stream;
 
@@ -21,9 +22,14 @@ public final class WorkflowTopicHandle {
   /**
    * Appends {@code value} to the stream on this topic. {@code value} is serialized by the stream's
    * payload converters (see {@link WorkflowStreamOptions.Builder#setPayloadConverters}), defaulting
-   * to the standard set; a pre-built {@link io.temporal.api.common.v1.Payload} bypasses conversion.
+   * to the standard set.
    */
-  public void publish(Object value) {
+  public void publish(T value) {
     stream.publishToTopic(name, value);
+  }
+
+  /** Appends a pre-built payload to the stream, bypassing item conversion. */
+  public void publishPayload(Payload payload) {
+    stream.publishToTopic(name, payload);
   }
 }

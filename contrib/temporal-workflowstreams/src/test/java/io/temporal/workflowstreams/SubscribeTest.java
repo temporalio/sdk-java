@@ -1,5 +1,6 @@
 package io.temporal.workflowstreams;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
@@ -10,6 +11,8 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflow;
 import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflowImpl;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,6 +58,7 @@ public class SubscribeTest {
         Assert.assertTrue(subscription.hasNext());
         WorkflowStreamItem first = subscription.next();
         Assert.assertEquals("evt", first.getTopic());
+        Assert.assertSame(first.getPayload(), first.getValue());
         Assert.assertEquals("a", decode(first));
         Assert.assertEquals(0, first.getOffset());
 
@@ -77,16 +81,16 @@ public class SubscribeTest {
       streamClient.topic("evt").publish(new TransferStreamTestModel("client"), true);
       streamClient.flush();
 
-      try (WorkflowStreamSubscription subscription = streamClient.subscribe(FAST_POLL)) {
-        WorkflowStreamItem item = subscription.next();
+      try (WorkflowStreamSubscription<TransferStreamTestModel> subscription =
+          streamClient.subscribe(FAST_POLL, TransferStreamTestModel.class)) {
+        WorkflowStreamItem<TransferStreamTestModel> item = subscription.next();
         Assert.assertEquals(
             "The configured payload converter must receive the protobuf transfer representation",
             "json/protobuf",
             item.getPayload()
                 .getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY)
                 .toStringUtf8());
-        TransferStreamTestModel result =
-            streamClient.decodeItem(item, TransferStreamTestModel.class);
+        TransferStreamTestModel result = item.getValue();
         Assert.assertEquals(new TransferStreamTestModel("client"), result);
         Assert.assertTrue(result.wasTransferred());
       }
@@ -101,9 +105,9 @@ public class SubscribeTest {
     try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
       stub.signal("publishTransfer", "evt", new TransferStreamTestModel("workflow"));
 
-      try (WorkflowStreamSubscription subscription = streamClient.subscribe(FAST_POLL)) {
-        TransferStreamTestModel result =
-            streamClient.decodeItem(subscription.next(), TransferStreamTestModel.class);
+      try (WorkflowStreamSubscription<TransferStreamTestModel> subscription =
+          streamClient.topic("evt", TransferStreamTestModel.class).subscribe(0)) {
+        TransferStreamTestModel result = subscription.next().getValue();
         Assert.assertEquals(new TransferStreamTestModel("workflow"), result);
         Assert.assertTrue(result.wasTransferred());
       }
@@ -126,6 +130,66 @@ public class SubscribeTest {
         WorkflowStreamItem second = subscription.next();
         Assert.assertEquals("3", decode(second));
         Assert.assertEquals(2, second.getOffset());
+      }
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testTypedTopicAllowsMultipleViews() {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      TopicHandle<String> strings = streamClient.topic("evt", String.class);
+      TopicHandle<Object> objects = streamClient.topic("evt", Object.class);
+      strings.publish("value", true);
+      streamClient.flush();
+
+      try (WorkflowStreamSubscription<String> stringSubscription = strings.subscribe(0);
+          WorkflowStreamSubscription<Object> objectSubscription = objects.subscribe(0)) {
+        Assert.assertEquals("value", stringSubscription.next().getValue());
+        Assert.assertEquals("value", objectSubscription.next().getValue());
+      }
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testTypedSubscriptionUsesParameterizedType() {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      streamClient.topic("evt").publish(Arrays.asList("a", "b"), true);
+      streamClient.flush();
+
+      try (WorkflowStreamSubscription<List> subscription =
+          streamClient.subscribe(
+              FAST_POLL, List.class, new TypeReference<List<String>>() {}.getType())) {
+        WorkflowStreamItem<List> item = subscription.next();
+        Assert.assertEquals(Arrays.asList("a", "b"), item.getValue());
+        Assert.assertNotNull(item.getPayload());
+      }
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  @Test
+  public void testTypedConversionFailureSurfacesFromHasNext() {
+    WorkflowStub stub = startHostWorkflow();
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      streamClient.topic("evt").publish("not-an-integer", true);
+      streamClient.flush();
+
+      try (WorkflowStreamSubscription<Integer> subscription =
+          streamClient.subscribe(FAST_POLL, Integer.class)) {
+        try {
+          subscription.hasNext();
+          Assert.fail("expected item conversion to fail");
+        } catch (RuntimeException e) {
+          // Expected.
+        }
+        Assert.assertFalse(subscription.hasNext());
       }
     }
     stub.signal("finish");

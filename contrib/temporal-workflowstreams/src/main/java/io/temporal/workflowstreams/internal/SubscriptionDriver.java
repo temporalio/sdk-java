@@ -1,5 +1,6 @@
 package io.temporal.workflowstreams.internal;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
@@ -27,6 +28,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * <p>This class is public only for internal wiring; construct subscriptions through {@link
  * io.temporal.workflowstreams.WorkflowStreamClient} instead.
  */
-public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandle {
+public final class SubscriptionDriver<T> implements WorkflowStreamSubscriptionHandle {
   private static final Logger log = LoggerFactory.getLogger(SubscriptionDriver.class);
 
   private final WorkflowClient client;
@@ -53,8 +55,9 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
   private final List<String> topics;
   private final long pollCooldownMs;
   private final ScheduledExecutorService executor;
-  private final WorkflowStreamListener listener;
-  private final Consumer<SubscriptionDriver> onFinish;
+  private final WorkflowStreamListener<T> listener;
+  private final Function<Payload, T> itemDecoder;
+  private final Consumer<SubscriptionDriver<T>> onFinish;
   private final CompletableFuture<Void> doneFuture = new CompletableFuture<>();
 
   // Mutable poll state, owned by the single outstanding step (see class javadoc).
@@ -73,8 +76,9 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
       String workflowId,
       SubscribeOptions options,
       ScheduledExecutorService executor,
-      WorkflowStreamListener listener,
-      Consumer<SubscriptionDriver> onFinish) {
+      WorkflowStreamListener<T> listener,
+      Function<Payload, T> itemDecoder,
+      Consumer<SubscriptionDriver<T>> onFinish) {
     this.client = client;
     this.workflowId = workflowId;
     this.latestRunStub = client.newUntypedWorkflowStub(workflowId);
@@ -83,6 +87,7 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
     this.pollCooldownMs = options.getPollCooldown().toMillis();
     this.executor = executor;
     this.listener = listener;
+    this.itemDecoder = itemDecoder;
     this.onFinish = onFinish;
   }
 
@@ -151,15 +156,17 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
       finishSilent();
       return;
     }
-    List<WorkflowStreamItem> items = new ArrayList<>(result.items.size());
+    List<WorkflowStreamItem<T>> items = new ArrayList<>(result.items.size());
     for (WireItem item : result.items) {
-      items.add(new WorkflowStreamItem(item.topic, PayloadWire.decode(item.data), item.offset));
+      Payload payload = PayloadWire.decode(item.data);
+      items.add(
+          new WorkflowStreamItem<>(item.topic, payload, itemDecoder.apply(payload), item.offset));
     }
     offset = result.nextOffset;
     deliverFrom(items, 0, result.moreReady);
   }
 
-  private void deliverFrom(List<WorkflowStreamItem> items, int start, boolean moreReady) {
+  private void deliverFrom(List<WorkflowStreamItem<T>> items, int start, boolean moreReady) {
     // Iterate (rather than recurse) over items whose stages complete immediately, so a large
     // batch of synchronous onNext calls cannot grow the stack.
     for (int i = start; ; i++) {
