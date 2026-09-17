@@ -192,7 +192,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
             && options.get().getWorkflowIdReusePolicy()
                 == WorkflowIdReusePolicy.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE)) {
       try {
-        untyped.start(method.getGenericParameterTypes(), args);
+        untyped.startWithTypeHints(method.getGenericParameterTypes(), args);
       } catch (WorkflowExecutionAlreadyStarted e) {
         // We do allow duplicated calls if policy is not AllowDuplicate. Semantic is to wait for
         // result.
@@ -242,7 +242,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException(
             "WorkflowClient.start can be called only on a method annotated with @WorkflowMethod");
       }
-      result = untyped.start(method.getGenericParameterTypes(), args);
+      result = untyped.startWithTypeHints(method.getGenericParameterTypes(), args);
     }
 
     @Override
@@ -299,7 +299,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException("Signal method must have void return type: " + method);
       }
       String signalName = methodMetadata.getName();
-      untyped.signal(signalName, method.getGenericParameterTypes(), args);
+      untyped.signalWithTypeHints(signalName, method.getGenericParameterTypes(), args);
     }
 
     private Object queryWorkflow(
@@ -311,7 +311,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         throw new IllegalArgumentException("Query method cannot have void return type: " + method);
       }
       String queryType = methodMetadata.getName();
-      return untyped.query(
+      return untyped.queryWithTypeHints(
           queryType,
           method.getReturnType(),
           method.getGenericReturnType(),
@@ -325,7 +325,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         Method method,
         Object[] args) {
       String updateType = methodMetadata.getName();
-      return untyped.update(
+      return untyped.updateWithTypeHints(
           updateType,
           method.getReturnType(),
           method.getGenericReturnType(),
@@ -440,7 +440,8 @@ class WorkflowInvocationHandler implements InvocationHandler {
       }
 
       result =
-          createNexusBoundStub(untyped, request).start(method.getGenericParameterTypes(), args);
+          createNexusBoundStub(untyped, request)
+              .startWithTypeHints(method.getGenericParameterTypes(), args);
     }
 
     @Override
@@ -476,7 +477,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
             "Only a method annotated with @UpdateMethod can be used to start an Update.");
       }
       result =
-          untyped.startUpdate(
+          untyped.startUpdateWithTypeHints(
               mergeUpdateOptions(options, workflowMetadata, method),
               method.getGenericParameterTypes(),
               args);
@@ -581,7 +582,7 @@ class WorkflowInvocationHandler implements InvocationHandler {
         state = State.START_RECEIVED;
 
         this.result =
-            untyped.startUpdateWithStart(
+            untyped.startUpdateWithStartWithTypeHints(
                 updateOptions, updateArgs, updateArgTypes, this.startArgs, startArgTypes);
       } else {
         throw new IllegalArgumentException(

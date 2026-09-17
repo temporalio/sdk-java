@@ -75,11 +75,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
-    signal(signalName, null, args);
+    signalWithTypeHints(signalName, null, args);
   }
 
   @Override
-  public void signal(String signalName, Type[] argTypes, Object... args) {
+  public void signalWithTypeHints(String signalName, Type[] argTypes, Object... args) {
     checkStarted();
     WorkflowExecution targetExecution = currentExecutionCheckLegacy();
     try {
@@ -121,11 +121,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public WorkflowExecution start(Object... args) {
-    return start(null, args);
+    return startWithTypeHints(null, args);
   }
 
   @Override
-  public WorkflowExecution start(Type[] argTypes, Object... args) {
+  public WorkflowExecution startWithTypeHints(Type[] argTypes, Object... args) {
     if (options == null) {
       throw new IllegalStateException("Required parameter WorkflowOptions is missing");
     }
@@ -135,11 +135,11 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
       UpdateOptions<R> updateOptions, Object[] updateArgs, Object[] startArgs) {
-    return startUpdateWithStart(updateOptions, updateArgs, null, startArgs, null);
+    return startUpdateWithStartWithTypeHints(updateOptions, updateArgs, null, startArgs, null);
   }
 
   @Override
-  public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+  public <R> WorkflowUpdateHandle<R> startUpdateWithStartWithTypeHints(
       UpdateOptions<R> updateOptions,
       Object[] updateArgs,
       Type[] updateArgTypes,
@@ -253,11 +253,11 @@ class WorkflowStubImpl implements WorkflowStub {
   @Override
   public WorkflowExecution signalWithStart(
       String signalName, Object[] signalArgs, Object[] startArgs) {
-    return signalWithStart(signalName, signalArgs, null, startArgs, null);
+    return signalWithStartWithTypeHints(signalName, signalArgs, null, startArgs, null);
   }
 
   @Override
-  public WorkflowExecution signalWithStart(
+  public WorkflowExecution signalWithStartWithTypeHints(
       String signalName,
       Object[] signalArgs,
       Type[] signalArgTypes,
@@ -366,11 +366,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R query(String queryType, Class<R> resultClass, Type resultType, Object... args) {
-    return query(queryType, resultClass, resultType, null, args);
+    return queryWithTypeHints(queryType, resultClass, resultType, null, args);
   }
 
   @Override
-  public <R> R query(
+  public <R> R queryWithTypeHints(
       String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     checkStarted();
     WorkflowClientCallsInterceptor.QueryOutput<R> result;
@@ -402,11 +402,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> R update(String updateName, Class<R> resultClass, Object... args) {
-    return update(updateName, resultClass, resultClass, null, args);
+    return updateWithTypeHints(updateName, resultClass, resultClass, null, args);
   }
 
   @Override
-  public <R> R update(
+  public <R> R updateWithTypeHints(
       String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     checkStarted();
     try {
@@ -418,7 +418,7 @@ class WorkflowStubImpl implements WorkflowStub {
               .setResultType(resultType)
               .setFirstExecutionRunId(firstExecutionRunId)
               .build();
-      return startUpdate(options, argTypes, args).getResultAsync().get();
+      return startUpdateWithTypeHints(options, argTypes, args).getResultAsync().get();
     } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } catch (ExecutionException e) {
@@ -446,11 +446,11 @@ class WorkflowStubImpl implements WorkflowStub {
 
   @Override
   public <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
-    return startUpdate(options, null, args);
+    return startUpdateWithTypeHints(options, null, args);
   }
 
   @Override
-  public <R> WorkflowUpdateHandle<R> startUpdate(
+  public <R> WorkflowUpdateHandle<R> startUpdateWithTypeHints(
       UpdateOptions<R> options, Type[] argTypes, Object... args) {
     checkStarted();
     options.validate();

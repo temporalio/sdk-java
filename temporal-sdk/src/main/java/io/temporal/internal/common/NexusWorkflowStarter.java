@@ -19,8 +19,8 @@ public class NexusWorkflowStarter {
     return new NexusStartWorkflowResponse(workflowExecution, operationToken);
   }
 
-  public NexusStartWorkflowResponse start(Type[] argTypes, Object... args) {
-    WorkflowExecution workflowExecution = workflowStub.start(argTypes, args);
+  public NexusStartWorkflowResponse startWithTypeHints(Type[] argTypes, Object... args) {
+    WorkflowExecution workflowExecution = workflowStub.startWithTypeHints(argTypes, args);
     return new NexusStartWorkflowResponse(workflowExecution, operationToken);
   }
 }

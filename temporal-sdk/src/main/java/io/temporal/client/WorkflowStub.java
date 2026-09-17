@@ -59,7 +59,7 @@ public interface WorkflowStub {
    *
    * <p>The default implementation delegates to {@link #signal(String, Object...)}.
    */
-  default void signal(String signalName, Type[] argTypes, Object... args) {
+  default void signalWithTypeHints(String signalName, Type[] argTypes, Object... args) {
     signal(signalName, args);
   }
 
@@ -85,7 +85,7 @@ public interface WorkflowStub {
    *
    * <p>The default implementation delegates to {@link #update(String, Class, Object...)}.
    */
-  default <R> R update(
+  default <R> R updateWithTypeHints(
       String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     return update(updateName, resultClass, args);
   }
@@ -128,7 +128,7 @@ public interface WorkflowStub {
    *
    * <p>The default implementation delegates to {@link #startUpdate(UpdateOptions, Object...)}.
    */
-  default <R> WorkflowUpdateHandle<R> startUpdate(
+  default <R> WorkflowUpdateHandle<R> startUpdateWithTypeHints(
       UpdateOptions<R> options, Type[] argTypes, Object... args) {
     return startUpdate(options, args);
   }
@@ -165,7 +165,7 @@ public interface WorkflowStub {
    *
    * <p>The default implementation delegates to {@link #start(Object...)}.
    */
-  default WorkflowExecution start(Type[] argTypes, Object... args) {
+  default WorkflowExecution startWithTypeHints(Type[] argTypes, Object... args) {
     return start(args);
   }
 
@@ -190,7 +190,7 @@ public interface WorkflowStub {
    * <p>The default implementation delegates to {@link #startUpdateWithStart(UpdateOptions,
    * Object[], Object[])}.
    */
-  default <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+  default <R> WorkflowUpdateHandle<R> startUpdateWithStartWithTypeHints(
       UpdateOptions<R> updateOptions,
       Object[] updateArgs,
       Type[] updateArgTypes,
@@ -229,7 +229,7 @@ public interface WorkflowStub {
    * <p>The default implementation delegates to {@link #signalWithStart(String, Object[],
    * Object[])}.
    */
-  default WorkflowExecution signalWithStart(
+  default WorkflowExecution signalWithStartWithTypeHints(
       String signalName,
       Object[] signalArgs,
       Type[] signalArgTypes,
@@ -444,7 +444,7 @@ public interface WorkflowStub {
    *
    * <p>The default implementation delegates to {@link #query(String, Class, Type, Object...)}.
    */
-  default <R> R query(
+  default <R> R queryWithTypeHints(
       String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     return query(queryType, resultClass, resultType, args);
   }

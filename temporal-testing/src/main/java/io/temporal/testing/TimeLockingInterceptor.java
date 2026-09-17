@@ -50,8 +50,8 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public void signal(String signalName, Type[] argTypes, Object... args) {
-      next.signal(signalName, argTypes, args);
+    public void signalWithTypeHints(String signalName, Type[] argTypes, Object... args) {
+      next.signalWithTypeHints(signalName, argTypes, args);
     }
 
     @Override
@@ -60,8 +60,8 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public WorkflowExecution start(Type[] argTypes, Object... args) {
-      return next.start(argTypes, args);
+    public WorkflowExecution startWithTypeHints(Type[] argTypes, Object... args) {
+      return next.startWithTypeHints(argTypes, args);
     }
 
     @Override
@@ -71,13 +71,13 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
+    public <R> WorkflowUpdateHandle<R> startUpdateWithStartWithTypeHints(
         UpdateOptions<R> options,
         Object[] updateArgs,
         Type[] updateArgTypes,
         Object[] startArgs,
         Type[] startArgTypes) {
-      return next.startUpdateWithStart(
+      return next.startUpdateWithStartWithTypeHints(
           options, updateArgs, updateArgTypes, startArgs, startArgTypes);
     }
 
@@ -94,13 +94,14 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public WorkflowExecution signalWithStart(
+    public WorkflowExecution signalWithStartWithTypeHints(
         String signalName,
         Object[] signalArgs,
         Type[] signalArgTypes,
         Object[] startArgs,
         Type[] startArgTypes) {
-      return next.signalWithStart(signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
+      return next.signalWithStartWithTypeHints(
+          signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
     }
 
     @Override
@@ -191,9 +192,9 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public <R> R query(
+    public <R> R queryWithTypeHints(
         String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
-      return next.query(queryType, resultClass, resultType, argTypes, args);
+      return next.queryWithTypeHints(queryType, resultClass, resultType, argTypes, args);
     }
 
     @Override
@@ -280,9 +281,9 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public <R> R update(
+    public <R> R updateWithTypeHints(
         String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
-      return next.update(updateName, resultClass, resultType, argTypes, args);
+      return next.updateWithTypeHints(updateName, resultClass, resultType, argTypes, args);
     }
 
     @Override
@@ -297,9 +298,9 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
-    public <R> WorkflowUpdateHandle<R> startUpdate(
+    public <R> WorkflowUpdateHandle<R> startUpdateWithTypeHints(
         UpdateOptions<R> options, Type[] argTypes, Object... args) {
-      return next.startUpdate(options, argTypes, args);
+      return next.startUpdateWithTypeHints(options, argTypes, args);
     }
 
     @Override

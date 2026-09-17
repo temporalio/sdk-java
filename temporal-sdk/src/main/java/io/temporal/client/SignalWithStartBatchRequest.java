@@ -37,7 +37,8 @@ final class SignalWithStartBatchRequest implements BatchRequest {
   }
 
   private WorkflowExecution signalWithStart() {
-    return stub.signalWithStart(signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
+    return stub.signalWithStartWithTypeHints(
+        signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
   }
 
   void signal(WorkflowStub stub, String signalName, Object[] args, Type[] argTypes) {
