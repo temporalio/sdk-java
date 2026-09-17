@@ -51,6 +51,10 @@ public class StandaloneNexusSerializationContextTest {
   // codec keyed on the context would. Only the client gets the recording failure converter, so the
   // contexts it records are the client's.
   private static final RecordingCodec CODEC = new RecordingCodec();
+
+  // A handle obtained by operation ID legitimately decodes a context-encoded payload without a
+  // context, so that direction is only an error when a test says it should be.
+  private static boolean allowContextlessDecodeOfSignedPayload;
   private static final RecordingFailureConverter FAILURE_CONVERTER =
       new RecordingFailureConverter();
 
@@ -87,6 +91,7 @@ public class StandaloneNexusSerializationContextTest {
         testWorkflowRule.isUseExternalService());
     CODEC.reset();
     FAILURE_CONVERTER.reset();
+    allowContextlessDecodeOfSignedPayload = false;
   }
 
   @Test
@@ -177,6 +182,7 @@ public class StandaloneNexusSerializationContextTest {
 
   @Test
   public void handleObtainedByIdHasNoContext() {
+    allowContextlessDecodeOfSignedPayload = true;
     String input = "ping-" + UUID.randomUUID();
     UntypedNexusOperationHandle started = startOperation(input);
     started.getResult(String.class);
@@ -359,9 +365,13 @@ public class StandaloneNexusSerializationContextTest {
           decoded.add(payload);
           continue;
         }
-        // Not asserting the reverse: a handle obtained by operation ID legitimately decodes a
-        // payload that was encoded under a context, without one. handleObtainedByIdHasNoContext
-        // covers that path.
+        if (!(context instanceof NexusSerializationContext)) {
+          // The reverse mismatch: encoded under a context, decoded without one. Legitimate only
+          // for a handle obtained by operation ID, which opts in below.
+          Assert.assertTrue(
+              "payload encoded under a Nexus context was decoded under " + context,
+              allowContextlessDecodeOfSignedPayload);
+        }
         if (context instanceof NexusSerializationContext) {
           NexusSerializationContext nexus = (NexusSerializationContext) context;
           Assert.assertEquals(

@@ -154,17 +154,14 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
     // The response names the endpoint, service and operation, so the description decodes its
-    // payloads and failures with the same context the operation was started with. A response that
-    // does not report the endpoint would otherwise scope by an empty one and silently disagree with
-    // the start request, so it falls back to no context, matching the handler path.
+    // payloads and failures with the same context the operation was started with.
     NexusOperationExecutionInfo info = response.getInfo();
-    DataConverter dataConverter = clientOptions.getDataConverter();
-    if (!Strings.isNullOrEmpty(info.getEndpoint())) {
-      dataConverter =
-          dataConverter.withContext(
-              new NexusSerializationContext(
-                  info.getEndpoint(), info.getService(), info.getOperation()));
-    }
+    DataConverter dataConverter =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new NexusSerializationContext(
+                    info.getEndpoint(), info.getService(), info.getOperation()));
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
             response, dataConverter, clientOptions.getNamespace()));

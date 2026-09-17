@@ -2,6 +2,10 @@ package io.temporal.internal.nexus;
 
 import static org.mockito.Mockito.mock;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -36,6 +40,7 @@ import javax.annotation.Nonnull;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.LoggerFactory;
 
 /**
  * Verifies that the Nexus task handler scopes its data converter to the endpoint, service and
@@ -117,6 +122,53 @@ public class NexusTaskHandlerSerializationContextTest {
   }
 
   @Test
+  public void handlerErrorCarriesTheOperationContextOnTheResult() throws TimeoutException {
+    // A throwable that is not an OperationException becomes a HandlerException, and its failure is
+    // encoded by the worker after the per-task context has gone out of scope. The context has to
+    // travel out on the result for the caller, which decodes with it, to agree.
+    NexusSerializationContext expected =
+        new NexusSerializationContext(ENDPOINT, SERVICE, OPERATION);
+    DataConverter converter = signingConverter(new SigningCodec());
+    Payload input = converter.withContext(expected).toPayload("boom").get();
+
+    NexusTaskHandler.Result result = handle(converter, new ThrowingServiceImpl(), startTask(input));
+
+    Assert.assertNotNull("expected a handler error", result.getHandlerException());
+    Assert.assertEquals(
+        "the handler error should carry the operation's context out to the reply",
+        expected,
+        result.getSerializationContext());
+  }
+
+  @Test
+  public void cancelTaskCarriesTheOperationContextOnTheResult() throws TimeoutException {
+    // Cancel tasks name an operation too, and a failure reported for one is encoded on the same
+    // out-of-scope path as a start task's.
+    NexusSerializationContext expected =
+        new NexusSerializationContext(ENDPOINT, SERVICE, OPERATION);
+
+    NexusTaskHandler.Result result =
+        handle(
+            signingConverter(new SigningCodec()),
+            new ThrowingServiceImpl(),
+            PollNexusTaskQueueResponse.newBuilder()
+                .setRequest(
+                    Request.newBuilder()
+                        .setEndpoint(ENDPOINT)
+                        .setCancelOperation(
+                            io.temporal.api.nexus.v1.CancelOperationRequest.newBuilder()
+                                .setService(SERVICE)
+                                .setOperation(OPERATION)
+                                .setOperationToken("token"))));
+
+    Assert.assertNotNull("expected a handler error", result.getHandlerException());
+    Assert.assertEquals(
+        "a cancel task's failure should carry the operation's context too",
+        expected,
+        result.getSerializationContext());
+  }
+
+  @Test
   public void serializerWithoutTaskInScopeUsesContextlessConverter() {
     // The serializer is shared by the whole worker and is also reachable outside of a Nexus task,
     // where there is no endpoint/service/operation to scope it by.
@@ -132,6 +184,59 @@ public class NexusTaskHandlerSerializationContextTest {
         codec.contexts());
   }
 
+  @Test
+  public void taskWithoutAnEndpointStillGetsAContextAndWarnsOnce() throws TimeoutException {
+    // Servers before 1.30.0 do not report the endpoint a Nexus task was addressed to. The handler
+    // still scopes by service and operation, with an empty endpoint, and says once per worker that
+    // those payloads will not round-trip through a context-varying converter.
+    NexusSerializationContext expected = new NexusSerializationContext("", SERVICE, OPERATION);
+    DataConverter callerConverter = signingConverter(new SigningCodec());
+    SigningCodec handlerCodec = new SigningCodec();
+    DataConverter handlerConverter = signingConverter(handlerCodec);
+    Payload input = callerConverter.withContext(expected).toPayload("no-endpoint").get();
+
+    ch.qos.logback.classic.Logger logger =
+        ((LoggerContext) LoggerFactory.getILoggerFactory())
+            .getLogger(NexusTaskHandlerImpl.class.getName());
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    logger.addAppender(appender);
+    try {
+      // One handler stands in for one worker, so both tasks share the warn-once flag.
+      NexusTaskHandlerImpl handler = newHandler(handlerConverter, new EchoServiceImpl());
+      handler.handle(new NexusTask(startTaskWithoutEndpoint(input), null, null), metricsScope);
+      handler.handle(new NexusTask(startTaskWithoutEndpoint(input), null, null), metricsScope);
+
+      List<ILoggingEvent> warnings =
+          appender.list.stream()
+              .filter(event -> event.getLevel() == Level.WARN)
+              .filter(event -> event.getFormattedMessage().contains("did not report the endpoint"))
+              .collect(java.util.stream.Collectors.toList());
+      Assert.assertEquals(
+          "the missing-endpoint warning should be logged once per worker, not once per task",
+          1,
+          warnings.size());
+    } finally {
+      logger.detachAppender(appender);
+    }
+
+    Assert.assertEquals(
+        "an absent endpoint should still produce a context scoped by service and operation",
+        java.util.Arrays.asList(expected, expected, expected, expected),
+        handlerCodec.contexts());
+  }
+
+  private static PollNexusTaskQueueResponse.Builder startTaskWithoutEndpoint(Payload input) {
+    return PollNexusTaskQueueResponse.newBuilder()
+        .setRequest(
+            Request.newBuilder()
+                .setStartOperation(
+                    StartOperationRequest.newBuilder()
+                        .setService(SERVICE)
+                        .setOperation(OPERATION)
+                        .setPayload(input)));
+  }
+
   private static DataConverter signingConverter(SigningCodec codec) {
     return new CodecDataConverter(
         DefaultDataConverter.STANDARD_INSTANCE, Collections.singletonList(codec));
@@ -140,6 +245,11 @@ public class NexusTaskHandlerSerializationContextTest {
   private NexusTaskHandler.Result handle(
       DataConverter dataConverter, Object serviceImpl, PollNexusTaskQueueResponse.Builder task)
       throws TimeoutException {
+    return newHandler(dataConverter, serviceImpl)
+        .handle(new NexusTask(task, null, null), metricsScope);
+  }
+
+  private NexusTaskHandlerImpl newHandler(DataConverter dataConverter, Object serviceImpl) {
     NexusTaskHandlerImpl handler =
         new NexusTaskHandlerImpl(
             mock(WorkflowClient.class),
@@ -149,7 +259,7 @@ public class NexusTaskHandlerSerializationContextTest {
             new WorkerInterceptor[] {});
     handler.registerNexusServiceImplementations(new Object[] {serviceImpl});
     handler.start();
-    return handler.handle(new NexusTask(task, null, null), metricsScope);
+    return handler;
   }
 
   private static PollNexusTaskQueueResponse.Builder startTask(Payload input) {
@@ -174,6 +284,17 @@ public class NexusTaskHandlerSerializationContextTest {
     public OperationHandler<String, String> operation() {
       return io.nexusrpc.handler.OperationHandler.sync(
           (ctx, details, name) -> "Hello, " + name + "!");
+    }
+  }
+
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public static class ThrowingServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return io.nexusrpc.handler.OperationHandler.sync(
+          (ctx, details, name) -> {
+            throw new RuntimeException("not an operation failure");
+          });
     }
   }
 

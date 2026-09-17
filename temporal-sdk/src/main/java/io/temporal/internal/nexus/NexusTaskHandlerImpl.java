@@ -2,7 +2,6 @@ package io.temporal.internal.nexus;
 
 import static io.temporal.internal.common.NexusUtil.nexusProtoLinkToLink;
 
-import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.grpc.StatusRuntimeException;
 import io.nexusrpc.Header;
@@ -53,6 +52,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private final Map<String, ServiceImplInstance> serviceImplInstances =
       Collections.synchronizedMap(new HashMap<>());
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+  // Warn once per worker rather than once per task if the server does not report Nexus endpoints.
+  private final AtomicBoolean warnedMissingEndpoint = new AtomicBoolean();
   private final TemporalInterceptorMiddleware nexusServiceInterceptor;
 
   public NexusTaskHandlerImpl(
@@ -165,24 +166,27 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
    * converter used for its input, result and failures is scoped to the endpoint, service and
    * operation the request names.
    *
-   * <p>Leaves the context unset when the task does not report an endpoint, which is the case on
-   * servers before 1.30.0. Scoping by an empty endpoint would silently disagree with the caller,
-   * which scoped by the real one.
+   * <p>Note that servers before 1.30.0 do not report the endpoint the task was addressed to, so the
+   * context is scoped by an empty endpoint there and does not agree with the caller's. Nexus
+   * serialization context on the handler side requires server 1.30.0 or later.
    */
   private void setSerializationContext(String service, String operation) {
     InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
     String endpoint = nexusContext.getEndpoint();
-    if (Strings.isNullOrEmpty(endpoint)) {
-      return;
+    if (endpoint.isEmpty() && warnedMissingEndpoint.compareAndSet(false, true)) {
+      log.warn(
+          "Nexus task did not report the endpoint it was addressed to, which requires server "
+              + "1.30.0 or later. Payloads this worker serializes for Nexus operations will use a "
+              + "serialization context that does not match the caller's, so a data converter that "
+              + "varies by context will not round-trip them.");
     }
     nexusContext.setSerializationContext(
         new NexusSerializationContext(endpoint, service, operation));
   }
 
   /**
-   * The data converter scoped to the operation this task is for. Falls back to the uncontextualized
-   * converter when there is no context for the operation, which is the case on a server that does
-   * not report the endpoint the task was addressed to.
+   * The data converter scoped to the operation this task is for, or the uncontextualized converter
+   * when there is no Nexus task in scope.
    */
   private DataConverter dataConverterForCurrentOperation() {
     NexusSerializationContext context = currentSerializationContext();
@@ -191,7 +195,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   /**
    * Serialization context of the operation currently being handled, or null if there is no Nexus
-   * task in scope or the task did not report the endpoint it was addressed to.
+   * task in scope or the request variant did not name a service and operation.
    */
   private static @Nullable NexusSerializationContext currentSerializationContext() {
     if (!CurrentNexusOperationContext.isNexusContext()) {
