@@ -1,5 +1,6 @@
 package io.temporal.functional.serialization;
 
+import static io.temporal.testUtils.Eventually.assertEventually;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
@@ -78,8 +79,8 @@ public class WorkflowIdSignedPayloadsTest {
     assertEquals("result", workflowStub.execute("input"));
   }
 
-  @Test
-  public void testSimpleWorkflowWithMemo() throws InterruptedException {
+  @Test(timeout = 30_000)
+  public void testSimpleWorkflowWithMemo() {
     assumeTrue(
         "skipping as test server does not support list", SDKTestWorkflowRule.useExternalService);
 
@@ -95,16 +96,20 @@ public class WorkflowIdSignedPayloadsTest {
     String workflowId = execution.getWorkflowId();
     String runId = execution.getRunId();
 
-    // listWorkflowExecutions is Visibility API
-    // Temporal Visibility has latency and is not transactional with the Server API call
-    Thread.sleep(4_000);
-
     List<WorkflowExecutionMetadata> executions =
-        testWorkflowRule
-            .getWorkflowClient()
-            .listExecutions("WorkflowId = '" + workflowId + "' AND " + " RunId = '" + runId + "'")
-            .collect(Collectors.toList());
-    assertEquals(1, executions.size());
+        assertEventually(
+            Duration.ofSeconds(20),
+            () -> {
+              // Visibility is eventually consistent with workflow completion.
+              List<WorkflowExecutionMetadata> visibleExecutions =
+                  testWorkflowRule
+                      .getWorkflowClient()
+                      .listExecutions(
+                          "WorkflowId = '" + workflowId + "' AND " + " RunId = '" + runId + "'")
+                      .collect(Collectors.toList());
+              assertEquals(1, visibleExecutions.size());
+              return visibleExecutions;
+            });
     assertEquals(MEMO_VALUE, executions.get(0).getMemo(MEMO_KEY, String.class));
   }
 
