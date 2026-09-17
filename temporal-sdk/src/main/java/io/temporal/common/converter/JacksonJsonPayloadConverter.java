@@ -105,16 +105,37 @@ public class JacksonJsonPayloadConverter implements PayloadConverter {
     }
 
     try {
-      byte[] serialized = mapper.writeValueAsBytes(value);
-      return Optional.of(
-          Payload.newBuilder()
-              .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
-              .setData(ByteString.copyFrom(serialized))
-              .build());
-
+      return toPayload(mapper.writeValueAsBytes(value));
     } catch (JsonProcessingException e) {
       throw new DataConverterException(e);
     }
+  }
+
+  @Override
+  public Optional<Payload> toData(Object value, Type valueType) throws DataConverterException {
+    // Delegate to Jackson 3 converter if globally opted in via setDefaultAsJackson3
+    PayloadConverter delegate = jackson3Delegate;
+    if (delegate != null && useDefaultJackson3Delegate) {
+      return delegate.toData(value, valueType);
+    }
+
+    try {
+      byte[] serialized =
+          mapper
+              .writerFor(mapper.getTypeFactory().constructType(valueType))
+              .writeValueAsBytes(value);
+      return toPayload(serialized);
+    } catch (JsonProcessingException e) {
+      throw new DataConverterException(e);
+    }
+  }
+
+  private Optional<Payload> toPayload(byte[] serialized) {
+    return Optional.of(
+        Payload.newBuilder()
+            .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)
+            .setData(ByteString.copyFrom(serialized))
+            .build());
   }
 
   @Override

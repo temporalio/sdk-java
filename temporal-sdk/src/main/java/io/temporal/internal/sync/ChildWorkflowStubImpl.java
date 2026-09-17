@@ -60,8 +60,12 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> R execute(Class<R> resultClass, Type resultType, Object... args) {
+    return execute(resultClass, resultType, null, args);
+  }
+
+  <R> R execute(Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     assertReadOnly.apply("schedule child workflow");
-    Promise<R> result = executeAsync(resultClass, resultType, args);
+    Promise<R> result = executeAsync(resultClass, resultType, argTypes, args);
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
       return Defaults.defaultValue(resultClass);
@@ -83,6 +87,11 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public <R> Promise<R> executeAsync(Class<R> resultClass, Type resultType, Object... args) {
+    return executeAsync(resultClass, resultType, null, args);
+  }
+
+  <R> Promise<R> executeAsync(
+      Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
     assertReadOnly.apply("schedule child workflow");
     ChildWorkflowOutput<R> result =
         outboundCallsInterceptor.executeChildWorkflow(
@@ -92,6 +101,7 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
                 resultClass,
                 resultType,
                 args,
+                argTypes,
                 options,
                 Header.empty()));
     execution.completeFrom(result.getWorkflowExecution());
@@ -100,12 +110,16 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    signal(signalName, null, args);
+  }
+
+  void signal(String signalName, Type[] argTypes, Object... args) {
     assertReadOnly.apply("signal workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
             .signalExternalWorkflow(
                 new WorkflowOutboundCallsInterceptor.SignalExternalInput(
-                    execution.get(), signalName, Header.empty(), args))
+                    execution.get(), signalName, Header.empty(), args, argTypes))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);

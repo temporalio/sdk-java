@@ -154,13 +154,24 @@ public interface ActivityClientCallsInterceptor {
   final class StartActivityInput {
     private final String activityType;
     private final List<Object> args;
+    private final @Nullable Type[] argTypes;
     private final StartActivityOptions options;
     private final Header header;
 
     public StartActivityInput(
         String activityType, List<Object> args, StartActivityOptions options, Header header) {
+      this(activityType, args, null, options, header);
+    }
+
+    public StartActivityInput(
+        String activityType,
+        List<Object> args,
+        @Nullable Type[] argTypes,
+        StartActivityOptions options,
+        Header header) {
       this.activityType = activityType;
       this.args = args;
+      this.argTypes = argTypes;
       this.options = options;
       this.header = header;
     }
@@ -171,6 +182,10 @@ public interface ActivityClientCallsInterceptor {
 
     public List<Object> getArgs() {
       return args;
+    }
+
+    public @Nullable Type[] getArgTypes() {
+      return argTypes;
     }
 
     public StartActivityOptions getOptions() {

@@ -21,6 +21,7 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -158,11 +159,22 @@ final class ActivityTaskExecutors {
         ActivityInfoInternal info,
         @Nullable ActivityOutput result,
         DataConverter dataConverterWithActivityContext) {
+      return constructResultValue(info, result, null, dataConverterWithActivityContext);
+    }
+
+    ActivityTaskHandler.Result constructResultValue(
+        ActivityInfoInternal info,
+        @Nullable ActivityOutput result,
+        @Nullable Type resultType,
+        DataConverter dataConverterWithActivityContext) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder();
       if (result != null) {
         Optional<Payloads> serialized =
-            dataConverterWithActivityContext.toPayloads(result.getResult());
+            resultType == null
+                ? dataConverterWithActivityContext.toPayloads(result.getResult())
+                : dataConverterWithActivityContext.toPayloads(
+                    new Object[] {result.getResult()}, new Type[] {resultType});
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
@@ -225,6 +237,7 @@ final class ActivityTaskExecutors {
           info,
           // if the expected result of the method is null, we don't publish result at all
           method.getReturnType() != Void.TYPE ? result : null,
+          method.getGenericReturnType(),
           dataConverterWithActivityContext);
     }
   }

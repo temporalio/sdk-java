@@ -4,7 +4,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
-import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -53,10 +52,16 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
             .mergeActivityOptions(activityMethodOptions.get(activityName))
             .setMethodRetry(methodRetry)
             .build();
-    ActivityStub stub =
+    ActivityStubBase stub =
         LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor, assertReadOnly);
     function =
-        (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
+        (a) ->
+            stub.execute(
+                activityName,
+                method.getReturnType(),
+                method.getGenericReturnType(),
+                method.getGenericParameterTypes(),
+                a);
     return function;
   }
 

@@ -11,6 +11,7 @@ import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -45,6 +46,17 @@ class PayloadAndFailureDataConverter implements DataConverter {
 
   @Override
   public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
+    return toPayload(value, converter -> converter.toData(value));
+  }
+
+  @Override
+  public <T> Optional<Payload> toPayload(T value, Type valueType) throws DataConverterException {
+    return toPayload(value, converter -> converter.toData(value, valueType));
+  }
+
+  private <T> Optional<Payload> toPayload(
+      T value, Function<PayloadConverter, Optional<Payload>> conversion)
+      throws DataConverterException {
     // Raw values payload should be passed through without conversion
     if (value instanceof RawValue) {
       RawValue rv = (RawValue) value;
@@ -52,9 +64,9 @@ class PayloadAndFailureDataConverter implements DataConverter {
     }
 
     for (PayloadConverter converter : converters) {
-      Optional<Payload> result =
-          (serializationContext != null ? converter.withContext(serializationContext) : converter)
-              .toData(value);
+      PayloadConverter contextAwareConverter =
+          serializationContext != null ? converter.withContext(serializationContext) : converter;
+      Optional<Payload> result = conversion.apply(contextAwareConverter);
       if (result.isPresent()) {
         return result;
       }
@@ -92,13 +104,36 @@ class PayloadAndFailureDataConverter implements DataConverter {
 
   @Override
   public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
+    return toPayloads(values, null, false);
+  }
+
+  @Override
+  public Optional<Payloads> toPayloads(Object[] values, Type[] valueTypes)
+      throws DataConverterException {
+    if (valueTypes == null) {
+      return toPayloads(values);
+    }
+    int valuesLength = values == null ? 0 : values.length;
+    if (valuesLength != valueTypes.length) {
+      throw new IllegalArgumentException(
+          "values don't match length of valueTypes: "
+              + Arrays.toString(values)
+              + "<>"
+              + Arrays.toString(valueTypes));
+    }
+    return toPayloads(values, valueTypes, true);
+  }
+
+  private Optional<Payloads> toPayloads(Object[] values, Type[] valueTypes, boolean useTypeHints)
+      throws DataConverterException {
     if (values == null || values.length == 0) {
       return Optional.empty();
     }
     try {
       Payloads.Builder result = Payloads.newBuilder();
-      for (Object value : values) {
-        result.addPayloads(toPayload(value).get());
+      for (int i = 0; i < values.length; i++) {
+        result.addPayloads(
+            (useTypeHints ? toPayload(values[i], valueTypes[i]) : toPayload(values[i])).get());
       }
       return Optional.of(result.build());
     } catch (DataConverterException e) {

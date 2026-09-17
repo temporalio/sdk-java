@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.annotation.Nullable;
 
 /** Package-private implementation of {@link TemporalNexusClient}. */
 @Experimental
@@ -902,7 +903,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Collections.emptyList(), options);
+    return startActivityImpl(
+        activityType, Collections.emptyList(), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -913,7 +915,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Collections.singletonList(arg1), options);
+    return startActivityImpl(
+        activityType, Collections.singletonList(arg1), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -925,7 +928,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2), options);
+    return startActivityImpl(
+        activityType, Arrays.asList(arg1, arg2), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -938,7 +942,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3), options);
+    return startActivityImpl(
+        activityType, Arrays.asList(arg1, arg2, arg3), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -952,7 +957,11 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4), options);
+    return startActivityImpl(
+        activityType,
+        Arrays.asList(arg1, arg2, arg3, arg4),
+        method.getGenericParameterTypes(),
+        options);
   }
 
   @Override
@@ -967,7 +976,11 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5), options);
+    return startActivityImpl(
+        activityType,
+        Arrays.asList(arg1, arg2, arg3, arg4, arg5),
+        method.getGenericParameterTypes(),
+        options);
   }
 
   @Override
@@ -984,7 +997,10 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     return startActivityImpl(
-        activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5, arg6), options);
+        activityType,
+        Arrays.asList(arg1, arg2, arg3, arg4, arg5, arg6),
+        method.getGenericParameterTypes(),
+        options);
   }
 
   // ---------- Activity overloads (Proc void) ----------
@@ -994,7 +1010,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       Class<I> activityInterface, Functions.Proc1<I> activityMethod, StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Collections.emptyList(), options);
+    return startActivityImpl(
+        activityType, Collections.emptyList(), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -1005,7 +1022,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Collections.singletonList(arg1), options);
+    return startActivityImpl(
+        activityType, Collections.singletonList(arg1), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -1017,7 +1035,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2), options);
+    return startActivityImpl(
+        activityType, Arrays.asList(arg1, arg2), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -1030,7 +1049,8 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3), options);
+    return startActivityImpl(
+        activityType, Arrays.asList(arg1, arg2, arg3), method.getGenericParameterTypes(), options);
   }
 
   @Override
@@ -1044,7 +1064,11 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4), options);
+    return startActivityImpl(
+        activityType,
+        Arrays.asList(arg1, arg2, arg3, arg4),
+        method.getGenericParameterTypes(),
+        options);
   }
 
   @Override
@@ -1059,7 +1083,11 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       StartActivityOptions options) {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
-    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5), options);
+    return startActivityImpl(
+        activityType,
+        Arrays.asList(arg1, arg2, arg3, arg4, arg5),
+        method.getGenericParameterTypes(),
+        options);
   }
 
   @Override
@@ -1076,7 +1104,10 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
     Method method = MethodExtractor.extract(activityInterface, activityMethod);
     String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     return startActivityImpl(
-        activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5, arg6), options);
+        activityType,
+        Arrays.asList(arg1, arg2, arg3, arg4, arg5, arg6),
+        method.getGenericParameterTypes(),
+        options);
   }
 
   // ---------- Activity untyped ----------
@@ -1085,11 +1116,14 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   public <R> TemporalOperationResult<R> startActivity(
       String activityType, Class<R> resultClass, StartActivityOptions options, Object... args) {
     List<Object> argList = args == null ? Collections.emptyList() : Arrays.asList(args);
-    return startActivityImpl(activityType, argList, options);
+    return startActivityImpl(activityType, argList, null, options);
   }
 
   private <R> TemporalOperationResult<R> startActivityImpl(
-      String activityType, List<Object> args, StartActivityOptions options) {
+      String activityType,
+      List<Object> args,
+      @Nullable Type[] argTypes,
+      StartActivityOptions options) {
     markAsyncOperationStarted();
     InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
     try {
@@ -1112,6 +1146,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
                     new ActivityClientCallsInterceptor.StartActivityInput(
                         request.getActivityType(),
                         request.getArgs(),
+                        argTypes,
                         request.getOptions(),
                         request.getHeader());
                 // Build an internal ActivityClient aligned with the surrounding WorkflowClient.

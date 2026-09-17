@@ -30,7 +30,8 @@ class ContinueAsNewWorkflowInvocationHandler implements InvocationHandler {
   @Override
   public Object invoke(Object proxy, Method method, Object[] args) {
     String workflowType = workflowMetadata.getMethodMetadata(method).getName();
-    WorkflowInternal.continueAsNew(workflowType, options, args, outboundCallsInterceptor);
+    WorkflowInternal.continueAsNew(
+        workflowType, options, args, method.getGenericParameterTypes(), outboundCallsInterceptor);
     return getValueOrDefault(null, method.getReturnType());
   }
 }

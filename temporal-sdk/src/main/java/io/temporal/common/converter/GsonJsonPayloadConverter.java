@@ -51,8 +51,18 @@ public final class GsonJsonPayloadConverter implements PayloadConverter {
    */
   @Override
   public Optional<Payload> toData(Object value) throws DataConverterException {
+    return toData(value, null, false);
+  }
+
+  @Override
+  public Optional<Payload> toData(Object value, Type valueType) throws DataConverterException {
+    return toData(value, valueType, true);
+  }
+
+  private Optional<Payload> toData(Object value, Type valueType, boolean useTypeHint)
+      throws DataConverterException {
     try {
-      String json = gson.toJson(value);
+      String json = useTypeHint ? gson.toJson(value, valueType) : gson.toJson(value);
       return Optional.of(
           Payload.newBuilder()
               .putMetadata(EncodingKeys.METADATA_ENCODING_KEY, EncodingKeys.METADATA_ENCODING_JSON)

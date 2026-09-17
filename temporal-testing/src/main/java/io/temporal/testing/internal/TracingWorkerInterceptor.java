@@ -321,6 +321,7 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
               input.getDescription(),
               input.getArgTypes(),
               input.getGenericArgTypes(),
+              input.getResultType(),
               (args) -> {
                 Object result = input.getCallback().apply(args);
                 if (!WorkflowUnsafe.isReplaying()) {

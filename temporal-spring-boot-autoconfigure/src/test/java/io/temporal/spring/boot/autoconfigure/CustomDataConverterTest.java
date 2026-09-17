@@ -9,6 +9,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.spring.boot.autoconfigure.bytaskqueue.TestWorkflow;
 import io.temporal.testing.TestWorkflowEnvironment;
+import java.lang.reflect.Type;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -45,7 +46,7 @@ public class CustomDataConverterTest {
         workflowClient.newWorkflowStub(
             TestWorkflow.class, WorkflowOptions.newBuilder().setTaskQueue("UnitTest").build());
     testWorkflow.execute("input");
-    verify(spyDataConverter, atLeastOnce()).toPayloads(any());
+    verify(spyDataConverter, atLeastOnce()).toPayloads(any(Object[].class), any(Type[].class));
   }
 
   @ComponentScan(

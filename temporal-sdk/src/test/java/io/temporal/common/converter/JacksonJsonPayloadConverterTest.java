@@ -4,9 +4,16 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.reflect.TypeToken;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Type;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.junit.After;
@@ -84,6 +91,36 @@ public class JacksonJsonPayloadConverterTest {
 
     assertEquals(Long.valueOf(1L), converted.getId().get());
     assertEquals("myPayload", converted.getName().get());
+  }
+
+  @Test
+  public void serializationUsesTypeHint() {
+    JacksonJsonPayloadConverter converter = new JacksonJsonPayloadConverter();
+    Type type = new TypeToken<List<Animal>>() {}.getType();
+
+    Payload payload = converter.toData(Collections.singletonList(new Cat("Milo")), type).get();
+    List<Animal> converted = converter.fromData(payload, List.class, type);
+
+    assertTrue(converted.get(0) instanceof Cat);
+    assertEquals("Milo", ((Cat) converted.get(0)).getName());
+  }
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonSubTypes(@JsonSubTypes.Type(value = Cat.class, name = "cat"))
+  private interface Animal {}
+
+  private static class Cat implements Animal {
+    private String name;
+
+    public Cat() {}
+
+    Cat(String name) {
+      this.name = name;
+    }
+
+    public String getName() {
+      return name;
+    }
   }
 
   static class TestOptionalPayload {

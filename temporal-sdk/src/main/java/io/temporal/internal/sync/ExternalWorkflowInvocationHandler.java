@@ -4,7 +4,6 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
-import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -12,7 +11,7 @@ import java.lang.reflect.Method;
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ExternalWorkflowInvocationHandler implements InvocationHandler {
 
-  private final ExternalWorkflowStub stub;
+  private final ExternalWorkflowStubImpl stub;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   public ExternalWorkflowInvocationHandler(
@@ -50,7 +49,7 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
             "Cannot start a workflow with an external workflow stub "
                 + "created through Workflow.newExternalWorkflowStub");
       case SIGNAL:
-        stub.signal(methodMetadata.getName(), args);
+        stub.signal(methodMetadata.getName(), method.getGenericParameterTypes(), args);
         break;
       case UPDATE:
         throw new UnsupportedOperationException(
