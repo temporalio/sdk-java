@@ -77,6 +77,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private Functions.Func1<EncodedValues, ? extends DynamicWorkflow>
       dynamicWorkflowImplementationFactory;
 
+  @Nullable private WorkflowImplementationOptions dynamicWorkflowImplementationOptions;
+
   private final Map<String, WorkflowImplementationOptions> implementationOptions =
       Collections.synchronizedMap(new HashMap<>());
 
@@ -136,6 +138,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       }
       dynamicWorkflowImplementationFactory =
           (Functions.Func1<EncodedValues, ? extends DynamicWorkflow>) factory;
+      dynamicWorkflowImplementationOptions = options;
       return;
     }
     workflowInstanceFactories.put(clazz, factory);
@@ -213,6 +216,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
                 }
               }
             };
+        dynamicWorkflowImplementationOptions = options;
         return;
       } catch (NoSuchMethodException e) {
         throw new IllegalArgumentException(
@@ -285,8 +289,11 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   public ReplayWorkflow getWorkflow(
       WorkflowType workflowType, WorkflowExecution workflowExecution) {
     SyncWorkflowDefinition workflow = getWorkflowDefinition(workflowType, workflowExecution);
+    boolean isDynamicWorkflow = !workflowDefinitions.containsKey(workflowType.getName());
     WorkflowImplementationOptions workflowImplementationOptions =
-        implementationOptions.get(workflowType.getName());
+        isDynamicWorkflow
+            ? dynamicWorkflowImplementationOptions
+            : implementationOptions.get(workflowType.getName());
     DataConverter dataConverterWithWorkflowContext =
         dataConverter.withContext(
             new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));

@@ -10,6 +10,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -54,6 +55,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final ActivityTaskHandlerImpl laTaskHandler;
+  private final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
   private boolean runningLocalActivityWorker;
 
   public SyncWorkflowWorker(
@@ -71,6 +74,10 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier,
       @Nonnull NamespaceCapabilities namespaceCapabilities) {
+    singleWorkerOptions =
+        SingleWorkerOptions.newBuilder(singleWorkerOptions)
+            .setStorageCancellation(storageCancellation.token())
+            .build();
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -175,8 +182,12 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    return workflowWorker
-        .shutdown(shutdownManager, interruptTasks)
+    CompletableFuture<Void> workflowWorkerShutdown =
+        workflowWorker.shutdown(shutdownManager, interruptTasks);
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
+    return workflowWorkerShutdown
         .thenCompose(ignore -> laWorker.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {

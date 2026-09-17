@@ -7,6 +7,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Optional;
@@ -47,9 +48,26 @@ class PayloadSerializer implements Serializer {
     this.dataConverter = dataConverter;
   }
 
+  /**
+   * The data converter scoped to the operation currently being handled.
+   *
+   * <p>A single serializer is shared by every operation the worker handles, so the context is
+   * resolved per call from the task being handled rather than captured once. Falls back to the
+   * uncontextualized converter when there is no Nexus task in scope, which is the case when this
+   * serializer is used directly rather than by the task handler.
+   */
+  private DataConverter dataConverter() {
+    if (!CurrentNexusOperationContext.isNexusContext()) {
+      return dataConverter;
+    }
+    NexusSerializationContext context =
+        CurrentNexusOperationContext.get().getSerializationContext();
+    return context != null ? dataConverter.withContext(context) : dataConverter;
+  }
+
   @Override
   public Content serialize(@Nullable Object o) {
-    Optional<Payload> payload = dataConverter.toPayload(o);
+    Optional<Payload> payload = dataConverter().toPayload(o);
     Content.Builder content = Content.newBuilder();
     content.setData(payload.get().toByteArray());
     return content.build();
@@ -59,6 +77,7 @@ class PayloadSerializer implements Serializer {
   public @Nullable Object deserialize(Content content, Type type) {
     try {
       Payload payload = Payload.parseFrom(content.getData());
+      DataConverter dataConverter = dataConverter();
       if ((type instanceof Class)) {
         return dataConverter.fromPayload(payload, (Class<?>) type, type);
       } else if (type instanceof ParameterizedType) {

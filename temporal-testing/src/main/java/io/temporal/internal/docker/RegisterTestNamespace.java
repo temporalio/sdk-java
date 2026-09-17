@@ -7,6 +7,7 @@ import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.api.workflowservice.v1.ListNamespacesRequest;
 import io.temporal.api.workflowservice.v1.ListNamespacesResponse;
 import io.temporal.api.workflowservice.v1.RegisterNamespaceRequest;
+import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 
@@ -15,10 +16,13 @@ public class RegisterTestNamespace {
   public static final String NAMESPACE = "UnitTest";
   private static final boolean useExternalService =
       Boolean.parseBoolean(System.getenv("USE_EXTERNAL_SERVICE"));
+  private static final boolean useEnvConfig =
+      EnvironmentVariableUtils.readBooleanFlag("TEMPORAL_TEST_ENV_CONFIG_SERVER");
   private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
 
   public static void main(String[] args) throws InterruptedException {
-    if (!useExternalService) {
+    // Envconfig mode connects to an existing namespace and must not register UnitTest.
+    if (useEnvConfig || !useExternalService) {
       return;
     }
 

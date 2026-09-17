@@ -4,9 +4,14 @@ import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.NexusClientInterceptor;
+import io.temporal.internal.client.NexusClientResolvedOptions;
+import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.storage.ExternalStorage;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Options that configure a {@link NexusClient} (and the service-bound clients it produces).
@@ -36,16 +41,19 @@ public class NexusClientOptions {
   private final List<NexusClientInterceptor> interceptors;
   private final DataConverter dataConverter;
   private final String identity;
+  private final @Nullable ExternalStorage externalStorage;
 
   private NexusClientOptions(
       String namespace,
       List<NexusClientInterceptor> interceptors,
       DataConverter dataConverter,
-      String identity) {
+      String identity,
+      @Nullable ExternalStorage externalStorage) {
     this.namespace = namespace;
     this.interceptors = interceptors;
     this.dataConverter = dataConverter;
     this.identity = identity;
+    this.externalStorage = externalStorage;
   }
 
   /** Get the namespace this client will operate on. */
@@ -64,11 +72,36 @@ public class NexusClientOptions {
   }
 
   /**
+   * Get the external storage used to offload large operation payloads, or null if payloads are sent
+   * inline.
+   */
+  @Nullable
+  public ExternalStorage getExternalStorage() {
+    return externalStorage;
+  }
+
+  /**
    * Human-readable identity of this client. Stamped onto outgoing write requests (start, cancel,
    * terminate) so server-side history and audit trails can attribute the action to a caller.
    */
   public String getIdentity() {
     return identity;
+  }
+
+  /**
+   * Converts this {@link NexusClientOptions} instance into a {@link NexusClientResolvedOptions}
+   * instance, which contains the fully resolved runtime settings used by the internal Nexus client.
+   *
+   * @return a {@link NexusClientResolvedOptions} instance with the resolved options
+   */
+  NexusClientResolvedOptions toResolvedOptions() {
+    DataConverter resolvedDataConverter = dataConverter;
+    if (externalStorage != null) {
+      resolvedDataConverter =
+          new ExternalStorageDataConverter(
+              resolvedDataConverter, ExternalStorageRunner.create(externalStorage));
+    }
+    return new NexusClientResolvedOptions(namespace, interceptors, resolvedDataConverter, identity);
   }
 
   /** Returns a fresh builder. */
@@ -101,6 +134,7 @@ public class NexusClientOptions {
     private List<NexusClientInterceptor> interceptors = Collections.emptyList();
     private DataConverter dataConverter = GlobalDataConverter.get();
     private String identity;
+    private ExternalStorage externalStorage;
 
     private Builder() {}
 
@@ -112,6 +146,7 @@ public class NexusClientOptions {
       interceptors = options.interceptors;
       dataConverter = options.dataConverter;
       identity = options.identity;
+      externalStorage = options.externalStorage;
     }
 
     /** Set the namespace this client will operate on. */
@@ -148,6 +183,18 @@ public class NexusClientOptions {
       return this;
     }
 
+    /**
+     * Offload operation payloads that exceed the storage threshold to {@code externalStorage},
+     * sending a reference to the server in their place. The client wraps its {@link DataConverter}
+     * to store outbound payloads and resolve inbound references. Defaults to null, meaning all
+     * payloads are sent inline.
+     */
+    public NexusClientOptions.Builder setExternalStorage(
+        @Nullable ExternalStorage externalStorage) {
+      this.externalStorage = externalStorage;
+      return this;
+    }
+
     public NexusClientOptions build() {
       String resolvedIdentity =
           identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
@@ -155,7 +202,8 @@ public class NexusClientOptions {
           namespace == null ? DEFAULT_NAMESPACE : namespace,
           interceptors,
           dataConverter,
-          resolvedIdentity);
+          resolvedIdentity,
+          externalStorage);
     }
   }
 }
