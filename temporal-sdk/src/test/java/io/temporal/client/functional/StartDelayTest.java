@@ -1,6 +1,7 @@
 package io.temporal.client.functional;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.history.v1.HistoryEvent;
@@ -40,8 +41,9 @@ public class StartDelayTest {
     long start = System.currentTimeMillis();
     stubF.func();
     long end = System.currentTimeMillis();
-    // Assert that the workflow took at least 5 seconds to start
-    assertEquals(1000, end - start, 500);
+    long elapsed = end - start;
+    assertTrue("start delay was not honored, took " + elapsed + "ms", elapsed >= 1000);
+    assertTrue("start delay took far longer than 1s, took " + elapsed + "ms", elapsed < 3000);
     WorkflowExecution workflowExecution = WorkflowStub.fromTyped(stubF).getExecution();
     WorkflowExecutionHistory workflowExecutionHistory =
         testWorkflowRule.getWorkflowClient().fetchHistory(workflowExecution.getWorkflowId());

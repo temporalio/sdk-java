@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
+import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import java.time.Duration;
@@ -89,7 +90,8 @@ public class ActivityClientCallsInterceptorBaseTest {
     DescribeActivityOutput output = new DescribeActivityOutput(desc);
     when(next.describeActivity(any(DescribeActivityInput.class))).thenReturn(output);
 
-    DescribeActivityInput input = new DescribeActivityInput("id", null);
+    DescribeActivityInput input =
+        new DescribeActivityInput("id", null, DescribeActivityOptions.getDefaultInstance());
     DescribeActivityOutput result = base.describeActivity(input);
 
     assertSame(output, result);

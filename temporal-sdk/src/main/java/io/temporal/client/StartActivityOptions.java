@@ -4,7 +4,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.ActivityIdConflictPolicy;
 import io.temporal.api.enums.v1.ActivityIdReusePolicy;
-import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributes;
@@ -18,7 +17,6 @@ import javax.annotation.Nullable;
  * <p>At least one of {@link #getScheduleToCloseTimeout()} or {@link #getStartToCloseTimeout()} must
  * be set.
  */
-@Experimental
 public final class StartActivityOptions {
 
   public static Builder newBuilder() {
@@ -42,7 +40,7 @@ public final class StartActivityOptions {
         ActivityIdConflictPolicy.ACTIVITY_ID_CONFLICT_POLICY_UNSPECIFIED;
     private @Nullable RetryOptions retryOptions;
     private @Nullable SearchAttributes typedSearchAttributes;
-    private @Nullable String staticSummary;
+    private @Nullable String summary;
     private @Nullable String staticDetails;
     private @Nullable Priority priority;
     private @Nullable Duration startDelay;
@@ -63,7 +61,7 @@ public final class StartActivityOptions {
       this.idConflictPolicy = options.idConflictPolicy;
       this.retryOptions = options.retryOptions;
       this.typedSearchAttributes = options.typedSearchAttributes;
-      this.staticSummary = options.staticSummary;
+      this.summary = options.summary;
       this.staticDetails = options.staticDetails;
       this.priority = options.priority;
       this.startDelay = options.startDelay;
@@ -148,8 +146,8 @@ public final class StartActivityOptions {
     }
 
     /** Short static summary for UI display; encoded as a payload in UserMetadata. */
-    public Builder setStaticSummary(String staticSummary) {
-      this.staticSummary = staticSummary;
+    public Builder setSummary(String summary) {
+      this.summary = summary;
       return this;
     }
 
@@ -200,7 +198,7 @@ public final class StartActivityOptions {
   private final ActivityIdConflictPolicy idConflictPolicy;
   private final @Nullable RetryOptions retryOptions;
   private final @Nullable SearchAttributes typedSearchAttributes;
-  private final @Nullable String staticSummary;
+  private final @Nullable String summary;
   private final @Nullable String staticDetails;
   private final @Nullable Priority priority;
   private final @Nullable Duration startDelay;
@@ -216,7 +214,7 @@ public final class StartActivityOptions {
     this.idConflictPolicy = builder.idConflictPolicy;
     this.retryOptions = builder.retryOptions;
     this.typedSearchAttributes = builder.typedSearchAttributes;
-    this.staticSummary = builder.staticSummary;
+    this.summary = builder.summary;
     this.staticDetails = builder.staticDetails;
     this.priority = builder.priority;
     this.startDelay = builder.startDelay;
@@ -273,8 +271,8 @@ public final class StartActivityOptions {
   }
 
   @Nullable
-  public String getStaticSummary() {
-    return staticSummary;
+  public String getSummary() {
+    return summary;
   }
 
   @Nullable
@@ -307,7 +305,7 @@ public final class StartActivityOptions {
         && idConflictPolicy == that.idConflictPolicy
         && Objects.equals(retryOptions, that.retryOptions)
         && Objects.equals(typedSearchAttributes, that.typedSearchAttributes)
-        && Objects.equals(staticSummary, that.staticSummary)
+        && Objects.equals(summary, that.summary)
         && Objects.equals(staticDetails, that.staticDetails)
         && Objects.equals(priority, that.priority)
         && Objects.equals(startDelay, that.startDelay);
@@ -326,7 +324,7 @@ public final class StartActivityOptions {
         idConflictPolicy,
         retryOptions,
         typedSearchAttributes,
-        staticSummary,
+        summary,
         staticDetails,
         priority,
         startDelay);
@@ -356,7 +354,7 @@ public final class StartActivityOptions {
         + ", typedSearchAttributes="
         + typedSearchAttributes
         + ", staticSummary='"
-        + staticSummary
+        + summary
         + "', staticDetails='"
         + staticDetails
         + "', priority="

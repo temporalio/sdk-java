@@ -54,6 +54,7 @@ public final class WorkflowClientOptions {
     private QueryRejectCondition queryRejectCondition;
     private WorkflowClientPlugin[] plugins;
     private Duration workerHeartbeatInterval;
+    private boolean disableWorkerEnvironmentInfo;
     private ExternalStorage externalStorage;
 
     private Builder() {}
@@ -71,6 +72,7 @@ public final class WorkflowClientOptions {
       queryRejectCondition = options.queryRejectCondition;
       plugins = options.plugins;
       workerHeartbeatInterval = options.workerHeartbeatInterval;
+      disableWorkerEnvironmentInfo = options.disableWorkerEnvironmentInfo;
       externalStorage = options.externalStorage;
     }
 
@@ -187,6 +189,19 @@ public final class WorkflowClientOptions {
       return this;
     }
 
+    /**
+     * Disables reporting the JVM version, detected hosting environments (Docker, Kubernetes, cloud
+     * platforms), and OS platform in worker heartbeats. This information is sent once per worker,
+     * with the first heartbeat accepted by the server.
+     *
+     * @param disableWorkerEnvironmentInfo true to omit environment information from heartbeats
+     */
+    @Experimental
+    public Builder setDisableWorkerEnvironmentInfo(boolean disableWorkerEnvironmentInfo) {
+      this.disableWorkerEnvironmentInfo = disableWorkerEnvironmentInfo;
+      return this;
+    }
+
     public WorkflowClientOptions build() {
       return new WorkflowClientOptions(
           namespace,
@@ -198,6 +213,7 @@ public final class WorkflowClientOptions {
           queryRejectCondition,
           plugins == null ? EMPTY_PLUGINS : plugins,
           resolveHeartbeatInterval(workerHeartbeatInterval),
+          disableWorkerEnvironmentInfo,
           externalStorage);
     }
 
@@ -226,6 +242,7 @@ public final class WorkflowClientOptions {
               : queryRejectCondition,
           plugins == null ? EMPTY_PLUGINS : plugins,
           resolveHeartbeatInterval(workerHeartbeatInterval),
+          disableWorkerEnvironmentInfo,
           externalStorage);
     }
 
@@ -269,6 +286,8 @@ public final class WorkflowClientOptions {
 
   private final Duration workerHeartbeatInterval;
 
+  private final boolean disableWorkerEnvironmentInfo;
+
   private final @Nullable ExternalStorage externalStorage;
 
   private WorkflowClientOptions(
@@ -281,6 +300,7 @@ public final class WorkflowClientOptions {
       QueryRejectCondition queryRejectCondition,
       WorkflowClientPlugin[] plugins,
       Duration workerHeartbeatInterval,
+      boolean disableWorkerEnvironmentInfo,
       @Nullable ExternalStorage externalStorage) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
@@ -291,6 +311,7 @@ public final class WorkflowClientOptions {
     this.queryRejectCondition = queryRejectCondition;
     this.plugins = plugins;
     this.workerHeartbeatInterval = workerHeartbeatInterval;
+    this.disableWorkerEnvironmentInfo = disableWorkerEnvironmentInfo;
     this.externalStorage = externalStorage;
   }
 
@@ -365,6 +386,12 @@ public final class WorkflowClientOptions {
     return workerHeartbeatInterval;
   }
 
+  /** Returns true when runtime, hosting, and platform information is omitted from heartbeats. */
+  @Experimental
+  public boolean isWorkerEnvironmentInfoDisabled() {
+    return disableWorkerEnvironmentInfo;
+  }
+
   @Override
   public String toString() {
     return "WorkflowClientOptions{"
@@ -389,6 +416,8 @@ public final class WorkflowClientOptions {
         + Arrays.toString(plugins)
         + ", workerHeartbeatInterval="
         + workerHeartbeatInterval
+        + ", disableWorkerEnvironmentInfo="
+        + disableWorkerEnvironmentInfo
         + ", externalStorage="
         + externalStorage
         + '}';
@@ -409,6 +438,7 @@ public final class WorkflowClientOptions {
         && Arrays.equals(plugins, that.plugins)
         && com.google.common.base.Objects.equal(
             workerHeartbeatInterval, that.workerHeartbeatInterval)
+        && disableWorkerEnvironmentInfo == that.disableWorkerEnvironmentInfo
         && com.google.common.base.Objects.equal(externalStorage, that.externalStorage);
   }
 
@@ -424,6 +454,7 @@ public final class WorkflowClientOptions {
         queryRejectCondition,
         Arrays.hashCode(plugins),
         workerHeartbeatInterval,
+        disableWorkerEnvironmentInfo,
         externalStorage);
   }
 }

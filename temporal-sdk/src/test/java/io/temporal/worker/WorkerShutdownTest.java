@@ -14,6 +14,7 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.ShutdownWorkerRequest;
@@ -25,20 +26,60 @@ import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.internal.worker.SuspendableWorker;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.TestEnvironmentOptions;
+import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestNexusServices;
+import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedStatic;
 
 public class WorkerShutdownTest {
+
+  @Test
+  public void awaitTerminationDoesNotRaceWithWorkerCommandWorkerCleanup() throws Exception {
+    try (TestWorkflowEnvironment env =
+        TestWorkflowEnvironment.newInstance(TestEnvironmentOptions.newBuilder().build())) {
+      WorkerFactory factory = env.getWorkerFactory();
+      SuspendableWorker workerCommandWorker = mock(SuspendableWorker.class);
+      CompletableFuture<Void> shutdownFuture = new CompletableFuture<>();
+      when(workerCommandWorker.shutdown(any(ShutdownManager.class), eq(true)))
+          .thenReturn(shutdownFuture);
+
+      Field field = WorkerFactory.class.getDeclaredField("workerCommandWorker");
+      field.setAccessible(true);
+      field.set(factory, workerCommandWorker);
+
+      factory.shutdown();
+
+      try (MockedStatic<ShutdownManager> shutdownManager = mockStatic(ShutdownManager.class)) {
+        shutdownManager
+            .when(() -> ShutdownManager.runAndGetRemainingTimeoutMs(anyLong(), any(Runnable.class)))
+            .thenAnswer(
+                invocation -> {
+                  // Complete shutdown after awaitTermination passes its null check.
+                  shutdownFuture.complete(null);
+                  invocation.getArgument(1, Runnable.class).run();
+                  return 0L;
+                });
+
+        factory.awaitTermination(1, TimeUnit.SECONDS);
+      }
+
+      verify(workerCommandWorker).awaitTermination(1_000, TimeUnit.MILLISECONDS);
+    }
+  }
 
   @WorkflowInterface
   public interface TestWorkflow {
@@ -77,51 +118,9 @@ public class WorkerShutdownTest {
    */
   @Test
   public void activeTaskQueueTypesEvaluatedAtShutdownTime() throws Exception {
-    WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
-    when(service.getServerCapabilities())
-        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
-
     WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
         mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
-    when(service.futureStub()).thenReturn(futureStub);
-    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
-        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
-
-    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
-        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
-    when(service.blockingStub()).thenReturn(blockingStub);
-    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
-
-    WorkflowClient client = mock(WorkflowClient.class);
-    when(client.getInternal()).thenReturn(mock(WorkflowClientInternal.class));
-    when(client.getWorkflowServiceStubs()).thenReturn(service);
-    when(client.getOptions())
-        .thenReturn(
-            WorkflowClientOptions.newBuilder()
-                .setNamespace("test-ns")
-                .setIdentity("test-worker")
-                .validateAndBuildWithDefaults());
-
-    Scope metricsScope = new NoopScope();
-    WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
-    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLocks, metricsScope);
-    WorkflowThreadExecutor wfThreadExecutor = mock(WorkflowThreadExecutor.class);
-
-    Worker worker =
-        new Worker(
-            client,
-            "test-task-queue",
-            WorkerFactoryOptions.newBuilder().build(),
-            WorkerOptions.newBuilder().build(),
-            metricsScope,
-            runLocks,
-            cache,
-            true,
-            wfThreadExecutor,
-            Collections.emptyList(),
-            Collections.emptyList(),
-            "test-worker-group",
-            new NamespaceCapabilities());
+    Worker worker = newWorker(futureStub);
 
     // Register types AFTER worker construction. The request built by shutdown should reflect
     // these registrations, proving that getActiveTaskQueueTypes() is evaluated lazily.
@@ -154,5 +153,86 @@ public class WorkerShutdownTest {
     assertTrue(
         "ShutdownWorkerRequest sticky task queue should be derived from worker identity",
         captor.getValue().getStickyTaskQueue().startsWith("test-worker:"));
+  }
+
+  /**
+   * The environment is reported in every heartbeat, including the one embedded in the shutdown
+   * request, until the heartbeat manager reports one as accepted by the server.
+   */
+  @Test
+  public void environmentInfoReportedUntilAccepted() throws Exception {
+    WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceFutureStub.class);
+    Worker worker = newWorker(futureStub);
+    worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
+    EnvironmentInfo environment =
+        EnvironmentInfo.newBuilder()
+            .addRuntimes(
+                EnvironmentInfo.Runtime.newBuilder()
+                    .setType(EnvironmentInfo.Runtime.RuntimeType.RUNTIME_TYPE_JVM)
+                    .setVersion("17"))
+            .build();
+
+    Supplier<WorkerHeartbeat> heartbeatSupplier =
+        worker.buildHeartbeatCallback("test-worker-group", environment);
+    worker.setHeartbeatSupplier(heartbeatSupplier);
+    worker.start();
+
+    assertEquals(environment, heartbeatSupplier.get().getEnvironment());
+    assertEquals(environment, heartbeatSupplier.get().getEnvironment());
+
+    worker.shutdown(new ShutdownManager(), true).get(5, TimeUnit.SECONDS);
+    ArgumentCaptor<ShutdownWorkerRequest> captor =
+        ArgumentCaptor.forClass(ShutdownWorkerRequest.class);
+    verify(futureStub).shutdownWorker(captor.capture());
+    assertEquals(environment, captor.getValue().getWorkerHeartbeat().getEnvironment());
+
+    worker.onHeartbeatAccepted();
+    assertFalse(heartbeatSupplier.get().hasEnvironment());
+  }
+
+  private static Worker newWorker(WorkflowServiceGrpc.WorkflowServiceFutureStub futureStub) {
+    WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
+    when(service.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+
+    when(service.futureStub()).thenReturn(futureStub);
+    when(futureStub.shutdownWorker(any(ShutdownWorkerRequest.class)))
+        .thenReturn(Futures.immediateFuture(ShutdownWorkerResponse.newBuilder().build()));
+
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(service.blockingStub()).thenReturn(blockingStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+
+    WorkflowClient client = mock(WorkflowClient.class);
+    when(client.getInternal()).thenReturn(mock(WorkflowClientInternal.class));
+    when(client.getWorkflowServiceStubs()).thenReturn(service);
+    when(client.getOptions())
+        .thenReturn(
+            WorkflowClientOptions.newBuilder()
+                .setNamespace("test-ns")
+                .setIdentity("test-worker")
+                .validateAndBuildWithDefaults());
+
+    Scope metricsScope = new NoopScope();
+    WorkflowRunLockManager runLocks = new WorkflowRunLockManager();
+    WorkflowExecutorCache cache = new WorkflowExecutorCache(10, runLocks, metricsScope);
+    WorkflowThreadExecutor wfThreadExecutor = mock(WorkflowThreadExecutor.class);
+
+    return new Worker(
+        client,
+        "test-task-queue",
+        WorkerFactoryOptions.newBuilder().build(),
+        WorkerOptions.newBuilder().build(),
+        metricsScope,
+        runLocks,
+        cache,
+        true,
+        wfThreadExecutor,
+        Collections.emptyList(),
+        Collections.emptyList(),
+        "test-worker-group",
+        new NamespaceCapabilities());
   }
 }

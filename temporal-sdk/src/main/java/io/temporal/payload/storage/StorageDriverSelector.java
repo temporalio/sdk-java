@@ -14,5 +14,5 @@ public interface StorageDriverSelector {
    * {@link ExternalStorage}, or {@code null} to leave the payload stored inline.
    */
   @Nullable
-  StorageDriver selectDriver(@Nonnull StorageDriverStoreContext context, @Nonnull Payload payload);
+  StorageDriver selectDriver(@Nonnull StorageDriverSelectContext context, @Nonnull Payload payload);
 }

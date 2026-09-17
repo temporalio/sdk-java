@@ -26,6 +26,7 @@ import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import java.net.URISyntaxException;
@@ -154,6 +155,27 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     }
   }
 
+  /**
+   * Records the serialization context for the operation this task is for, so that the data
+   * converter used for its input, result and failures is scoped to the endpoint, service and
+   * operation the request names.
+   */
+  private void setSerializationContext(String service, String operation) {
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+    nexusContext.setSerializationContext(
+        new NexusSerializationContext(nexusContext.getEndpoint(), service, operation));
+  }
+
+  /**
+   * The data converter scoped to the operation this task is for. Falls back to the uncontextualized
+   * converter if the request variant did not name a service and operation.
+   */
+  private DataConverter dataConverterForCurrentOperation() {
+    NexusSerializationContext context =
+        CurrentNexusOperationContext.get().getSerializationContext();
+    return context != null ? dataConverter.withContext(context) : dataConverter;
+  }
+
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {
     try {
       serviceHandler.cancelOperation(context, details);
@@ -173,6 +195,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private CancelOperationResponse handleCancelledOperation(
       OperationContext.Builder ctx, CancelOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
+    setSerializationContext(task.getService(), task.getOperation());
 
     @SuppressWarnings("deprecation") // getOperationId kept to support old server for a while
     OperationCancelDetails operationCancelDetails =
@@ -281,6 +304,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private StartOperationResponse handleStartOperation(
       OperationContext.Builder ctx, StartOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
+    setSerializationContext(task.getService(), task.getOperation());
 
     OperationStartDetails.Builder operationStartDetails =
         OperationStartDetails.newBuilder()
@@ -313,6 +337,9 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               }
             });
     CurrentNexusOperationContext.get().setRequestLinks(inboundCommonLinks);
+    // Ambient for the whole operation-handler invocation, independent of NexusOperationMetadata.
+    // see InternalNexusOperationContext.requestId.
+    CurrentNexusOperationContext.get().setRequestId(task.getRequestId());
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
@@ -379,7 +406,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             HandlerException.ErrorType.INTERNAL,
             new RuntimeException("Unknown operation state: " + e.getState()));
       }
-      startResponseBuilder.setFailure(dataConverter.exceptionToFailure(temporalFailure));
+      startResponseBuilder.setFailure(
+          dataConverterForCurrentOperation().exceptionToFailure(temporalFailure));
     }
     return startResponseBuilder.build();
   }
