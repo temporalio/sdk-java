@@ -2,10 +2,6 @@ package io.temporal.internal.nexus;
 
 import static org.mockito.Mockito.mock;
 
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -40,7 +36,6 @@ import javax.annotation.Nonnull;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.slf4j.LoggerFactory;
 
 /**
  * Verifies that the Nexus task handler scopes its data converter to the endpoint, service and
@@ -185,44 +180,21 @@ public class NexusTaskHandlerSerializationContextTest {
   }
 
   @Test
-  public void taskWithoutAnEndpointStillGetsAContextAndWarnsOnce() throws TimeoutException {
+  public void taskWithoutAnEndpointIsScopedByAnEmptyEndpoint() throws TimeoutException {
     // Servers before 1.30.0 do not report the endpoint a Nexus task was addressed to. The handler
-    // still scopes by service and operation, with an empty endpoint, and says once per worker that
-    // those payloads will not round-trip through a context-varying converter.
+    // still scopes by service and operation, with an empty endpoint, which will not agree with the
+    // caller's context but is a Nexus context rather than an absent one.
     NexusSerializationContext expected = new NexusSerializationContext("", SERVICE, OPERATION);
     DataConverter callerConverter = signingConverter(new SigningCodec());
     SigningCodec handlerCodec = new SigningCodec();
     DataConverter handlerConverter = signingConverter(handlerCodec);
     Payload input = callerConverter.withContext(expected).toPayload("no-endpoint").get();
 
-    ch.qos.logback.classic.Logger logger =
-        ((LoggerContext) LoggerFactory.getILoggerFactory())
-            .getLogger(NexusTaskHandlerImpl.class.getName());
-    ListAppender<ILoggingEvent> appender = new ListAppender<>();
-    appender.start();
-    logger.addAppender(appender);
-    try {
-      // One handler stands in for one worker, so both tasks share the warn-once flag.
-      NexusTaskHandlerImpl handler = newHandler(handlerConverter, new EchoServiceImpl());
-      handler.handle(new NexusTask(startTaskWithoutEndpoint(input), null, null), metricsScope);
-      handler.handle(new NexusTask(startTaskWithoutEndpoint(input), null, null), metricsScope);
-
-      List<ILoggingEvent> warnings =
-          appender.list.stream()
-              .filter(event -> event.getLevel() == Level.WARN)
-              .filter(event -> event.getFormattedMessage().contains("did not report the endpoint"))
-              .collect(java.util.stream.Collectors.toList());
-      Assert.assertEquals(
-          "the missing-endpoint warning should be logged once per worker, not once per task",
-          1,
-          warnings.size());
-    } finally {
-      logger.detachAppender(appender);
-    }
+    handle(handlerConverter, new EchoServiceImpl(), startTaskWithoutEndpoint(input));
 
     Assert.assertEquals(
         "an absent endpoint should still produce a context scoped by service and operation",
-        java.util.Arrays.asList(expected, expected, expected, expected),
+        java.util.Arrays.asList(expected, expected),
         handlerCodec.contexts());
   }
 
@@ -245,11 +217,6 @@ public class NexusTaskHandlerSerializationContextTest {
   private NexusTaskHandler.Result handle(
       DataConverter dataConverter, Object serviceImpl, PollNexusTaskQueueResponse.Builder task)
       throws TimeoutException {
-    return newHandler(dataConverter, serviceImpl)
-        .handle(new NexusTask(task, null, null), metricsScope);
-  }
-
-  private NexusTaskHandlerImpl newHandler(DataConverter dataConverter, Object serviceImpl) {
     NexusTaskHandlerImpl handler =
         new NexusTaskHandlerImpl(
             mock(WorkflowClient.class),
@@ -259,7 +226,7 @@ public class NexusTaskHandlerSerializationContextTest {
             new WorkerInterceptor[] {});
     handler.registerNexusServiceImplementations(new Object[] {serviceImpl});
     handler.start();
-    return handler;
+    return handler.handle(new NexusTask(task, null, null), metricsScope);
   }
 
   private static PollNexusTaskQueueResponse.Builder startTask(Payload input) {

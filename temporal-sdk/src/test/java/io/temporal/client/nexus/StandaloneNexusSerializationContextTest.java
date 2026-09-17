@@ -52,8 +52,8 @@ public class StandaloneNexusSerializationContextTest {
   // contexts it records are the client's.
   private static final RecordingCodec CODEC = new RecordingCodec();
 
-  // A handle obtained by operation ID legitimately decodes a context-encoded payload without a
-  // context, so that direction is only an error when a test says it should be.
+  // A handle obtained by operation ID decodes a context-encoded payload without a context, so
+  // that direction is only an error when a test says it should be.
   private static boolean allowContextlessDecodeOfSignedPayload;
   private static final RecordingFailureConverter FAILURE_CONVERTER =
       new RecordingFailureConverter();
@@ -366,7 +366,7 @@ public class StandaloneNexusSerializationContextTest {
           continue;
         }
         if (!(context instanceof NexusSerializationContext)) {
-          // The reverse mismatch: encoded under a context, decoded without one. Legitimate only
+          // The reverse mismatch: encoded under a context, decoded without one. Expected only
           // for a handle obtained by operation ID, which opts in below.
           Assert.assertTrue(
               "payload encoded under a Nexus context was decoded under " + context,

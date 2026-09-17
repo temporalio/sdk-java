@@ -52,8 +52,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private final Map<String, ServiceImplInstance> serviceImplInstances =
       Collections.synchronizedMap(new HashMap<>());
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-  // Warn once per worker rather than once per task if the server does not report Nexus endpoints.
-  private final AtomicBoolean warnedMissingEndpoint = new AtomicBoolean();
   private final TemporalInterceptorMiddleware nexusServiceInterceptor;
 
   public NexusTaskHandlerImpl(
@@ -173,13 +171,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private void setSerializationContext(String service, String operation) {
     InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
     String endpoint = nexusContext.getEndpoint();
-    if (endpoint.isEmpty() && warnedMissingEndpoint.compareAndSet(false, true)) {
-      log.warn(
-          "Nexus task did not report the endpoint it was addressed to, which requires server "
-              + "1.30.0 or later. Payloads this worker serializes for Nexus operations will use a "
-              + "serialization context that does not match the caller's, so a data converter that "
-              + "varies by context will not round-trip them.");
-    }
     nexusContext.setSerializationContext(
         new NexusSerializationContext(endpoint, service, operation));
   }
