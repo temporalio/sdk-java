@@ -1,7 +1,6 @@
 package io.temporal.client;
 
 import io.temporal.api.workflowservice.v1.CountActivityExecutionsResponse;
-import io.temporal.common.Experimental;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.List;
 import java.util.Objects;
@@ -9,11 +8,9 @@ import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
 /** Result of counting standalone activity executions. */
-@Experimental
 public class ActivityExecutionCount {
 
   /** An individual aggregation group. */
-  @Experimental
   public static class AggregationGroup {
     private final List<List<?>> groupValues;
     private final long count;

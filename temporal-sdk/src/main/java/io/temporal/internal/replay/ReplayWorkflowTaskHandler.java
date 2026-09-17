@@ -23,6 +23,7 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.*;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
@@ -34,6 +35,7 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -89,12 +91,19 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     boolean useCache = stickyTaskQueue != null;
 
     try {
+      workflowTask = retrieveStoredPayloads(workflowTask);
       workflowRunTaskHandler =
           getOrCreateWorkflowExecutor(useCache, workflowTask, metricsScope, createdNew);
       logWorkflowTaskToBeProcessed(workflowTask, createdNew);
 
       ServiceWorkflowHistoryIterator historyIterator =
-          new ServiceWorkflowHistoryIterator(service, namespace, workflowTask, metricsScope);
+          new ServiceWorkflowHistoryIterator(
+              service,
+              namespace,
+              workflowTask,
+              metricsScope,
+              options.getExternalStorageRunner(),
+              options.getStorageCancellation());
       boolean finalCommand;
       Result result;
 
@@ -132,7 +141,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
 
       return result;
-    } catch (InterruptedException e) {
+    } catch (InterruptedException | CancellationException e) {
       throw e;
     } catch (Throwable e) {
       // Note here that the executor might not be in the cache, even when the caching is on. In that
@@ -168,6 +177,18 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         workflowRunTaskHandler.close();
       }
     }
+  }
+
+  private PollWorkflowTaskQueueResponse.Builder retrieveStoredPayloads(
+      PollWorkflowTaskQueueResponse.Builder workflowTask) {
+    ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+    if (externalStorageRunner == null) {
+      ExternalStorageRunner.throwIfContainsReference(workflowTask.build());
+      return workflowTask;
+    }
+    return externalStorageRunner
+        .retrieve(workflowTask.build(), options.getStorageCancellation())
+        .toBuilder();
   }
 
   private Result createCompletedWFTRequest(
@@ -253,7 +274,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         null,
         result.isFinalCommand(),
         eventIdSetHandle,
-        result.getApplyPostCompletionMetrics());
+        result.getApplyPostCompletionMetrics(),
+        result.isContinuedAsNew() ? null : result.getParentWorkflowExecution());
   }
 
   private Result failureToWFTResult(
@@ -395,6 +417,13 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .getWorkflowExecutionHistory(getHistoryRequest);
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner == null) {
+        ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
+      } else {
+        getHistoryResponse =
+            externalStorageRunner.retrieve(getHistoryResponse, options.getStorageCancellation());
+      }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())
           .setNextPageToken(getHistoryResponse.getNextPageToken());

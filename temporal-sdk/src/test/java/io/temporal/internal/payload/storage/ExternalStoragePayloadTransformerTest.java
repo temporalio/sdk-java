@@ -21,7 +21,6 @@ import io.temporal.payload.storage.StorageDriverSelector;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +38,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void storesAndRetrievesRoundTrip() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
     List<Payload> input = Arrays.asList(payload("a"), payload("b"));
 
@@ -59,7 +58,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void payloadBelowThresholdStaysInline() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 100);
     Payload small = payload("x");
     Payload large = payload(repeat("y", 200));
@@ -75,7 +74,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void selectorReturningNullKeepsInline() throws Exception {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
             ExternalStorage.newBuilder()
@@ -95,8 +94,8 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void multipleDriversBatchPerDriverAndPreserveOrder() throws Exception {
-    InMemoryDriver d1 = new InMemoryDriver("d1");
-    InMemoryDriver d2 = new InMemoryDriver("d2");
+    TestStorageDriver d1 = TestStorageDriver.named("d1");
+    TestStorageDriver d2 = TestStorageDriver.named("d2");
     Map<String, StorageDriver> byPrefix = new HashMap<>();
     byPrefix.put("1", d1);
     byPrefix.put("2", d2);
@@ -121,16 +120,7 @@ public class ExternalStoragePayloadTransformerTest {
   @Test
   public void selectorReceivesSelectContextCarryingTheTarget() throws Exception {
     AtomicReference<StorageDriverSelectContext> seen = new AtomicReference<>();
-    AtomicReference<StorageDriverStoreContext> storeSeen = new AtomicReference<>();
-    InMemoryDriver driver =
-        new InMemoryDriver("d1") {
-          @Override
-          public CompletableFuture<List<StorageDriverClaim>> store(
-              StorageDriverStoreContext context, List<Payload> payloads) {
-            storeSeen.set(context);
-            return super.store(context, payloads);
-          }
-        };
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     StorageDriverSelector selector =
         (context, payload) -> {
           seen.set(context);
@@ -152,8 +142,7 @@ public class ExternalStoragePayloadTransformerTest {
 
     assertNotNull(seen.get());
     assertSame(target, seen.get().getTarget());
-    assertNotNull(storeSeen.get());
-    assertSame(target, storeSeen.get().getTarget());
+    assertEquals(Collections.singletonList(target), driver.targets);
   }
 
   @Test
@@ -220,7 +209,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void unknownDriverOnRetrieveFails() {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
     Payload reference =
         ExternalStorageReferences.toReferencePayload(
@@ -235,8 +224,8 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void selectorReturningUnregisteredDriverFails() {
-    InMemoryDriver registered = new InMemoryDriver("d1");
-    InMemoryDriver stranger = new InMemoryDriver("d2");
+    TestStorageDriver registered = TestStorageDriver.named("d1");
+    TestStorageDriver stranger = TestStorageDriver.named("d2");
     ExternalStoragePayloadTransformer transformer =
         ExternalStoragePayloadTransformer.fromOptions(
             ExternalStorage.newBuilder()
@@ -350,7 +339,7 @@ public class ExternalStoragePayloadTransformerTest {
 
   @Test
   public void selectorObservesCallerCancellationToken() {
-    InMemoryDriver driver = new InMemoryDriver("d1");
+    TestStorageDriver driver = TestStorageDriver.named("d1");
     CancelSource<CancellationException> caller = new CancelSource<>(CancellationException::new);
     AtomicReference<CancellationToken<CancellationException>> observed = new AtomicReference<>();
     ExternalStoragePayloadTransformer transformer =
@@ -439,41 +428,6 @@ public class ExternalStoragePayloadTransformerTest {
     public CompletableFuture<List<Payload>> retrieve(
         StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
       throw new UnsupportedOperationException();
-    }
-  }
-
-  private static class InMemoryDriver extends FakeDriver {
-    final Map<String, Payload> objects = new HashMap<>();
-    final List<Integer> storeBatchSizes = new ArrayList<>();
-    final List<Integer> retrieveBatchSizes = new ArrayList<>();
-    private int counter = 0;
-
-    InMemoryDriver(String name) {
-      super(name);
-    }
-
-    @Override
-    public CompletableFuture<List<StorageDriverClaim>> store(
-        StorageDriverStoreContext context, List<Payload> payloads) {
-      storeBatchSizes.add(payloads.size());
-      List<StorageDriverClaim> claims = new ArrayList<>();
-      for (Payload payload : payloads) {
-        String key = getName() + "-" + (counter++);
-        objects.put(key, payload);
-        claims.add(new StorageDriverClaim(Collections.singletonMap("key", key)));
-      }
-      return CompletableFuture.completedFuture(claims);
-    }
-
-    @Override
-    public CompletableFuture<List<Payload>> retrieve(
-        StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
-      retrieveBatchSizes.add(claims.size());
-      List<Payload> payloads = new ArrayList<>();
-      for (StorageDriverClaim claim : claims) {
-        payloads.add(objects.get(claim.getClaimData().get("key")));
-      }
-      return CompletableFuture.completedFuture(payloads);
     }
   }
 }

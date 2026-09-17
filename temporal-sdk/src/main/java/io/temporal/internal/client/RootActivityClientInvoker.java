@@ -35,8 +35,6 @@ import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
@@ -69,14 +67,16 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     NexusOperationMetadata nexusOperationMetadata =
         nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
+    String requestId =
+        nexusContext != null && !Strings.isNullOrEmpty(nexusContext.getRequestId())
+            ? nexusContext.getRequestId()
+            : UUID.randomUUID().toString();
+
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
             .setNamespace(clientOptions.getNamespace())
             .setIdentity(clientOptions.getIdentity())
-            .setRequestId(
-                nexusOperationMetadata == null
-                    ? UUID.randomUUID().toString()
-                    : nexusOperationMetadata.requestId)
+            .setRequestId(requestId)
             .setActivityId(options.getId())
             .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
             .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
@@ -109,9 +109,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setSearchAttributes(
           SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
-    if (options.getStaticSummary() != null || options.getStaticDetails() != null) {
+    if (options.getSummary() != null || options.getStaticDetails() != null) {
       UserMetadata userMetadata =
-          makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
+          makeUserMetaData(options.getSummary(), options.getStaticDetails(), dc);
       if (userMetadata != null) {
         request.setUserMetadata(userMetadata);
       }
@@ -126,14 +126,30 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
     request.setHeader(grpcHeader);
 
-    if (nexusOperationMetadata != null) {
-      List<Link> protoLinks = nexusContext.getRequestLinks();
+    List<Link> protoLinks = Collections.emptyList();
+    if (nexusContext != null) {
+      // Propagate the inbound Nexus request ID and links to every activity start on the
+      // operation-handler thread, including starts through a raw ActivityClient.
+      // Completion callbacks remain limited to the metadata-backed start because only it
+      // completes the Nexus operation.
+      protoLinks = nexusContext.getRequestLinks();
       request.addAllLinks(protoLinks);
+    }
+
+    boolean willAttachCompletionCallback =
+        nexusOperationMetadata != null
+            && !Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl);
+    if (!protoLinks.isEmpty() || willAttachCompletionCallback) {
+      // The server rejects attach_request_id unless the request also carries at least one link
+      // or completion callback to attach on conflict.
       request.setOnConflictOptions(
           io.temporal.api.common.v1.OnConflictOptions.newBuilder()
               .setAttachRequestId(true)
-              .setAttachLinks(true)
-              .setAttachCompletionCallbacks(true));
+              .setAttachLinks(!protoLinks.isEmpty())
+              .setAttachCompletionCallbacks(willAttachCompletionCallback));
+    }
+
+    if (nexusOperationMetadata != null) {
       // Generate the operation token from the user-supplied activity ID and namespace so the
       // dual OPERATION_ID + OPERATION_TOKEN headers can be injected before the start RPC fires.
       try {
@@ -146,7 +162,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             "failed to generate activity operation token",
             e);
       }
-      if (!Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl)) {
+      if (willAttachCompletionCallback) {
         Callback cb =
             InternalUtils.buildNexusCallback(
                 nexusOperationMetadata.callbackUrl,
@@ -173,7 +189,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throw e;
     }
 
-    if (nexusOperationMetadata != null && response.hasLink()) {
+    if (nexusContext != null && response.hasLink()) {
       nexusContext.addResponseLink(response.getLink());
     }
 
@@ -450,17 +466,20 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (input.isRestoreOriginal()) {
       req.setRestoreOriginal(true);
     } else {
-      // For repeated keys, later values override previous ones.
-      Map<String, ActivityOptionsUpdate<?>> byPath = new LinkedHashMap<>();
-      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
-        byPath.put(update.getKey().getPath(), update);
-      }
+      // The handle rejects a repeated option, but an interceptor could still add one.
       ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
-      for (ActivityOptionsUpdate<?> update : byPath.values()) {
+      FieldMask.Builder updateMask = FieldMask.newBuilder();
+      Set<String> seen = new HashSet<>();
+      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
+        String path = update.getKey().getPath();
+        if (!seen.add(path)) {
+          throw new IllegalArgumentException(
+              "updateActivityOptions received more than one update for " + path);
+        }
+        updateMask.addPaths(path);
         update.applyTo(activityOptions);
       }
-      req.setActivityOptions(activityOptions.build())
-          .setUpdateMask(FieldMask.newBuilder().addAllPaths(byPath.keySet()).build());
+      req.setActivityOptions(activityOptions.build()).setUpdateMask(updateMask.build());
     }
     UpdateActivityExecutionOptionsResponse response =
         genericClient.updateActivityOptions(req.build());
