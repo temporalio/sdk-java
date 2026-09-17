@@ -30,7 +30,6 @@ import io.temporal.internal.worker.WorkerEnvironmentInfo;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.*;
 import java.lang.annotation.Annotation;
@@ -82,7 +81,10 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
       WorkflowServiceStubs workflowServiceStubs, WorkflowClientOptions options) {
     // Extract WorkflowClientPlugins from service stubs plugins (propagation)
     WorkflowClientPlugin[] propagatedPlugins =
-        extractClientPlugins(workflowServiceStubs.getOptions().getPlugins());
+        PluginUtils.extractPlugins(
+            workflowServiceStubs.getOptions().getPlugins(),
+            WorkflowClientPlugin.class,
+            WorkflowClientPlugin[]::new);
 
     // Merge propagated plugins with client-specified plugins
     WorkflowClientPlugin[] mergedPlugins =
@@ -853,24 +855,5 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     } finally {
       WorkflowInvocationHandler.closeAsyncInvocation();
     }
-  }
-
-  /**
-   * Extracts WorkflowClientPlugins from service stubs plugins. Only plugins that also implement
-   * {@link WorkflowClientPlugin} are included. This enables plugin propagation from service stubs
-   * to workflow client.
-   */
-  private static WorkflowClientPlugin[] extractClientPlugins(
-      WorkflowServiceStubsPlugin[] stubsPlugins) {
-    if (stubsPlugins == null || stubsPlugins.length == 0) {
-      return new WorkflowClientPlugin[0];
-    }
-    List<WorkflowClientPlugin> clientPlugins = new ArrayList<>();
-    for (WorkflowServiceStubsPlugin plugin : stubsPlugins) {
-      if (plugin instanceof WorkflowClientPlugin) {
-        clientPlugins.add((WorkflowClientPlugin) plugin);
-      }
-    }
-    return clientPlugins.toArray(new WorkflowClientPlugin[0]);
   }
 }

@@ -13,8 +13,6 @@ import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.common.PluginUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
-import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
@@ -50,7 +48,10 @@ final class ScheduleClientImpl implements ScheduleClient {
   ScheduleClientImpl(WorkflowServiceStubs workflowServiceStubs, ScheduleClientOptions options) {
     // Extract ScheduleClientPlugins from service stubs plugins (propagation)
     ScheduleClientPlugin[] propagatedPlugins =
-        extractScheduleClientPlugins(workflowServiceStubs.getOptions().getPlugins());
+        PluginUtils.extractPlugins(
+            workflowServiceStubs.getOptions().getPlugins(),
+            ScheduleClientPlugin.class,
+            ScheduleClientPlugin[]::new);
 
     // Merge propagated plugins with schedule client-specified plugins
     ScheduleClientPlugin[] mergedPlugins =
@@ -84,20 +85,6 @@ final class ScheduleClientImpl implements ScheduleClient {
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
     this.scheduleClientCallsInvoker = initializeClientInvoker();
-  }
-
-  private static ScheduleClientPlugin[] extractScheduleClientPlugins(
-      WorkflowServiceStubsPlugin[] stubsPlugins) {
-    if (stubsPlugins == null || stubsPlugins.length == 0) {
-      return new ScheduleClientPlugin[0];
-    }
-    List<ScheduleClientPlugin> schedulePlugins = new ArrayList<>();
-    for (WorkflowServiceStubsPlugin plugin : stubsPlugins) {
-      if (plugin instanceof ScheduleClientPlugin) {
-        schedulePlugins.add((ScheduleClientPlugin) plugin);
-      }
-    }
-    return schedulePlugins.toArray(new ScheduleClientPlugin[0]);
   }
 
   private ScheduleClientCallsInterceptor initializeClientInvoker() {

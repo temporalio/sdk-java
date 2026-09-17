@@ -1,10 +1,12 @@
 package io.temporal.client;
 
+import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import java.lang.management.ManagementFactory;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -40,12 +42,14 @@ public final class ActivityClientOptions {
         Collections.emptyList();
     private static final List<ActivityClientInterceptor> EMPTY_INTERCEPTORS =
         Collections.emptyList();
+    private static final ActivityClientPlugin[] EMPTY_PLUGINS = new ActivityClientPlugin[0];
 
     private String namespace;
     private DataConverter dataConverter;
     private String identity;
     private List<ContextPropagator> contextPropagators;
     private List<ActivityClientInterceptor> interceptors;
+    private ActivityClientPlugin[] plugins;
 
     private Builder() {}
 
@@ -58,6 +62,7 @@ public final class ActivityClientOptions {
       identity = options.identity;
       contextPropagators = options.contextPropagators;
       interceptors = options.interceptors;
+      plugins = options.plugins;
     }
 
     /** Set the namespace this client will operate on. */
@@ -102,6 +107,17 @@ public final class ActivityClientOptions {
       return this;
     }
 
+    /**
+     * Set the plugins for this client.
+     *
+     * @param plugins specifies the plugins to use with the client.
+     */
+    @Experimental
+    public Builder setPlugins(ActivityClientPlugin... plugins) {
+      this.plugins = Objects.requireNonNull(plugins);
+      return this;
+    }
+
     public ActivityClientOptions build() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new ActivityClientOptions(
@@ -109,7 +125,8 @@ public final class ActivityClientOptions {
           dataConverter == null ? GlobalDataConverter.get() : dataConverter,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
-          interceptors == null ? EMPTY_INTERCEPTORS : interceptors);
+          interceptors == null ? EMPTY_INTERCEPTORS : interceptors,
+          plugins == null ? EMPTY_PLUGINS : plugins);
     }
   }
 
@@ -118,18 +135,21 @@ public final class ActivityClientOptions {
   private final String identity;
   private final List<ContextPropagator> contextPropagators;
   private final List<ActivityClientInterceptor> interceptors;
+  private final ActivityClientPlugin[] plugins;
 
   private ActivityClientOptions(
       String namespace,
       DataConverter dataConverter,
       String identity,
       List<ContextPropagator> contextPropagators,
-      List<ActivityClientInterceptor> interceptors) {
+      List<ActivityClientInterceptor> interceptors,
+      ActivityClientPlugin[] plugins) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.interceptors = interceptors;
+    this.plugins = plugins;
   }
 
   /**
@@ -177,6 +197,16 @@ public final class ActivityClientOptions {
     return interceptors;
   }
 
+  /**
+   * Get the plugins of this client.
+   *
+   * @return The plugins to use with the client.
+   */
+  @Experimental
+  public ActivityClientPlugin[] getPlugins() {
+    return plugins;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -186,12 +216,19 @@ public final class ActivityClientOptions {
         && Objects.equals(dataConverter, that.dataConverter)
         && Objects.equals(identity, that.identity)
         && Objects.equals(contextPropagators, that.contextPropagators)
-        && Objects.equals(interceptors, that.interceptors);
+        && Objects.equals(interceptors, that.interceptors)
+        && Arrays.equals(plugins, that.plugins);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(namespace, dataConverter, identity, contextPropagators, interceptors);
+    return Objects.hash(
+        namespace,
+        dataConverter,
+        identity,
+        contextPropagators,
+        interceptors,
+        Arrays.hashCode(plugins));
   }
 
   @Override
@@ -209,6 +246,8 @@ public final class ActivityClientOptions {
         + contextPropagators
         + ", interceptors="
         + interceptors
+        + ", plugins="
+        + Arrays.toString(plugins)
         + '}';
   }
 }
