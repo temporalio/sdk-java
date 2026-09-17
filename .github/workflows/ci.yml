@@ -255,4 +255,4 @@ jobs:
     name: Build native test server
     uses: ./.github/workflows/build-native-image.yml
     with:
-      ref: ${{ github.event.pull_request.head.sha }}
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
