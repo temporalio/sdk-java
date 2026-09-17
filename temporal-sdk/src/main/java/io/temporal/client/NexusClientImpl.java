@@ -17,6 +17,7 @@ import io.temporal.internal.client.NexusOperationHandleImpl;
 import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.List;
@@ -39,6 +40,32 @@ public class NexusClientImpl implements NexusClient {
 
   public static NexusClient newInstance(WorkflowServiceStubs service, NexusClientOptions options) {
     enforceNonWorkflowThread();
+
+    // Extract NexusClientPlugins from service stubs plugins (propagation)
+    NexusClientPlugin[] propagatedPlugins =
+        PluginUtils.extractPlugins(
+            service.getOptions().getPlugins(), NexusClientPlugin.class, NexusClientPlugin[]::new);
+
+    // Merge propagated plugins with Nexus client-specified plugins
+    NexusClientPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            options.getPlugins(),
+            NexusClientPlugin::getName,
+            log,
+            "service stubs",
+            NexusClientPlugin.class);
+
+    // Apply plugin configuration phase (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
+    NexusClientOptions.Builder builder = NexusClientOptions.newBuilder(options);
+    for (NexusClientPlugin plugin : mergedPlugins) {
+      plugin.configureNexusClient(builder);
+    }
+    // Set merged plugins after configuration, then build
+    builder.setPlugins(mergedPlugins);
+    options = builder.build();
+
     return WorkflowThreadMarker.protectFromWorkflowThread(
         new NexusClientImpl(service, options.toResolvedOptions()), NexusClient.class);
   }

@@ -96,7 +96,9 @@ public final class WorkerFactory {
     String namespace = workflowClientOptions.getNamespace();
 
     // Extract worker plugins from client (auto-propagation)
-    WorkerPlugin[] propagatedPlugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+    WorkerPlugin[] propagatedPlugins =
+        PluginUtils.extractPlugins(
+            workflowClientOptions.getPlugins(), WorkerPlugin.class, WorkerPlugin[]::new);
 
     // Get plugins explicitly set on factory options
     WorkerPlugin[] explicitPlugins = factoryOptions != null ? factoryOptions.getPlugins() : null;
@@ -567,24 +569,6 @@ public final class WorkerFactory {
   @Override
   public String toString() {
     return String.format("WorkerFactory{identity=%s}", workflowClient.getOptions().getIdentity());
-  }
-
-  /**
-   * Extracts worker plugins from the workflow client plugins array. Only plugins that also
-   * implement {@link WorkerPlugin} are included.
-   */
-  private static WorkerPlugin[] extractWorkerPlugins(
-      io.temporal.client.WorkflowClientPlugin[] clientPlugins) {
-    if (clientPlugins == null || clientPlugins.length == 0) {
-      return new WorkerPlugin[0];
-    }
-    List<WorkerPlugin> workerPlugins = new ArrayList<>();
-    for (io.temporal.client.WorkflowClientPlugin plugin : clientPlugins) {
-      if (plugin instanceof WorkerPlugin) {
-        workerPlugins.add((WorkerPlugin) plugin);
-      }
-    }
-    return workerPlugins.toArray(new WorkerPlugin[0]);
   }
 
   /**

@@ -23,8 +23,20 @@ package io.temporal.common;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.ActivityClientPlugin;
+import io.temporal.client.NexusClientOptions;
+import io.temporal.client.NexusClientPlugin;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
+import io.temporal.common.interceptors.ActivityClientInterceptorBase;
+import io.temporal.common.interceptors.NexusClientInterceptor;
+import io.temporal.common.interceptors.NexusClientInterceptorBase;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.common.interceptors.ScheduleClientInterceptorBase;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptorBase;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -32,6 +44,7 @@ import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerPlugin;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,6 +68,9 @@ public class SimplePluginBuilderTest {
         "Should implement WorkflowClientPlugin",
         plugin instanceof io.temporal.client.WorkflowClientPlugin);
     assertTrue("Should implement WorkerPlugin", plugin instanceof io.temporal.worker.WorkerPlugin);
+    assertTrue("Should implement ScheduleClientPlugin", plugin instanceof ScheduleClientPlugin);
+    assertTrue("Should implement ActivityClientPlugin", plugin instanceof ActivityClientPlugin);
+    assertTrue("Should implement NexusClientPlugin", plugin instanceof NexusClientPlugin);
   }
 
   @Test
@@ -85,6 +101,45 @@ public class SimplePluginBuilderTest {
     WorkflowClientInterceptor[] interceptors = builder.build().getInterceptors();
     assertEquals(1, interceptors.length);
     assertSame(interceptor, interceptors[0]);
+  }
+
+  @Test
+  public void testAddScheduleClientInterceptors() {
+    ScheduleClientInterceptor interceptor = new ScheduleClientInterceptorBase() {};
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").addScheduleClientInterceptors(interceptor).build();
+
+    ScheduleClientOptions.Builder builder = ScheduleClientOptions.newBuilder();
+    ((ScheduleClientPlugin) plugin).configureScheduleClient(builder);
+
+    assertEquals(Collections.singletonList(interceptor), builder.build().getInterceptors());
+  }
+
+  @Test
+  public void testAddActivityClientInterceptors() {
+    ActivityClientInterceptor interceptor = new ActivityClientInterceptorBase() {};
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").addActivityClientInterceptors(interceptor).build();
+
+    ActivityClientOptions.Builder builder = ActivityClientOptions.newBuilder();
+    ((ActivityClientPlugin) plugin).configureActivityClient(builder);
+
+    assertEquals(Collections.singletonList(interceptor), builder.build().getInterceptors());
+  }
+
+  @Test
+  public void testAddNexusClientInterceptors() {
+    NexusClientInterceptor interceptor = new NexusClientInterceptorBase() {};
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test").addNexusClientInterceptors(interceptor).build();
+
+    NexusClientOptions.Builder builder = NexusClientOptions.newBuilder();
+    ((NexusClientPlugin) plugin).configureNexusClient(builder);
+
+    assertEquals(Collections.singletonList(interceptor), builder.build().getInterceptors());
   }
 
   @Test

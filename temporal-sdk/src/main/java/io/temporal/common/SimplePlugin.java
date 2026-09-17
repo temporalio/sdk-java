@@ -20,12 +20,19 @@
 
 package io.temporal.common;
 
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.ActivityClientPlugin;
+import io.temporal.client.NexusClientOptions;
+import io.temporal.client.NexusClientPlugin;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
+import io.temporal.common.interceptors.NexusClientInterceptor;
+import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -49,7 +56,8 @@ import javax.annotation.Nonnull;
 
 /**
  * A plugin that implements {@link WorkflowServiceStubsPlugin}, {@link WorkflowClientPlugin}, {@link
- * ScheduleClientPlugin}, and {@link WorkerPlugin}. This class can be used in two ways:
+ * ScheduleClientPlugin}, {@link ActivityClientPlugin}, {@link NexusClientPlugin}, and {@link
+ * WorkerPlugin}. This class can be used in two ways:
  *
  * <ol>
  *   <li><b>Builder pattern:</b> Use {@link #newBuilder(String)} to declaratively configure a plugin
@@ -104,6 +112,8 @@ import javax.annotation.Nonnull;
  * @see WorkflowServiceStubsPlugin
  * @see WorkflowClientPlugin
  * @see ScheduleClientPlugin
+ * @see ActivityClientPlugin
+ * @see NexusClientPlugin
  * @see WorkerPlugin
  */
 @Experimental
@@ -111,6 +121,8 @@ public abstract class SimplePlugin
     implements WorkflowServiceStubsPlugin,
         WorkflowClientPlugin,
         ScheduleClientPlugin,
+        ActivityClientPlugin,
+        NexusClientPlugin,
         WorkerPlugin {
 
   private final String name;
@@ -122,6 +134,9 @@ public abstract class SimplePlugin
   private final List<BiConsumer<Worker, WorkflowExecutionHistory>> replayExecutionCallbacks;
   private final List<WorkerInterceptor> workerInterceptors;
   private final List<WorkflowClientInterceptor> clientInterceptors;
+  private final List<ScheduleClientInterceptor> scheduleClientInterceptors;
+  private final List<ActivityClientInterceptor> activityClientInterceptors;
+  private final List<NexusClientInterceptor> nexusClientInterceptors;
   private final List<ContextPropagator> contextPropagators;
   private final UnaryOperator<DataConverter> dataConverterCustomizer;
   private final List<Class<?>> workflowImplementationTypes;
@@ -146,6 +161,9 @@ public abstract class SimplePlugin
     this.replayExecutionCallbacks = Collections.emptyList();
     this.workerInterceptors = Collections.emptyList();
     this.clientInterceptors = Collections.emptyList();
+    this.scheduleClientInterceptors = Collections.emptyList();
+    this.activityClientInterceptors = Collections.emptyList();
+    this.nexusClientInterceptors = Collections.emptyList();
     this.contextPropagators = Collections.emptyList();
     this.dataConverterCustomizer = null;
     this.workflowImplementationTypes = Collections.emptyList();
@@ -171,6 +189,9 @@ public abstract class SimplePlugin
     this.replayExecutionCallbacks = new ArrayList<>(builder.replayExecutionCallbacks);
     this.workerInterceptors = new ArrayList<>(builder.workerInterceptors);
     this.clientInterceptors = new ArrayList<>(builder.clientInterceptors);
+    this.scheduleClientInterceptors = new ArrayList<>(builder.scheduleClientInterceptors);
+    this.activityClientInterceptors = new ArrayList<>(builder.activityClientInterceptors);
+    this.nexusClientInterceptors = new ArrayList<>(builder.nexusClientInterceptors);
     this.contextPropagators = new ArrayList<>(builder.contextPropagators);
     this.dataConverterCustomizer = builder.dataConverterCustomizer;
     this.workflowImplementationTypes = new ArrayList<>(builder.workflowImplementationTypes);
@@ -229,7 +250,29 @@ public abstract class SimplePlugin
 
   @Override
   public void configureScheduleClient(@Nonnull ScheduleClientOptions.Builder builder) {
-    // Subclasses can override this method for custom configuration
+    if (!scheduleClientInterceptors.isEmpty()) {
+      List<ScheduleClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
+      combined.addAll(scheduleClientInterceptors);
+      builder.setInterceptors(combined);
+    }
+  }
+
+  @Override
+  public void configureActivityClient(@Nonnull ActivityClientOptions.Builder builder) {
+    if (!activityClientInterceptors.isEmpty()) {
+      List<ActivityClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
+      combined.addAll(activityClientInterceptors);
+      builder.setInterceptors(combined);
+    }
+  }
+
+  @Override
+  public void configureNexusClient(@Nonnull NexusClientOptions.Builder builder) {
+    if (!nexusClientInterceptors.isEmpty()) {
+      List<NexusClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
+      combined.addAll(nexusClientInterceptors);
+      builder.setInterceptors(combined);
+    }
   }
 
   @Override
@@ -343,6 +386,9 @@ public abstract class SimplePlugin
         new ArrayList<>();
     private final List<WorkerInterceptor> workerInterceptors = new ArrayList<>();
     private final List<WorkflowClientInterceptor> clientInterceptors = new ArrayList<>();
+    private final List<ScheduleClientInterceptor> scheduleClientInterceptors = new ArrayList<>();
+    private final List<ActivityClientInterceptor> activityClientInterceptors = new ArrayList<>();
+    private final List<NexusClientInterceptor> nexusClientInterceptors = new ArrayList<>();
     private final List<ContextPropagator> contextPropagators = new ArrayList<>();
     private UnaryOperator<DataConverter> dataConverterCustomizer;
     private final List<Class<?>> workflowImplementationTypes = new ArrayList<>();
@@ -522,6 +568,42 @@ public abstract class SimplePlugin
      */
     public Builder addClientInterceptors(WorkflowClientInterceptor... interceptors) {
       clientInterceptors.addAll(Arrays.asList(interceptors));
+      return this;
+    }
+
+    /**
+     * Adds schedule client interceptors. Interceptors are appended to any existing interceptors in
+     * the configuration.
+     *
+     * @param interceptors the interceptors to add
+     * @return this builder for chaining
+     */
+    public Builder addScheduleClientInterceptors(ScheduleClientInterceptor... interceptors) {
+      scheduleClientInterceptors.addAll(Arrays.asList(interceptors));
+      return this;
+    }
+
+    /**
+     * Adds activity client interceptors. Interceptors are appended to any existing interceptors in
+     * the configuration.
+     *
+     * @param interceptors the interceptors to add
+     * @return this builder for chaining
+     */
+    public Builder addActivityClientInterceptors(ActivityClientInterceptor... interceptors) {
+      activityClientInterceptors.addAll(Arrays.asList(interceptors));
+      return this;
+    }
+
+    /**
+     * Adds Nexus client interceptors. Interceptors are appended to any existing interceptors in the
+     * configuration.
+     *
+     * @param interceptors the interceptors to add
+     * @return this builder for chaining
+     */
+    public Builder addNexusClientInterceptors(NexusClientInterceptor... interceptors) {
+      nexusClientInterceptors.addAll(Arrays.asList(interceptors));
       return this;
     }
 

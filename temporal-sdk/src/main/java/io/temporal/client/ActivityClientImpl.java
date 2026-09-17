@@ -11,6 +11,7 @@ import io.temporal.internal.client.ActivityHandleImpl;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -23,12 +24,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Implementation of {@link ActivityClient} that delegates calls through the activity interceptor
  * chain and ultimately to the Temporal service.
  */
 class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
+
+  private static final Logger log = LoggerFactory.getLogger(ActivityClientImpl.class);
 
   private final WorkflowServiceStubs stubs;
   private final ActivityClientOptions options;
@@ -37,6 +42,33 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
+    // Extract ActivityClientPlugins from service stubs plugins (propagation)
+    ActivityClientPlugin[] propagatedPlugins =
+        PluginUtils.extractPlugins(
+            stubs.getOptions().getPlugins(),
+            ActivityClientPlugin.class,
+            ActivityClientPlugin[]::new);
+
+    // Merge propagated plugins with activity client-specified plugins
+    ActivityClientPlugin[] mergedPlugins =
+        PluginUtils.mergePlugins(
+            propagatedPlugins,
+            options.getPlugins(),
+            ActivityClientPlugin::getName,
+            log,
+            "service stubs",
+            ActivityClientPlugin.class);
+
+    // Apply plugin configuration phase (forward order) on user-provided options,
+    // so plugins see unmodified state before defaults and plugin merging
+    ActivityClientOptions.Builder builder = ActivityClientOptions.newBuilder(options);
+    for (ActivityClientPlugin plugin : mergedPlugins) {
+      plugin.configureActivityClient(builder);
+    }
+    // Set merged plugins after configuration, then build
+    builder.setPlugins(mergedPlugins);
+    options = builder.build();
+
     this.stubs = stubs;
     this.options = options;
     this.metricsScope =
