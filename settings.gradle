@@ -17,6 +17,8 @@ include 'temporal-aws-lambda'
 project(':temporal-aws-lambda').projectDir = file('contrib/temporal-aws-lambda')
 include 'temporal-gcp-cloud-run-opentelemetry'
 project(':temporal-gcp-cloud-run-opentelemetry').projectDir = file('contrib/temporal-gcp-cloud-run-opentelemetry')
+include 'temporal-gcp-cloud-run-id'
+project(':temporal-gcp-cloud-run-id').projectDir = file('contrib/temporal-gcp-cloud-run-id')
 include 'temporal-payload-storage-s3driver'
 project(':temporal-payload-storage-s3driver').projectDir = file('contrib/temporal-payload-storage-s3driver')
 include 'temporal-payload-storage-s3driver-awssdkv2'
