@@ -259,6 +259,15 @@ public abstract class SimplePlugin
 
   @Override
   public void configureActivityClient(@Nonnull ActivityClientOptions.Builder builder) {
+    // Add context propagators
+    if (!contextPropagators.isEmpty()) {
+      List<ContextPropagator> existing = builder.build().getContextPropagators();
+      List<ContextPropagator> combined = new ArrayList<>(existing);
+      combined.addAll(contextPropagators);
+      builder.setContextPropagators(combined);
+    }
+
+    // Add client interceptors
     if (!activityClientInterceptors.isEmpty()) {
       List<ActivityClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
       combined.addAll(activityClientInterceptors);
