@@ -1,0 +1,28 @@
+description = '''Temporal Java SDK OpenTelemetry v2 Module'''
+
+ext {
+    otelVersion = '1.66.0'
+}
+
+dependencies {
+    api platform("io.opentelemetry:opentelemetry-bom:$otelVersion")
+
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
+    compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
+
+    implementation "com.google.guava:guava:$guavaVersion"
+
+    api "io.opentelemetry:opentelemetry-api"
+    api "io.opentelemetry:opentelemetry-sdk-trace"
+    api "io.opentelemetry:opentelemetry-sdk-metrics"
+    api "io.opentelemetry:opentelemetry-sdk-logs"
+
+    testImplementation project(':temporal-sdk')
+    testImplementation project(':temporal-serviceclient')
+    testImplementation project(':temporal-testing')
+    testImplementation "io.opentelemetry:opentelemetry-sdk-testing"
+    testImplementation "junit:junit:${junitVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
