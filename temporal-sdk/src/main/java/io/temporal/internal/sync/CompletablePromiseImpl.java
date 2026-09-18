@@ -1,6 +1,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
@@ -9,6 +10,7 @@ import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -246,7 +248,19 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
       proc.apply(resultPromise);
       unregisterWithRunner();
     } else {
-      handlers.add(() -> proc.apply(resultPromise));
+      // Handlers run in a callback thread created by the runner, which inherits its propagated
+      // contexts from the workflow header rather than from the thread registering the handler.
+      Map<String, Object> contexts = ContextThreadLocal.getCurrentContextForPropagation();
+      handlers.add(
+          () -> {
+            Map<String, Object> previous = ContextThreadLocal.getCurrentContextForPropagation();
+            ContextThreadLocal.propagateContextToCurrentThread(contexts);
+            try {
+              proc.apply(resultPromise);
+            } finally {
+              ContextThreadLocal.propagateContextToCurrentThread(previous);
+            }
+          });
     }
     return resultPromise;
   }
