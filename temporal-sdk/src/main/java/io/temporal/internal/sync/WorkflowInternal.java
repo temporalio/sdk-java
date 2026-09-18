@@ -511,13 +511,30 @@ public final class WorkflowInternal {
         getWorkflowOutboundInterceptor()
             .executeActivity(
                 new WorkflowOutboundCallsInterceptor.ActivityInput<>(
-                    name, resultClass, resultType, args, options, Header.empty()))
+                    name, null, resultClass, resultType, args, options, Header.empty()))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
       return null; // ignored
     }
     return result.get();
+  }
+
+  public static <R> Promise<R> executeActivityAsync(
+      ActivityInvocationOptions options, Functions.Proc invocation) {
+    assertNotReadOnly("schedule activity");
+    return ActivityInvocationInternal.invokeAsync(options, invocation);
+  }
+
+  public static <R> R executeActivity(
+      ActivityInvocationOptions options, Functions.Func<R> invocation) {
+    assertNotReadOnly("schedule activity");
+    return ActivityInvocationInternal.invoke(options, invocation);
+  }
+
+  public static void executeActivity(ActivityInvocationOptions options, Functions.Proc invocation) {
+    assertNotReadOnly("schedule activity");
+    ActivityInvocationInternal.invoke(options, invocation);
   }
 
   public static void await(String reason, Supplier<Boolean> unblockCondition)
