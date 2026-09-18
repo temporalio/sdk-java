@@ -1,5 +1,7 @@
 package io.temporal.payload.context;
 
+import static org.junit.Assume.assumeTrue;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.temporal.activity.ActivityInterface;
@@ -94,6 +96,10 @@ public class ContextAwareDataConverterTest {
 
   @Test
   public void standaloneActivitySerializationContext() {
+    assumeTrue(
+        "Test server doesn't support standalone activities",
+        !testWorkflowRule.isUseExternalService());
+
     String activityId = "act-" + UUID.randomUUID();
 
     ActivityHandle<TracedValue> handle =
