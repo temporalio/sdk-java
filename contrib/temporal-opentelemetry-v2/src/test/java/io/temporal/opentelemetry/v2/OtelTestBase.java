@@ -6,8 +6,12 @@ import static org.junit.Assert.fail;
 
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.logs.SdkLoggerProvider;
+import io.opentelemetry.sdk.logs.data.LogRecordData;
+import io.opentelemetry.sdk.logs.export.SimpleLogRecordProcessor;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.testing.exporter.InMemoryLogRecordExporter;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -27,6 +31,7 @@ import org.junit.BeforeClass;
 public abstract class OtelTestBase {
   static final InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
   static final InMemoryMetricReader metricReader = InMemoryMetricReader.create();
+  static final InMemoryLogRecordExporter logExporter = InMemoryLogRecordExporter.create();
   private static ReplaySafeOpenTelemetry openTelemetry;
 
   @BeforeClass
@@ -37,6 +42,9 @@ public abstract class OtelTestBase {
                 SdkTracerProvider.builder()
                     .addSpanProcessor(SimpleSpanProcessor.create(spanExporter)))
             .setMeterProviderBuilder(SdkMeterProvider.builder().registerMetricReader(metricReader))
+            .setLoggerProviderBuilder(
+                SdkLoggerProvider.builder()
+                    .addLogRecordProcessor(SimpleLogRecordProcessor.create(logExporter)))
             .build();
     GlobalOpenTelemetry.set(openTelemetry);
   }
@@ -48,8 +56,9 @@ public abstract class OtelTestBase {
   }
 
   @Before
-  public void clearSpans() {
+  public void clearSpansAndLogs() {
     spanExporter.reset();
+    logExporter.reset();
   }
 
   /**
@@ -68,6 +77,10 @@ public abstract class OtelTestBase {
 
   static List<SpanData> endedSpans() {
     return spanExporter.getFinishedSpanItems();
+  }
+
+  static List<LogRecordData> emittedLogs() {
+    return logExporter.getFinishedLogRecordItems();
   }
 
   static SpanData requireSpanNamed(List<SpanData> spans, String name) {
