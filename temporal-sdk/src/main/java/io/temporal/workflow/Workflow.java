@@ -718,8 +718,8 @@ public final class Workflow {
    * draws left it. A Workflow Reset replays the same values up to the reset point, then reseeds the
    * stream for the new Run. Each Continue-As-New Run gets a new sequence.
    *
-   * <p>Draws are not recorded in Workflow History, so do not draw in read-only code. Use {@link
-   * WorkflowUnsafe#isReadOnly()} to gate draws.
+   * <p>Draws are not recorded in Workflow History, so only draw where the code is re-executed on
+   * replay. Use {@link WorkflowUnsafe#isSubjectToReplay()} to gate draws.
    *
    * <p>Use a stable package-style name. Stream names are retained for the life of the Workflow Run.
    * The stream is deterministic pseudorandomness and is not cryptographically secure.

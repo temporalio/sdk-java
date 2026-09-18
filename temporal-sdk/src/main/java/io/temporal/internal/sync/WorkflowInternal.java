@@ -718,6 +718,17 @@ public final class WorkflowInternal {
     }
   }
 
+  public static <T> T notSubjectToReplay(Functions.Func<T> func) {
+    SyncWorkflowContext workflowContext = getRootWorkflowContext();
+    boolean previousSubjectToReplay = workflowContext.isSubjectToReplay();
+    workflowContext.setSubjectToReplay(false);
+    try {
+      return func.apply();
+    } finally {
+      workflowContext.setSubjectToReplay(previousSubjectToReplay);
+    }
+  }
+
   public static WorkflowInfo getWorkflowInfo() {
     return new WorkflowInfoImpl(getRootWorkflowContext().getReplayContext());
   }
@@ -923,14 +934,18 @@ public final class WorkflowInternal {
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 
-  public static boolean isReadOnly() {
+  static boolean isReadOnly() {
     return getRootWorkflowContext().isReadOnly();
   }
 
-  public static void assertNotReadOnly(String action) {
+  static void assertNotReadOnly(String action) {
     if (isReadOnly()) {
       throw new ReadOnlyException(action);
     }
+  }
+
+  public static boolean isSubjectToReplay() {
+    return getRootWorkflowContext().isSubjectToReplay();
   }
 
   static void assertNotInUpdateHandler(String message) {

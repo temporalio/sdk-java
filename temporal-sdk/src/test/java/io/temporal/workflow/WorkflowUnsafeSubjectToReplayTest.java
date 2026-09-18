@@ -9,6 +9,7 @@ import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,16 +17,24 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-public class WorkflowUnsafeReadOnlyTest {
+public class WorkflowUnsafeSubjectToReplayTest {
   private static final Map<String, Boolean> calls = new ConcurrentHashMap<>();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(ReadOnlyWorkflowImpl.class)
+          .setWorkflowTypes(SubjectToReplayWorkflowImpl.class)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
-                  .setWorkerInterceptors(new ReadOnlyRecordingInterceptor())
+                  .setWorkerInterceptors(new SubjectToReplayRecordingInterceptor())
+                  .build())
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setPreferredVersionProvider(
+                      input -> {
+                        record("versionProvider");
+                        return null;
+                      })
                   .build())
           .build();
 
@@ -34,10 +43,14 @@ public class WorkflowUnsafeReadOnlyTest {
     calls.clear();
   }
 
+  /**
+   * Subjection to replay is a property of the calling context rather than of the Workflow's current
+   * state, so running once live covers the whole contract.
+   */
   @Test
-  public void isReadOnly() {
-    ReadOnlyWorkflow workflow =
-        testWorkflowRule.newWorkflowStubTimeoutOptions(ReadOnlyWorkflow.class);
+  public void isSubjectToReplay() {
+    SubjectToReplayWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(SubjectToReplayWorkflow.class);
     WorkflowClient.start(workflow::run);
 
     workflow.query();
@@ -46,26 +59,32 @@ public class WorkflowUnsafeReadOnlyTest {
     WorkflowStub.fromTyped(workflow).getResult(Void.class);
 
     Map<String, Boolean> expected = new ConcurrentHashMap<>();
-    expected.put("ExecuteWorkflow", false);
-    expected.put("workflowTask", false);
-    expected.put("ExecuteUpdate", false);
-    expected.put("updateHandler", false);
-    expected.put("HandleSignal", false);
-    expected.put("sideEffect", true);
+    // The durable Workflow path re-executes on every replay.
+    expected.put("ExecuteWorkflow", true);
+    expected.put("workflowTask", true);
+    expected.put("ExecuteUpdate", true);
+    expected.put("updateHandler", true);
+    expected.put("HandleSignal", true);
+    // An Await condition is read-only yet still re-evaluated on replay. This is the one context
+    // where subjection to replay and read-only disagree, and the reason the two are separate.
     expected.put("await", true);
-    expected.put("HandleQuery", true);
-    expected.put("query", true);
-    expected.put("ValidateUpdate", true);
-    expected.put("validator", true);
+    // Live callbacks run once against current state and are never re-executed from history.
+    expected.put("sideEffect", false);
+    expected.put("mutableSideEffect", false);
+    expected.put("versionProvider", false);
+    expected.put("HandleQuery", false);
+    expected.put("query", false);
+    expected.put("ValidateUpdate", false);
+    expected.put("validator", false);
     assertEquals(expected, calls);
   }
 
   private static void record(String name) {
-    calls.put(name, WorkflowUnsafe.isReadOnly());
+    calls.put(name, WorkflowUnsafe.isSubjectToReplay());
   }
 
   @WorkflowInterface
-  public interface ReadOnlyWorkflow {
+  public interface SubjectToReplayWorkflow {
     @WorkflowMethod
     void run();
 
@@ -82,17 +101,26 @@ public class WorkflowUnsafeReadOnlyTest {
     void finish();
   }
 
-  public static class ReadOnlyWorkflowImpl implements ReadOnlyWorkflow {
+  public static class SubjectToReplayWorkflowImpl implements SubjectToReplayWorkflow {
     private boolean finished;
 
     @Override
     public void run() {
       record("workflowTask");
+      Workflow.getVersion("change", Workflow.DEFAULT_VERSION, 1);
       Workflow.sideEffect(
           Void.class,
           () -> {
             record("sideEffect");
             return null;
+          });
+      Workflow.mutableSideEffect(
+          "id",
+          Integer.class,
+          Integer::equals,
+          () -> {
+            record("mutableSideEffect");
+            return 1;
           });
       Workflow.await(
           () -> {
@@ -123,7 +151,7 @@ public class WorkflowUnsafeReadOnlyTest {
     }
   }
 
-  private static class ReadOnlyRecordingInterceptor extends WorkerInterceptorBase {
+  private static class SubjectToReplayRecordingInterceptor extends WorkerInterceptorBase {
     @Override
     public WorkflowInboundCallsInterceptor interceptWorkflow(WorkflowInboundCallsInterceptor next) {
       return new WorkflowInboundCallsInterceptorBase(next) {
