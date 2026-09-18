@@ -21,10 +21,13 @@
 package io.temporal.internal.common;
 
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.IntFunction;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 
@@ -32,6 +35,28 @@ import org.slf4j.Logger;
 public final class PluginUtils {
 
   private PluginUtils() {}
+
+  /**
+   * Returns the entries in {@code plugins} that implement {@code pluginType}, preserving order.
+   *
+   * @param plugins plugins to filter (may be null or empty)
+   * @param pluginType type of plugin to retain
+   * @param arrayFactory creates an array of the retained plugin type
+   * @param <T> the retained plugin type
+   * @return the matching plugins, never null
+   */
+  public static <T> T[] extractPlugins(
+      @Nullable Object[] plugins, Class<T> pluginType, IntFunction<T[]> arrayFactory) {
+    List<T> extracted = new ArrayList<>();
+    if (plugins != null) {
+      for (Object plugin : plugins) {
+        if (pluginType.isInstance(plugin)) {
+          extracted.add(pluginType.cast(plugin));
+        }
+      }
+    }
+    return extracted.toArray(arrayFactory.apply(extracted.size()));
+  }
 
   /**
    * Merges propagated plugins with explicitly specified plugins. Propagated plugins come first,
