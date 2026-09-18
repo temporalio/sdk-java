@@ -98,7 +98,7 @@ public class ContextAwareDataConverterTest {
   public void standaloneActivitySerializationContext() {
     assumeTrue(
         "Test server doesn't support standalone activities",
-        !testWorkflowRule.isUseExternalService());
+        testWorkflowRule.isUseExternalService());
 
     String activityId = "act-" + UUID.randomUUID();
 
