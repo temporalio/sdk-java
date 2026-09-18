@@ -6,6 +6,9 @@ import static org.junit.Assert.fail;
 
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.data.SpanData;
@@ -23,6 +26,7 @@ import org.junit.BeforeClass;
 
 public abstract class OtelTestBase {
   static final InMemorySpanExporter spanExporter = InMemorySpanExporter.create();
+  static final InMemoryMetricReader metricReader = InMemoryMetricReader.create();
   private static ReplaySafeOpenTelemetry openTelemetry;
 
   @BeforeClass
@@ -32,6 +36,7 @@ public abstract class OtelTestBase {
             .setTracerProviderBuilder(
                 SdkTracerProvider.builder()
                     .addSpanProcessor(SimpleSpanProcessor.create(spanExporter)))
+            .setMeterProviderBuilder(SdkMeterProvider.builder().registerMetricReader(metricReader))
             .build();
     GlobalOpenTelemetry.set(openTelemetry);
   }
@@ -72,6 +77,16 @@ public abstract class OtelTestBase {
       }
     }
     fail(name + " span not found in " + spanTree(spans));
+    return null;
+  }
+
+  static MetricData requireMetricNamed(String name) {
+    for (MetricData metric : metricReader.collectAllMetrics()) {
+      if (metric.getName().equals(name)) {
+        return metric;
+      }
+    }
+    fail(name + " metric not found");
     return null;
   }
 

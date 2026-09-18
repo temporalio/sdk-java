@@ -5,7 +5,6 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanContext;
 import io.opentelemetry.api.trace.StatusCode;
-import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.util.concurrent.TimeUnit;
 
 /** Wraps a span so that replayed code does not end it, which would export a duplicate. */
@@ -18,9 +17,7 @@ public final class ReplaySafeSpan implements Span {
 
   @Override
   public void end() {
-    if (WorkflowUnsafe.isWorkflowThread()
-        && WorkflowUnsafe.isSubjectToReplay()
-        && WorkflowUnsafe.isReplaying()) {
+    if (OpenTelemetrySuppression.shouldSuppress()) {
       return;
     }
     delegate.end();
@@ -28,9 +25,7 @@ public final class ReplaySafeSpan implements Span {
 
   @Override
   public void end(long timestamp, TimeUnit unit) {
-    if (WorkflowUnsafe.isWorkflowThread()
-        && WorkflowUnsafe.isSubjectToReplay()
-        && WorkflowUnsafe.isReplaying()) {
+    if (OpenTelemetrySuppression.shouldSuppress()) {
       return;
     }
     delegate.end(timestamp, unit);
