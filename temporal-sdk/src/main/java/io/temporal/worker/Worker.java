@@ -129,10 +129,13 @@ public final class Worker {
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
     this.clientOptions = client.getOptions();
     this.cache = cache;
-    ExternalStorageRunner externalStorageRunner =
-        ((WorkflowClientInternal) client.getInternal()).getExternalStorageRunner();
+    WorkflowClientInternal clientInternal = (WorkflowClientInternal) client.getInternal();
+    ExternalStorageRunner externalStorageRunner = clientInternal.getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
-    WorkflowClientOptions clientOptions = client.getOptions();
+    WorkflowClientOptions clientOptions =
+        WorkflowClientOptions.newBuilder(client.getOptions())
+            .setDataConverter(clientInternal.getInternalDataConverter())
+            .build();
     String namespace = clientOptions.getNamespace();
     this.namespace = namespace;
     String workerControlTaskQueue =

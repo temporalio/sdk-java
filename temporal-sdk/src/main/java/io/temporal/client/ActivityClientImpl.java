@@ -11,6 +11,7 @@ import io.temporal.internal.client.ActivityHandleImpl;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -37,6 +38,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
+    options =
+        ActivityClientOptions.newBuilder(options)
+            .setDataConverter(TemporalTransferTypeDataConverter.wrap(options.getDataConverter()))
+            .build();
     this.stubs = stubs;
     this.options = options;
     this.metricsScope =
