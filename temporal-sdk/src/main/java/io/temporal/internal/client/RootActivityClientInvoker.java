@@ -32,6 +32,7 @@ import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -61,7 +62,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (Strings.isNullOrEmpty(options.getTaskQueue())) {
       throw new IllegalArgumentException("taskQueue must not be null or empty");
     }
-    DataConverter dc = clientOptions.getDataConverter();
+    DataConverter dc =
+        clientOptions
+            .getDataConverter()
+            .withContext(
+                new ActivitySerializationContext(
+                    clientOptions.getNamespace(),
+                    null,
+                    null,
+                    input.getActivityType(),
+                    options.getTaskQueue(),
+                    false));
+
     InternalNexusOperationContext nexusContext =
         CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
     NexusOperationMetadata nexusOperationMetadata =
@@ -201,7 +213,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws TimeoutException {
     String namespace = clientOptions.getNamespace();
-    DataConverter dc = clientOptions.getDataConverter();
+    DataConverter dc =
+        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
@@ -276,7 +289,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
-    DataConverter dc = clientOptions.getDataConverter();
+    DataConverter dc =
+        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     return pollActivityUntilOutcome(input, deadline)
         .handle(
@@ -356,6 +370,13 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
                 input.getRunId(),
                 null));
     }
+  }
+
+  private ActivitySerializationContext resultSerializationContext(GetActivityResultInput<?> input) {
+    // Currently, result doesn't have access to activity type and serialization context doesn't hold
+    // activity ID.
+    return new ActivitySerializationContext(
+        clientOptions.getNamespace(), null, null, null, null, false);
   }
 
   @Override
