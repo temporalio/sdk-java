@@ -31,8 +31,8 @@ import javax.annotation.Nonnull;
 
 /**
  * The {@link OpenTelemetry} to use for OpenTelemetry integration with Temporal. Register it with
- * {@code GlobalOpenTelemetry.set}; tracers and meters obtained from it are replay safe inside
- * workflows.
+ * {@code GlobalOpenTelemetry.set}; tracers, meters, and loggers obtained from it are replay safe
+ * inside workflows.
  */
 @Experimental
 public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
