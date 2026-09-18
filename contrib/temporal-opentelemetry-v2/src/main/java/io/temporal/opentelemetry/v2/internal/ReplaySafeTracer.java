@@ -11,7 +11,6 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
 import io.opentelemetry.context.Scope;
 import io.temporal.workflow.Workflow;
-import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 
@@ -49,10 +48,7 @@ public final class ReplaySafeTracer implements Tracer {
 
     @Override
     public Span startSpan() {
-      if (WorkflowUnsafe.isWorkflowThread()
-          && WorkflowUnsafe.isSubjectToReplay()
-          && WorkflowUnsafe.isReplaying()
-          && !startTimestampSet) {
+      if (OpenTelemetrySuppression.shouldSuppress() && !startTimestampSet) {
         delegate.setStartTimestamp(Workflow.currentTimeMillis(), TimeUnit.MILLISECONDS);
       }
       try (Scope ignored = Context.current().with(TRACER_NAME, tracerName).makeCurrent()) {
