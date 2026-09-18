@@ -110,10 +110,6 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
           WorkflowExecutionUtils.makeUserMetaData(
               options.getSummary(),
               null,
-              // User metadata is serialized with the operation's context, the same way workflow
-              // and activity user metadata is serialized with theirs. This must be the same
-              // context UntypedNexusServiceClientImpl used to encode the input; both derive it
-              // from the endpoint, service and operation carried on this input.
               clientOptions
                   .getDataConverter()
                   .withContext(

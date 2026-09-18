@@ -555,15 +555,15 @@ final class NexusWorker implements SuspendableWorker {
           // with the same one. The context rides on the result because it is no longer in scope by
           // the time the reply is built.
           NexusSerializationContext serializationContext = response.getSerializationContext();
-          DataConverter failureDataConverter =
+          DataConverter dataConverterWithContext =
               serializationContext != null
                   ? dataConverter.withContext(serializationContext)
                   : dataConverter;
           if (supportTemporalFailure) {
-            request.setFailure(failureDataConverter.exceptionToFailure(handlerException));
+            request.setFailure(dataConverterWithContext.exceptionToFailure(handlerException));
           } else {
             request.setError(
-                NexusUtil.handlerErrorToNexusError(handlerException, failureDataConverter));
+                NexusUtil.handlerErrorToNexusError(handlerException, dataConverterWithContext));
           }
           if (useExternalStorage) {
             storeOutbound(request);
