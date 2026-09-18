@@ -13,7 +13,6 @@ import java.util.Objects;
  * <p>For all fields, the field not present or equal to zero/empty string means to inherit the value
  * from the calling workflow, or if there is no calling workflow, then use the default value.
  */
-@Experimental
 public class Priority {
   public static Priority.Builder newBuilder() {
     return new Priority.Builder(null);

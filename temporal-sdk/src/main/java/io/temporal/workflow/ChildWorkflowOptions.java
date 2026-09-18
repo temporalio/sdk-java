@@ -331,7 +331,6 @@ public final class ChildWorkflowOptions {
      * Optional priority settings that control relative ordering of task processing when tasks are
      * backed up in a queue.
      */
-    @Experimental
     public Builder setPriority(Priority priority) {
       this.priority = priority;
       return this;
@@ -624,7 +623,6 @@ public final class ChildWorkflowOptions {
     return staticDetails;
   }
 
-  @Experimental
   public Priority getPriority() {
     return priority;
   }
