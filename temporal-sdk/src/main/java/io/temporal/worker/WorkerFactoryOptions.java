@@ -3,8 +3,11 @@ package io.temporal.worker;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import javax.annotation.Nullable;
 
@@ -38,6 +41,7 @@ public class WorkerFactoryOptions {
     private int workflowCacheSize;
     private int maxWorkflowThreadCount;
     private WorkerInterceptor[] workerInterceptors;
+    private List<ContextPropagator> contextPropagators;
     private WorkerPlugin[] plugins;
     private boolean enableLoggingInReplay;
     private boolean usingVirtualWorkflowThreads;
@@ -55,6 +59,7 @@ public class WorkerFactoryOptions {
       this.workflowCacheSize = options.workflowCacheSize;
       this.maxWorkflowThreadCount = options.maxWorkflowThreadCount;
       this.workerInterceptors = options.workerInterceptors;
+      this.contextPropagators = options.contextPropagators;
       this.plugins = options.plugins;
       this.enableLoggingInReplay = options.enableLoggingInReplay;
       this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
@@ -103,6 +108,15 @@ public class WorkerFactoryOptions {
 
     public Builder setWorkerInterceptors(WorkerInterceptor... workerInterceptors) {
       this.workerInterceptors = workerInterceptors;
+      return this;
+    }
+
+    /**
+     * Sets the context propagators to use with workers created by this factory. These are appended
+     * to the propagators configured on the workflow client.
+     */
+    public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
+      this.contextPropagators = contextPropagators;
       return this;
     }
 
@@ -179,6 +193,7 @@ public class WorkerFactoryOptions {
           maxWorkflowThreadCount,
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors,
+          contextPropagators == null ? Collections.emptyList() : contextPropagators,
           plugins,
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
@@ -204,6 +219,7 @@ public class WorkerFactoryOptions {
           maxWorkflowThreadCount,
           workflowHostLocalTaskQueueScheduleToStartTimeout,
           workerInterceptors == null ? new WorkerInterceptor[0] : workerInterceptors,
+          contextPropagators == null ? Collections.emptyList() : contextPropagators,
           plugins == null ? new WorkerPlugin[0] : plugins,
           enableLoggingInReplay,
           usingVirtualWorkflowThreads,
@@ -217,6 +233,7 @@ public class WorkerFactoryOptions {
   private final int maxWorkflowThreadCount;
   private final @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout;
   private final WorkerInterceptor[] workerInterceptors;
+  private final List<ContextPropagator> contextPropagators;
   private final WorkerPlugin[] plugins;
   private final boolean enableLoggingInReplay;
   private final boolean usingVirtualWorkflowThreads;
@@ -228,6 +245,7 @@ public class WorkerFactoryOptions {
       int maxWorkflowThreadCount,
       @Nullable Duration workflowHostLocalTaskQueueScheduleToStartTimeout,
       WorkerInterceptor[] workerInterceptors,
+      List<ContextPropagator> contextPropagators,
       WorkerPlugin[] plugins,
       boolean enableLoggingInReplay,
       boolean usingVirtualWorkflowThreads,
@@ -268,6 +286,7 @@ public class WorkerFactoryOptions {
     this.workflowHostLocalTaskQueueScheduleToStartTimeout =
         workflowHostLocalTaskQueueScheduleToStartTimeout;
     this.workerInterceptors = workerInterceptors;
+    this.contextPropagators = contextPropagators;
     this.plugins = plugins;
     this.enableLoggingInReplay = enableLoggingInReplay;
     this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
@@ -290,6 +309,15 @@ public class WorkerFactoryOptions {
 
   public WorkerInterceptor[] getWorkerInterceptors() {
     return workerInterceptors;
+  }
+
+  /**
+   * Returns the context propagators used with workers created by this factory.
+   *
+   * @return the list of context propagators, never null
+   */
+  public List<ContextPropagator> getContextPropagators() {
+    return contextPropagators;
   }
 
   /**

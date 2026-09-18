@@ -30,6 +30,7 @@ import io.temporal.client.NexusClientPlugin;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptorBase;
@@ -86,6 +87,30 @@ public class SimplePluginBuilderTest {
     WorkerInterceptor[] interceptors = builder.build().getWorkerInterceptors();
     assertEquals(1, interceptors.length);
     assertSame(interceptor, interceptors[0]);
+  }
+
+  @Test
+  public void testAddContextPropagatorsToWorkerFactory() {
+    ContextPropagator propagator = mock(ContextPropagator.class);
+
+    SimplePlugin plugin = SimplePlugin.newBuilder("test").addContextPropagators(propagator).build();
+
+    WorkerFactoryOptions.Builder builder = WorkerFactoryOptions.newBuilder();
+    ((io.temporal.worker.WorkerPlugin) plugin).configureWorkerFactory(builder);
+
+    assertEquals(Collections.singletonList(propagator), builder.build().getContextPropagators());
+  }
+
+  @Test
+  public void testAddContextPropagatorsToActivityClient() {
+    ContextPropagator propagator = mock(ContextPropagator.class);
+
+    SimplePlugin plugin = SimplePlugin.newBuilder("test").addContextPropagators(propagator).build();
+
+    ActivityClientOptions.Builder builder = ActivityClientOptions.newBuilder();
+    ((ActivityClientPlugin) plugin).configureActivityClient(builder);
+
+    assertEquals(Collections.singletonList(propagator), builder.build().getContextPropagators());
   }
 
   @Test

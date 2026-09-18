@@ -3,6 +3,7 @@ package io.temporal.worker;
 import static org.junit.Assert.assertEquals;
 
 import java.time.Duration;
+import java.util.Collections;
 import org.junit.Test;
 
 public class WorkerFactoryOptionsTest {
@@ -11,6 +12,12 @@ public class WorkerFactoryOptionsTest {
   public void shutdownCheckIntervalDefaultIs250ms() {
     WorkerFactoryOptions options = WorkerFactoryOptions.newBuilder().validateAndBuildWithDefaults();
     assertEquals(Duration.ofMillis(250), options.getShutdownCheckInterval());
+  }
+
+  @Test
+  public void contextPropagatorsDefaultToEmptyList() {
+    assertEquals(
+        Collections.emptyList(), WorkerFactoryOptions.newBuilder().build().getContextPropagators());
   }
 
   @Test
