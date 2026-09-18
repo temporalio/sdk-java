@@ -102,6 +102,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private NexusServiceOptions defaultNexusServiceOptions = null;
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
+  private boolean subjectToReplay = true;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
 
@@ -1091,10 +1092,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           () -> {
             try {
               readOnly = true;
+              subjectToReplay = false;
               R r = func.apply();
               return dataConverterWithCurrentWorkflowContext.toPayloads(r);
             } finally {
               readOnly = false;
+              subjectToReplay = true;
             }
           },
           userMetadata,
@@ -1157,6 +1160,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                           0, Optional.of(b), resultClass, resultType));
           try {
             readOnly = true;
+            subjectToReplay = false;
             R funcResult =
                 Objects.requireNonNull(
                     func.apply(), "mutableSideEffect function " + "returned null");
@@ -1167,6 +1171,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             return Optional.empty(); // returned only when value doesn't need to be updated
           } finally {
             readOnly = false;
+            subjectToReplay = true;
           }
         },
         (p) ->
@@ -1307,6 +1312,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   void setReadOnly(boolean readOnly) {
     this.readOnly = readOnly;
+  }
+
+  boolean isSubjectToReplay() {
+    return subjectToReplay;
+  }
+
+  void setSubjectToReplay(boolean subjectToReplay) {
+    this.subjectToReplay = subjectToReplay;
   }
 
   @Override

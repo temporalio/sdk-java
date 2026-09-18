@@ -48,18 +48,21 @@ public final class WorkflowUnsafe {
   }
 
   /**
-   * Reports whether the current code is running where Workflow state cannot be mutated.
+   * Reports whether the currently executing code is re-executed when the Workflow replays.
    *
-   * <p>Read-only code includes Query handlers, Update validators, Side Effect functions, Await
-   * conditions, and other SDK callbacks that must not mutate Workflow state.
+   * <p>Unlike {@link #isReplaying()}, this is a property of the calling context rather than of the
+   * Workflow's current state. The Workflow method and its constructor, signal and update handlers,
+   * and Await conditions are subject to replay. Query handlers, Update validators, and Side Effect
+   * functions run once against the current state and are never re-executed, so they are not subject
+   * to replay even while {@link #isReplaying()} reports true.
    *
    * <p>Must be called from Workflow code.
    *
-   * @return true in a read-only Workflow context
+   * @return true if the calling context is re-executed on replay
    */
   @Experimental
-  public static boolean isReadOnly() {
-    return WorkflowInternal.isReadOnly();
+  public static boolean isSubjectToReplay() {
+    return WorkflowInternal.isSubjectToReplay();
   }
 
   /**
