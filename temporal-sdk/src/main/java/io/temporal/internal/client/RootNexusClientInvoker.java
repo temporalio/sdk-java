@@ -108,7 +108,13 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     if (options.getSummary() != null) {
       UserMetadata metadata =
           WorkflowExecutionUtils.makeUserMetaData(
-              options.getSummary(), null, clientOptions.getDataConverter());
+              options.getSummary(),
+              null,
+              clientOptions
+                  .getDataConverter()
+                  .withContext(
+                      new NexusSerializationContext(
+                          input.getEndpoint(), input.getService(), input.getOperation())));
       if (metadata != null) {
         request.setUserMetadata(metadata);
       }
@@ -154,12 +160,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
                     info.getEndpoint(), info.getService(), info.getOperation()));
     return new DescribeNexusOperationExecutionOutput(
         new NexusOperationExecutionDescription(
-            response,
-            dataConverter,
-            // The summary and details were attached without a Nexus context, so a converter that
-            // varies by context only round-trips them if they are decoded without one too.
-            clientOptions.getDataConverter(),
-            clientOptions.getNamespace()));
+            response, dataConverter, clientOptions.getNamespace()));
   }
 
   /**

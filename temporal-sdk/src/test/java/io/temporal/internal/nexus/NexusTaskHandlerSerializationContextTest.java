@@ -21,6 +21,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.payload.codec.PayloadCodec;
@@ -105,10 +106,61 @@ public class NexusTaskHandlerSerializationContextTest {
     Failure failure = result.getResponse().getStartOperation().getFailure();
     Assert.assertNotEquals(
         "the operation should have reported a failure", Failure.getDefaultInstance(), failure);
+    Assert.assertTrue(
+        "the failure conversion should have reached the codec; if it did not, this test cannot "
+            + "distinguish a contextual failure encode from a contextless one",
+        handlerCodec.contexts().size() > 1);
     Assert.assertEquals(
         "every converter call the handler made should be under the operation's context",
         Collections.singleton(expected),
         new java.util.HashSet<>(handlerCodec.contexts()));
+  }
+
+  @Test
+  public void handlerErrorCarriesTheOperationContextOnTheResult() throws TimeoutException {
+    // A throwable that is not an OperationException becomes a HandlerException, and its failure is
+    // encoded by the worker after the per-task context has gone out of scope. The context has to
+    // travel out on the result for the caller, which decodes with it, to agree.
+    NexusSerializationContext expected =
+        new NexusSerializationContext(ENDPOINT, SERVICE, OPERATION);
+    DataConverter converter = signingConverter(new SigningCodec());
+    Payload input = converter.withContext(expected).toPayload("boom").get();
+
+    NexusTaskHandler.Result result = handle(converter, new ThrowingServiceImpl(), startTask(input));
+
+    Assert.assertNotNull("expected a handler error", result.getHandlerException());
+    Assert.assertEquals(
+        "the handler error should carry the operation's context out to the reply",
+        expected,
+        result.getSerializationContext());
+  }
+
+  @Test
+  public void cancelTaskCarriesTheOperationContextOnTheResult() throws TimeoutException {
+    // Cancel tasks name an operation too, and a failure reported for one is encoded on the same
+    // out-of-scope path as a start task's.
+    NexusSerializationContext expected =
+        new NexusSerializationContext(ENDPOINT, SERVICE, OPERATION);
+
+    NexusTaskHandler.Result result =
+        handle(
+            signingConverter(new SigningCodec()),
+            new ThrowingServiceImpl(),
+            PollNexusTaskQueueResponse.newBuilder()
+                .setRequest(
+                    Request.newBuilder()
+                        .setEndpoint(ENDPOINT)
+                        .setCancelOperation(
+                            io.temporal.api.nexus.v1.CancelOperationRequest.newBuilder()
+                                .setService(SERVICE)
+                                .setOperation(OPERATION)
+                                .setOperationToken("token"))));
+
+    Assert.assertNotNull("expected a handler error", result.getHandlerException());
+    Assert.assertEquals(
+        "a cancel task's failure should carry the operation's context too",
+        expected,
+        result.getSerializationContext());
   }
 
   @Test
@@ -125,6 +177,36 @@ public class NexusTaskHandlerSerializationContextTest {
         "no Nexus task is in scope, so the codec should be called without a context",
         Collections.singletonList(null),
         codec.contexts());
+  }
+
+  @Test
+  public void taskWithoutAnEndpointIsScopedByAnEmptyEndpoint() throws TimeoutException {
+    // Servers before 1.30.0 do not report the endpoint a Nexus task was addressed to. The handler
+    // still scopes by service and operation, with an empty endpoint, which will not agree with the
+    // caller's context but is a Nexus context rather than an absent one.
+    NexusSerializationContext expected = new NexusSerializationContext("", SERVICE, OPERATION);
+    DataConverter callerConverter = signingConverter(new SigningCodec());
+    SigningCodec handlerCodec = new SigningCodec();
+    DataConverter handlerConverter = signingConverter(handlerCodec);
+    Payload input = callerConverter.withContext(expected).toPayload("no-endpoint").get();
+
+    handle(handlerConverter, new EchoServiceImpl(), startTaskWithoutEndpoint(input));
+
+    Assert.assertEquals(
+        "an absent endpoint should still produce a context scoped by service and operation",
+        java.util.Arrays.asList(expected, expected),
+        handlerCodec.contexts());
+  }
+
+  private static PollNexusTaskQueueResponse.Builder startTaskWithoutEndpoint(Payload input) {
+    return PollNexusTaskQueueResponse.newBuilder()
+        .setRequest(
+            Request.newBuilder()
+                .setStartOperation(
+                    StartOperationRequest.newBuilder()
+                        .setService(SERVICE)
+                        .setOperation(OPERATION)
+                        .setPayload(input)));
   }
 
   private static DataConverter signingConverter(SigningCodec codec) {
@@ -173,12 +255,28 @@ public class NexusTaskHandlerSerializationContextTest {
   }
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public static class ThrowingServiceImpl {
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return io.nexusrpc.handler.OperationHandler.sync(
+          (ctx, details, name) -> {
+            throw new RuntimeException("not an operation failure");
+          });
+    }
+  }
+
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
   public static class FailingServiceImpl {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return io.nexusrpc.handler.OperationHandler.sync(
           (ctx, details, name) -> {
-            throw OperationException.failed(name);
+            // The cause carries details so the failure conversion actually reaches the codec. A
+            // failure with no details and no encoded attributes converts without touching it, and
+            // an assertion on the codec would then prove nothing.
+            throw OperationException.failed(
+                ApplicationFailure.newNonRetryableFailure(
+                    name, "ContextFailure", "failure-detail"));
           });
     }
   }

@@ -25,22 +25,10 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
   private final DescribeNexusOperationExecutionResponse response;
   private final NexusOperationExecutionInfo info;
   private final DataConverter dataConverterWithNexusContext;
-  // User metadata is attached by the caller without a Nexus serialization context, so it has to be
-  // decoded without one too. Everything else on a description belongs to the operation and is
-  // decoded with the operation's context.
-  private final DataConverter contextlessDataConverter;
-
-  public NexusOperationExecutionDescription(
-      DescribeNexusOperationExecutionResponse response,
-      DataConverter dataConverter,
-      String namespace) {
-    this(response, dataConverter, dataConverter, namespace);
-  }
 
   public NexusOperationExecutionDescription(
       DescribeNexusOperationExecutionResponse response,
       DataConverter dataConverterWithNexusContext,
-      DataConverter contextlessDataConverter,
       String namespace) {
     super(
         null,
@@ -64,7 +52,6 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     this.response = response;
     this.info = response.getInfo();
     this.dataConverterWithNexusContext = dataConverterWithNexusContext;
-    this.contextlessDataConverter = contextlessDataConverter;
   }
 
   /** Underlying proto response. Exposed while the Nexus SDK surface is still experimental. */
@@ -197,7 +184,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     if (!info.hasUserMetadata() || !info.getUserMetadata().hasSummary()) {
       return null;
     }
-    return contextlessDataConverter.fromPayload(
+    return dataConverterWithNexusContext.fromPayload(
         info.getUserMetadata().getSummary(), String.class, String.class);
   }
 
@@ -210,7 +197,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     if (!info.hasUserMetadata() || !info.getUserMetadata().hasDetails()) {
       return null;
     }
-    return contextlessDataConverter.fromPayload(
+    return dataConverterWithNexusContext.fromPayload(
         info.getUserMetadata().getDetails(), String.class, String.class);
   }
 
