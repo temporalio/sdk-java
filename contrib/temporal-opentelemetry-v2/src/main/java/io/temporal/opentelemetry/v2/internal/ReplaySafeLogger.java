@@ -28,12 +28,12 @@ public final class ReplaySafeLogger implements Logger {
 
   @Override
   public boolean isEnabled(Severity severity, Context context) {
-    return delegate.isEnabled(severity, context);
+    return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled(severity, context);
   }
 
   @Override
   public boolean isEnabled(Severity severity) {
-    return delegate.isEnabled(severity);
+    return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled(severity);
   }
 
   private static final class ReplaySafeLogRecordBuilder implements LogRecordBuilder {

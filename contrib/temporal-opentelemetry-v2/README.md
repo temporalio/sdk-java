@@ -9,7 +9,7 @@ Use the same version as the rest of your Temporal Java SDK dependencies:
 
 ```groovy
 implementation 'io.temporal:temporal-opentelemetry-v2:<temporal-java-sdk-version>'
-// Add the exporters you use, for example:
+// Add the exporters you use, such as this OTLP exporter.
 implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
 ```
 
