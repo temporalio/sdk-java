@@ -113,7 +113,7 @@ public class LoggerTest extends OtelTestBase {
     workflow.proceed();
     WorkflowStub.fromTyped(workflow).getResult(Void.class);
 
-    // Replay the full workflow history and verify the run's record is suppressed on replay
+    // Replay the full workflow history and verify the run's record is suppressed on replay.
     WorkflowReplayer.replayWorkflowExecution(
         testWorkflowRule.getExecutionHistory(execution.getWorkflowId()), TestWorkflowImpl.class);
 
