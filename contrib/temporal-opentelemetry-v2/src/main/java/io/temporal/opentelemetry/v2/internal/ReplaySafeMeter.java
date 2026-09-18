@@ -35,6 +35,10 @@ import java.util.function.Consumer;
 /**
  * Wraps a meter so the synchronous instruments it builds drop recordings made by replaying workflow
  * code, which would otherwise be recorded again on every replay.
+ *
+ * <p>Observable instruments are not wrapped. Creating them from workflow code is discouraged
+ * because their callbacks run outside the workflow and the callback observes workflow state without
+ * workflow synchronization. Create observable instruments from worker or activity code instead.
  */
 public final class ReplaySafeMeter implements Meter {
   private final Meter delegate;
