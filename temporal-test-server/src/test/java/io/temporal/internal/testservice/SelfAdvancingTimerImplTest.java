@@ -1,6 +1,7 @@
 package io.temporal.internal.testservice;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -38,6 +39,13 @@ public class SelfAdvancingTimerImplTest {
   @After
   public void tearDown() throws Exception {
     fixedTimer.shutdown();
+  }
+
+  @Test
+  public void testLockHandleCannotBeUnlockedTwice() {
+    LockHandle handle = fixedTimer.lockTimeSkipping("unit test");
+    handle.unlock();
+    assertThrows(IllegalStateException.class, handle::unlock);
   }
 
   @Test
