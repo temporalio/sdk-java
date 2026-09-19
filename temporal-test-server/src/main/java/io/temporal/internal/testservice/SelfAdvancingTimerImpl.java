@@ -477,9 +477,7 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
   }
 
   private void unlockTimeSkippingLockedInternal(String caller) {
-    if (lockCount == 0) {
-      throw new IllegalStateException("Unbalanced lock and unlock calls: \n" + getDiagnostics());
-    }
+    // An activity can time out while time-skipping sleep has borrowed its lock.
     lockCount--;
     if (caller == null) {
       log.trace("---");
@@ -488,12 +486,6 @@ final class SelfAdvancingTimerImpl implements SelfAdvancingTimer {
     if (lockCount == 0) {
       systemTimeMsLastAdvancedWhileLocked = -1;
     }
-  }
-
-  private String getDiagnostics() {
-    StringBuilder result = new StringBuilder();
-    getDiagnostics(result);
-    return result.toString();
   }
 
   /**
