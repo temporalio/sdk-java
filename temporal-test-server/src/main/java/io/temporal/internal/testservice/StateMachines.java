@@ -2440,6 +2440,27 @@ class StateMachines {
     ctx.addEvent(event);
   }
 
+  /**
+   * Records a TIMER_CANCELED event for a timer that has already fired while a workflow task was in
+   * progress. Such a timer has no state machine associated with it anymore, and its buffered
+   * TIMER_FIRED event is expected to be discarded by the caller instead of being committed to the
+   * history.
+   */
+  static void cancelFiredTimer(
+      RequestContext ctx, String timerId, long startedEventId, long workflowTaskCompletedEventId) {
+    TimerCanceledEventAttributes.Builder a =
+        TimerCanceledEventAttributes.newBuilder()
+            .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
+            .setTimerId(timerId)
+            .setStartedEventId(startedEventId);
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_TIMER_CANCELED)
+            .setTimerCanceledEventAttributes(a)
+            .build();
+    ctx.addEvent(event);
+  }
+
   private static void initiateExternalSignal(
       RequestContext ctx,
       SignalExternalData data,
