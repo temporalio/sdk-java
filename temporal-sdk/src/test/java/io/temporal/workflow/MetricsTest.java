@@ -120,6 +120,17 @@ public class MetricsTest {
           .put(MetricsTag.POLLER_TYPE, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK.getValue())
           .build();
 
+  // Tags for the activity_schedule_to_start_latency metric, which is recorded with the real
+  // activity_type/workflow_type once per activity task in ActivityWorker.handleActivity (see
+  // #2733 - previously it was also incorrectly recorded a second/third time at poll time with
+  // activity_type defaulting to "none").
+  private static final Map<String, String> TAGS_ACTIVITY_SCHEDULE_TO_START =
+      new ImmutableMap.Builder<String, String>()
+          .putAll(TAGS_ACTIVITY_WORKER)
+          .put(MetricsTag.ACTIVITY_TYPE, "Execute")
+          .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
+          .build();
+
   @Rule
   public TestWatcher watchman =
       new TestWatcher() {
@@ -183,7 +194,11 @@ public class MetricsTest {
         "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
     reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
     // We ran some workflow and activity tasks, so we should have some timers here.
-    reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
+    // activity_schedule_to_start_latency is recorded once per activity task, tagged with the
+    // real activity_type (see ActivityWorker.handleActivity / #2733), not the poller-level
+    // scope's default activity_type="none".
+    reporter.assertTimer(
+        "temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_SCHEDULE_TO_START);
     reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
     reporter.assertTimer(
         "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
@@ -228,7 +243,11 @@ public class MetricsTest {
         "temporal_workflow_task_queue_poll_succeed", TAGS_STICKY_WORKFLOW_WORKER);
     reporter.assertCounter("temporal_workflow_task_queue_poll_succeed", TAGS_WORKFLOW_WORKER);
     // We ran some workflow and activity tasks, so we should have some timers here.
-    reporter.assertTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
+    // activity_schedule_to_start_latency is recorded once per activity task, tagged with the
+    // real activity_type (see ActivityWorker.handleActivity / #2733), not the poller-level
+    // scope's default activity_type="none".
+    reporter.assertTimer(
+        "temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_SCHEDULE_TO_START);
     reporter.assertTimer("temporal_workflow_task_schedule_to_start_latency", TAGS_WORKFLOW_WORKER);
     reporter.assertTimer(
         "temporal_workflow_task_schedule_to_start_latency", TAGS_STICKY_WORKFLOW_WORKER);
@@ -237,6 +256,47 @@ public class MetricsTest {
     reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_NORMAL_POLLER, 5);
     reporter.assertGauge("temporal_num_pollers", TAGS_WORKFLOW_STICKY_POLLER, 5);
     reporter.assertGauge("temporal_num_pollers", TAGS_ACTIVITY_POLLER, 5);
+  }
+
+  /**
+   * Regression test for #2733: activity_schedule_to_start_latency must be recorded exactly once per
+   * activity task, and only with the correct activity_type tag.
+   *
+   * <p>Previously the metric was recorded up to three times per activity task: once in {@code
+   * ActivityPollTask}/{@code AsyncActivityPollTask} at poll time (using the poller-level scope,
+   * where activity_type defaults to "none"), and once in {@code ActivityWorker.handleActivity}
+   * using a scope tagged with the real activity_type. This test verifies the duplicate poll-time
+   * recording(s) were removed and only the correctly-tagged recording from {@code handleActivity}
+   * remains.
+   */
+  @Test
+  public void testActivityScheduleToStartLatencyMetricRecordedOnce() throws InterruptedException {
+    setUp(WorkerFactoryOptions.getDefaultInstance());
+
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(TestScheduleToStartMetricWorkflow.class);
+    worker.registerActivitiesImplementations(new TestActivityImpl());
+    testEnvironment.start();
+
+    WorkflowClient workflowClient = testEnvironment.getWorkflowClient();
+    WorkflowOptions options =
+        WorkflowOptions.newBuilder()
+            .setWorkflowRunTimeout(Duration.ofSeconds(1000))
+            .setTaskQueue(TASK_QUEUE)
+            .build();
+    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
+    workflow.execute();
+
+    Thread.sleep(REPORTING_FLUSH_TIME);
+
+    // The metric must be recorded exactly once with the correct activity_type/workflow_type
+    // tags (i.e. the recording made by ActivityWorker.handleActivity).
+    reporter.assertTimer(
+        "temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_SCHEDULE_TO_START, 1);
+
+    // The metric must NOT additionally be recorded under the poller-level scope, where
+    // activity_type defaults to "none" - that was the duplicate recording removed by #2733.
+    reporter.assertNoTimer("temporal_activity_schedule_to_start_latency", TAGS_ACTIVITY_WORKER);
   }
 
   @Test
@@ -593,6 +653,20 @@ public class MetricsTest {
     @Override
     public int execute(int input) {
       return input;
+    }
+  }
+
+  public static class TestScheduleToStartMetricWorkflow implements NoArgsWorkflow {
+
+    @Override
+    public void execute() {
+      ActivityOptions activityOptions =
+          ActivityOptions.newBuilder()
+              .setTaskQueue(TASK_QUEUE)
+              .setScheduleToCloseTimeout(Duration.ofSeconds(100))
+              .build();
+      TestActivity3 activity = Workflow.newActivityStub(TestActivity3.class, activityOptions);
+      activity.execute(1);
     }
   }
 
