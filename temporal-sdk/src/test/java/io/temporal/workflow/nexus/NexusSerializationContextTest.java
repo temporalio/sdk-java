@@ -16,6 +16,7 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
@@ -33,6 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import javax.annotation.Nonnull;
 import org.junit.After;
 import org.junit.Assert;
@@ -51,8 +53,10 @@ import org.junit.Test;
  * <p>Nexus requires a real server, so these are skipped unless {@code USE_EXTERNAL_SERVICE=true}.
  */
 public class NexusSerializationContextTest {
-  private static final String RED_ENDPOINT = "red-nexus-endpoint";
-  private static final String BLUE_ENDPOINT = "blue-nexus-endpoint";
+  // Unique per run. Fixed names are left behind by a run that dies before tearDown and then make
+  // every later run fail to create them.
+  private static final String RED_ENDPOINT = "red-nexus-endpoint-" + UUID.randomUUID();
+  private static final String BLUE_ENDPOINT = "blue-nexus-endpoint-" + UUID.randomUUID();
   private static final String SERVICE = "TestNexusService1";
   private static final String OPERATION = "operation";
 
@@ -233,7 +237,11 @@ public class NexusSerializationContextTest {
       return OperationHandler.sync(
           (ctx, details, name) -> {
             if ("fail".equals(name)) {
-              throw OperationException.failed("operation failed on purpose");
+              // Details give the failure real payloads, so the codec is consulted and the strict
+              // decode check below can compare the handler's context with the caller's.
+              throw OperationException.failed(
+                  ApplicationFailure.newNonRetryableFailure(
+                      "operation failed on purpose", "ContextFailure", "failure-detail"));
             }
             return "Hello, " + name + "!";
           });
@@ -308,12 +316,23 @@ public class NexusSerializationContextTest {
       seen.add(context);
       List<Payload> decoded = new ArrayList<>(payloads.size());
       for (Payload payload : payloads) {
-        // Payloads encoded without a context stay readable, as the contract requires.
-        if (payload.getMetadataMap().containsKey(SIGNATURE_KEY)) {
-          decoded.add(Payload.newBuilder(payload).removeMetadata(SIGNATURE_KEY).build());
-        } else {
+        ByteString signature = payload.getMetadataMap().get(SIGNATURE_KEY);
+        if (signature == null) {
+          // Payloads encoded without a context stay readable, as the contract requires.
           decoded.add(payload);
+          continue;
         }
+        // This codec only signs under a Nexus context, so a signed payload was encoded under one.
+        // Decoding it without one means the two halves of the round trip disagreed.
+        Assert.assertTrue(
+            "payload encoded under a Nexus context was decoded under " + context,
+            context instanceof NexusSerializationContext);
+        NexusSerializationContext nexus = (NexusSerializationContext) context;
+        Assert.assertEquals(
+            "payload should be decoded under the context it was encoded with",
+            nexus.getEndpoint() + ":" + nexus.getService() + ":" + nexus.getOperation(),
+            signature.toStringUtf8());
+        decoded.add(Payload.newBuilder(payload).removeMetadata(SIGNATURE_KEY).build());
       }
       return decoded;
     }

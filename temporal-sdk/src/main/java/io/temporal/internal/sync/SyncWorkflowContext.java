@@ -827,8 +827,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     @Nullable
     UserMetadata userMetadata =
-        makeUserMetaData(
-            input.getOptions().getSummary(), null, dataConverterWithCurrentWorkflowContext);
+        makeUserMetaData(input.getOptions().getSummary(), null, nexusDataConverter);
 
     StartNexusOperationParameters parameters =
         new StartNexusOperationParameters(
