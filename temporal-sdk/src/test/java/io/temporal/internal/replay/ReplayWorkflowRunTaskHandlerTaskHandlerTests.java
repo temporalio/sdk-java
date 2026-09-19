@@ -53,8 +53,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 import org.junit.experimental.categories.Category;
+import org.mockito.ArgumentCaptor;
 
 public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
