@@ -1,17 +1,26 @@
 package io.temporal.workflow.queryTests;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
+import io.temporal.common.RetryOptions;
+import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.Issue;
 import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.Workflow;
+import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Rule;
@@ -32,7 +41,10 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(TestWorkflowNonRetryableFlag.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(TestWorkflowNonRetryableFlag.class, LogAndKeepRunningWorkflow.class)
+          .setActivityImplementations(new TestActivities.TestActivitiesImpl())
+          .build();
 
   @Before
   public void setUp() throws Exception {

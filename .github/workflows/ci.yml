@@ -113,6 +113,7 @@ jobs:
 
   unit_test_cloud:
     name: Unit test with cloud
+    # Eight forks run about 1,428 eligible tests; the previous runner timed out before completion.
     runs-on: ubuntu-latest-16-cores
     timeout-minutes: 35
     steps:

@@ -127,6 +127,7 @@ public class CloudTestExclusionTest {
   private static class ClassExcludedFixture {}
 
   private static class MethodExcludedFixture {
+    // These methods are reflection fixtures for the contract test, not standalone JUnit tests.
     public void cloudEligible() {}
 
     @CloudTestExclusionNote("Requires Cloud provisioning for this filtering fixture.")

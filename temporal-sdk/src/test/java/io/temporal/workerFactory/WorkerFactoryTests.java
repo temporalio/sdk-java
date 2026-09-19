@@ -144,21 +144,20 @@ public class WorkerFactoryTests {
   public void startFailsOnNonexistentNamespace() {
     TestEnvironmentOptions environmentOptions =
         ExternalServiceTestConfigurator.configuredTestEnvironmentOptions().build();
-    WorkflowServiceStubs serviceLocal = newServiceStubs(environmentOptions);
     WorkflowClient clientLocal =
         WorkflowClient.newInstance(
-            serviceLocal,
+            service,
             newWorkflowClientOptions(environmentOptions).setNamespace("i_dont_exist").build());
     WorkerFactory factoryLocal = WorkerFactory.newInstance(clientLocal);
     factoryLocal.newWorker("task-queue");
 
-    StatusRuntimeException ex = assertThrows(StatusRuntimeException.class, factoryLocal::start);
-    assertEquals(Status.Code.NOT_FOUND, ex.getStatus().getCode());
-
-    factoryLocal.shutdownNow();
-    factoryLocal.awaitTermination(5, TimeUnit.SECONDS);
-    serviceLocal.shutdownNow();
-    serviceLocal.awaitTermination(5, TimeUnit.SECONDS);
+    try {
+      StatusRuntimeException ex = assertThrows(StatusRuntimeException.class, factoryLocal::start);
+      assertEquals(Status.Code.NOT_FOUND, ex.getStatus().getCode());
+    } finally {
+      factoryLocal.shutdownNow();
+      factoryLocal.awaitTermination(5, TimeUnit.SECONDS);
+    }
   }
 
   private static WorkflowServiceStubs newServiceStubs(TestEnvironmentOptions environmentOptions) {
