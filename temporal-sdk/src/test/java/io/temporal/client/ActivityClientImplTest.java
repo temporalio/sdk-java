@@ -16,8 +16,10 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Type;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Before;
 import org.junit.Test;
@@ -34,6 +36,12 @@ public class ActivityClientImplTest {
   public interface WrongActivity {
     @ActivityMethod(name = "DoWrong")
     void doWrong();
+  }
+
+  @ActivityInterface
+  public interface GenericActivity {
+    @ActivityMethod
+    void doIt(List<String> values);
   }
 
   private WorkflowServiceStubs stubs;
@@ -89,6 +97,34 @@ public class ActivityClientImplTest {
 
     assertNotNull(capturedHeader.get());
     assertEquals(payload, capturedHeader.get().getValues().get("my-key"));
+  }
+
+  @Test
+  public void testTypedStartIncludesArgumentTypes() throws NoSuchMethodException {
+    AtomicReference<Type[]> capturedTypes = new AtomicReference<>();
+    ActivityClientInterceptor capturingInterceptor =
+        next ->
+            new ActivityClientCallsInterceptorBase(next) {
+              @Override
+              public ActivityClientCallsInterceptor.StartActivityOutput startActivity(
+                  ActivityClientCallsInterceptor.StartActivityInput input) {
+                capturedTypes.set(input.getArgTypes());
+                return new ActivityClientCallsInterceptor.StartActivityOutput("fake-id", null);
+              }
+            };
+    ActivityClient client =
+        ActivityClient.newInstance(
+            stubs,
+            ActivityClientOptions.newBuilder()
+                .setInterceptors(Collections.singletonList(capturingInterceptor))
+                .build());
+
+    client.start(
+        GenericActivity.class, GenericActivity::doIt, options, Collections.singletonList("value"));
+
+    assertArrayEquals(
+        GenericActivity.class.getMethod("doIt", List.class).getGenericParameterTypes(),
+        capturedTypes.get());
   }
 
   @Test(expected = NoSuchMethodError.class)

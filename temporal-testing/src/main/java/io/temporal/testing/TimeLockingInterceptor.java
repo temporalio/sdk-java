@@ -50,14 +50,35 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public void signalWithTypeHints(String signalName, Type[] argTypes, Object... args) {
+      next.signalWithTypeHints(signalName, argTypes, args);
+    }
+
+    @Override
     public WorkflowExecution start(Object... args) {
       return next.start(args);
+    }
+
+    @Override
+    public WorkflowExecution startWithTypeHints(Type[] argTypes, Object... args) {
+      return next.startWithTypeHints(argTypes, args);
     }
 
     @Override
     public <R> WorkflowUpdateHandle<R> startUpdateWithStart(
         UpdateOptions<R> options, Object[] updateArgs, Object[] startArgs) {
       return next.startUpdateWithStart(options, updateArgs, startArgs);
+    }
+
+    @Override
+    public <R> WorkflowUpdateHandle<R> startUpdateWithStartWithTypeHints(
+        UpdateOptions<R> options,
+        Object[] updateArgs,
+        Type[] updateArgTypes,
+        Object[] startArgs,
+        Type[] startArgTypes) {
+      return next.startUpdateWithStartWithTypeHints(
+          options, updateArgs, updateArgTypes, startArgs, startArgTypes);
     }
 
     @Override
@@ -70,6 +91,17 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     public WorkflowExecution signalWithStart(
         String signalName, Object[] signalArgs, Object[] startArgs) {
       return next.signalWithStart(signalName, signalArgs, startArgs);
+    }
+
+    @Override
+    public WorkflowExecution signalWithStartWithTypeHints(
+        String signalName,
+        Object[] signalArgs,
+        Type[] signalArgTypes,
+        Object[] startArgs,
+        Type[] startArgTypes) {
+      return next.signalWithStartWithTypeHints(
+          signalName, signalArgs, signalArgTypes, startArgs, startArgTypes);
     }
 
     @Override
@@ -160,6 +192,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public <R> R queryWithTypeHints(
+        String queryType, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
+      return next.queryWithTypeHints(queryType, resultClass, resultType, argTypes, args);
+    }
+
+    @Override
     public void cancel() {
       next.cancel();
     }
@@ -243,6 +281,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     }
 
     @Override
+    public <R> R updateWithTypeHints(
+        String updateName, Class<R> resultClass, Type resultType, Type[] argTypes, Object... args) {
+      return next.updateWithTypeHints(updateName, resultClass, resultType, argTypes, args);
+    }
+
+    @Override
     public <R> WorkflowUpdateHandle<R> startUpdate(
         String updateName, WorkflowUpdateStage waitForStage, Class<R> resultClass, Object... args) {
       return next.startUpdate(updateName, waitForStage, resultClass, args);
@@ -251,6 +295,12 @@ class TimeLockingInterceptor extends WorkflowClientInterceptorBase {
     @Override
     public <R> WorkflowUpdateHandle<R> startUpdate(UpdateOptions<R> options, Object... args) {
       return next.startUpdate(options, args);
+    }
+
+    @Override
+    public <R> WorkflowUpdateHandle<R> startUpdateWithTypeHints(
+        UpdateOptions<R> options, Type[] argTypes, Object... args) {
+      return next.startUpdateWithTypeHints(options, argTypes, args);
     }
 
     @Override

@@ -113,6 +113,17 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   public <T> Optional<Payload> toPayload(T value) {
     Optional<Payload> payload =
         ConverterUtils.withContext(dataConverter, serializationContext).toPayload(value);
+    return encodeSingle(payload);
+  }
+
+  @Override
+  public <T> Optional<Payload> toPayload(T value, Type valueType) {
+    Optional<Payload> payload =
+        ConverterUtils.withContext(dataConverter, serializationContext).toPayload(value, valueType);
+    return encodeSingle(payload);
+  }
+
+  private Optional<Payload> encodeSingle(Optional<Payload> payload) {
     List<Payload> encodedPayloads =
         ConverterUtils.withContext(chainCodec, serializationContext)
             .encode(Collections.singletonList(payload.get()));
@@ -134,6 +145,19 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   public Optional<Payloads> toPayloads(Object... values) throws DataConverterException {
     Optional<Payloads> payloads =
         ConverterUtils.withContext(dataConverter, serializationContext).toPayloads(values);
+    return encodePayloads(payloads);
+  }
+
+  @Override
+  public Optional<Payloads> toPayloads(Object[] values, Type[] valueTypes)
+      throws DataConverterException {
+    Optional<Payloads> payloads =
+        ConverterUtils.withContext(dataConverter, serializationContext)
+            .toPayloads(values, valueTypes);
+    return encodePayloads(payloads);
+  }
+
+  private Optional<Payloads> encodePayloads(Optional<Payloads> payloads) {
     if (payloads.isPresent()) {
       List<Payload> encodedPayloads =
           ConverterUtils.withContext(chainCodec, serializationContext)

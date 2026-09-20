@@ -67,10 +67,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   @Override
   public <I> ActivityHandle<Void> start(
       Class<I> activityInterface, Functions.Proc1<I> activity, StartActivityOptions options) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
-    UntypedActivityHandle untyped = start(activityType, options, new Object[0]);
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), new Object[0]);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -80,10 +80,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       Functions.Proc2<I, A1> activity,
       StartActivityOptions options,
       A1 arg1) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
-    UntypedActivityHandle untyped = start(activityType, options, arg1);
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -94,10 +94,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       StartActivityOptions options,
       A1 arg1,
       A2 arg2) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2);
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1, arg2);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -109,10 +109,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       A1 arg1,
       A2 arg2,
       A3 arg3) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3);
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1, arg2, arg3);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -125,10 +125,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       A2 arg2,
       A3 arg3,
       A4 arg4) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4);
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1, arg2, arg3, arg4);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -142,10 +142,11 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       A3 arg3,
       A4 arg4,
       A5 arg5) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4, arg5);
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    UntypedActivityHandle untyped =
+        start(
+            activityType, options, method.getGenericParameterTypes(), arg1, arg2, arg3, arg4, arg5);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -160,11 +161,19 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       A4 arg4,
       A5 arg5,
       A6 arg6) {
-    String activityType =
-        MethodExtractor.activityTypeName(
-            activityInterface, MethodExtractor.extract(activityInterface, activity));
+    Method method = MethodExtractor.extract(activityInterface, activity);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
     UntypedActivityHandle untyped =
-        start(activityType, options, arg1, arg2, arg3, arg4, arg5, arg6);
+        start(
+            activityType,
+            options,
+            method.getGenericParameterTypes(),
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6);
     return ActivityHandle.fromUntyped(untyped, Void.class, null);
   }
 
@@ -178,7 +187,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
-    UntypedActivityHandle untyped = start(activityType, options, new Object[0]);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), new Object[0]);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -193,7 +203,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
-    UntypedActivityHandle untyped = start(activityType, options, arg1);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -209,7 +220,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1, arg2);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -226,7 +238,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1, arg2, arg3);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -244,7 +257,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4);
+    UntypedActivityHandle untyped =
+        start(activityType, options, method.getGenericParameterTypes(), arg1, arg2, arg3, arg4);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -263,7 +277,9 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     @SuppressWarnings("unchecked")
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
-    UntypedActivityHandle untyped = start(activityType, options, arg1, arg2, arg3, arg4, arg5);
+    UntypedActivityHandle untyped =
+        start(
+            activityType, options, method.getGenericParameterTypes(), arg1, arg2, arg3, arg4, arg5);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -284,7 +300,16 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     Class<R> resultClass = (Class<R>) method.getReturnType();
     Type resultType = method.getGenericReturnType();
     UntypedActivityHandle untyped =
-        start(activityType, options, arg1, arg2, arg3, arg4, arg5, arg6);
+        start(
+            activityType,
+            options,
+            method.getGenericParameterTypes(),
+            arg1,
+            arg2,
+            arg3,
+            arg4,
+            arg5,
+            arg6);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
   }
 
@@ -293,11 +318,20 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   @Override
   public UntypedActivityHandle start(
       String activityType, StartActivityOptions options, @Nullable Object... args) {
+    return start(activityType, options, null, args);
+  }
+
+  private UntypedActivityHandle start(
+      String activityType,
+      StartActivityOptions options,
+      @Nullable Type[] argTypes,
+      @Nullable Object... args) {
     ActivityClientCallsInterceptor.StartActivityOutput output =
         invoker.startActivity(
             new ActivityClientCallsInterceptor.StartActivityInput(
                 activityType,
                 Arrays.asList(args != null ? args : new Object[0]),
+                argTypes,
                 options,
                 propagatedHeader()));
     return new ActivityHandleImpl(output.getActivityId(), output.getActivityRunId(), invoker);

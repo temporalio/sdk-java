@@ -276,7 +276,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           testEnvironmentOptions
               .getWorkflowClientOptions()
               .getDataConverter()
-              .toPayloads(i.getArgs());
+              .toPayloads(i.getArgs(), i.getArgTypes());
       Optional<Payloads> heartbeatPayload =
           Optional.ofNullable(heartbeatDetails.getAndSet(null))
               .flatMap(
@@ -319,7 +319,7 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
           testEnvironmentOptions
               .getWorkflowClientOptions()
               .getDataConverter()
-              .toPayloads(i.getArgs());
+              .toPayloads(i.getArgs(), i.getArgTypes());
       LocalActivityOptions options = i.getOptions();
       PollActivityTaskQueueResponse.Builder taskBuilder =
           PollActivityTaskQueueResponse.newBuilder()

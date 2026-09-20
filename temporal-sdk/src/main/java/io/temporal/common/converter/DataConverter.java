@@ -71,6 +71,22 @@ public interface DataConverter {
    */
   <T> Optional<Payload> toPayload(T value) throws DataConverterException;
 
+  /**
+   * Serializes a value using the supplied type hint.
+   *
+   * <p>The type hint may be used by converters whose serialization format depends on the declared
+   * type of the value. The default implementation preserves compatibility with existing data
+   * converters by delegating to {@link #toPayload(Object)}.
+   *
+   * @param value value to convert
+   * @param valueType declared type of {@code value}
+   * @return a {@link Payload} containing the serialized representation of {@code value}
+   * @throws DataConverterException if conversion fails
+   */
+  default <T> Optional<Payload> toPayload(T value, Type valueType) throws DataConverterException {
+    return toPayload(value);
+  }
+
   <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
       throws DataConverterException;
 
@@ -83,6 +99,22 @@ public interface DataConverter {
    *     reason.
    */
   Optional<Payloads> toPayloads(Object... values) throws DataConverterException;
+
+  /**
+   * Serializes a list of values using the supplied type hints.
+   *
+   * <p>The default implementation preserves compatibility with existing data converters by
+   * delegating to {@link #toPayloads(Object...)}.
+   *
+   * @param values Java values to convert
+   * @param valueTypes declared types of {@code values}
+   * @return converted values, or an empty Optional if {@code values} is empty
+   * @throws DataConverterException if conversion fails
+   */
+  default Optional<Payloads> toPayloads(Object[] values, Type[] valueTypes)
+      throws DataConverterException {
+    return toPayloads(values);
+  }
 
   /**
    * Implements conversion of a single {@link Payload} from the serialized {@link Payloads}.

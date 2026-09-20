@@ -190,7 +190,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
     DataConverter dataConverterWitSignalContext = workflowConverter(input.getWorkflowExecution());
 
-    Optional<Payloads> inputArgs = dataConverterWitSignalContext.toPayloads(input.getArguments());
+    Optional<Payloads> inputArgs =
+        dataConverterWitSignalContext.toPayloads(input.getArguments(), input.getArgumentTypes());
     inputArgs.ifPresent(request::setInput);
     storeHeader(
         request.getHeaderBuilder(),
@@ -217,7 +218,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         toStartRequest(dataConverterWithWorkflowContext, workflowStartInput);
 
     Optional<Payloads> signalInput =
-        dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
+        dataConverterWithWorkflowContext.toPayloads(
+            input.getSignalArguments(), input.getSignalArgumentTypes());
     SignalWithStartWorkflowExecutionRequest.Builder requestBuilder =
         requestsHelper.newSignalWithStartWorkflowExecutionRequest(
             startRequest, input.getSignalName(), signalInput.orElse(null));
@@ -365,7 +367,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private StartWorkflowExecutionRequest.Builder toStartRequest(
       DataConverter dataConverterWithWorkflowContext, WorkflowStartInput workflowStartInput) {
     Optional<Payloads> workflowInput =
-        dataConverterWithWorkflowContext.toPayloads(workflowStartInput.getArguments());
+        dataConverterWithWorkflowContext.toPayloads(
+            workflowStartInput.getArguments(), workflowStartInput.getArgumentTypes());
 
     @Nullable
     Memo memo =
@@ -456,7 +459,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         workflowConverter(input.getWorkflowExecution());
 
     Optional<Payloads> inputArgs =
-        dataConverterWithWorkflowContext.toPayloads(input.getArguments());
+        dataConverterWithWorkflowContext.toPayloads(input.getArguments(), input.getArgumentTypes());
     inputArgs.ifPresent(query::setQueryArgs);
     storeHeader(
         query.getHeaderBuilder(),
@@ -552,7 +555,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private <R> UpdateWorkflowExecutionRequest toUpdateWorkflowExecutionRequest(
       StartUpdateInput<R> input, DataConverter dataConverterWithWorkflowContext) {
     Optional<Payloads> inputArgs =
-        dataConverterWithWorkflowContext.toPayloads(input.getArguments());
+        dataConverterWithWorkflowContext.toPayloads(input.getArguments(), input.getArgumentTypes());
     Input.Builder updateInput =
         Input.newBuilder()
             .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null))

@@ -4,6 +4,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.workflow.*;
+import java.lang.reflect.Type;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -30,12 +31,16 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    signal(signalName, null, args);
+  }
+
+  void signal(String signalName, Type[] argTypes, Object... args) {
     assertReadOnly.apply("signal external workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
             .signalExternalWorkflow(
                 new WorkflowOutboundCallsInterceptor.SignalExternalInput(
-                    execution, signalName, Header.empty(), args))
+                    execution, signalName, Header.empty(), args, argTypes))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);

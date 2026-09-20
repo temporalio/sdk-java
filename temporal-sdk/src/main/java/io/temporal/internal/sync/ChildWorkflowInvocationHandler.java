@@ -9,7 +9,6 @@ import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.workflow.ChildWorkflowOptions;
-import io.temporal.workflow.ChildWorkflowStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -18,7 +17,7 @@ import java.util.Optional;
 /** Dynamic implementation of a strongly typed child workflow interface. */
 class ChildWorkflowInvocationHandler implements InvocationHandler {
 
-  private final ChildWorkflowStub stub;
+  private final ChildWorkflowStubImpl stub;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ChildWorkflowInvocationHandler(
@@ -69,11 +68,15 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
 
     if (type == WorkflowMethodType.WORKFLOW) {
       return getValueOrDefault(
-          stub.execute(method.getReturnType(), method.getGenericReturnType(), args),
+          stub.execute(
+              method.getReturnType(),
+              method.getGenericReturnType(),
+              method.getGenericParameterTypes(),
+              args),
           method.getReturnType());
     }
     if (type == WorkflowMethodType.SIGNAL) {
-      stub.signal(methodMetadata.getName(), args);
+      stub.signal(methodMetadata.getName(), method.getGenericParameterTypes(), args);
       return null;
     }
     if (type == WorkflowMethodType.QUERY) {

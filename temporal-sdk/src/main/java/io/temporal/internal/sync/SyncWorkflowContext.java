@@ -280,7 +280,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             false);
     DataConverter dataConverterWithActivityContext =
         dataConverter.withContext(serializationContext);
-    Optional<Payloads> args = dataConverterWithActivityContext.toPayloads(input.getArgs());
+    Optional<Payloads> args =
+        dataConverterWithActivityContext.toPayloads(input.getArgs(), input.getArgTypes());
 
     ActivityOutput<Optional<Payloads>> output =
         executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
@@ -441,7 +442,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             true);
     DataConverter dataConverterWithActivityContext =
         dataConverter.withContext(serializationContext);
-    Optional<Payloads> payloads = dataConverterWithActivityContext.toPayloads(input.getArgs());
+    Optional<Payloads> payloads =
+        dataConverterWithActivityContext.toPayloads(input.getArgs(), input.getArgTypes());
 
     long originalScheduledTime = System.currentTimeMillis();
     CompletablePromise<Optional<Payloads>> serializedResult =
@@ -701,7 +703,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     DataConverter dataConverterWithChildWorkflowContext =
         dataConverter.withContext(
             new WorkflowSerializationContext(replayContext.getNamespace(), input.getWorkflowId()));
-    Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
+    Optional<Payloads> payloads =
+        dataConverterWithChildWorkflowContext.toPayloads(input.getArgs(), input.getArgTypes());
 
     @Nullable
     Memo memo =
@@ -1067,7 +1070,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             try {
               readOnly = true;
               R r = func.apply();
-              return dataConverterWithCurrentWorkflowContext.toPayloads(r);
+              return dataConverterWithCurrentWorkflowContext.toPayloads(
+                  new Object[] {r}, new Type[] {resultType});
             } finally {
               readOnly = false;
             }
@@ -1137,7 +1141,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     func.apply(), "mutableSideEffect function " + "returned null");
             if (!stored.isPresent() || updated.test(stored.get(), funcResult)) {
               unserializedResult.set(funcResult);
-              return dataConverterWithCurrentWorkflowContext.toPayloads(funcResult);
+              return dataConverterWithCurrentWorkflowContext.toPayloads(
+                  new Object[] {funcResult}, new Type[] {resultType});
             }
             return Optional.empty(); // returned only when value doesn't need to be updated
           } finally {
@@ -1311,7 +1316,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     attributes.setSignalName(input.getSignalName());
     attributes.setExecution(childExecution);
     attributes.setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
-    Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
+    Optional<Payloads> payloads =
+        dataConverterWithChildWorkflowContext.toPayloads(input.getArgs(), input.getArgTypes());
     payloads.ifPresent(attributes::setInput);
     CompletablePromise<Void> result = Workflow.newPromise();
     Functions.Proc1<Exception> cancellationCallback =
@@ -1482,7 +1488,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     attributes.setHeader(grpcHeader);
 
     Optional<Payloads> payloads =
-        dataConverterWithCurrentWorkflowContext.toPayloads(input.getArgs());
+        dataConverterWithCurrentWorkflowContext.toPayloads(input.getArgs(), input.getArgTypes());
     payloads.ifPresent(attributes::setInput);
 
     replayContext.continueAsNewOnCompletion(attributes.build());

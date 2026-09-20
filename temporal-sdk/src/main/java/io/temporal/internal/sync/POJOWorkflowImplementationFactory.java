@@ -33,6 +33,7 @@ import io.temporal.workflow.Functions;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -362,7 +363,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
-      return dataConverterWithWorkflowContext.toPayloads(result.getResult());
+      return dataConverterWithWorkflowContext.toPayloads(
+          new Object[] {result.getResult()}, new Type[] {workflowMethod.getGenericReturnType()});
     }
 
     @Nullable

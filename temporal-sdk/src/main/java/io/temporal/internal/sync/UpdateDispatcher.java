@@ -99,7 +99,10 @@ class UpdateDispatcher {
               .executeUpdate(
                   new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
               .getResult();
-      return dataConverterWithWorkflowContext.toPayloads(result);
+      return handler == null || handler.getResultType() == null
+          ? dataConverterWithWorkflowContext.toPayloads(result)
+          : dataConverterWithWorkflowContext.toPayloads(
+              new Object[] {result}, new java.lang.reflect.Type[] {handler.getResultType()});
     } catch (DestroyWorkflowThreadError e) {
       threadDestroyed = true;
       throw e;
