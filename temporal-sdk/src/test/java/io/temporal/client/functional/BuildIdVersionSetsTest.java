@@ -6,6 +6,8 @@ import static org.junit.Assume.assumeTrue;
 import io.temporal.api.enums.v1.TaskReachability;
 import io.temporal.client.*;
 import io.temporal.internal.testing.WorkflowTestingTest;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
@@ -16,8 +18,12 @@ import java.util.UUID;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings({"OptionalGetWithoutIsPresent", "deprecation"})
+@CloudTestExclusionNote(
+    "Cloud CI namespaces disable the deprecated version-set and rules-based versioning APIs.")
+@Category(RequiresCloudProvisioning.class)
 public class BuildIdVersionSetsTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =

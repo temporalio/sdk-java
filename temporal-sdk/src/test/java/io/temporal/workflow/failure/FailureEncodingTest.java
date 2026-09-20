@@ -22,6 +22,8 @@ import io.temporal.internal.testing.WorkflowTestingTest;
 import io.temporal.internal.testing.WorkflowTestingTest.FailingWorkflowImpl;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -37,6 +39,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 
 /**
@@ -54,6 +57,8 @@ import org.junit.rules.Timeout;
  *       that Failure carries no sensible data and no stack trace.
  * </ul>
  */
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class FailureEncodingTest {
   private static final String TASK_QUEUE = "test-workflow";
 

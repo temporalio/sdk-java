@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.*;
@@ -16,8 +18,11 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings("deprecation")
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class WorkflowInternalDeprecatedQueueTest {
 
   @Rule public final Tracer trace = new Tracer();

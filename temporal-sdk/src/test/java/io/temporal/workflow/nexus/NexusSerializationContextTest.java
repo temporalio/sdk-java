@@ -20,6 +20,8 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -42,6 +44,7 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * End-to-end coverage that a workflow calling a Nexus operation encodes its input, decodes its
@@ -52,6 +55,8 @@ import org.junit.Test;
  *
  * <p>Nexus requires a real server, so these are skipped unless {@code USE_EXTERNAL_SERVICE=true}.
  */
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusSerializationContextTest {
   // Unique per run. Fixed names are left behind by a run that dies before tearDown and then make
   // every later run fail to create them.

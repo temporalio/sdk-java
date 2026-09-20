@@ -18,6 +18,8 @@ import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.CancelActivityExecutionInput;
 import io.temporal.nexus.TemporalOperationCancelContext;
 import io.temporal.nexus.TemporalOperationHandler;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
@@ -26,7 +28,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class CancelActivityAsyncOperationTest extends BaseNexusTest {
 
   static final AtomicBoolean cancelled = new AtomicBoolean(false);

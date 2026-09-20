@@ -9,6 +9,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class LongLocalActivityFailsWhileHeartbeatingMeteringTest {
 
@@ -39,6 +42,8 @@ public class LongLocalActivityFailsWhileHeartbeatingMeteringTest {
    * Test that local activity that failed to heartbeat and executed longer than Workflow Task
    * Timeout will be repeated during replay
    */
+  @CloudTestExclusionNote("This test depends on local test-server metering metadata behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testLongLocalActivityFailsWhileHeartbeatingMetering() {
     // Needs server release which propagates metering metadata to event

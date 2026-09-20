@@ -21,6 +21,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.Nexus;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -37,6 +39,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.function.ThrowingRunnable;
 
 /**
@@ -48,6 +51,8 @@ import org.junit.function.ThrowingRunnable;
  * a query handler that throws, and a Query rejected by the client's reject condition. All of these
  * must fail the caller's Nexus operation rather than hanging or returning a default.
  */
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus permissions required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class QueryOperationTest {
 
   private static final int BUMPS = 2;

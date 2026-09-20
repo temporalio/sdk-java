@@ -6,6 +6,8 @@ import static org.junit.Assert.assertNotNull;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.sync.ReadOnlyException;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.PreferredVersionProviderInput;
@@ -21,7 +23,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class PreferredVersionProviderTest {
   private static final String CHANGE_ID = "preferred-change";
   private static final AtomicInteger providerCalls = new AtomicInteger();

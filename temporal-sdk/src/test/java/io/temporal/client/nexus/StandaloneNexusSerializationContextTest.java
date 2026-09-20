@@ -21,6 +21,8 @@ import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -34,6 +36,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Coverage that the standalone Nexus client scopes its data converter to the endpoint, service and
@@ -42,6 +45,9 @@ import org.junit.Test;
  *
  * <p>Standalone Nexus operations require a real server with them enabled.
  */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone Nexus permissions required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class StandaloneNexusSerializationContextTest {
   private static final String SERVICE = "TestNexusService1";
   private static final String OPERATION = "operation";
