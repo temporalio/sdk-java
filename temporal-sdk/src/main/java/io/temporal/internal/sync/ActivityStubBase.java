@@ -21,6 +21,23 @@ abstract class ActivityStubBase implements ActivityStub {
   }
 
   @Override
+  public <R> R execute(
+      String activityName,
+      Class<R> resultClass,
+      ActivityInvocationOptions options,
+      Object... args) {
+    return execute(activityName, resultClass, resultClass, options, args);
+  }
+
+  @Override
+  public abstract <R> R execute(
+      String activityName,
+      Class<R> resultClass,
+      Type resultType,
+      ActivityInvocationOptions options,
+      Object... args);
+
+  @Override
   public <R> Promise<R> executeAsync(String activityName, Class<R> resultClass, Object... args) {
     return executeAsync(activityName, resultClass, resultClass, args);
   }
@@ -32,21 +49,21 @@ abstract class ActivityStubBase implements ActivityStub {
         activityName,
         resultClass,
         resultType,
-        ActivityInvocationInternal.getDefaultOptions(),
+        ActivityInvocationOptions.getDefaultInstance(),
         args);
   }
 
   @Override
-  public <R> R execute(
+  public <R> Promise<R> executeAsync(
       String activityName,
       Class<R> resultClass,
       ActivityInvocationOptions options,
       Object... args) {
-    return execute(activityName, resultClass, resultClass, options, args);
+    return executeAsync(activityName, resultClass, resultClass, options, args);
   }
 
   @Override
-  public abstract <R> R execute(
+  public abstract <R> Promise<R> executeAsync(
       String activityName,
       Class<R> resultClass,
       Type resultType,
@@ -71,21 +88,4 @@ abstract class ActivityStubBase implements ActivityStub {
       throw e;
     }
   }
-
-  @Override
-  public <R> Promise<R> executeAsync(
-      String activityName,
-      Class<R> resultClass,
-      ActivityInvocationOptions options,
-      Object... args) {
-    return executeAsync(activityName, resultClass, resultClass, options, args);
-  }
-
-  @Override
-  public abstract <R> Promise<R> executeAsync(
-      String activityName,
-      Class<R> resultClass,
-      Type resultType,
-      ActivityInvocationOptions options,
-      Object... args);
 }

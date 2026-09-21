@@ -9,14 +9,8 @@ import java.util.Objects;
 final class ActivityInvocationInternal {
 
   private static final ThreadLocal<State> invocation = new ThreadLocal<>();
-  private static final ActivityInvocationOptions DEFAULT_OPTIONS =
-      ActivityInvocationOptions.newBuilder().build();
 
   private ActivityInvocationInternal() {}
-
-  static ActivityInvocationOptions getDefaultOptions() {
-    return DEFAULT_OPTIONS;
-  }
 
   static <R> R invoke(ActivityInvocationOptions options, Functions.Func<R> invocationFunction) {
     State state = startInvocation(options, false);
@@ -63,7 +57,7 @@ final class ActivityInvocationInternal {
   static ActivityInvocationOptions consumeOptions() {
     State state = invocation.get();
     if (state == null) {
-      return DEFAULT_OPTIONS;
+      return ActivityInvocationOptions.getDefaultInstance();
     }
     if (state.consumed) {
       throw new IllegalStateException("ActivityInvocationOptions can apply to only one invocation");

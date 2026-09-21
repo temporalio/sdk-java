@@ -36,33 +36,6 @@ public interface ActivityStub {
   <R> R execute(String activityName, Class<R> resultClass, Type resultType, Object... args);
 
   /**
-   * Executes an activity asynchronously by its type name and arguments.
-   *
-   * @param activityName name of an activity type to execute.
-   * @param resultClass the expected return type of the activity. Use Void.class for activities that
-   *     return void type.
-   * @param args arguments of the activity.
-   * @param <R> return type.
-   * @return Promise to the activity result.
-   */
-  <R> Promise<R> executeAsync(String activityName, Class<R> resultClass, Object... args);
-
-  /**
-   * Executes an activity asynchronously by its type name and arguments.
-   *
-   * @param activityName name of an activity type to execute.
-   * @param resultClass the expected return class of the activity. Use Void.class for activities
-   *     that return void type.
-   * @param resultType the expected return type of the activity. Differs from resultClass for
-   *     generic types.
-   * @param args arguments of the activity.
-   * @param <R> return type.
-   * @return Promise to the activity result.
-   */
-  <R> Promise<R> executeAsync(
-      String activityName, Class<R> resultClass, Type resultType, Object... args);
-
-  /**
    * Executes an Activity with options that apply only to this invocation. Blocks until completion.
    *
    * @param activityName name of an Activity type to execute.
@@ -93,6 +66,33 @@ public interface ActivityStub {
       Type resultType,
       ActivityInvocationOptions options,
       Object... args);
+
+  /**
+   * Executes an activity asynchronously by its type name and arguments.
+   *
+   * @param activityName name of an activity type to execute.
+   * @param resultClass the expected return type of the activity. Use Void.class for activities that
+   *     return void type.
+   * @param args arguments of the activity.
+   * @param <R> return type.
+   * @return Promise to the activity result.
+   */
+  <R> Promise<R> executeAsync(String activityName, Class<R> resultClass, Object... args);
+
+  /**
+   * Executes an activity asynchronously by its type name and arguments.
+   *
+   * @param activityName name of an activity type to execute.
+   * @param resultClass the expected return class of the activity. Use Void.class for activities
+   *     that return void type.
+   * @param resultType the expected return type of the activity. Differs from resultClass for
+   *     generic types.
+   * @param args arguments of the activity.
+   * @param <R> return type.
+   * @return Promise to the activity result.
+   */
+  <R> Promise<R> executeAsync(
+      String activityName, Class<R> resultClass, Type resultType, Object... args);
 
   /**
    * Executes an Activity asynchronously with options that apply only to this invocation.

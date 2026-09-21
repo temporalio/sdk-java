@@ -16,6 +16,16 @@ public final class ActivityInvocationOptions {
     return new Builder(options);
   }
 
+  public static ActivityInvocationOptions getDefaultInstance() {
+    return DEFAULT_INSTANCE;
+  }
+
+  private static final ActivityInvocationOptions DEFAULT_INSTANCE;
+
+  static {
+    DEFAULT_INSTANCE = ActivityInvocationOptions.newBuilder().build();
+  }
+
   public static final class Builder {
     private String activityId;
 
