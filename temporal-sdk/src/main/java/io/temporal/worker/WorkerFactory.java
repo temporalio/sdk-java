@@ -31,10 +31,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -68,6 +70,7 @@ public final class WorkerFactory {
   private final NamespaceCapabilities namespaceCapabilities = new NamespaceCapabilities();
 
   private SuspendableWorker workerCommandWorker;
+  private volatile CompletableFuture<Void> shutdownFuture;
 
   private State state = State.Initial;
 
@@ -476,7 +479,8 @@ public final class WorkerFactory {
       shutdownFutures.add(workerCommandWorker.shutdown(shutdownManager, true));
     }
 
-    CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
+    shutdownFuture = CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]));
+    shutdownFuture
         .thenApply(
             r -> {
               // Unregister workers from heartbeat manager only after full shutdown,
@@ -521,8 +525,26 @@ public final class WorkerFactory {
     }
     if (workerCommandWorker != null) {
       long t = timeoutMillis;
+      timeoutMillis =
+          ShutdownManager.runAndGetRemainingTimeoutMs(
+              t, () -> workerCommandWorker.awaitTermination(t, TimeUnit.MILLISECONDS));
+    }
+    CompletableFuture<Void> currentShutdownFuture = shutdownFuture;
+    if (currentShutdownFuture != null) {
+      long t = timeoutMillis;
       ShutdownManager.runAndGetRemainingTimeoutMs(
-          t, () -> workerCommandWorker.awaitTermination(t, TimeUnit.MILLISECONDS));
+          t,
+          () -> {
+            try {
+              currentShutdownFuture.get(t, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            } catch (ExecutionException e) {
+              log.warn("Exception while waiting for worker factory termination", e.getCause());
+            } catch (TimeoutException e) {
+              // The caller supplied the timeout, so returning is the expected behavior.
+            }
+          });
     }
     log.debug("awaitTermination done: {}", this);
   }
