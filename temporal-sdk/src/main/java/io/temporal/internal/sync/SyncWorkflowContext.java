@@ -283,7 +283,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Optional<Payloads> args = dataConverterWithActivityContext.toPayloads(input.getArgs());
 
     ActivityOutput<Optional<Payloads>> output =
-        executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
+        executeActivityOnce(
+            input.getActivityName(),
+            input.getActivityId(),
+            input.getOptions(),
+            input.getHeader(),
+            args);
 
     // Avoid passing the input to the output handle as it causes the input to be retained for the
     // duration of the operation.
@@ -308,9 +313,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private ActivityOutput<Optional<Payloads>> executeActivityOnce(
-      String activityTypeName, ActivityOptions options, Header header, Optional<Payloads> input) {
+      String activityTypeName,
+      @Nullable String activityId,
+      ActivityOptions options,
+      Header header,
+      Optional<Payloads> input) {
     ExecuteActivityParameters params =
-        constructExecuteActivityParameters(activityTypeName, options, header, input);
+        constructExecuteActivityParameters(activityTypeName, activityId, options, header, input);
     ActivityCallback callback = new ActivityCallback();
     ReplayWorkflowContext.ScheduleActivityTaskOutput activityOutput =
         replayContext.scheduleActivityTask(params, callback::invoke);
@@ -448,6 +457,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         WorkflowInternal.newCompletablePromise();
     executeLocalActivityOverLocalRetryThreshold(
         input.getActivityName(),
+        input.getActivityId(),
         input.getOptions(),
         input.getHeader(),
         payloads,
@@ -478,6 +488,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public void executeLocalActivityOverLocalRetryThreshold(
       String activityTypeName,
+      @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
@@ -488,6 +499,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Optional<Payloads>> localExecutionResult =
         executeLocalActivityLocally(
             activityTypeName,
+            activityId,
             options,
             header,
             input,
@@ -510,6 +522,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                         unused -> {
                           executeLocalActivityOverLocalRetryThreshold(
                               activityTypeName,
+                              activityId,
                               options,
                               header,
                               input,
@@ -540,6 +553,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private CompletablePromise<Optional<Payloads>> executeLocalActivityLocally(
       String activityTypeName,
+      @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
@@ -551,6 +565,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     ExecuteLocalActivityParameters params =
         constructExecuteLocalActivityParameters(
             activityTypeName,
+            activityId,
             options,
             header,
             input,
@@ -570,7 +585,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @SuppressWarnings("deprecation")
   private ExecuteActivityParameters constructExecuteActivityParameters(
-      String name, ActivityOptions options, Header header, Optional<Payloads> input) {
+      String name,
+      @Nullable String activityId,
+      ActivityOptions options,
+      Header header,
+      Optional<Payloads> input) {
     String taskQueue = options.getTaskQueue();
     if (taskQueue == null) {
       taskQueue = replayContext.getTaskQueue();
@@ -589,6 +608,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             .setRequestEagerExecution(
                 !options.isEagerExecutionDisabled()
                     && Objects.equals(taskQueue, replayContext.getTaskQueue()));
+
+    if (activityId != null) {
+      attributes.setActivityId(activityId);
+    }
 
     input.ifPresent(attributes::setInput);
     RetryOptions retryOptions = options.getRetryOptions();
@@ -627,6 +650,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
       String name,
+      @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
@@ -637,7 +661,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     PollActivityTaskQueueResponse.Builder activityTask =
         PollActivityTaskQueueResponse.newBuilder()
-            .setActivityId(this.replayContext.randomUUID().toString())
+            .setActivityId(
+                activityId != null ? activityId : this.replayContext.randomUUID().toString())
             .setWorkflowNamespace(this.replayContext.getNamespace())
             .setWorkflowType(this.replayContext.getWorkflowType())
             .setWorkflowExecution(this.replayContext.getWorkflowExecution())
