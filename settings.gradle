@@ -8,6 +8,8 @@ include 'temporal-opentracing'
 project(':temporal-opentracing').projectDir = file('contrib/temporal-opentracing')
 include 'temporal-opentelemetry'
 project(':temporal-opentelemetry').projectDir = file('contrib/temporal-opentelemetry')
+include 'temporal-opentelemetry-v2'
+project(':temporal-opentelemetry-v2').projectDir = file('contrib/temporal-opentelemetry-v2')
 include 'temporal-kotlin'
 include 'temporal-spring-ai'
 project(':temporal-spring-ai').projectDir = file('contrib/temporal-spring-ai')
