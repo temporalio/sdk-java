@@ -16,13 +16,15 @@ subprojects {
 
     publishing {
         publications {
-            mavenJava(MavenPublication) {
-                afterEvaluate {
-                    plugins.withId('java-platform') {
-                        from components.javaPlatform
-                    }
-                    plugins.withId('java') {
-                        from components.java
+            if (name != 'temporal-workflowcheck-gradle-plugin') {
+                mavenJava(MavenPublication) {
+                    afterEvaluate {
+                        plugins.withId('java-platform') {
+                            from components.javaPlatform
+                        }
+                        plugins.withId('java') {
+                            from components.java
+                        }
                     }
                 }
             }
@@ -40,10 +42,12 @@ subprojects {
     }
 
     // Customize the pom for all publications and sign all, in afterEvaluate so
-    // subproject build.gradle files can contribute (e.g. description) and custom
-    // publications (e.g. shadow) exist.
+    // subproject build.gradle files can contribute (e.g. description). Lazy
+    // container configuration is used so publications created after this runs
+    // (e.g. pluginMaven and plugin marker publications) are still customized
+    // and signed.
     afterEvaluate { subproject ->
-        subproject.publishing.publications.withType(MavenPublication).each { publication ->
+        subproject.publishing.publications.withType(MavenPublication).configureEach { publication ->
             publication.pom {
                 name = subproject.description
                 description = subproject.description
@@ -78,7 +82,7 @@ subprojects {
         }
         if (subproject.hasProperty('signing.keyId')) {
             subproject.signing {
-                subproject.publishing.publications.withType(MavenPublication).each { publication ->
+                subproject.publishing.publications.withType(MavenPublication).configureEach { publication ->
                     sign publication
                 }
             }
