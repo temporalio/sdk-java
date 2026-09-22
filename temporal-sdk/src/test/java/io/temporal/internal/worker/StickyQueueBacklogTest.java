@@ -68,11 +68,15 @@ public class StickyQueueBacklogTest {
             "taskqueue",
             "stickytaskqueue",
             "",
+            "test-instance-key",
             new WorkerVersioningOptions("", false, null),
             slotSupplier,
             stickyQueueBalancer,
             metricsScope,
-            () -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+            () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
+            new PollerTracker(),
+            new PollerTracker(),
+            null);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()
@@ -95,6 +99,7 @@ public class StickyQueueBacklogTest {
                                 .setKind(TaskQueueKind.TASK_QUEUE_KIND_STICKY)
                                 .build())
                         .setNamespace("default")
+                        .setWorkerInstanceKey("test-instance-key")
                         .build())))
             .thenReturn(pollResponse);
     if (throwOnPoll) {

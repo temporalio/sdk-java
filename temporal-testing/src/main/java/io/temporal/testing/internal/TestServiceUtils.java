@@ -3,7 +3,6 @@ package io.temporal.testing.internal;
 import static io.temporal.internal.common.InternalUtils.createNormalTaskQueue;
 
 import com.google.protobuf.ByteString;
-import io.nexusrpc.handler.ServiceImplInstance;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
@@ -15,6 +14,7 @@ import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.internal.common.ProtobufTimeUtils;
+import io.temporal.internal.nexus.TemporalOperationProcessor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -33,7 +33,8 @@ public class TestServiceUtils {
       String endpoint) {
     Map<String, NexusServiceOptions> newNexusServiceOptions = new HashMap<>();
     for (Object nexusService : nexusServiceImplementations) {
-      String serviceName = ServiceImplInstance.fromInstance(nexusService).getDefinition().getName();
+      String serviceName =
+          TemporalOperationProcessor.process(nexusService).getDefinition().getName();
       NexusServiceOptions serviceOptionWithEndpoint =
           options.getNexusServiceOptions().get(serviceName);
       if (serviceOptionWithEndpoint == null) {

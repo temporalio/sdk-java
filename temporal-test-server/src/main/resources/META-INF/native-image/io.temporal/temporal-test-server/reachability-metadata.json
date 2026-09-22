@@ -1028,31 +1028,19 @@
     },
     {
       "type": "io.temporal.api.common.v1.Payload",
-      "methods": [
-        {
-          "name": "getData",
-          "parameterTypes": []
-        },
-        {
-          "name": "getDefaultInstance",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.common.v1.Payload$Builder"
+      "type": "io.temporal.api.common.v1.Payload$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.common.v1.Payloads",
-      "methods": [
-        {
-          "name": "getPayloadsList",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.common.v1.Payloads$Builder"
+      "type": "io.temporal.api.common.v1.Payloads$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.common.v1.Priority"
@@ -1213,330 +1201,91 @@
     },
     {
       "type": "io.temporal.api.failure.v1.ActivityFailureInfo",
-      "methods": [
-        {
-          "name": "getActivityId",
-          "parameterTypes": []
-        },
-        {
-          "name": "getActivityType",
-          "parameterTypes": []
-        },
-        {
-          "name": "getIdentity",
-          "parameterTypes": []
-        },
-        {
-          "name": "getRetryStateValue",
-          "parameterTypes": []
-        },
-        {
-          "name": "getScheduledEventId",
-          "parameterTypes": []
-        },
-        {
-          "name": "getStartedEventId",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasActivityType",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.ActivityFailureInfo$Builder"
+      "type": "io.temporal.api.failure.v1.ActivityFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.ApplicationFailureInfo",
-      "methods": [
-        {
-          "name": "getCategoryValue",
-          "parameterTypes": []
-        },
-        {
-          "name": "getNonRetryable",
-          "parameterTypes": []
-        },
-        {
-          "name": "getType",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasDetails",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasNextRetryDelay",
-          "parameterTypes": []
-        },
-        {
-          "name": "newBuilder",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.ApplicationFailureInfo$Builder",
-      "methods": [
-        {
-          "name": "getNonRetryable",
-          "parameterTypes": []
-        },
-        {
-          "name": "getType",
-          "parameterTypes": []
-        },
-        {
-          "name": "setNonRetryable",
-          "parameterTypes": [
-            "boolean"
-          ]
-        },
-        {
-          "name": "setType",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.CanceledFailureInfo",
-      "methods": [
-        {
-          "name": "getDetails",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasDetails",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.CanceledFailureInfo$Builder"
+      "type": "io.temporal.api.failure.v1.CanceledFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo",
-      "methods": [
-        {
-          "name": "getInitiatedEventId",
-          "parameterTypes": []
-        },
-        {
-          "name": "getNamespace",
-          "parameterTypes": []
-        },
-        {
-          "name": "getRetryStateValue",
-          "parameterTypes": []
-        },
-        {
-          "name": "getStartedEventId",
-          "parameterTypes": []
-        },
-        {
-          "name": "getWorkflowExecution",
-          "parameterTypes": []
-        },
-        {
-          "name": "getWorkflowType",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasWorkflowExecution",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasWorkflowType",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo$Builder"
+      "type": "io.temporal.api.failure.v1.ChildWorkflowExecutionFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.Failure",
-      "methods": [
-        {
-          "name": "getActivityFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getApplicationFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getCanceledFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getCause",
-          "parameterTypes": []
-        },
-        {
-          "name": "getChildWorkflowExecutionFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getFailureInfoCase",
-          "parameterTypes": []
-        },
-        {
-          "name": "getMessage",
-          "parameterTypes": []
-        },
-        {
-          "name": "getNexusHandlerFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getNexusOperationExecutionFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getSource",
-          "parameterTypes": []
-        },
-        {
-          "name": "getStackTrace",
-          "parameterTypes": []
-        },
-        {
-          "name": "getTerminatedFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "getTimeoutFailureInfo",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasCause",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasEncodedAttributes",
-          "parameterTypes": []
-        },
-        {
-          "name": "newBuilder",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.Failure$Builder",
-      "methods": [
-        {
-          "name": "getFailureInfoCase",
-          "parameterTypes": []
-        },
-        {
-          "name": "getSource",
-          "parameterTypes": []
-        },
-        {
-          "name": "getStackTrace",
-          "parameterTypes": []
-        },
-        {
-          "name": "setApplicationFailureInfo",
-          "parameterTypes": [
-            "io.temporal.api.failure.v1.ApplicationFailureInfo"
-          ]
-        },
-        {
-          "name": "setSource",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        },
-        {
-          "name": "setStackTrace",
-          "parameterTypes": [
-            "java.lang.String"
-          ]
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.NexusHandlerFailureInfo",
-      "methods": [
-        {
-          "name": "getRetryBehaviorValue",
-          "parameterTypes": []
-        },
-        {
-          "name": "getType",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.NexusHandlerFailureInfo$Builder"
+      "type": "io.temporal.api.failure.v1.NexusHandlerFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.NexusOperationFailureInfo",
-      "methods": [
-        {
-          "name": "getEndpoint",
-          "parameterTypes": []
-        },
-        {
-          "name": "getOperation",
-          "parameterTypes": []
-        },
-        {
-          "name": "getOperationId",
-          "parameterTypes": []
-        },
-        {
-          "name": "getOperationToken",
-          "parameterTypes": []
-        },
-        {
-          "name": "getScheduledEventId",
-          "parameterTypes": []
-        },
-        {
-          "name": "getService",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.NexusOperationFailureInfo$Builder"
+      "type": "io.temporal.api.failure.v1.NexusOperationFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.ResetWorkflowFailureInfo"
+      "type": "io.temporal.api.failure.v1.ResetWorkflowFailureInfo",
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.ServerFailureInfo"
+      "type": "io.temporal.api.failure.v1.ResetWorkflowFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.TerminatedFailureInfo"
+      "type": "io.temporal.api.failure.v1.ServerFailureInfo",
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "io.temporal.api.failure.v1.ServerFailureInfo$Builder",
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "io.temporal.api.failure.v1.TerminatedFailureInfo",
+      "allDeclaredMethods": true
+    },
+    {
+      "type": "io.temporal.api.failure.v1.TerminatedFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.failure.v1.TimeoutFailureInfo",
-      "methods": [
-        {
-          "name": "getLastHeartbeatDetails",
-          "parameterTypes": []
-        },
-        {
-          "name": "getTimeoutTypeValue",
-          "parameterTypes": []
-        },
-        {
-          "name": "hasLastHeartbeatDetails",
-          "parameterTypes": []
-        }
-      ]
+      "allDeclaredMethods": true
     },
     {
-      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo$Builder"
+      "type": "io.temporal.api.failure.v1.TimeoutFailureInfo$Builder",
+      "allDeclaredMethods": true
     },
     {
       "type": "io.temporal.api.history.v1.ActivityPropertiesModifiedExternallyEventAttributes"

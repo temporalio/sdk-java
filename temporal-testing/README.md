@@ -35,6 +35,10 @@ For JUnit4 see `io.temporal.testing.TestWorkflowRule` for testing of workflows
 For Junit5 see `io.temporal.testing.TestWorkflowExtension` for testing of workflows 
 and `io.temporal.testing.TestActivityExtension` for isolated testing of activities
 
+`TestWorkflowEnvironment`, `TestWorkflowRule`, and `TestWorkflowExtension` provide clients connected
+to the test service. Use `getWorkflowClient()` for Workflows and `getActivityClient()` for
+Standalone Activities.
+
 ## For isolated testing of activity implementations
 
 See `io.temporal.testing.TestActivityEnvironment` that provides an easy way for isolated testing of

@@ -78,7 +78,8 @@ public class WorkflowTaskDispatchHandle implements Closeable {
      *
      * @param workflowTask WorkflowTask to be dispatched
      * @return true if the dispatch was successful and false otherwise
-     * @throws IllegalArgumentException if {@code workflowTask} doesn't belong to the task queue of the Worker that provided the {@link WorkflowTaskDispatchHandle
+     * @throws IllegalArgumentException if {@code workflowTask} doesn't belong to the task queue of
+     *     the Worker that provided the {@link WorkflowTaskDispatchHandle}
      */
     @Override
     Boolean apply(WorkflowTask workflowTask) throws IllegalArgumentException;

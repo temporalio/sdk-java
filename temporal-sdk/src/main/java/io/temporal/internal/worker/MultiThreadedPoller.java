@@ -52,8 +52,9 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
       PollTask<T> pollTask,
       ShutdownableTaskExecutor<T> taskExecutor,
       PollerOptions pollerOptions,
-      Scope workerMetricsScope) {
-    super(taskExecutor);
+      Scope workerMetricsScope,
+      NamespaceCapabilities namespaceCapabilities) {
+    super(taskExecutor, namespaceCapabilities);
     Objects.requireNonNull(identity, "identity cannot be null");
     Objects.requireNonNull(pollTask, "poll service should not be null");
     Objects.requireNonNull(pollerOptions, "pollerOptions should not be null");
@@ -67,7 +68,7 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
 
   @Override
   public boolean start() {
-    log.info("start: {}", this);
+    log.debug("start: {}", this);
 
     if (pollerOptions.getMaximumPollRatePerSecond() > 0.0) {
       pollRateThrottler =
@@ -192,7 +193,7 @@ final class MultiThreadedPoller<T> extends BasePoller<T> {
           // Resubmit itself back to pollExecutor
           pollExecutor.execute(this);
         } else {
-          log.info(
+          log.debug(
               "poll loop is terminated: {}",
               MultiThreadedPoller.this.pollTask.getClass().getSimpleName());
         }

@@ -7,7 +7,6 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedResponse;
-import io.temporal.internal.Config;
 import io.temporal.worker.tuning.SlotPermit;
 import java.io.Closeable;
 import java.util.ArrayList;
@@ -19,10 +18,13 @@ import javax.annotation.concurrent.NotThreadSafe;
 @NotThreadSafe
 class EagerActivitySlotsReservation implements Closeable {
   private final EagerActivityDispatcher eagerActivityDispatcher;
+  private final int maxReservations;
   private final List<SlotPermit> reservedSlots = new ArrayList<>();
 
-  EagerActivitySlotsReservation(EagerActivityDispatcher eagerActivityDispatcher) {
+  EagerActivitySlotsReservation(
+      EagerActivityDispatcher eagerActivityDispatcher, int maxReservations) {
     this.eagerActivityDispatcher = eagerActivityDispatcher;
+    this.maxReservations = maxReservations;
   }
 
   public void applyToRequest(RespondWorkflowTaskCompletedRequest.Builder mutableRequest) {
@@ -33,7 +35,7 @@ class EagerActivitySlotsReservation implements Closeable {
       ScheduleActivityTaskCommandAttributes commandAttributes =
           command.getScheduleActivityTaskCommandAttributes();
       if (!commandAttributes.getRequestEagerExecution()) continue;
-      boolean atLimit = this.reservedSlots.size() >= Config.EAGER_ACTIVITIES_LIMIT;
+      boolean atLimit = this.reservedSlots.size() >= this.maxReservations;
       Optional<SlotPermit> permit = Optional.empty();
       if (!atLimit) {
         permit = this.eagerActivityDispatcher.tryReserveActivitySlot(commandAttributes);

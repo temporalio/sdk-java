@@ -12,6 +12,8 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.nexus.Nexus;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
 import io.temporal.worker.MetricsType;
@@ -23,7 +25,10 @@ import java.util.Map;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class SyncClientOperationTest {
   private final TestStatsReporter reporter = new TestStatsReporter();
 
@@ -96,7 +101,7 @@ public class SyncClientOperationTest {
     Map<String, String> execFailedTags =
         ImmutableMap.<String, String>builder()
             .putAll(operationTags)
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL)
             .buildKeepingLast();
     reporter.assertCounter(MetricsType.NEXUS_EXEC_FAILED_COUNTER, execFailedTags, 1);
   }

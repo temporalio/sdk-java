@@ -21,7 +21,6 @@ import io.temporal.worker.tuning.SlotReleaseReason;
 import io.temporal.worker.tuning.SlotSupplierFuture;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -38,8 +37,8 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
   private final WorkflowServiceGrpc.WorkflowServiceBlockingStub serviceStub;
   private final PollWorkflowTaskQueueRequest pollRequest;
   private final PollWorkflowTaskQueueRequest stickyPollRequest;
-  private final AtomicInteger normalPollGauge = new AtomicInteger();
-  private final AtomicInteger stickyPollGauge = new AtomicInteger();
+  private final PollerTracker pollerTracker;
+  private final PollerTracker stickyPollerTracker;
 
   @SuppressWarnings("deprecation")
   public WorkflowPollTask(
@@ -48,14 +47,20 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
       @Nonnull String taskQueue,
       @Nullable String stickyTaskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<WorkflowSlotInfo> slotSupplier,
       @Nonnull StickyQueueBalancer stickyQueueBalancer,
       @Nonnull Scope workerMetricsScope,
-      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      @Nonnull PollerTracker pollerTracker,
+      @Nonnull PollerTracker stickyPollerTracker,
+      String workerControlTaskQueue) {
     this.slotSupplier = Objects.requireNonNull(slotSupplier);
     this.stickyQueueBalancer = Objects.requireNonNull(stickyQueueBalancer);
     this.metricsScope = Objects.requireNonNull(workerMetricsScope);
+    this.pollerTracker = Objects.requireNonNull(pollerTracker);
+    this.stickyPollerTracker = Objects.requireNonNull(stickyPollerTracker);
     this.stickyMetricsScope =
         workerMetricsScope.tagged(
             new ImmutableMap.Builder<String, String>(1)
@@ -70,6 +75,10 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
         PollWorkflowTaskQueueRequest.newBuilder()
             .setNamespace(Objects.requireNonNull(namespace))
             .setIdentity(Objects.requireNonNull(identity));
+    pollRequestBuilder.setWorkerInstanceKey(workerInstanceKey);
+    if (workerControlTaskQueue != null) {
+      pollRequestBuilder.setWorkerControlTaskQueue(workerControlTaskQueue);
+    }
 
     if (versioningOptions.getWorkerDeploymentOptions() != null) {
       pollRequestBuilder.setDeploymentOptions(
@@ -133,16 +142,17 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
     boolean isSticky = TaskQueueKind.TASK_QUEUE_KIND_STICKY.equals(taskQueueKind);
     PollWorkflowTaskQueueRequest request = isSticky ? stickyPollRequest : pollRequest;
     Scope scope = isSticky ? stickyMetricsScope : metricsScope;
+    PollerTracker tracker = isSticky ? stickyPollerTracker : pollerTracker;
 
     log.trace("poll request begin: {}", request);
     if (isSticky) {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_STICKY_TASK)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(stickyPollGauge.incrementAndGet());
+          .update(stickyPollerTracker.pollStarted());
     } else {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_TASK)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(normalPollGauge.incrementAndGet());
+          .update(pollerTracker.pollStarted());
     }
 
     try {
@@ -151,19 +161,19 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
         return null;
       }
       isSuccessful = true;
+      tracker.pollSucceeded();
       stickyQueueBalancer.finishPoll(taskQueueKind, response.getBacklogCountHint());
-      slotSupplier.markSlotUsed(new WorkflowSlotInfo(response, pollRequest), permit);
+      slotSupplier.markSlotUsed(new WorkflowSlotInfo(response, request), permit);
       return new WorkflowTask(response, (rr) -> slotSupplier.releaseSlot(rr, permit));
     } finally {
-
       if (isSticky) {
         MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_STICKY_TASK)
             .gauge(MetricsType.NUM_POLLERS)
-            .update(stickyPollGauge.decrementAndGet());
+            .update(stickyPollerTracker.pollCompleted());
       } else {
         MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.WORKFLOW_TASK)
             .gauge(MetricsType.NUM_POLLERS)
-            .update(normalPollGauge.decrementAndGet());
+            .update(pollerTracker.pollCompleted());
       }
 
       if (!isSuccessful) {

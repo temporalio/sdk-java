@@ -1,0 +1,69 @@
+# **Highlights**
+
+## Standalone Activities (Public Preview)
+
+Support for Standalone Activities is now in [Public Preview](https://docs.temporal.io/evaluate/development-production-features/release-stages#public-preview).
+Telemetry support has been expanded with improved `OpenTracingClientInterceptor` and a new `OpenTracingActivityClientInterceptor`.
+
+## Standalone Nexus Operations (Experimental)
+
+This release adds `NexusClient` interface for interacting with Nexus services outside of workflows. The `NexusServiceClient`
+generic interface can be used to execute operations of a specific Nexus service in a type-safe manner. 
+
+##  GZIP transport-level compression
+
+Client connections now use GZIP transport-level gRPC compression by default.
+Use `setGrpcCompression(GrpcCompression.NONE)` when building `ServiceStubsOptions` to disable it.
+
+## Continue-as-New USE_RAMPING_VERSION versioning behaviour
+
+Continue-as-New now supports `USE_RAMPING_VERSION` as an initial versioning behavior.
+It pins the workflow to its task queue's Ramping Version at start time, ignoring the workflow's Target Version.
+
+## Activity cancellation without heartbeating
+
+Activities can receive cancellation requests without waiting for a heartbeat response if running against a recent enough version of the server.
+You can use the `ActivityExecutionContext.getCancellationToken()` method to detect such cancellations when not using the `heartbeat()` API.
+
+## Additional worker shutdown options
+
+Enabling `WorkerOptions.Builder.setAllowActivityHeartbeatDuringShutdown` removes the limitation on activity heartbeats during
+graceful worker shutdown, matching the behavior of other SDKs. Note that this will make it impossible to detect graceful shutdown
+via `ActivityWorkerShutdownException`, so if the detection is desired, an alternative method is needed.
+
+`WorkerFactoryOptions.Builder.setShutdownCheckInterval` can be used to speed up worker shutdown in certain testing scenarios.
+Changing this setting in production environment is discouraged.
+
+# What's Changed
+
+2026-05-04 - 5a765b17 - CaN USE_RAMPING_VERSION versioning behaviour (#2868)
+2026-05-07 - 20afdcb4 - Expose Nexus Endpoint on Nexus Info (#2837)
+2026-05-14 - 1e110b28 - Fixed a bug with spaces in WorkflowIds when creating links in the UI. (#2874)
+2026-05-18 - b19042bf - Expose ShutdownManager poll interval via WorkerFactoryOptions (#2876)
+2026-05-19 - 1386d4b3 - Add banner like other SDKs have (#2877)
+2026-05-19 - 73560d3a - remove stale nightly tps omes test (#2879)
+2026-05-19 - caba3510 - Upgrade cloud-api to v0.16.0 (#2873)
+2026-05-21 - 7a8e6845 - Improve CONTRIBUTING guide and streamline local dev requirements (#2871)
+2026-05-22 - 44bb6034 - Shutdown task loss prevention (#2820)
+2026-05-22 - d45886cd - Fixed flaky test WorkerFactoryRegistryTest.testRandomOrder (#2886)
+2026-05-27 - 187421b0 - Upgrade temporal-api to v1.62.12 (#2892)
+2026-05-27 - f71f93b0 - remove dead omes job (#2891)
+2026-06-01 - e947cc23 - Add history hints to workflow task started attributes (#2865)
+2026-06-02 - 3ed49850 - Add cooldown on dependabot config (#2888)
+2026-06-08 - 4d539760 - Wait for MARKER_RECORDED to fire version callback on replay (#2821)
+2026-06-10 - 62a7f08a - Fix flaky test `NexusWorkflowTest.testNexusOperationTimeout_AfterStart` (#2908)
+2026-06-11 - 27cfa7dc - Add Temporal Nexus Operation Handler (#2842)
+2026-06-11 - 5f25aad6 - Standalone operations for Nexus (#2872)
+2026-06-12 - 2bc7d9b3 - Use constants for all failure_reason metrics (#2914)
+2026-06-12 - c9c4bdc0 - Add tests for temporal-kotlin extension APIs (#2905)
+2026-06-15 - 3c2d9382 - Standalone Activities start delay (#2906)
+2026-06-15 - 7390e05b - feat(extstore): add initial extstore types (#2900)
+2026-06-15 - 78d0fee1 - Add backoff start for CAN (#2913)
+2026-06-15 - f3edb105 - Add GZIP compression defaulting to on (#2911)
+2026-06-16 - a1b6fff2 - Add OpenTracing interceptor for standalone activities (#2909)
+2026-06-16 - aeac5b19 - Grant explicit actions:read to features reusable-workflow caller (#2919)
+2026-06-18 - 8d8ca1b5 - Nexus Signal links (#2889)
+2026-06-18 - 8e5ee336 - Support Standalone Activity client in temporal-testing (#2916)
+2026-06-18 - dae5e0b1 - Add option to let activities heartbeat during worker shutdown (#2903)
+2026-06-22 - 85e12a38 - feat(otel): add tracing for startWithUpdate. fixes #2620. (#2925)
+2026-06-23 - e9761137 - Implement nexus-based activity cancels (#2917)

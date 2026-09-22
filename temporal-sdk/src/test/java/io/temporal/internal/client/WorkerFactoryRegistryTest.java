@@ -3,60 +3,67 @@ package io.temporal.internal.client;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 
+import com.google.common.collect.Lists;
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerFactory;
-import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.LongStream;
+import java.util.stream.Stream;
 import org.junit.Test;
 
 public class WorkerFactoryRegistryTest {
   /**
    * Covers a situation when one {@link WorkflowClient} used to create several WorkerFactories.
    * {@link WorkerFactoryRegistry#workerFactoriesRandomOrder()} will be used to get an iterator over
-   * registered WorkerFactories and such an iterator should lead to an even distribution of
-   * requests.
+   * registered WorkerFactories. The iteration order should be random to allow a roughly even
+   * distribution of requests. This test verifies every possible permutation of workers can happen,
+   * which we use as a proxy to determine the ordering is sufficiently random.
    */
   @Test
   public void testRandomOrder() {
-    final int TOTAL_COUNT = 3000;
+    // Creating 5 separate factories. Indices in this list will be used to identify ordering of
+    // returned random iterables.
+    List<WorkerFactory> orderedFactories =
+        Stream.of(
+                mock(WorkerFactory.class),
+                mock(WorkerFactory.class),
+                mock(WorkerFactory.class),
+                mock(WorkerFactory.class),
+                mock(WorkerFactory.class))
+            .collect(Collectors.toList());
 
     WorkerFactoryRegistry workerFactoryRegistry = new WorkerFactoryRegistry();
-    WorkerFactory workerFactory1 = mock(WorkerFactory.class);
-    WorkerFactory workerFactory2 = mock(WorkerFactory.class);
-    WorkerFactory workerFactory3 = mock(WorkerFactory.class);
+    orderedFactories.forEach(workerFactoryRegistry::register);
 
-    workerFactoryRegistry.register(workerFactory1);
-    workerFactoryRegistry.register(workerFactory2);
-    workerFactoryRegistry.register(workerFactory3);
+    HashSet<Long> permutationsFound = new HashSet<>();
+    // The number of all possible permutations is the factorial of number of elements.
+    long expectedPermutationsCount =
+        LongStream.rangeClosed(1, orderedFactories.size()).reduce(1, (a, b) -> a * b);
 
-    int firstFactoryFirst = 0;
-    int secondFactoryFirst = 0;
-    int thirdFactoryFirst = 0;
+    while (permutationsFound.size() < expectedPermutationsCount) {
+      List<WorkerFactory> randomFactories =
+          Lists.newArrayList(workerFactoryRegistry.workerFactoriesRandomOrder());
+      assertEquals(orderedFactories.size(), randomFactories.size());
 
-    for (int i = 0; i < TOTAL_COUNT; i++) {
-      Iterable<WorkerFactory> workerFactories = workerFactoryRegistry.workerFactoriesRandomOrder();
-      Iterator<WorkerFactory> iterator = workerFactories.iterator();
-      WorkerFactory first = iterator.next();
-      WorkerFactory second = iterator.next();
-      WorkerFactory third = iterator.next();
-
-      assertFalse(iterator.hasNext());
-      assertNotEquals(first, second);
-      assertNotEquals(first, third);
-      assertNotEquals(second, third);
-
-      if (first == workerFactory1) {
-        firstFactoryFirst++;
-      } else if (first == workerFactory2) {
-        secondFactoryFirst++;
-      } else if (first == workerFactory3) {
-        thirdFactoryFirst++;
-      } else {
-        fail("Unexpected WorkerFactory");
+      List<Integer> indices = new ArrayList<>(orderedFactories.size());
+      for (WorkerFactory factory : randomFactories) {
+        int index = orderedFactories.indexOf(factory);
+        assertFalse("Factory " + index + " appears twice", indices.contains(index));
+        indices.add(index);
       }
-    }
 
-    assertTrue(Math.abs(secondFactoryFirst - firstFactoryFirst) < TOTAL_COUNT * 0.05);
-    assertTrue(Math.abs(thirdFactoryFirst - firstFactoryFirst) < TOTAL_COUNT * 0.05);
-    assertTrue(Math.abs(thirdFactoryFirst - secondFactoryFirst) < TOTAL_COUNT * 0.05);
+      // This number uniquely identifies the current permutation, so that we can ensure all
+      // permutations were seen. Written in base-(orderedFactories.size()), the digits are
+      // the respective indices of randomFactories in orderedFactories.
+      long permutationId = 0;
+      for (int index : indices) {
+        permutationId *= orderedFactories.size();
+        permutationId += index;
+      }
+      permutationsFound.add(permutationId);
+    }
   }
 }

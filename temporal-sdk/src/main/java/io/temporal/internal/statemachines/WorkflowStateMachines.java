@@ -20,6 +20,7 @@ import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.*;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
@@ -29,12 +30,14 @@ import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.serviceclient.Version;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
+import io.temporal.worker.VersionPreference;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.NexusOperationCancellationType;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -52,7 +55,7 @@ public final class WorkflowStateMachines {
   /** Initial set of SDK flags that will be set on all new workflow executions. */
   @VisibleForTesting
   public static List<SdkFlag> initialFlags =
-      Collections.unmodifiableList(Arrays.asList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION));
+      Collections.singletonList(SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION);
 
   /**
    * Keep track of the change versions that have been seen by the SDK. This is used to generate the
@@ -87,6 +90,10 @@ public final class WorkflowStateMachines {
   private long historySize;
 
   private boolean isContinueAsNewSuggested;
+
+  private List<SuggestContinueAsNewReason> suggestContinueAsNewReasons = Collections.emptyList();
+
+  private boolean isTargetWorkerDeploymentVersionChanged;
 
   /**
    * EventId of the last event seen by these state machines. Events earlier than this one will be
@@ -274,6 +281,14 @@ public final class WorkflowStateMachines {
 
   public boolean isContinueAsNewSuggested() {
     return isContinueAsNewSuggested;
+  }
+
+  public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+    return suggestContinueAsNewReasons;
+  }
+
+  public boolean isTargetWorkerDeploymentVersionChanged() {
+    return isTargetWorkerDeploymentVersionChanged;
   }
 
   public void setReplaying(boolean replaying) {
@@ -958,6 +973,7 @@ public final class WorkflowStateMachines {
    * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
    */
+  @SuppressWarnings("deprecation")
   public Functions.Proc startChildWorkflow(
       StartChildWorkflowExecutionParameters parameters,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
@@ -1230,6 +1246,15 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
+    return getVersion(changeId, minSupported, maxSupported, null, callback);
+  }
+
+  public Integer getVersion(
+      String changeId,
+      int minSupported,
+      int maxSupported,
+      @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
+      Functions.Proc2<Integer, RuntimeException> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
             changeId,
@@ -1239,6 +1264,7 @@ public final class WorkflowStateMachines {
     return stateMachine.getVersion(
         minSupported,
         maxSupported,
+        checkSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER),
         (version) -> {
           if (!workflowImplOptions.isEnableUpsertVersionSearchAttributes()) {
             return null;
@@ -1260,6 +1286,7 @@ public final class WorkflowStateMachines {
           }
           return sa;
         },
+        preferredVersionProvider,
         (v, e) -> {
           callback.apply(v, e);
           // without this getVersion call will trigger the end of WFT,
@@ -1493,7 +1520,9 @@ public final class WorkflowStateMachines {
         long currentTimeMillis,
         boolean nonProcessedWorkflowTask,
         long historySize,
-        boolean isContinueAsNewSuggested) {
+        boolean isContinueAsNewSuggested,
+        List<SuggestContinueAsNewReason> suggestContinueAsNewReasons,
+        boolean isTargetWorkerDeploymentVersionChanged) {
       setCurrentTimeMillis(currentTimeMillis);
       for (CancellableCommand cancellableCommand : commands) {
         cancellableCommand.handleWorkflowTaskStarted();
@@ -1509,6 +1538,9 @@ public final class WorkflowStateMachines {
       WorkflowStateMachines.this.lastWFTStartedEventId = startedEventId;
       WorkflowStateMachines.this.historySize = historySize;
       WorkflowStateMachines.this.isContinueAsNewSuggested = isContinueAsNewSuggested;
+      WorkflowStateMachines.this.suggestContinueAsNewReasons = suggestContinueAsNewReasons;
+      WorkflowStateMachines.this.isTargetWorkerDeploymentVersionChanged =
+          isTargetWorkerDeploymentVersionChanged;
 
       eventLoop();
     }

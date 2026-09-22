@@ -1,0 +1,195 @@
+package io.temporal.nexus;
+
+import io.nexusrpc.OperationException;
+import io.nexusrpc.handler.*;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.OperationToken;
+import io.temporal.internal.nexus.OperationTokenUtil;
+
+/**
+ * Generic Nexus operation handler backed by Temporal. Implements {@link OperationHandler} and
+ * provides a composable way to map Temporal operations (start workflow, start activity, etc.) to
+ * Nexus operations.
+ *
+ * <p>For the common case (default cancel behavior), prefer {@link TemporalOperation}, which
+ * collapses the operation factory into the method itself. Subclass this class only when you need to
+ * customize cancel behavior. Override {@link #cancelWorkflowRun}, {@link #cancelUpdateWorkflow}, or
+ * {@link #cancelActivityExecution} to change how the corresponding cancellation is handled. The
+ * {@link #start} and {@link #cancel} methods should not be overridden — they contain the core
+ * dispatch logic.
+ *
+ * <p>Custom-cancel example:
+ *
+ * <pre>{@code
+ * @OperationImpl
+ * public OperationHandler<TransferInput, TransferResult> startTransfer() {
+ *   return new TemporalOperationHandler<TransferInput, TransferResult>(
+ *       (context, client, input) ->
+ *           client.startWorkflow(
+ *               TransferWorkflow.class,
+ *               TransferWorkflow::transfer,
+ *               input,
+ *               WorkflowOptions.newBuilder()
+ *                   .setWorkflowId("transfer-" + input.getTransferId())
+ *                   .build())) {
+ *     @Override
+ *     protected void cancelWorkflowRun(
+ *         TemporalOperationCancelContext ctx, CancelWorkflowRunInput input) {
+ *       // custom logic
+ *     }
+ *   };
+ * }
+ * }</pre>
+ *
+ * @param <T> the input type
+ * @param <R> the result type
+ */
+@Experimental
+public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
+
+  /**
+   * Handler invoked when a Nexus start operation request is received.
+   *
+   * @param <T> the input type
+   * @param <R> the result type
+   */
+  @FunctionalInterface
+  public interface StartHandler<T, R> {
+    TemporalOperationResult<R> apply(
+        TemporalOperationStartContext context, TemporalNexusClient client, T input)
+        throws OperationException, HandlerException;
+  }
+
+  private final StartHandler<T, R> startHandler;
+
+  protected TemporalOperationHandler(StartHandler<T, R> startHandler) {
+    this.startHandler = startHandler;
+  }
+
+  /**
+   * Creates a {@link TemporalOperationHandler} from a start handler. Subclass and override {@link
+   * #cancelWorkflowRun}, {@link #cancelUpdateWorkflow}, or {@link #cancelActivityExecution} to
+   * customize cancel behavior.
+   *
+   * @param startHandler the handler to invoke on start operation requests
+   * @return an operation handler backed by the given start handler
+   */
+  public static <T, R> TemporalOperationHandler<T, R> create(StartHandler<T, R> startHandler) {
+    return new TemporalOperationHandler<>(startHandler);
+  }
+
+  @Override
+  public final OperationStartResult<R> start(
+      OperationContext ctx, OperationStartDetails details, T input)
+      throws OperationException, HandlerException {
+    InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
+    TemporalNexusClient client =
+        new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
+
+    TemporalOperationStartContext startContext = new TemporalOperationStartContext(ctx, details);
+    TemporalOperationResult<R> result = startHandler.apply(startContext, client, input);
+
+    if (result.isSync()) {
+      return OperationStartResult.newSyncBuilder(result.getSyncResult()).build();
+    } else if (result.isAsync()) {
+      return OperationStartResult.<R>newAsyncBuilder(result.getAsyncOperationToken()).build();
+    } else {
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          new IllegalStateException("TemporalOperationResult must be either sync or async"));
+    }
+  }
+
+  @Override
+  public final void cancel(OperationContext ctx, OperationCancelDetails details) {
+    OperationToken token;
+    try {
+      token = OperationTokenUtil.loadOperationToken(details.getOperationToken());
+    } catch (IllegalArgumentException e) {
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST, "failed to parse operation token", e);
+    }
+
+    TemporalOperationCancelContext cancelContext = new TemporalOperationCancelContext(ctx, details);
+    switch (token.getType()) {
+      case WORKFLOW_RUN:
+        cancelWorkflowRun(cancelContext, new CancelWorkflowRunInput(token.getWorkflowId()));
+        break;
+      case WORKFLOW_UPDATE:
+        cancelUpdateWorkflow(
+            cancelContext,
+            new CancelUpdateWorkflowInput(
+                token.getWorkflowId(), token.getRunId(), token.getUpdateId()));
+        break;
+      case ACTIVITY_EXECUTION:
+        cancelActivityExecution(
+            cancelContext,
+            new CancelActivityExecutionInput(token.getActivityId(), token.getRunId()));
+        break;
+      default:
+        throw new HandlerException(
+            HandlerException.ErrorType.BAD_REQUEST,
+            new IllegalArgumentException("unsupported operation token type: " + token.getType()));
+    }
+  }
+
+  /**
+   * Called when a cancel request is received for a workflow-run token (type=1). Override to
+   * customize cancel behavior.
+   *
+   * <p>Default behavior: cancels the underlying workflow.
+   *
+   * @param context the cancel context
+   * @param input describes the workflow run to cancel
+   */
+  protected void cancelWorkflowRun(
+      TemporalOperationCancelContext context, CancelWorkflowRunInput input) {
+    WorkflowClient client = CurrentNexusOperationContext.get().getWorkflowClient();
+    client.newUntypedWorkflowStub(input.getWorkflowId()).cancel();
+  }
+
+  /**
+   * Called when a cancel request is received for a workflow update token. Override to customize
+   * cancel behavior.
+   *
+   * <p>Default behavior: not implemented. There is no server primitive to cancel an in-flight
+   * workflow update.
+   *
+   * @param context the cancel context
+   * @param input describes the update to cancel
+   */
+  protected void cancelUpdateWorkflow(
+      TemporalOperationCancelContext context, CancelUpdateWorkflowInput input) {
+    throw new HandlerException(
+        HandlerException.ErrorType.NOT_IMPLEMENTED,
+        new UnsupportedOperationException("cannot cancel an UpdateWorkflow operation"));
+  }
+
+  /**
+   * Called when a cancel request is received for an activity-execution token (type=2). Override to
+   * customize cancel behavior.
+   *
+   * <p>Default behavior: requests cancellation of the underlying standalone activity execution.
+   *
+   * @param context the cancel context
+   * @param input describes the activity execution to cancel
+   */
+  protected void cancelActivityExecution(
+      TemporalOperationCancelContext context, CancelActivityExecutionInput input) {
+    WorkflowClient wc = CurrentNexusOperationContext.get().getWorkflowClient();
+    ActivityClient ac =
+        ActivityClient.newInstance(
+            wc.getWorkflowServiceStubs(),
+            ActivityClientOptions.newBuilder()
+                .setNamespace(wc.getOptions().getNamespace())
+                .setDataConverter(wc.getOptions().getDataConverter())
+                .setIdentity(wc.getOptions().getIdentity())
+                .build());
+    ac.getHandle(input.getActivityId(), input.getRunId()).cancel();
+  }
+}

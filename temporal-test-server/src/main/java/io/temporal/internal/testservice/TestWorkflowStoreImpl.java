@@ -10,9 +10,11 @@ import io.temporal.api.common.v1.Priority;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.HistoryEventFilterType;
+import io.temporal.api.enums.v1.SuggestContinueAsNewReason;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.WorkflowTaskStartedEventAttributes;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.*;
@@ -40,6 +42,8 @@ import org.slf4j.LoggerFactory;
 class TestWorkflowStoreImpl implements TestWorkflowStore {
 
   private static final Logger log = LoggerFactory.getLogger(TestWorkflowStoreImpl.class);
+  private static final long HISTORY_SIZE_SUGGEST_CONTINUE_AS_NEW = 4L * 1024 * 1024;
+  private static final long HISTORY_COUNT_SUGGEST_CONTINUE_AS_NEW = 4L * 1024;
 
   private final Lock lock = new ReentrantLock();
   private final Map<ExecutionId, HistoryStore> histories = new HashMap<>();
@@ -50,12 +54,33 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
   private final Map<TaskQueueId, TaskQueue<NexusTask>> nexusTaskQueues = new HashMap<>();
   private final SelfAdvancingTimer selfAdvancingTimer;
 
+  private static void populateWorkflowTaskStartedEventAttributes(
+      WorkflowTaskStartedEventAttributes.Builder attributes,
+      long historySizeBytes,
+      long historyCount) {
+    // Size excludes the started event; count is the started event id.
+    attributes.setHistorySizeBytes(historySizeBytes);
+    if (historySizeBytes >= HISTORY_SIZE_SUGGEST_CONTINUE_AS_NEW) {
+      attributes.setSuggestContinueAsNew(true);
+      attributes.addSuggestContinueAsNewReasons(
+          SuggestContinueAsNewReason.SUGGEST_CONTINUE_AS_NEW_REASON_HISTORY_SIZE_TOO_LARGE);
+    }
+    if (historyCount >= HISTORY_COUNT_SUGGEST_CONTINUE_AS_NEW) {
+      attributes.setSuggestContinueAsNew(true);
+      attributes.addSuggestContinueAsNewReasons(
+          SuggestContinueAsNewReason.SUGGEST_CONTINUE_AS_NEW_REASON_TOO_MANY_HISTORY_EVENTS);
+    }
+  }
+
   private static class HistoryStore {
 
     private final ExecutionId id;
     private final Lock lock;
     private final Condition newEventsCondition;
     private final List<HistoryEvent> history = new ArrayList<>();
+
+    private long historySizeBytes;
+
     private boolean completed;
 
     private HistoryStore(ExecutionId id, Lock lock) {
@@ -91,8 +116,17 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
         if (Timestamps.toMillis(eBuilder.getEventTime()) == 0) {
           eBuilder.setEventTime(eventTime);
         }
-        history.add(eBuilder.build());
-        completed = completed || WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(eBuilder);
+        if (EventType.EVENT_TYPE_WORKFLOW_TASK_STARTED == eBuilder.getEventType()) {
+          populateWorkflowTaskStartedEventAttributes(
+              eBuilder.getWorkflowTaskStartedEventAttributesBuilder(),
+              historySizeBytes,
+              history.size() + 1L);
+        }
+        HistoryEvent historyEvent = eBuilder.build();
+        history.add(historyEvent);
+        historySizeBytes += historyEvent.getSerializedSize();
+        completed =
+            completed || WorkflowExecutionUtils.isWorkflowExecutionClosedEvent(historyEvent);
       }
       newEventsCondition.signalAll();
       return history.subList(currentSize, history.size());

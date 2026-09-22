@@ -17,7 +17,6 @@ import io.temporal.client.ActivityNotExistsException;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.converter.RawValue;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.io.Closeable;
 import java.io.IOException;
 import java.time.Duration;
@@ -25,6 +24,7 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestActivities {
@@ -351,11 +351,11 @@ public class TestActivities {
     @Override
     public void throwIO() {
       ActivityInfo info = Activity.getExecutionContext().getInfo();
-      assertEquals(SDKTestWorkflowRule.NAMESPACE, info.getNamespace());
+      assertFalse(info.getNamespace().isEmpty());
       assertNotNull(info.getWorkflowId());
-      assertNotNull(info.getRunId());
+      assertNotNull(info.getWorkflowRunId());
       assertFalse(info.getWorkflowId().isEmpty());
-      assertFalse(info.getRunId().isEmpty());
+      assertFalse(info.getWorkflowRunId().isEmpty());
       lastAttempt = info.getAttempt();
       invocations.add("throwIO");
       try {
@@ -407,12 +407,19 @@ public class TestActivities {
   public static class CompletionClientActivitiesImpl
       implements CompletionClientActivities, Closeable {
     public final List<String> invocations = Collections.synchronizedList(new ArrayList<>());
+    public final AtomicBoolean activity1AsyncCompletionTokenCanceled = new AtomicBoolean();
+    public final AtomicBoolean activity1PostReturnHeartbeatRejected = new AtomicBoolean();
     private final ThreadPoolExecutor executor =
         new ThreadPoolExecutor(0, 100, 1, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
     public ActivityCompletionClient completionClient;
+    private Runnable activityWithDelayStartedCallback = () -> {};
 
     public void setCompletionClient(ActivityCompletionClient completionClient) {
       this.completionClient = completionClient;
+    }
+
+    public void setActivityWithDelayStartedCallback(Runnable activityWithDelayStartedCallback) {
+      this.activityWithDelayStartedCallback = activityWithDelayStartedCallback;
     }
 
     public void assertInvocations(String... expected) {
@@ -422,13 +429,32 @@ public class TestActivities {
     @Override
     public String activity1(String a1) {
       Preconditions.checkNotNull(completionClient, "completionClient");
-      byte[] taskToken = Activity.getExecutionContext().getInfo().getTaskToken();
+      ActivityExecutionContext ctx = Activity.getExecutionContext();
+      byte[] taskToken = ctx.getInfo().getTaskToken();
       executor.execute(
           () -> {
             invocations.add("activity1");
+            long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(5);
+            while (!activity1PostReturnHeartbeatRejected.get()
+                && System.currentTimeMillis() < deadline) {
+              try {
+                ctx.heartbeat("after-async-return");
+              } catch (IllegalStateException e) {
+                activity1PostReturnHeartbeatRejected.set(true);
+                break;
+              }
+              try {
+                Thread.sleep(10);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+              }
+            }
+            activity1AsyncCompletionTokenCanceled.set(
+                ctx.getCancellationToken().isCancellationRequested());
             completionClient.complete(taskToken, a1);
           });
-      Activity.getExecutionContext().doNotCompleteOnReturn();
+      ctx.doNotCompleteOnReturn();
       return "ignored";
     }
 
@@ -440,6 +466,7 @@ public class TestActivities {
       executor.execute(
           () -> {
             invocations.add("activityWithDelay");
+            activityWithDelayStartedCallback.run();
             long start = System.currentTimeMillis();
             try {
               int count = 0;

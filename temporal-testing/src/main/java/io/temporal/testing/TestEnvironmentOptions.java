@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.enums.v1.IndexedValueType;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -39,6 +40,8 @@ public final class TestEnvironmentOptions {
 
     private WorkflowClientOptions workflowClientOptions;
 
+    private ActivityClientOptions activityClientOptions;
+
     private WorkflowServiceStubsOptions workflowServiceStubsOptions;
 
     private Scope metricsScope;
@@ -58,6 +61,7 @@ public final class TestEnvironmentOptions {
     private Builder(TestEnvironmentOptions o) {
       this.workerFactoryOptions = o.workerFactoryOptions;
       this.workflowClientOptions = o.workflowClientOptions;
+      this.activityClientOptions = o.activityClientOptions;
       this.workflowServiceStubsOptions = o.workflowServiceStubsOptions;
       this.metricsScope = o.metricsScope;
       this.useExternalService = o.useExternalService;
@@ -69,6 +73,11 @@ public final class TestEnvironmentOptions {
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       this.workflowClientOptions = workflowClientOptions;
+      return this;
+    }
+
+    public Builder setActivityClientOptions(ActivityClientOptions activityClientOptions) {
+      this.activityClientOptions = activityClientOptions;
       return this;
     }
 
@@ -183,6 +192,7 @@ public final class TestEnvironmentOptions {
     public TestEnvironmentOptions build() {
       return new TestEnvironmentOptions(
           workflowClientOptions,
+          activityClientOptions,
           workerFactoryOptions,
           workflowServiceStubsOptions,
           useExternalService,
@@ -194,11 +204,10 @@ public final class TestEnvironmentOptions {
     }
 
     public TestEnvironmentOptions validateAndBuildWithDefaults() {
+      WorkflowClientOptions workflowClientOptionsWithDefaults = workflowClientOptionsWithDefaults();
       return new TestEnvironmentOptions(
-          (workflowClientOptions != null
-                  ? WorkflowClientOptions.newBuilder(workflowClientOptions)
-                  : WorkflowClientOptions.newBuilder())
-              .validateAndBuildWithDefaults(),
+          workflowClientOptionsWithDefaults,
+          activityClientOptionsWithDefaults(workflowClientOptionsWithDefaults),
           (workerFactoryOptions != null
                   ? WorkerFactoryOptions.newBuilder(workerFactoryOptions)
                   : WorkerFactoryOptions.newBuilder())
@@ -214,10 +223,31 @@ public final class TestEnvironmentOptions {
           useTimeskipping,
           searchAttributes);
     }
+
+    private WorkflowClientOptions workflowClientOptionsWithDefaults() {
+      return (workflowClientOptions != null
+              ? WorkflowClientOptions.newBuilder(workflowClientOptions)
+              : WorkflowClientOptions.newBuilder())
+          .validateAndBuildWithDefaults();
+    }
+
+    private ActivityClientOptions activityClientOptionsWithDefaults(
+        WorkflowClientOptions workflowClientOptionsWithDefaults) {
+      if (activityClientOptions != null) {
+        return ActivityClientOptions.newBuilder(activityClientOptions).build();
+      }
+      return ActivityClientOptions.newBuilder()
+          .setNamespace(workflowClientOptionsWithDefaults.getNamespace())
+          .setDataConverter(workflowClientOptionsWithDefaults.getDataConverter())
+          .setIdentity(workflowClientOptionsWithDefaults.getIdentity())
+          .setContextPropagators(workflowClientOptionsWithDefaults.getContextPropagators())
+          .build();
+    }
   }
 
   private final WorkerFactoryOptions workerFactoryOptions;
   private final WorkflowClientOptions workflowClientOptions;
+  private final ActivityClientOptions activityClientOptions;
   private final WorkflowServiceStubsOptions workflowServiceStubsOptions;
   private final Scope metricsScope;
   private final boolean useExternalService;
@@ -228,6 +258,7 @@ public final class TestEnvironmentOptions {
 
   private TestEnvironmentOptions(
       WorkflowClientOptions workflowClientOptions,
+      ActivityClientOptions activityClientOptions,
       WorkerFactoryOptions workerFactoryOptions,
       WorkflowServiceStubsOptions workflowServiceStubsOptions,
       boolean useExternalService,
@@ -237,6 +268,7 @@ public final class TestEnvironmentOptions {
       boolean useTimeskipping,
       @Nonnull Map<String, IndexedValueType> searchAttributes) {
     this.workflowClientOptions = workflowClientOptions;
+    this.activityClientOptions = activityClientOptions;
     this.workerFactoryOptions = workerFactoryOptions;
     this.workflowServiceStubsOptions = workflowServiceStubsOptions;
     this.metricsScope = metricsScope;
@@ -253,6 +285,10 @@ public final class TestEnvironmentOptions {
 
   public WorkflowClientOptions getWorkflowClientOptions() {
     return workflowClientOptions;
+  }
+
+  public ActivityClientOptions getActivityClientOptions() {
+    return activityClientOptions;
   }
 
   public WorkflowServiceStubsOptions getWorkflowServiceStubsOptions() {
@@ -291,6 +327,8 @@ public final class TestEnvironmentOptions {
         + workerFactoryOptions
         + ", workflowClientOptions="
         + workflowClientOptions
+        + ", activityClientOptions="
+        + activityClientOptions
         + ", workflowServiceStubsOptions="
         + workflowServiceStubsOptions
         + ", metricsScope="

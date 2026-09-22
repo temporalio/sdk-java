@@ -65,7 +65,7 @@ import org.slf4j.LoggerFactory;
 /**
  * In memory implementation of the Workflow Service. To be used for testing purposes only.
  *
- * <p>Do not use directly, instead use {@link io.temporal.testing.TestWorkflowEnvironment}.
+ * <p>Do not use directly, instead use {@code io.temporal.testing.TestWorkflowEnvironment}.
  */
 public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServiceImplBase
     implements Closeable {
@@ -733,6 +733,13 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     responseObserver.onCompleted();
   }
 
+  @Override
+  public void shutdownWorker(
+      ShutdownWorkerRequest request, StreamObserver<ShutdownWorkerResponse> responseObserver) {
+    responseObserver.onNext(ShutdownWorkerResponse.getDefaultInstance());
+    responseObserver.onCompleted();
+  }
+
   private Context.CancellableContext deadlineCtx(Deadline deadline) {
     return Context.current().withDeadline(deadline, this.backgroundScheduler);
   }
@@ -1024,6 +1031,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
   }
 
   @Override
+  @SuppressWarnings("deprecation") // Uses deprecated operationError
   public void respondNexusTaskCompleted(
       RespondNexusTaskCompletedRequest request,
       StreamObserver<RespondNexusTaskCompletedResponse> responseObserver) {
@@ -1119,7 +1127,11 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       NexusTaskToken tt = NexusTaskToken.fromBytes(request.getTaskToken());
       TestWorkflowMutableState mutableState =
           getMutableState(tt.getOperationRef().getExecutionId());
-      if (mutableState.validateOperationTaskToken(tt)) {
+      if (tt.isCancel()) {
+        // For cancel failures, the operation may already be completed/removed,
+        // so skip token validation and record the event directly.
+        mutableState.failNexusOperationCancelRequest(tt.getOperationRef(), failure);
+      } else if (mutableState.validateOperationTaskToken(tt)) {
         mutableState.failNexusOperation(tt.getOperationRef(), failure);
       }
       responseObserver.onNext(RespondNexusTaskFailedResponse.getDefaultInstance());
@@ -1193,6 +1205,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
 
   private static Failure handlerErrorToFailure(HandlerError err) {
     return Failure.newBuilder()
+        .setMessage(err.getFailure().getMessage())
         .setNexusHandlerFailureInfo(
             NexusHandlerFailureInfo.newBuilder()
                 .setType(err.getErrorType())
@@ -1644,6 +1657,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
       if (!r.getLinksList().isEmpty()) {
         startRequest.addAllLinks(r.getLinksList());
       }
+      if (r.hasPriority()) {
+        startRequest.setPriority(r.getPriority());
+      }
 
       StartWorkflowExecutionResponse startResult =
           startWorkflowExecutionImpl(
@@ -1664,6 +1680,7 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
   }
 
+  @SuppressWarnings("deprecation")
   public void signalExternalWorkflowExecution(
       String signalId,
       SignalExternalWorkflowExecutionCommandAttributes commandAttributes,
@@ -1742,6 +1759,9 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
     }
     if (ea.hasSearchAttributes()) {
       startRequestBuilder.setSearchAttributes(ea.getSearchAttributes());
+    }
+    if (ea.hasMemo()) {
+      startRequestBuilder.setMemo(ea.getMemo());
     }
     StartWorkflowExecutionRequest startRequest = startRequestBuilder.build();
     lock.lock();
@@ -1896,7 +1916,8 @@ public final class TestWorkflowService extends WorkflowServiceGrpc.WorkflowServi
                           NamespaceInfo.Capabilities.newBuilder()
                               .setEagerWorkflowStart(true)
                               .setAsyncUpdate(true)
-                              .setSyncUpdate(true))
+                              .setSyncUpdate(true)
+                              .setWorkerHeartbeats(true))
                       .build())
               .build();
       responseObserver.onNext(result);

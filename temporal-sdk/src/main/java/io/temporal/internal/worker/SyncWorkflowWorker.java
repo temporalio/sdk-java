@@ -10,6 +10,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.activity.LocalActivityExecutionContextFactoryImpl;
+import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -54,6 +55,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
   private final POJOWorkflowImplementationFactory factory;
   private final DataConverter dataConverter;
   private final ActivityTaskHandlerImpl laTaskHandler;
+  private final CancelSource<CancellationException> storageCancellation =
+      new CancelSource<>(() -> new CancellationException("Worker shutdown"));
   private boolean runningLocalActivityWorker;
 
   public SyncWorkflowWorker(
@@ -67,8 +70,14 @@ public class SyncWorkflowWorker implements SuspendableWorker {
       String stickyTaskQueueName,
       @Nonnull WorkflowThreadExecutor workflowThreadExecutor,
       @Nonnull EagerActivityDispatcher eagerActivityDispatcher,
+      int maxEagerActivityReservationsPerWorkflowTask,
       @Nonnull SlotSupplier<WorkflowSlotInfo> slotSupplier,
-      @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier) {
+      @Nonnull SlotSupplier<LocalActivitySlotInfo> laSlotSupplier,
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
+    singleWorkerOptions =
+        SingleWorkerOptions.newBuilder(singleWorkerOptions)
+            .setStorageCancellation(storageCancellation.token())
+            .build();
     this.identity = singleWorkerOptions.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -122,7 +131,9 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             cache,
             taskHandler,
             eagerActivityDispatcher,
-            slotSupplier);
+            maxEagerActivityReservationsPerWorkflowTask,
+            slotSupplier,
+            namespaceCapabilities);
 
     // Exists to support Worker#replayWorkflowExecution functionality.
     // This handler has to be non-sticky to avoid evicting actual executions from the cache
@@ -171,8 +182,12 @@ public class SyncWorkflowWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    return workflowWorker
-        .shutdown(shutdownManager, interruptTasks)
+    CompletableFuture<Void> workflowWorkerShutdown =
+        workflowWorker.shutdown(shutdownManager, interruptTasks);
+    if (interruptTasks) {
+      storageCancellation.cancel();
+    }
+    return workflowWorkerShutdown
         .thenCompose(ignore -> laWorker.shutdown(shutdownManager, interruptTasks))
         .exceptionally(
             e -> {
@@ -232,7 +247,46 @@ public class SyncWorkflowWorker implements SuspendableWorker {
     return null;
   }
 
-  @Override
+  public TrackingSlotSupplier<WorkflowSlotInfo> getWorkflowSlotSupplier() {
+    return workflowWorker.getSlotSupplier();
+  }
+
+  public TrackingSlotSupplier<LocalActivitySlotInfo> getLocalActivitySlotSupplier() {
+    return laWorker.getSlotSupplier();
+  }
+
+  public boolean hasStickyQueue() {
+    return workflowWorker.hasStickyQueue();
+  }
+
+  public boolean isAnyTypeSupported() {
+    return factory.isAnyTypeSupported();
+  }
+
+  public TaskCounter getWorkflowTaskCounter() {
+    return workflowWorker.getTaskCounter();
+  }
+
+  public TaskCounter getLocalActivityTaskCounter() {
+    return laWorker.getTaskCounter();
+  }
+
+  public PollerOptions getWorkflowPollerOptions() {
+    return workflowWorker.getPollerOptions();
+  }
+
+  public PollerTracker getWorkflowPollerTracker() {
+    return workflowWorker.getPollerTracker();
+  }
+
+  public PollerTracker getStickyPollerTracker() {
+    return workflowWorker.getStickyPollerTracker();
+  }
+
+  public String getStickyTaskQueueName() {
+    return workflowWorker.getStickyTaskQueueName();
+  }
+
   public String toString() {
     return String.format(
         "SyncWorkflowWorker{namespace=%s, taskQueue=%s, identity=%s}",

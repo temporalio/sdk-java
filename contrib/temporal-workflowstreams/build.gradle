@@ -1,0 +1,14 @@
+description = '''Temporal Workflow Streams: a durable, multi-topic pub/sub log hosted inside a workflow'''
+
+dependencies {
+    // this module shouldn't carry temporal-sdk with it, especially for situations when users may be using a shaded artifact
+    compileOnly project(':temporal-sdk')
+    // Jackson annotations lock the cross-SDK wire field names; provided at runtime by temporal-sdk
+    compileOnly "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    testImplementation project(':temporal-sdk')
+    testImplementation project(':temporal-testing')
+    testImplementation "junit:junit:${junitVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}

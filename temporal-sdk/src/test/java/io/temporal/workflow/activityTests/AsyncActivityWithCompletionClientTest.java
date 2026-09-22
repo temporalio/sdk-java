@@ -33,12 +33,16 @@ public class AsyncActivityWithCompletionClientTest {
 
   @Test
   public void testAsyncActivity() {
+    completionClientActivitiesImpl.activity1AsyncCompletionTokenCanceled.set(false);
+    completionClientActivitiesImpl.activity1PostReturnHeartbeatRejected.set(false);
     completionClientActivitiesImpl.completionClient =
         testWorkflowRule.getWorkflowClient().newActivityCompletionClient();
     TestWorkflow1 client = testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflow1.class);
     String result = client.execute(testWorkflowRule.getTaskQueue());
     Assert.assertEquals("workflow", result);
     Assert.assertEquals("activity1", completionClientActivitiesImpl.invocations.get(0));
+    Assert.assertFalse(completionClientActivitiesImpl.activity1AsyncCompletionTokenCanceled.get());
+    Assert.assertTrue(completionClientActivitiesImpl.activity1PostReturnHeartbeatRejected.get());
   }
 
   public static class TestAsyncActivityWorkflowImpl implements TestWorkflow1 {

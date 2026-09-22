@@ -6,6 +6,7 @@ import io.temporal.worker.tuning.NexusSlotInfo;
 import io.temporal.worker.tuning.SlotSupplier;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,7 +24,8 @@ public class SyncNexusWorker implements SuspendableWorker {
       String namespace,
       String taskQueue,
       SingleWorkerOptions options,
-      SlotSupplier<NexusSlotInfo> slotSupplier) {
+      SlotSupplier<NexusSlotInfo> slotSupplier,
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
     this.identity = options.getIdentity();
     this.namespace = namespace;
     this.taskQueue = taskQueue;
@@ -43,7 +45,8 @@ public class SyncNexusWorker implements SuspendableWorker {
             options,
             taskHandler,
             options.getDataConverter(),
-            slotSupplier);
+            slotSupplier,
+            namespaceCapabilities);
   }
 
   @Override
@@ -94,6 +97,22 @@ public class SyncNexusWorker implements SuspendableWorker {
     return worker.isTerminated();
   }
 
+  public TrackingSlotSupplier<NexusSlotInfo> getSlotSupplier() {
+    return worker.getSlotSupplier();
+  }
+
+  public TaskCounter getTaskCounter() {
+    return worker.getTaskCounter();
+  }
+
+  public PollerOptions getPollerOptions() {
+    return worker.getPollerOptions();
+  }
+
+  public PollerTracker getPollerTracker() {
+    return worker.getPollerTracker();
+  }
+
   @Override
   public WorkerLifecycleState getLifecycleState() {
     return worker.getLifecycleState();
@@ -103,6 +122,10 @@ public class SyncNexusWorker implements SuspendableWorker {
   public String toString() {
     return String.format(
         "SyncNexusWorker{namespace=%s, taskQueue=%s, identity=%s}", namespace, taskQueue, identity);
+  }
+
+  public boolean isAnyTypeSupported() {
+    return taskHandler.isAnyTypeSupported();
   }
 
   public void registerNexusServiceImplementation(Object... nexusServiceImplementations) {

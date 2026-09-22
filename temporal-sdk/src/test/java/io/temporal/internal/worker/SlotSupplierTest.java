@@ -80,11 +80,15 @@ public class SlotSupplierTest {
             TASK_QUEUE,
             "stickytaskqueue",
             "",
+            "test-instance-key",
             new WorkerVersioningOptions("", false, null),
             trackingSS,
             stickyQueueBalancer,
             metricsScope,
-            () -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+            () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
+            new PollerTracker(),
+            new PollerTracker(),
+            null);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()
@@ -170,10 +174,13 @@ public class SlotSupplierTest {
             TASK_QUEUE,
             null,
             "",
+            "test-instance-key",
             new WorkerVersioningOptions("", false, null),
             trackingSS,
             metricsScope,
-            () -> GetSystemInfoResponse.Capabilities.newBuilder().build());
+            () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
+            new PollerTracker(),
+            null);
 
     SlotPermit permit = new SlotPermit();
 

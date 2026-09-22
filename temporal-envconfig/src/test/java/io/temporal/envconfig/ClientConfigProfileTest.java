@@ -1,12 +1,12 @@
 package io.temporal.envconfig;
 
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import io.grpc.Metadata;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.util.Collections;
 import org.junit.Assert;
@@ -116,7 +116,7 @@ public class ClientConfigProfileTest {
     // Put some data in temp file and set the env var to use that file
     File temp = File.createTempFile("envConfigTest", "");
     temp.deleteOnExit();
-    Files.asCharSink(temp, Charsets.UTF_8)
+    Files.asCharSink(temp, StandardCharsets.UTF_8)
         .write(
             "[profile.default]\n" + "address = \"my-address\"\n" + "namespace = \"my-namespace\"");
     // Explicitly set
@@ -323,6 +323,22 @@ public class ClientConfigProfileTest {
     Assert.assertEquals(
         Paths.get("/home/test", ".config", "temporalio", "temporal.toml").toString(),
         ClientConfig.getDefaultConfigFilePath("/home/test", "Linux", Collections.emptyMap()));
+  }
+
+  @Test
+  public void loadDefaultConfigMissingHomeDir() throws IOException {
+    String original = System.getProperty("user.home");
+    try {
+      System.setProperty("user.home", "");
+      ClientConfig config =
+          ClientConfig.load(
+              LoadClientConfigOptions.newBuilder().setEnvOverrides(Collections.emptyMap()).build());
+      Assert.assertEquals(ClientConfig.getDefaultInstance(), config);
+    } finally {
+      if (original != null) {
+        System.setProperty("user.home", original);
+      }
+    }
   }
 
   @Test

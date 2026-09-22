@@ -12,6 +12,7 @@ import io.temporal.internal.replay.WorkflowRunTaskHandler;
 import io.temporal.worker.MetricsType;
 import java.util.Objects;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
@@ -23,6 +24,8 @@ public final class WorkflowExecutorCache {
   private final WorkflowRunLockManager runLockManager;
   private final Cache<String, WorkflowRunTaskHandler> cache;
   private final Scope metricsScope;
+  private final AtomicInteger cacheHits = new AtomicInteger();
+  private final AtomicInteger cacheMisses = new AtomicInteger();
 
   public WorkflowExecutorCache(
       int workflowCacheSize, WorkflowRunLockManager runLockManager, Scope scope) {
@@ -77,6 +80,7 @@ public final class WorkflowExecutorCache {
 
     if (workflowRunTaskHandler != null) {
       workflowTypeScope.counter(MetricsType.STICKY_CACHE_HIT).inc(1);
+      cacheHits.incrementAndGet();
       return workflowRunTaskHandler;
     }
 
@@ -85,6 +89,7 @@ public final class WorkflowExecutorCache {
         execution.getWorkflowId(),
         runId);
     workflowTypeScope.counter(MetricsType.STICKY_CACHE_MISS).inc(1);
+    cacheMisses.incrementAndGet();
 
     return workflowExecutorFn.call();
   }
@@ -165,5 +170,17 @@ public final class WorkflowExecutorCache {
   public void invalidateAll() {
     cache.invalidateAll();
     metricsScope.gauge(MetricsType.STICKY_CACHE_SIZE).update(size());
+  }
+
+  public int getCacheHits() {
+    return cacheHits.get();
+  }
+
+  public int getCacheMisses() {
+    return cacheMisses.get();
+  }
+
+  public int getCurrentCacheSize() {
+    return (int) cache.size();
   }
 }

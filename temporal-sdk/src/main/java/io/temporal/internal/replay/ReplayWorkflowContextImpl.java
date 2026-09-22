@@ -10,11 +10,15 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.statemachines.*;
+import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.SingleWorkerOptions;
+import io.temporal.worker.PreferredVersionProvider;
+import io.temporal.worker.PreferredVersionProviderInput;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.Functions.Func1;
@@ -336,7 +340,20 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
-    return workflowStateMachines.getVersion(changeId, minSupported, maxSupported, callback);
+    PreferredVersionProvider preferredVersionProvider = workerOptions.getPreferredVersionProvider();
+    return workflowStateMachines.getVersion(
+        changeId,
+        minSupported,
+        maxSupported,
+        preferredVersionProvider == null
+            ? null
+            : (min, max) ->
+                WorkflowInternal.readOnly(
+                    () ->
+                        preferredVersionProvider.getPreferredVersion(
+                            new PreferredVersionProviderInput(
+                                WorkflowInternal.getWorkflowInfo(), changeId, min, max))),
+        callback);
   }
 
   @Override
@@ -414,6 +431,16 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public boolean isContinueAsNewSuggested() {
     return workflowStateMachines.isContinueAsNewSuggested();
+  }
+
+  @Override
+  public List<SuggestContinueAsNewReason> getSuggestContinueAsNewReasons() {
+    return workflowStateMachines.getSuggestContinueAsNewReasons();
+  }
+
+  @Override
+  public boolean isTargetWorkerDeploymentVersionChanged() {
+    return workflowStateMachines.isTargetWorkerDeploymentVersionChanged();
   }
 
   /*

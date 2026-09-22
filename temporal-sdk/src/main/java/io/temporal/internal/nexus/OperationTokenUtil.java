@@ -15,33 +15,80 @@ public class OperationTokenUtil {
   private static final Base64.Encoder encoder = Base64.getUrlEncoder().withoutPadding();
 
   /**
-   * Load a workflow run operation token from an operation token.
+   * Load and validate an operation token without asserting the token type. Use this for cancel
+   * dispatch where the token type determines the cancel behavior.
    *
-   * @throws IllegalArgumentException if the operation token is invalid
+   * @throws IllegalArgumentException if the operation token is malformed or has invalid structure
    */
-  public static WorkflowRunOperationToken loadWorkflowRunOperationToken(String operationToken) {
-    WorkflowRunOperationToken token;
+  public static OperationToken loadOperationToken(String operationToken) {
+    OperationToken token;
     try {
-      JavaType reference = mapper.getTypeFactory().constructType(WorkflowRunOperationToken.class);
+      JavaType reference = mapper.getTypeFactory().constructType(OperationToken.class);
       token = mapper.readValue(decoder.decode(operationToken), reference);
     } catch (Exception e) {
       throw new IllegalArgumentException("Failed to parse operation token: " + e.getMessage());
     }
-    if (!token.getType().equals(OperationTokenType.WORKFLOW_RUN)) {
-      throw new IllegalArgumentException(
-          "Invalid workflow run token: incorrect operation token type: " + token.getType());
-    }
     if (token.getVersion() != null && token.getVersion() != 0) {
-      throw new IllegalArgumentException("Invalid workflow run token: unexpected version field");
+      throw new IllegalArgumentException("Invalid operation token: unexpected version field");
     }
-    if (Strings.isNullOrEmpty(token.getWorkflowId())) {
-      throw new IllegalArgumentException("Invalid workflow run token: missing workflow ID (wid)");
+    if (Strings.isNullOrEmpty(token.getNamespace())) {
+      throw new IllegalArgumentException("Invalid operation token: missing namespace(ns)");
+    }
+    switch (token.getType()) {
+      case WORKFLOW_RUN:
+      case WORKFLOW_UPDATE:
+        if (Strings.isNullOrEmpty(token.getWorkflowId())) {
+          throw new IllegalArgumentException("Invalid operation token: missing workflow ID (wid)");
+        }
+        break;
+      case ACTIVITY_EXECUTION:
+        if (Strings.isNullOrEmpty(token.getActivityId())) {
+          throw new IllegalArgumentException("Invalid operation token: missing activity ID (aid)");
+        }
+        break;
+      default:
+        throw new IllegalArgumentException(
+            "Invalid operation token: unknown operation token type: " + token.getType());
     }
     return token;
   }
 
   /**
-   * Attempt to extract the workflow Id from an operation token.
+   * Load a workflow run operation token, asserting that the token type is {@link
+   * OperationTokenType#WORKFLOW_RUN}.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid or not a workflow run token
+   */
+  public static OperationToken loadWorkflowRunOperationToken(String operationToken) {
+    OperationToken token = loadOperationToken(operationToken);
+    if (!token.getType().equals(OperationTokenType.WORKFLOW_RUN)) {
+      throw new IllegalArgumentException(
+          "Invalid workflow run token: incorrect operation token type: " + token.getType());
+    }
+    return token;
+  }
+
+  /**
+   * Load a workflow update operation token, asserting that the token type is {@link
+   * OperationTokenType#WORKFLOW_UPDATE}.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid or not a workflow update
+   *     token
+   */
+  public static OperationToken loadWorkflowUpdateOperationToken(String operationToken) {
+    OperationToken token = loadOperationToken(operationToken);
+    if (!token.getType().equals(OperationTokenType.WORKFLOW_UPDATE)) {
+      throw new IllegalArgumentException(
+          "Invalid workflow update token: incorrect operation token type: " + token.getType());
+    }
+    if (Strings.isNullOrEmpty(token.getUpdateId())) {
+      throw new IllegalArgumentException("Invalid workflow update token: missing update ID (uid)");
+    }
+    return token;
+  }
+
+  /**
+   * Extract the workflow ID from a workflow run operation token.
    *
    * @throws IllegalArgumentException if the operation token is invalid
    */
@@ -49,10 +96,86 @@ public class OperationTokenUtil {
     return loadWorkflowRunOperationToken(operationToken).getWorkflowId();
   }
 
+  /**
+   * Load an activity execution operation token, asserting that the token type is {@link
+   * OperationTokenType#ACTIVITY_EXECUTION}.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid or not an activity execution
+   *     token
+   */
+  public static OperationToken loadActivityExecutionOperationToken(String operationToken) {
+    OperationToken token = loadOperationToken(operationToken);
+    if (!token.getType().equals(OperationTokenType.ACTIVITY_EXECUTION)) {
+      throw new IllegalArgumentException(
+          "Invalid activity execution token: incorrect operation token type: " + token.getType());
+    }
+    return token;
+  }
+
+  /**
+   * Extract the activity ID from an activity execution operation token.
+   *
+   * @throws IllegalArgumentException if the operation token is invalid
+   */
+  public static String loadActivityIdFromOperationToken(String operationToken) {
+    return loadActivityExecutionOperationToken(operationToken).getActivityId();
+  }
+
   /** Generate a workflow run operation token from a workflow ID and namespace. */
   public static String generateWorkflowRunOperationToken(String workflowId, String namespace)
       throws JsonProcessingException {
-    String json = ow.writeValueAsString(new WorkflowRunOperationToken(namespace, workflowId));
+    String json =
+        ow.writeValueAsString(
+            new OperationToken(OperationTokenType.WORKFLOW_RUN, namespace, workflowId));
+    return encoder.encodeToString(json.getBytes());
+  }
+
+  /** Generate a workflow update operation token from namespace, workflowId, runId, updateId */
+  public static String generateWorkflowUpdateOperationToken(
+      String namespace, String workflowId, String runId, String updateId)
+      throws JsonProcessingException {
+    if (Strings.isNullOrEmpty(namespace)) {
+      throw new IllegalArgumentException("Invalid workflow update token: missing namespace(ns)");
+    }
+    if (Strings.isNullOrEmpty(workflowId)) {
+      throw new IllegalArgumentException(
+          "Invalid workflow update token: missing workflow ID (wid)");
+    }
+    if (Strings.isNullOrEmpty(updateId)) {
+      throw new IllegalArgumentException("Invalid workflow update token: missing update ID (uid)");
+    }
+    runId = Strings.emptyToNull(runId); // empty runId is allowed but should not be serialized
+    String json = ow.writeValueAsString(new OperationToken(namespace, workflowId, runId, updateId));
+    return encoder.encodeToString(json.getBytes());
+  }
+
+  /**
+   * Generate an activity execution operation token from an activity ID and namespace.
+   *
+   * <p>This overload omits the run ID. Use it when writing the token into the Nexus operation-token
+   * callback header — that token is generated before the start RPC completes, so the run ID is not
+   * yet known.
+   */
+  public static String generateActivityExecutionOperationToken(String activityId, String namespace)
+      throws JsonProcessingException {
+    return generateActivityExecutionOperationToken(activityId, null, namespace);
+  }
+
+  /**
+   * Generate an activity execution operation token from an activity ID, run ID, and namespace. The
+   * {@code runId} is included only when non-null.
+   *
+   * <p>This overload is used for the operation token returned to the Nexus caller from a start
+   * operation — at that point the start RPC has completed and the run ID is known. The header token
+   * written into the activity completion callback must NOT carry a run ID; use {@link
+   * #generateActivityExecutionOperationToken(String, String)} for that path.
+   */
+  public static String generateActivityExecutionOperationToken(
+      String activityId, String runId, String namespace) throws JsonProcessingException {
+    String json =
+        ow.writeValueAsString(
+            new OperationToken(
+                OperationTokenType.ACTIVITY_EXECUTION, namespace, null, activityId, runId));
     return encoder.encodeToString(json.getBytes());
   }
 

@@ -5,6 +5,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 import com.google.protobuf.Timestamp;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -14,7 +15,6 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.PollerTypeMetricsTag;
 import io.temporal.worker.tuning.*;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -27,7 +27,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
   private final TrackingSlotSupplier<NexusSlotInfo> slotSupplier;
   private final Scope metricsScope;
   private final PollNexusTaskQueueRequest pollRequest;
-  private final AtomicInteger pollGauge = new AtomicInteger();
+  private final PollerTracker pollerTracker;
 
   @SuppressWarnings("deprecation")
   public NexusPollTask(
@@ -35,30 +35,69 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
       @Nonnull String namespace,
       @Nonnull String taskQueue,
       @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
       @Nonnull WorkerVersioningOptions versioningOptions,
       @Nonnull TrackingSlotSupplier<NexusSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
-      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities) {
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      @Nonnull PollerTracker pollerTracker) {
+    this(
+        service,
+        namespace,
+        taskQueue,
+        identity,
+        workerInstanceKey,
+        versioningOptions,
+        slotSupplier,
+        metricsScope,
+        serverCapabilities,
+        pollerTracker,
+        false);
+  }
+
+  @SuppressWarnings("deprecation")
+  public NexusPollTask(
+      @Nonnull WorkflowServiceStubs service,
+      @Nonnull String namespace,
+      @Nonnull String taskQueue,
+      @Nonnull String identity,
+      @Nonnull String workerInstanceKey,
+      @Nonnull WorkerVersioningOptions versioningOptions,
+      @Nonnull TrackingSlotSupplier<NexusSlotInfo> slotSupplier,
+      @Nonnull Scope metricsScope,
+      @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
+      @Nonnull PollerTracker pollerTracker,
+      boolean workerCommandsTaskQueue) {
     this.service = Objects.requireNonNull(service);
     this.slotSupplier = slotSupplier;
     this.metricsScope = Objects.requireNonNull(metricsScope);
+    this.pollerTracker = Objects.requireNonNull(pollerTracker);
 
     PollNexusTaskQueueRequest.Builder pollRequest =
         PollNexusTaskQueueRequest.newBuilder()
             .setNamespace(namespace)
             .setIdentity(identity)
-            .setTaskQueue(TaskQueue.newBuilder().setName(taskQueue));
+            .setTaskQueue(
+                TaskQueue.newBuilder()
+                    .setName(taskQueue)
+                    .setKind(
+                        workerCommandsTaskQueue
+                            ? TaskQueueKind.TASK_QUEUE_KIND_WORKER_COMMANDS
+                            : TaskQueueKind.TASK_QUEUE_KIND_NORMAL));
+    pollRequest.setWorkerInstanceKey(workerInstanceKey);
 
-    if (versioningOptions.getWorkerDeploymentOptions() != null) {
-      pollRequest.setDeploymentOptions(
-          WorkerVersioningProtoUtils.deploymentOptionsToProto(
-              versioningOptions.getWorkerDeploymentOptions()));
-    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
-      pollRequest.setWorkerVersionCapabilities(
-          WorkerVersionCapabilities.newBuilder()
-              .setBuildId(versioningOptions.getBuildId())
-              .setUseVersioning(versioningOptions.isUsingVersioning())
-              .build());
+    if (!workerCommandsTaskQueue) {
+      if (versioningOptions.getWorkerDeploymentOptions() != null) {
+        pollRequest.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(
+                versioningOptions.getWorkerDeploymentOptions()));
+      } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+        pollRequest.setWorkerVersionCapabilities(
+            WorkerVersionCapabilities.newBuilder()
+                .setBuildId(versioningOptions.getBuildId())
+                .setUseVersioning(versioningOptions.isUsingVersioning())
+                .build());
+      }
     }
     this.pollRequest = pollRequest.build();
   }
@@ -89,7 +128,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
         .gauge(MetricsType.NUM_POLLERS)
-        .update(pollGauge.incrementAndGet());
+        .update(pollerTracker.pollStarted());
 
     try {
       response =
@@ -111,6 +150,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
                   startedTime, response.getRequest().getScheduledTime()));
 
       isSuccessful = true;
+      pollerTracker.pollSucceeded();
       return new NexusTask(
           response,
           permit,
@@ -118,7 +158,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
     } finally {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
           .gauge(MetricsType.NUM_POLLERS)
-          .update(pollGauge.decrementAndGet());
+          .update(pollerTracker.pollCompleted());
 
       if (!isSuccessful) slotSupplier.releaseSlot(SlotReleaseReason.neverUsed(), permit);
     }

@@ -18,40 +18,40 @@ public final class SdkFlags {
     this.replaying = replaying;
   }
 
-  /**
-   * Marks a flag as usable regardless of replay status.
-   *
-   * @return True, as long as the server supports SDK flags
-   */
-  public boolean setSdkFlag(SdkFlag flag) {
-    if (!supportSdkMetadata) {
-      return false;
-    }
+  /** Marks a flag as usable regardless of replay status. */
+  public void setSdkFlag(SdkFlag flag) {
     sdkFlags.add(flag);
-    return true;
   }
 
   /**
    * @return True if this flag may currently be used.
    */
   public boolean tryUseSdkFlag(SdkFlag flag) {
+    if (sdkFlags.contains(flag)) {
+      return true;
+    }
+
     if (!supportSdkMetadata) {
       return false;
     }
 
-    if (!replaying.apply()) {
-      sdkFlags.add(flag);
-      unsentSdkFlags.add(flag);
-      return true;
-    } else {
-      return sdkFlags.contains(flag);
+    if (replaying.apply()) {
+      return false;
     }
+
+    sdkFlags.add(flag);
+    unsentSdkFlags.add(flag);
+    return true;
   }
 
   /**
    * @return True if this flag is set.
    */
   public boolean checkSdkFlag(SdkFlag flag) {
+    if (sdkFlags.contains(flag)) {
+      return true;
+    }
+
     if (!supportSdkMetadata) {
       return false;
     }

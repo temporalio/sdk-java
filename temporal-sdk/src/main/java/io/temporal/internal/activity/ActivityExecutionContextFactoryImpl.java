@@ -4,9 +4,15 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
+import javax.annotation.Nullable;
 
 public class ActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
   private final WorkflowClient client;
@@ -17,6 +23,9 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final DataConverter dataConverter;
   private final ScheduledExecutorService heartbeatExecutor;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
+  private final @Nullable ExternalStorageRunner externalStorage;
+  private final ConcurrentMap<ByteBuffer, ActivityExecutionContextImpl> activeContexts =
+      new ConcurrentHashMap<>();
 
   public ActivityExecutionContextFactoryImpl(
       WorkflowClient client,
@@ -25,7 +34,8 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       DataConverter dataConverter,
-      ScheduledExecutorService heartbeatExecutor) {
+      ScheduledExecutorService heartbeatExecutor,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.client = Objects.requireNonNull(client);
     this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);
@@ -34,26 +44,49 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
         Objects.requireNonNull(defaultHeartbeatThrottleInterval);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.heartbeatExecutor = Objects.requireNonNull(heartbeatExecutor);
+    this.externalStorage = externalStorage;
     this.manualCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            client.getWorkflowServiceStubs(), namespace, identity, dataConverter);
+            client.getWorkflowServiceStubs(), namespace, identity, dataConverter, externalStorage);
   }
 
   @Override
   public InternalActivityExecutionContext createContext(
       ActivityInfoInternal info, Object activity, Scope metricsScope) {
-    return new ActivityExecutionContextImpl(
-        client,
-        namespace,
-        activity,
-        info,
-        dataConverter,
-        heartbeatExecutor,
-        manualCompletionClientFactory,
-        info.getCompletionHandle(),
-        metricsScope,
-        identity,
-        maxHeartbeatThrottleInterval,
-        defaultHeartbeatThrottleInterval);
+    ByteBuffer taskToken = taskTokenKey(info.getTaskToken());
+    ActivityExecutionContextImpl context =
+        new ActivityExecutionContextImpl(
+            client,
+            namespace,
+            activity,
+            info,
+            dataConverter,
+            heartbeatExecutor,
+            manualCompletionClientFactory,
+            info.getCompletionHandle(),
+            metricsScope,
+            identity,
+            maxHeartbeatThrottleInterval,
+            defaultHeartbeatThrottleInterval,
+            () -> cleanupContext(info.getTaskToken(), false),
+            externalStorage);
+    activeContexts.put(taskToken, context);
+    return context;
+  }
+
+  @Override
+  public boolean cleanupContext(byte[] taskToken, boolean cancel) {
+    ActivityExecutionContextImpl context = activeContexts.remove(taskTokenKey(taskToken));
+    if (context == null) {
+      return false;
+    }
+    if (cancel) {
+      context.cancelFromWorkerCommand();
+    }
+    return true;
+  }
+
+  private static ByteBuffer taskTokenKey(byte[] taskToken) {
+    return ByteBuffer.wrap(Arrays.copyOf(taskToken, taskToken.length)).asReadOnlyBuffer();
   }
 }

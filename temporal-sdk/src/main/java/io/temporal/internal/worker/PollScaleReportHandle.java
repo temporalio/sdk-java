@@ -18,6 +18,7 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
   private final int maxPollerCount;
   private int targetPollerCount;
   private final Functions.Proc1<Integer> scaleCallback;
+  private final boolean serverSupportsAutoscaling;
   private boolean everSawScalingDecision;
   private int ingestedThisPeriod;
   private int ingestedLastPeriod;
@@ -27,18 +28,20 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
       int minPollerCount,
       int maxPollerCount,
       int initialPollerCount,
+      boolean serverSupportsAutoscaling,
       Functions.Proc1<Integer> scaleCallback) {
     this.minPollerCount = minPollerCount;
     this.maxPollerCount = maxPollerCount;
     this.targetPollerCount = initialPollerCount;
+    this.serverSupportsAutoscaling = serverSupportsAutoscaling;
     this.scaleCallback = scaleCallback;
   }
 
   public synchronized void report(T task, Throwable e) {
     if (e != null) {
       // We want to avoid scaling down on errors if we have never seen a scaling decision
-      // since we might never scale up again.
-      if (!everSawScalingDecision) {
+      // and the server doesn't support autoscaling - otherwise we might never scale up again.
+      if (!everSawScalingDecision && !serverSupportsAutoscaling) {
         return;
       }
       if ((e instanceof StatusRuntimeException)) {
@@ -68,9 +71,10 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
         updateTarget((t -> t + deltaSuggestion));
       }
 
-    } else if (task == null && everSawScalingDecision) {
+    } else if (task == null && (everSawScalingDecision || serverSupportsAutoscaling)) {
       // We want to avoid scaling down on empty polls if the server has never made any
-      // scaling decisions - otherwise we might never scale up again.
+      // scaling decisions and doesn't support autoscaling - otherwise we might never scale
+      // up again.
       updateTarget((t) -> t - 1);
     }
   }

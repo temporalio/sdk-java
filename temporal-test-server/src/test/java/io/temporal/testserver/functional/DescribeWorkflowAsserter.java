@@ -189,11 +189,20 @@ final class DescribeWorkflowAsserter {
     return this;
   }
 
+  /**
+   * Assert that every expected request-id info is present and matches. Extra entries on the actual
+   * map are tolerated: a real server records request IDs that the in-memory test server does not
+   * (for example, the request ID of a signal RPC), so callers assert only the entries they control.
+   */
   public DescribeWorkflowAsserter assertRequestIdInfos(Map<String, RequestIdInfo> expected) {
-    Assert.assertEquals(
-        "request id infos should match",
-        expected,
-        actual.getWorkflowExtendedInfo().getRequestIdInfosMap());
+    Map<String, RequestIdInfo> actualInfos =
+        actual.getWorkflowExtendedInfo().getRequestIdInfosMap();
+    expected.forEach(
+        (requestId, info) ->
+            Assert.assertEquals(
+                "request id info for " + requestId + " should match",
+                info,
+                actualInfos.get(requestId)));
     return this;
   }
 }

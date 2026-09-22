@@ -3,6 +3,7 @@ package io.temporal.internal.worker;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.worker.tuning.PollerBehavior;
+import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
@@ -26,6 +27,27 @@ public final class PollerOptions {
     return DEFAULT_INSTANCE;
   }
 
+  /**
+   * If the given options are eligible for poller-autoscaling auto-enrollment (the user left this
+   * poller type at its default) and the namespace advertises the auto-enroll capability, returns a
+   * copy of the options with a default {@link PollerBehaviorAutoscaling} behavior. Otherwise
+   * returns the options unchanged.
+   *
+   * <p>Must only be called before the worker's poller is created (i.e. at worker start), so the
+   * resolved behavior is picked up when the poller is built.
+   */
+  public static PollerOptions maybeEnrollInPollerAutoscaling(
+      PollerOptions options, NamespaceCapabilities namespaceCapabilities) {
+    if (options.isAutoscalingAutoEnrollEligible()
+        && namespaceCapabilities.isPollerAutoscalingAutoEnroll()
+        && !(options.getPollerBehavior() instanceof PollerBehaviorAutoscaling)) {
+      return PollerOptions.newBuilder(options)
+          .setPollerBehavior(new PollerBehaviorAutoscaling())
+          .build();
+    }
+    return options;
+  }
+
   private static final PollerOptions DEFAULT_INSTANCE;
 
   static {
@@ -46,6 +68,7 @@ public final class PollerOptions {
     private Thread.UncaughtExceptionHandler uncaughtExceptionHandler;
     private boolean usingVirtualThreads;
     private ExecutorService pollerTaskExecutorOverride;
+    private boolean autoscalingAutoEnrollEligible;
 
     private Builder() {}
 
@@ -65,6 +88,7 @@ public final class PollerOptions {
       this.uncaughtExceptionHandler = options.getUncaughtExceptionHandler();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
       this.pollerTaskExecutorOverride = options.getPollerTaskExecutorOverride();
+      this.autoscalingAutoEnrollEligible = options.isAutoscalingAutoEnrollEligible();
     }
 
     /** Defines interval for measuring poll rate. Larger the interval more spiky can be the load. */
@@ -152,6 +176,16 @@ public final class PollerOptions {
       return this;
     }
 
+    /**
+     * Marks whether this poller type was left at its default (the user set neither a fixed poller
+     * count nor a poller behavior) and is therefore eligible for poller-autoscaling auto-enrollment
+     * when the namespace advertises the capability.
+     */
+    public Builder setAutoscalingAutoEnrollEligible(boolean autoscalingAutoEnrollEligible) {
+      this.autoscalingAutoEnrollEligible = autoscalingAutoEnrollEligible;
+      return this;
+    }
+
     public PollerOptions build() {
       if (uncaughtExceptionHandler == null) {
         uncaughtExceptionHandler =
@@ -180,7 +214,8 @@ public final class PollerOptions {
           uncaughtExceptionHandler,
           pollThreadNamePrefix,
           usingVirtualThreads,
-          pollerTaskExecutorOverride);
+          pollerTaskExecutorOverride,
+          autoscalingAutoEnrollEligible);
     }
   }
 
@@ -198,6 +233,7 @@ public final class PollerOptions {
   private final boolean usingVirtualThreads;
   private final ExecutorService pollerTaskExecutorOverride;
   private final PollerBehavior pollerBehavior;
+  private final boolean autoscalingAutoEnrollEligible;
 
   private PollerOptions(
       int maximumPollRateIntervalMilliseconds,
@@ -211,7 +247,8 @@ public final class PollerOptions {
       Thread.UncaughtExceptionHandler uncaughtExceptionHandler,
       String pollThreadNamePrefix,
       boolean usingVirtualThreads,
-      ExecutorService pollerTaskExecutorOverride) {
+      ExecutorService pollerTaskExecutorOverride,
+      boolean autoscalingAutoEnrollEligible) {
     this.maximumPollRateIntervalMilliseconds = maximumPollRateIntervalMilliseconds;
     this.maximumPollRatePerSecond = maximumPollRatePerSecond;
     this.backoffCoefficient = backoffCoefficient;
@@ -224,6 +261,7 @@ public final class PollerOptions {
     this.pollThreadNamePrefix = pollThreadNamePrefix;
     this.usingVirtualThreads = usingVirtualThreads;
     this.pollerTaskExecutorOverride = pollerTaskExecutorOverride;
+    this.autoscalingAutoEnrollEligible = autoscalingAutoEnrollEligible;
   }
 
   public int getMaximumPollRateIntervalMilliseconds() {
@@ -272,6 +310,10 @@ public final class PollerOptions {
 
   public ExecutorService getPollerTaskExecutorOverride() {
     return pollerTaskExecutorOverride;
+  }
+
+  public boolean isAutoscalingAutoEnrollEligible() {
+    return autoscalingAutoEnrollEligible;
   }
 
   @Override

@@ -151,4 +151,30 @@ public class ServiceStubsOptionsTest {
         "TLS should be disabled when no API key and no explicit TLS setting",
         options3.getEnableHttps());
   }
+
+  @Test
+  public void testGrpcCompressionDefaultsToGzip() {
+    ServiceStubsOptions options =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .validateAndBuildWithDefaults();
+
+    assertEquals(GrpcCompression.GZIP, options.getGrpcCompression());
+  }
+
+  @Test
+  public void testGrpcCompressionNonePassesThroughBuilderCopy() {
+    ServiceStubsOptions options =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .setGrpcCompression(GrpcCompression.NONE)
+            .validateAndBuildWithDefaults();
+
+    assertEquals(GrpcCompression.NONE, options.getGrpcCompression());
+
+    ServiceStubsOptions copied =
+        WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
+
+    assertEquals(GrpcCompression.NONE, copied.getGrpcCompression());
+  }
 }

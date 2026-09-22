@@ -1,6 +1,7 @@
 package io.temporal.spring.boot.autoconfigure;
 
 import io.temporal.spring.boot.autoconfigure.properties.WorkerProperties;
+import io.temporal.spring.boot.autoconfigure.properties.WorkersAutoDiscoveryProperties;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionMessage;
 import org.springframework.boot.autoconfigure.condition.ConditionOutcome;
@@ -15,11 +16,10 @@ class WorkersPresentCondition extends SpringBootCondition {
   private static final Bindable<List<WorkerProperties>> WORKER_PROPERTIES_LIST =
       Bindable.listOf(WorkerProperties.class);
 
-  private static final Bindable<List<String>> AUTO_DISCOVERY_PACKAGES_LIST =
-      Bindable.listOf(String.class);
+  private static final Bindable<WorkersAutoDiscoveryProperties> AUTO_DISCOVERY_BINDABLE =
+      Bindable.of(WorkersAutoDiscoveryProperties.class);
   private static final String WORKERS_KEY = "spring.temporal.workers";
-  private static final String AUTO_DISCOVERY_KEY =
-      "spring.temporal.workers-auto-discovery.packages";
+  private static final String AUTO_DISCOVERY_KEY = "spring.temporal.workers-auto-discovery";
 
   public WorkersPresentCondition() {}
 
@@ -34,8 +34,8 @@ class WorkersPresentCondition extends SpringBootCondition {
     }
 
     BindResult<?> autoDiscoveryProperty =
-        Binder.get(context.getEnvironment()).bind(AUTO_DISCOVERY_KEY, AUTO_DISCOVERY_PACKAGES_LIST);
-    messageBuilder = ConditionMessage.forCondition("Auto Discovery Packages Set");
+        Binder.get(context.getEnvironment()).bind(AUTO_DISCOVERY_KEY, AUTO_DISCOVERY_BINDABLE);
+    messageBuilder = ConditionMessage.forCondition("Workers Auto Discovery Set");
     if (autoDiscoveryProperty.isBound()) {
       return ConditionOutcome.match(messageBuilder.found("property").items(AUTO_DISCOVERY_KEY));
     }

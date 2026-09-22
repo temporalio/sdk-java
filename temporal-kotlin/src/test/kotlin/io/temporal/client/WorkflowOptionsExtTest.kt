@@ -39,6 +39,27 @@ class WorkflowOptionsExtTest {
   }
 
   @Test
+  fun `setRetryOptions DSL extension should work on WorkflowOptions builder directly`() {
+    val builder = WorkflowOptions.newBuilder().setTaskQueue("TestQueue")
+    builder.setRetryOptions {
+      setInitialInterval(Duration.ofMillis(50))
+      setMaximumAttempts(5)
+    }
+
+    val expected = WorkflowOptions.newBuilder()
+      .setTaskQueue("TestQueue")
+      .setRetryOptions(
+        RetryOptions.newBuilder()
+          .setInitialInterval(Duration.ofMillis(50))
+          .setMaximumAttempts(5)
+          .build()
+      )
+      .build()
+
+    assertEquals(expected, builder.build())
+  }
+
+  @Test
   fun `WorkflowOptions copy() DSL should merge override options`() {
     val sourceOptions = WorkflowOptions {
       setWorkflowId("ID1")

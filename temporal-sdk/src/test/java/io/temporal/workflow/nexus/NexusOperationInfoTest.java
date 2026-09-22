@@ -5,6 +5,8 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.NexusOperationInfo;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -12,7 +14,10 @@ import io.temporal.workflow.shared.TestWorkflows;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusOperationInfoTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -25,8 +30,9 @@ public class NexusOperationInfoTest {
   public void testOperationHeaders() {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+    String expectedEndpoint = testWorkflowRule.getNexusEndpoint().getSpec().getName();
     Assert.assertEquals(
-        "UnitTest:" + testWorkflowRule.getTaskQueue(),
+        "UnitTest:" + testWorkflowRule.getTaskQueue() + ":" + expectedEndpoint,
         workflowStub.execute(testWorkflowRule.getTaskQueue()));
   }
 
@@ -47,7 +53,7 @@ public class NexusOperationInfoTest {
       return OperationHandler.sync(
           (context, details, input) -> {
             NexusOperationInfo info = Nexus.getOperationContext().getInfo();
-            return info.getNamespace() + ":" + info.getTaskQueue();
+            return info.getNamespace() + ":" + info.getTaskQueue() + ":" + info.getEndpoint();
           });
     }
   }

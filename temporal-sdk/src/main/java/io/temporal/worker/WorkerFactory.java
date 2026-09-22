@@ -4,7 +4,10 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.worker.v1.EnvironmentInfo;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
+import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
@@ -12,7 +15,11 @@ import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.PluginUtils;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
+import io.temporal.internal.worker.HeartbeatManager;
+import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.internal.worker.SuspendableWorker;
+import io.temporal.internal.worker.WorkerCommandTaskHandler;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
@@ -31,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -55,6 +63,11 @@ public final class WorkerFactory {
 
   /** Plugins propagated from the client and applied to this factory. */
   private final List<WorkerPlugin> plugins;
+
+  /** Namespace capabilities populated during start() from DescribeNamespace response. */
+  private final NamespaceCapabilities namespaceCapabilities = new NamespaceCapabilities();
+
+  private SuspendableWorker workerCommandWorker;
 
   private State state = State.Initial;
 
@@ -192,7 +205,9 @@ public final class WorkerFactory {
               true,
               workflowThreadExecutor,
               workflowClient.getOptions().getContextPropagators(),
-              plugins);
+              plugins,
+              ((WorkflowClientInternal) workflowClient.getInternal()).getWorkerGroupingKey(),
+              namespaceCapabilities);
       workers.put(taskQueue, worker);
 
       // Go through the plugins to call plugin initializeWorker hooks (e.g. register workflows,
@@ -251,13 +266,17 @@ public final class WorkerFactory {
 
     // Workers check and require that Temporal Server is available during start to fail-fast in case
     // of configuration issues.
-    workflowClient
-        .getWorkflowServiceStubs()
-        .blockingStub()
-        .describeNamespace(
-            DescribeNamespaceRequest.newBuilder()
-                .setNamespace(workflowClient.getOptions().getNamespace())
-                .build());
+    DescribeNamespaceResponse describeNamespaceResponse =
+        workflowClient
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .describeNamespace(
+                DescribeNamespaceRequest.newBuilder()
+                    .setNamespace(workflowClient.getOptions().getNamespace())
+                    .build());
+    namespaceCapabilities.setFromCapabilities(
+        describeNamespaceResponse.getNamespaceInfo().getCapabilities());
+    namespaceCapabilities.setFromLimits(describeNamespaceResponse.getNamespaceInfo().getLimits());
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;
@@ -273,6 +292,24 @@ public final class WorkerFactory {
 
   /** Internal method that actually starts the workers. Called from the plugin chain. */
   private void doStart() {
+    // Start the internal nexus worker if enabled
+    WorkflowClientInternal clientInternal = (WorkflowClientInternal) workflowClient.getInternal();
+    String namespace = workflowClient.getOptions().getNamespace();
+    String workerGroupingKey = clientInternal.getWorkerGroupingKey();
+    HeartbeatManager hbManager = clientInternal.getHeartbeatManager();
+    if (namespaceCapabilities.isWorkerCommands()) {
+      workerCommandWorker =
+          WorkerCommandTaskHandler.newWorkerCommandWorker(
+              workflowClient.getWorkflowServiceStubs(),
+              namespace,
+              workflowClient.getOptions().getIdentity(),
+              workerGroupingKey,
+              this::requestCancelActivity,
+              metricsScope,
+              namespaceCapabilities);
+      workerCommandWorker.start();
+    }
+
     // Start each worker with plugin hooks
     for (Map.Entry<String, Worker> entry : workers.entrySet()) {
       String taskQueue = entry.getKey();
@@ -290,8 +327,32 @@ public final class WorkerFactory {
       startChain.accept(taskQueue, worker);
     }
 
+    // Register heartbeat callbacks after workers are started.
+    if (hbManager != null && namespaceCapabilities.isWorkerHeartbeats()) {
+      EnvironmentInfo environmentInfo = clientInternal.getWorkerEnvironmentInfo();
+      for (Worker worker : workers.values()) {
+        Supplier<WorkerHeartbeat> heartbeatSupplier =
+            worker.buildHeartbeatCallback(workerGroupingKey, environmentInfo);
+        hbManager.registerWorker(
+            namespace,
+            worker.getWorkerInstanceKey(),
+            heartbeatSupplier,
+            worker::onHeartbeatAccepted);
+        worker.setHeartbeatSupplier(heartbeatSupplier);
+      }
+    }
+
     state = State.Started;
     ((WorkflowClientInternal) workflowClient.getInternal()).registerWorkerFactory(this);
+  }
+
+  private synchronized boolean requestCancelActivity(byte[] taskToken) {
+    for (Worker worker : workers.values()) {
+      if (worker.requestCancelActivity(taskToken)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Was {@link #start()} called. */
@@ -310,6 +371,9 @@ public final class WorkerFactory {
    */
   public synchronized boolean isTerminated() {
     if (state != State.Shutdown) {
+      return false;
+    }
+    if (workerCommandWorker != null && !workerCommandWorker.isTerminated()) {
       return false;
     }
     for (Worker worker : workers.values()) {
@@ -332,13 +396,15 @@ public final class WorkerFactory {
    * activity tasks are executed. <br>
    * After the shutdown, calls to {@link
    * io.temporal.activity.ActivityExecutionContext#heartbeat(Object)} start throwing {@link
-   * io.temporal.client.ActivityWorkerShutdownException}.<br>
+   * io.temporal.client.ActivityWorkerShutdownException}, unless {@link
+   * WorkerOptions.Builder#setAllowActivityHeartbeatDuringShutdown(boolean)} is enabled, in which
+   * case heartbeats keep working until the activity tasks finish executing.<br>
    * This method does not wait for the shutdown to complete. Use {@link #awaitTermination(long,
    * TimeUnit)} to do that.<br>
    * Invocation has no additional effect if already shut down.
    */
   public synchronized void shutdown() {
-    log.info("shutdown: {}", this);
+    log.debug("shutdown: {}", this);
     shutdownInternal(false);
   }
 
@@ -376,8 +442,8 @@ public final class WorkerFactory {
 
   /** Internal method that actually shuts down workers. Called from the plugin chain. */
   private void doShutdown(boolean interruptUserTasks) {
-    ((WorkflowClientInternal) workflowClient.getInternal()).deregisterWorkerFactory(this);
-    ShutdownManager shutdownManager = new ShutdownManager();
+    ShutdownManager shutdownManager =
+        new ShutdownManager((int) factoryOptions.getShutdownCheckInterval().toMillis());
 
     // Shutdown each worker with plugin hooks
     List<CompletableFuture<Void>> shutdownFutures = new ArrayList<>();
@@ -404,10 +470,27 @@ public final class WorkerFactory {
         shutdownFutures.add(futureHolder[0]);
       }
     }
+    if (workerCommandWorker != null) {
+      // TODO: Should be able to pass `interruptUserTasks` here when
+      // https://github.com/temporalio/api/pull/784 is in
+      shutdownFutures.add(workerCommandWorker.shutdown(shutdownManager, true));
+    }
 
     CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
         .thenApply(
             r -> {
+              // Unregister workers from heartbeat manager only after full shutdown,
+              // so heartbeats continue reporting SHUTTING_DOWN until the worker is fully stopped.
+              if (namespaceCapabilities.isWorkerHeartbeats()) {
+                HeartbeatManager hbManager =
+                    ((WorkflowClientInternal) workflowClient.getInternal()).getHeartbeatManager();
+                if (hbManager != null) {
+                  String namespace = workflowClient.getOptions().getNamespace();
+                  for (Worker worker : workers.values()) {
+                    hbManager.unregisterWorker(namespace, worker.getWorkerInstanceKey());
+                  }
+                }
+              }
               cache.invalidateAll();
               workflowThreadPool.shutdownNow();
               return null;
@@ -417,6 +500,8 @@ public final class WorkerFactory {
               if (e != null) {
                 log.error("[BUG] Unexpected exception during shutdown", e);
               }
+              ((WorkflowClientInternal) workflowClient.getInternal())
+                  .deregisterWorkerFactory(WorkerFactory.this);
               shutdownManager.close();
             });
   }
@@ -426,7 +511,7 @@ public final class WorkerFactory {
    * occurs.
    */
   public void awaitTermination(long timeout, TimeUnit unit) {
-    log.info("awaitTermination begin: {}", this);
+    log.debug("awaitTermination begin: {}", this);
     long timeoutMillis = unit.toMillis(timeout);
     for (Worker worker : workers.values()) {
       long t = timeoutMillis; // closure needs immutable value
@@ -434,7 +519,12 @@ public final class WorkerFactory {
           ShutdownManager.runAndGetRemainingTimeoutMs(
               t, () -> worker.awaitTermination(t, TimeUnit.MILLISECONDS));
     }
-    log.info("awaitTermination done: {}", this);
+    if (workerCommandWorker != null) {
+      long t = timeoutMillis;
+      ShutdownManager.runAndGetRemainingTimeoutMs(
+          t, () -> workerCommandWorker.awaitTermination(t, TimeUnit.MILLISECONDS));
+    }
+    log.debug("awaitTermination done: {}", this);
   }
 
   // TODO we should hide an actual implementation of WorkerFactory under WorkerFactory interface and
@@ -454,6 +544,9 @@ public final class WorkerFactory {
     for (Worker worker : workers.values()) {
       worker.suspendPolling();
     }
+    if (workerCommandWorker != null) {
+      workerCommandWorker.suspendPolling();
+    }
   }
 
   public synchronized void resumePolling() {
@@ -465,6 +558,9 @@ public final class WorkerFactory {
     state = State.Started;
     for (Worker worker : workers.values()) {
       worker.resumePolling();
+    }
+    if (workerCommandWorker != null) {
+      workerCommandWorker.resumePolling();
     }
   }
 

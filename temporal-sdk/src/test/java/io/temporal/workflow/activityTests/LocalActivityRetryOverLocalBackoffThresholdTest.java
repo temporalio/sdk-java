@@ -6,11 +6,13 @@ import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.Workflow;
@@ -25,6 +27,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.*;
 
 public class LocalActivityRetryOverLocalBackoffThresholdTest {
+
+  private static final int TIMEOUT_ATTEMPTS = 3;
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -96,6 +100,35 @@ public class LocalActivityRetryOverLocalBackoffThresholdTest {
     controlledActivity.verifyAttempts();
   }
 
+  @Test
+  public void repeatedTimeoutsDoNotBuildAnUnboundedFailureChain() {
+    Worker worker = testWorkflowRule.getWorker();
+    ControlledActivityImpl activity =
+        new ControlledActivityImpl(
+            Collections.singletonList(ControlledActivityImpl.Outcome.SLEEP), TIMEOUT_ATTEMPTS, 1);
+    worker.registerActivitiesImplementations(activity);
+    worker.registerWorkflowImplementationTypes(TimingOutWorkflowImpl.class);
+    testWorkflowRule.getTestEnvironment().start();
+
+    TestWorkflows.TestWorkflow1 workflowStub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
+
+    WorkflowException e =
+        assertThrows(
+            WorkflowException.class, () -> workflowStub.execute(testWorkflowRule.getTaskQueue()));
+    assertTrue(e.getCause() instanceof ActivityFailure);
+    ActivityFailure activityFailure = (ActivityFailure) e.getCause();
+    assertEquals(RetryState.RETRY_STATE_MAXIMUM_ATTEMPTS_REACHED, activityFailure.getRetryState());
+    assertTrue(activityFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure timeoutFailure = (TimeoutFailure) activityFailure.getCause();
+    assertEquals(TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, timeoutFailure.getTimeoutType());
+    assertTrue(timeoutFailure.getCause() instanceof TimeoutFailure);
+    TimeoutFailure previousTimeoutFailure = (TimeoutFailure) timeoutFailure.getCause();
+    assertEquals(TimeoutType.TIMEOUT_TYPE_START_TO_CLOSE, previousTimeoutFailure.getTimeoutType());
+    assertNull(previousTimeoutFailure.getCause());
+    activity.verifyAttempts();
+  }
+
   public static class TestWorkflowImpl implements TestWorkflows.TestWorkflow1 {
 
     @Override
@@ -142,6 +175,27 @@ public class LocalActivityRetryOverLocalBackoffThresholdTest {
       activities.execute(taskQueue);
 
       return "ignored";
+    }
+  }
+
+  public static class TimingOutWorkflowImpl implements TestWorkflows.TestWorkflow1 {
+
+    @Override
+    public String execute(String taskQueue) {
+      LocalActivityOptions options =
+          LocalActivityOptions.newBuilder()
+              .setStartToCloseTimeout(Duration.ofMillis(10))
+              .setLocalRetryThreshold(Duration.ofMillis(1))
+              .setRetryOptions(
+                  RetryOptions.newBuilder()
+                      .setInitialInterval(Duration.ofMillis(2))
+                      .setBackoffCoefficient(1)
+                      .setMaximumAttempts(TIMEOUT_ATTEMPTS)
+                      .build())
+              .build();
+      TestActivities.NoArgsReturnsStringActivity activity =
+          Workflow.newLocalActivityStub(TestActivities.NoArgsReturnsStringActivity.class, options);
+      return activity.execute();
     }
   }
 }

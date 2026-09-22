@@ -14,6 +14,7 @@ import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.client.ActivityClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -110,6 +111,7 @@ public class TestWorkflowExtensionTest {
   public void extensionShouldLaunchTestEnvironmentAndResolveParameters(
       TestWorkflowEnvironment testEnv,
       WorkflowClient workflowClient,
+      ActivityClient activityClient,
       WorkflowOptions workflowOptions,
       Worker worker,
       HelloWorkflow workflow) {
@@ -117,6 +119,7 @@ public class TestWorkflowExtensionTest {
     assertAll(
         () -> assertTrue(testEnv.isStarted()),
         () -> assertNotNull(workflowClient),
+        () -> assertNotNull(activityClient),
         () -> assertNotNull(workflowOptions.getTaskQueue()),
         () -> assertNotNull(worker),
         () ->

@@ -159,6 +159,11 @@ final class ChannelManager {
       }
     }
 
+    if (options.getGrpcCompression() != GrpcCompression.NONE) {
+      channel =
+          ClientInterceptors.intercept(
+              channel, new GrpcCompressionInterceptor(options.getGrpcCompression()));
+    }
     return ClientInterceptors.intercept(
         channel,
         MetadataUtils.newAttachHeadersInterceptor(headers),

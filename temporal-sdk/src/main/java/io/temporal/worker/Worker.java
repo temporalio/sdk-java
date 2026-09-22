@@ -5,6 +5,16 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.api.deployment.v1.WorkerDeploymentVersion;
+import io.temporal.api.enums.v1.TaskQueueType;
+import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.EnvironmentInfo;
+import io.temporal.api.worker.v1.PluginInfo;
+import io.temporal.api.worker.v1.WorkerHeartbeat;
+import io.temporal.api.worker.v1.WorkerHostInfo;
+import io.temporal.api.worker.v1.WorkerPollerInfo;
+import io.temporal.api.worker.v1.WorkerSlotsInfo;
+import io.temporal.api.workflowservice.v1.ShutdownWorkerRequest;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.Experimental;
@@ -13,22 +23,34 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
+import io.temporal.internal.worker.TaskCounter;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.serviceclient.Version;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
 import io.temporal.workflow.WorkflowMethod;
+import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -42,11 +64,35 @@ public final class Worker {
   private static final Logger log = LoggerFactory.getLogger(Worker.class);
   private final WorkerOptions options;
   private final String taskQueue;
+  private final String workerInstanceKey = UUID.randomUUID().toString();
   private final List<WorkerPlugin> plugins;
+  private final WorkflowServiceStubs service;
+  private final String namespace;
+  private final String identity;
+  private final String stickyTaskQueueName;
   final SyncWorkflowWorker workflowWorker;
   final SyncActivityWorker activityWorker;
   final SyncNexusWorker nexusWorker;
   private final AtomicBoolean started = new AtomicBoolean();
+  private volatile boolean shuttingDown = false;
+  private volatile Instant startTime;
+  private final WorkflowClientOptions clientOptions;
+  private final @Nonnull WorkflowExecutorCache cache;
+  private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
+  private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
+  // Reported in every heartbeat (including the one embedded in ShutdownWorkerRequest) until the
+  // server accepts one, then cleared so it is sent only once per worker.
+  private final AtomicReference<EnvironmentInfo> pendingEnvironmentInfo = new AtomicReference<>();
+
+  private static final class TaskSnapshot {
+    final int processed;
+    final int failed;
+
+    TaskSnapshot(int processed, int failed) {
+      this.processed = processed;
+      this.failed = failed;
+    }
+  }
 
   /**
    * Creates worker that connects to an instance of the Temporal Service.
@@ -69,23 +115,51 @@ public final class Worker {
       boolean useStickyTaskQueue,
       WorkflowThreadExecutor workflowThreadExecutor,
       List<ContextPropagator> contextPropagators,
-      @Nonnull List<WorkerPlugin> plugins) {
+      @Nonnull List<WorkerPlugin> plugins,
+      @Nonnull String workerGroupingKey,
+      @Nonnull NamespaceCapabilities namespaceCapabilities) {
 
     Objects.requireNonNull(client, "client should not be null");
+    Objects.requireNonNull(namespaceCapabilities, "namespaceCapabilities should not be null");
     this.plugins = Objects.requireNonNull(plugins, "plugins should not be null");
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(taskQueue), "taskQueue should not be an empty string");
     this.taskQueue = taskQueue;
+    this.service = client.getWorkflowServiceStubs();
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
+    this.clientOptions = client.getOptions();
+    this.cache = cache;
+    ExternalStorageRunner externalStorageRunner =
+        ((WorkflowClientInternal) client.getInternal()).getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
+    this.namespace = namespace;
+    String workerControlTaskQueue =
+        WorkerCommandTaskHandler.workerControlTaskQueue(namespace, workerGroupingKey);
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
     Scope taggedScope = metricsScope.tagged(tags);
+
+    // Poller types the user left at their default are auto-enrolled into poller autoscaling at
+    // start() when the namespace advertises the PollerAutoscalingAutoEnroll capability. Eligibility
+    // tracks whether the user called a poller setter (recorded on WorkerOptions.Builder), not the
+    // resolved value, so a defaulted count of 5 is not mistaken for an explicit choice.
+    boolean workflowTaskAutoEnrollEligible = this.options.isWorkflowTaskPollerAutoEnrollEligible();
+    boolean activityTaskAutoEnrollEligible = this.options.isActivityTaskPollerAutoEnrollEligible();
+    boolean nexusTaskAutoEnrollEligible = this.options.isNexusTaskPollerAutoEnrollEligible();
+
     SingleWorkerOptions activityOptions =
         toActivityOptions(
-            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+            factoryOptions,
+            this.options,
+            clientOptions,
+            contextPropagators,
+            taggedScope,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner,
+            activityTaskAutoEnrollEligible);
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
     } else {
@@ -102,7 +176,8 @@ public final class Worker {
               taskQueue,
               this.options.getMaxTaskQueueActivitiesPerSecond(),
               activityOptions,
-              activitySlotSupplier);
+              activitySlotSupplier,
+              namespaceCapabilities);
     }
 
     EagerActivityDispatcher eagerActivityDispatcher =
@@ -112,7 +187,15 @@ public final class Worker {
 
     SingleWorkerOptions nexusOptions =
         toNexusOptions(
-            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+            factoryOptions,
+            this.options,
+            clientOptions,
+            contextPropagators,
+            taggedScope,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner,
+            nexusTaskAutoEnrollEligible);
     SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
         this.options.getWorkerTuner() == null
             ? new FixedSizeSlotSupplier<>(this.options.getMaxConcurrentNexusExecutionSize())
@@ -120,7 +203,8 @@ public final class Worker {
     attachMetricsToResourceController(taggedScope, nexusSlotSupplier);
 
     nexusWorker =
-        new SyncNexusWorker(client, namespace, taskQueue, nexusOptions, nexusSlotSupplier);
+        new SyncNexusWorker(
+            client, namespace, taskQueue, nexusOptions, nexusSlotSupplier, namespaceCapabilities);
 
     SingleWorkerOptions singleWorkerOptions =
         toWorkflowWorkerOptions(
@@ -129,10 +213,21 @@ public final class Worker {
             clientOptions,
             taskQueue,
             contextPropagators,
-            taggedScope);
+            taggedScope,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner,
+            workflowTaskAutoEnrollEligible);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
-            factoryOptions, this.options, clientOptions, contextPropagators, taggedScope);
+            factoryOptions,
+            this.options,
+            clientOptions,
+            contextPropagators,
+            taggedScope,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner);
 
     SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -145,6 +240,10 @@ public final class Worker {
             : this.options.getWorkerTuner().getLocalActivitySlotSupplier();
     attachMetricsToResourceController(taggedScope, localActivitySlotSupplier);
 
+    this.identity = singleWorkerOptions.getIdentity();
+    this.stickyTaskQueueName =
+        useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null;
+
     workflowWorker =
         new SyncWorkflowWorker(
             client,
@@ -154,11 +253,13 @@ public final class Worker {
             localActivityOptions,
             runLocks,
             cache,
-            useStickyTaskQueue ? getStickyTaskQueueName(client.getOptions().getIdentity()) : null,
+            stickyTaskQueueName,
             workflowThreadExecutor,
             eagerActivityDispatcher,
+            this.options.getMaxEagerActivityReservationsPerWorkflowTask(),
             workflowSlotSupplier,
-            localActivitySlotSupplier);
+            localActivitySlotSupplier,
+            namespaceCapabilities);
   }
 
   /**
@@ -245,8 +346,6 @@ public final class Worker {
    * <p>This method is misaligned with other workflow implementation registration methods in this
    * aspect.
    *
-   * <p></font>
-   *
    * @deprecated Use {@link #registerWorkflowImplementationFactory(Class, Func,
    *     WorkflowImplementationOptions)} with {@code
    *     WorkflowImplementationOptions.newBuilder().setFailWorkflowExceptionTypes(Throwable.class).build()}
@@ -294,8 +393,6 @@ public final class Worker {
    * Activity that returns configuration to the workflow. Dependency Injection into Activity
    * instances is allowed. This way, the configuration is persisted into the history and maintained
    * same during replay.
-   *
-   * <p></font>
    *
    * @param workflowInterface Workflow interface that this factory implements
    * @param factory should create a new instance of the workflow implementation object every time
@@ -408,6 +505,7 @@ public final class Worker {
     if (!started.compareAndSet(false, true)) {
       return;
     }
+    startTime = Instant.now();
     workflowWorker.start();
     nexusWorker.start();
     if (activityWorker != null) {
@@ -416,18 +514,49 @@ public final class Worker {
   }
 
   CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptUserTasks) {
-    CompletableFuture<Void> workflowWorkerShutdownFuture =
-        workflowWorker.shutdown(shutdownManager, interruptUserTasks);
-    CompletableFuture<Void> nexusWorkerShutdownFuture =
-        nexusWorker.shutdown(shutdownManager, interruptUserTasks);
-    if (activityWorker != null) {
-      return CompletableFuture.allOf(
-          activityWorker.shutdown(shutdownManager, interruptUserTasks),
-          workflowWorkerShutdownFuture,
-          nexusWorkerShutdownFuture);
-    } else {
-      return CompletableFuture.allOf(workflowWorkerShutdownFuture, nexusWorkerShutdownFuture);
+    shuttingDown = true;
+    ShutdownWorkerRequest.Builder requestBuilder =
+        ShutdownWorkerRequest.newBuilder()
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setWorkerInstanceKey(workerInstanceKey)
+            .setTaskQueue(taskQueue)
+            .setReason("graceful shutdown")
+            .addAllTaskQueueTypes(getActiveTaskQueueTypes());
+    if (stickyTaskQueueName != null) {
+      requestBuilder.setStickyTaskQueue(stickyTaskQueueName);
     }
+    if (heartbeatSupplier != null) {
+      requestBuilder.setWorkerHeartbeat(
+          heartbeatSupplier.get().toBuilder()
+              .setStatus(WorkerStatus.WORKER_STATUS_SHUTTING_DOWN)
+              .build());
+    }
+    CompletableFuture<Void> shutdownWorkerRpc =
+        shutdownManager.waitOnWorkerShutdownRequest(
+            service.futureStub().shutdownWorker(requestBuilder.build()));
+
+    // When interrupting tasks (shutdownNow), fire the RPC but don't block on it — proceed to
+    // shut down pollers immediately. For graceful shutdown, wait for the RPC so the server can
+    // complete outstanding polls with empty responses before we start waiting on them.
+    CompletableFuture<Void> preShutdown =
+        interruptUserTasks ? CompletableFuture.completedFuture(null) : shutdownWorkerRpc;
+
+    return preShutdown.thenCompose(
+        ignore -> {
+          CompletableFuture<Void> workflowWorkerShutdownFuture =
+              workflowWorker.shutdown(shutdownManager, interruptUserTasks);
+          CompletableFuture<Void> nexusWorkerShutdownFuture =
+              nexusWorker.shutdown(shutdownManager, interruptUserTasks);
+          if (activityWorker != null) {
+            return CompletableFuture.allOf(
+                activityWorker.shutdown(shutdownManager, interruptUserTasks),
+                workflowWorkerShutdownFuture,
+                nexusWorkerShutdownFuture);
+          } else {
+            return CompletableFuture.allOf(workflowWorkerShutdownFuture, nexusWorkerShutdownFuture);
+          }
+        });
   }
 
   boolean isTerminated() {
@@ -446,6 +575,220 @@ public final class Worker {
     }
     timeoutMillis = ShutdownManager.awaitTermination(nexusWorker, timeoutMillis);
     ShutdownManager.awaitTermination(workflowWorker, timeoutMillis);
+  }
+
+  String getWorkerInstanceKey() {
+    return workerInstanceKey;
+  }
+
+  void setHeartbeatSupplier(Supplier<WorkerHeartbeat> supplier) {
+    this.heartbeatSupplier = supplier;
+  }
+
+  List<TaskQueueType> getActiveTaskQueueTypes() {
+    List<TaskQueueType> types = new ArrayList<>();
+    if (workflowWorker.isAnyTypeSupported()) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_WORKFLOW);
+    }
+    if (activityWorker != null && activityWorker.isAnyTypeSupported()) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_ACTIVITY);
+    }
+    if (nexusWorker.isAnyTypeSupported()) {
+      types.add(TaskQueueType.TASK_QUEUE_TYPE_NEXUS);
+    }
+    return types;
+  }
+
+  /** Called by the heartbeat manager once a heartbeat produced by this worker was accepted. */
+  void onHeartbeatAccepted() {
+    pendingEnvironmentInfo.set(null);
+  }
+
+  Supplier<WorkerHeartbeat> buildHeartbeatCallback(
+      String workerGroupingKey, @Nullable EnvironmentInfo environmentInfo) {
+    pendingEnvironmentInfo.set(environmentInfo);
+    // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
+    final Object callbackLock = new Object();
+    final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
+    return () -> {
+      synchronized (callbackLock) {
+        Instant now = Instant.now();
+        WorkerHeartbeat.Builder hb =
+            WorkerHeartbeat.newBuilder()
+                .setWorkerInstanceKey(workerInstanceKey)
+                .setWorkerIdentity(
+                    options.getIdentity() != null
+                        ? options.getIdentity()
+                        : clientOptions.getIdentity())
+                .setTaskQueue(taskQueue)
+                .setSdkName(Version.SDK_NAME)
+                .setSdkVersion(Version.LIBRARY_VERSION)
+                .setStatus(
+                    shuttingDown
+                        ? WorkerStatus.WORKER_STATUS_SHUTTING_DOWN
+                        : WorkerStatus.WORKER_STATUS_RUNNING)
+                .setStartTime(toProtoTimestamp(startTime))
+                .setHeartbeatTime(toProtoTimestamp(now));
+
+        Instant previousHeartbeat = lastHeartbeatTime.get();
+        if (previousHeartbeat != null) {
+          Duration elapsed = Duration.between(previousHeartbeat, now);
+          hb.setElapsedSinceLastHeartbeat(
+              com.google.protobuf.Duration.newBuilder()
+                  .setSeconds(elapsed.getSeconds())
+                  .setNanos(elapsed.getNano())
+                  .build());
+        }
+        lastHeartbeatTime.set(now);
+
+        EnvironmentInfo pendingEnvironment = pendingEnvironmentInfo.get();
+        if (pendingEnvironment != null) {
+          hb.setEnvironment(pendingEnvironment);
+        }
+
+        // Deployment version
+        if (options.getDeploymentOptions() != null
+            && options.getDeploymentOptions().getVersion() != null) {
+          hb.setDeploymentVersion(
+              WorkerDeploymentVersion.newBuilder()
+                  .setDeploymentName(
+                      options.getDeploymentOptions().getVersion().getDeploymentName())
+                  .setBuildId(options.getDeploymentOptions().getVersion().getBuildId())
+                  .build());
+        }
+
+        hb.setHostInfo(buildHostInfo(workerGroupingKey));
+
+        // Slot info with task counters
+        hb.setWorkflowTaskSlotsInfo(
+            buildSlotsInfo(
+                "workflow",
+                workflowWorker.getWorkflowSlotSupplier(),
+                workflowWorker.getWorkflowTaskCounter()));
+
+        if (activityWorker != null) {
+          hb.setActivityTaskSlotsInfo(
+              buildSlotsInfo(
+                  "activity", activityWorker.getSlotSupplier(), activityWorker.getTaskCounter()));
+        }
+
+        hb.setLocalActivitySlotsInfo(
+            buildSlotsInfo(
+                "local-activity",
+                workflowWorker.getLocalActivitySlotSupplier(),
+                workflowWorker.getLocalActivityTaskCounter()));
+
+        hb.setNexusTaskSlotsInfo(
+            buildSlotsInfo("nexus", nexusWorker.getSlotSupplier(), nexusWorker.getTaskCounter()));
+
+        // Poller info
+        hb.setWorkflowPollerInfo(
+            buildPollerInfo(
+                workflowWorker.getWorkflowPollerOptions(),
+                workflowWorker.getWorkflowPollerTracker()));
+        if (workflowWorker.getStickyTaskQueueName() != null) {
+          hb.setWorkflowStickyPollerInfo(
+              buildPollerInfo(
+                  workflowWorker.getWorkflowPollerOptions(),
+                  workflowWorker.getStickyPollerTracker()));
+        }
+        if (activityWorker != null) {
+          hb.setActivityPollerInfo(
+              buildPollerInfo(
+                  activityWorker.getPollerOptions(), activityWorker.getPollerTracker()));
+        }
+        hb.setNexusPollerInfo(
+            buildPollerInfo(nexusWorker.getPollerOptions(), nexusWorker.getPollerTracker()));
+
+        // Sticky cache stats
+        hb.setTotalStickyCacheHit(cache.getCacheHits());
+        hb.setTotalStickyCacheMiss(cache.getCacheMisses());
+        hb.setCurrentStickyCacheSize(cache.getCurrentCacheSize());
+
+        // Plugins
+        for (WorkerPlugin plugin : plugins) {
+          hb.addPlugins(PluginInfo.newBuilder().setName(plugin.getName()).build());
+        }
+
+        return hb.build();
+      }
+    };
+  }
+
+  boolean requestCancelActivity(byte[] taskToken) {
+    return activityWorker != null && activityWorker.requestCancelActivity(taskToken);
+  }
+
+  private WorkerSlotsInfo buildSlotsInfo(
+      String key, TrackingSlotSupplier<?> tracker, TaskCounter taskCounter) {
+    int maxSlots = tracker.maximumSlots().orElse(-1);
+    int usedSlots = tracker.getUsedSlotCount();
+    int currentProcessed = taskCounter.getTotalProcessed();
+    int currentFailed = taskCounter.getTotalFailed();
+    TaskSnapshot previous =
+        previousHeartbeatSnapshots.put(key, new TaskSnapshot(currentProcessed, currentFailed));
+    int intervalProcessed = previous != null ? currentProcessed - previous.processed : 0;
+    int intervalFailed = previous != null ? currentFailed - previous.failed : 0;
+    return WorkerSlotsInfo.newBuilder()
+        .setCurrentAvailableSlots(maxSlots >= 0 ? Math.max(0, maxSlots - usedSlots) : -1)
+        .setCurrentUsedSlots(usedSlots)
+        .setSlotSupplierKind(tracker.getSupplierKind())
+        .setTotalProcessedTasks(currentProcessed)
+        .setTotalFailedTasks(currentFailed)
+        .setLastIntervalProcessedTasks(intervalProcessed)
+        .setLastIntervalFailureTasks(intervalFailed)
+        .build();
+  }
+
+  private static WorkerPollerInfo buildPollerInfo(
+      PollerOptions pollerOptions, PollerTracker tracker) {
+    WorkerPollerInfo.Builder builder = WorkerPollerInfo.newBuilder();
+    PollerBehavior behavior = pollerOptions.getPollerBehavior();
+    if (behavior instanceof PollerBehaviorAutoscaling) {
+      builder.setIsAutoscaling(true);
+    }
+    builder.setCurrentPollers(tracker.getInFlightPolls());
+    Instant lastPoll = tracker.getLastSuccessfulPollTime();
+    if (lastPoll != null) {
+      builder.setLastSuccessfulPollTime(toProtoTimestamp(lastPoll));
+    }
+    return builder.build();
+  }
+
+  private static final JVMSystemResourceInfo systemResourceInfo = new JVMSystemResourceInfo();
+
+  private static final String CACHED_HOSTNAME;
+  private static final String CACHED_PID;
+
+  static {
+    String h;
+    try {
+      h = InetAddress.getLocalHost().getHostName();
+    } catch (Exception e) {
+      h = "unknown";
+    }
+    CACHED_HOSTNAME = h;
+
+    String name = ManagementFactory.getRuntimeMXBean().getName();
+    int atIndex = name.indexOf('@');
+    CACHED_PID = atIndex > 0 ? name.substring(0, atIndex) : "unknown";
+  }
+
+  private static WorkerHostInfo buildHostInfo(String workerGroupingKey) {
+    return WorkerHostInfo.newBuilder()
+        .setHostName(CACHED_HOSTNAME)
+        .setWorkerGroupingKey(workerGroupingKey)
+        .setProcessId(CACHED_PID)
+        .setCurrentHostCpuUsage((float) systemResourceInfo.getCPUUsagePercent())
+        .setCurrentHostMemUsage((float) systemResourceInfo.getMemoryUsagePercent())
+        .build();
+  }
+
+  private static com.google.protobuf.Timestamp toProtoTimestamp(Instant instant) {
+    return com.google.protobuf.Timestamp.newBuilder()
+        .setSeconds(instant.getEpochSecond())
+        .setNanos(instant.getNano())
+        .build();
   }
 
   @Override
@@ -593,9 +936,21 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+      Scope metricsScope,
+      String workerInstanceKey,
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
+      boolean autoEnrollEligible) {
+    return toSingleWorkerOptions(
+            factoryOptions,
+            options,
+            clientOptions,
+            contextPropagators,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
+        .setAllowActivityHeartbeatDuringShutdown(options.getAllowActivityHeartbeatDuringShutdown())
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setMaximumPollRatePerSecond(options.getMaxWorkerActivitiesPerSecond())
@@ -605,6 +960,7 @@ public final class Worker {
                         : new PollerBehaviorSimpleMaximum(
                             options.getMaxConcurrentActivityTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
+                .setAutoscalingAutoEnrollEligible(autoEnrollEligible)
                 .build())
         .setMetricsScope(metricsScope)
         .build();
@@ -615,8 +971,19 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+      Scope metricsScope,
+      String workerInstanceKey,
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
+      boolean autoEnrollEligible) {
+    return toSingleWorkerOptions(
+            factoryOptions,
+            options,
+            clientOptions,
+            contextPropagators,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -625,6 +992,7 @@ public final class Worker {
                         : new PollerBehaviorSimpleMaximum(
                             options.getMaxConcurrentNexusTaskPollers()))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
+                .setAutoscalingAutoEnrollEligible(autoEnrollEligible)
                 .build())
         .setMetricsScope(metricsScope)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnNexusWorker())
@@ -637,7 +1005,11 @@ public final class Worker {
       WorkflowClientOptions clientOptions,
       String taskQueue,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
+      Scope metricsScope,
+      String workerInstanceKey,
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
+      boolean autoEnrollEligible) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
 
@@ -666,7 +1038,14 @@ public final class Worker {
       }
     }
 
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+    return toSingleWorkerOptions(
+            factoryOptions,
+            options,
+            clientOptions,
+            contextPropagators,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -674,6 +1053,7 @@ public final class Worker {
                         ? pollerBehavior
                         : new PollerBehaviorSimpleMaximum(maxConcurrentWorkflowTaskPollers))
                 .setUsingVirtualThreads(options.isUsingVirtualThreadsOnWorkflowWorker())
+                .setAutoscalingAutoEnrollEligible(autoEnrollEligible)
                 .build())
         .setStickyQueueScheduleToStartTimeout(stickyQueueScheduleToStartTimeout)
         .setStickyTaskQueueDrainTimeout(options.getStickyTaskQueueDrainTimeout())
@@ -688,8 +1068,18 @@ public final class Worker {
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
-      Scope metricsScope) {
-    return toSingleWorkerOptions(factoryOptions, options, clientOptions, contextPropagators)
+      Scope metricsScope,
+      String workerInstanceKey,
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner) {
+    return toSingleWorkerOptions(
+            factoryOptions,
+            options,
+            clientOptions,
+            contextPropagators,
+            workerInstanceKey,
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -706,7 +1096,10 @@ public final class Worker {
       WorkerFactoryOptions factoryOptions,
       WorkerOptions options,
       WorkflowClientOptions clientOptions,
-      List<ContextPropagator> contextPropagators) {
+      List<ContextPropagator> contextPropagators,
+      String workerInstanceKey,
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner) {
     String buildId = null;
     if (options.getBuildId() != null) {
       buildId = options.getBuildId();
@@ -721,6 +1114,7 @@ public final class Worker {
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
+        .setExternalStorageRunner(externalStorageRunner)
         .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())
@@ -729,7 +1123,10 @@ public final class Worker {
         .setWorkerInterceptors(factoryOptions.getWorkerInterceptors())
         .setMaxHeartbeatThrottleInterval(options.getMaxHeartbeatThrottleInterval())
         .setDefaultHeartbeatThrottleInterval(options.getDefaultHeartbeatThrottleInterval())
-        .setDeploymentOptions(options.getDeploymentOptions());
+        .setDeploymentOptions(options.getDeploymentOptions())
+        .setWorkerInstanceKey(workerInstanceKey)
+        .setWorkerControlTaskQueue(workerControlTaskQueue)
+        .setPreferredVersionProvider(options.getPreferredVersionProvider());
   }
 
   /**

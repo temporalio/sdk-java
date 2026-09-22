@@ -1,0 +1,14 @@
+# Bugfixes
+
+- Added fallback to uncompressed transport when server doesn't support transport compression.
+- Fixed Non-Determinism exception when GetSystemInfo RPC call fails in certain scenarios.
+- Fixed metrics tags for Standalone Activity Start client call.
+- Standalone Nexus Operations now populate Links for UI navigation.
+
+# What's Changed
+
+2026-06-24 - 3da1f1db - Message and concurrent payload visitors (#2902)
+2026-06-30 - 6e238614 - Fix deadlock detection error message to reflect user-configured timeout (#2934)
+2026-07-01 - 777c3ec3 - Fix metric tags for Start Standalone Activity (#2930)
+2026-07-01 - 93b84f26 - Add Standalone Nexus Operation links (#2932)
+2026-07-01 - fcfbb364 - Respect SDK flags already present in history regardless of server capability detection. (#2936)

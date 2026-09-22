@@ -4,28 +4,41 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import java.util.Objects;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @Experimental
 public class ActivitySerializationContext implements HasWorkflowSerializationContext {
   private final @Nonnull String namespace;
-  private final @Nonnull String workflowId;
-  private final @Nonnull String workflowType;
-  private final @Nonnull String activityType;
-  private final @Nonnull String activityTaskQueue;
+  private final @Nullable String workflowId;
+  private final @Nullable String workflowType;
+  private final @Nullable String activityType;
+  private final @Nullable String activityTaskQueue;
   private final boolean local;
 
+  /**
+   * @param namespace the activity's namespace; must not be {@code null}
+   * @param workflowId the workflow ID that scheduled the activity, or {@code null} for standalone
+   *     activities
+   * @param workflowType the workflow type that scheduled the activity, or {@code null} for
+   *     standalone activities
+   * @param activityType the activity type name, or {@code null} if unknown. Activity type is
+   *     unknown when getting a Standalone Activity result.
+   * @param activityTaskQueue the task queue for this activity, or {@code null} if unknown. Task
+   *     queue is unknown when getting a Standalone Activity result.
+   * @param local {@code true} if this is a local activity
+   */
   public ActivitySerializationContext(
       @Nonnull String namespace,
-      @Nonnull String workflowId,
-      @Nonnull String workflowType,
-      @Nonnull String activityType,
-      @Nonnull String activityTaskQueue,
+      @Nullable String workflowId,
+      @Nullable String workflowType,
+      @Nullable String activityType,
+      @Nullable String activityTaskQueue,
       boolean local) {
     this.namespace = Objects.requireNonNull(namespace);
-    this.workflowId = Objects.requireNonNull(workflowId);
-    this.workflowType = Objects.requireNonNull(workflowType);
-    this.activityType = Objects.requireNonNull(activityType);
-    this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
+    this.workflowId = workflowId;
+    this.workflowType = workflowType;
+    this.activityType = activityType;
+    this.activityTaskQueue = activityTaskQueue;
     this.local = local;
   }
 
@@ -46,22 +59,22 @@ public class ActivitySerializationContext implements HasWorkflowSerializationCon
   }
 
   @Override
-  @Nonnull
+  @Nullable
   public String getWorkflowId() {
     return workflowId;
   }
 
-  @Nonnull
+  @Nullable
   public String getWorkflowType() {
     return workflowType;
   }
 
-  @Nonnull
+  @Nullable
   public String getActivityType() {
     return activityType;
   }
 
-  @Nonnull
+  @Nullable
   public String getActivityTaskQueue() {
     return activityTaskQueue;
   }

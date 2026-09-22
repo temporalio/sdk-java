@@ -9,6 +9,7 @@ import io.temporal.worker.tuning.SlotSupplierFuture;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,9 +28,14 @@ abstract class BasePoller<T> implements SuspendableWorker {
 
   protected ExecutorService pollExecutor;
 
-  protected BasePoller(ShutdownableTaskExecutor<T> taskExecutor) {
+  protected final NamespaceCapabilities namespaceCapabilities;
+
+  protected BasePoller(
+      ShutdownableTaskExecutor<T> taskExecutor, NamespaceCapabilities namespaceCapabilities) {
     Objects.requireNonNull(taskExecutor, "taskExecutor should not be null");
     this.taskExecutor = taskExecutor;
+    this.namespaceCapabilities =
+        Objects.requireNonNull(namespaceCapabilities, "namespaceCapabilities should not be null");
   }
 
   @Override
@@ -47,7 +53,7 @@ abstract class BasePoller<T> implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    log.info("shutdown: {}", this);
+    log.debug("shutdown: {}", this);
     WorkerLifecycleState lifecycleState = getLifecycleState();
     switch (lifecycleState) {
       case NOT_STARTED:
@@ -55,15 +61,24 @@ abstract class BasePoller<T> implements SuspendableWorker {
         return CompletableFuture.completedFuture(null);
     }
 
-    return shutdownManager
-        // it's ok to forcefully shutdown pollers, because they are stuck in a long poll call
-        // so we don't risk loosing any progress doing that.
-        .shutdownExecutorNow(pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1))
-        .exceptionally(
-            e -> {
-              log.error("Unexpected exception during shutdown", e);
-              return null;
-            });
+    CompletableFuture<Void> pollExecutorShutdown;
+    if (namespaceCapabilities.isGracefulPollShutdown() && !interruptTasks) {
+      // When graceful poll shutdown is enabled, the server will complete outstanding polls with
+      // empty responses after ShutdownWorker is called. We simply wait for polls to return.
+      pollExecutorShutdown =
+          shutdownManager.shutdownExecutor(
+              pollExecutor, this + "#pollExecutor", Duration.ofSeconds(80));
+    } else {
+      // ShutdownNow and old servers forcibly stop outstanding polls.
+      pollExecutorShutdown =
+          shutdownManager.shutdownExecutorNow(
+              pollExecutor, this + "#pollExecutor", Duration.ofSeconds(1));
+    }
+    return pollExecutorShutdown.exceptionally(
+        e -> {
+          log.error("Unexpected exception during shutdown", e);
+          return null;
+        });
   }
 
   @Override
@@ -162,6 +177,8 @@ abstract class BasePoller<T> implements SuspendableWorker {
     ex instanceof RejectedExecutionException
         // if the worker thread gets InterruptedException - it's normal during shutdown
         || ex instanceof InterruptedException
+        || ex instanceof CancellationException
+        || ex.getCause() instanceof CancellationException
         // if we get wrapped InterruptedException like what PollTask or GRPC clients do with
         // setting Thread.interrupted() on - it's normal during shutdown too. See PollTask
         // javadoc.

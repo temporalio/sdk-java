@@ -32,7 +32,7 @@ public class TestServiceStubsImpl implements TestServiceStubs {
     this.channelManager =
         new ChannelManager(options, Collections.singletonList(deadlineInterceptor));
 
-    log.info("Created TestServiceStubs for channel: {}", channelManager.getRawChannel());
+    log.debug("Created TestServiceStubs for channel: {}", channelManager.getRawChannel());
 
     this.blockingStub = TestServiceGrpc.newBlockingStub(channelManager.getInterceptedChannel());
     this.futureStub = TestServiceGrpc.newFutureStub(channelManager.getInterceptedChannel());

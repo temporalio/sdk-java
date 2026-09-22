@@ -22,16 +22,17 @@ class ChildWorkflowInvocationHandler implements InvocationHandler {
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
 
   ChildWorkflowInvocationHandler(
-      Class<?> workflowInterface,
+      POJOWorkflowInterfaceMetadata workflowMetadata,
       ChildWorkflowOptions options,
       WorkflowOutboundCallsInterceptor outboundCallsInterceptor,
       Functions.Proc1<String> assertReadOnly) {
-    workflowMetadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    this.workflowMetadata = workflowMetadata;
     Optional<POJOWorkflowMethodMetadata> workflowMethodMetadata =
         workflowMetadata.getWorkflowMethod();
     if (!workflowMethodMetadata.isPresent()) {
       throw new IllegalArgumentException(
-          "Missing method annotated with @WorkflowMethod: " + workflowInterface.getName());
+          "Missing method annotated with @WorkflowMethod: "
+              + workflowMetadata.getInterfaceClass().getName());
     }
     Method workflowMethod = workflowMethodMetadata.get().getWorkflowMethod();
     MethodRetry retryAnnotation = workflowMethod.getAnnotation(MethodRetry.class);

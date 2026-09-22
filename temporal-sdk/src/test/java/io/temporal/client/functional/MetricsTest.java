@@ -1,8 +1,8 @@
 package io.temporal.client.functional;
 
 import static io.temporal.testUtils.Eventually.assertEventually;
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static junit.framework.TestCase.*;
+import static org.junit.Assume.assumeTrue;
 
 import com.uber.m3.tally.RootScopeBuilder;
 import io.micrometer.core.instrument.*;
@@ -12,9 +12,7 @@ import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
-import io.temporal.client.WorkflowFailedException;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.client.WorkflowStub;
+import io.temporal.client.*;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
@@ -45,27 +43,36 @@ public class MetricsTest {
   public final SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(QuicklyCompletingWorkflowImpl.class, MultiScenarioWorkflowImpl.class)
-          .setActivityImplementations(runCallbackActivity)
+          .setActivityImplementations(runCallbackActivity, new StandaloneMetricsActivityImpl())
           .setMetricsScope(
               new RootScopeBuilder()
                   .reporter(new MicrometerClientStatsReporter(registry))
                   .reportEvery(com.uber.m3.util.Duration.ofMillis(REPORTING_FLUSH_TIME >> 1)))
           .build();
 
-  private static final List<Tag> TAGS_NAMESPACE =
-      MetricsTag.defaultTags(NAMESPACE).entrySet().stream()
-          .map(
-              nameValueEntry ->
-                  new ImmutableTag(nameValueEntry.getKey(), nameValueEntry.getValue()))
-          .collect(Collectors.toList());
+  private final ActivityClient activityClient =
+      ActivityClient.newInstance(
+          testWorkflowRule.getWorkflowServiceStubs(),
+          ActivityClientOptions.newBuilder()
+              .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+              .build());
 
+  private List<Tag> tagsNamespace;
   private List<Tag> tagsNamespaceQueue;
 
   @Before
   public void setUp() {
     registry.clear();
+    tagsNamespace =
+        MetricsTag.defaultTags(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .entrySet()
+            .stream()
+            .map(
+                nameValueEntry ->
+                    new ImmutableTag(nameValueEntry.getKey(), nameValueEntry.getValue()))
+            .collect(Collectors.toList());
     tagsNamespaceQueue =
-        replaceTags(TAGS_NAMESPACE, MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue());
+        replaceTags(tagsNamespace, MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue());
   }
 
   @After
@@ -93,7 +100,7 @@ public class MetricsTest {
             MetricsTag.WORKFLOW_TYPE,
             "QuicklyCompletingWorkflow");
     List<Tag> longPollRequestTags =
-        replaceTag(TAGS_NAMESPACE, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
+        replaceTag(tagsNamespace, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
 
     assertEventually(
         Duration.ofSeconds(2),
@@ -126,7 +133,7 @@ public class MetricsTest {
             MetricsTag.WORKFLOW_TYPE,
             "QuicklyCompletingWorkflow");
     List<Tag> longPollRequestTags =
-        replaceTag(TAGS_NAMESPACE, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
+        replaceTag(tagsNamespace, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
 
     assertEventually(
         Duration.ofSeconds(2),
@@ -135,6 +142,35 @@ public class MetricsTest {
           assertIntCounter(
               1, registry.counter(MetricsType.TEMPORAL_LONG_REQUEST, longPollRequestTags));
         });
+  }
+
+  @Test
+  public void testStandaloneActivityStartRequestTags() {
+    // SAA is not supported by in-mem test server yet
+    assumeTrue(SDKTestWorkflowRule.useExternalService);
+
+    activityClient.execute(
+        StandaloneMetricsActivity.class,
+        StandaloneMetricsActivity::run,
+        StartActivityOptions.newBuilder()
+            .setId("metrics-standalone-act-" + UUID.randomUUID())
+            .setTaskQueue(testWorkflowRule.getTaskQueue())
+            .setScheduleToCloseTimeout(Duration.ofSeconds(10))
+            .build());
+
+    List<Tag> startActivityRequestTags =
+        replaceTags(
+            tagsNamespaceQueue,
+            MetricsTag.OPERATION_NAME,
+            "StartActivityExecution",
+            MetricsTag.ACTIVITY_TYPE,
+            "StandaloneMetricsActivity");
+
+    assertEventually(
+        Duration.ofSeconds(2),
+        () ->
+            assertIntCounter(
+                1, registry.counter(MetricsType.TEMPORAL_REQUEST, startActivityRequestTags)));
   }
 
   @Test
@@ -368,5 +404,16 @@ public class MetricsTest {
         toRun.run();
       }
     }
+  }
+
+  @ActivityInterface
+  public interface StandaloneMetricsActivity {
+    @ActivityMethod(name = "StandaloneMetricsActivity")
+    void run();
+  }
+
+  public static class StandaloneMetricsActivityImpl implements StandaloneMetricsActivity {
+    @Override
+    public void run() {}
   }
 }

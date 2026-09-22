@@ -3,13 +3,18 @@ package io.temporal.internal.worker;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkerVersionStamp;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CancellationException;
+import javax.annotation.Nullable;
 
 public final class SingleWorkerOptions {
 
@@ -40,6 +45,12 @@ public final class SingleWorkerOptions {
     private Duration drainStickyTaskQueueTimeout;
     private boolean usingVirtualThreads;
     private WorkerDeploymentOptions deploymentOptions;
+    private String workerInstanceKey;
+    private boolean allowActivityHeartbeatDuringShutdown;
+    private String workerControlTaskQueue;
+    private PreferredVersionProvider preferredVersionProvider;
+    private @Nullable ExternalStorageRunner externalStorageRunner;
+    private CancellationToken<CancellationException> storageCancellation = CancellationToken.none();
 
     private Builder() {}
 
@@ -64,6 +75,12 @@ public final class SingleWorkerOptions {
       this.drainStickyTaskQueueTimeout = options.getDrainStickyTaskQueueTimeout();
       this.usingVirtualThreads = options.isUsingVirtualThreads();
       this.deploymentOptions = options.getDeploymentOptions();
+      this.workerInstanceKey = options.getWorkerInstanceKey();
+      this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
+      this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
+      this.preferredVersionProvider = options.getPreferredVersionProvider();
+      this.externalStorageRunner = options.getExternalStorageRunner();
+      this.storageCancellation = options.getStorageCancellation();
     }
 
     public Builder setIdentity(String identity) {
@@ -155,6 +172,39 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setWorkerInstanceKey(String workerInstanceKey) {
+      this.workerInstanceKey = workerInstanceKey;
+      return this;
+    }
+
+    public Builder setAllowActivityHeartbeatDuringShutdown(
+        boolean allowActivityHeartbeatDuringShutdown) {
+      this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+      return this;
+    }
+
+    public Builder setWorkerControlTaskQueue(String workerControlTaskQueue) {
+      this.workerControlTaskQueue = workerControlTaskQueue;
+      return this;
+    }
+
+    public Builder setPreferredVersionProvider(PreferredVersionProvider preferredVersionProvider) {
+      this.preferredVersionProvider = preferredVersionProvider;
+      return this;
+    }
+
+    /** Cancelled when this worker stops, to abandon its in-flight external storage work. */
+    public Builder setStorageCancellation(
+        CancellationToken<CancellationException> storageCancellation) {
+      this.storageCancellation = storageCancellation;
+      return this;
+    }
+
+    public Builder setExternalStorageRunner(@Nullable ExternalStorageRunner externalStorageRunner) {
+      this.externalStorageRunner = externalStorageRunner;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -193,7 +243,13 @@ public final class SingleWorkerOptions {
           this.defaultHeartbeatThrottleInterval,
           drainStickyTaskQueueTimeout,
           usingVirtualThreads,
-          this.deploymentOptions);
+          this.deploymentOptions,
+          this.workerInstanceKey,
+          this.allowActivityHeartbeatDuringShutdown,
+          this.workerControlTaskQueue,
+          this.preferredVersionProvider,
+          this.externalStorageRunner,
+          this.storageCancellation);
     }
   }
 
@@ -214,6 +270,12 @@ public final class SingleWorkerOptions {
   private final Duration drainStickyTaskQueueTimeout;
   private final boolean usingVirtualThreads;
   private final WorkerDeploymentOptions deploymentOptions;
+  private final String workerInstanceKey;
+  private final boolean allowActivityHeartbeatDuringShutdown;
+  private final String workerControlTaskQueue;
+  private final PreferredVersionProvider preferredVersionProvider;
+  private final @Nullable ExternalStorageRunner externalStorageRunner;
+  private final CancellationToken<CancellationException> storageCancellation;
 
   private SingleWorkerOptions(
       String identity,
@@ -232,7 +294,13 @@ public final class SingleWorkerOptions {
       Duration defaultHeartbeatThrottleInterval,
       Duration drainStickyTaskQueueTimeout,
       boolean usingVirtualThreads,
-      WorkerDeploymentOptions deploymentOptions) {
+      WorkerDeploymentOptions deploymentOptions,
+      String workerInstanceKey,
+      boolean allowActivityHeartbeatDuringShutdown,
+      String workerControlTaskQueue,
+      PreferredVersionProvider preferredVersionProvider,
+      @Nullable ExternalStorageRunner externalStorageRunner,
+      CancellationToken<CancellationException> storageCancellation) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -250,6 +318,12 @@ public final class SingleWorkerOptions {
     this.drainStickyTaskQueueTimeout = drainStickyTaskQueueTimeout;
     this.usingVirtualThreads = usingVirtualThreads;
     this.deploymentOptions = deploymentOptions;
+    this.workerInstanceKey = workerInstanceKey;
+    this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.workerControlTaskQueue = workerControlTaskQueue;
+    this.preferredVersionProvider = preferredVersionProvider;
+    this.externalStorageRunner = externalStorageRunner;
+    this.storageCancellation = storageCancellation;
   }
 
   public String getIdentity() {
@@ -262,6 +336,9 @@ public final class SingleWorkerOptions {
   }
 
   public String getBuildId() {
+    if (deploymentOptions != null && deploymentOptions.getVersion() != null) {
+      return deploymentOptions.getVersion().getBuildId();
+    }
     if (buildId == null) {
       return binaryChecksum;
     }
@@ -278,6 +355,10 @@ public final class SingleWorkerOptions {
 
   public Duration getDrainStickyTaskQueueTimeout() {
     return drainStickyTaskQueueTimeout;
+  }
+
+  public boolean getAllowActivityHeartbeatDuringShutdown() {
+    return allowActivityHeartbeatDuringShutdown;
   }
 
   public DataConverter getDataConverter() {
@@ -329,6 +410,27 @@ public final class SingleWorkerOptions {
 
   public WorkerDeploymentOptions getDeploymentOptions() {
     return deploymentOptions;
+  }
+
+  public String getWorkerInstanceKey() {
+    return workerInstanceKey;
+  }
+
+  public String getWorkerControlTaskQueue() {
+    return workerControlTaskQueue;
+  }
+
+  public PreferredVersionProvider getPreferredVersionProvider() {
+    return preferredVersionProvider;
+  }
+
+  @Nullable
+  public ExternalStorageRunner getExternalStorageRunner() {
+    return externalStorageRunner;
+  }
+
+  public CancellationToken<CancellationException> getStorageCancellation() {
+    return storageCancellation;
   }
 
   public WorkerVersioningOptions getWorkerVersioningOptions() {

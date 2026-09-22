@@ -10,7 +10,7 @@ public interface GenericWorkflowClient {
 
   StartWorkflowExecutionResponse start(StartWorkflowExecutionRequest request);
 
-  void signal(SignalWorkflowExecutionRequest request);
+  SignalWorkflowExecutionResponse signal(SignalWorkflowExecutionRequest request);
 
   SignalWithStartWorkflowExecutionResponse signalWithStart(
       SignalWithStartWorkflowExecutionRequest request);
@@ -61,6 +61,33 @@ public interface GenericWorkflowClient {
   DescribeWorkflowExecutionResponse describeWorkflowExecution(
       DescribeWorkflowExecutionRequest request);
 
+  StartNexusOperationExecutionResponse startNexusOperationExecution(
+      @Nonnull StartNexusOperationExecutionRequest request);
+
+  DescribeNexusOperationExecutionResponse describeNexusOperationExecution(
+      @Nonnull DescribeNexusOperationExecutionRequest request);
+
+  PollNexusOperationExecutionResponse pollNexusOperationExecution(
+      @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+
+  CompletableFuture<PollNexusOperationExecutionResponse> pollNexusOperationExecutionAsync(
+      @Nonnull PollNexusOperationExecutionRequest request, @Nonnull Deadline deadline);
+
+  CompletableFuture<ListNexusOperationExecutionsResponse> listNexusOperationExecutionsAsync(
+      @Nonnull ListNexusOperationExecutionsRequest request);
+
+  CountNexusOperationExecutionsResponse countNexusOperationExecutions(
+      @Nonnull CountNexusOperationExecutionsRequest request);
+
+  RequestCancelNexusOperationExecutionResponse requestCancelNexusOperationExecution(
+      @Nonnull RequestCancelNexusOperationExecutionRequest request);
+
+  TerminateNexusOperationExecutionResponse terminateNexusOperationExecution(
+      @Nonnull TerminateNexusOperationExecutionRequest request);
+
+  DeleteNexusOperationExecutionResponse deleteNexusOperationExecution(
+      @Nonnull DeleteNexusOperationExecutionRequest request);
+
   @Experimental
   @Deprecated
   UpdateWorkerBuildIdCompatibilityResponse updateWorkerBuildIdCompatability(
@@ -69,6 +96,41 @@ public interface GenericWorkflowClient {
   @Experimental
   ExecuteMultiOperationResponse executeMultiOperation(
       ExecuteMultiOperationRequest request, @Nonnull Deadline deadline);
+
+  // ---- Standalone Activity RPCs ----
+
+  StartActivityExecutionResponse startActivity(StartActivityExecutionRequest request);
+
+  PollActivityExecutionResponse pollActivity(PollActivityExecutionRequest request);
+
+  PollActivityExecutionResponse pollActivity(
+      PollActivityExecutionRequest request, @Nonnull Deadline deadline);
+
+  CompletableFuture<PollActivityExecutionResponse> pollActivityAsync(
+      PollActivityExecutionRequest request, @Nonnull Deadline deadline);
+
+  DescribeActivityExecutionResponse describeActivity(DescribeActivityExecutionRequest request);
+
+  void cancelActivity(RequestCancelActivityExecutionRequest request);
+
+  void terminateActivity(TerminateActivityExecutionRequest request);
+
+  @Experimental
+  void pauseActivity(PauseActivityExecutionRequest request);
+
+  @Experimental
+  void unpauseActivity(UnpauseActivityExecutionRequest request);
+
+  @Experimental
+  UpdateActivityExecutionOptionsResponse updateActivityOptions(
+      UpdateActivityExecutionOptionsRequest request);
+
+  ListActivityExecutionsResponse listActivities(ListActivityExecutionsRequest request);
+
+  CompletableFuture<ListActivityExecutionsResponse> listActivitiesAsync(
+      ListActivityExecutionsRequest request);
+
+  CountActivityExecutionsResponse countActivities(CountActivityExecutionsRequest request);
 
   @Experimental
   @Deprecated

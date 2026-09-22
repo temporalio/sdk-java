@@ -19,8 +19,11 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Async;
 import io.temporal.workflow.CompletablePromise;
@@ -45,32 +48,19 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(Parameterized.class)
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class StickyWorkerTest {
 
-  private static final boolean useDockerService =
-      Boolean.parseBoolean(System.getenv("USE_DOCKER_SERVICE"));
-  private static final String serviceAddress = System.getenv("TEMPORAL_SERVICE_ADDRESS");
-
-  @Parameterized.Parameter public boolean useExternalService;
-
-  @Parameterized.Parameters(name = "{1}")
-  public static Object[] data() {
-    if (!useDockerService) {
-      return new Object[][] {{false, "TestService"}};
-    } else {
-      return new Object[][] {{true, "Docker"}};
-    }
-  }
-
-  @Parameterized.Parameter(1)
-  public String testType;
+  private static final boolean useExternalService =
+      ExternalServiceTestConfigurator.isUseExternalService();
+  private static final String serviceAddress =
+      ExternalServiceTestConfigurator.getTemporalServiceAddress();
 
   @Rule public TestName testName = new TestName();
 

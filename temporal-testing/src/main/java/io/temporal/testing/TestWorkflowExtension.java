@@ -5,9 +5,12 @@ import static io.temporal.testing.internal.TestServiceUtils.applyNexusServiceOpt
 import com.uber.m3.tally.Scope;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -40,8 +43,8 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * Builder#useExternalService(String)}}).
  *
  * <p>This extension can inject workflow stubs as well as instances of {@link
- * TestWorkflowEnvironment}, {@link WorkflowClient}, {@link WorkflowOptions}, {@link Worker}, into
- * test methods.
+ * TestWorkflowEnvironment}, {@link WorkflowClient}, {@link ActivityClient}, {@link
+ * WorkflowOptions}, {@link Worker}, into test methods.
  *
  * <p>Usage example:
  *
@@ -65,6 +68,12 @@ import org.junit.platform.commons.support.AnnotationSupport;
 public class TestWorkflowExtension
     implements ParameterResolver, TestWatcher, BeforeEachCallback, AfterEachCallback {
 
+  private enum ServiceType {
+    IN_MEMORY,
+    EXTERNAL,
+    DEV_SERVER
+  }
+
   private static final String TEST_ENVIRONMENT_KEY = "testEnvironment";
   private static final String WORKER_KEY = "worker";
   private static final String WORKFLOW_OPTIONS_KEY = "workflowOptions";
@@ -72,11 +81,13 @@ public class TestWorkflowExtension
 
   private final WorkerOptions workerOptions;
   private final WorkflowClientOptions workflowClientOptions;
+  private final ActivityClientOptions activityClientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
   private final Map<Class<?>, WorkflowImplementationOptions> workflowTypes;
   private final Object[] activityImplementations;
   private final Object[] nexusServiceImplementations;
-  private final boolean useExternalService;
+  private final ServiceType serviceType;
+  private final TemporalDevServerOptions devServerOptions;
   private final String target;
   private final boolean doNotStart;
   private final boolean doNotSetupNexusEndpoint;
@@ -96,11 +107,13 @@ public class TestWorkflowExtension
       workflowClientOptions =
           WorkflowClientOptions.newBuilder().setNamespace(builder.namespace).build();
     }
+    activityClientOptions = builder.activityClientOptions;
     workerFactoryOptions = builder.workerFactoryOptions;
     workflowTypes = builder.workflowTypes;
     activityImplementations = builder.activityImplementations;
     nexusServiceImplementations = builder.nexusServiceImplementations;
-    useExternalService = builder.useExternalService;
+    serviceType = builder.serviceType;
+    devServerOptions = builder.devServerOptions;
     target = builder.target;
     doNotStart = builder.doNotStart;
     doNotSetupNexusEndpoint = builder.doNotSetupNexusEndpoint;
@@ -111,6 +124,7 @@ public class TestWorkflowExtension
 
     supportedParameterTypes.add(TestWorkflowEnvironment.class);
     supportedParameterTypes.add(WorkflowClient.class);
+    supportedParameterTypes.add(ActivityClient.class);
     supportedParameterTypes.add(WorkflowOptions.class);
     supportedParameterTypes.add(Worker.class);
 
@@ -172,6 +186,8 @@ public class TestWorkflowExtension
       return getTestEnvironment(extensionContext);
     } else if (parameterType == WorkflowClient.class) {
       return getTestEnvironment(extensionContext).getWorkflowClient();
+    } else if (parameterType == ActivityClient.class) {
+      return getTestEnvironment(extensionContext).getActivityClient();
     } else if (parameterType == WorkflowOptions.class) {
       return getWorkflowOptions(extensionContext);
     } else if (parameterType == Worker.class) {
@@ -191,42 +207,56 @@ public class TestWorkflowExtension
             .map(annotation -> Instant.parse(annotation.value()).toEpochMilli())
             .orElse(initialTimeMillis);
 
+    TestEnvironmentOptions testEnvironmentOptions = createTestEnvOptions(currentInitialTimeMillis);
     TestWorkflowEnvironment testEnvironment =
-        TestWorkflowEnvironment.newInstance(createTestEnvOptions(currentInitialTimeMillis));
+        serviceType == ServiceType.DEV_SERVER
+            ? TestWorkflowEnvironment.startLocal(testEnvironmentOptions, devServerOptions)
+            : TestWorkflowEnvironment.newInstance(testEnvironmentOptions);
 
-    String taskQueue =
-        String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
-    String nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
-    boolean createNexusEndpoint =
-        !doNotSetupNexusEndpoint && nexusServiceImplementations.length > 0;
-    Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
-    workflowTypes.forEach(
-        (wft, o) -> {
-          if (createNexusEndpoint) {
-            o = applyNexusServiceOptions(o, nexusServiceImplementations, nexusEndpointName);
-          }
-          worker.registerWorkflowImplementationTypes(o, wft);
-        });
-    worker.registerActivitiesImplementations(activityImplementations);
-    worker.registerNexusServiceImplementation(nexusServiceImplementations);
+    try {
+      String taskQueue =
+          String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
+      String nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
+      boolean createNexusEndpoint =
+          !doNotSetupNexusEndpoint && nexusServiceImplementations.length > 0;
+      Worker worker = testEnvironment.newWorker(taskQueue, workerOptions);
+      workflowTypes.forEach(
+          (wft, o) -> {
+            if (createNexusEndpoint) {
+              o = applyNexusServiceOptions(o, nexusServiceImplementations, nexusEndpointName);
+            }
+            worker.registerWorkflowImplementationTypes(o, wft);
+          });
+      worker.registerActivitiesImplementations(activityImplementations);
+      worker.registerNexusServiceImplementation(nexusServiceImplementations);
 
-    if (!doNotStart) {
-      testEnvironment.start();
+      if (!doNotStart) {
+        testEnvironment.start();
+      }
+      if (createNexusEndpoint) {
+        setNexusEndpoint(
+            context, testEnvironment.createNexusEndpoint(nexusEndpointName, taskQueue));
+      }
+
+      setTestEnvironment(context, testEnvironment);
+      setWorker(context, worker);
+      setWorkflowOptions(context, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
+    } catch (RuntimeException | Error failure) {
+      try {
+        testEnvironment.close();
+      } catch (RuntimeException | Error cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
     }
-    if (createNexusEndpoint) {
-      setNexusEndpoint(context, testEnvironment.createNexusEndpoint(nexusEndpointName, taskQueue));
-    }
-
-    setTestEnvironment(context, testEnvironment);
-    setWorker(context, worker);
-    setWorkflowOptions(context, WorkflowOptions.newBuilder().setTaskQueue(taskQueue).build());
   }
 
   protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
     return TestEnvironmentOptions.newBuilder()
         .setWorkflowClientOptions(workflowClientOptions)
+        .setActivityClientOptions(activityClientOptions)
         .setWorkerFactoryOptions(workerFactoryOptions)
-        .setUseExternalService(useExternalService)
+        .setUseExternalService(serviceType == ServiceType.EXTERNAL)
         .setUseTimeskipping(useTimeskipping)
         .setTarget(target)
         .setInitialTimeMillis(initialTimeMillis)
@@ -247,8 +277,10 @@ public class TestWorkflowExtension
 
   @Override
   public void testFailed(ExtensionContext context, Throwable cause) {
-    TestWorkflowEnvironment testEnvironment = getTestEnvironment(context);
-    System.err.println("Workflow execution histories:\n" + testEnvironment.getDiagnostics());
+    if (serviceType == ServiceType.IN_MEMORY) {
+      TestWorkflowEnvironment testEnvironment = getTestEnvironment(context);
+      System.err.println("Workflow execution histories:\n" + testEnvironment.getDiagnostics());
+    }
   }
 
   private TestWorkflowEnvironment getTestEnvironment(ExtensionContext context) {
@@ -297,12 +329,15 @@ public class TestWorkflowExtension
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
     private WorkflowClientOptions workflowClientOptions;
+    private ActivityClientOptions activityClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
     private String namespace = "UnitTest";
     private Map<Class<?>, WorkflowImplementationOptions> workflowTypes = new HashMap<>();
     private Object[] activityImplementations = NO_ACTIVITIES;
     private Object[] nexusServiceImplementations = NO_NEXUS_SERVICES;
-    private boolean useExternalService = false;
+    private ServiceType serviceType = ServiceType.IN_MEMORY;
+    private TemporalDevServerOptions devServerOptions =
+        TemporalDevServerOptions.getDefaultInstance();
     private String target = null;
     private boolean doNotStart = false;
     private boolean doNotSetupNexusEndpoint = false;
@@ -329,6 +364,12 @@ public class TestWorkflowExtension
      */
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
       this.workflowClientOptions = workflowClientOptions;
+      return this;
+    }
+
+    /** Override {@link ActivityClientOptions} for test environment. */
+    public Builder setActivityClientOptions(ActivityClientOptions activityClientOptions) {
+      this.activityClientOptions = activityClientOptions;
       return this;
     }
 
@@ -434,14 +475,46 @@ public class TestWorkflowExtension
      * @see WorkflowServiceStubsOptions.Builder#setTarget(String)
      */
     public Builder useExternalService(String target) {
-      this.useExternalService = true;
+      this.serviceType = ServiceType.EXTERNAL;
       this.target = target;
+      return this;
+    }
+
+    /**
+     * Uses an owned local Temporal dev server instead of the in-memory or external service.
+     *
+     * <p>The extension closes the server after each test. Dev-server tests do not support time
+     * skipping.
+     */
+    @Experimental
+    public Builder useDevServer() {
+      return useDevServer(TemporalDevServerOptions.getDefaultInstance());
+    }
+
+    /**
+     * Uses an owned local Temporal dev server with the supplied options.
+     *
+     * <pre>{@code
+     * TestWorkflowExtension.newBuilder()
+     *     .useDevServer(TemporalDevServerOptions.newBuilder().setUiEnabled(true).build())
+     *     .setWorkflowTypes(MyWorkflowImpl.class)
+     *     .build();
+     * }</pre>
+     */
+    @Experimental
+    public Builder useDevServer(@Nonnull TemporalDevServerOptions options) {
+      if (options == null) {
+        throw new NullPointerException("options");
+      }
+      this.serviceType = ServiceType.DEV_SERVER;
+      this.target = null;
+      this.devServerOptions = options;
       return this;
     }
 
     /** Switches to internal in-memory Temporal service implementation (default). */
     public Builder useInternalService() {
-      this.useExternalService = false;
+      this.serviceType = ServiceType.IN_MEMORY;
       this.target = null;
       return this;
     }

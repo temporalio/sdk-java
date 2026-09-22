@@ -4,10 +4,13 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
@@ -16,6 +19,7 @@ import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 
 /**
@@ -32,6 +36,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final Functions.Proc completionHandle;
   private final HeartbeatContext heartbeatContext;
+  private final Functions.Proc closeCallback;
 
   private final Scope metricsScope;
   private final ActivityInfo info;
@@ -51,12 +56,15 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       Scope metricsScope,
       String identity,
       Duration maxHeartbeatThrottleInterval,
-      Duration defaultHeartbeatThrottleInterval) {
+      Duration defaultHeartbeatThrottleInterval,
+      Functions.Proc closeCallback,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.client = client;
     this.activity = activity;
     this.metricsScope = metricsScope;
     this.info = info;
     this.completionHandle = completionHandle;
+    this.closeCallback = closeCallback;
     this.manualCompletionClientFactory = manualCompletionClientFactory;
     this.heartbeatContext =
         new HeartbeatContextImpl(
@@ -68,7 +76,8 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
             metricsScope,
             identity,
             maxHeartbeatThrottleInterval,
-            defaultHeartbeatThrottleInterval);
+            defaultHeartbeatThrottleInterval,
+            externalStorage);
   }
 
   /**
@@ -103,6 +112,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public byte[] getTaskToken() {
     return info.getTaskToken();
+  }
+
+  @Override
+  public CancellationToken<ActivityCanceledException> getCancellationToken() {
+    return heartbeatContext.getCancellationToken();
   }
 
   @Override
@@ -145,7 +159,10 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
           new ActivitySerializationContext(info);
       return new CompletionAwareManualCompletionClient(
           manualCompletionClientFactory.getClient(
-              info.getTaskToken(), metricsScope, activitySerializationContext),
+              info.getTaskToken(),
+              metricsScope,
+              activitySerializationContext,
+              HeartbeatContextImpl.storageTargetForActivity(info.getNamespace(), info)),
           completionHandle);
     } finally {
       lock.unlock();
@@ -170,6 +187,16 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public void cancelOutstandingHeartbeat() {
     heartbeatContext.cancelOutstandingHeartbeat();
+    closeCallback.apply();
+  }
+
+  @Override
+  public void asyncCompletionStarted() {
+    heartbeatContext.asyncCompletionStarted();
+  }
+
+  void cancelFromWorkerCommand() {
+    heartbeatContext.cancelFromWorkerCommand();
   }
 
   @Override

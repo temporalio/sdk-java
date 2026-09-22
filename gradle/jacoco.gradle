@@ -3,6 +3,12 @@
 apply plugin: 'jacoco-report-aggregation'
 apply plugin: 'com.github.nbaztec.coveralls-jacoco'
 
+def jacocoToolVersion = "0.8.15"
+
+jacoco {
+    toolVersion = jacocoToolVersion
+}
+
 dependencies {
     jacocoAggregation project(':temporal-kotlin')
     jacocoAggregation project(':temporal-opentracing')
@@ -39,7 +45,11 @@ testCodeCoverageReport {
     }
 
     getClassDirectories().setFrom(files(
-            jacocoSubprojects.collect {it.fileTree(dir: "${it.buildDir}/classes", exclude: jacocoExclusions)}
+            jacocoSubprojects.collect {
+                it.sourceSets.main.output.classesDirs.asFileTree.matching {
+                    exclude jacocoExclusions
+                }
+            }
     ))
 }
 
@@ -57,7 +67,7 @@ subprojects {
     apply plugin: 'jacoco'
 
     jacoco {
-        toolVersion = "0.8.9"
+        toolVersion = jacocoToolVersion
     }
 
     jacocoTestReport {

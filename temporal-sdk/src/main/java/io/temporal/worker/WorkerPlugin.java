@@ -30,7 +30,7 @@ import javax.annotation.Nonnull;
 /**
  * Plugin interface for customizing Temporal worker configuration and lifecycle.
  *
- * <p>Plugins that also implement {@link io.temporal.client.ClientPlugin} are automatically
+ * <p>Plugins that also implement {@link io.temporal.client.WorkflowClientPlugin} are automatically
  * propagated from the client to workers created from that client.
  *
  * <p>Example implementation:
@@ -61,7 +61,7 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  *
- * @see io.temporal.client.ClientPlugin
+ * @see io.temporal.client.WorkflowClientPlugin
  * @see SimplePlugin
  */
 @Experimental

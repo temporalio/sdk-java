@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
@@ -12,6 +14,7 @@ import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class GetVersionSameIdTest extends BaseVersionTest {
 
@@ -32,6 +35,8 @@ public class GetVersionSameIdTest extends BaseVersionTest {
     super(setVersioningFlag, upsertVersioningSA);
   }
 
+  @CloudTestExclusionNote("This versioning test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testGetVersionSameId() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

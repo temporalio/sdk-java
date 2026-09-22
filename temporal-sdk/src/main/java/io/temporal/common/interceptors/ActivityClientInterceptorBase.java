@@ -1,0 +1,15 @@
+package io.temporal.common.interceptors;
+
+/**
+ * Convenience no-op base class for {@link ActivityClientInterceptor} implementations. Override
+ * {@link #activityClientCallsInterceptor} to install a custom {@link
+ * ActivityClientCallsInterceptor} into the chain.
+ */
+public class ActivityClientInterceptorBase implements ActivityClientInterceptor {
+
+  @Override
+  public ActivityClientCallsInterceptor activityClientCallsInterceptor(
+      ActivityClientCallsInterceptor next) {
+    return next;
+  }
+}

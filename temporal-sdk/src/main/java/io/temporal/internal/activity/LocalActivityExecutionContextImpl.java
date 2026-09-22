@@ -3,8 +3,10 @@ package io.temporal.internal.activity;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.ManualActivityCompletionClient;
+import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.CancellationToken;
 import java.lang.reflect.Type;
 import java.util.Optional;
 
@@ -58,6 +60,11 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   }
 
   @Override
+  public CancellationToken<ActivityCanceledException> getCancellationToken() {
+    return CancellationToken.none();
+  }
+
+  @Override
   public void doNotCompleteOnReturn() {
     throw new UnsupportedOperationException(
         "doNotCompleteOnReturn is not supported for local activities");
@@ -87,6 +94,11 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   @Override
   public Object getLastHeartbeatValue() {
     return null;
+  }
+
+  @Override
+  public void asyncCompletionStarted() {
+    // Ignored
   }
 
   @Override

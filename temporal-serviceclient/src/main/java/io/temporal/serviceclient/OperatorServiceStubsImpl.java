@@ -32,7 +32,7 @@ final class OperatorServiceStubsImpl implements OperatorServiceStubs {
     this.channelManager =
         new ChannelManager(options, Collections.singletonList(deadlineInterceptor));
 
-    log.info("Created OperatorServiceStubs for channel: {}", channelManager.getRawChannel());
+    log.debug("Created OperatorServiceStubs for channel: {}", channelManager.getRawChannel());
 
     this.blockingStub = OperatorServiceGrpc.newBlockingStub(channelManager.getInterceptedChannel());
     this.futureStub = OperatorServiceGrpc.newFutureStub(channelManager.getInterceptedChannel());

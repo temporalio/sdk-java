@@ -19,6 +19,8 @@ import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
@@ -29,7 +31,10 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class OperationFailMetricTest {
   private static final Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
 
@@ -98,7 +103,9 @@ public class OperationFailMetricTest {
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
 
     Map<String, String> execFailedTags =
-        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED)
+            .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
@@ -134,7 +141,7 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "operation_canceled")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_OPERATION_CANCELED)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -172,7 +179,9 @@ public class OperationFailMetricTest {
     Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
 
     Map<String, String> execFailedTags =
-        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED)
+            .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
@@ -214,7 +223,7 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "operation_canceled")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_OPERATION_CANCELED)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -250,7 +259,9 @@ public class OperationFailMetricTest {
     Assert.assertEquals("foo", applicationFailure.getDetails().get(String.class));
 
     Map<String, String> execFailedTags =
-        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "operation_failed").buildKeepingLast();
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED)
+            .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
@@ -281,7 +292,9 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(
+                MetricsTag.TASK_FAILURE_TYPE,
+                MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_BAD_REQUEST)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -314,7 +327,9 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(
+                MetricsTag.TASK_FAILURE_TYPE,
+                MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_BAD_REQUEST)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -348,7 +363,9 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(
+                MetricsTag.TASK_FAILURE_TYPE,
+                MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_BAD_REQUEST)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -385,7 +402,9 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(
+                MetricsTag.TASK_FAILURE_TYPE,
+                MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_BAD_REQUEST)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -418,7 +437,9 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_BAD_REQUEST")
+            .put(
+                MetricsTag.TASK_FAILURE_TYPE,
+                MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_BAD_REQUEST)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -443,7 +464,7 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -485,7 +506,7 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -507,7 +528,9 @@ public class OperationFailMetricTest {
     Assert.assertThrows(WorkflowFailedException.class, () -> workflowStub.execute("sleep"));
 
     Map<String, String> execFailedTags =
-        getOperationTags().put(MetricsTag.TASK_FAILURE_TYPE, "timeout").buildKeepingLast();
+        getOperationTags()
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_TIMEOUT)
+            .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
         () -> {
@@ -529,7 +552,7 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),
@@ -564,7 +587,7 @@ public class OperationFailMetricTest {
 
     Map<String, String> execFailedTags =
         getOperationTags()
-            .put(MetricsTag.TASK_FAILURE_TYPE, "handler_error_INTERNAL")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL)
             .buildKeepingLast();
     Eventually.assertEventually(
         Duration.ofSeconds(3),

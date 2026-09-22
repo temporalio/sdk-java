@@ -391,15 +391,46 @@ public final class WorkflowInternal {
   @SuppressWarnings("unchecked")
   public static <T> T newChildWorkflowStub(
       Class<T> workflowInterface, ChildWorkflowOptions options) {
+    SyncWorkflowContext context = getRootWorkflowContext();
+    POJOWorkflowInterfaceMetadata workflowMetadata =
+        POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
+    // The workflow type is absent for interfaces that contain only signal and query methods;
+    // ChildWorkflowInvocationHandler rejects such interfaces.
+    String workflowType = workflowMetadata.getWorkflowType().orElse(null);
+    options = mergePredefinedChildWorkflowOptions(context, workflowType, options);
     return (T)
         Proxy.newProxyInstance(
             workflowInterface.getClassLoader(),
             new Class<?>[] {workflowInterface, StubMarker.class, AsyncMarker.class},
             new ChildWorkflowInvocationHandler(
-                workflowInterface,
+                workflowMetadata,
                 options,
-                getWorkflowOutboundInterceptor(),
+                context.getWorkflowOutboundInterceptor(),
                 WorkflowInternal::assertNotReadOnly));
+  }
+
+  /**
+   * Merges the child workflow options predefined through {@link
+   * io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   * {@link io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   * ChildWorkflowOptions)} into the options passed to the stub creation method. Precedence from
+   * lowest to highest: default options < per-type options < the passed options. Each layer
+   * overrides only the non-null fields of the layers below it.
+   */
+  private static ChildWorkflowOptions mergePredefinedChildWorkflowOptions(
+      SyncWorkflowContext context,
+      @Nullable String workflowType,
+      @Nullable ChildWorkflowOptions options) {
+    ChildWorkflowOptions defaultOptions = context.getDefaultChildWorkflowOptions();
+    ChildWorkflowOptions perTypeOptions =
+        workflowType != null ? context.getChildWorkflowOptions().get(workflowType) : null;
+    if (defaultOptions == null && perTypeOptions == null) {
+      return options;
+    }
+    return ChildWorkflowOptions.newBuilder(defaultOptions)
+        .mergeChildWorkflowOptions(perTypeOptions)
+        .mergeChildWorkflowOptions(options)
+        .build();
   }
 
   @SuppressWarnings("unchecked")
@@ -434,10 +465,12 @@ public final class WorkflowInternal {
 
   public static ChildWorkflowStub newUntypedChildWorkflowStub(
       String workflowType, ChildWorkflowOptions options) {
+    SyncWorkflowContext context = getRootWorkflowContext();
+    options = mergePredefinedChildWorkflowOptions(context, workflowType, options);
     return new ChildWorkflowStubImpl(
         workflowType,
         options,
-        getWorkflowOutboundInterceptor(),
+        context.getWorkflowOutboundInterceptor(),
         WorkflowInternal::assertNotReadOnly);
   }
 
@@ -478,13 +511,30 @@ public final class WorkflowInternal {
         getWorkflowOutboundInterceptor()
             .executeActivity(
                 new WorkflowOutboundCallsInterceptor.ActivityInput<>(
-                    name, resultClass, resultType, args, options, Header.empty()))
+                    name, null, resultClass, resultType, args, options, Header.empty()))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(result);
       return null; // ignored
     }
     return result.get();
+  }
+
+  public static <R> Promise<R> executeActivityAsync(
+      ActivityInvocationOptions options, Functions.Proc invocation) {
+    assertNotReadOnly("schedule activity");
+    return ActivityInvocationInternal.invokeAsync(options, invocation);
+  }
+
+  public static <R> R executeActivity(
+      ActivityInvocationOptions options, Functions.Func<R> invocation) {
+    assertNotReadOnly("schedule activity");
+    return ActivityInvocationInternal.invoke(options, invocation);
+  }
+
+  public static void executeActivity(ActivityInvocationOptions options, Functions.Proc invocation) {
+    assertNotReadOnly("schedule activity");
+    ActivityInvocationInternal.invoke(options, invocation);
   }
 
   public static void await(String reason, Supplier<Boolean> unblockCondition)
@@ -676,6 +726,17 @@ public final class WorkflowInternal {
       }
     } else {
       return func.apply();
+    }
+  }
+
+  public static <T> T readOnly(Functions.Func<T> func) {
+    SyncWorkflowContext workflowContext = getRootWorkflowContext();
+    boolean previousReadOnly = workflowContext.isReadOnly();
+    workflowContext.setReadOnly(true);
+    try {
+      return func.apply();
+    } finally {
+      workflowContext.setReadOnly(previousReadOnly);
     }
   }
 

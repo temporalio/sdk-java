@@ -10,6 +10,7 @@ import io.nexusrpc.OperationState;
 import io.nexusrpc.handler.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.nexus.v1.*;
+import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowNotFoundException;
@@ -20,10 +21,12 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.LinkConverter;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
 import io.temporal.internal.worker.ShutdownManager;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import java.net.URISyntaxException;
@@ -34,6 +37,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +66,10 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     this.dataConverter = Objects.requireNonNull(dataConverter);
     Objects.requireNonNull(interceptors);
     this.nexusServiceInterceptor = new TemporalInterceptorMiddleware(interceptors);
+  }
+
+  public boolean isAnyTypeSupported() {
+    return !serviceImplInstances.isEmpty();
   }
 
   @Override
@@ -112,7 +120,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
 
       CurrentNexusOperationContext.set(
-          new InternalNexusOperationContext(namespace, taskQueue, metricsScope, client));
+          new InternalNexusOperationContext(
+              namespace, taskQueue, request.getEndpoint(), metricsScope, client));
 
       switch (request.getVariantCase()) {
         case START_OPERATION:
@@ -130,10 +139,13 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
               (Throwable) null);
       }
     } catch (HandlerException e) {
-      return new Result(e);
+      // The context is still in scope here but not when the reply is encoded, so carry it out on
+      // the result.
+      return new Result(e, currentSerializationContext());
     } catch (Throwable e) {
       return new Result(
-          new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e));
+          new HandlerException(HandlerException.ErrorType.INTERNAL, "internal handler error", e),
+          currentSerializationContext());
     } finally {
       // If the task timed out, we should not send a response back to the server
       if (timedOut.get()) {
@@ -145,6 +157,42 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
       CurrentNexusOperationContext.unset();
     }
+  }
+
+  /**
+   * Records the serialization context for the operation this task is for, so that the data
+   * converter used for its input, result and failures is scoped to the endpoint, service and
+   * operation the request names.
+   *
+   * <p>Note that servers before 1.30.0 do not report the endpoint the task was addressed to, so the
+   * context is scoped by an empty endpoint there and does not agree with the caller's. Nexus
+   * serialization context on the handler side requires server 1.30.0 or later.
+   */
+  private void setSerializationContext(String service, String operation) {
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+    String endpoint = nexusContext.getEndpoint();
+    nexusContext.setSerializationContext(
+        new NexusSerializationContext(endpoint, service, operation));
+  }
+
+  /**
+   * The data converter scoped to the operation this task is for, or the uncontextualized converter
+   * when there is no Nexus task in scope.
+   */
+  private DataConverter dataConverterForCurrentOperation() {
+    NexusSerializationContext context = currentSerializationContext();
+    return context != null ? dataConverter.withContext(context) : dataConverter;
+  }
+
+  /**
+   * Serialization context of the operation currently being handled, or null if there is no Nexus
+   * task in scope or the request variant did not name a service and operation.
+   */
+  private static @Nullable NexusSerializationContext currentSerializationContext() {
+    if (!CurrentNexusOperationContext.isNexusContext()) {
+      return null;
+    }
+    return CurrentNexusOperationContext.get().getSerializationContext();
   }
 
   private void cancelOperation(OperationContext context, OperationCancelDetails details) {
@@ -166,6 +214,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private CancelOperationResponse handleCancelledOperation(
       OperationContext.Builder ctx, CancelOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
+    setSerializationContext(task.getService(), task.getOperation());
 
     @SuppressWarnings("deprecation") // getOperationId kept to support old server for a while
     OperationCancelDetails operationCancelDetails =
@@ -186,7 +235,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
 
   private void convertKnownFailures(Throwable e) {
     Throwable failure = CheckedExceptionWrapper.unwrap(e);
-    if (failure instanceof WorkflowException) {
+    if (failure instanceof WorkflowException
+        || failure instanceof ActivityAlreadyStartedException) {
       if (failure instanceof WorkflowNotFoundException) {
         throw new HandlerException(HandlerException.ErrorType.NOT_FOUND, failure);
       }
@@ -273,12 +323,17 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private StartOperationResponse handleStartOperation(
       OperationContext.Builder ctx, StartOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
+    setSerializationContext(task.getService(), task.getOperation());
 
     OperationStartDetails.Builder operationStartDetails =
         OperationStartDetails.newBuilder()
             .setCallbackUrl(task.getCallback())
             .setRequestId(task.getRequestId());
     task.getCallbackHeaderMap().forEach(operationStartDetails::putCallbackHeader);
+    // Stash the inbound links in common.v1.Link form on the operation context so the RPCs the
+    // handler issues (e.g. signal, signalWithStart, etc) can attach them to their
+    // request's links field.
+    List<io.temporal.api.common.v1.Link> inboundCommonLinks = new ArrayList<>();
     task.getLinksList()
         .forEach(
             link -> {
@@ -291,7 +346,19 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                     "Invalid link URL: " + link.getUrl(),
                     e);
               }
+              // Convert inbound Nexus links into common.v1.Link so RPCs issued by the handler
+              // (e.g. signal, signalWithStart) can attach them as request links. Both
+              // WorkflowEvent (caller workflow → nexus op scheduled) and NexusOperation (SANO
+              // record) variants flow through; other shapes are dropped.
+              io.temporal.api.common.v1.Link commonLink = LinkConverter.nexusLinkToLink(link);
+              if (commonLink != null) {
+                inboundCommonLinks.add(commonLink);
+              }
             });
+    CurrentNexusOperationContext.get().setRequestLinks(inboundCommonLinks);
+    // Ambient for the whole operation-handler invocation, independent of NexusOperationMetadata.
+    // see InternalNexusOperationContext.requestId.
+    CurrentNexusOperationContext.get().setRequestId(task.getRequestId());
 
     HandlerInputContent.Builder input =
         HandlerInputContent.newBuilder().setDataStream(task.getPayload().toByteString().newInput());
@@ -302,10 +369,24 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       try {
         OperationStartResult<HandlerResultContent> result =
             startOperation(context, operationStartDetails.build(), input.build());
+        // If any RPCs the handler issued (e.g. signal, signalWithStart, etc) returned
+        // response links, propagate them to the caller so the caller workflow's history event links
+        // to each event on the callee. Same set of response links applies to both sync and async
+        // response variants.
+        List<io.temporal.api.nexus.v1.Link> responseLinks = new ArrayList<>();
+        for (io.temporal.api.common.v1.Link responseLink :
+            CurrentNexusOperationContext.get().getResponseLinks()) {
+          io.temporal.api.nexus.v1.Link converted = LinkConverter.linkToNexusLink(responseLink);
+          if (converted != null) {
+            responseLinks.add(converted);
+          }
+        }
+
         if (result.isSync()) {
           startResponseBuilder.setSyncSuccess(
               StartOperationResponse.Sync.newBuilder()
                   .setPayload(Payload.parseFrom(result.getSyncResult().getDataBytes()))
+                  .addAllLinks(responseLinks)
                   .build());
         } else {
           startResponseBuilder.setAsyncSuccess(
@@ -321,6 +402,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
                                       .setUrl(link.getUri().toString())
                                       .build())
                           .collect(Collectors.toList()))
+                  .addAllLinks(responseLinks)
                   .build());
         }
       } catch (OperationException e) {
@@ -343,7 +425,8 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
             HandlerException.ErrorType.INTERNAL,
             new RuntimeException("Unknown operation state: " + e.getState()));
       }
-      startResponseBuilder.setFailure(dataConverter.exceptionToFailure(temporalFailure));
+      startResponseBuilder.setFailure(
+          dataConverterForCurrentOperation().exceptionToFailure(temporalFailure));
     }
     return startResponseBuilder.build();
   }
@@ -358,7 +441,7 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
     if (nexusService instanceof Class) {
       throw new IllegalArgumentException("Nexus service object instance expected, not the class");
     }
-    ServiceImplInstance instance = ServiceImplInstance.fromInstance(nexusService);
+    ServiceImplInstance instance = TemporalOperationProcessor.process(nexusService);
     InternalUtils.checkMethodName(instance);
     if (serviceImplInstances.put(instance.getDefinition().getName(), instance) != null) {
       throw new TypeAlreadyRegisteredException(

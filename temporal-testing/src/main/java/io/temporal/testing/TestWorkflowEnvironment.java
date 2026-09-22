@@ -3,7 +3,9 @@ package io.temporal.testing;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.IndexedValueType;
 import io.temporal.api.nexus.v1.Endpoint;
+import io.temporal.client.ActivityClient;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.Experimental;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.serviceclient.OperatorServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -14,6 +16,7 @@ import java.io.Closeable;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * TestWorkflowEnvironment provides workflow unit testing capabilities.
@@ -88,6 +91,78 @@ public interface TestWorkflowEnvironment extends Closeable {
   }
 
   /**
+   * Starts a local Temporal dev server and returns an environment that owns it.
+   *
+   * <p>Unlike the in-memory test server, a local dev-server environment does not support time
+   * skipping.
+   *
+   * <pre>{@code
+   * try (TestWorkflowEnvironment environment = TestWorkflowEnvironment.startLocal()) {
+   *   Worker worker = environment.newWorker("test-task-queue");
+   *   // Register implementations and run workflows against the local dev server.
+   * }
+   * }</pre>
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal() {
+    return startLocal(
+        TestEnvironmentOptions.getDefaultInstance(), TemporalDevServerOptions.getDefaultInstance());
+  }
+
+  /**
+   * Starts a local Temporal dev server using the environment namespace and returns an environment
+   * that owns it. Local dev-server environments do not support time skipping.
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal(@Nullable TestEnvironmentOptions testOptions) {
+    return startLocal(testOptions, TemporalDevServerOptions.getDefaultInstance());
+  }
+
+  /**
+   * Starts a local Temporal dev server with the supplied server options. Local dev-server
+   * environments do not support time skipping.
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal(@Nonnull TemporalDevServerOptions serverOptions) {
+    return startLocal(TestEnvironmentOptions.getDefaultInstance(), serverOptions);
+  }
+
+  /**
+   * Starts a local Temporal dev server and returns an environment that owns it.
+   *
+   * <p>The namespace in {@code testOptions} is authoritative and is created by the dev server.
+   * Local dev-server environments do not support time skipping.
+   */
+  @Experimental
+  static TestWorkflowEnvironment startLocal(
+      @Nullable TestEnvironmentOptions testOptions,
+      @Nonnull TemporalDevServerOptions serverOptions) {
+    if (testOptions == null) {
+      testOptions = TestEnvironmentOptions.getDefaultInstance();
+    }
+    TestEnvironmentOptions validated =
+        TestEnvironmentOptions.newBuilder(testOptions).validateAndBuildWithDefaults();
+    String namespace = validated.getWorkflowClientOptions().getNamespace();
+    TemporalDevServer server = TemporalDevServer.start(namespace, serverOptions);
+    try {
+      TestEnvironmentOptions localOptions =
+          TestEnvironmentOptions.newBuilder(validated)
+              .setUseExternalService(true)
+              .setUseTimeskipping(false)
+              .setTarget(server.getTarget())
+              .build();
+      return new TestWorkflowEnvironmentInternal(localOptions, server);
+    } catch (RuntimeException | Error failure) {
+      try {
+        server.close();
+      } catch (RuntimeException | Error cleanupFailure) {
+        failure.addSuppressed(cleanupFailure);
+      }
+      throw failure;
+    }
+  }
+
+  /**
    * Creates a new Worker instance that is connected to the in-memory test Temporal service.
    *
    * @param taskQueue task queue to poll.
@@ -103,6 +178,9 @@ public interface TestWorkflowEnvironment extends Closeable {
 
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
   WorkflowClient getWorkflowClient();
+
+  /** Creates an ActivityClient that is connected to the in-memory test Temporal service. */
+  ActivityClient getActivityClient();
 
   /**
    * This time might not be equal to {@link System#currentTimeMillis()} due to time skipping.

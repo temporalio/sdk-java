@@ -1,0 +1,106 @@
+# **💥 BREAKING CHANGES**
+
+## Nexus Failure Serialization
+
+The Java SDK now uses Temporal `Failure` protos for Nexus operation and handler task
+failures, instead of the legacy `UnsuccessfulOperationError`/`HandlerError` format.
+This allows `OperationException` and `HandlerException` to carry their own message and
+stack trace independently of their cause.
+
+The SDK automatically falls back to the legacy format when the server does not support
+the new format. However, if your code inspects the raw structure of Nexus failures
+(e.g. via custom interceptors or failure converters), you may need to update it to
+handle the new format. (#2773)
+
+# **Highlights**
+
+## Spring Boot 4 and Jackson 3 Support
+
+Spring Boot 4 is now supported. The Spring Boot autoconfigure module was updated for
+Spring Boot 4 API changes (e.g. updated class references in `MetricsScopeAutoConfiguration`
+and `OpenTracingAutoConfiguration`). No code changes are needed in application code. (#2787)
+
+Jackson 3 is now optionally supported via a multi-release JAR. To opt in, call
+`JacksonJsonPayloadConverter.setDefaultAsJackson3(true, jacksonCompatMode)` at startup.
+Jackson 3 and Jackson 2 converters are wire-compatible. Jackson 3 is an optional
+dependency and is not pulled in automatically. (#2783)
+
+Plugin beans (`WorkflowServiceStubsPlugin`, `WorkflowClientPlugin`, `ScheduleClientPlugin`,
+`WorkerPlugin`) defined in the Spring context are now automatically discovered and wired
+into the Temporal client and worker configuration. Plugins support `@Order` and `@Priority`
+annotations for consistent ordering. (#2766)
+
+## Upgrade-on-ContinueAsNew
+
+PINNED workflows can now upgrade to the latest worker deployment version on
+continue-as-new by setting `initialVersioningBehavior` to `AUTO_UPGRADE` in
+`ContinueAsNewOptions`. A new `WorkflowInfo.isTargetWorkerDeploymentVersionChanged()`
+method lets workflows detect when the target worker deployment version has changed,
+enabling explicit upgrade decisions. (#2811)
+
+## Local Timeout for Activity Heartbeats
+
+Activity heartbeat timeouts are now enforced locally by the SDK, matching the behavior
+of the Core-based SDKs. Previously, only the server enforced heartbeat timeouts; the
+local check reduces the time it takes for a stale activity to be detected and retried.
+This feature applies to heartbeat timeouts only, not overall activity timeouts. (#2804)
+
+## Nexus Caller Timeouts
+
+`ScheduleToStartTimeout` and `StartToCloseTimeout` are now supported for Nexus
+operations, in addition to the existing `ScheduleToCloseTimeout`. The test server was
+updated to enforce all three timeout types and compute the `OPERATION_TIMEOUT` header
+correctly. (#2760)
+
+# **Bugfixes**
+
+## ContextClassLoader Propagation for Poll Tasks
+
+When `PollerBehaviorAutoscaling` is enabled, poll tasks run asynchronously on a
+common `ForkJoinPool`, whose threads use the system class loader by default. This
+caused class-loading failures in frameworks like Spring Boot that rely on a custom
+context class loader (e.g. `LaunchedClassLoader`). The SDK now captures and propagates
+the context class loader from the thread that created the `WorkerFactory` to all
+worker threads. (#2808)
+
+## Workflow Slot Not Marked Used for Async Pollers
+
+When `PollerBehaviorAutoscaling` was enabled, `AsyncWorkflowPollTask` was not calling
+`markSlotUsed` on the `SlotSupplier` after receiving a task. This caused the
+`WORKER_TASK_SLOTS_AVAILABLE` metric to report an incorrectly high value. (#2803)
+
+## Validate `WorkerDeploymentOptions` at Build Time
+
+`WorkerDeploymentOptions.build()` now rejects configurations where
+`defaultVersioningBehavior` is set to anything other than `UNSPECIFIED` when
+`useVersioning` is `false`. Previously such configurations were silently accepted but
+then rejected by the server at workflow task completion, causing workflows to get stuck.
+(#2807)
+
+## Fix Exception Swallowing on `Workflow.getVersion()`
+
+A bug where exceptions thrown by a workflow could be swallowed and replaced by a
+worker-shutdown error when `Workflow.getVersion()` was called is now fixed for all
+new workflows. Existing workflows replay correctly without any changes. (#2819)
+
+# What's Changed
+
+2026-02-26 - 9799bd00 - Add missing apostrophe to WorkflowException message (#2776)
+2026-02-27 - ef194239 - Add headers to cancel nexus task (#2798)
+2026-03-10 - 20fb8520 - Nexus caller timeouts (#2760)
+2026-03-10 - dbd648bd - Update Nexus failure conversion (#2773)
+2026-03-11 - 6ba0947f - Fix async poller workflow slot used (#2803)
+2026-03-13 - 53449bb5 - Introduce local timeout for activity heartbeats (#2804)
+2026-03-16 - 9356745c - Replace docker instructions for running a local server with CLI instructions. (#2806)
+2026-03-17 - 95169659 - Cancel timer when Workflow.await condition is satisfied (#2799)
+2026-03-17 - fb2defd9 - Fix time skipping for dotnet SDK (#2805)
+2026-03-19 - 02182b93 - Support plugins in spring-boot-autoconfigure (#2766)
+2026-03-23 - a714cc10 - Allow poller scale-down on timeout when server supports autoscaling (#2812)
+2026-03-24 - b9c186d1 - Add note about Rosetta for old protoc-gen-rpc-java (#2815)
+2026-03-25 - c195cd1d - Add Spring Boot 4 support (#2787)
+2026-03-25 - fcb4e841 - Add opt-in Jackson 3 support via multi-release JAR (#2783)
+2026-03-27 - 0e1a7a25 - Validate deployment options and test worker with versioning off and custom build ID (#2807)
+2026-03-27 - da5e8a17 - Add upgrade-on-CAN support (#2811)
+2026-03-30 - b9b0f6b5 - Fix ContextClassLoader propagation for poll tasks (#2808)
+2026-03-31 - 5d969b87 - `tryUseSdkFlag(SdkFlag.SKIP_YIELD_ON_VERSION)` so that we default to enabling `SKIP_YIELD_ON_VERSION` when calling `getVersion()` (#2819)
+2026-03-31 - fb87ce6c - Update Temporal Cloud-API to v0.12.0 (#2814)

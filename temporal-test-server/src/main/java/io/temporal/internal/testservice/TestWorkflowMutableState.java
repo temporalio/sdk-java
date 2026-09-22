@@ -107,6 +107,8 @@ interface TestWorkflowMutableState {
 
   void cancelNexusOperationRequestAcknowledge(NexusOperationRef ref);
 
+  void failNexusOperationCancelRequest(NexusOperationRef ref, Failure failure);
+
   void completeNexusOperation(NexusOperationRef ref, Payload result);
 
   void completeAsyncNexusOperation(

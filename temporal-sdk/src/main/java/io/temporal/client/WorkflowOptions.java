@@ -162,7 +162,7 @@ public final class WorkflowOptions {
     /**
      * Specifies server behavior if a completed workflow with the same id exists. Note that under no
      * conditions Temporal allows two workflows with the same namespace and workflow id run
-     * simultaneously. See {@line setWorkflowIdConflictPolicy} for handling a workflow id
+     * simultaneously. See {@link #setWorkflowIdConflictPolicy} for handling a workflow id
      * duplication with a <b>Running</b> workflow.
      *
      * <p>Default value if not set: <b>AllowDuplicate</b>
@@ -400,7 +400,6 @@ public final class WorkflowOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setStaticSummary(String staticSummary) {
       this.staticSummary = staticSummary;
       return this;
@@ -413,7 +412,6 @@ public final class WorkflowOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setStaticDetails(String staticDetails) {
       this.staticDetails = staticDetails;
       return this;
@@ -716,12 +714,10 @@ public final class WorkflowOptions {
     return links;
   }
 
-  @Experimental
   public String getStaticSummary() {
     return staticSummary;
   }
 
-  @Experimental
   public String getStaticDetails() {
     return staticDetails;
   }

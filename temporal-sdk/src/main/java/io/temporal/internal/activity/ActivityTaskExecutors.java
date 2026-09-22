@@ -129,8 +129,13 @@ final class ActivityTaskExecutors {
             local,
             dataConverterWithActivityContext);
       } finally {
-        if (!context.isDoNotCompleteOnReturn()) {
-          // if the activity is not completed, we need to cancel the heartbeat
+        if (context.isDoNotCompleteOnReturn()) {
+          if (!context.isUseLocalManualCompletion()) {
+            context.asyncCompletionStarted();
+          }
+          executionContextFactory.cleanupContext(info.getTaskToken(), false);
+        } else {
+          // if the activity is completed, we need to cancel the heartbeat
           // to avoid sending it after the activity is completed
           context.cancelOutstandingHeartbeat();
         }

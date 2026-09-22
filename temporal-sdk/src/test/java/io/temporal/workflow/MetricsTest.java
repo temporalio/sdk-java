@@ -28,6 +28,8 @@ import io.temporal.common.interceptors.*;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -50,9 +52,12 @@ import java.util.function.Function;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class MetricsTest {
 
   private static final long REPORTING_FLUSH_TIME = 600;
@@ -439,6 +444,7 @@ public class MetricsTest {
             .putAll(TAGS_ACTIVITY_WORKER)
             .put(MetricsTag.ACTIVITY_TYPE, "ThrowIO")
             .put(MetricsTag.EXCEPTION, "IOException")
+            .put(MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_ACTIVITY_ERROR)
             .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
             .build();
 
@@ -488,7 +494,7 @@ public class MetricsTest {
     setUp(WorkerFactoryOptions.getDefaultInstance());
 
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
-    worker.registerWorkflowImplementationTypes(TestWorkflowWithSleep.class);
+    worker.registerWorkflowImplementationTypes(TestWorkflowWithSignal.class);
     testEnvironment.start();
 
     Thread.sleep(REPORTING_FLUSH_TIME);
@@ -500,7 +506,8 @@ public class MetricsTest {
             .setWorkflowRunTimeout(Duration.ofSeconds(7000))
             .setTaskQueue(TASK_QUEUE)
             .build();
-    NoArgsWorkflow workflow = workflowClient.newWorkflowStub(NoArgsWorkflow.class, options);
+    CacheMetricsWorkflow workflow =
+        workflowClient.newWorkflowStub(CacheMetricsWorkflow.class, options);
     CompletableFuture<Void> wfFuture = WorkflowClient.execute(workflow::execute);
     SDKTestWorkflowRule.waitForOKQuery(WorkflowStub.fromTyped(workflow));
 
@@ -508,6 +515,7 @@ public class MetricsTest {
     reporter.assertGauge(STICKY_CACHE_SIZE, TAGS_NAMESPACE, 1);
     reporter.assertGauge(WORKFLOW_ACTIVE_THREAD_COUNT, TAGS_NAMESPACE, val -> val == 1 || val == 2);
 
+    workflow.complete();
     wfFuture.get();
 
     Thread.sleep(REPORTING_FLUSH_TIME);
@@ -645,11 +653,26 @@ public class MetricsTest {
     }
   }
 
-  public static class TestWorkflowWithSleep implements NoArgsWorkflow {
+  @WorkflowInterface
+  public interface CacheMetricsWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod
+    void complete();
+  }
+
+  public static class TestWorkflowWithSignal implements CacheMetricsWorkflow {
+    private boolean complete;
 
     @Override
     public void execute() {
-      Workflow.sleep(5000);
+      Workflow.await(() -> complete);
+    }
+
+    @Override
+    public void complete() {
+      complete = true;
     }
   }
 

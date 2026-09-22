@@ -1,12 +1,23 @@
 package io.temporal.internal.replay;
 
 import com.google.protobuf.ByteString;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
+import io.temporal.common.CancellationToken;
+import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.TestStorageDriver;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.testUtils.HistoryUtils;
 import java.nio.charset.Charset;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Test;
@@ -83,5 +94,92 @@ public class ServiceWorkflowHistoryIteratorTest {
     Assert.assertFalse(iterator.hasNext());
     Assert.assertThrows(NoSuchElementException.class, iterator::next);
     Assert.assertEquals(4, timesCalledServer.get());
+  }
+
+  @Test
+  public void resolvesExternalStorageReferencesInFetchedPages() {
+    ExternalStorageRunner storage = inMemoryStorage();
+    History inline = historyWithInput(payload("big-input"));
+    History.Builder builder = inline.toBuilder();
+    storage.store(builder, null, null, CancellationToken.none());
+    History stored = builder.build();
+    Assert.assertNotEquals(
+        "stored history should hold a reference, not the inline payload", inline, stored);
+
+    ServiceWorkflowHistoryIterator iterator = fetchingIterator(stored, storage);
+
+    HistoryEvent event = iterator.next();
+    Assert.assertEquals(
+        payload("big-input"),
+        event.getWorkflowExecutionStartedEventAttributes().getInput().getPayloads(0));
+  }
+
+  @Test
+  public void failsLoudWhenAFetchedPageHasAReferenceAndStorageIsNotConfigured() {
+    History.Builder builder = historyWithInput(payload("big-input")).toBuilder();
+    inMemoryStorage().store(builder, null, null, CancellationToken.none());
+    History stored = builder.build();
+
+    ServiceWorkflowHistoryIterator iterator = fetchingIterator(stored, null);
+
+    Assert.assertThrows(ExternalStorageNotConfiguredException.class, iterator::hasNext);
+  }
+
+  @Test
+  public void aCancelledTokenAbortsRetrievalOfAFetchedPage() {
+    ExternalStorageRunner storage = inMemoryStorage();
+    History.Builder builder = historyWithInput(payload("big-input")).toBuilder();
+    storage.store(builder, null, null, CancellationToken.none());
+    History stored = builder.build();
+
+    CancelSource<CancellationException> source =
+        new CancelSource<>(() -> new CancellationException("Worker shutdown"));
+    source.cancel();
+
+    ServiceWorkflowHistoryIterator iterator = fetchingIterator(stored, storage, source.token());
+
+    Assert.assertThrows(CancellationException.class, iterator::hasNext);
+  }
+
+  private static ServiceWorkflowHistoryIterator fetchingIterator(
+      History page, ExternalStorageRunner storage) {
+    return fetchingIterator(page, storage, CancellationToken.none());
+  }
+
+  private static ServiceWorkflowHistoryIterator fetchingIterator(
+      History page,
+      ExternalStorageRunner storage,
+      CancellationToken<CancellationException> storageCancellation) {
+    PollWorkflowTaskQueueResponse workflowTask =
+        PollWorkflowTaskQueueResponse.newBuilder().setNextPageToken(NEXT_PAGE_TOKEN).build();
+    return new ServiceWorkflowHistoryIterator(
+        null, "default", workflowTask, null, storage, storageCancellation) {
+      @Override
+      GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
+        return GetWorkflowExecutionHistoryResponse.newBuilder().setHistory(page).build();
+      }
+    };
+  }
+
+  private static ExternalStorageRunner inMemoryStorage() {
+    return ExternalStorageRunner.create(
+        ExternalStorage.newBuilder()
+            .setDriver(TestStorageDriver.create())
+            .setPayloadSizeThreshold(0)
+            .build());
+  }
+
+  private static History historyWithInput(Payload payload) {
+    return History.newBuilder()
+        .addEvents(
+            HistoryEvent.newBuilder()
+                .setWorkflowExecutionStartedEventAttributes(
+                    WorkflowExecutionStartedEventAttributes.newBuilder()
+                        .setInput(Payloads.newBuilder().addPayloads(payload))))
+        .build();
+  }
+
+  private static Payload payload(String data) {
+    return Payload.newBuilder().setData(ByteString.copyFromUtf8(data)).build();
   }
 }

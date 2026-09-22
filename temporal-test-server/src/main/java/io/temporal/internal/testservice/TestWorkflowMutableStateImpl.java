@@ -105,6 +105,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<String, Long> activityById = new HashMap<>();
   private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows = new HashMap<>();
   private final Map<Long, StateMachine<NexusOperationData>> nexusOperations = new HashMap<>();
+  // Tracks cancelRequestedEventId by scheduledEventId, persists after operation removal.
+  private final Map<Long, Long> nexusCancelRequestedEventIds = new HashMap<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
@@ -619,7 +621,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   public void applyOnConflictOptions(@Nonnull StartWorkflowExecutionRequest request) {
     update(
         ctx -> {
-          OnConflictOptions options = request.getOnConflictOptions();
+          io.temporal.api.workflow.v1.OnConflictOptions options = request.getOnConflictOptions();
           String requestId = null;
           List<Callback> completionCallbacks = null;
           List<Link> links = null;
@@ -899,6 +901,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       ctx.setNeedWorkflowTask(true);
     } else {
       operation.action(Action.REQUEST_CANCELLATION, ctx, null, workflowTaskCompletedId);
+      ctx.onCommit(
+          historySize -> {
+            nexusCancelRequestedEventIds.put(
+                scheduleEventId, operation.getData().cancelRequestedEventId);
+          });
       ctx.addTimer(
           ProtobufTimeUtils.toJavaDuration(operation.getData().requestTimeout),
           () ->
@@ -1491,7 +1498,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       String identity) {
 
     // This should probably follow the retry logic from
-    // https://github.com/temporalio/temporal/blob/master/service/history/retry.go#L95
+    // https://github.com/temporalio/temporal/blob/main/service/history/retry.go#L95
     Failure failure = d.getFailure();
     WorkflowData data = workflow.getData();
 
@@ -2339,6 +2346,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     update(
         ctx -> {
           StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
+          if (operation.getState() == State.STARTED) {
+            // Operation was already started (e.g. from a previous attempt before retry).
+            return;
+          }
           operation.action(StateMachines.Action.START, ctx, resp, 0);
           operation.getData().identity = clientIdentity;
 
@@ -2378,13 +2389,30 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         });
   }
 
+  /**
+   * Resolves the cancelRequestedEventId for a nexus operation, checking both the active operations
+   * map and the persisted cancel request IDs (for operations that have already completed/removed).
+   */
+  private long resolveCancelRequestedEventId(long scheduledEventId) {
+    StateMachine<NexusOperationData> operation = nexusOperations.get(scheduledEventId);
+    if (operation != null) {
+      return operation.getData().cancelRequestedEventId;
+    }
+    Long stored = nexusCancelRequestedEventIds.get(scheduledEventId);
+    return stored != null ? stored : 0;
+  }
+
   @Override
   public void cancelNexusOperationRequestAcknowledge(NexusOperationRef ref) {
     update(
         ctx -> {
           StateMachine<NexusOperationData> operation =
-              getPendingNexusOperation(ref.getScheduledEventId());
-          if (!operationInFlight(operation.getState())) {
+              nexusOperations.get(ref.getScheduledEventId());
+          if (operation != null && !operationInFlight(operation.getState())) {
+            return;
+          }
+          long cancelRequestedEventId = resolveCancelRequestedEventId(ref.getScheduledEventId());
+          if (cancelRequestedEventId == 0) {
             return;
           }
           ctx.addEvent(
@@ -2393,9 +2421,32 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   .setNexusOperationCancelRequestCompletedEventAttributes(
                       NexusOperationCancelRequestCompletedEventAttributes.newBuilder()
                           .setScheduledEventId(ref.getScheduledEventId())
-                          .setRequestedEventId(operation.getData().cancelRequestedEventId))
+                          .setRequestedEventId(cancelRequestedEventId))
                   .build());
+          scheduleWorkflowTask(ctx);
           ctx.unlockTimer("cancelNexusOperationRequestAcknowledge");
+        });
+  }
+
+  @Override
+  public void failNexusOperationCancelRequest(NexusOperationRef ref, Failure failure) {
+    update(
+        ctx -> {
+          long cancelRequestedEventId = resolveCancelRequestedEventId(ref.getScheduledEventId());
+          if (cancelRequestedEventId == 0) {
+            return;
+          }
+          ctx.addEvent(
+              HistoryEvent.newBuilder()
+                  .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUEST_FAILED)
+                  .setNexusOperationCancelRequestFailedEventAttributes(
+                      NexusOperationCancelRequestFailedEventAttributes.newBuilder()
+                          .setScheduledEventId(ref.getScheduledEventId())
+                          .setRequestedEventId(cancelRequestedEventId)
+                          .setFailure(failure))
+                  .build());
+          scheduleWorkflowTask(ctx);
+          ctx.unlockTimer("failNexusOperationCancelRequest");
         });
   }
 
@@ -2496,7 +2547,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           ctx -> {
             StateMachine<NexusOperationData> operation = getPendingNexusOperation(scheduledEventId);
             if (attempt != operation.getData().getAttempt()
-                || isTerminalState(operation.getState())) {
+                || isTerminalState(operation.getState())
+                || operation.getState() == State.STARTED) {
               throw Status.NOT_FOUND.withDescription("Timer fired earlier").asRuntimeException();
             }
 
@@ -3120,13 +3172,16 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     }
 
     public UpdateWorkflowExecutionLifecycleStage getStage() {
-      if (!accepted.isDone()) {
-        return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
-      } else if (!outcome.isDone()) {
+      // A resolved outcome is terminal (a success result or a rejection/failure), so it always
+      // means COMPLETED. Checking it first keeps stage derivation independent of the order in
+      // which the `accepted` and `outcome` futures complete. The `accepted` future only
+      // distinguishes ADMITTED from ACCEPTED.
+      if (outcome.isDone()) {
+        return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+      } else if (accepted.isDone()) {
         return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ACCEPTED;
       }
-      return UpdateWorkflowExecutionLifecycleStage
-          .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED;
+      return UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_ADMITTED;
     }
 
     public String getId() {
@@ -3570,6 +3625,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             .setIdentity(signalRequest.getIdentity())
             .setInput(signalRequest.getInput())
             .setSignalName(signalRequest.getSignalName());
+    if (signalRequest.hasHeader()) {
+      a.setHeader(signalRequest.getHeader());
+    }
 
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()

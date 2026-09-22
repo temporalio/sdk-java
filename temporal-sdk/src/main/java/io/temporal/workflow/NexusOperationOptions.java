@@ -106,7 +106,6 @@ public final class NexusOperationOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public NexusOperationOptions.Builder setSummary(String summary) {
       this.summary = summary;
       return this;
@@ -199,7 +198,6 @@ public final class NexusOperationOptions {
     return cancellationType;
   }
 
-  @Experimental
   public String getSummary() {
     return summary;
   }

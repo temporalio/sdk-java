@@ -3,14 +3,24 @@ package io.temporal.workflow.activityTests;
 import static org.junit.Assert.*;
 import static org.junit.Assume.*;
 
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.ForwardingClientCall;
+import io.grpc.MethodDescriptor;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.Config;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testUtils.CountingSlotSupplier;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -23,8 +33,10 @@ import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.junit.*;
 
@@ -32,6 +44,8 @@ public class EagerActivityDispatchingTest {
   private static final String TASK_QUEUE = "test-eager-activity-dispatch";
   private TestWorkflowEnvironment env;
   private ArrayList<WorkerFactory> workerFactories;
+  private final EagerActivityRequestInterceptor eagerActivityRequestInterceptor =
+      new EagerActivityRequestInterceptor();
 
   private final TestActivitiesImpl activitiesImpl = new TestActivitiesImpl();
   CountingSlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier = new CountingSlotSupplier<>(100);
@@ -42,9 +56,24 @@ public class EagerActivityDispatchingTest {
 
   @Before
   public void setUp() throws Exception {
+    eagerActivityRequestInterceptor.reset();
+    TestEnvironmentOptions.Builder environmentOptions =
+        ExternalServiceTestConfigurator.configuredTestEnvironmentOptions();
+    WorkflowServiceStubsOptions configuredServiceOptions =
+        environmentOptions.build().getWorkflowServiceStubsOptions();
+    WorkflowServiceStubsOptions.Builder serviceOptions =
+        configuredServiceOptions == null
+            ? WorkflowServiceStubsOptions.newBuilder()
+            : WorkflowServiceStubsOptions.newBuilder(configuredServiceOptions);
     this.env =
         TestWorkflowEnvironment.newInstance(
-            ExternalServiceTestConfigurator.configuredTestEnvironmentOptions().build());
+            environmentOptions
+                .setWorkflowServiceStubsOptions(
+                    serviceOptions
+                        .setGrpcClientInterceptors(
+                            Collections.singletonList(eagerActivityRequestInterceptor))
+                        .build())
+                .build());
     this.workerFactories = new ArrayList<>();
   }
 
@@ -123,6 +152,25 @@ public class EagerActivityDispatchingTest {
     assertEquals(1, activityTaskStartedEventIdentity.size());
     assertTrue(activityTaskStartedEventIdentity.contains("worker1"));
     assertFalse(activityTaskStartedEventIdentity.contains("worker2"));
+  }
+
+  @Test
+  public void testMaxEagerActivityReservationsPerWorkflowTask() {
+    setupWorker(
+        "worker1",
+        WorkerOptions.newBuilder()
+            .setMaxEagerActivityReservationsPerWorkflowTask(2)
+            .setDisableEagerExecution(false),
+        true);
+
+    EagerActivityTestWorkflow workflowStub =
+        env.getWorkflowClient()
+            .newWorkflowStub(
+                EagerActivityTestWorkflow.class,
+                WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build());
+    workflowStub.execute(true);
+
+    assertEquals(2, eagerActivityRequestInterceptor.getEagerActivityRequestCount());
   }
 
   @Test
@@ -212,7 +260,7 @@ public class EagerActivityDispatchingTest {
           Workflow.newActivityStub(
               TestActivities.VariousTestActivities.class,
               ActivityOptions.newBuilder()
-                  .setScheduleToCloseTimeout(Duration.ofMillis(200))
+                  .setScheduleToCloseTimeout(Duration.ofSeconds(10))
                   .setDisableEagerExecution(!enableEagerActivityDispatch)
                   .build());
 
@@ -220,6 +268,52 @@ public class EagerActivityDispatchingTest {
       for (int i = 0; i < Config.EAGER_ACTIVITIES_LIMIT; i++)
         promises.add(Async.function(testActivities::activity));
       Promise.allOf(promises).get();
+    }
+  }
+
+  private static class EagerActivityRequestInterceptor implements ClientInterceptor {
+    private final AtomicInteger eagerActivityRequestCount = new AtomicInteger(-1);
+
+    @Override
+    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+        MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+      if (method == WorkflowServiceGrpc.getRespondWorkflowTaskCompletedMethod()) {
+        return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(
+            next.newCall(method, callOptions)) {
+          @Override
+          public void sendMessage(ReqT message) {
+            RespondWorkflowTaskCompletedRequest request =
+                (RespondWorkflowTaskCompletedRequest) message;
+            long activityCommandCount =
+                request.getCommandsList().stream()
+                    .filter(command -> command.hasScheduleActivityTaskCommandAttributes())
+                    .count();
+            if (activityCommandCount > 0) {
+              int eagerRequestCount =
+                  (int)
+                      request.getCommandsList().stream()
+                          .filter(command -> command.hasScheduleActivityTaskCommandAttributes())
+                          .filter(
+                              command ->
+                                  command
+                                      .getScheduleActivityTaskCommandAttributes()
+                                      .getRequestEagerExecution())
+                          .count();
+              eagerActivityRequestCount.compareAndSet(-1, eagerRequestCount);
+            }
+            super.sendMessage(message);
+          }
+        };
+      }
+      return next.newCall(method, callOptions);
+    }
+
+    int getEagerActivityRequestCount() {
+      return eagerActivityRequestCount.get();
+    }
+
+    void reset() {
+      eagerActivityRequestCount.set(-1);
     }
   }
 }

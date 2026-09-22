@@ -15,6 +15,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.sync.WorkflowMethodThreadNameStrategy;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.NonDeterministicException;
@@ -86,13 +87,13 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
             "task_queue",
             testWorkflowRule.getTaskQueue(),
             "namespace",
-            "UnitTest",
+            testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
             "workflow_type",
             "TestWorkflowStringArg",
             "worker_type",
             "WorkflowWorker",
-            "failure_reason",
-            "NonDeterminismError"),
+            MetricsTag.TASK_FAILURE_TYPE,
+            MetricsTag.TASK_FAILURE_VALUE_NON_DETERMINISM_ERROR),
         (i) -> i >= 2);
   }
 

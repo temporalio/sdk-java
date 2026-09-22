@@ -2,7 +2,9 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
+import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -25,7 +27,34 @@ public class WorkflowClientOptionsTemplate {
       clientCustomizers;
   private final @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>>
       scheduleCustomizers;
+  private final @Nullable List<WorkflowClientPlugin> workflowClientPlugins;
+  private final @Nullable List<ScheduleClientPlugin> scheduleClientPlugins;
 
+  public WorkflowClientOptionsTemplate(
+      @Nonnull String namespace,
+      @Nullable DataConverter dataConverter,
+      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
+      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
+      @Nullable Tracer tracer,
+      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
+      @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
+      @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins) {
+    this.namespace = namespace;
+    this.dataConverter = dataConverter;
+    this.workflowClientInterceptors = workflowClientInterceptors;
+    this.scheduleClientInterceptors = scheduleClientInterceptors;
+    this.tracer = tracer;
+    this.clientCustomizers = clientCustomizers;
+    this.scheduleCustomizers = scheduleCustomizers;
+    this.workflowClientPlugins = workflowClientPlugins;
+    this.scheduleClientPlugins = scheduleClientPlugins;
+  }
+
+  /**
+   * @deprecated Use constructor with plugins parameters
+   */
+  @Deprecated
   public WorkflowClientOptionsTemplate(
       @Nonnull String namespace,
       @Nullable DataConverter dataConverter,
@@ -35,13 +64,16 @@ public class WorkflowClientOptionsTemplate {
       @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
       @Nullable
           List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
-    this.namespace = namespace;
-    this.dataConverter = dataConverter;
-    this.workflowClientInterceptors = workflowClientInterceptors;
-    this.scheduleClientInterceptors = scheduleClientInterceptors;
-    this.tracer = tracer;
-    this.clientCustomizers = clientCustomizers;
-    this.scheduleCustomizers = scheduleCustomizers;
+    this(
+        namespace,
+        dataConverter,
+        workflowClientInterceptors,
+        scheduleClientInterceptors,
+        tracer,
+        clientCustomizers,
+        scheduleCustomizers,
+        null,
+        null);
   }
 
   public WorkflowClientOptions createWorkflowClientOptions() {
@@ -62,6 +94,10 @@ public class WorkflowClientOptionsTemplate {
 
     options.setInterceptors(interceptors.toArray(new WorkflowClientInterceptor[0]));
 
+    if (workflowClientPlugins != null && !workflowClientPlugins.isEmpty()) {
+      options.setPlugins(workflowClientPlugins.toArray(new WorkflowClientPlugin[0]));
+    }
+
     if (clientCustomizers != null) {
       for (TemporalOptionsCustomizer<WorkflowClientOptions.Builder> customizer :
           clientCustomizers) {
@@ -77,6 +113,10 @@ public class WorkflowClientOptionsTemplate {
     Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
     if (scheduleClientInterceptors != null && !scheduleClientInterceptors.isEmpty()) {
       options.setInterceptors(scheduleClientInterceptors);
+    }
+
+    if (scheduleClientPlugins != null && !scheduleClientPlugins.isEmpty()) {
+      options.setPlugins(scheduleClientPlugins.toArray(new ScheduleClientPlugin[0]));
     }
 
     if (scheduleCustomizers != null) {

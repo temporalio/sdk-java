@@ -1,63 +1,192 @@
-# Developing sdk-java
+# Contributing to Temporal SDKs
 
-This doc is intended for contributors to `sdk-java` (hopefully that's you!)
+Thanks for your interest in contributing to Temporal SDKs.
 
-**Note:** All contributors also need to fill out the 
-[Temporal Contributor License Agreement](https://gist.github.com/samarabbas/7dcd41eb1d847e12263cc961ccfdb197) 
-before we can merge in any of your changes
+This guide describes expectations that apply across Temporal SDK repositories. Each
+repository may have additional local conventions, but the guidance below should help
+you open issues and pull requests that maintainers can evaluate efficiently.
 
-## Development Environment
+## Before You Open an Issue
 
-* Java 21+
-* Docker to run Temporal Server
+Search the existing issues first. If you find an issue that describes the same bug,
+feature request, or design topic, add any relevant details there instead of opening a
+duplicate. Use an upvote on the issue to show that it affects you too.
 
-## Build
+Issues are assigned to people when they are actively working on them. Before taking
+on an issue, check whether it is already assigned so you do not duplicate someone
+else's work.
 
-```
-./gradlew clean build
-```
+Use GitHub issues for actionable bugs and feature work. For usage questions, help
+debugging an application, or general discussion, join the relevant
+language-specific channel in the
+[Temporal community Slack](https://temporal.io/slack) or use the support channel
+available to you.
 
-## Code Formatting
+## Bug Reports
 
-Code autoformatting is applied automatically during a full gradle build. Build the project before submitting a PR.
-Code is formatted using `spotless` plugin with `google-java-format` tool.
+When reporting a bug, include enough detail for someone else to reproduce or
+understand the problem:
 
-## Commit Messages
+* A short summary of the problem.
+* A minimal reproduction, preferably as code that can be copied into a small
+  project or test.
+* What you expected to happen and what actually happened.
+* The SDK version.
+* The language runtime version.
+* The operating system and architecture.
+* Temporal Server or Temporal Cloud details, if the issue depends on service
+  behavior.
+* Logs, stack traces, workflow histories, or other diagnostics that show the
+  failure.
+* Whether the behavior is a regression, and the last version where it worked if
+  known.
 
-Overcommit adds some requirements to your commit messages. We follow the
-[Chris Beams](http://chris.beams.io/posts/git-commit/) guide to writing git
-commit messages. Read it, follow it, learn it, love it.
+## Feature Requests and Design Changes
 
-## Running features tests in CI
+Open or join a GitHub issue before starting substantial feature work, behavior
+changes, or API design changes. This gives maintainers and other SDK users a chance
+to discuss the approach before you invest in a larger implementation.
 
-For each PR we run the java tests from the [features repo](https://github.com/temporalio/features/). This requires
-your branch to have tags. Without tags, the features tests in CI will fail with a message like 
-```
-> Configure project :sdk-java
-fatal: No names found, cannot describe anything.
-```
-This can be done resolved by running `git fetch --tags` on your branch. Note, make sure your fork has tags copied from
-the main repo. 
+The relevant language-specific channel in Temporal community Slack is also a good
+place for early discussion, but important decisions should still be captured in a
+GitHub issue so they are visible and searchable.
 
-## Test and Build
+Small bug fixes, documentation fixes, and narrowly scoped maintenance changes can go
+straight to a pull request.
 
-Testing and building `sdk-java` requires running temporal docker locally, execute:
+## Pull Requests
+
+Good pull requests are focused and easy to review:
+
+* Keep each pull request scoped to one logical change.
+* Include tests for behavior changes.
+* Update public API documentation or doc comments when public behavior changes.
+* Add a high-level changelog entry for user-facing changes according to the
+  repository's local changelog convention.
+* Describe what changed, why it changed, and what validation you ran.
+
+Run the relevant local checks when practical. CI must pass before a pull request can
+be merged.
+
+## SDK Java Development
+
+Java 21 or later is required to run Gradle, compile the project, and run all tests
+locally.
+
+By default, integration tests run against the built-in time-skipping test server.
+Some tests require features that the built-in server does not support and are
+skipped. Gradle can download the pinned Temporal CLI, start a correctly configured
+dev server, wait for it to become ready, configure the tests to use it, and stop it
+when the test invocation finishes.
+
+Run the suite against a managed local Temporal dev server with:
 
 ```bash
-curl -O https://raw.githubusercontent.com/temporalio/temporal/master/docker/docker-compose.yml
-docker-compose up
+./gradlew test -PtestJavaVersion=11 -PtestServer=dev-server
 ```
 
-(If this does not work, see instructions for running the Temporal Server at https://github.com/temporalio/temporal/blob/master/README.md.)
-
-Then run all the tests with:
+Normal Gradle test filtering works, so a single dev-server-backed test can be run with:
 
 ```bash
-./gradlew test
+./gradlew :temporal-sdk:test -PtestJavaVersion=11 -PtestServer=dev-server \
+  --tests "io.temporal.activity.ActivityPauseTest.activityPause"
 ```
 
-Build with:
+Java 11 must be available to Gradle for these commands.
+
+To run an SDK test against an externally managed server using the standard Temporal client
+environment configuration, set `TEMPORAL_TEST_ENV_CONFIG_SERVER`. For example, the following runs
+one Cloud-safe workflow test:
 
 ```bash
-./gradlew build
+TEMPORAL_TEST_ENV_CONFIG_SERVER=true \
+TEMPORAL_ADDRESS=your-namespace.tmprl.cloud:7233 \
+TEMPORAL_NAMESPACE=your-namespace \
+TEMPORAL_API_KEY=your-api-key \
+./gradlew :temporal-sdk:test \
+  --tests 'io.temporal.client.functional.SignalTest.signalCompletedWorkflow'
 ```
+
+The harness also supports the standard `TEMPORAL_CONFIG_FILE` and `TEMPORAL_PROFILE` variables.
+Values from `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY`, `TEMPORAL_TLS_*`, and
+`TEMPORAL_GRPC_META_*` override the selected profile. Envconfig mode connects to an existing server
+and namespace; it does not create or register either one.
+
+The `:temporal-sdk:testCloud` task runs tests that are eligible for Temporal Cloud. It uses the same
+envconfig variables and excludes tests annotated with a `CloudTestExclusion` JUnit category. Tests
+are Cloud-eligible by default; use the narrowest applicable exclusion reason when a test requires a
+local server, requires Cloud resources that CI does not provision, or still needs Cloud-specific
+adaptation. Run `./gradlew :temporal-sdk:listCloudExcludedTests` to inventory the tests excluded
+from Cloud without executing them. The normal `test` task continues to run Cloud-excluded tests
+locally.
+
+Filter the inventory to one exclusion reason with, for example:
+
+```bash
+./gradlew :temporal-sdk:listCloudExcludedTests \
+  -PcloudTestExclusionReason=RequiresLocalServer
+```
+
+The accepted reasons are `RequiresLocalServer`, `RequiresCloudProvisioning`, and
+`NeedsCloudAdaptation`.
+
+JUnit category marker interfaces are the Java equivalent of test-runner traits. Every Cloud
+exclusion must pair its reason category with a complete explanatory note:
+
+```java
+@CloudTestExclusionNote("Starts an in-process time-skipping server.")
+@Category(RequiresLocalServer.class)
+```
+
+## Things to Avoid
+
+Avoid changes that make review harder without improving the contribution:
+
+* Unrelated refactors mixed into a behavior change.
+* Style-only churn.
+* Large feature pull requests that were not discussed first.
+* License, copyright, or other legal changes without maintainer discussion.
+
+## AI-Generated Contributions
+
+Using AI tools while contributing is acceptable. You are responsible for the
+correctness, quality, and maintainability of everything you submit.
+
+Thoroughly self-review AI-generated code and documentation before opening a pull
+request. Make sure it is correct, tested where appropriate, and consistent with the
+style and patterns of the codebase.
+
+Keep AI-assisted changes concise and scoped. Avoid verbose generated prose,
+unnecessary comments, or broad rewrites that make the change harder to review.
+
+## Contributor License Agreement
+
+All contributors must complete the Temporal Contributor License Agreement (CLA)
+before changes can be merged. A link to the CLA will be posted in the pull request.
+
+## Security Issues
+
+Do not open public GitHub issues for suspected security vulnerabilities. Report them
+to security@temporal.io instead.
+
+## Review and CI
+
+Maintainers review pull requests for correctness, compatibility, test coverage,
+documentation, and long-term maintainability. Review may require changes before a
+pull request can be merged, and it may take maintainers some time to review a
+contribution.
+
+CI is the final validation gate. If CI fails, update the pull request or ask for help
+if the failure appears unrelated to your change. Some CI gates may wait for a
+maintainer to approve or run them.
+
+## Inactive Pull Requests
+
+Maintainers may close inactive pull requests after follow-up if they are no longer
+moving forward. If that happens, you are welcome to reopen the pull request or open a
+new one when you are ready to continue.
+
+## Community Conduct
+
+Keep discussions respectful, constructive, and focused on the work. Clear context,
+specific examples, and patience with review feedback help everyone move faster.

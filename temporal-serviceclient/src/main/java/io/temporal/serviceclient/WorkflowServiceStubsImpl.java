@@ -63,7 +63,7 @@ final class WorkflowServiceStubsImpl implements WorkflowServiceStubs {
     this.channelManager =
         new ChannelManager(this.options, Collections.singletonList(deadlineInterceptor));
 
-    log.info(
+    log.debug(
         String.format(
             "Created WorkflowServiceStubs for channel: %s", channelManager.getRawChannel()));
 

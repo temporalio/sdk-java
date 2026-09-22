@@ -1,0 +1,81 @@
+# **💥 BREAKING CHANGES**
+
+## `ActivityInfo` properties related to workflow execution are now nullable
+
+Due to introduction of Standalone Activities feature (see below), the prior assumption that every activity has
+a scheduling workflow no longer holds true. As a consequence, `ActivityInfo` methods `getWorkflowId`, `getRunId`,
+`getWorkflowRunId`, `getWorkflowType` and `getWorkflowNamespace` are now marked `@Nullable`.
+
+As long as Standalone Activities are not being used, it is safe to ignore the resulting nullability errors.
+However, the recommended migration path is to call `ActivityInfo.isInWorkflow()` method and handle both cases
+- this way the activity can be run in standalone context.
+
+# **Highlights**
+
+## Spring AI integration
+
+The new temporal-spring-ai module makes [Spring AI](https://spring.io/projects/spring-ai) agents durable on Temporal.
+Chat model calls run as Temporal Activities recorded in workflow history, so they retry on transient failures and replay
+deterministically. Tools are dispatched per their type — `@ActivityInterface` stubs and Nexus stubs as durable operations,
+`@SideEffectTool` classes wrapped in `Workflow.sideEffect`, and plain tools running directly in workflow code — without
+changing how you write Spring AI code. Vector stores, embeddings, and MCP tool calls are auto-registered when their
+Spring AI modules are on the classpath. (#2829)
+
+## Worker Heartbeating
+
+This release adds a new feature called Worker Heartbeating. This feature spins up a single nexus-only worker per
+Client/Namespace in the background and periodically sends some basic metrics over to server for all of the workers
+registered on the same Client/Namespace. This feature is enabled by default. You can interact with the heartbeat data
+using CLI commands temporal worker list and temporal worker describe to query the data. (#2818)
+
+## Standalone Activities (Pre-release)
+
+Activities can now be started directly, independent of any workflow. Use the new `ActivityClient` class to start, fetch
+results, and manage lifecycle of Standalone Activity executions. Learn more at https://docs.temporal.io/standalone-activity
+- Java SDK specific docs coming soon.
+
+Note: although the Server feature is available as Public Preview, Java SDK's implementation is currently still in
+pre-release stage. (#2858)
+
+## gRPC Version Upgrade
+
+Upgraded gRPC dependency to 1.76.0 to resolve network stream corruption issue that could happen if multiple
+Netty versions are present in the classpath. (#2866)
+
+# **Bugfixes**
+
+Provide default (empty) client config when default user config dir does not exist (#2828)
+
+Add explicit opt-in flags for activity/nexus bean auto-discovery in Spring Boot (#2830)
+
+Fix worker options default application overriding poller behavior (#2838)
+
+# What's Changed
+
+2026-04-06 - 522d6698 - Fix - provide default (empty) client config when default user config dir does not exist (#2828)
+2026-04-06 - 80e6a1c5 - Claude fix all docstring problems & add check to CI (#2822)
+2026-04-07 - 187b778e - Deprecate namespace field in ChildWorkflowOptions (#2831)
+2026-04-07 - 2bbf52db - Worker Heartbeating (#2818)
+2026-04-07 - f4a26e02 - Fix native-image CI docker build flake (#2832)
+2026-04-07 - f8ddd7e3 - Add doc comment saying when `SKIP_YIELD_ON_VERSION` was enabled by (#2825)
+2026-04-08 - 8716d220 - Add explicit opt-in flags for activity/nexus bean auto-discovery in Spring Boot (#2830)
+2026-04-13 - 05ee8279 - chore: bump workflowcheck asm version for latest JDK version support (#2835)
+2026-04-15 - dce350c0 - Fix worker options default application overriding poller behavior (#2838)
+2026-04-17 - 686a62d9 - Add temporal-spring-ai module (#2829)
+2026-04-17 - b6f4283e - Bump JDK version requirement in Gradle and CI (#2845)
+2026-04-18 - a9389e66 - Update and pin all GHA actions (#2847)
+2026-04-20 - 69bbb6e1 - Update Required Temporal Java SDK version in Spring AI README to next upcoming release (#2849)
+2026-04-21 - d3c157ce - Revise README for project name and preview warning (#2850)
+2026-04-23 - 64d5b2e9 - temporal-spring-ai: guard large media byte[] from entering workflow history (#2860)
+2026-04-23 - cad6172d - temporal-spring-ai: attach activity summaries for chat and MCP calls (#2852)
+2026-04-23 - ccaf4a62 - temporal-spring-ai: accept ActivityOptions and classify non-retryable AI errors (#2853)
+2026-04-24 - 87c519e6 - temporal-spring-ai: discover MCP clients by type, not by bean name (#2859)
+2026-04-24 - 9eae4a8c - temporal-spring-ai: add side-effect replay tests for chat, activity tools, and @SideEffectTool (#2856)
+2026-04-24 - c402f55f - temporal-spring-ai: README expansion and default-model-name consolidation (#2861)
+2026-04-24 - f109c0cc - temporal-spring-ai: preserve Usage and RateLimit in ChatResponse metadata (#2854)
+2026-04-27 - 79c9fe59 - temporal-spring-ai: per-model ActivityOptions registry (#2855)
+2026-04-27 - 911dd02c - temporal-spring-ai: pass provider-specific ChatOptions through the activity boundary (#2857)
+2026-04-27 - cddafe4b - Setup `contrib/` directory with CODEOWNERS that is extensible for non-SDK team extensions. (#2862)
+2026-04-30 - 38923947 - 💥 Standalone Activities for Java (#2858)
+2026-04-30 - 4b2c2941 - Update Temporal Cloud-API to v 0.14.0 (#2864)
+2026-04-30 - a2c6f37f - Upgraded gRPC to 1.76.0 and Guava to 33.4.8 (#2866)

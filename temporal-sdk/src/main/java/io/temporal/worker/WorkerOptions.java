@@ -4,6 +4,7 @@ import static java.lang.Double.compare;
 
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
+import io.temporal.internal.Config;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.worker.tuning.*;
 import java.time.Duration;
@@ -64,6 +65,7 @@ public final class WorkerOptions {
     private Duration defaultHeartbeatThrottleInterval;
     private Duration stickyQueueScheduleToStartTimeout;
     private boolean disableEagerExecution;
+    private int maxEagerActivityReservationsPerWorkflowTask = Config.EAGER_ACTIVITIES_LIMIT;
     private String buildId;
     private boolean useBuildIdForVersioning;
     private Duration stickyTaskQueueDrainTimeout;
@@ -77,6 +79,15 @@ public final class WorkerOptions {
     private PollerBehavior workflowTaskPollersBehavior;
     private PollerBehavior activityTaskPollersBehavior;
     private PollerBehavior nexusTaskPollersBehavior;
+    private boolean allowActivityHeartbeatDuringShutdown;
+    private PreferredVersionProvider preferredVersionProvider;
+    // Track whether the user explicitly configured the pollers for a task type (called either the
+    // max-concurrent-pollers or the poller-behavior setter). A type left unconfigured is eligible
+    // for poller-autoscaling auto-enrollment. This must reflect the user's intent, not the resolved
+    // value, since defaulting fills in a non-zero count that would otherwise look explicit.
+    private boolean workflowTaskPollersConfigured;
+    private boolean activityTaskPollersConfigured;
+    private boolean nexusTaskPollersConfigured;
 
     private Builder() {}
 
@@ -100,6 +111,8 @@ public final class WorkerOptions {
       this.defaultHeartbeatThrottleInterval = o.defaultHeartbeatThrottleInterval;
       this.stickyQueueScheduleToStartTimeout = o.stickyQueueScheduleToStartTimeout;
       this.disableEagerExecution = o.disableEagerExecution;
+      this.maxEagerActivityReservationsPerWorkflowTask =
+          o.maxEagerActivityReservationsPerWorkflowTask;
       this.useBuildIdForVersioning = o.useBuildIdForVersioning;
       this.buildId = o.buildId;
       this.stickyTaskQueueDrainTimeout = o.stickyTaskQueueDrainTimeout;
@@ -112,6 +125,11 @@ public final class WorkerOptions {
       this.workflowTaskPollersBehavior = o.workflowTaskPollersBehavior;
       this.activityTaskPollersBehavior = o.activityTaskPollersBehavior;
       this.nexusTaskPollersBehavior = o.nexusTaskPollersBehavior;
+      this.allowActivityHeartbeatDuringShutdown = o.allowActivityHeartbeatDuringShutdown;
+      this.preferredVersionProvider = o.preferredVersionProvider;
+      this.workflowTaskPollersConfigured = o.workflowTaskPollersConfigured;
+      this.activityTaskPollersConfigured = o.activityTaskPollersConfigured;
+      this.nexusTaskPollersConfigured = o.nexusTaskPollersConfigured;
     }
 
     /**
@@ -225,9 +243,14 @@ public final class WorkerOptions {
      * value cannot be 1 and will be adjusted to 2 if set to that value.
      *
      * <p>Default is 5, which is chosen if set to zero.
+     *
+     * <p>NOTE: If neither this nor {@link #setWorkflowTaskPollersBehavior} is set and the worker's
+     * namespace is configured to auto-enroll workers into poller autoscaling, the worker will
+     * automatically use poller autoscaling for workflow tasks instead of a fixed number of pollers.
      */
     public Builder setMaxConcurrentWorkflowTaskPollers(int maxConcurrentWorkflowTaskPollers) {
       this.maxConcurrentWorkflowTaskPollers = maxConcurrentWorkflowTaskPollers;
+      this.workflowTaskPollersConfigured = true;
       return this;
     }
 
@@ -237,10 +260,15 @@ public final class WorkerOptions {
      * tasks from a task queue.
      *
      * <p>Default is 5, which is chosen if set to zero.
+     *
+     * <p>NOTE: If neither this nor {@link #setNexusTaskPollersBehavior} is set and the worker's
+     * namespace is configured to auto-enroll workers into poller autoscaling, the worker will
+     * automatically use poller autoscaling for nexus tasks instead of a fixed number of pollers.
      */
     @Experimental
     public Builder setMaxConcurrentNexusTaskPollers(int maxConcurrentNexusTaskPollers) {
       this.maxConcurrentNexusTaskPollers = maxConcurrentNexusTaskPollers;
+      this.nexusTaskPollersConfigured = true;
       return this;
     }
 
@@ -264,9 +292,14 @@ public final class WorkerOptions {
      * `MaxConcurrentActivityExecutionSize` options and still cannot keep up with the request rate.
      *
      * <p>Default is 5, which is chosen if set to zero.
+     *
+     * <p>NOTE: If neither this nor {@link #setActivityTaskPollersBehavior} is set and the worker's
+     * namespace is configured to auto-enroll workers into poller autoscaling, the worker will
+     * automatically use poller autoscaling for activity tasks instead of a fixed number of pollers.
      */
     public Builder setMaxConcurrentActivityTaskPollers(int maxConcurrentActivityTaskPollers) {
       this.maxConcurrentActivityTaskPollers = maxConcurrentActivityTaskPollers;
+      this.activityTaskPollersConfigured = true;
       return this;
     }
 
@@ -298,9 +331,9 @@ public final class WorkerOptions {
     /**
      * @param defaultDeadlockDetectionTimeoutMs time period in ms that will be used to detect
      *     workflows deadlock. Default is 1000ms, which is chosen if set to zero.
-     *     <p>Specifies an amount of time in milliseconds that workflow tasks are allowed to execute
-     *     without interruption. If workflow task runs longer than specified interval without
-     *     yielding (like calling an Activity), it will fail automatically.
+     *     <p>Specifies a time interval in milliseconds within which a workflow task must yield
+     *     (like calling an Activity) or complete. If a workflow task runs longer than the specified
+     *     interval or takes too long to begin running, it will fail automatically.
      * @return {@code this}
      * @see io.temporal.internal.sync.PotentialDeadlockException
      */
@@ -372,6 +405,20 @@ public final class WorkerOptions {
     }
 
     /**
+     * Sets the maximum number of activity slots that may be reserved for eager execution when
+     * completing a workflow task.
+     *
+     * <p>The default is 3. The value must be positive. To disable eager activity execution, use
+     * {@link #setDisableEagerExecution(boolean)}.
+     */
+    public Builder setMaxEagerActivityReservationsPerWorkflowTask(
+        int maxEagerActivityReservationsPerWorkflowTask) {
+      this.maxEagerActivityReservationsPerWorkflowTask =
+          maxEagerActivityReservationsPerWorkflowTask;
+      return this;
+    }
+
+    /**
      * Opts the worker in to the Build-ID-based versioning feature. This ensures that the worker
      * will only receive tasks which it is compatible with.
      *
@@ -433,7 +480,6 @@ public final class WorkerOptions {
      * supported for JDK >= 21. Individual options for different types of workers can be set using
      * the respective methods.
      */
-    @Experimental
     public Builder setUsingVirtualThreads(boolean enable) {
       this.usingVirtualThreadsOnWorkflowWorker = enable;
       this.usingVirtualThreadsOnLocalActivityWorker = enable;
@@ -446,7 +492,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Workflow task executors created by this worker. This option is
      * only supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnWorkflowWorker(boolean enable) {
       this.usingVirtualThreadsOnWorkflowWorker = enable;
       return this;
@@ -456,7 +501,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Local Activity task executors created by this worker. This option
      * is only supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnLocalActivityWorker(boolean enable) {
       this.usingVirtualThreadsOnLocalActivityWorker = enable;
       return this;
@@ -466,7 +510,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Activity task executors created by this worker. This option is
      * only supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnActivityWorker(boolean enable) {
       this.usingVirtualThreadsOnActivityWorker = enable;
       return this;
@@ -476,7 +519,6 @@ public final class WorkerOptions {
      * Use Virtual Threads for the Nexus task executors created by this worker. This option is only
      * supported for JDK >= 21.
      */
-    @Experimental
     public Builder setUsingVirtualThreadsOnNexusWorker(boolean enable) {
       this.usingVirtualThreadsOnNexusWorker = enable;
       return this;
@@ -506,21 +548,78 @@ public final class WorkerOptions {
      *
      * <p>If the sticky queue is enabled, the poller behavior will be used for the sticky queue as
      * well.
+     *
+     * <p>NOTE: If neither this nor {@link #setMaxConcurrentWorkflowTaskPollers} is set and the
+     * worker's namespace is configured to auto-enroll workers into poller autoscaling, the worker
+     * will automatically use poller autoscaling for workflow tasks instead of a fixed number of
+     * pollers.
      */
     public Builder setWorkflowTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.workflowTaskPollersBehavior = pollerBehavior;
+      this.workflowTaskPollersConfigured = true;
       return this;
     }
 
-    /** Set the poller behavior for activity task pollers. */
+    /**
+     * Set the poller behavior for activity task pollers.
+     *
+     * <p>NOTE: If neither this nor {@link #setMaxConcurrentActivityTaskPollers} is set and the
+     * worker's namespace is configured to auto-enroll workers into poller autoscaling, the worker
+     * will automatically use poller autoscaling for activity tasks instead of a fixed number of
+     * pollers.
+     */
     public Builder setActivityTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.activityTaskPollersBehavior = pollerBehavior;
+      this.activityTaskPollersConfigured = true;
       return this;
     }
 
-    /** Set the poller behavior for nexus task pollers. */
+    /**
+     * Set the poller behavior for nexus task pollers.
+     *
+     * <p>NOTE: If neither this nor {@link #setMaxConcurrentNexusTaskPollers} is set and the
+     * worker's namespace is configured to auto-enroll workers into poller autoscaling, the worker
+     * will automatically use poller autoscaling for nexus tasks instead of a fixed number of
+     * pollers.
+     */
     public Builder setNexusTaskPollersBehavior(PollerBehavior pollerBehavior) {
       this.nexusTaskPollersBehavior = pollerBehavior;
+      this.nexusTaskPollersConfigured = true;
+      return this;
+    }
+
+    /**
+     * If true, activities can keep heartbeating during graceful worker shutdown (see {@link
+     * io.temporal.worker.WorkerFactory#shutdown WorkerFactory.shutdown}). Defaults to false, which
+     * means that after graceful shutdown is requested, calling {@link
+     * io.temporal.activity.ActivityExecutionContext#heartbeat ActivityExecutionContext.heartbeat}
+     * does not send a heartbeat and instead throws {@link
+     * io.temporal.client.ActivityWorkerShutdownException ActivityWorkerShutdownException}. This
+     * option is ignored by non-graceful shutdown (see {@link
+     * io.temporal.worker.WorkerFactory#shutdownNow WorkerFactory.shutdownNow}).
+     *
+     * <p>Note that with this option enabled, activities are no longer notified of the worker
+     * shutdown by the {@link io.temporal.client.ActivityWorkerShutdownException
+     * ActivityWorkerShutdownException} exception, so they are expected to complete within the
+     * termination grace period on their own.
+     */
+    @Experimental
+    public Builder setAllowActivityHeartbeatDuringShutdown(
+        boolean allowActivityHeartbeatDuringShutdown) {
+      this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+      return this;
+    }
+
+    /**
+     * Sets a provider that can choose the version recorded by the first non-replay {@link
+     * io.temporal.workflow.Workflow#getVersion(String, int, int)} call for a change ID.
+     *
+     * <p>If unset, or if the provider returns {@link java.util.Optional#empty()}, the SDK keeps the
+     * existing behavior of recording {@code maxSupported}.
+     */
+    @Experimental
+    public Builder setPreferredVersionProvider(PreferredVersionProvider preferredVersionProvider) {
+      this.preferredVersionProvider = preferredVersionProvider;
       return this;
     }
 
@@ -542,6 +641,7 @@ public final class WorkerOptions {
           defaultHeartbeatThrottleInterval,
           stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
+          maxEagerActivityReservationsPerWorkflowTask,
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout,
@@ -553,7 +653,12 @@ public final class WorkerOptions {
           deploymentOptions,
           workflowTaskPollersBehavior,
           activityTaskPollersBehavior,
-          nexusTaskPollersBehavior);
+          nexusTaskPollersBehavior,
+          allowActivityHeartbeatDuringShutdown,
+          preferredVersionProvider,
+          workflowTaskPollersConfigured,
+          activityTaskPollersConfigured,
+          nexusTaskPollersConfigured);
     }
 
     public WorkerOptions validateAndBuildWithDefaults() {
@@ -561,6 +666,10 @@ public final class WorkerOptions {
           maxWorkerActivitiesPerSecond >= 0, "negative maxActivitiesPerSecond");
       Preconditions.checkState(
           maxConcurrentActivityExecutionSize >= 0, "negative maxConcurrentActivityExecutionSize");
+      Preconditions.checkState(
+          maxEagerActivityReservationsPerWorkflowTask > 0,
+          "maxEagerActivityReservationsPerWorkflowTask must be positive; use "
+              + "setDisableEagerExecution(true) to disable eager activity execution");
       Preconditions.checkState(
           maxConcurrentWorkflowTaskExecutionSize >= 0,
           "negative maxConcurrentWorkflowTaskExecutionSize");
@@ -646,13 +755,17 @@ public final class WorkerOptions {
           workerTuner,
           maxTaskQueueActivitiesPerSecond,
           maxConcurrentWorkflowTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS
+              ? (workflowTaskPollersBehavior != null
+                  ? 0
+                  : DEFAULT_MAX_CONCURRENT_WORKFLOW_TASK_POLLERS)
               : maxConcurrentWorkflowTaskPollers,
           maxConcurrentActivityTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS
+              ? (activityTaskPollersBehavior != null
+                  ? 0
+                  : DEFAULT_MAX_CONCURRENT_ACTIVITY_TASK_POLLERS)
               : maxConcurrentActivityTaskPollers,
           maxConcurrentNexusTaskPollers == 0
-              ? DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS
+              ? (nexusTaskPollersBehavior != null ? 0 : DEFAULT_MAX_CONCURRENT_NEXUS_TASK_POLLERS)
               : maxConcurrentNexusTaskPollers,
           localActivityWorkerOnly,
           defaultDeadlockDetectionTimeout == 0
@@ -668,6 +781,7 @@ public final class WorkerOptions {
               ? DEFAULT_STICKY_SCHEDULE_TO_START_TIMEOUT
               : stickyQueueScheduleToStartTimeout,
           disableEagerExecution,
+          maxEagerActivityReservationsPerWorkflowTask,
           useBuildIdForVersioning,
           buildId,
           stickyTaskQueueDrainTimeout == null
@@ -681,7 +795,12 @@ public final class WorkerOptions {
           deploymentOptions,
           workflowTaskPollersBehavior,
           activityTaskPollersBehavior,
-          nexusTaskPollersBehavior);
+          nexusTaskPollersBehavior,
+          allowActivityHeartbeatDuringShutdown,
+          preferredVersionProvider,
+          workflowTaskPollersConfigured,
+          activityTaskPollersConfigured,
+          nexusTaskPollersConfigured);
     }
   }
 
@@ -701,6 +820,7 @@ public final class WorkerOptions {
   private final Duration defaultHeartbeatThrottleInterval;
   private final @Nonnull Duration stickyQueueScheduleToStartTimeout;
   private final boolean disableEagerExecution;
+  private final int maxEagerActivityReservationsPerWorkflowTask;
   private final boolean useBuildIdForVersioning;
   private final String buildId;
   private final Duration stickyTaskQueueDrainTimeout;
@@ -713,6 +833,11 @@ public final class WorkerOptions {
   private final PollerBehavior workflowTaskPollersBehavior;
   private final PollerBehavior activityTaskPollersBehavior;
   private final PollerBehavior nexusTaskPollersBehavior;
+  private final boolean allowActivityHeartbeatDuringShutdown;
+  private final PreferredVersionProvider preferredVersionProvider;
+  private final boolean workflowTaskPollersConfigured;
+  private final boolean activityTaskPollersConfigured;
+  private final boolean nexusTaskPollersConfigured;
 
   private WorkerOptions(
       double maxWorkerActivitiesPerSecond,
@@ -731,6 +856,7 @@ public final class WorkerOptions {
       Duration defaultHeartbeatThrottleInterval,
       @Nonnull Duration stickyQueueScheduleToStartTimeout,
       boolean disableEagerExecution,
+      int maxEagerActivityReservationsPerWorkflowTask,
       boolean useBuildIdForVersioning,
       String buildId,
       Duration stickyTaskQueueDrainTimeout,
@@ -742,7 +868,12 @@ public final class WorkerOptions {
       WorkerDeploymentOptions deploymentOptions,
       PollerBehavior workflowTaskPollersBehavior,
       PollerBehavior activityTaskPollersBehavior,
-      PollerBehavior nexusTaskPollersBehavior) {
+      PollerBehavior nexusTaskPollersBehavior,
+      boolean allowActivityHeartbeatDuringShutdown,
+      PreferredVersionProvider preferredVersionProvider,
+      boolean workflowTaskPollersConfigured,
+      boolean activityTaskPollersConfigured,
+      boolean nexusTaskPollersConfigured) {
     this.maxWorkerActivitiesPerSecond = maxWorkerActivitiesPerSecond;
     this.maxConcurrentActivityExecutionSize = maxConcurrentActivityExecutionSize;
     this.maxConcurrentWorkflowTaskExecutionSize = maxConcurrentWorkflowTaskExecutionSize;
@@ -759,6 +890,7 @@ public final class WorkerOptions {
     this.defaultHeartbeatThrottleInterval = defaultHeartbeatThrottleInterval;
     this.stickyQueueScheduleToStartTimeout = stickyQueueScheduleToStartTimeout;
     this.disableEagerExecution = maxTaskQueueActivitiesPerSecond > 0 ? true : disableEagerExecution;
+    this.maxEagerActivityReservationsPerWorkflowTask = maxEagerActivityReservationsPerWorkflowTask;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.buildId = buildId;
     this.stickyTaskQueueDrainTimeout = stickyTaskQueueDrainTimeout;
@@ -771,6 +903,40 @@ public final class WorkerOptions {
     this.workflowTaskPollersBehavior = workflowTaskPollersBehavior;
     this.activityTaskPollersBehavior = activityTaskPollersBehavior;
     this.nexusTaskPollersBehavior = nexusTaskPollersBehavior;
+    this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.preferredVersionProvider = preferredVersionProvider;
+    this.workflowTaskPollersConfigured = workflowTaskPollersConfigured;
+    this.activityTaskPollersConfigured = activityTaskPollersConfigured;
+    this.nexusTaskPollersConfigured = nexusTaskPollersConfigured;
+  }
+
+  /**
+   * Whether the workflow task pollers were left at their default (the user called neither {@link
+   * Builder#setMaxConcurrentWorkflowTaskPollers} nor {@link
+   * Builder#setWorkflowTaskPollersBehavior}), which makes them eligible for poller-autoscaling
+   * auto-enrollment.
+   */
+  boolean isWorkflowTaskPollerAutoEnrollEligible() {
+    return !workflowTaskPollersConfigured;
+  }
+
+  /**
+   * Whether the activity task pollers were left at their default (the user called neither {@link
+   * Builder#setMaxConcurrentActivityTaskPollers} nor {@link
+   * Builder#setActivityTaskPollersBehavior}), which makes them eligible for poller-autoscaling
+   * auto-enrollment.
+   */
+  boolean isActivityTaskPollerAutoEnrollEligible() {
+    return !activityTaskPollersConfigured;
+  }
+
+  /**
+   * Whether the nexus task pollers were left at their default (the user called neither {@link
+   * Builder#setMaxConcurrentNexusTaskPollers} nor {@link Builder#setNexusTaskPollersBehavior}),
+   * which makes them eligible for poller-autoscaling auto-enrollment.
+   */
+  boolean isNexusTaskPollerAutoEnrollEligible() {
+    return !nexusTaskPollersConfigured;
   }
 
   public double getMaxWorkerActivitiesPerSecond() {
@@ -850,6 +1016,10 @@ public final class WorkerOptions {
     return disableEagerExecution;
   }
 
+  public int getMaxEagerActivityReservationsPerWorkflowTask() {
+    return maxEagerActivityReservationsPerWorkflowTask;
+  }
+
   public boolean isUsingBuildIdForVersioning() {
     return useBuildIdForVersioning;
   }
@@ -871,22 +1041,18 @@ public final class WorkerOptions {
     return identity;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnWorkflowWorker() {
-    return usingVirtualThreadsOnActivityWorker;
+    return usingVirtualThreadsOnWorkflowWorker;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnActivityWorker() {
     return usingVirtualThreadsOnActivityWorker;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnLocalActivityWorker() {
     return usingVirtualThreadsOnLocalActivityWorker;
   }
 
-  @Experimental
   public boolean isUsingVirtualThreadsOnNexusWorker() {
     return usingVirtualThreadsOnNexusWorker;
   }
@@ -908,6 +1074,16 @@ public final class WorkerOptions {
     return nexusTaskPollersBehavior;
   }
 
+  @Experimental
+  public boolean getAllowActivityHeartbeatDuringShutdown() {
+    return allowActivityHeartbeatDuringShutdown;
+  }
+
+  @Experimental
+  public PreferredVersionProvider getPreferredVersionProvider() {
+    return preferredVersionProvider;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -925,6 +1101,8 @@ public final class WorkerOptions {
         && localActivityWorkerOnly == that.localActivityWorkerOnly
         && defaultDeadlockDetectionTimeout == that.defaultDeadlockDetectionTimeout
         && disableEagerExecution == that.disableEagerExecution
+        && maxEagerActivityReservationsPerWorkflowTask
+            == that.maxEagerActivityReservationsPerWorkflowTask
         && useBuildIdForVersioning == that.useBuildIdForVersioning
         && Objects.equals(workerTuner, that.workerTuner)
         && Objects.equals(maxHeartbeatThrottleInterval, that.maxHeartbeatThrottleInterval)
@@ -940,7 +1118,9 @@ public final class WorkerOptions {
         && Objects.equals(deploymentOptions, that.deploymentOptions)
         && Objects.equals(workflowTaskPollersBehavior, that.workflowTaskPollersBehavior)
         && Objects.equals(activityTaskPollersBehavior, that.activityTaskPollersBehavior)
-        && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior);
+        && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior)
+        && allowActivityHeartbeatDuringShutdown == that.allowActivityHeartbeatDuringShutdown
+        && Objects.equals(preferredVersionProvider, that.preferredVersionProvider);
   }
 
   @Override
@@ -962,6 +1142,7 @@ public final class WorkerOptions {
         defaultHeartbeatThrottleInterval,
         stickyQueueScheduleToStartTimeout,
         disableEagerExecution,
+        maxEagerActivityReservationsPerWorkflowTask,
         useBuildIdForVersioning,
         buildId,
         stickyTaskQueueDrainTimeout,
@@ -973,7 +1154,9 @@ public final class WorkerOptions {
         deploymentOptions,
         workflowTaskPollersBehavior,
         activityTaskPollersBehavior,
-        nexusTaskPollersBehavior);
+        nexusTaskPollersBehavior,
+        allowActivityHeartbeatDuringShutdown,
+        preferredVersionProvider);
   }
 
   @Override
@@ -1011,6 +1194,8 @@ public final class WorkerOptions {
         + stickyQueueScheduleToStartTimeout
         + ", disableEagerExecution="
         + disableEagerExecution
+        + ", maxEagerActivityReservationsPerWorkflowTask="
+        + maxEagerActivityReservationsPerWorkflowTask
         + ", useBuildIdForVersioning="
         + useBuildIdForVersioning
         + ", buildId='"
@@ -1036,6 +1221,10 @@ public final class WorkerOptions {
         + activityTaskPollersBehavior
         + ", nexusTaskPollersBehavior="
         + nexusTaskPollersBehavior
+        + ", allowActivityHeartbeatDuringShutdown="
+        + allowActivityHeartbeatDuringShutdown
+        + ", preferredVersionProvider="
+        + preferredVersionProvider
         + '}';
   }
 }

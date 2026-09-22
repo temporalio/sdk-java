@@ -162,6 +162,9 @@ class SyncWorkflow implements ReplayWorkflow {
               } catch (ReadOnlyException r) {
                 // Rethrow instead on rejecting the update to fail the WFT
                 throw r;
+              } catch (WorkflowExecutionException e) {
+                callbacks.reject(e.getFailure());
+                return;
               } catch (Exception e) {
                 callbacks.reject(
                     workflowContext

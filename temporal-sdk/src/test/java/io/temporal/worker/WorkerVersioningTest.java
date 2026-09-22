@@ -10,6 +10,7 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.InitialVersioningBehavior;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.VersioningOverride;
 import io.temporal.common.WorkerDeploymentVersion;
@@ -145,6 +146,7 @@ public class WorkerVersioningTest {
     DescribeWorkerDeploymentResponse describeResp1 = waitUntilWorkerDeploymentVisible(v1);
 
     setCurrentVersion(v1, describeResp1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
 
     // Start workflow 1 which will use the 1.0 worker on auto-upgrade
     TestWorkflows.QueryableWorkflow wf1 =
@@ -159,6 +161,7 @@ public class WorkerVersioningTest {
         new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
     DescribeWorkerDeploymentResponse describeResp2 = waitUntilWorkerDeploymentVisible(v2);
     setCurrentVersion(v2, describeResp2.getConflictToken());
+    waitForRoutingConfigPropagation(v2);
 
     TestWorkflows.QueryableWorkflow wf2 =
         testWorkflowRule.newWorkflowStubTimeoutOptions(
@@ -172,6 +175,7 @@ public class WorkerVersioningTest {
 
     // Set current version to 3.0
     setCurrentVersion(v3, describeResp3.getConflictToken());
+    waitForRoutingConfigPropagation(v3);
 
     TestWorkflows.QueryableWorkflow wf3 =
         testWorkflowRule.newWorkflowStubTimeoutOptions(
@@ -199,7 +203,7 @@ public class WorkerVersioningTest {
     Assert.assertEquals("version-v3", res3);
   }
 
-  @Test
+  @Test(timeout = 30_000)
   public void testRampWorkerVersioning() {
     assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
 
@@ -223,8 +227,10 @@ public class WorkerVersioningTest {
     // Set cur ver to 1 & ramp 100% to 2
     SetWorkerDeploymentCurrentVersionResponse setCurR =
         setCurrentVersion(v1, describeResp1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
     SetWorkerDeploymentRampingVersionResponse rampResp =
         setRampingVersion(v2, 100, setCurR.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
     // Run workflows and verify they've both started & run on v2
     for (int i = 0; i < 3; i++) {
       String res = runWorkflow("versioning-ramp-100");
@@ -233,12 +239,14 @@ public class WorkerVersioningTest {
     // Set ramp to 0, and see them start on v1
     SetWorkerDeploymentRampingVersionResponse rampResp2 =
         setRampingVersion(v2, 0, rampResp.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
     for (int i = 0; i < 3; i++) {
       String res = runWorkflow("versioning-ramp-0");
       Assert.assertEquals("version-v1", res);
     }
     // Set to 50% and see we eventually will have one run on v1 and one on v2
     setRampingVersion(v2, 50, rampResp2.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
     HashSet<String> seenRanOn = new HashSet<>();
     Eventually.assertEventually(
         Duration.ofSeconds(30),
@@ -387,6 +395,64 @@ public class WorkerVersioningTest {
         e.getMessage());
   }
 
+  @Test
+  public void testWorkerWithDeploymentOptionsVersioningOffCanRunWorkflows() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    Worker w1 =
+        testWorkflowRule.newWorker(
+            (opts) ->
+                opts.setDeploymentOptions(
+                    WorkerDeploymentOptions.newBuilder()
+                        .setVersion(
+                            new WorkerDeploymentVersion(
+                                testWorkflowRule.getDeploymentName(), "my-custom-build-id-1.0"))
+                        .setUseVersioning(false)
+                        .build()));
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningMissingAnnotation.class);
+    w1.start();
+
+    TestWorkflows.QueryableWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            TestWorkflows.QueryableWorkflow.class, "versioning-off-build-id");
+    WorkflowExecution we = WorkflowClient.start(wf::execute);
+    wf.mySignal("done");
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(we.getWorkflowId())
+            .getResult(String.class);
+    Assert.assertEquals("no-annotation", result);
+
+    WorkflowExecutionHistory hist = testWorkflowRule.getExecutionHistory(we.getWorkflowId());
+    // The Java SDK sends deployment_options on WFT completion, and the server records the
+    // deployment name in the worker_deployment_name field of the history event.
+    Assert.assertTrue(
+        "Expected deployment name to appear in workflow history",
+        hist.getHistory().getEventsList().stream()
+            .anyMatch(
+                e ->
+                    e.getEventType() == EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED
+                        && !e.getWorkflowTaskCompletedEventAttributes()
+                            .getWorkerDeploymentName()
+                            .isEmpty()));
+  }
+
+  @Test
+  public void testRejectsVersioningBehaviorWhenVersioningOff() {
+    IllegalStateException e =
+        Assert.assertThrows(
+            IllegalStateException.class,
+            () ->
+                WorkerDeploymentOptions.newBuilder()
+                    .setVersion(
+                        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0"))
+                    .setUseVersioning(false)
+                    .setDefaultVersioningBehavior(VersioningBehavior.AUTO_UPGRADE)
+                    .build());
+    Assert.assertTrue(e.getMessage().contains("defaultVersioningBehavior must be UNSPECIFIED"));
+  }
+
   @SuppressWarnings("deprecation")
   @Test
   public void testWorkflowsCanUseVersioningOverride() {
@@ -429,6 +495,176 @@ public class WorkerVersioningTest {
                                 .getPinned()
                                 .getBehavior()
                             == PINNED_OVERRIDE_BEHAVIOR_PINNED));
+  }
+
+  @WorkflowInterface
+  public interface ContinueAsNewVersionUpgradeWorkflow {
+    @WorkflowMethod
+    String execute(int attempt);
+  }
+
+  public static class TestWorkerVersioningCanV1 implements ContinueAsNewVersionUpgradeWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      if (attempt > 0) {
+        return "v1.0";
+      }
+      while (!Workflow.getInfo().isTargetWorkerDeploymentVersionChanged()) {
+        Workflow.sleep(java.time.Duration.ofMillis(10));
+      }
+      ContinueAsNewOptions options =
+          ContinueAsNewOptions.newBuilder()
+              .setInitialVersioningBehavior(InitialVersioningBehavior.AUTO_UPGRADE)
+              .build();
+      ContinueAsNewVersionUpgradeWorkflow next =
+          Workflow.newContinueAsNewStub(ContinueAsNewVersionUpgradeWorkflow.class, options);
+      next.execute(attempt + 1);
+      throw new RuntimeException("unreachable");
+    }
+  }
+
+  public static class TestWorkerVersioningCanV2 implements ContinueAsNewVersionUpgradeWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      return "v2.0";
+    }
+  }
+
+  @WorkflowInterface
+  public interface ContinueAsNewWithRampingVersionWorkflow {
+    @WorkflowMethod
+    String execute(int attempt);
+
+    @SignalMethod
+    void continueAsNew();
+  }
+
+  public static class TestWorkerVersioningCanUseRampingVersionV1
+      implements ContinueAsNewWithRampingVersionWorkflow {
+    private boolean continueAsNew;
+
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      if (attempt > 0) {
+        return "v1.0";
+      }
+      Workflow.await(() -> continueAsNew);
+      ContinueAsNewOptions options =
+          ContinueAsNewOptions.newBuilder()
+              .setInitialVersioningBehavior(InitialVersioningBehavior.USE_RAMPING_VERSION)
+              .build();
+      ContinueAsNewWithRampingVersionWorkflow next =
+          Workflow.newContinueAsNewStub(ContinueAsNewWithRampingVersionWorkflow.class, options);
+      next.execute(attempt + 1);
+      throw new RuntimeException("unreachable");
+    }
+
+    @Override
+    public void continueAsNew() {
+      continueAsNew = true;
+    }
+  }
+
+  public static class TestWorkerVersioningCanUseRampingVersionV2
+      implements ContinueAsNewWithRampingVersionWorkflow {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(int attempt) {
+      return "v2.0";
+    }
+
+    @Override
+    public void continueAsNew() {}
+  }
+
+  @Test
+  public void testContinueAsNewWithRampingVersion() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    WorkerDeploymentVersion v2 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningCanUseRampingVersionV1.class);
+    w1.start();
+
+    Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
+    w2.registerWorkflowImplementationTypes(TestWorkerVersioningCanUseRampingVersionV2.class);
+    w2.start();
+
+    waitUntilWorkerDeploymentVisible(v1);
+    DescribeWorkerDeploymentResponse d1 = waitUntilWorkerDeploymentVisible(v2);
+    SetWorkerDeploymentCurrentVersionResponse currentResp =
+        setCurrentVersion(v1, d1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
+
+    ContinueAsNewWithRampingVersionWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            ContinueAsNewWithRampingVersionWorkflow.class, "can-use-ramping-version");
+    WorkflowExecution we = WorkflowClient.start(wf::execute, 0);
+    waitForWorkflowRunningOnVersion(we.getWorkflowId(), "1.0");
+
+    setRampingVersion(v2, 0, currentResp.getConflictToken());
+    waitForRoutingConfigPropagation(v1, v2);
+
+    wf.continueAsNew();
+
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(we.getWorkflowId())
+            .getResult(String.class);
+    Assert.assertEquals("v2.0", result);
+  }
+
+  @Test
+  public void testContinueAsNewWithVersionUpgrade() {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    WorkerDeploymentVersion v1 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "1.0");
+    WorkerDeploymentVersion v2 =
+        new WorkerDeploymentVersion(testWorkflowRule.getDeploymentName(), "2.0");
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    w1.registerWorkflowImplementationTypes(TestWorkerVersioningCanV1.class);
+    w1.start();
+
+    Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
+    w2.registerWorkflowImplementationTypes(TestWorkerVersioningCanV2.class);
+    w2.start();
+
+    // Set v1 as current
+    DescribeWorkerDeploymentResponse d1 = waitUntilWorkerDeploymentVisible(v1);
+    setCurrentVersion(v1, d1.getConflictToken());
+    waitForRoutingConfigPropagation(v1);
+
+    // Start workflow on v1
+    ContinueAsNewVersionUpgradeWorkflow wf =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(
+            ContinueAsNewVersionUpgradeWorkflow.class, "can-version-upgrade");
+    WorkflowExecution we = WorkflowClient.start(wf::execute, 0);
+
+    // Verify workflow is running on v1
+    waitForWorkflowRunningOnVersion(we.getWorkflowId(), "1.0");
+
+    // Set v2 as current — triggers targetWorkerDeploymentVersionChanged
+    DescribeWorkerDeploymentResponse d2 = waitUntilWorkerDeploymentVisible(v2);
+    setCurrentVersion(v2, d2.getConflictToken());
+    waitForRoutingConfigPropagation(v2);
+
+    // V1 workflow should detect version change, CAN with AUTO_UPGRADE, v2 returns "v2.0"
+    String result =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(we.getWorkflowId())
+            .getResult(String.class);
+    Assert.assertEquals("v2.0", result);
   }
 
   @SuppressWarnings("deprecation")
@@ -498,5 +734,79 @@ public class WorkerVersioningTest {
                 .setConflictToken(conflictToken)
                 .setPercentage(percent)
                 .build());
+  }
+
+  @SuppressWarnings("deprecation")
+  private void waitForRoutingConfigPropagation(WorkerDeploymentVersion v) {
+    waitForRoutingConfigPropagation(v, null);
+  }
+
+  @SuppressWarnings("deprecation")
+  private void waitForRoutingConfigPropagation(
+      WorkerDeploymentVersion currentVersion, WorkerDeploymentVersion rampingVersion) {
+    Eventually.assertEventually(
+        Duration.ofSeconds(15),
+        () -> {
+          DescribeWorkerDeploymentResponse resp =
+              testWorkflowRule
+                  .getWorkflowClient()
+                  .getWorkflowServiceStubs()
+                  .blockingStub()
+                  .describeWorkerDeployment(
+                      DescribeWorkerDeploymentRequest.newBuilder()
+                          .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                          .setDeploymentName(currentVersion.getDeploymentName())
+                          .build());
+          Assert.assertEquals(
+              currentVersion.getBuildId(),
+              resp.getWorkerDeploymentInfo()
+                  .getRoutingConfig()
+                  .getCurrentDeploymentVersion()
+                  .getBuildId());
+          if (rampingVersion != null) {
+            Assert.assertEquals(
+                rampingVersion.getBuildId(),
+                resp.getWorkerDeploymentInfo()
+                    .getRoutingConfig()
+                    .getRampingDeploymentVersion()
+                    .getBuildId());
+          }
+          // Check routing config update is not in progress
+          int state = resp.getWorkerDeploymentInfo().getRoutingConfigUpdateStateValue();
+          Assert.assertNotEquals(
+              io.temporal.api.enums.v1.RoutingConfigUpdateState
+                  .ROUTING_CONFIG_UPDATE_STATE_IN_PROGRESS_VALUE,
+              state);
+        });
+  }
+
+  private void waitForWorkflowRunningOnVersion(String workflowId, String expectedBuildId) {
+    Eventually.assertEventually(
+        Duration.ofSeconds(15),
+        () -> {
+          io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse resp =
+              testWorkflowRule
+                  .getWorkflowClient()
+                  .getWorkflowServiceStubs()
+                  .blockingStub()
+                  .describeWorkflowExecution(
+                      io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest
+                          .newBuilder()
+                          .setNamespace(testWorkflowRule.getTestEnvironment().getNamespace())
+                          .setExecution(
+                              io.temporal.api.common.v1.WorkflowExecution.newBuilder()
+                                  .setWorkflowId(workflowId)
+                                  .build())
+                          .build());
+          Assert.assertEquals(
+              io.temporal.api.enums.v1.WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING,
+              resp.getWorkflowExecutionInfo().getStatus());
+          Assert.assertEquals(
+              expectedBuildId,
+              resp.getWorkflowExecutionInfo()
+                  .getVersioningInfo()
+                  .getDeploymentVersion()
+                  .getBuildId());
+        });
   }
 }

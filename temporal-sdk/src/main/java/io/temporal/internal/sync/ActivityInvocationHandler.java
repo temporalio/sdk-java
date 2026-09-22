@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.workflow.ActivityInvocationOptions;
 import io.temporal.workflow.ActivityStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
@@ -46,7 +47,6 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
   @Override
   protected Function<Object[], Object> getActivityFunc(
       Method method, MethodRetry methodRetry, String activityName) {
-    Function<Object[], Object> function;
     ActivityOptions merged =
         ActivityOptions.newBuilder(options)
             .mergeActivityOptions(this.activityMethodOptions.get(activityName))
@@ -58,10 +58,15 @@ public class ActivityInvocationHandler extends ActivityInvocationHandlerBase {
               + activityName
               + " activity. Please set at least one of the above through the ActivityStub or WorkflowImplementationOptions.");
     }
+    ActivityInvocationOptions invocationOptions = ActivityInvocationInternal.consumeOptions();
     ActivityStub stub = ActivityStubImpl.newInstance(merged, activityExecutor, assertReadOnly);
-    function =
-        (a) -> stub.execute(activityName, method.getReturnType(), method.getGenericReturnType(), a);
-    return function;
+    return (a) ->
+        stub.execute(
+            activityName,
+            method.getReturnType(),
+            method.getGenericReturnType(),
+            invocationOptions,
+            a);
   }
 
   @Override

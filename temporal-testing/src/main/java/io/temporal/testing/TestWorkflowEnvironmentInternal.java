@@ -17,9 +17,12 @@ import io.temporal.api.nexus.v1.EndpointTarget;
 import io.temporal.api.operatorservice.v1.AddSearchAttributesRequest;
 import io.temporal.api.operatorservice.v1.CreateNexusEndpointRequest;
 import io.temporal.api.testservice.v1.SleepRequest;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.testservice.TestWorkflowService;
 import io.temporal.serviceclient.*;
@@ -28,6 +31,8 @@ import io.temporal.worker.Worker;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +40,7 @@ import javax.annotation.Nullable;
 public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnvironment {
 
   private final WorkflowClientOptions workflowClientOptions;
+  private final ActivityClientOptions activityClientOptions;
   private final WorkflowServiceStubs workflowServiceStubs;
   private final OperatorServiceStubs operatorServiceStubs;
   private final @Nullable TestServiceStubs testServiceStubs;
@@ -43,14 +49,23 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
   private final WorkerFactory workerFactory;
   private final @Nullable TimeLockingInterceptor timeLockingInterceptor;
   private final IdempotentTimeLocker constructorTimeLock;
+  private final @Nullable TemporalDevServer ownedDevServer;
 
   public TestWorkflowEnvironmentInternal(@Nullable TestEnvironmentOptions testEnvironmentOptions) {
+    this(testEnvironmentOptions, null);
+  }
+
+  TestWorkflowEnvironmentInternal(
+      @Nullable TestEnvironmentOptions testEnvironmentOptions,
+      @Nullable TemporalDevServer ownedDevServer) {
+    this.ownedDevServer = ownedDevServer;
     if (testEnvironmentOptions == null) {
       testEnvironmentOptions = TestEnvironmentOptions.getDefaultInstance();
     }
-    this.workflowClientOptions =
-        WorkflowClientOptions.newBuilder(testEnvironmentOptions.getWorkflowClientOptions())
-            .validateAndBuildWithDefaults();
+    testEnvironmentOptions =
+        TestEnvironmentOptions.newBuilder(testEnvironmentOptions).validateAndBuildWithDefaults();
+    this.workflowClientOptions = testEnvironmentOptions.getWorkflowClientOptions();
+    this.activityClientOptions = testEnvironmentOptions.getActivityClientOptions();
 
     WorkflowServiceStubsOptions.Builder stubsOptionsBuilder =
         testEnvironmentOptions.getWorkflowServiceStubsOptions() != null
@@ -144,6 +159,22 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
       options = workflowClientOptions;
     }
     return WorkflowClient.newInstance(workflowServiceStubs, options);
+  }
+
+  @Override
+  public ActivityClient getActivityClient() {
+    ActivityClientOptions options;
+    if (testServiceStubs != null) {
+      List<ActivityClientInterceptor> interceptors =
+          new ArrayList<>(activityClientOptions.getInterceptors());
+      options =
+          ActivityClientOptions.newBuilder(activityClientOptions)
+              .setInterceptors(interceptors)
+              .build();
+    } else {
+      options = activityClientOptions;
+    }
+    return ActivityClient.newInstance(workflowServiceStubs, options);
   }
 
   @Override
@@ -276,24 +307,49 @@ public final class TestWorkflowEnvironmentInternal implements TestWorkflowEnviro
 
   @Override
   public void close() {
-    if (testServiceStubs != null) {
-      testServiceStubs.shutdownNow();
+    RuntimeException failure = null;
+    try {
+      if (testServiceStubs != null) {
+        failure = runCleanup(failure, testServiceStubs::shutdownNow);
+      }
+      failure = runCleanup(failure, operatorServiceStubs::shutdownNow);
+      failure = runCleanup(failure, workerFactory::shutdownNow);
+      failure = runCleanup(failure, () -> workerFactory.awaitTermination(10, TimeUnit.SECONDS));
+      if (constructorTimeLock != null) {
+        failure = runCleanup(failure, constructorTimeLock::unlockTimeSkipping);
+      }
+      failure = runCleanup(failure, workflowServiceStubs::shutdownNow);
+      if (testServiceStubs != null) {
+        failure = runCleanup(failure, () -> testServiceStubs.awaitTermination(1, TimeUnit.SECONDS));
+      }
+      failure =
+          runCleanup(failure, () -> operatorServiceStubs.awaitTermination(1, TimeUnit.SECONDS));
+      failure =
+          runCleanup(failure, () -> workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS));
+      if (inProcessServer != null) {
+        failure = runCleanup(failure, inProcessServer::close);
+      }
+    } finally {
+      if (ownedDevServer != null) {
+        failure = runCleanup(failure, ownedDevServer::close);
+      }
     }
-    operatorServiceStubs.shutdownNow();
-    workerFactory.shutdownNow();
-    workerFactory.awaitTermination(10, TimeUnit.SECONDS);
-    if (constructorTimeLock != null) {
-      constructorTimeLock.unlockTimeSkipping();
+    if (failure != null) {
+      throw failure;
     }
-    workflowServiceStubs.shutdownNow();
-    if (testServiceStubs != null) {
-      testServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
+  }
+
+  private static RuntimeException runCleanup(
+      @Nullable RuntimeException previousFailure, @Nonnull Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (RuntimeException failure) {
+      if (previousFailure == null) {
+        return failure;
+      }
+      previousFailure.addSuppressed(failure);
     }
-    operatorServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
-    workflowServiceStubs.awaitTermination(1, TimeUnit.SECONDS);
-    if (inProcessServer != null) {
-      inProcessServer.close();
-    }
+    return previousFailure;
   }
 
   @Override
