@@ -75,6 +75,11 @@ public class WorkerShutdownTest {
                 });
 
         factory.awaitTermination(1, TimeUnit.SECONDS);
+        // One wait covers the command worker and the other covers the asynchronous factory
+        // shutdown chain.
+        shutdownManager.verify(
+            () -> ShutdownManager.runAndGetRemainingTimeoutMs(anyLong(), any(Runnable.class)),
+            times(2));
       }
 
       verify(workerCommandWorker).awaitTermination(1_000, TimeUnit.MILLISECONDS);
