@@ -1815,7 +1815,9 @@ class StateMachines {
     ctx.onCommit(
         (historySize) -> {
           PollWorkflowTaskQueueResponse.Builder task = data.workflowTask;
-          task.setStartedEventId(data.scheduledEventId + 1);
+          if (!queryOnly) {
+            task.setStartedEventId(startedEventId);
+          }
           WorkflowTaskToken taskToken = new WorkflowTaskToken(ctx.getExecutionId(), historySize);
           task.setTaskToken(taskToken.toBytes());
           GetWorkflowExecutionHistoryRequest getRequest =
