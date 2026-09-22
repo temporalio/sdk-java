@@ -3,6 +3,8 @@ package io.temporal.opentelemetry.v2;
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
+import io.opentelemetry.api.logs.Logger;
+import io.opentelemetry.api.logs.LoggerBuilder;
 import io.opentelemetry.api.logs.LoggerProvider;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterBuilder;
@@ -21,6 +23,7 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 import io.temporal.common.Experimental;
 import io.temporal.opentelemetry.v2.internal.ReplaySafeIdGenerator;
+import io.temporal.opentelemetry.v2.internal.ReplaySafeLogger;
 import io.temporal.opentelemetry.v2.internal.ReplaySafeMeter;
 import io.temporal.opentelemetry.v2.internal.ReplaySafeTracer;
 import java.io.Closeable;
@@ -28,16 +31,14 @@ import javax.annotation.Nonnull;
 
 /**
  * The {@link OpenTelemetry} to use for OpenTelemetry integration with Temporal. Register it with
- * {@code GlobalOpenTelemetry.set}; tracers and meters obtained from it are replay safe inside
- * workflows.
+ * {@code GlobalOpenTelemetry.set}; tracers, meters, and loggers obtained from it are replay safe
+ * inside workflows.
  */
 @Experimental
 public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
   private final ReplaySafeTracerProvider tracerProvider;
   private final ReplaySafeMeterProvider meterProvider;
-  // TODO: Make the logger provider replay safe and add logger interceptor methods for Temporal and
-  // OpenTelemetry loggers.
-  private final SdkLoggerProvider loggerProvider;
+  private final ReplaySafeLoggerProvider loggerProvider;
   private final ContextPropagators propagators;
 
   private ReplaySafeOpenTelemetry(Builder builder) {
@@ -45,7 +46,7 @@ public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
         new ReplaySafeTracerProvider(
             builder.tracerProviderBuilder.setIdGenerator(new ReplaySafeIdGenerator()).build());
     this.meterProvider = new ReplaySafeMeterProvider(builder.meterProviderBuilder.build());
-    this.loggerProvider = builder.loggerProviderBuilder.build();
+    this.loggerProvider = new ReplaySafeLoggerProvider(builder.loggerProviderBuilder.build());
     this.propagators = builder.propagators;
   }
 
@@ -204,6 +205,54 @@ public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
     @Override
     public Meter build() {
       return new ReplaySafeMeter(delegate.build());
+    }
+  }
+
+  private static final class ReplaySafeLoggerProvider implements LoggerProvider, Closeable {
+    private final SdkLoggerProvider delegate;
+
+    private ReplaySafeLoggerProvider(SdkLoggerProvider delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Logger get(@Nonnull String instrumentationScopeName) {
+      return new ReplaySafeLogger(delegate.get(instrumentationScopeName));
+    }
+
+    @Override
+    public LoggerBuilder loggerBuilder(@Nonnull String instrumentationScopeName) {
+      return new ReplaySafeLoggerBuilder(delegate.loggerBuilder(instrumentationScopeName));
+    }
+
+    @Override
+    public void close() {
+      delegate.close();
+    }
+  }
+
+  private static final class ReplaySafeLoggerBuilder implements LoggerBuilder {
+    private final LoggerBuilder delegate;
+
+    private ReplaySafeLoggerBuilder(LoggerBuilder delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public LoggerBuilder setSchemaUrl(@Nonnull String schemaUrl) {
+      delegate.setSchemaUrl(schemaUrl);
+      return this;
+    }
+
+    @Override
+    public LoggerBuilder setInstrumentationVersion(@Nonnull String instrumentationScopeVersion) {
+      delegate.setInstrumentationVersion(instrumentationScopeVersion);
+      return this;
+    }
+
+    @Override
+    public Logger build() {
+      return new ReplaySafeLogger(delegate.build());
     }
   }
 
