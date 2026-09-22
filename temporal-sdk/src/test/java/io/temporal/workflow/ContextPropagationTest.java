@@ -105,6 +105,20 @@ public class ContextPropagationTest {
   }
 
   @Test
+  public void testPromiseCallbackContextPropagation() {
+    Worker worker = testEnvironment.newWorker(TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(ContextPropagationCallbackWorkflowImpl.class);
+    testEnvironment.start();
+    MDC.put("test", "testing123");
+    WorkflowClient client = testEnvironment.getWorkflowClient();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(TASK_QUEUE).build();
+    TestWorkflows.TestWorkflow1 workflow =
+        client.newWorkflowStub(TestWorkflows.TestWorkflow1.class, options);
+    String result = workflow.execute("input1");
+    assertEquals("asynccallback123", result);
+  }
+
+  @Test
   public void testActivityContextPropagation() {
     Worker worker = testEnvironment.newWorker(TASK_QUEUE);
     worker.registerWorkflowImplementationTypes(ContextPropagationActivityWorkflowImpl.class);
@@ -336,6 +350,25 @@ public class ContextPropagationTest {
 
     private String async() {
       return "async" + MDC.get("test");
+    }
+  }
+
+  public static class ContextPropagationCallbackWorkflowImpl
+      implements TestWorkflows.TestWorkflow1 {
+
+    @Override
+    public String execute(String input) {
+      Promise<String> asyncPromise = Async.function(this::async);
+      // The callback must see the context of the thread that registered it, not the context the
+      // thread completing the promise happens to carry.
+      MDC.put("test", "callback123");
+      Promise<String> callback = asyncPromise.thenApply(result -> result + MDC.get("test"));
+      MDC.put("test", "testing123");
+      return callback.get();
+    }
+
+    private String async() {
+      return "async";
     }
   }
 

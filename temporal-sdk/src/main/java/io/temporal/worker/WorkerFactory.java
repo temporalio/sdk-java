@@ -10,6 +10,7 @@ import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.PluginUtils;
@@ -27,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -96,7 +98,9 @@ public final class WorkerFactory {
     String namespace = workflowClientOptions.getNamespace();
 
     // Extract worker plugins from client (auto-propagation)
-    WorkerPlugin[] propagatedPlugins = extractWorkerPlugins(workflowClientOptions.getPlugins());
+    WorkerPlugin[] propagatedPlugins =
+        PluginUtils.extractPlugins(
+            workflowClientOptions.getPlugins(), WorkerPlugin.class, WorkerPlugin[]::new);
 
     // Get plugins explicitly set on factory options
     WorkerPlugin[] explicitPlugins = factoryOptions != null ? factoryOptions.getPlugins() : null;
@@ -190,6 +194,15 @@ public final class WorkerFactory {
     // Apply plugin configuration to worker options (forward order)
     options = applyWorkerPluginConfiguration(taskQueue, options, this.plugins);
 
+    Map<String, ContextPropagator> contextPropagatorsByName = new LinkedHashMap<>();
+    for (ContextPropagator propagator : workflowClient.getOptions().getContextPropagators()) {
+      contextPropagatorsByName.putIfAbsent(propagator.getName(), propagator);
+    }
+    for (ContextPropagator propagator : factoryOptions.getContextPropagators()) {
+      contextPropagatorsByName.putIfAbsent(propagator.getName(), propagator);
+    }
+    List<ContextPropagator> contextPropagators = new ArrayList<>(contextPropagatorsByName.values());
+
     // Only one worker can exist for a task queue
     Worker existingWorker = workers.get(taskQueue);
     if (existingWorker == null) {
@@ -204,7 +217,7 @@ public final class WorkerFactory {
               cache,
               true,
               workflowThreadExecutor,
-              workflowClient.getOptions().getContextPropagators(),
+              contextPropagators,
               plugins,
               ((WorkflowClientInternal) workflowClient.getInternal()).getWorkerGroupingKey(),
               namespaceCapabilities);
@@ -567,24 +580,6 @@ public final class WorkerFactory {
   @Override
   public String toString() {
     return String.format("WorkerFactory{identity=%s}", workflowClient.getOptions().getIdentity());
-  }
-
-  /**
-   * Extracts worker plugins from the workflow client plugins array. Only plugins that also
-   * implement {@link WorkerPlugin} are included.
-   */
-  private static WorkerPlugin[] extractWorkerPlugins(
-      io.temporal.client.WorkflowClientPlugin[] clientPlugins) {
-    if (clientPlugins == null || clientPlugins.length == 0) {
-      return new WorkerPlugin[0];
-    }
-    List<WorkerPlugin> workerPlugins = new ArrayList<>();
-    for (io.temporal.client.WorkflowClientPlugin plugin : clientPlugins) {
-      if (plugin instanceof WorkerPlugin) {
-        workerPlugins.add((WorkerPlugin) plugin);
-      }
-    }
-    return workerPlugins.toArray(new WorkerPlugin[0]);
   }
 
   /**
