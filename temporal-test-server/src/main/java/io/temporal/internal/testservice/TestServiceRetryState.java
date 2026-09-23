@@ -129,8 +129,7 @@ final class TestServiceRetryState {
 
     Timestamp nextScheduleTime =
         Timestamps.add(currentTime, ProtobufTimeUtils.toProtoDuration(backoffDuration));
-    if (expirationTime.getNanos() != 0
-        && Timestamps.compare(nextScheduleTime, expirationTime) > 0) {
+    if (Timestamps.compare(nextScheduleTime, expirationTime) > 0) {
       return new BackoffInterval(RetryState.RETRY_STATE_TIMEOUT);
     }
     return new BackoffInterval(backoffDuration);
