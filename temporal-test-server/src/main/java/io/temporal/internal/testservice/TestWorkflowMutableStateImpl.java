@@ -53,6 +53,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.function.LongSupplier;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import javax.annotation.Nonnull;
@@ -451,7 +452,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     List<Command> commands = request.getCommandsList();
     List<Message> messages = new ArrayList<>(request.getMessagesList());
 
-    completeWorkflowTaskUpdate(
+    AtomicReference<RefusedCommand> refused = new AtomicReference<>();
+    completeWorkflowTaskUpdateOrFailRefusedCommand(
+        request,
+        refused,
         ctx -> {
           if (ctx.getInitialEventId() != historySizeFromToken + 1) {
             throw Status.NOT_FOUND
@@ -519,11 +523,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           }
 
           long workflowTaskCompletedId = ctx.getNextEventId() - 1;
+          CompletionSnapshot beforeCompletion = new CompletionSnapshot();
           try {
             workflowTaskStateMachine.action(StateMachines.Action.COMPLETE, ctx, request, 0);
             for (Command command : commands) {
-              processCommand(
-                  ctx, command, messages, request.getIdentity(), workflowTaskCompletedId);
+              try {
+                processCommand(
+                    ctx, command, messages, request.getIdentity(), workflowTaskCompletedId);
+              } catch (StatusRuntimeException e) {
+                refused.set(RefusedCommand.of(command, e));
+                throw e;
+              }
             }
             // Any messages not processed in processCommand need to be handled after all commands
             for (Message message : messages) {
@@ -610,11 +620,211 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   }
                   data.queryBuffer.clear();
                 }));
+          } catch (RuntimeException e) {
+            // The exception discards this update, so the in-memory state must not run ahead of
+            // history. A workflow task left at NONE while history still says STARTED could never
+            // be failed, timed out, or redelivered (#3088), and a timer or activity added by a
+            // command before the refused one would reject the worker's replay as a duplicate.
+            beforeCompletion.restore();
+            throw e;
           } finally {
             ctx.unlockTimer("completeWorkflowTask");
           }
         },
         request.hasStickyAttributes() ? request.getStickyAttributes() : null);
+  }
+
+  /**
+   * Runs a workflow task completion update. If command processing refused a command with a caller
+   * error, the update was discarded and the workflow task rolled back to STARTED; record the
+   * refusal the way the real server does before surfacing the error to the worker.
+   */
+  private void completeWorkflowTaskUpdateOrFailRefusedCommand(
+      RespondWorkflowTaskCompletedRequest request,
+      AtomicReference<RefusedCommand> refused,
+      UpdateProcedure updater,
+      StickyExecutionAttributes attributes) {
+    try {
+      completeWorkflowTaskUpdate(updater, attributes);
+    } catch (StatusRuntimeException e) {
+      if (refused.get() == null) {
+        throw e;
+      }
+      failWorkflowTaskOnRefusedCommand(refused.get(), request);
+      throw e;
+    }
+  }
+
+  /**
+   * Records the refusal of a command the way the real server does: fail the workflow task with the
+   * command's cause and schedule a new one (after the second attempt the failure is dropped and the
+   * task is left to time out), and surface the cause to the worker as INVALID_ARGUMENT.
+   */
+  private void failWorkflowTaskOnRefusedCommand(
+      RefusedCommand refused, RespondWorkflowTaskCompletedRequest request) {
+    completeWorkflowTaskUpdate(
+        ctx -> {
+          // The task may have timed out between the refused update and this one.
+          if (workflowTaskStateMachine.getState() == State.STARTED) {
+            failWorkflowTaskWithAReason(
+                refused.cause, new ServerFailure(refused.message, true), ctx, request, true);
+          }
+          ctx.setExceptionIfEmpty(
+              Status.INVALID_ARGUMENT.withDescription(refused.message).asRuntimeException());
+        },
+        null);
+  }
+
+  /**
+   * The in-memory state a workflow task completion can change, captured before the completion is
+   * applied so a refused completion can be undone. The real server discards all mutable state
+   * changes of a failed workflow task; here the maps are restored and every state machine that
+   * existed is rolled back to the transitions it had, which also drops the machines the completion
+   * created. Callback side effects on state machine data are not undone.
+   */
+  private class CompletionSnapshot {
+    private final Map<Long, StateMachine<ActivityTaskData>> activities;
+    private final Map<String, Long> activityById;
+    private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows;
+    private final Map<Long, StateMachine<NexusOperationData>> nexusOperations;
+    private final Map<Long, Long> nexusCancelRequestedEventIds;
+    private final Map<String, StateMachine<TimerData>> timers;
+    private final Map<String, StateMachine<SignalExternalData>> externalSignals;
+    private final Map<String, StateMachine<CancelExternalData>> externalCancellations;
+    private final Map<String, StateMachine<UpdateWorkflowExecutionData>> updates;
+    private final Map<StateMachine<?>, Integer> transitionCounts = new IdentityHashMap<>();
+
+    CompletionSnapshot() {
+      activities = new HashMap<>(TestWorkflowMutableStateImpl.this.activities);
+      activityById = new HashMap<>(TestWorkflowMutableStateImpl.this.activityById);
+      childWorkflows = new HashMap<>(TestWorkflowMutableStateImpl.this.childWorkflows);
+      nexusOperations = new HashMap<>(TestWorkflowMutableStateImpl.this.nexusOperations);
+      nexusCancelRequestedEventIds =
+          new HashMap<>(TestWorkflowMutableStateImpl.this.nexusCancelRequestedEventIds);
+      timers = new HashMap<>(TestWorkflowMutableStateImpl.this.timers);
+      externalSignals = new HashMap<>(TestWorkflowMutableStateImpl.this.externalSignals);
+      externalCancellations =
+          new HashMap<>(TestWorkflowMutableStateImpl.this.externalCancellations);
+      updates = new HashMap<>(TestWorkflowMutableStateImpl.this.updates);
+      record(workflow);
+      record(workflowTaskStateMachine);
+      activities.values().forEach(this::record);
+      childWorkflows.values().forEach(this::record);
+      nexusOperations.values().forEach(this::record);
+      timers.values().forEach(this::record);
+      externalSignals.values().forEach(this::record);
+      externalCancellations.values().forEach(this::record);
+      updates.values().forEach(this::record);
+    }
+
+    private void record(StateMachine<?> machine) {
+      transitionCounts.put(machine, machine.transitionCount());
+    }
+
+    void restore() {
+      restore(TestWorkflowMutableStateImpl.this.activities, activities);
+      restore(TestWorkflowMutableStateImpl.this.activityById, activityById);
+      restore(TestWorkflowMutableStateImpl.this.childWorkflows, childWorkflows);
+      restore(TestWorkflowMutableStateImpl.this.nexusOperations, nexusOperations);
+      restore(
+          TestWorkflowMutableStateImpl.this.nexusCancelRequestedEventIds,
+          nexusCancelRequestedEventIds);
+      restore(TestWorkflowMutableStateImpl.this.timers, timers);
+      restore(TestWorkflowMutableStateImpl.this.externalSignals, externalSignals);
+      restore(TestWorkflowMutableStateImpl.this.externalCancellations, externalCancellations);
+      restore(TestWorkflowMutableStateImpl.this.updates, updates);
+      transitionCounts.forEach(StateMachine::rollbackTo);
+    }
+
+    private <K, V> void restore(Map<K, V> live, Map<K, V> saved) {
+      live.clear();
+      live.putAll(saved);
+    }
+  }
+
+  /** A command that command processing refused with a caller error. */
+  private static class RefusedCommand {
+    final WorkflowTaskFailedCause cause;
+    final String message;
+
+    private RefusedCommand(WorkflowTaskFailedCause cause, String message) {
+      this.cause = cause;
+      this.message = message;
+    }
+
+    /** Null when the error is not a caller error or the command has no failure cause. */
+    static RefusedCommand of(Command command, StatusRuntimeException e) {
+      Status.Code code = e.getStatus().getCode();
+      if (code != Status.Code.INVALID_ARGUMENT && code != Status.Code.FAILED_PRECONDITION) {
+        return null;
+      }
+      WorkflowTaskFailedCause cause = workflowTaskFailedCauseFor(command.getCommandType(), code);
+      if (cause == null) {
+        return null;
+      }
+      return new RefusedCommand(
+          cause,
+          ProtoEnumNameUtils.uniqueToSimplifiedName(cause) + ": " + e.getStatus().getDescription());
+    }
+
+    /**
+     * The cause the real server records when it refuses a command of this type. The test server
+     * reports a duplicate timer or activity id as FAILED_PRECONDITION, which the real server
+     * records with its own cause.
+     */
+    private static WorkflowTaskFailedCause workflowTaskFailedCauseFor(
+        CommandType type, Status.Code code) {
+      switch (type) {
+        case COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK:
+          return code == Status.Code.FAILED_PRECONDITION
+              ? WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_SCHEDULE_ACTIVITY_DUPLICATE_ID
+              : WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_ACTIVITY_ATTRIBUTES;
+        case COMMAND_TYPE_START_TIMER:
+          return code == Status.Code.FAILED_PRECONDITION
+              ? WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_START_TIMER_DUPLICATE_ID
+              : WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_START_TIMER_ATTRIBUTES;
+        case COMMAND_TYPE_REQUEST_CANCEL_ACTIVITY_TASK:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_REQUEST_CANCEL_ACTIVITY_ATTRIBUTES;
+        case COMMAND_TYPE_CANCEL_TIMER:
+          return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_CANCEL_TIMER_ATTRIBUTES;
+        case COMMAND_TYPE_COMPLETE_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_COMPLETE_WORKFLOW_EXECUTION_ATTRIBUTES;
+        case COMMAND_TYPE_FAIL_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_FAIL_WORKFLOW_EXECUTION_ATTRIBUTES;
+        case COMMAND_TYPE_CANCEL_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_CANCEL_WORKFLOW_EXECUTION_ATTRIBUTES;
+        case COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_ATTRIBUTES;
+        case COMMAND_TYPE_RECORD_MARKER:
+          return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_RECORD_MARKER_ATTRIBUTES;
+        case COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_CONTINUE_AS_NEW_ATTRIBUTES;
+        case COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_START_CHILD_EXECUTION_ATTRIBUTES;
+        case COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_SIGNAL_WORKFLOW_EXECUTION_ATTRIBUTES;
+        case COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES:
+          return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_SEARCH_ATTRIBUTES;
+        case COMMAND_TYPE_MODIFY_WORKFLOW_PROPERTIES:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_MODIFY_WORKFLOW_PROPERTIES_ATTRIBUTES;
+        case COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_SCHEDULE_NEXUS_OPERATION_ATTRIBUTES;
+        case COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_REQUEST_CANCEL_NEXUS_OPERATION_ATTRIBUTES;
+        default:
+          return null;
+      }
+    }
   }
 
   @Override
@@ -638,6 +848,40 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
           addWorkflowExecutionOptionsUpdatedEvent(ctx, requestId, completionCallbacks, links);
         });
+  }
+
+  private boolean hasBufferedActivityFinish(long scheduledEventId) {
+    return hasBufferedEvent(
+        event -> {
+          switch (event.getEventType()) {
+            case EVENT_TYPE_ACTIVITY_TASK_COMPLETED:
+              return event.getActivityTaskCompletedEventAttributes().getScheduledEventId()
+                  == scheduledEventId;
+            case EVENT_TYPE_ACTIVITY_TASK_FAILED:
+              return event.getActivityTaskFailedEventAttributes().getScheduledEventId()
+                  == scheduledEventId;
+            case EVENT_TYPE_ACTIVITY_TASK_TIMED_OUT:
+              return event.getActivityTaskTimedOutEventAttributes().getScheduledEventId()
+                  == scheduledEventId;
+            case EVENT_TYPE_ACTIVITY_TASK_CANCELED:
+              return event.getActivityTaskCanceledEventAttributes().getScheduledEventId()
+                  == scheduledEventId;
+            default:
+              return false;
+          }
+        });
+  }
+
+  /** Events that arrived while the current workflow task was in progress. */
+  private boolean hasBufferedEvent(Predicate<HistoryEvent> predicate) {
+    for (RequestContext buffered : workflowTaskStateMachine.getData().bufferedEvents) {
+      for (HistoryEvent event : buffered.getEvents()) {
+        if (predicate.test(event)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private void failWorkflowTaskWithAReason(
@@ -1019,6 +1263,20 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     long scheduledEventId = a.getScheduledEventId();
     StateMachine<?> activity = activities.get(scheduledEventId);
     if (activity == null) {
+      if (hasBufferedActivityFinish(scheduledEventId)) {
+        // The activity finished while this workflow task was running. Like the real server,
+        // record the cancel request and take no further action; the buffered finish event
+        // follows it in history.
+        ctx.addEvent(
+            HistoryEvent.newBuilder()
+                .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
+                .setActivityTaskCancelRequestedEventAttributes(
+                    ActivityTaskCancelRequestedEventAttributes.newBuilder()
+                        .setScheduledEventId(scheduledEventId)
+                        .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
+                .build());
+        return;
+      }
       throw Status.FAILED_PRECONDITION
           .withDescription("ACTIVITY_UNKNOWN for scheduledEventId=" + scheduledEventId)
           .asRuntimeException();

@@ -199,6 +199,24 @@ final class StateMachine<Data> {
     return this;
   }
 
+  /** Number of transitions taken so far; pass it to {@link #rollbackTo(int)}. */
+  int transitionCount() {
+    return transitionHistory.size();
+  }
+
+  /**
+   * Undoes the transitions taken after {@code transitionCount} was read, restoring the state the
+   * machine had at that point. For when the request that caused those transitions is refused before
+   * its {@link RequestContext} is committed: the events the callbacks added are discarded with the
+   * context, and the in-memory state must not run ahead of history.
+   */
+  void rollbackTo(int transitionCount) {
+    while (transitionHistory.size() > transitionCount) {
+      Transition undone = transitionHistory.remove(transitionHistory.size() - 1);
+      state = undone.from;
+    }
+  }
+
   <R> void action(Action action, RequestContext context, R request, long referenceId) {
     Transition transition = new Transition(state, action);
     @SuppressWarnings("unchecked")
