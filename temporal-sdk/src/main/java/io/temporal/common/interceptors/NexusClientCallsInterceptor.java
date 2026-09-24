@@ -10,6 +10,7 @@ import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
@@ -250,18 +251,65 @@ public interface NexusClientCallsInterceptor {
     private final @Nonnull Deadline deadline;
     private final Class<R> resultClass;
     private final @Nullable Type resultType;
+    private final @Nullable String endpoint;
+    private final @Nullable String service;
+    private final @Nullable String operation;
 
+    /**
+     * Equivalent to {@link #GetNexusOperationResultInput(String, String, Deadline, Class, Type,
+     * String, String, String)} with no endpoint, service or operation, which is the case for a
+     * handle obtained by operation ID rather than by starting an operation.
+     */
     public GetNexusOperationResultInput(
         String operationId,
         @Nullable String runId,
         @Nonnull Deadline deadline,
         Class<R> resultClass,
         @Nullable Type resultType) {
+      this(operationId, runId, deadline, resultClass, resultType, null, null, null);
+    }
+
+    /**
+     * The endpoint, service and operation identify the Nexus operation the result is being read
+     * for, and are used to build the {@link NexusSerializationContext} the result and failure are
+     * decoded with. They must all be set or all be {@code null}: a partially identified operation
+     * would silently decode without a context, which for a converter that varies by context means
+     * reading the payload the wrong way rather than failing.
+     *
+     * @param endpoint Nexus endpoint the operation was started on, or {@code null} if the operation
+     *     was not started through this handle
+     * @param service Nexus service the operation was started on, or {@code null}
+     * @param operation Nexus operation that was started, or {@code null}
+     * @throws IllegalArgumentException if only some of endpoint, service and operation are set
+     */
+    public GetNexusOperationResultInput(
+        String operationId,
+        @Nullable String runId,
+        @Nonnull Deadline deadline,
+        Class<R> resultClass,
+        @Nullable Type resultType,
+        @Nullable String endpoint,
+        @Nullable String service,
+        @Nullable String operation) {
+      boolean anySet = endpoint != null || service != null || operation != null;
+      boolean allSet = endpoint != null && service != null && operation != null;
+      if (anySet && !allSet) {
+        throw new IllegalArgumentException(
+            "endpoint, service and operation must all be set or all be null, got endpoint="
+                + endpoint
+                + ", service="
+                + service
+                + ", operation="
+                + operation);
+      }
       this.operationId = operationId;
       this.runId = runId;
       this.deadline = deadline;
       this.resultClass = resultClass;
       this.resultType = resultType;
+      this.endpoint = endpoint;
+      this.service = service;
+      this.operation = operation;
     }
 
     public String getOperationId() {
@@ -284,6 +332,34 @@ public interface NexusClientCallsInterceptor {
     @Nullable
     public Type getResultType() {
       return resultType;
+    }
+
+    /**
+     * Nexus endpoint the operation was started on. {@code null} when the operation was not started
+     * through this handle, in which case {@link #getService()} and {@link #getOperation()} are
+     * {@code null} too and the result is decoded without a Nexus serialization context.
+     */
+    @Nullable
+    public String getEndpoint() {
+      return endpoint;
+    }
+
+    /**
+     * Nexus service the operation was started on, or {@code null}. Set exactly when {@link
+     * #getEndpoint()} is set.
+     */
+    @Nullable
+    public String getService() {
+      return service;
+    }
+
+    /**
+     * Nexus operation that was started, or {@code null}. Set exactly when {@link #getEndpoint()} is
+     * set.
+     */
+    @Nullable
+    public String getOperation() {
+      return operation;
     }
   }
 

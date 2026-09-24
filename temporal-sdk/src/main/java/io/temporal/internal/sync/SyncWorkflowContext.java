@@ -46,6 +46,7 @@ import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.*;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.*;
@@ -282,7 +283,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Optional<Payloads> args = dataConverterWithActivityContext.toPayloads(input.getArgs());
 
     ActivityOutput<Optional<Payloads>> output =
-        executeActivityOnce(input.getActivityName(), input.getOptions(), input.getHeader(), args);
+        executeActivityOnce(
+            input.getActivityName(),
+            input.getActivityId(),
+            input.getOptions(),
+            input.getHeader(),
+            args);
 
     // Avoid passing the input to the output handle as it causes the input to be retained for the
     // duration of the operation.
@@ -307,9 +313,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private ActivityOutput<Optional<Payloads>> executeActivityOnce(
-      String activityTypeName, ActivityOptions options, Header header, Optional<Payloads> input) {
+      String activityTypeName,
+      @Nullable String activityId,
+      ActivityOptions options,
+      Header header,
+      Optional<Payloads> input) {
     ExecuteActivityParameters params =
-        constructExecuteActivityParameters(activityTypeName, options, header, input);
+        constructExecuteActivityParameters(activityTypeName, activityId, options, header, input);
     ActivityCallback callback = new ActivityCallback();
     ReplayWorkflowContext.ScheduleActivityTaskOutput activityOutput =
         replayContext.scheduleActivityTask(params, callback::invoke);
@@ -447,6 +457,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         WorkflowInternal.newCompletablePromise();
     executeLocalActivityOverLocalRetryThreshold(
         input.getActivityName(),
+        input.getActivityId(),
         input.getOptions(),
         input.getHeader(),
         payloads,
@@ -477,6 +488,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public void executeLocalActivityOverLocalRetryThreshold(
       String activityTypeName,
+      @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
@@ -487,6 +499,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Optional<Payloads>> localExecutionResult =
         executeLocalActivityLocally(
             activityTypeName,
+            activityId,
             options,
             header,
             input,
@@ -509,6 +522,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                         unused -> {
                           executeLocalActivityOverLocalRetryThreshold(
                               activityTypeName,
+                              activityId,
                               options,
                               header,
                               input,
@@ -539,6 +553,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private CompletablePromise<Optional<Payloads>> executeLocalActivityLocally(
       String activityTypeName,
+      @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
@@ -550,6 +565,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     ExecuteLocalActivityParameters params =
         constructExecuteLocalActivityParameters(
             activityTypeName,
+            activityId,
             options,
             header,
             input,
@@ -569,7 +585,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @SuppressWarnings("deprecation")
   private ExecuteActivityParameters constructExecuteActivityParameters(
-      String name, ActivityOptions options, Header header, Optional<Payloads> input) {
+      String name,
+      @Nullable String activityId,
+      ActivityOptions options,
+      Header header,
+      Optional<Payloads> input) {
     String taskQueue = options.getTaskQueue();
     if (taskQueue == null) {
       taskQueue = replayContext.getTaskQueue();
@@ -588,6 +608,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             .setRequestEagerExecution(
                 !options.isEagerExecutionDisabled()
                     && Objects.equals(taskQueue, replayContext.getTaskQueue()));
+
+    if (activityId != null) {
+      attributes.setActivityId(activityId);
+    }
 
     input.ifPresent(attributes::setInput);
     RetryOptions retryOptions = options.getRetryOptions();
@@ -626,6 +650,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
       String name,
+      @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
@@ -636,7 +661,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     PollActivityTaskQueueResponse.Builder activityTask =
         PollActivityTaskQueueResponse.newBuilder()
-            .setActivityId(this.replayContext.randomUUID().toString())
+            .setActivityId(
+                activityId != null ? activityId : this.replayContext.randomUUID().toString())
             .setWorkflowNamespace(this.replayContext.getNamespace())
             .setWorkflowType(this.replayContext.getWorkflowType())
             .setWorkflowExecution(this.replayContext.getWorkflowExecution())
@@ -798,9 +824,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<NexusOperationExecution> operationPromise = Workflow.newPromise();
     CompletablePromise<Optional<Payload>> resultPromise = Workflow.newPromise();
 
-    // Not using the context aware data converter because the context will not be available on the
-    // worker side
-    Optional<Payload> payload = dataConverter.toPayload(input.getArg());
+    // The caller workflow is not available to the operation handler, so Nexus payloads are
+    // contextualized by the endpoint, service and operation instead. The same converter decodes the
+    // result and converts failures, so each operation keeps the converter selected for it even when
+    // several operations are in flight at once.
+    DataConverter nexusDataConverter =
+        dataConverter.withContext(
+            new NexusSerializationContext(
+                input.getEndpoint(), input.getService(), input.getOperation()));
+
+    Optional<Payload> payload = nexusDataConverter.toPayload(input.getArg());
 
     ScheduleNexusOperationCommandAttributes.Builder attributes =
         ScheduleNexusOperationCommandAttributes.newBuilder();
@@ -819,8 +852,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     @Nullable
     UserMetadata userMetadata =
-        makeUserMetaData(
-            input.getOptions().getSummary(), null, dataConverterWithCurrentWorkflowContext);
+        makeUserMetaData(input.getOptions().getSummary(), null, nexusDataConverter);
 
     StartNexusOperationParameters parameters =
         new StartNexusOperationParameters(
@@ -835,7 +867,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     "nexus operation start failed callback",
                     () ->
                         operationPromise.completeExceptionally(
-                            dataConverter.failureToException(failure)));
+                            nexusDataConverter.failureToException(failure)));
               } else {
                 runner.executeInWorkflowThread(
                     "nexus operation started callback",
@@ -849,7 +881,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                     "nexus operation failure callback",
                     () ->
                         resultPromise.completeExceptionally(
-                            dataConverter.failureToException(failure)));
+                            nexusDataConverter.failureToException(failure)));
               } else {
                 runner.executeInWorkflowThread(
                     "nexus operation completion callback", () -> resultPromise.complete(result));
@@ -869,7 +901,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         resultPromise.thenApply(
             (b) ->
                 input.getResultClass() != Void.class
-                    ? dataConverter.fromPayload(
+                    ? nexusDataConverter.fromPayload(
                         b.get(), input.getResultClass(), input.getResultType())
                     : null);
     // We register an empty handler to make sure that this promise is always "accessed" and never

@@ -17,6 +17,8 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.serviceclient.MetricsTag;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
@@ -52,7 +54,10 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus permissions required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusExternalStorageFailureTest {
 
   private static final List<String> events = new CopyOnWriteArrayList<>();

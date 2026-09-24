@@ -19,6 +19,8 @@ import io.temporal.client.ActivityHandle;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.nexus.Nexus;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -33,6 +35,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies link propagation with activities when a synchronous Nexus operation handler starts more
@@ -49,6 +52,8 @@ import org.junit.Test;
  * <p>Requires a real server; the in-process test server does not implement {@code
  * StartActivityExecution} (see {@link AsyncActivityOperationTest}, which has the same gate).
  */
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class ActivityOperationLinkingTest {
 
   @Rule

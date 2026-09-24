@@ -18,6 +18,8 @@ import io.temporal.payload.codec.PayloadCodecException;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.HasWorkflowSerializationContext;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -32,6 +34,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 
 /**
@@ -78,7 +81,7 @@ public class WorkflowIdSignedPayloadsTest {
     assertEquals("result", workflowStub.execute("input"));
   }
 
-  @Test
+  @Test(timeout = 30_000)
   public void testSimpleWorkflowWithMemo() throws InterruptedException {
     assumeTrue(
         "skipping as test server does not support list", SDKTestWorkflowRule.useExternalService);
@@ -108,6 +111,8 @@ public class WorkflowIdSignedPayloadsTest {
     assertEquals(MEMO_VALUE, executions.get(0).getMemo(MEMO_KEY, String.class));
   }
 
+  @CloudTestExclusionNote("This cron test depends on local test-server time skipping.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testSimpleCronWorkflow() {
     assumeFalse("skipping as test will timeout", SDKTestWorkflowRule.useExternalService);

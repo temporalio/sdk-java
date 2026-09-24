@@ -22,6 +22,7 @@ import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
@@ -550,10 +551,19 @@ final class NexusWorker implements SuspendableWorker {
                   .setTaskToken(taskToken)
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace);
+          // The caller decodes this failure with the operation's context, so it has to be encoded
+          // with the same one. The context rides on the result because it is no longer in scope by
+          // the time the reply is built.
+          NexusSerializationContext serializationContext = response.getSerializationContext();
+          DataConverter dataConverterWithContext =
+              serializationContext != null
+                  ? dataConverter.withContext(serializationContext)
+                  : dataConverter;
           if (supportTemporalFailure) {
-            request.setFailure(dataConverter.exceptionToFailure(handlerException));
+            request.setFailure(dataConverterWithContext.exceptionToFailure(handlerException));
           } else {
-            request.setError(NexusUtil.handlerErrorToNexusError(handlerException, dataConverter));
+            request.setError(
+                NexusUtil.handlerErrorToNexusError(handlerException, dataConverterWithContext));
           }
           if (useExternalStorage) {
             storeOutbound(request);

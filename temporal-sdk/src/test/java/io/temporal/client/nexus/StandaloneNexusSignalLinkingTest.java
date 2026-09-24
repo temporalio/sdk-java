@@ -21,6 +21,8 @@ import io.temporal.client.UntypedNexusServiceClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.nexus.Nexus;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
@@ -33,6 +35,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies bidirectional link propagation when a Nexus operation handler signal-with-starts a
@@ -52,6 +55,9 @@ import org.junit.Test;
  * <p>Requires a real server: standalone Nexus operations and {@code EnableCHASMSignalBacklinks} are
  * not implemented by the in-memory test server. Test skips locally and runs in CI.
  */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class StandaloneNexusSignalLinkingTest {
 
   @Rule

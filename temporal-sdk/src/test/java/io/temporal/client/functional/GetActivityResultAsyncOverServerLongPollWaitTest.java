@@ -54,7 +54,9 @@ public class GetActivityResultAsyncOverServerLongPollWaitTest {
   private ActivityClient newActivityClient() {
     return ActivityClient.newInstance(
         testWorkflowRule.getWorkflowClient().getWorkflowServiceStubs(),
-        ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
+        ActivityClientOptions.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .build());
   }
 
   private StartActivityOptions slowOpts() {
