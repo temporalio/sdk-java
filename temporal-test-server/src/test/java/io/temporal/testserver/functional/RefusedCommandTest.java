@@ -12,15 +12,26 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.CancelTimerCommandAttributes;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
+import io.temporal.api.command.v1.ModifyWorkflowPropertiesCommandAttributes;
+import io.temporal.api.command.v1.ProtocolMessageCommandAttributes;
 import io.temporal.api.command.v1.RequestCancelActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
+import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.StartTimerCommandAttributes;
+import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Memo;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
@@ -28,6 +39,8 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -35,6 +48,7 @@ import io.temporal.testing.internal.TestServiceUtils;
 import io.temporal.testserver.TestServer;
 import java.time.Duration;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Before;
@@ -262,6 +276,171 @@ public class RefusedCommandTest {
     assertTrue(
         "the buffered completion must follow the cancel request, history: " + events,
         completed > cancelRequested);
+  }
+
+  @Test
+  public void searchAttributesAndMemoOfARefusedCompletionAreNotApplied() throws Exception {
+    PollWorkflowTaskQueueResponse task = startWorkflowAndPollFirstTask();
+    Payload one = DefaultDataConverter.newDefaultInstance().toPayload(1).get();
+    Command upsert =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES)
+            .setUpsertWorkflowSearchAttributesCommandAttributes(
+                UpsertWorkflowSearchAttributesCommandAttributes.newBuilder()
+                    .setSearchAttributes(
+                        SearchAttributes.newBuilder().putIndexedFields("CustomIntField", one)))
+            .build();
+    Command memo =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_MODIFY_WORKFLOW_PROPERTIES)
+            .setModifyWorkflowPropertiesCommandAttributes(
+                ModifyWorkflowPropertiesCommandAttributes.newBuilder()
+                    .setUpsertedMemo(Memo.newBuilder().putFields("memoKey", one)))
+            .build();
+
+    assertThrows(
+        StatusRuntimeException.class,
+        () ->
+            respondWorkflowTaskCompleted(
+                task.getTaskToken(), upsert, memo, cancelTimerCommand("no-such-timer")));
+    assertWorkflowTaskFailedAndRescheduled(
+        getHistory(task),
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_CANCEL_TIMER_ATTRIBUTES);
+
+    // Neither effect of the refused completion is visible: not in history, not in Describe.
+    List<EventType> types = eventTypes(getHistory(task));
+    assertFalse(types.contains(EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES));
+    assertFalse(types.contains(EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED));
+    DescribeWorkflowExecutionResponse described = describe(task.getWorkflowExecution());
+    assertFalse(
+        described
+            .getWorkflowExecutionInfo()
+            .getSearchAttributes()
+            .containsIndexedFields("CustomIntField"));
+    assertFalse(described.getWorkflowExecutionInfo().getMemo().containsFields("memoKey"));
+
+    // The same changes on the redelivered task are applied.
+    PollWorkflowTaskQueueResponse redelivered = pollWorkflowTask();
+    respondWorkflowTaskCompleted(redelivered.getTaskToken(), upsert, memo);
+    described = describe(task.getWorkflowExecution());
+    // The store adds type metadata to the stored value, so compare the data only.
+    assertEquals(
+        one.getData(),
+        described
+            .getWorkflowExecutionInfo()
+            .getSearchAttributes()
+            .getIndexedFieldsOrThrow("CustomIntField")
+            .getData());
+    assertEquals(one, described.getWorkflowExecutionInfo().getMemo().getFieldsOrThrow("memoKey"));
+  }
+
+  @Test
+  public void aRefusedCompletionDoesNotSignalTheExternalWorkflow() throws Exception {
+    PollWorkflowTaskQueueResponse task = startWorkflowAndPollFirstTask();
+    String targetId = "target-" + UUID.randomUUID();
+    workflowServiceStubs
+        .blockingStub()
+        .startWorkflowExecution(
+            StartWorkflowExecutionRequest.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setRequestId(UUID.randomUUID().toString())
+                .setWorkflowId(targetId)
+                .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE))
+                .setTaskQueue(TaskQueue.newBuilder().setName("target-" + TASK_QUEUE))
+                .setWorkflowRunTimeout(ProtobufTimeUtils.toProtoDuration(Duration.ofSeconds(100)))
+                .setWorkflowTaskTimeout(ProtobufTimeUtils.toProtoDuration(Duration.ofSeconds(100)))
+                .build());
+    WorkflowExecution target = WorkflowExecution.newBuilder().setWorkflowId(targetId).build();
+    Command signal =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
+            .setSignalExternalWorkflowExecutionCommandAttributes(
+                SignalExternalWorkflowExecutionCommandAttributes.newBuilder()
+                    .setExecution(target)
+                    .setSignalName("signal"))
+            .build();
+
+    assertThrows(
+        StatusRuntimeException.class,
+        () ->
+            respondWorkflowTaskCompleted(
+                task.getTaskToken(), signal, cancelTimerCommand("no-such-timer")));
+    assertWorkflowTaskFailedAndRescheduled(
+        getHistory(task),
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_CANCEL_TIMER_ATTRIBUTES);
+
+    // The signal was dispatched on commit, and the refused completion never committed. Delivery is
+    // asynchronous, so give a wrongly dispatched signal time to land before checking.
+    Thread.sleep(500);
+    assertFalse(
+        eventTypes(getHistory(task))
+            .contains(EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED));
+    assertFalse(
+        eventTypes(getHistory(target)).contains(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED));
+
+    // The same signal on the redelivered task is delivered.
+    PollWorkflowTaskQueueResponse redelivered = pollWorkflowTask();
+    respondWorkflowTaskCompleted(redelivered.getTaskToken(), signal);
+    long deadline = System.currentTimeMillis() + 5_000;
+    while (!eventTypes(getHistory(target))
+            .contains(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED)
+        && System.currentTimeMillis() < deadline) {
+      Thread.sleep(50);
+    }
+    assertTrue(
+        "expected the target to be signaled, history: " + eventTypes(getHistory(target)),
+        eventTypes(getHistory(target)).contains(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED));
+  }
+
+  @Test
+  public void aProtocolMessageForAnUnknownMessageFailsTheTaskWithTheUpdateCause() throws Exception {
+    PollWorkflowTaskQueueResponse task = startWorkflowAndPollFirstTask();
+    Command message =
+        Command.newBuilder()
+            .setCommandType(CommandType.COMMAND_TYPE_PROTOCOL_MESSAGE)
+            .setProtocolMessageCommandAttributes(
+                ProtocolMessageCommandAttributes.newBuilder().setMessageId("no-such-message"))
+            .build();
+
+    StatusRuntimeException e =
+        assertThrows(
+            StatusRuntimeException.class,
+            () -> respondWorkflowTaskCompleted(task.getTaskToken(), message));
+    assertEquals(Status.Code.INVALID_ARGUMENT, e.getStatus().getCode());
+    assertWorkflowTaskFailedAndRescheduled(
+        getHistory(task),
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_UPDATE_WORKFLOW_EXECUTION_MESSAGE);
+    assertWorkflowTaskRedeliveredAndCompletes(task);
+  }
+
+  private Command cancelTimerCommand(String timerId) {
+    return Command.newBuilder()
+        .setCommandType(CommandType.COMMAND_TYPE_CANCEL_TIMER)
+        .setCancelTimerCommandAttributes(
+            CancelTimerCommandAttributes.newBuilder().setTimerId(timerId))
+        .build();
+  }
+
+  private DescribeWorkflowExecutionResponse describe(WorkflowExecution execution) {
+    return workflowServiceStubs
+        .blockingStub()
+        .describeWorkflowExecution(
+            DescribeWorkflowExecutionRequest.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setExecution(execution)
+                .build());
+  }
+
+  private List<HistoryEvent> getHistory(WorkflowExecution execution) {
+    return workflowServiceStubs
+        .blockingStub()
+        .getWorkflowExecutionHistory(
+            GetWorkflowExecutionHistoryRequest.newBuilder()
+                .setNamespace(NAMESPACE)
+                .setExecution(execution)
+                .build())
+        .getHistory()
+        .getEventsList();
   }
 
   private Command startTimerCommand(String timerId) {

@@ -524,6 +524,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
           long workflowTaskCompletedId = ctx.getNextEventId() - 1;
           CompletionSnapshot beforeCompletion = new CompletionSnapshot();
+          long completedTaskScheduledEventId = workflowTaskStateMachine.getData().scheduledEventId;
           try {
             workflowTaskStateMachine.action(StateMachines.Action.COMPLETE, ctx, request, 0);
             for (Command command : commands) {
@@ -531,7 +532,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 processCommand(
                     ctx, command, messages, request.getIdentity(), workflowTaskCompletedId);
               } catch (StatusRuntimeException e) {
-                refused.set(RefusedCommand.of(command, e));
+                refused.set(RefusedCommand.of(command, e, completedTaskScheduledEventId));
                 throw e;
               }
             }
@@ -662,17 +663,27 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
    */
   private void failWorkflowTaskOnRefusedCommand(
       RefusedCommand refused, RespondWorkflowTaskCompletedRequest request) {
-    completeWorkflowTaskUpdate(
-        ctx -> {
-          // The task may have timed out between the refused update and this one.
-          if (workflowTaskStateMachine.getState() == State.STARTED) {
+    lock.lock();
+    try {
+      // The task may have timed out, and a new one may have been scheduled and started, between
+      // the refused update and this one. Only the refused task is failed; the check runs before
+      // completeWorkflowTaskUpdate so a stale refusal does not touch the newer task's sticky
+      // settings either.
+      if (workflowTaskStateMachine.getState() != State.STARTED
+          || workflowTaskStateMachine.getData().scheduledEventId != refused.scheduledEventId) {
+        throw Status.INVALID_ARGUMENT.withDescription(refused.message).asRuntimeException();
+      }
+      completeWorkflowTaskUpdate(
+          ctx -> {
             failWorkflowTaskWithAReason(
                 refused.cause, new ServerFailure(refused.message, true), ctx, request, true);
-          }
-          ctx.setExceptionIfEmpty(
-              Status.INVALID_ARGUMENT.withDescription(refused.message).asRuntimeException());
-        },
-        null);
+            ctx.setExceptionIfEmpty(
+                Status.INVALID_ARGUMENT.withDescription(refused.message).asRuntimeException());
+          },
+          null);
+    } finally {
+      lock.unlock();
+    }
   }
 
   /**
@@ -747,13 +758,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     final WorkflowTaskFailedCause cause;
     final String message;
 
-    private RefusedCommand(WorkflowTaskFailedCause cause, String message) {
+    /** Identifies the workflow task whose completion was refused. */
+    final long scheduledEventId;
+
+    private RefusedCommand(WorkflowTaskFailedCause cause, String message, long scheduledEventId) {
       this.cause = cause;
       this.message = message;
+      this.scheduledEventId = scheduledEventId;
     }
 
     /** Null when the error is not a caller error or the command has no failure cause. */
-    static RefusedCommand of(Command command, StatusRuntimeException e) {
+    static RefusedCommand of(Command command, StatusRuntimeException e, long scheduledEventId) {
       Status.Code code = e.getStatus().getCode();
       if (code != Status.Code.INVALID_ARGUMENT && code != Status.Code.FAILED_PRECONDITION) {
         return null;
@@ -764,7 +779,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
       return new RefusedCommand(
           cause,
-          ProtoEnumNameUtils.uniqueToSimplifiedName(cause) + ": " + e.getStatus().getDescription());
+          ProtoEnumNameUtils.uniqueToSimplifiedName(cause) + ": " + e.getStatus().getDescription(),
+          scheduledEventId);
     }
 
     /**
@@ -802,6 +818,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               .WORKFLOW_TASK_FAILED_CAUSE_BAD_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_ATTRIBUTES;
         case COMMAND_TYPE_RECORD_MARKER:
           return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_RECORD_MARKER_ATTRIBUTES;
+        case COMMAND_TYPE_PROTOCOL_MESSAGE:
+          return WorkflowTaskFailedCause
+              .WORKFLOW_TASK_FAILED_CAUSE_BAD_UPDATE_WORKFLOW_EXECUTION_MESSAGE;
         case COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION:
           return WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_BAD_CONTINUE_AS_NEW_ATTRIBUTES;
         case COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION:
@@ -1174,25 +1193,31 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         StateMachines.newCancelExternalStateMachine();
     externalCancellations.put(attr.getWorkflowId(), cancelStateMachine);
     cancelStateMachine.action(StateMachines.Action.INITIATE, ctx, attr, workflowTaskCompletedId);
-    ForkJoinPool.commonPool()
-        .execute(
-            () -> {
-              RequestCancelWorkflowExecutionRequest request =
-                  RequestCancelWorkflowExecutionRequest.newBuilder()
-                      .setWorkflowExecution(
-                          WorkflowExecution.newBuilder().setWorkflowId(attr.getWorkflowId()))
-                      .setNamespace(ctx.getNamespace())
-                      .setReason(attr.getReason())
-                      .build();
-              CancelExternalWorkflowExecutionCallerInfo info =
-                  new CancelExternalWorkflowExecutionCallerInfo(
-                      ctx.getNamespace(), cancelStateMachine.getData().initiatedEventId, this);
-              try {
-                service.requestCancelWorkflowExecution(request, Optional.of(info));
-              } catch (Exception e) {
-                log.error("Failure to request cancel external workflow", e);
-              }
-            });
+    // Dispatched on commit so a completion that is refused by a later command cancels nothing.
+    ctx.onCommit(
+        (int historySize) ->
+            ForkJoinPool.commonPool()
+                .execute(
+                    () -> {
+                      RequestCancelWorkflowExecutionRequest request =
+                          RequestCancelWorkflowExecutionRequest.newBuilder()
+                              .setWorkflowExecution(
+                                  WorkflowExecution.newBuilder()
+                                      .setWorkflowId(attr.getWorkflowId()))
+                              .setNamespace(ctx.getNamespace())
+                              .setReason(attr.getReason())
+                              .build();
+                      CancelExternalWorkflowExecutionCallerInfo info =
+                          new CancelExternalWorkflowExecutionCallerInfo(
+                              ctx.getNamespace(),
+                              cancelStateMachine.getData().initiatedEventId,
+                              this);
+                      try {
+                        service.requestCancelWorkflowExecution(request, Optional.of(info));
+                      } catch (Exception e) {
+                        log.error("Failure to request cancel external workflow", e);
+                      }
+                    }));
   }
 
   @Override
@@ -1491,15 +1516,18 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         StateMachines.newSignalExternalStateMachine();
     externalSignals.put(signalId, signalStateMachine);
     signalStateMachine.action(StateMachines.Action.INITIATE, ctx, a, workflowTaskCompletedId);
-    ForkJoinPool.commonPool()
-        .execute(
-            () -> {
-              try {
-                service.signalExternalWorkflowExecution(signalId, a, this);
-              } catch (Exception e) {
-                log.error("Failure signalling an external workflow execution", e);
-              }
-            });
+    // Dispatched on commit so a completion that is refused by a later command sends nothing.
+    ctx.onCommit(
+        (int historySize) ->
+            ForkJoinPool.commonPool()
+                .execute(
+                    () -> {
+                      try {
+                        service.signalExternalWorkflowExecution(signalId, a, this);
+                      } catch (Exception e) {
+                        log.error("Failure signalling an external workflow execution", e);
+                      }
+                    }));
     ctx.lockTimer("processSignalExternalWorkflowExecution");
   }
 
@@ -2092,8 +2120,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       UpsertWorkflowSearchAttributesCommandAttributes attr,
       long workflowTaskCompletedId) {
-    visibilityStore.upsertSearchAttributesForExecution(
-        ctx.getExecutionId(), attr.getSearchAttributes());
+    // Applied on commit so a completion that is refused by a later command changes nothing.
+    ctx.onCommit(
+        (int historySize) ->
+            visibilityStore.upsertSearchAttributesForExecution(
+                ctx.getExecutionId(), attr.getSearchAttributes()));
 
     UpsertWorkflowSearchAttributesEventAttributes.Builder upsertEventAttr =
         UpsertWorkflowSearchAttributesEventAttributes.newBuilder()
@@ -2113,8 +2144,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       RequestContext ctx,
       ModifyWorkflowPropertiesCommandAttributes attr,
       long workflowTaskCompletedId) {
-    // Update workflow properties
-    currentMemo = mergeMemo(currentMemo, attr.getUpsertedMemo().getFieldsMap());
+    // Merged on commit so a completion that is refused by a later command changes nothing, and
+    // in registration order so successive changes in one completion stack.
+    ctx.onCommit(
+        (int historySize) ->
+            currentMemo = mergeMemo(currentMemo, attr.getUpsertedMemo().getFieldsMap()));
 
     WorkflowPropertiesModifiedEventAttributes.Builder propModifiedEventAttr =
         WorkflowPropertiesModifiedEventAttributes.newBuilder()
@@ -2148,7 +2182,13 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   messages.remove(msg);
                   return msg;
                 })
-            .get();
+            .orElseThrow(
+                () ->
+                    Status.INVALID_ARGUMENT
+                        .withDescription(
+                            "ProtocolMessage command references unknown message id "
+                                + attr.getMessageId())
+                        .asRuntimeException());
     processMessage(ctx, orderedMsg, identity, workflowTaskCompletedId);
     return null;
   }
