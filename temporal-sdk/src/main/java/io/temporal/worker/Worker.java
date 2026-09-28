@@ -24,6 +24,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
@@ -1126,7 +1127,8 @@ public final class Worker {
         .setDeploymentOptions(options.getDeploymentOptions())
         .setWorkerInstanceKey(workerInstanceKey)
         .setWorkerControlTaskQueue(workerControlTaskQueue)
-        .setPreferredVersionProvider(options.getPreferredVersionProvider());
+        .setPreferredVersionProvider(options.getPreferredVersionProvider())
+        .setLoggerMdc(new PrefixedMdc(factoryOptions.getLoggerTagPrefix()));
   }
 
   /**

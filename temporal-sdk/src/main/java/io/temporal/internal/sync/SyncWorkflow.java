@@ -11,6 +11,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
@@ -27,7 +28,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 /**
  * SyncWorkflow supports workflows that use synchronous blocking code. An instance is created per
@@ -152,8 +152,9 @@ class SyncWorkflow implements ReplayWorkflow {
         () -> {
           try {
             workflowContext.setCurrentUpdateInfo(updateInfo);
-            MDC.put(LoggerTag.UPDATE_ID, updateInfo.getUpdateId());
-            MDC.put(LoggerTag.UPDATE_NAME, updateInfo.getUpdateName());
+            PrefixedMdc mdc = workflowContext.getReplayContext().getLoggerMdc();
+            mdc.put(LoggerTag.UPDATE_ID, updateInfo.getUpdateId());
+            mdc.put(LoggerTag.UPDATE_NAME, updateInfo.getUpdateName());
             // Skip validator on replay
             if (!callbacks.isReplaying()) {
               try {

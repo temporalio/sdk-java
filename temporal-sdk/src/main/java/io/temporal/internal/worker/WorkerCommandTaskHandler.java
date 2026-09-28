@@ -13,6 +13,7 @@ import io.temporal.api.worker.v1.WorkerCommand;
 import io.temporal.api.worker.v1.WorkerCommandResult;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.FixedSizeSlotSupplier;
@@ -47,7 +48,8 @@ public final class WorkerCommandTaskHandler implements NexusTaskHandler {
       @Nonnull String workerGroupingKey,
       @Nonnull Function<byte[], Boolean> activityCancelCallback,
       @Nonnull Scope metricsScope,
-      @Nonnull NamespaceCapabilities namespaceCapabilities) {
+      @Nonnull NamespaceCapabilities namespaceCapabilities,
+      @Nonnull PrefixedMdc mdc) {
     String taskQueue = workerControlTaskQueue(namespace, workerGroupingKey);
     DataConverter dataConverter = GlobalDataConverter.get();
     SingleWorkerOptions options =
@@ -62,6 +64,7 @@ public final class WorkerCommandTaskHandler implements NexusTaskHandler {
                     .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
                     .setPollThreadNamePrefix("WorkerCommandNexusPoller")
                     .build())
+            .setLoggerMdc(mdc)
             .build();
     return new NexusWorker(
         service,

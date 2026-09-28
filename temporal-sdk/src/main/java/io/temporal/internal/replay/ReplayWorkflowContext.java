@@ -10,6 +10,7 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.internal.common.SdkFlag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Functions.Func;
@@ -445,4 +446,10 @@ public interface ReplayWorkflowContext extends ReplayAware {
    * @return the priority of the workflow task
    */
   Priority getPriority();
+
+  /**
+   * @return wrapper for setting logger MDC tags
+   */
+  @Nonnull
+  PrefixedMdc getLoggerMdc();
 }

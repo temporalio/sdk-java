@@ -13,6 +13,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.internal.worker.HeartbeatManager;
@@ -306,7 +307,8 @@ public final class WorkerFactory {
               workerGroupingKey,
               this::requestCancelActivity,
               metricsScope,
-              namespaceCapabilities);
+              namespaceCapabilities,
+              new PrefixedMdc(factoryOptions.getLoggerTagPrefix()));
       workerCommandWorker.start();
     }
 
