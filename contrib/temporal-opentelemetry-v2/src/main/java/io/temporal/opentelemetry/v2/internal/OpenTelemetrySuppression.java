@@ -14,8 +14,6 @@ public final class OpenTelemetrySuppression {
    * mutate workflow state.
    */
   public static boolean shouldSuppress() {
-    return WorkflowUnsafe.isWorkflowThread()
-        && WorkflowUnsafe.isSubjectToReplay()
-        && WorkflowUnsafe.isReplaying();
+    return WorkflowUnsafe.isSubjectToReplay() && WorkflowUnsafe.isReplaying();
   }
 }

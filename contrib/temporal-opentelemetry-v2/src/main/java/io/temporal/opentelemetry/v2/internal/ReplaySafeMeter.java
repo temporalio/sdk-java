@@ -29,6 +29,7 @@ import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.opentelemetry.api.metrics.ObservableMeasurement;
 import io.opentelemetry.context.Context;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -36,9 +37,10 @@ import java.util.function.Consumer;
  * Wraps a meter so the synchronous instruments it builds drop recordings made by replaying workflow
  * code, which would otherwise be recorded again on every replay.
  *
- * <p>Observable instruments are not wrapped. Creating them from workflow code is discouraged
- * because their callbacks run outside the workflow and the callback observes workflow state without
- * workflow synchronization. Create observable instruments from worker or activity code instead.
+ * <p>Observable instruments cannot be created from workflow code. Their callbacks stay registered
+ * until the meter provider closes, so every replay would register another callback, and each
+ * callback would read workflow state from the reader thread without workflow synchronization.
+ * Register observable instruments once at worker or process startup instead.
  */
 public final class ReplaySafeMeter implements Meter {
   private final Meter delegate;
@@ -72,7 +74,15 @@ public final class ReplaySafeMeter implements Meter {
       Runnable callback,
       ObservableMeasurement observableMeasurement,
       ObservableMeasurement... additionalMeasurements) {
+    rejectWorkflowThread();
     return delegate.batchCallback(callback, observableMeasurement, additionalMeasurements);
+  }
+
+  private static void rejectWorkflowThread() {
+    if (WorkflowUnsafe.isWorkflowThread()) {
+      throw new IllegalStateException(
+          "Observable instruments cannot be created from workflow code.");
+    }
   }
 
   private static final class ReplaySafeLongCounterBuilder implements LongCounterBuilder {
@@ -106,11 +116,13 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public ObservableLongCounter buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
+      rejectWorkflowThread();
       return delegate.buildWithCallback(callback);
     }
 
     @Override
     public ObservableLongMeasurement buildObserver() {
+      rejectWorkflowThread();
       return delegate.buildObserver();
     }
   }
@@ -142,11 +154,13 @@ public final class ReplaySafeMeter implements Meter {
     @Override
     public ObservableDoubleCounter buildWithCallback(
         Consumer<ObservableDoubleMeasurement> callback) {
+      rejectWorkflowThread();
       return delegate.buildWithCallback(callback);
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
+      rejectWorkflowThread();
       return delegate.buildObserver();
     }
   }
@@ -184,11 +198,13 @@ public final class ReplaySafeMeter implements Meter {
     @Override
     public ObservableLongUpDownCounter buildWithCallback(
         Consumer<ObservableLongMeasurement> callback) {
+      rejectWorkflowThread();
       return delegate.buildWithCallback(callback);
     }
 
     @Override
     public ObservableLongMeasurement buildObserver() {
+      rejectWorkflowThread();
       return delegate.buildObserver();
     }
   }
@@ -221,11 +237,13 @@ public final class ReplaySafeMeter implements Meter {
     @Override
     public ObservableDoubleUpDownCounter buildWithCallback(
         Consumer<ObservableDoubleMeasurement> callback) {
+      rejectWorkflowThread();
       return delegate.buildWithCallback(callback);
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
+      rejectWorkflowThread();
       return delegate.buildObserver();
     }
   }
@@ -323,11 +341,13 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
+      rejectWorkflowThread();
       return delegate.buildWithCallback(callback);
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
+      rejectWorkflowThread();
       return delegate.buildObserver();
     }
 
@@ -358,11 +378,13 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public ObservableLongGauge buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
+      rejectWorkflowThread();
       return delegate.buildWithCallback(callback);
     }
 
     @Override
     public ObservableLongMeasurement buildObserver() {
+      rejectWorkflowThread();
       return delegate.buildObserver();
     }
 
@@ -381,7 +403,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -418,7 +440,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -455,7 +477,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -492,7 +514,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -529,7 +551,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -566,7 +588,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -603,7 +625,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override
@@ -640,7 +662,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return delegate.isEnabled();
+      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
     }
 
     @Override

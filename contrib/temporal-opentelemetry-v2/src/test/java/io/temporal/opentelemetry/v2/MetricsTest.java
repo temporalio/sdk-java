@@ -2,7 +2,9 @@ package io.temporal.opentelemetry.v2;
 
 import static org.junit.Assert.assertEquals;
 
+import com.google.common.collect.ImmutableSet;
 import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
@@ -16,8 +18,11 @@ import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import java.util.Collection;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -29,6 +34,8 @@ public class MetricsTest extends OtelTestBase {
   private static final String METER_NAME = "custom-metrics";
   private static final String WORKFLOW_COUNTER = "custom_workflow_counter";
   private static final String ACTIVITY_COUNTER = "custom_activity_counter";
+  private static final Set<Boolean> liveEnabled = ConcurrentHashMap.newKeySet();
+  private static final Set<Boolean> replayEnabled = ConcurrentHashMap.newKeySet();
 
   @ActivityInterface
   public interface TestActivity {
@@ -57,7 +64,10 @@ public class MetricsTest extends OtelTestBase {
 
     @Override
     public void run() {
-      GlobalOpenTelemetry.getMeter(METER_NAME).counterBuilder(WORKFLOW_COUNTER).build().add(1);
+      LongCounter counter =
+          GlobalOpenTelemetry.getMeter(METER_NAME).counterBuilder(WORKFLOW_COUNTER).build();
+      (WorkflowUnsafe.isReplaying() ? replayEnabled : liveEnabled).add(counter.isEnabled());
+      counter.add(1);
 
       TestActivity activity =
           Workflow.newActivityStub(
@@ -83,6 +93,8 @@ public class MetricsTest extends OtelTestBase {
 
   @Test
   public void liveExecutionRecordsAndReplayDoesNotDuplicate() throws Exception {
+    liveEnabled.clear();
+    replayEnabled.clear();
     TestWorkflow workflow = testWorkflowRule.newWorkflowStub(TestWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::run);
 
@@ -98,6 +110,8 @@ public class MetricsTest extends OtelTestBase {
 
     assertEquals(1, singleLongValue(WORKFLOW_COUNTER));
     assertEquals(1, singleLongValue(ACTIVITY_COUNTER));
+    assertEquals(ImmutableSet.of(true), liveEnabled);
+    assertEquals(ImmutableSet.of(false), replayEnabled);
   }
 
   private static long singleLongValue(String name) {
