@@ -41,12 +41,12 @@ public class NexusClientImpl implements NexusClient {
   public static NexusClient newInstance(WorkflowServiceStubs service, NexusClientOptions options) {
     enforceNonWorkflowThread();
 
-    // Extract NexusClientPlugins from service stubs plugins (propagation)
+    // Extract the NexusClientPlugins propagated from the service stubs plugins.
     NexusClientPlugin[] propagatedPlugins =
         PluginUtils.extractPlugins(
             service.getOptions().getPlugins(), NexusClientPlugin.class, NexusClientPlugin[]::new);
 
-    // Merge propagated plugins with Nexus client-specified plugins
+    // Merge propagated plugins with Nexus client-specified plugins.
     NexusClientPlugin[] mergedPlugins =
         PluginUtils.mergePlugins(
             propagatedPlugins,
@@ -57,12 +57,12 @@ public class NexusClientImpl implements NexusClient {
             NexusClientPlugin.class);
 
     // Apply plugin configuration phase (forward order) on user-provided options,
-    // so plugins see unmodified state before defaults and plugin merging
+    // so plugins see unmodified state before defaults and plugin merging.
     NexusClientOptions.Builder builder = NexusClientOptions.newBuilder(options);
     for (NexusClientPlugin plugin : mergedPlugins) {
       plugin.configureNexusClient(builder);
     }
-    // Set merged plugins after configuration, then build
+    // Set merged plugins after configuration, then build.
     builder.setPlugins(mergedPlugins);
     options = builder.build();
 

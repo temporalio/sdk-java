@@ -259,7 +259,7 @@ public abstract class SimplePlugin
 
   @Override
   public void configureActivityClient(@Nonnull ActivityClientOptions.Builder builder) {
-    // Add context propagators
+    // Add context propagators.
     if (!contextPropagators.isEmpty()) {
       List<ContextPropagator> existing = builder.build().getContextPropagators();
       List<ContextPropagator> combined = new ArrayList<>(existing);
@@ -267,7 +267,7 @@ public abstract class SimplePlugin
       builder.setContextPropagators(combined);
     }
 
-    // Add client interceptors
+    // Add client interceptors.
     if (!activityClientInterceptors.isEmpty()) {
       List<ActivityClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
       combined.addAll(activityClientInterceptors);

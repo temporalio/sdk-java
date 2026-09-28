@@ -42,14 +42,14 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
-    // Extract ActivityClientPlugins from service stubs plugins (propagation)
+    // Extract the ActivityClientPlugins propagated from the service stubs plugins.
     ActivityClientPlugin[] propagatedPlugins =
         PluginUtils.extractPlugins(
             stubs.getOptions().getPlugins(),
             ActivityClientPlugin.class,
             ActivityClientPlugin[]::new);
 
-    // Merge propagated plugins with activity client-specified plugins
+    // Merge propagated plugins with activity client-specified plugins.
     ActivityClientPlugin[] mergedPlugins =
         PluginUtils.mergePlugins(
             propagatedPlugins,
@@ -60,12 +60,12 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
             ActivityClientPlugin.class);
 
     // Apply plugin configuration phase (forward order) on user-provided options,
-    // so plugins see unmodified state before defaults and plugin merging
+    // so plugins see unmodified state before defaults and plugin merging.
     ActivityClientOptions.Builder builder = ActivityClientOptions.newBuilder(options);
     for (ActivityClientPlugin plugin : mergedPlugins) {
       plugin.configureActivityClient(builder);
     }
-    // Set merged plugins after configuration, then build
+    // Set merged plugins after configuration, then build.
     builder.setPlugins(mergedPlugins);
     options = builder.build();
 
