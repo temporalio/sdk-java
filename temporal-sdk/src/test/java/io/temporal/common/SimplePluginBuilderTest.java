@@ -418,6 +418,75 @@ public class SimplePluginBuilderTest {
     assertSame(newConverter, builder.build().getDataConverter());
   }
 
+  @Test
+  public void testCustomizeDataConverterAppliesToScheduleClient() {
+    DataConverter existingConverter = mock(DataConverter.class);
+    DataConverter newConverter = mock(DataConverter.class);
+    AtomicReference<DataConverter> capturedExisting = new AtomicReference<>();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .customizeDataConverter(
+                existing -> {
+                  capturedExisting.set(existing);
+                  return newConverter;
+                })
+            .build();
+
+    ScheduleClientOptions.Builder builder =
+        ScheduleClientOptions.newBuilder().setDataConverter(existingConverter);
+    ((ScheduleClientPlugin) plugin).configureScheduleClient(builder);
+
+    assertSame(existingConverter, capturedExisting.get());
+    assertSame(newConverter, builder.build().getDataConverter());
+  }
+
+  @Test
+  public void testCustomizeDataConverterAppliesToActivityClient() {
+    DataConverter existingConverter = mock(DataConverter.class);
+    DataConverter newConverter = mock(DataConverter.class);
+    AtomicReference<DataConverter> capturedExisting = new AtomicReference<>();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .customizeDataConverter(
+                existing -> {
+                  capturedExisting.set(existing);
+                  return newConverter;
+                })
+            .build();
+
+    ActivityClientOptions.Builder builder =
+        ActivityClientOptions.newBuilder().setDataConverter(existingConverter);
+    ((ActivityClientPlugin) plugin).configureActivityClient(builder);
+
+    assertSame(existingConverter, capturedExisting.get());
+    assertSame(newConverter, builder.build().getDataConverter());
+  }
+
+  @Test
+  public void testCustomizeDataConverterAppliesToNexusClient() {
+    DataConverter existingConverter = mock(DataConverter.class);
+    DataConverter newConverter = mock(DataConverter.class);
+    AtomicReference<DataConverter> capturedExisting = new AtomicReference<>();
+
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("test")
+            .customizeDataConverter(
+                existing -> {
+                  capturedExisting.set(existing);
+                  return newConverter;
+                })
+            .build();
+
+    NexusClientOptions.Builder builder =
+        NexusClientOptions.newBuilder().setDataConverter(existingConverter);
+    ((NexusClientPlugin) plugin).configureNexusClient(builder);
+
+    assertSame(existingConverter, capturedExisting.get());
+    assertSame(newConverter, builder.build().getDataConverter());
+  }
+
   @Test(expected = NullPointerException.class)
   public void testNullDataConverterCustomizer() {
     SimplePlugin.newBuilder("test").customizeDataConverter(null);

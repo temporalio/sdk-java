@@ -250,6 +250,13 @@ public abstract class SimplePlugin
 
   @Override
   public void configureScheduleClient(@Nonnull ScheduleClientOptions.Builder builder) {
+    // Apply data converter customizer.
+    if (dataConverterCustomizer != null) {
+      DataConverter existing = builder.build().getDataConverter();
+      builder.setDataConverter(dataConverterCustomizer.apply(existing));
+    }
+
+    // Add client interceptors.
     if (!scheduleClientInterceptors.isEmpty()) {
       List<ScheduleClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
       combined.addAll(scheduleClientInterceptors);
@@ -259,6 +266,12 @@ public abstract class SimplePlugin
 
   @Override
   public void configureActivityClient(@Nonnull ActivityClientOptions.Builder builder) {
+    // Apply data converter customizer.
+    if (dataConverterCustomizer != null) {
+      DataConverter existing = builder.build().getDataConverter();
+      builder.setDataConverter(dataConverterCustomizer.apply(existing));
+    }
+
     // Add context propagators.
     if (!contextPropagators.isEmpty()) {
       List<ContextPropagator> existing = builder.build().getContextPropagators();
@@ -277,6 +290,13 @@ public abstract class SimplePlugin
 
   @Override
   public void configureNexusClient(@Nonnull NexusClientOptions.Builder builder) {
+    // Apply data converter customizer.
+    if (dataConverterCustomizer != null) {
+      DataConverter existing = builder.build().getDataConverter();
+      builder.setDataConverter(dataConverterCustomizer.apply(existing));
+    }
+
+    // Add client interceptors.
     if (!nexusClientInterceptors.isEmpty()) {
       List<NexusClientInterceptor> combined = new ArrayList<>(builder.build().getInterceptors());
       combined.addAll(nexusClientInterceptors);
