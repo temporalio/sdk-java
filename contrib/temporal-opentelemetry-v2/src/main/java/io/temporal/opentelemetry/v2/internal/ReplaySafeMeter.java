@@ -40,7 +40,6 @@ import java.util.function.Consumer;
  * <p>Observable instruments cannot be created from workflow code. Their callbacks stay registered
  * until the meter provider closes, so every replay would register another callback, and each
  * callback would read workflow state from the reader thread without workflow synchronization.
- * Register observable instruments once at worker or process startup instead.
  */
 public final class ReplaySafeMeter implements Meter {
   private final Meter delegate;
