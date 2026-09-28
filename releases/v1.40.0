@@ -1,0 +1,20 @@
+# **Breaking changes**
+
+- `ActivitySerializationContext` methods `getActivityType` and `getActivityTaskQueue` are now marked `@Nullable` because
+  the values are unavailable during deserialization in some context, particularly when fetching a result of a standalone
+  activity.
+
+# What's Changed
+
+2026-09-15 - 5c9599df - Account for dynamic workflows when setting WorkflowImplementationOptions (#3042)
+2026-09-15 - 664cf09a - Unified link converter methods (#3068)
+2026-09-15 - 6d6b7434 - Move Cloud Run OpenTelemetry plugin to temporal-gcp-cloud-run-opentelemetry (#3064)
+2026-09-15 - 8cbe003e - Propagate headers on signals in the test server (#3066)
+2026-09-15 - a16ffa9e - Propagate Nexus links and request IDs to all activity starts in Nexus handlers (#3048)
+2026-09-16 - 3513f758 - NexusSerializationContext for Java (#3075)
+2026-09-16 - 827a5b84 - Add Google Cloud Run CloudRunIdPlugin (#3028)
+2026-09-18 - 3e327b96 - :boom: Use ActivitySerializationContext when starting and getting result of Standalone Activity (#3063)
+2026-09-18 - 961a35e8 - Nexus serialization consistency (#3084)
+2026-09-20 - b250876f - Classify SDK tests for Cloud execution (#3033)
+2026-09-21 - 8d2f35e7 - Add support for setting ActivityID (#3044)
+2026-09-28 - 67c9a925 - Enable SDK flags CANCEL_AWAIT_TIMER_ON_CONDITION and VERSION_WAIT_FOR_MARKER (#3099)
