@@ -23,6 +23,8 @@ public enum SdkFlag {
   /*
    * Changes behavior of Workflow.await(duration, condition) to cancel the timer if the
    * condition is resolved before the timeout.
+   *
+   * Enabled: 1.40.0
    */
   CANCEL_AWAIT_TIMER_ON_CONDITION(4),
   /*
@@ -31,7 +33,7 @@ public enum SdkFlag {
    *
    * Introduced: 1.36.0
    *
-   * Enabled: (pending)
+   * Enabled: 1.40.0
    *
    * Bug: https://github.com/temporalio/sdk-java/issues/2796
    */
