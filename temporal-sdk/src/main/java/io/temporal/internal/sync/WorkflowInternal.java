@@ -962,7 +962,8 @@ public final class WorkflowInternal {
   }
 
   public static boolean isSubjectToReplay() {
-    return getRootWorkflowContext().isSubjectToReplay();
+    Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
+    return thread.isPresent() && getRootWorkflowContext().isSubjectToReplay();
   }
 
   static void assertNotInUpdateHandler(String message) {

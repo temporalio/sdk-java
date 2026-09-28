@@ -1,6 +1,7 @@
 package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
@@ -77,6 +78,11 @@ public class WorkflowUnsafeSubjectToReplayTest {
     expected.put("ValidateUpdate", false);
     expected.put("validator", false);
     assertEquals(expected, calls);
+  }
+
+  @Test
+  public void isSubjectToReplayOffWorkflowThread() {
+    assertFalse(WorkflowUnsafe.isSubjectToReplay());
   }
 
   private static void record(String name) {

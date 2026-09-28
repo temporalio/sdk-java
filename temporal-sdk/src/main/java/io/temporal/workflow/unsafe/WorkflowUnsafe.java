@@ -56,9 +56,8 @@ public final class WorkflowUnsafe {
    * functions run once against the current state and are never re-executed, so they are not subject
    * to replay even while {@link #isReplaying()} reports true.
    *
-   * <p>Must be called from Workflow code.
-   *
-   * @return true if the calling context is re-executed on replay
+   * @return true if the calling context is re-executed on replay. This method always returns false
+   *     if called from a non workflow thread.
    */
   @Experimental
   public static boolean isSubjectToReplay() {
