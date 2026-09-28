@@ -112,7 +112,7 @@ public class WorkflowRandomStreamTest {
             .blockingStub()
             .resetWorkflowExecution(
                 ResetWorkflowExecutionRequest.newBuilder()
-                    .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                    .setNamespace(client.getOptions().getNamespace())
                     .setWorkflowExecution(execution)
                     .setWorkflowTaskFinishEventId(10)
                     .setReason("Integration test")
