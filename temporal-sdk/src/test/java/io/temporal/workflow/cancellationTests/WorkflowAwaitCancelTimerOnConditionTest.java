@@ -7,7 +7,6 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.internal.common.SdkFlag;
-import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.SignalMethod;
@@ -15,20 +14,14 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Tests for the CANCEL_AWAIT_TIMER_ON_CONDITION SDK flag behavior. Tests verify both old and new
- * behavior by explicitly switching the SDK flag, following the Go SDK pattern.
- *
- * <p>Since the flag is NOT auto-enabled (uses checkSdkFlag, not tryUseSdkFlag), tests must
- * explicitly add it to initialFlags to enable the new behavior.
+ * Tests for the CANCEL_AWAIT_TIMER_ON_CONDITION SDK flag behavior. Because the flag is auto-enabled
+ * for new workflows (tryUseSdkFlag), only the new behavior is tested with live workflows. Old
+ * behavior is tested with history replay test.
  */
 public class WorkflowAwaitCancelTimerOnConditionTest {
 
@@ -43,27 +36,12 @@ public class WorkflowAwaitCancelTimerOnConditionTest {
               TestReturnValueWorkflowImpl.class)
           .build();
 
-  @Before
-  public void setUp() {
-    savedInitialFlags = WorkflowStateMachines.initialFlags;
-  }
-
-  @After
-  public void tearDown() {
-    WorkflowStateMachines.initialFlags = savedInitialFlags;
-  }
-
   /**
    * Tests that the timer IS cancelled when the flag is explicitly enabled. With
    * CANCEL_AWAIT_TIMER_ON_CONDITION in initialFlags, we expect TIMER_CANCELED in history.
    */
   @Test
   public void testTimerCancelledWhenFlagEnabled() {
-    WorkflowStateMachines.initialFlags =
-        Collections.unmodifiableList(
-            Arrays.asList(
-                SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION, SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION));
-
     TestAwaitWorkflow workflow = testWorkflowRule.newWorkflowStub(TestAwaitWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
 
@@ -77,29 +55,6 @@ public class WorkflowAwaitCancelTimerOnConditionTest {
     testWorkflowRule.assertHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_TIMER_STARTED);
     testWorkflowRule.assertHistoryEvent(
-        execution.getWorkflowId(), EventType.EVENT_TYPE_TIMER_CANCELED);
-  }
-
-  /**
-   * Tests that the timer is NOT cancelled when the flag is disabled (default). Without the flag in
-   * initialFlags, the old behavior is used: timer runs even after condition is satisfied.
-   */
-  @Test
-  public void testTimerNotCancelledWhenFlagDisabled() {
-    // Default initialFlags do NOT include CANCEL_AWAIT_TIMER_ON_CONDITION
-    TestAwaitWorkflow workflow = testWorkflowRule.newWorkflowStub(TestAwaitWorkflow.class);
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
-
-    testWorkflowRule.sleep(Duration.ofMillis(500));
-    workflow.unblock();
-
-    WorkflowStub untyped = WorkflowStub.fromTyped(workflow);
-    String result = untyped.getResult(String.class);
-    assertEquals("condition satisfied", result);
-
-    testWorkflowRule.assertHistoryEvent(
-        execution.getWorkflowId(), EventType.EVENT_TYPE_TIMER_STARTED);
-    testWorkflowRule.assertNoHistoryEvent(
         execution.getWorkflowId(), EventType.EVENT_TYPE_TIMER_CANCELED);
   }
 
@@ -108,11 +63,6 @@ public class WorkflowAwaitCancelTimerOnConditionTest {
    */
   @Test
   public void testNoTimerWhenConditionImmediatelySatisfiedWithFlag() {
-    WorkflowStateMachines.initialFlags =
-        Collections.unmodifiableList(
-            Arrays.asList(
-                SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION, SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION));
-
     TestImmediateConditionWorkflow workflow =
         testWorkflowRule.newWorkflowStub(TestImmediateConditionWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
@@ -131,11 +81,6 @@ public class WorkflowAwaitCancelTimerOnConditionTest {
    */
   @Test
   public void testAwaitReturnValue() {
-    WorkflowStateMachines.initialFlags =
-        Collections.unmodifiableList(
-            Arrays.asList(
-                SdkFlag.SKIP_YIELD_ON_DEFAULT_VERSION, SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION));
-
     TestReturnValueWorkflow workflow =
         testWorkflowRule.newWorkflowStub(TestReturnValueWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
