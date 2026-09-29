@@ -109,6 +109,9 @@ public class GetVersionInterleavedUpdateReplayTest {
         "The reproduced history must advertise SKIP_YIELD_ON_VERSION.",
         hasSdkFlag(history, SdkFlag.SKIP_YIELD_ON_VERSION));
     assertTrue(
+        "The reproduced history must advertise VERSION_WAIT_FOR_MARKER.",
+        hasSdkFlag(history, SdkFlag.VERSION_WAIT_FOR_MARKER));
+    assertTrue(
         "The reproduced history must include at least one completed update.",
         hasEvent(history.getEvents(), EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED));
 
