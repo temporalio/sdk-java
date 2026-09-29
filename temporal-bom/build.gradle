@@ -8,6 +8,7 @@ dependencies {
     constraints {
         api project(':temporal-kotlin')
         api project(':temporal-opentelemetry')
+        api project(':temporal-opentelemetry-v2')
         api project(':temporal-opentracing')
         api project(':temporal-aws-lambda')
         api project(':temporal-gcp-cloud-run-opentelemetry')
