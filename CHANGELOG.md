@@ -23,6 +23,10 @@ to docs, or any other relevant information.
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 
+### Fixed
+- Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
+  ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+
 ## Previous releases
 
 Changelogs for releases 1.40 and older are available in [releases](/releases) directory.
