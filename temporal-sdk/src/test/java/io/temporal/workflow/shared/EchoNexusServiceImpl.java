@@ -1,6 +1,7 @@
 package io.temporal.workflow.shared;
 
 import io.nexusrpc.OperationException;
+import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.OperationCancelDetails;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationHandler;
@@ -8,6 +9,7 @@ import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.OperationStartDetails;
 import io.nexusrpc.handler.OperationStartResult;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.failure.ApplicationFailure;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -18,6 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <ul>
  *   <li>An input starting with {@link #FAIL_PREFIX} causes {@code start} to throw an {@link
  *       OperationException#failed} so callers see a non-retryable handler failure.
+ *   <li>An input starting with {@link #HANDLER_FAIL_PREFIX} causes {@code start} to throw a
+ *       non-retryable {@link HandlerException} whose cause carries a detail payload.
  *   <li>An input starting with {@link #ASYNC_PREFIX} causes {@code start} to return an
  *       async-started result with a synthetic operation token; the operation stays in {@code
  *       RUNNING} until something terminal (cancel that takes effect, terminate, schedule-to-close)
@@ -34,6 +38,12 @@ public class EchoNexusServiceImpl {
 
   /** Inputs starting with this prefix make {@code start} throw, exercising the failure path. */
   public static final String FAIL_PREFIX = "FAIL:";
+
+  /**
+   * Inputs starting with this prefix make {@code start} throw a {@link HandlerException},
+   * exercising the task failure path rather than the operation failure path.
+   */
+  public static final String HANDLER_FAIL_PREFIX = "HANDLER_FAIL:";
 
   /**
    * Inputs starting with this prefix make {@code start} return an async-started result without ever
@@ -58,6 +68,13 @@ public class EchoNexusServiceImpl {
           throws OperationException {
         if (input != null && input.startsWith(FAIL_PREFIX)) {
           throw OperationException.failed("intentional failure: " + input);
+        }
+        if (input != null && input.startsWith(HANDLER_FAIL_PREFIX)) {
+          throw new HandlerException(
+              HandlerException.ErrorType.BAD_REQUEST,
+              "intentional handler failure: " + input,
+              ApplicationFailure.newNonRetryableFailure(
+                  "root cause", "ContextFailure", "failure-detail"));
         }
         if (input != null && input.startsWith(ASYNC_PREFIX)) {
           return OperationStartResult.async("token-" + UUID.randomUUID());

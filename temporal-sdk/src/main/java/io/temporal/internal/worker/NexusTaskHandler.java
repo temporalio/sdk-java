@@ -26,8 +26,7 @@ public interface NexusTaskHandler {
     @Nullable private final HandlerException handlerException;
     // Serialization context of the operation the task was for. Carried on the result because the
     // reply is encoded after the handler has returned, by which point the per-task context is no
-    // longer in scope. Null when the task named no operation, or when the server did not report
-    // the endpoint it was addressed to.
+    // longer in scope. Null when the task failed before its operation was known.
     @Nullable private final NexusSerializationContext serializationContext;
 
     public Result(@Nonnull Response response) {

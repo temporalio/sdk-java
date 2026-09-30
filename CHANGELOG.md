@@ -19,6 +19,17 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- Experimental `NexusClientCallsInterceptor.GetNexusOperationResultInput` now takes a single nullable
+  `NexusSerializationContext` in place of separate endpoint, service and operation arguments, and
+  exposes it through `getSerializationContext()` in place of `getEndpoint()`, `getService()` and
+  `getOperation()`.
+
+### Fixed
+- A standalone Nexus operation handle returned when an ID conflict policy of use-existing reuses a
+  running operation now uses that operation's endpoint, service and operation for its serialization
+  context. Previously it used the ones named by the start request, which may differ.
+
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.

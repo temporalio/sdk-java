@@ -14,11 +14,7 @@ import javax.annotation.Nonnull;
  * operation results, and encoding failures produced while handling a Nexus task.
  *
  * <p>The context is not propagated to the eventual result of an asynchronous operation, because the
- * operation is completed out of band rather than by the task the handler was invoked for. A
- * standalone operation handle uses the context of its start request, including when the start
- * request returns an already-running operation; a handle obtained by operation ID without starting
- * an operation has no endpoint, service, or operation to build a context from and therefore
- * serializes without one.
+ * operation is completed out of band rather than by the task the handler was invoked for.
  *
  * <p>Failure conversion is not symmetric: a failure is encoded by the handler and decoded by the
  * caller, so an implementation sees this context on only one side of a given failure, and for some

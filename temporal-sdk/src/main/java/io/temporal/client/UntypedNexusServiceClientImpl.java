@@ -4,6 +4,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
+import io.temporal.common.interceptors.NexusClientCallsInterceptor.DescribeNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionOutput;
 import io.temporal.internal.client.NexusClientResolvedOptions;
@@ -44,15 +45,29 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
   @Override
   public UntypedNexusOperationHandle start(
       String operation, StartNexusOperationOptions options, @Nullable Object arg) {
-    Payload payload = serializeInput(arg, operation);
+    NexusSerializationContext serializationContext =
+        new NexusSerializationContext(endpoint, serviceName, operation);
+    Payload payload = serializeInput(arg, serializationContext);
     StartNexusOperationExecutionInput input =
         new StartNexusOperationExecutionInput(
             endpoint, serviceName, operation, payload, options, Collections.emptyMap());
     StartNexusOperationExecutionOutput output = invoker.startNexusOperationExecution(input);
-    // The handle keeps what the start request was for, including when the server returned an
-    // operation that was already running, so the result is decoded the way it was encoded.
+    // An already-running operation reused by ID may have been started with a different endpoint,
+    // service or operation than this request names. The start response does not say which, so
+    // describe it.
+    if (!output.isStarted()) {
+      NexusOperationExecutionDescription description =
+          invoker
+              .describeNexusOperationExecution(
+                  new DescribeNexusOperationExecutionInput(
+                      output.getOperationId(), output.getRunId()))
+              .getDescription();
+      serializationContext =
+          new NexusSerializationContext(
+              description.getEndpoint(), description.getService(), description.getOperation());
+    }
     return new NexusOperationHandleImpl(
-        output.getOperationId(), output.getRunId(), invoker, endpoint, serviceName, operation);
+        output.getOperationId(), output.getRunId(), invoker, serializationContext);
   }
 
   @Override
@@ -75,13 +90,14 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
     return NexusOperationHandle.fromUntyped(handle, resultClass, resultType).getResult();
   }
 
-  private @Nullable Payload serializeInput(@Nullable Object arg, String operation) {
+  private @Nullable Payload serializeInput(
+      @Nullable Object arg, NexusSerializationContext serializationContext) {
     if (arg == null) {
       return null;
     }
     Class<?> argClass = arg.getClass();
     return dataConverter
-        .withContext(new NexusSerializationContext(endpoint, serviceName, operation))
+        .withContext(serializationContext)
         .toPayload(arg)
         .orElseThrow(
             () ->

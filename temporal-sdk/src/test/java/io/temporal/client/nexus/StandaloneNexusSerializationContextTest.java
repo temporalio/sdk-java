@@ -4,6 +4,7 @@ import static org.junit.Assume.assumeTrue;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.enums.v1.NexusOperationIdConflictPolicy;
 import io.temporal.api.nexus.v1.Endpoint;
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
@@ -17,6 +18,7 @@ import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.FailureConverter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.NexusSerializationContext;
@@ -115,6 +117,44 @@ public class StandaloneNexusSerializationContextTest {
   }
 
   @Test
+  public void startedHandleReusingARunningOperationUsesThatOperationsContext() {
+    NexusClient client = nexusClient();
+    UntypedNexusServiceClient serviceClient =
+        client.newUntypedNexusServiceClient(
+            testWorkflowRule.getNexusEndpoint().getSpec().getName(), SERVICE);
+    String operationId = UUID.randomUUID().toString();
+    UntypedNexusOperationHandle running =
+        serviceClient.start(
+            OPERATION,
+            StartNexusOperationOptions.newBuilder()
+                .setId(operationId)
+                .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+                .build(),
+            EchoNexusServiceImpl.ASYNC_PREFIX + UUID.randomUUID());
+
+    // Reusing the ID returns the running operation, not a new one for the operation named here.
+    UntypedNexusOperationHandle reused =
+        serviceClient.start(
+            "otherOperation",
+            StartNexusOperationOptions.newBuilder()
+                .setId(operationId)
+                .setScheduleToCloseTimeout(Duration.ofSeconds(30))
+                .setIdConflictPolicy(
+                    NexusOperationIdConflictPolicy.NEXUS_OPERATION_ID_CONFLICT_POLICY_USE_EXISTING)
+                .build(),
+            "ignored");
+    Assert.assertEquals(running.getNexusOperationRunId(), reused.getNexusOperationRunId());
+    reused.terminate("done");
+    FAILURE_CONVERTER.reset();
+
+    Assert.assertThrows(NexusOperationFailedException.class, () -> reused.getResult(String.class));
+    Assert.assertEquals(
+        "the reused handle should convert the result under the running operation's context",
+        Collections.singletonList(expectedContext()),
+        FAILURE_CONVERTER.nexusContexts());
+  }
+
+  @Test
   public void failureUsesTheOperationsContext() {
     UntypedNexusOperationHandle handle =
         startOperation(EchoNexusServiceImpl.FAIL_PREFIX + UUID.randomUUID());
@@ -126,6 +166,25 @@ public class StandaloneNexusSerializationContextTest {
         "the operation failure should be converted under the operation's context",
         Collections.singletonList(expectedContext()),
         FAILURE_CONVERTER.nexusContexts());
+  }
+
+  @Test
+  public void handlerFailureUsesTheOperationsContext() {
+    UntypedNexusOperationHandle handle =
+        startOperation(EchoNexusServiceImpl.HANDLER_FAIL_PREFIX + UUID.randomUUID());
+
+    // The worker encodes this failure after the handler has returned, outside the operation's
+    // scope. The strict codec fails the caller's decode if the worker used a different context.
+    NexusOperationFailedException exception =
+        Assert.assertThrows(
+            NexusOperationFailedException.class, () -> handle.getResult(String.class));
+    Throwable cause = exception;
+    while (cause != null && !(cause instanceof ApplicationFailure)) {
+      cause = cause.getCause();
+    }
+    Assert.assertNotNull("expected an ApplicationFailure in " + exception, cause);
+    Assert.assertEquals(
+        "failure-detail", ((ApplicationFailure) cause).getDetails().get(String.class));
   }
 
   @Test

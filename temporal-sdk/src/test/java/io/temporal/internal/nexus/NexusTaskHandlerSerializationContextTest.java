@@ -182,8 +182,7 @@ public class NexusTaskHandlerSerializationContextTest {
   @Test
   public void taskWithoutAnEndpointIsScopedByAnEmptyEndpoint() throws TimeoutException {
     // Servers before 1.30.0 do not report the endpoint a Nexus task was addressed to. The handler
-    // still scopes by service and operation, with an empty endpoint, which will not agree with the
-    // caller's context but is a Nexus context rather than an absent one.
+    // still uses a Nexus context there, with an empty endpoint, rather than none.
     NexusSerializationContext expected = new NexusSerializationContext("", SERVICE, OPERATION);
     DataConverter callerConverter = signingConverter(new SigningCodec());
     SigningCodec handlerCodec = new SigningCodec();

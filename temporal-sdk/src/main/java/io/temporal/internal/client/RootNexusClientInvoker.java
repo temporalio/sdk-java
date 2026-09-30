@@ -149,8 +149,8 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
     } catch (StatusRuntimeException e) {
       throw mapNotFound(input.getOperationId(), input.getRunId().orElse(null), e);
     }
-    // The response names the endpoint, service and operation, so the description decodes its
-    // payloads and failures with the same context the operation was started with.
+    // The response names the endpoint, service and operation, so its payloads and failures use that
+    // context.
     NexusOperationExecutionInfo info = response.getInfo();
     DataConverter dataConverter =
         clientOptions
@@ -163,23 +163,12 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
             response, dataConverter, clientOptions.getNamespace()));
   }
 
-  /**
-   * The client's data converter scoped to the Nexus operation the result is being read for, or left
-   * as-is when the operation is unknown, which is the case for a handle obtained by operation ID.
-   *
-   * <p>{@link GetNexusOperationResultInput} guarantees the endpoint, service and operation are set
-   * together or not at all, so one null means all three are null. Absence is tested with {@code
-   * null} rather than emptiness so an operation genuinely named with an empty string still gets a
-   * context.
-   */
   private DataConverter dataConverterFor(GetNexusOperationResultInput<?> input) {
     DataConverter dataConverter = clientOptions.getDataConverter();
-    if (input.getEndpoint() == null) {
-      return dataConverter;
-    }
-    return dataConverter.withContext(
-        new NexusSerializationContext(
-            input.getEndpoint(), input.getService(), input.getOperation()));
+    NexusSerializationContext serializationContext = input.getSerializationContext();
+    return serializationContext != null
+        ? dataConverter.withContext(serializationContext)
+        : dataConverter;
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(

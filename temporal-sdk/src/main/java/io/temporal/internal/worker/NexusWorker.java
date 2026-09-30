@@ -551,9 +551,8 @@ final class NexusWorker implements SuspendableWorker {
                   .setTaskToken(taskToken)
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace);
-          // The caller decodes this failure with the operation's context, so it has to be encoded
-          // with the same one. The context rides on the result because it is no longer in scope by
-          // the time the reply is built.
+          // The context rides on the result because it is no longer in scope by the time the reply
+          // is built.
           NexusSerializationContext serializationContext = response.getSerializationContext();
           DataConverter dataConverterWithContext =
               serializationContext != null
