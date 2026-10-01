@@ -21,6 +21,11 @@ or to build.gradle:
 compile group: 'io.temporal', name: 'temporal-kotlin', version: 'N.N.N'
 ```
 
+To disable unwrapping Kotlin static adapters for method references passed to `Async`, set the
+`temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property. Its value does not matter;
+for example, `-Dtemporal.kotlin.disableStaticAdapterUnwrapping` disables this fallback. This can
+cause `Async` to stop recognizing method references compiled as static adapters.
+
 ## Kotlin extensions
 
 This module adds several Kotlin extensions to make Kotlin code that uses Temporal Java SDK a bit

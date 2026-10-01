@@ -19,6 +19,10 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### Added
+- Kotlin `Async` static adapter unwrapping can be disabled with the
+  `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property.
+
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
