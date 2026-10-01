@@ -218,11 +218,28 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public void sleep(Duration duration, TimerOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("sleep " + duration);
+      }
+      next.sleep(duration, options);
+    }
+
+    @Override
     public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("await " + timeout + " " + reason);
       }
       return next.await(timeout, reason, unblockCondition);
+    }
+
+    @Override
+    public boolean await(
+        Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("await " + timeout + " " + reason);
+      }
+      return next.await(timeout, options, reason, unblockCondition);
     }
 
     @Override

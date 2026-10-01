@@ -19,6 +19,15 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
+  `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
+  `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+
+### Added
+- `Workflow.sleep(Duration, TimerOptions)` and `Workflow.await(Duration, TimerOptions, Supplier)` let workflows set a
+  summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
+
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
