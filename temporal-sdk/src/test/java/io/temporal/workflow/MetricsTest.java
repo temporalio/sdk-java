@@ -28,6 +28,8 @@ import io.temporal.common.interceptors.*;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -50,9 +52,12 @@ import java.util.function.Function;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class MetricsTest {
 
   private static final long REPORTING_FLUSH_TIME = 600;

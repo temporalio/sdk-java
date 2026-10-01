@@ -13,6 +13,8 @@ import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.NexusServiceClient;
 import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.client.UntypedNexusOperationHandle;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -23,11 +25,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * End-to-end tests for {@link NexusServiceClient}: typed start/execute via {@link
  * io.temporal.workflow.Functions.Func2} method references.
  */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusServiceClientTest {
 
   @Rule

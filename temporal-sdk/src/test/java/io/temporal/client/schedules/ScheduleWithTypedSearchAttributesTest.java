@@ -12,6 +12,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -22,7 +24,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the custom search attributes used by this schedule suite.")
+@Category(RequiresCloudProvisioning.class)
 public class ScheduleWithTypedSearchAttributesTest {
   static final SearchAttributeKey<String> CUSTOM_KEYWORD_SA =
       SearchAttributeKey.forKeyword("CustomKeywordField");

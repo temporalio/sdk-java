@@ -4,6 +4,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
 import io.temporal.client.WorkflowOptions;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -12,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class GetVersionAndTimerTest extends BaseVersionTest {
 
@@ -30,12 +33,16 @@ public class GetVersionAndTimerTest extends BaseVersionTest {
     super(setVersioningFlag, upsertVersioningSA);
   }
 
+  @CloudTestExclusionNote("This timer test depends on local test-server time skipping.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testTimedWorkflowWithoutVersionImpl() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
     testTimedWorkflow(testWorkflowRuleWithoutVersion);
   }
 
+  @CloudTestExclusionNote("This timer test depends on local test-server time skipping.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testTimedWorkflowWithVersionImpl() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

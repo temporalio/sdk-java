@@ -29,6 +29,8 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor.*;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptorBase;
 import io.temporal.common.interceptors.ActivityClientInterceptorBase;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -38,6 +40,7 @@ import java.util.List;
 import java.util.UUID;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Integration tests for the standalone-activity operator commands on {@link ActivityHandle}: pause,
@@ -46,6 +49,9 @@ import org.junit.Test;
  * <p>Gated behind {@link SDKTestWorkflowRule#useExternalService} because the embedded test server
  * does not support the standalone activity APIs.
  */
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone activity permissions required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class StandaloneActivityOperatorCommandsTest {
 
   /** Heartbeat details are opt-in on describe; these tests assert on them. */

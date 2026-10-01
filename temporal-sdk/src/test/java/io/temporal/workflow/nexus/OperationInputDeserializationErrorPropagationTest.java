@@ -18,6 +18,8 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.payload.codec.PayloadCodecException;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
@@ -28,6 +30,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies how a caller workflow sees failures a data converter raises while deserializing Nexus
@@ -38,6 +41,9 @@ import org.junit.*;
  * with one exception: a non-retryable {@code PayloadValidationError} is the converter's way of
  * saying the input itself was invalid, so it is reported as a non-retryable BAD_REQUEST.
  */
+@CloudTestExclusionNote(
+    "Requires Nexus endpoint provisioning and a test-specific data converter in addition to envconfig options.")
+@Category(NeedsCloudAdaptation.class)
 public class OperationInputDeserializationErrorPropagationTest {
   private static final String HANDLER_EXCEPTION = "handler-exception";
   private static final String NON_RETRYABLE_APPLICATION_FAILURE =

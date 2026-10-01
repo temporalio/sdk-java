@@ -6,6 +6,8 @@ import io.grpc.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -20,9 +22,12 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class AuthorizationTokenTest {
   private static Metadata.Key<String> TEMPORAL_NAMESPACE_HEADER_KEY =
       Metadata.Key.of("temporal-namespace", Metadata.ASCII_STRING_MARSHALLER);

@@ -6,6 +6,8 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -14,7 +16,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Cloud envconfig replaces the custom external storage option used by this test.")
+@Category(NeedsCloudAdaptation.class)
 public class WorkflowWorkerExternalStorageFailureTest {
 
   private static final TestStorageDriver driver = TestStorageDriver.named("wf-flaky");

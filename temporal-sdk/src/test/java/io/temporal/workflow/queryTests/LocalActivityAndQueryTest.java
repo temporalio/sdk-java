@@ -33,6 +33,7 @@ public class LocalActivityAndQueryTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setTestTimeoutSeconds(30)
           .setWorkflowTypes(TestLocalActivityAndQueryWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .build();

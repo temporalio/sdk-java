@@ -26,6 +26,8 @@ import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.HistoryUtils;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import java.util.Map;
@@ -34,6 +36,7 @@ import junit.framework.TestCase;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class ReplayWorkflowRunTaskHandlerCacheTests {
 
@@ -71,6 +74,8 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
         cache.getOrCreate(workflowTask, metricsScope, () -> createFakeExecutor(workflowTask)));
   }
 
+  @CloudTestExclusionNote("This cache test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void whenHistoryIsFullNewWorkflowExecutorIsReturned_InitiallyCached() throws Exception {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
@@ -110,6 +115,8 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
     assertSame(workflowRunTaskHandler2, workflowRunTaskHandler);
   }
 
+  @CloudTestExclusionNote("This cache test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test(timeout = 2000)
   public void whenHistoryIsPartialCachedEntryIsReturned() throws Exception {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

@@ -17,6 +17,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.internal.history.LocalActivityMarkerUtils;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
@@ -31,7 +33,11 @@ import org.jspecify.annotations.Nullable;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Cloud envconfig replaces the custom workflow and activity converters and cannot authorize standalone activity execution.")
+@Category(NeedsCloudAdaptation.class)
 public class ContextAwareDataConverterTest {
   @ActivityInterface
   public interface Activities {

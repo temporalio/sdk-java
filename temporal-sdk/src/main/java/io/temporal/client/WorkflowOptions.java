@@ -468,7 +468,6 @@ public final class WorkflowOptions {
      * Optional priority settings that control relative ordering of task processing when tasks are
      * backed up in a queue.
      */
-    @Experimental
     public Builder setPriority(Priority priority) {
       this.priority = priority;
       return this;
@@ -727,7 +726,6 @@ public final class WorkflowOptions {
     return onConflictOptions;
   }
 
-  @Experimental
   public Priority getPriority() {
     return priority;
   }

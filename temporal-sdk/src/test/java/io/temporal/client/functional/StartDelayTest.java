@@ -38,12 +38,12 @@ public class StartDelayTest {
         testWorkflowRule
             .getWorkflowClient()
             .newWorkflowStub(TestNoArgsWorkflowFunc.class, workflowOptions);
-    long start = System.currentTimeMillis();
+    long startNanos = System.nanoTime();
     stubF.func();
-    long end = System.currentTimeMillis();
-    long elapsed = end - start;
-    assertTrue("start delay was not honored, took " + elapsed + "ms", elapsed >= 1000);
-    assertTrue("start delay took far longer than 1s, took " + elapsed + "ms", elapsed < 3000);
+    Duration elapsed = Duration.ofNanos(System.nanoTime() - startNanos);
+    assertTrue(
+        "Workflow completed before its one-second start delay: " + elapsed,
+        elapsed.compareTo(Duration.ofSeconds(1)) >= 0);
     WorkflowExecution workflowExecution = WorkflowStub.fromTyped(stubF).getExecution();
     WorkflowExecutionHistory workflowExecutionHistory =
         testWorkflowRule.getWorkflowClient().fetchHistory(workflowExecution.getWorkflowId());

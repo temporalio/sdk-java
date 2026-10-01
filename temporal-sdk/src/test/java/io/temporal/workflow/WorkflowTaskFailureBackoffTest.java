@@ -1,7 +1,5 @@
 package io.temporal.workflow;
 
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
-
 import com.google.common.collect.ImmutableMap;
 import com.uber.m3.tally.RootScopeBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -62,7 +60,9 @@ public class WorkflowTaskFailureBackoffTest {
             .size());
     Map<String, String> tags =
         ImmutableMap.<String, String>builder()
-            .putAll(MetricsTag.defaultTags(NAMESPACE))
+            .putAll(
+                MetricsTag.defaultTags(
+                    testWorkflowRule.getWorkflowClient().getOptions().getNamespace()))
             .put(MetricsTag.WORKER_TYPE, WorkerMetricsTag.WorkerType.WORKFLOW_WORKER.getValue())
             .put(MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue())
             .put(MetricsTag.WORKFLOW_TYPE, "TestWorkflow1")

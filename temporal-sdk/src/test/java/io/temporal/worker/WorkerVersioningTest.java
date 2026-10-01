@@ -203,7 +203,7 @@ public class WorkerVersioningTest {
     Assert.assertEquals("version-v3", res3);
   }
 
-  @Test
+  @Test(timeout = 30_000)
   public void testRampWorkerVersioning() {
     assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
 

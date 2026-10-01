@@ -10,6 +10,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowHandle;
 import io.temporal.nexus.WorkflowRunOperation;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
@@ -20,7 +22,10 @@ import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class WorkflowHandleProcTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
