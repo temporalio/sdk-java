@@ -14,7 +14,6 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
-import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.env.DebugModeUtils;
@@ -297,7 +296,6 @@ public class TestWorkflowRule implements TestRule {
      * any selection made by {@link #setUseExternalService(boolean)}; whichever method is called
      * last determines the service used by the rule.
      */
-    @Experimental
     public Builder useDevServer() {
       return useDevServer(TemporalDevServerOptions.getDefaultInstance());
     }
@@ -317,7 +315,6 @@ public class TestWorkflowRule implements TestRule {
      *     .build();
      * }</pre>
      */
-    @Experimental
     public Builder useDevServer(@Nonnull TemporalDevServerOptions options) {
       if (options == null) {
         throw new NullPointerException("options");
