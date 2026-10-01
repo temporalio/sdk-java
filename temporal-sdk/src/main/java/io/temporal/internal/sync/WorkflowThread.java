@@ -10,17 +10,17 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 /** Thread that is scheduled deterministically by {@link DeterministicRunner}. */
-public interface WorkflowThread extends CancellationScope {
+public interface WorkflowThread extends CancellationScope, DeterministicRunnerEntry {
 
   /**
-   * Block current thread until unblockCondition is evaluated to true. This method is intended for
-   * framework level libraries, never use directly in a workflow implementation.
+   * Block the current thread until unblockCondition is evaluated to true. This method is intended
+   * for framework level libraries, never use directly in a workflow implementation.
    *
    * @param reason reason for blocking
-   * @param unblockCondition condition that should return true to indicate that thread should
+   * @param unblockCondition condition that should return true to indicate that the thread should
    *     unblock.
-   * @throws CanceledFailure if thread (or current cancellation scope was canceled).
-   * @throws DestroyWorkflowThreadError if thread was asked to be destroyed.
+   * @throws CanceledFailure if the thread (or current cancellation scope was canceled).
+   * @throws DestroyWorkflowThreadError if the thread was asked to be destroyed.
    */
   static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {

@@ -38,6 +38,19 @@ public enum SdkFlag {
    * Bug: https://github.com/temporalio/sdk-java/issues/2796
    */
   VERSION_WAIT_FOR_MARKER(5),
+  /*
+   * Schedules detected Async stub calls as lightweight runner entries in the same order as newly
+   * created workflow threads. This preserves command ordering when equivalent Async calls take
+   * different execution paths, such as a stub method reference versus a lambda that invokes the
+   * same stub method. The stub call does not allocate a workflow thread.
+   *
+   * Introduced: 1.40.0
+   *
+   * Enabled: (pending)
+   *
+   * Bug: https://github.com/temporalio/sdk-java/issues/2989
+   */
+  SCHEDULE_ASYNC_STUB_OPERATIONS(6),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;

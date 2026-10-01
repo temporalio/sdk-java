@@ -377,6 +377,9 @@ class WorkflowThreadImpl implements WorkflowThread {
 
   @Override
   public void yield(String reason, Supplier<Boolean> unblockCondition) {
+    if (AsyncTemporalOperation.isExecuting()) {
+      throw new IllegalStateException("An async Temporal operation cannot block a workflow thread");
+    }
     context.yield(reason, unblockCondition);
   }
 
