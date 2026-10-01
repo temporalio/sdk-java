@@ -18,6 +18,14 @@ public interface LocalActivityCallback
 
   class LocalActivityFailedException extends RuntimeException {
     private final @Nonnull Failure failure;
+
+    /**
+     * Wall clock time when the first attempt of this local activity was scheduled. {@code -1} if
+     * the marker has no metadata (recorded by an older SDK version), {@code 0} if the metadata has
+     * no {@code firstSkd} field.
+     */
+    private final long originalScheduledTimestamp;
+
     private final int lastAttempt;
 
     /**
@@ -32,6 +40,7 @@ public interface LocalActivityCallback
         int lastAttempt,
         @Nullable Duration backoff) {
       this.failure = failure;
+      this.originalScheduledTimestamp = originalScheduledTimestamp;
       this.lastAttempt = lastAttempt;
       this.backoff = backoff;
     }
@@ -39,6 +48,10 @@ public interface LocalActivityCallback
     @Nonnull
     public Failure getFailure() {
       return failure;
+    }
+
+    public long getOriginalScheduledTimestamp() {
+      return originalScheduledTimestamp;
     }
 
     public int getLastAttempt() {
