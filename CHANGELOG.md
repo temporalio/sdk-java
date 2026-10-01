@@ -27,6 +27,8 @@ to docs, or any other relevant information.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
+- Kotlin `Async` static adapter unwrapping can be disabled with the
+  `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
