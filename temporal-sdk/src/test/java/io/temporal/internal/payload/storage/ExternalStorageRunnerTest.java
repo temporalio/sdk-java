@@ -22,6 +22,7 @@ import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.common.AsyncSemaphore;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.payload.storage.ExternalStorage;
@@ -281,7 +282,7 @@ public class ExternalStorageRunnerTest {
                 .setDriver(driver)
                 .setPayloadSizeThreshold(threshold)
                 .build());
-    return new ExternalStorageRunner(payloadTransformer, 4);
+    return new ExternalStorageRunner(payloadTransformer, 4, new AsyncSemaphore(64));
   }
 
   private static Payload payload(String data) {

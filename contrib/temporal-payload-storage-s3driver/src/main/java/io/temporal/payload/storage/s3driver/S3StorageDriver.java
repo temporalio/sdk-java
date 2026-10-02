@@ -89,21 +89,29 @@ public final class S3StorageDriver implements StorageDriver {
       String key = S3StorageKey.forPayload(target, HASH_ALGORITHM, hexDigest);
       String location = storageLocation(bucket, key, describeSuffix);
 
-      CompletableFuture<Boolean> existsRequest = client.objectExists(bucket, key);
       // We track current inflight request for cancellation
-      AtomicReference<CompletableFuture<?>> inFlightRequest = new AtomicReference<>(existsRequest);
+      AtomicReference<CompletableFuture<?>> inFlightRequest = new AtomicReference<>();
       CompletableFuture<StorageDriverClaim> claimFuture =
-          withFailureContext(existsRequest, "existence check failed " + location)
-              .thenCompose(
-                  exists -> {
-                    if (exists) {
-                      return CompletableFuture.<Void>completedFuture(null);
-                    }
-                    CompletableFuture<Void> uploadRequest = client.putObject(bucket, key, data);
-                    inFlightRequest.set(uploadRequest);
-                    return withFailureContext(uploadRequest, "upload failed " + location);
-                  })
-              .thenApply(ignored -> claimFor(bucket, key, hexDigest));
+          context
+              .getLimiter()
+              .permit(
+                  payload,
+                  () -> {
+                    CompletableFuture<Boolean> existsRequest = client.objectExists(bucket, key);
+                    inFlightRequest.set(existsRequest);
+                    return withFailureContext(existsRequest, "existence check failed " + location)
+                        .thenCompose(
+                            exists -> {
+                              if (exists) {
+                                return CompletableFuture.<Void>completedFuture(null);
+                              }
+                              CompletableFuture<Void> uploadRequest =
+                                  client.putObject(bucket, key, data);
+                              inFlightRequest.set(uploadRequest);
+                              return withFailureContext(uploadRequest, "upload failed " + location);
+                            })
+                        .thenApply(ignored -> claimFor(bucket, key, hexDigest));
+                  });
       cancelRequestWhenCancelled(claimFuture, inFlightRequest);
       claimFutures.add(claimFuture);
     }
@@ -129,11 +137,19 @@ public final class S3StorageDriver implements StorageDriver {
         continue;
       }
       String location = storageLocation(bucket, key, describeSuffix);
-      CompletableFuture<byte[]> downloadRequest = client.getObject(bucket, key);
+      AtomicReference<CompletableFuture<?>> inFlightRequest = new AtomicReference<>();
       CompletableFuture<Payload> payloadFuture =
-          withFailureContext(downloadRequest, "download failed " + location)
-              .thenApply(data -> verifyAndParse(claimData, bucket, key, data));
-      cancelRequestWhenCancelled(payloadFuture, downloadRequest);
+          context
+              .getLimiter()
+              .permit(
+                  claim,
+                  () -> {
+                    CompletableFuture<byte[]> downloadRequest = client.getObject(bucket, key);
+                    inFlightRequest.set(downloadRequest);
+                    return withFailureContext(downloadRequest, "download failed " + location)
+                        .thenApply(data -> verifyAndParse(claimData, bucket, key, data));
+                  });
+      cancelRequestWhenCancelled(payloadFuture, inFlightRequest);
       payloadFutures.add(payloadFuture);
     }
     return CompletableFutures.allAsList(payloadFutures);
@@ -221,8 +237,9 @@ public final class S3StorageDriver implements StorageDriver {
       CompletableFuture<?> pipeline, AtomicReference<CompletableFuture<?>> inFlightRequest) {
     pipeline.whenComplete(
         (value, ex) -> {
-          if (pipeline.isCancelled()) {
-            inFlightRequest.get().cancel(true);
+          CompletableFuture<?> request = inFlightRequest.get();
+          if (pipeline.isCancelled() && request != null) {
+            request.cancel(true);
           }
         });
   }
