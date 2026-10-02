@@ -22,6 +22,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
@@ -44,7 +45,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 final class WorkflowWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorker.class);
@@ -132,7 +132,8 @@ final class WorkflowWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               this.slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              options.isUsingVirtualThreads());
+              options.isUsingVirtualThreads(),
+              options.getLoggerMdc());
 
       boolean useAsyncPoller =
           pollerOptions.getPollerBehavior() instanceof PollerBehaviorAutoscaling;
@@ -528,9 +529,10 @@ final class WorkflowWorker implements SuspendableWorker {
       Scope workflowTypeScope =
           workerMetricsScope.tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
 
-      MDC.put(LoggerTag.WORKFLOW_ID, workflowExecution.getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, workflowType);
-      MDC.put(LoggerTag.RUN_ID, runId);
+      PrefixedMdc mdc = options.getLoggerMdc();
+      mdc.put(LoggerTag.WORKFLOW_ID, workflowExecution.getWorkflowId());
+      mdc.put(LoggerTag.WORKFLOW_TYPE, workflowType);
+      mdc.put(LoggerTag.RUN_ID, runId);
 
       boolean locked = false;
 
@@ -809,9 +811,9 @@ final class WorkflowWorker implements SuspendableWorker {
       } finally {
         swTotal.stop();
         task.getCompletionCallback().apply(releaseReason);
-        MDC.remove(LoggerTag.WORKFLOW_ID);
-        MDC.remove(LoggerTag.WORKFLOW_TYPE);
-        MDC.remove(LoggerTag.RUN_ID);
+        mdc.remove(LoggerTag.WORKFLOW_ID);
+        mdc.remove(LoggerTag.WORKFLOW_TYPE);
+        mdc.remove(LoggerTag.RUN_ID);
 
         if (locked) {
           runLocks.unlock(runId);
