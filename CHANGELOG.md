@@ -19,6 +19,13 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### Added
+- Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
+  `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
+  child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
+  under `ChildWorkflowFailure`.
+  Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
+
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
