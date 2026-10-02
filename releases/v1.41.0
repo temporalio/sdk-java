@@ -1,0 +1,12 @@
+# **Breaking changes**
+
+- **Experimental**: Removed `ExternalStorage.Builder.setMaxConcurrentPayloadVisits`. It limited
+  payload visits rather than external storage operations. Use `setConcurrency` instead.
+
+# **Highlights**
+
+## External storage concurrency controls
+
+`ExternalStorage.Builder.setConcurrency` sets `maxDriverOperations` (across all drivers on that
+instance) and `maxOperationsPerMessage` (for one message). Drivers must use
+`context.getLimiter()` for store and retrieve operations.

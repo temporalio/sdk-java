@@ -5,12 +5,16 @@ import com.google.protobuf.Message;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.common.AsyncSemaphore;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import java.util.Collections;
+import java.util.Map;
+import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -24,19 +28,45 @@ import javax.annotation.Nullable;
  * configure external storage.
  */
 public final class ExternalStorageRunner {
-  private final ExternalStoragePayloadTransformer payloadTransformer;
-  private final int payloadVisitConcurrency;
+  /** Visits every payload at once. ExternalStorageConcurrency does the limiting. */
+  private static final int UNBOUNDED_PAYLOAD_VISITS = Integer.MAX_VALUE;
 
+  /** Shared by every runner built from the same ExternalStorage. */
+  private static final Map<ExternalStorage, AsyncSemaphore> PER_INSTANCE_SEMAPHORES =
+      Collections.synchronizedMap(new WeakHashMap<>());
+
+  private final ExternalStoragePayloadTransformer payloadTransformer;
+  private final int maxOperationsPerMessage;
+
+  /** Shared with every other runner built from the same ExternalStorage. */
+  private final AsyncSemaphore perInstanceSemaphore;
+
+  /** Returns a runner that shares its limits with others built from {@code options}. */
   public static ExternalStorageRunner create(ExternalStorage options) {
     return new ExternalStorageRunner(
         ExternalStoragePayloadTransformer.fromOptions(options),
-        options.getMaxConcurrentPayloadVisits());
+        options.getConcurrency().getMaxOperationsPerMessage(),
+        perInstanceSemaphoreFor(options));
+  }
+
+  /** Returns the limit shared by every runner built from {@code options}. */
+  private static AsyncSemaphore perInstanceSemaphoreFor(ExternalStorage options) {
+    return PER_INSTANCE_SEMAPHORES.computeIfAbsent(
+        options, o -> new AsyncSemaphore(o.getConcurrency().getMaxDriverOperations()));
   }
 
   ExternalStorageRunner(
-      ExternalStoragePayloadTransformer payloadTransformer, int payloadVisitConcurrency) {
+      ExternalStoragePayloadTransformer payloadTransformer,
+      int maxOperationsPerMessage,
+      AsyncSemaphore perInstanceSemaphore) {
     this.payloadTransformer = payloadTransformer;
-    this.payloadVisitConcurrency = payloadVisitConcurrency;
+    this.maxOperationsPerMessage = maxOperationsPerMessage;
+    this.perInstanceSemaphore = perInstanceSemaphore;
+  }
+
+  /** Returns limits scoped to a single message. */
+  private MessageStorageLimits newMessageLimits() {
+    return new MessageStorageLimits(maxOperationsPerMessage, perInstanceSemaphore);
   }
 
   public void store(
@@ -53,7 +83,8 @@ public final class ExternalStorageRunner {
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(builder, storeOptions(target, targetVisitor, cancellationToken));
+    return PayloadVisitors.visit(
+        builder, storeOptions(target, targetVisitor, cancellationToken, newMessageLimits()));
   }
 
   public <T extends Message> T retrieve(
@@ -63,7 +94,7 @@ public final class ExternalStorageRunner {
 
   public <T extends Message> CompletableFuture<T> retrieveAsync(
       T message, CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken));
+    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken, newMessageLimits()));
   }
 
   /**
@@ -116,22 +147,23 @@ public final class ExternalStorageRunner {
   private PayloadVisitorOptions<StorageDriverTargetInfo> storeOptions(
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
-      CancellationToken<CancellationException> cancellationToken) {
+      CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits) {
     return PayloadVisitorOptions.<StorageDriverTargetInfo>newBuilder(
             (visitedTarget, payloads) ->
-                payloadTransformer.store(payloads, visitedTarget, cancellationToken))
+                payloadTransformer.store(payloads, visitedTarget, cancellationToken, limits))
         .setInitialContext(target)
         .setMessageVisitor(targetVisitor)
-        .setConcurrency(payloadVisitConcurrency)
+        .setConcurrency(UNBOUNDED_PAYLOAD_VISITS)
         .setSkipSearchAttributes(true)
         .build();
   }
 
   private PayloadVisitorOptions<Void> retrieveOptions(
-      CancellationToken<CancellationException> cancellationToken) {
+      CancellationToken<CancellationException> cancellationToken, MessageStorageLimits limits) {
     return PayloadVisitorOptions.<Void>newBuilder(
-            (context, payloads) -> payloadTransformer.retrieve(payloads, cancellationToken))
-        .setConcurrency(payloadVisitConcurrency)
+            (context, payloads) -> payloadTransformer.retrieve(payloads, cancellationToken, limits))
+        .setConcurrency(UNBOUNDED_PAYLOAD_VISITS)
         .setSkipSearchAttributes(true)
         .build();
   }

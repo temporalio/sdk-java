@@ -53,11 +53,7 @@ public class ManualActivityCompletionClientFactoryStorageTargetTest {
             "test-identity",
             DefaultDataConverter.newDefaultInstance(),
             ExternalStorageRunner.create(
-                ExternalStorage.newBuilder()
-                    .setDriver(driver)
-                    .setPayloadSizeThreshold(0)
-                    .setMaxConcurrentPayloadVisits(1)
-                    .build()));
+                ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build()));
   }
 
   @Test
