@@ -19,6 +19,7 @@ import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -39,7 +40,6 @@ import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 final class NexusWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(NexusWorker.class);
@@ -136,7 +136,8 @@ final class NexusWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              options.isUsingVirtualThreads());
+              options.isUsingVirtualThreads(),
+              options.getLoggerMdc());
       boolean useAsyncPoller =
           pollerOptions.getPollerBehavior() instanceof PollerBehaviorAutoscaling;
       if (useAsyncPoller) {
@@ -328,13 +329,15 @@ final class NexusWorker implements SuspendableWorker {
       // If we don't know how to handle the task, we will fail the task further down the line.
       Scope metricsScope = workerMetricsScope;
       String service = getNexusTaskService(pollResponse);
+      PrefixedMdc mdc = options.getLoggerMdc();
+
       if (!service.isEmpty()) {
-        MDC.put(LoggerTag.NEXUS_SERVICE, service);
+        mdc.put(LoggerTag.NEXUS_SERVICE, service);
         metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_SERVICE, service));
       }
       String operation = getNexusTaskOperation(pollResponse);
       if (!operation.isEmpty()) {
-        MDC.put(LoggerTag.NEXUS_OPERATION, operation);
+        mdc.put(LoggerTag.NEXUS_OPERATION, operation);
         metricsScope = metricsScope.tagged(ImmutableMap.of(MetricsTag.NEXUS_OPERATION, operation));
       }
       // Must happen before payload retrieval so the slot is accounted for while storage runs.
@@ -373,8 +376,8 @@ final class NexusWorker implements SuspendableWorker {
           taskCounter.recordFailed();
         }
         task.getCompletionCallback().apply();
-        MDC.remove(LoggerTag.NEXUS_SERVICE);
-        MDC.remove(LoggerTag.NEXUS_OPERATION);
+        mdc.remove(LoggerTag.NEXUS_SERVICE);
+        mdc.remove(LoggerTag.NEXUS_OPERATION);
       }
     }
 

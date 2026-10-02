@@ -25,6 +25,8 @@ to docs, or any other relevant information.
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
   under `ChildWorkflowFailure`.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
+- `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
+  set by Temporal SDK in worker context.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
