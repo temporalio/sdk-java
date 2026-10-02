@@ -19,15 +19,16 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
-### Added
-- Kotlin `Async` static adapter unwrapping can be disabled with the
-  `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property.
-
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 
 ### Fixed
+- Kotlin `Async` method references compiled with Kotlin 2.4 now retain their inline behavior,
+  preventing `NonDeterministicException` when replaying workflows started with Kotlin 2.2. For
+  workflows already started with Kotlin 2.4 and SDK 1.40 or earlier, set the
+  `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property to preserve the previous
+  behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 
