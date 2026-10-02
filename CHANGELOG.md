@@ -26,6 +26,9 @@ to docs, or any other relevant information.
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
+- `TemporalDevServer`, `TemporalDevServerOptions`, `TestWorkflowEnvironment.startLocal`, and the `useDevServer` methods
+  of `TestWorkflowRule` and `TestWorkflowExtension` are no longer marked experimental. `TemporalDevServerOptions` remain
+  specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
