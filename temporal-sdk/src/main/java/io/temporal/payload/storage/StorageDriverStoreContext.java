@@ -1,5 +1,6 @@
 package io.temporal.payload.storage;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.Experimental;
 import java.util.concurrent.CancellationException;
@@ -29,5 +30,14 @@ public interface StorageDriverStoreContext {
   @Nonnull
   default CancellationToken<CancellationException> getCancellationToken() {
     return CancellationToken.none();
+  }
+
+  /**
+   * Limits the concurrent operations this driver performs. Wrap each operation in {@link
+   * StorageDriverLimiter#permit}.
+   */
+  @Nonnull
+  default StorageDriverLimiter<Payload> getLimiter() {
+    return StorageDriverLimiter.noop();
   }
 }

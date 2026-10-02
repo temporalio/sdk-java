@@ -118,17 +118,36 @@ public class ExternalStorageTest {
   }
 
   @Test
-  public void maxConcurrentPayloadVisitsDefaultsToThree() {
-    assertEquals(
-        3,
+  public void concurrencyDefaults() {
+    ExternalStorageConcurrency concurrency =
+        ExternalStorage.newBuilder().setDriver(driver("a")).build().getConcurrency();
+    assertEquals(64, concurrency.getMaxDriverOperations());
+    assertEquals(8, concurrency.getMaxOperationsPerMessage());
+  }
+
+  @Test
+  public void concurrencyExplicitValuesKept() {
+    ExternalStorageConcurrency concurrency =
         ExternalStorage.newBuilder()
             .setDriver(driver("a"))
+            .setConcurrency(
+                ExternalStorageConcurrency.newBuilder()
+                    .setMaxDriverOperations(5)
+                    .setMaxOperationsPerMessage(2)
+                    .build())
             .build()
-            .getMaxConcurrentPayloadVisits());
+            .getConcurrency();
+    assertEquals(5, concurrency.getMaxDriverOperations());
+    assertEquals(2, concurrency.getMaxOperationsPerMessage());
   }
 
   @Test(expected = IllegalStateException.class)
-  public void zeroMaxConcurrentPayloadVisitsRejected() {
-    ExternalStorage.newBuilder().setDriver(driver("a")).setMaxConcurrentPayloadVisits(0).build();
+  public void zeroMaxDriverOperationsRejected() {
+    ExternalStorageConcurrency.newBuilder().setMaxDriverOperations(0).build();
+  }
+
+  @Test(expected = IllegalStateException.class)
+  public void zeroMaxOperationsPerMessageRejected() {
+    ExternalStorageConcurrency.newBuilder().setMaxOperationsPerMessage(0).build();
   }
 }
