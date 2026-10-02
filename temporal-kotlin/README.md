@@ -21,10 +21,19 @@ or to build.gradle:
 compile group: 'io.temporal', name: 'temporal-kotlin', version: 'N.N.N'
 ```
 
-To disable unwrapping Kotlin static adapters for method references passed to `Async`, set the
-`temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property. Its value does not matter;
-for example, `-Dtemporal.kotlin.disableStaticAdapterUnwrapping` disables this fallback. This can
-cause `Async` to stop recognizing method references compiled as static adapters.
+Kotlin 2.4 compiles method references passed to `Async.function` and `Async.procedure` differently
+from Kotlin 2.2. SDK versions through 1.40 do not recognize the Kotlin 2.4 form as a stub method
+reference, so they run it on a new workflow thread. This can change command ordering and cause a
+`NonDeterministicException` when replaying a workflow started with Kotlin 2.2 after upgrading to
+Kotlin 2.4. This module now recognizes the Kotlin 2.4 form and runs it inline, as it did with
+Kotlin 2.2.
+
+If a workflow was already started with Kotlin 2.4 and SDK 1.40 or earlier, the new behavior can
+also change its command ordering during replay. To preserve the old behavior while those workflows
+are still running, set the `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property,
+for example, `-Dtemporal.kotlin.disableStaticAdapterUnwrapping`. The property's presence disables
+the new unwrapping. It applies to all workflows in the worker, so it can reintroduce the replay
+failure for histories started with Kotlin 2.2.
 
 ## Kotlin extensions
 
