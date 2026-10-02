@@ -105,7 +105,7 @@ public class WorkflowRandomStreamTest {
     assertNotEquals(original[0], original[1]);
 
     // The reset targets the second Workflow Task (id=10), so the first draw is replayed and the
-    // second draw is redrawn
+    // second draw is redrawn.
     ResetWorkflowExecutionResponse response =
         client
             .getWorkflowServiceStubs()

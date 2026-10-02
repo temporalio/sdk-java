@@ -15,7 +15,7 @@ final class WorkflowRandomStreams {
   private final Map<String, Random> streams = new HashMap<>();
 
   long deriveSeed(@Nonnull String runId, @Nonnull String name) {
-    // The separators keep ("ab", "c") from colliding with ("a", "bc")
+    // The separators keep ("ab", "c") from colliding with ("a", "bc").
     String seed = String.join("\0", SEED_VERSION, runId, name);
     HashCode hash = Hashing.sha256().hashString(seed, StandardCharsets.UTF_8);
     return ByteBuffer.wrap(hash.asBytes()).getLong();
