@@ -52,7 +52,10 @@ class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
     // The handle keeps what the start request was for, including when the server returned an
     // operation that was already running, so the result is decoded the way it was encoded.
     return new NexusOperationHandleImpl(
-        output.getOperationId(), output.getRunId(), invoker, endpoint, serviceName, operation);
+        output.getOperationId(),
+        output.getRunId(),
+        invoker,
+        new NexusSerializationContext(endpoint, serviceName, operation));
   }
 
   @Override

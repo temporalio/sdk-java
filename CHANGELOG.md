@@ -24,6 +24,8 @@ to docs, or any other relevant information.
   set by Temporal SDK in worker context.
 
 ### Changed
+- `GetNexusOperationResultInput` now takes a `NexusSerializationContext` instead of separate endpoint, service and
+  operation values.
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 

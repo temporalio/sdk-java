@@ -166,20 +166,11 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   /**
    * The client's data converter scoped to the Nexus operation the result is being read for, or left
    * as-is when the operation is unknown, which is the case for a handle obtained by operation ID.
-   *
-   * <p>{@link GetNexusOperationResultInput} guarantees the endpoint, service and operation are set
-   * together or not at all, so one null means all three are null. Absence is tested with {@code
-   * null} rather than emptiness so an operation genuinely named with an empty string still gets a
-   * context.
    */
   private DataConverter dataConverterFor(GetNexusOperationResultInput<?> input) {
+    NexusSerializationContext context = input.getSerializationContext();
     DataConverter dataConverter = clientOptions.getDataConverter();
-    if (input.getEndpoint() == null) {
-      return dataConverter;
-    }
-    return dataConverter.withContext(
-        new NexusSerializationContext(
-            input.getEndpoint(), input.getService(), input.getOperation()));
+    return context == null ? dataConverter : dataConverter.withContext(context);
   }
 
   private DescribeNexusOperationExecutionRequest buildDescribeRequest(

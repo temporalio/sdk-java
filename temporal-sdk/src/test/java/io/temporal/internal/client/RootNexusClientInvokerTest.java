@@ -16,6 +16,7 @@ import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.GetNexusOperationResultInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.GetNexusOperationResultOutput;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Test;
@@ -38,25 +39,9 @@ public class RootNexusClientInvokerTest {
               NexusClientOptions.getDefaultInstance().getIdentity()));
 
   @Test
-  public void resultInputRejectsPartiallyIdentifiedOperation() {
-    // A partially identified operation would decode without a Nexus context, which for a converter
-    // that varies by context means reading the payload the wrong way rather than failing.
-    Assert.assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            new GetNexusOperationResultInput<>(
-                "op-1",
-                null,
-                Deadline.after(10, TimeUnit.SECONDS),
-                String.class,
-                String.class,
-                "endpoint",
-                null,
-                "operation"));
-  }
-
-  @Test
-  public void resultInputAcceptsFullyIdentifiedOperation() {
+  public void resultInputAcceptsIdentifiedOperation() {
+    NexusSerializationContext context =
+        new NexusSerializationContext("endpoint", "service", "operation");
     GetNexusOperationResultInput<String> input =
         new GetNexusOperationResultInput<>(
             "op-1",
@@ -64,21 +49,15 @@ public class RootNexusClientInvokerTest {
             Deadline.after(10, TimeUnit.SECONDS),
             String.class,
             String.class,
-            "endpoint",
-            "service",
-            "operation");
-    Assert.assertEquals("endpoint", input.getEndpoint());
-    Assert.assertEquals("service", input.getService());
-    Assert.assertEquals("operation", input.getOperation());
+            context);
+    Assert.assertEquals(context, input.getSerializationContext());
   }
 
   @Test
   public void resultInputAcceptsUnidentifiedOperation() {
     // A handle obtained by operation ID never saw a start request.
     GetNexusOperationResultInput<String> input = input();
-    Assert.assertNull(input.getEndpoint());
-    Assert.assertNull(input.getService());
-    Assert.assertNull(input.getOperation());
+    Assert.assertNull(input.getSerializationContext());
   }
 
   private static GetNexusOperationResultInput<String> input() {
