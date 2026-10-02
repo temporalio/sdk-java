@@ -275,24 +275,24 @@ public final class AsyncInternal {
             .getWorkflowContext()
             .getReplayContext()
             .checkSdkFlag(SdkFlag.SCHEDULE_ASYNC_STUB_OPERATIONS);
-    if (temporalStub) {
-      if (scheduleAsyncStubOperations) {
-        return currentThread.getRunner().scheduleAsyncTemporalOperation(func);
-      }
+    if (temporalStub && !scheduleAsyncStubOperations) {
       return invokeTemporalStub(func);
-    } else {
-      CompletablePromise<R> result = Workflow.newPromise();
-      WorkflowThread.newThread(
-          () -> {
-            try {
-              result.complete(func.apply());
-            } catch (Exception e) {
-              result.completeExceptionally(Workflow.wrap(e));
-            }
-          },
-          false);
-      return result;
     }
+    CompletablePromise<R> result = Workflow.newPromise();
+    WorkflowThread.newThread(
+        () -> {
+          try {
+            if (temporalStub) {
+              result.completeFrom(invokeTemporalStub(func));
+            } else {
+              result.complete(func.apply());
+            }
+          } catch (Exception e) {
+            result.completeExceptionally(Workflow.wrap(e));
+          }
+        },
+        false);
+    return result;
   }
 
   static <R> Promise<R> invokeTemporalStub(Functions.Func<R> func) {

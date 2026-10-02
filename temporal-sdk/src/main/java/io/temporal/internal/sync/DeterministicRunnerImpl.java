@@ -8,10 +8,7 @@ import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
-import io.temporal.workflow.CompletablePromise;
-import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
-import io.temporal.workflow.Workflow;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -58,9 +55,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   // Updated always with Runner Lock taken.
   private boolean inRunUntilAllBlocked;
 
-  // Each scheduled task needs a distinct priority because this set compares tasks by priority.
-  // The runner lock protects addedThreads and the set.
-  private final Set<DeterministicRunnerEntry> entries =
+  // Note that threads field is a set. So we need to make sure that getPriority never returns the
+  // same value for different threads. We use addedThreads variable for this. Protected by lock
+  private final Set<WorkflowThread> threads =
       new TreeSet<>((t1, t2) -> Ints.compare(t1.getPriority(), t2.getPriority()));
   // Values from RunnerLocalInternal
   private final Map<RunnerLocalInternal<?>, Object> runnerLocalMap = new HashMap<>();
@@ -72,7 +69,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   // always accessed under the runner lock
   private final List<NamedRunnable> toExecuteInWorkflowThread = new ArrayList<>();
 
-  // Access to entriesToAdd, callbackThreadsToAdd, addedThreads doesn't have to be
+  // Access to workflowThreadsToAdd, callbackThreadsToAdd, addedThreads doesn't have to be
   // synchronized.
   // Inside DeterministicRunner the access to these variables is under the runner lock.
   //
@@ -82,7 +79,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   // to these collections.
   // Only one Workflow Thread can run at a time and no DeterministicRunner code modifying these
   // variables run at the same time with the Workflow Thread.
-  private final List<DeterministicRunnerEntry> entriesToAdd = new ArrayList<>();
+  private final List<WorkflowThread> workflowThreadsToAdd = new ArrayList<>();
   private final List<WorkflowThread> callbackThreadsToAdd = new ArrayList<>();
   private int addedThreads;
 
@@ -174,7 +171,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   public void runUntilAllBlocked(long deadlockDetectionTimeout) {
     if (rootWorkflowThread == null) {
       rootWorkflowThread = newRootThread(rootRunnable);
-      entries.add(rootWorkflowThread);
+      threads.add(rootWorkflowThread);
       rootWorkflowThread.start();
     }
     lock.lock();
@@ -182,7 +179,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       checkNotClosed();
       checkNotCloseRequestedLocked();
       inRunUntilAllBlocked = true;
-      // Keep repeating until at least one runner entry makes progress.
+      // Keep repeating until at least one of the threads makes progress.
       boolean progress;
       outerLoop:
       do {
@@ -212,9 +209,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
         }
         toExecuteInWorkflowThread.clear();
         progress = false;
-        Iterator<DeterministicRunnerEntry> ci = entries.iterator();
+        Iterator<WorkflowThread> ci = threads.iterator();
         while (ci.hasNext()) {
-          DeterministicRunnerEntry c = ci.next();
+          WorkflowThread c = ci.next();
           progress = c.runUntilBlocked(deadlockDetectionTimeout) || progress;
           if (exitRequested) {
             closeRequested = true;
@@ -229,20 +226,19 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             }
           }
         }
-        appendEntriesLocked();
-      } while (progress && !entries.isEmpty());
+        appendWorkflowThreadsLocked();
+      } while (progress && !threads.isEmpty());
     } catch (PotentialDeadlockException e) {
       String triggerThreadStackTrace = "";
       StringBuilder otherThreadsDump = new StringBuilder();
-      for (DeterministicRunnerEntry t : entries) {
-        if (!(t instanceof WorkflowThread)
-            || ((WorkflowThread) t).getWorkflowThreadContext() != e.getWorkflowThreadContext()) {
+      for (WorkflowThread t : threads) {
+        if (t.getWorkflowThreadContext() != e.getWorkflowThreadContext()) {
           if (otherThreadsDump.length() > 0) {
             otherThreadsDump.append("\n");
           }
-          t.addStackTrace(otherThreadsDump);
+          otherThreadsDump.append(t.getStackTrace());
         } else {
-          triggerThreadStackTrace = ((WorkflowThread) t).getStackTrace();
+          triggerThreadStackTrace = t.getStackTrace();
         }
       }
       e.setStackDump(
@@ -264,7 +260,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     try {
       return closeFuture.isDone()
           // if close is requested, we should wait for the closeFuture to be filled
-          || !closeRequested && !areEntriesToBeExecuted();
+          || !closeRequested && !areThreadsToBeExecuted();
     } finally {
       lock.unlock();
     }
@@ -319,21 +315,19 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       // in some circumstances when a workflow broke Deadline Detector,
       // runUntilAllBlocked may return while workflow threads are still running.
       // If this happens, these threads may potentially start new additional threads that will be
-      // in entriesToAdd and callbackThreadsToAdd.
+      // in workflowThreadsToAdd and callbackThreadsToAdd.
       // That's why we need to make sure that all the spawned threads were shut down in a cycle.
-      while (areEntriesToBeExecuted()) {
+      while (areThreadsToBeExecuted()) {
         List<WorkflowThreadStopFuture> threadFutures = new ArrayList<>();
         try {
           toExecuteInWorkflowThread.clear();
-          appendEntriesLocked();
+          appendWorkflowThreadsLocked();
           appendCallbackThreadsLocked();
-          for (DeterministicRunnerEntry task : entries) {
-            Future<?> stopFuture = task.stopNow();
-            if (task instanceof WorkflowThread) {
-              threadFutures.add(new WorkflowThreadStopFuture((WorkflowThread) task, stopFuture));
-            }
+          for (WorkflowThread workflowThread : threads) {
+            threadFutures.add(
+                new WorkflowThreadStopFuture(workflowThread, workflowThread.stopNow()));
           }
-          entries.clear();
+          threads.clear();
 
           // We cannot use an iterator to unregister failed Promises since f.get()
           // will remove the promise directly from failedPromises. This causes an
@@ -399,7 +393,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
       if (closeFuture.isDone()) {
         return "Workflow is closed.";
       }
-      for (DeterministicRunnerEntry coroutine : entries) {
+      for (WorkflowThread coroutine : threads) {
         if (result.length() > 0) {
           result.append("\n");
         }
@@ -411,44 +405,14 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     return result.toString();
   }
 
-  private void appendEntriesLocked() {
-    entries.addAll(entriesToAdd);
-    entriesToAdd.clear();
-  }
-
-  /** Schedules an async stub invocation without allocating a workflow thread. */
-  <R> Promise<R> scheduleAsyncTemporalOperation(Functions.Func<R> func) {
-    checkWorkflowThreadOnly();
-    checkNotClosed();
-    WorkflowThread owner = currentThreadInternal();
-    CompletablePromise<R> result = Workflow.newPromise();
-    Runnable runnable =
-        () -> {
-          try {
-            result.completeFrom(AsyncInternal.invokeTemporalStub(func));
-          } catch (Exception e) {
-            result.completeExceptionally(Workflow.wrap(e));
-          }
-        };
-    boolean deterministicCancellationScopeOrder =
-        workflowContext
-            .getReplayContext()
-            .checkSdkFlag(SdkFlag.DETERMINISTIC_CANCELLATION_SCOPE_ORDER);
-    CancellationScopeImpl scope =
-        new CancellationScopeImpl(
-            false, deterministicCancellationScopeOrder, runnable, CancellationScopeImpl.current());
-    entriesToAdd.add(
-        new AsyncTemporalOperation(
-            owner,
-            scope,
-            WORKFLOW_THREAD_PRIORITY + (addedThreads++),
-            new ArrayList<>(getContextPropagators()),
-            new HashMap<>(getPropagatedContexts())));
-    return result;
+  private void appendWorkflowThreadsLocked() {
+    threads.addAll(workflowThreadsToAdd);
+    workflowThreadsToAdd.clear();
   }
 
   private void appendCallbackThreadsLocked() {
-    // TODO I'm not sure this comment makes sense, because entries are sorted by priority.
+    // TODO I'm not sure this comment makes sense, because threads list has comparator and we use
+    // thread priorities anyway.
 
     // It is important to prepend threads as there are callbacks
     // like signals that have to run before any other threads.
@@ -456,7 +420,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     // after workflow decided to close.
     // Adding the callbacks in the same order as they appear in history.
     for (int i = callbackThreadsToAdd.size() - 1; i >= 0; i--) {
-      entries.add(callbackThreadsToAdd.get(i));
+      threads.add(callbackThreadsToAdd.get(i));
     }
     callbackThreadsToAdd.clear();
   }
@@ -512,7 +476,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             cache,
             getContextPropagators(),
             getPropagatedContexts());
-    entriesToAdd.add(result);
+    workflowThreadsToAdd.add(result);
     return result;
   }
 
@@ -602,11 +566,11 @@ class DeterministicRunnerImpl implements DeterministicRunner {
   }
 
   /**
-   * @return true if there are runner entries left to be processed for this workflow.
+   * @return true if there are no threads left to be processed for this workflow.
    */
-  private boolean areEntriesToBeExecuted() {
-    return !entries.isEmpty()
-        || !entriesToAdd.isEmpty()
+  private boolean areThreadsToBeExecuted() {
+    return !threads.isEmpty()
+        || !workflowThreadsToAdd.isEmpty()
         || !callbackThreadsToAdd.isEmpty()
         || !toExecuteInWorkflowThread.isEmpty();
   }

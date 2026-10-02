@@ -39,10 +39,9 @@ public enum SdkFlag {
    */
   VERSION_WAIT_FOR_MARKER(5),
   /*
-   * Schedules detected Async stub calls as lightweight runner entries in the same order as newly
-   * created workflow threads. This preserves command ordering when equivalent Async calls take
-   * different execution paths, such as a stub method reference versus a lambda that invokes the
-   * same stub method. The stub call does not allocate a workflow thread.
+   * Schedules detected Async stub calls on workflow threads, like Async lambdas. This preserves
+   * command ordering when equivalent Async calls take different execution paths, such as a stub
+   * method reference versus a lambda that invokes the same stub method.
    *
    * Introduced: 1.40.0
    *
