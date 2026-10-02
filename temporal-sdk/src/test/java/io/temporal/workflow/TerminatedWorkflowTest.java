@@ -29,19 +29,26 @@ public class TerminatedWorkflowTest {
     // Without time skipping, we can't ensure this happens before the timeout.
     // To keep the test execution time low but to avoid making it time-sensitive, we are retrying
     // the workflow with exponentially growing timeouts until we get an execution that we can query.
-    WorkflowStub workflow;
+    TestWorkflowWithQuery workflow;
     for (int i = 0; ; i++) {
       WorkflowOptions options =
           SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue()).toBuilder()
               .setWorkflowRunTimeout(Duration.ofSeconds((int) Math.pow(2, i)))
               .build();
+
       workflow =
           testWorkflowRule
               .getWorkflowClient()
-              .newUntypedWorkflowStub("TestWorkflowWithQuery", options);
-      workflow.start();
+              .newWorkflowStub(TestWorkflowWithQuery.class, options);
 
-      WorkflowExecution execution = workflow.getExecution();
+      WorkflowFailedException e =
+          Assert.assertThrows(
+              "Workflow should throw because of timeout",
+              WorkflowFailedException.class,
+              workflow::execute);
+      Assert.assertTrue(e.getCause() instanceof TimeoutFailure);
+
+      WorkflowExecution execution = WorkflowStub.fromTyped(workflow).getExecution();
       if (testWorkflowRule
           .getWorkflowClient()
           .streamHistory(execution.getWorkflowId(), execution.getRunId())
@@ -50,15 +57,7 @@ public class TerminatedWorkflowTest {
       }
     }
 
-    final WorkflowStub lambdaWorkflow = workflow;
-    WorkflowFailedException e =
-        Assert.assertThrows(
-            "Workflow should throw because of timeout",
-            WorkflowFailedException.class,
-            () -> lambdaWorkflow.getResult(String.class));
-    Assert.assertTrue(e.getCause() instanceof TimeoutFailure);
-
-    Assert.assertEquals("started", workflow.query("query", String.class));
+    Assert.assertEquals("started", workflow.query());
   }
 
   @Test
