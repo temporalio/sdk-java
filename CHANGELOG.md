@@ -31,6 +31,11 @@ to docs, or any other relevant information.
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
+- Added versioned scheduling for asynchronous Temporal stub calls. When enabled, switching between a stub method
+  reference such as `Async.function(activities::first)` and an equivalent lambda such as
+  `Async.function(() -> activities.first())` preserves command order during replay. The call runs on a workflow thread,
+  so workflow outbound interceptors can wait while scheduling it. The flag remains disabled by default, and existing
+  unflagged histories retain their previous behavior.
 
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
