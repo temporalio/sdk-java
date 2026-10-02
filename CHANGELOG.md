@@ -20,6 +20,11 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### Added
+- Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
+  `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
+  child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
+  under `ChildWorkflowFailure`.
+  Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
 
