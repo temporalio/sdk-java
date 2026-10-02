@@ -291,6 +291,11 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
+    public Random getRandomStream(String name) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public Scope getMetricsScope() {
       return new NoopScope();
     }
