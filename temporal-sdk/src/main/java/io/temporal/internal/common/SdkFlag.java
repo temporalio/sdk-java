@@ -43,7 +43,7 @@ public enum SdkFlag {
    * command ordering when equivalent Async calls take different execution paths, such as a stub
    * method reference versus a lambda that invokes the same stub method.
    *
-   * Introduced: 1.40.0
+   * Introduced: 1.41.0
    *
    * Enabled: (pending)
    *
