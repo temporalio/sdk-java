@@ -28,8 +28,14 @@ public class ExternalStorageConcurrencyTest {
   /** Takes a permit around every request and blocks, so peak concurrency is observable. */
   private static final class PermittingDriver implements StorageDriver {
     private final CompletableFuture<Void> gate = new CompletableFuture<>();
+    private final int expectedOperations;
+    private final CompletableFuture<Void> expectedOperationsStarted = new CompletableFuture<>();
     private final AtomicInteger inFlight = new AtomicInteger();
     private final AtomicInteger peak = new AtomicInteger();
+
+    private PermittingDriver(int expectedOperations) {
+      this.expectedOperations = expectedOperations;
+    }
 
     @Nonnull
     @Override
@@ -46,11 +52,18 @@ public class ExternalStorageConcurrencyTest {
     private <T> CompletableFuture<T> hold(T value) {
       int current = inFlight.incrementAndGet();
       peak.accumulateAndGet(current, Math::max);
+      if (current == expectedOperations) {
+        expectedOperationsStarted.complete(null);
+      }
       return gate.thenApply(
           ignored -> {
             inFlight.decrementAndGet();
             return value;
           });
+    }
+
+    private void awaitExpectedOperations() throws Exception {
+      expectedOperationsStarted.get(5, TimeUnit.SECONDS);
     }
 
     @Nonnull
@@ -108,23 +121,15 @@ public class ExternalStorageConcurrencyTest {
     return out;
   }
 
-  private static void awaitPeak(PermittingDriver driver, int expected) throws Exception {
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-    while (driver.peak.get() < expected && System.nanoTime() < deadline) {
-      Thread.sleep(1);
-    }
-    Thread.sleep(50);
-  }
-
   @Test
   public void maxOperationsPerMessageBoundsOperations() throws Exception {
-    PermittingDriver driver = new PermittingDriver();
+    PermittingDriver driver = new PermittingDriver(3);
     MessageStorageLimits limits = new MessageStorageLimits(3, new AsyncSemaphore(100));
 
     CompletableFuture<List<Payload>> result =
         transformer(driver).store(payloads(6), null, CancellationToken.none(), limits);
 
-    awaitPeak(driver, 3);
+    driver.awaitExpectedOperations();
     assertEquals(3, driver.peak.get());
 
     driver.gate.complete(null);
@@ -134,7 +139,7 @@ public class ExternalStorageConcurrencyTest {
 
   @Test
   public void eachMessageGetsItsOwnBudget() throws Exception {
-    PermittingDriver driver = new PermittingDriver();
+    PermittingDriver driver = new PermittingDriver(4);
     AsyncSemaphore shared = new AsyncSemaphore(100);
     ExternalStoragePayloadTransformer transformer = transformer(driver);
 
@@ -145,7 +150,7 @@ public class ExternalStorageConcurrencyTest {
             transformer.store(
                 payloads(3), null, CancellationToken.none(), new MessageStorageLimits(2, shared)));
 
-    awaitPeak(driver, 4);
+    driver.awaitExpectedOperations();
     assertEquals("two messages at 2 each, not 2 shared", 4, driver.peak.get());
 
     driver.gate.complete(null);
@@ -156,7 +161,7 @@ public class ExternalStorageConcurrencyTest {
 
   @Test
   public void maxDriverOperationsSharedAcrossMessages() throws Exception {
-    PermittingDriver driver = new PermittingDriver();
+    PermittingDriver driver = new PermittingDriver(3);
     AsyncSemaphore shared = new AsyncSemaphore(3);
     ExternalStoragePayloadTransformer transformer = transformer(driver);
 
@@ -167,7 +172,7 @@ public class ExternalStorageConcurrencyTest {
             transformer.store(
                 payloads(4), null, CancellationToken.none(), new MessageStorageLimits(10, shared)));
 
-    awaitPeak(driver, 3);
+    driver.awaitExpectedOperations();
     assertEquals("one instance-wide budget spans both messages", 3, driver.peak.get());
 
     driver.gate.complete(null);
