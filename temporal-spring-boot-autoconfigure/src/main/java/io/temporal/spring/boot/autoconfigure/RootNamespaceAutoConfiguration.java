@@ -209,6 +209,13 @@ public class RootNamespaceAutoConfiguration {
     return workersTemplate.getWorkerFactory();
   }
 
+  @Bean(name = "temporalWorkerFactoryLifecycle")
+  @Conditional(WorkersPresentCondition.class)
+  public WorkerFactoryLifecycle workerFactoryLifecycle(
+      @Qualifier("temporalWorkerFactory") WorkerFactory workerFactory) {
+    return new WorkerFactoryLifecycle(workerFactory);
+  }
+
   @Primary
   @Bean(name = "temporalWorkers")
   @Conditional(WorkersPresentCondition.class)
