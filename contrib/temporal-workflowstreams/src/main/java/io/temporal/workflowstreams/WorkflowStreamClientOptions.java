@@ -24,18 +24,21 @@ public final class WorkflowStreamClientOptions {
   private final Duration maxRetryDuration;
   private final PayloadConverter[] payloadConverters;
   @Nullable private final ScheduledExecutorService pollExecutor;
+  @Nullable private final ScheduledExecutorService publishExecutor;
 
   private WorkflowStreamClientOptions(
       Duration batchInterval,
       int maxBatchSize,
       Duration maxRetryDuration,
       PayloadConverter[] payloadConverters,
-      @Nullable ScheduledExecutorService pollExecutor) {
+      @Nullable ScheduledExecutorService pollExecutor,
+      @Nullable ScheduledExecutorService publishExecutor) {
     this.batchInterval = batchInterval;
     this.maxBatchSize = maxBatchSize;
     this.maxRetryDuration = maxRetryDuration;
     this.payloadConverters = payloadConverters.clone();
     this.pollExecutor = pollExecutor;
+    this.publishExecutor = publishExecutor;
   }
 
   public Duration getBatchInterval() {
@@ -59,12 +62,18 @@ public final class WorkflowStreamClientOptions {
     return pollExecutor;
   }
 
+  @Nullable
+  public ScheduledExecutorService getPublishExecutor() {
+    return publishExecutor;
+  }
+
   public static final class Builder {
     private Duration batchInterval = WorkflowStreamConstants.DEFAULT_BATCH_INTERVAL;
     private int maxBatchSize;
     private Duration maxRetryDuration = WorkflowStreamConstants.DEFAULT_MAX_RETRY_DURATION;
     private PayloadConverter[] payloadConverters = new PayloadConverter[0];
     @Nullable private ScheduledExecutorService pollExecutor;
+    @Nullable private ScheduledExecutorService publishExecutor;
 
     private Builder() {}
 
@@ -128,9 +137,29 @@ public final class WorkflowStreamClientOptions {
       return this;
     }
 
+    /**
+     * Executor that drives the client's background publish path: the periodic flushes, and the
+     * flushes triggered by a full buffer or {@code forceFlush}. The caller owns its lifecycle; it
+     * is shared across all publishes of this client and must have at least one thread. A flush
+     * blocks while signaling the workflow, so it occupies an executor thread for the duration of
+     * each send — supply a pool sized for the number of clients that may flush concurrently.
+     *
+     * <p>Default: a single-thread daemon executor created lazily and owned by the client's
+     * publisher (shut down by {@link WorkflowStreamClient#close}).
+     */
+    public Builder setPublishExecutor(ScheduledExecutorService publishExecutor) {
+      this.publishExecutor = publishExecutor;
+      return this;
+    }
+
     public WorkflowStreamClientOptions build() {
       return new WorkflowStreamClientOptions(
-          batchInterval, maxBatchSize, maxRetryDuration, payloadConverters, pollExecutor);
+          batchInterval,
+          maxBatchSize,
+          maxRetryDuration,
+          payloadConverters,
+          pollExecutor,
+          publishExecutor);
     }
   }
 }
