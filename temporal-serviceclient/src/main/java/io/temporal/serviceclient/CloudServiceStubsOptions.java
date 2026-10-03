@@ -58,6 +58,11 @@ public final class CloudServiceStubsOptions extends ServiceStubsOptions {
     return Objects.hash(super.hashCode(), version);
   }
 
+  @Override
+  public String toString() {
+    return "CloudServiceStubsOptions{" + toStringFields() + ", version='" + version + '\'' + '}';
+  }
+
   /** Builder is the builder for ClientOptions. */
   public static class Builder extends ServiceStubsOptions.Builder<Builder> {
     private String version;

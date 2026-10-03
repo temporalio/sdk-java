@@ -20,6 +20,11 @@ public final class OperatorServiceStubsOptions extends ServiceStubsOptions {
     super(serviceStubsOptions);
   }
 
+  @Override
+  public String toString() {
+    return "OperatorServiceStubsOptions{" + toStringFields() + '}';
+  }
+
   /** Builder is the builder for ClientOptions. */
   public static class Builder extends ServiceStubsOptions.Builder<Builder> {
 
