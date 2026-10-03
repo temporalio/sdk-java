@@ -193,6 +193,9 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     beanFactory.registerSingleton(
         beanPrefix + ScheduleClient.class.getSimpleName(), scheduleClient);
     beanFactory.registerSingleton(beanPrefix + WorkerFactory.class.getSimpleName(), workerFactory);
+    beanFactory.registerSingleton(
+        beanPrefix + WorkerFactoryLifecycle.class.getSimpleName(),
+        new WorkerFactoryLifecycle(workerFactory));
   }
 
   @Override

@@ -213,6 +213,17 @@ spring:
 spring:
   config:
     activate:
+      on-profile: graceful-shutdown
+  temporal:
+    workers-auto-discovery:
+      workflow-packages:
+        - io.temporal.spring.boot.autoconfigure.gracefulshutdown
+      register-activity-beans: true
+
+---
+spring:
+  config:
+    activate:
       on-profile: mtls-with-server-name-override
   temporal:
     connection:
