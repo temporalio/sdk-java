@@ -82,12 +82,12 @@ public class TerminatedWorkflowTest {
 
     @Override
     public String execute() {
-      VariousTestActivities localActivities =
-          Workflow.newLocalActivityStub(
-              VariousTestActivities.class, SDKTestOptions.newLocalActivityOptions());
+      VariousTestActivities activities =
+          Workflow.newActivityStub(
+              VariousTestActivities.class, SDKTestOptions.newActivityOptions());
 
       trace.add("started");
-      localActivities.sleepActivity(5000, 123);
+      activities.sleepActivity(5000, 123);
       trace.add("finished");
       return "";
     }
