@@ -1,3 +1,15 @@
+pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            // Exercise Kotlin 2.4 static adapters in the edge test job.
+            if (requested.id.id == 'org.jetbrains.kotlin.jvm' &&
+                    providers.gradleProperty('edgeDepsTest').isPresent()) {
+                useVersion('2.4.20')
+            }
+        }
+    }
+}
+
 rootProject.name='temporal-java-sdk'
 include 'temporal-bom'
 include 'temporal-serviceclient'

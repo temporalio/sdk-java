@@ -38,7 +38,9 @@ public class MethodReferenceDisassembler {
   }
 
   private static boolean isAsyncKotlin(Object func) {
-    if (KotlinDetector.isKotlinType(func.getClass())) {
+    // Kotlin 2.4 SAM adapters have no Kotlin metadata on their generated class.
+    if (KotlinDetector.isKotlinType(func.getClass())
+        || KotlinDetector.isKotlinStaticAdapter(func)) {
       MethodReferenceDisassemblyService methodReferenceDisassemblyService =
           services.get(MethodReferenceDisassemblyService.KOTLIN);
       if (methodReferenceDisassemblyService == null) {
