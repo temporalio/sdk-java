@@ -163,6 +163,8 @@ public final class PayloadVisitorGenerator {
   }
 
   // --- Java naming ---
+  // These helpers are duplicated in temporal-serviceclient as
+  // io.temporal.internal.payload.limits.gen.ProtoNames; see ProtoClosure for why.
 
   /** Mirrors protoc's UnderscoresToCamelCase used to derive Java accessor names. */
   static String camel(String input, boolean capNext) {

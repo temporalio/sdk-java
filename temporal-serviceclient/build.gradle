@@ -75,6 +75,10 @@ sourceSets {
   }
 }
 
+// Descriptor set emitted by generateProto and read by the payload-limits generator; see the
+// payload limit validation section below.
+def apiDescriptorSet = layout.buildDirectory.file('generated/descriptors/temporal-api.desc')
+
 protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
@@ -91,7 +95,16 @@ protobuf {
         }
     }
     generateProtoTasks {
-        all().each { task -> task.dependsOn updateSubmodules }
+        all().each { task ->
+            task.dependsOn updateSubmodules
+            // The payload-limits generator reads the API descriptors from this file rather than
+            // from compiled proto classes; see the payload limit validation section below.
+            if (task.sourceSet.name == 'main') {
+                task.generateDescriptorSet = true
+                task.descriptorSetOptions.includeImports = true
+                task.descriptorSetOptions.path = apiDescriptorSet.get().asFile.absolutePath
+            }
+        }
         all()*.builtins {
             java {
                 option 'annotate_code'
@@ -111,6 +124,48 @@ clean {
 
 protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
+}
+
+// --- Payload limit validation code generation ---
+// A build-time generator emits GeneratedPayloadLimitValidator.java, which checks the payload and
+// memo fields of outbound requests against the size limits the server enforces. It classifies every
+// payload-bearing field against hand-authored tables and fails the build if a field is unclassified
+// or a table entry is stale, so a proto change cannot land without an explicit decision.
+//
+// The generator reads the API descriptors from the descriptor set emitted by generateProto, not from
+// compiled proto classes. The protos are generated into this module's own main source set, so a
+// generator that needed them compiled would form a cycle with the compilation that consumes its
+// output. Its source set therefore depends only on protobuf-java.
+sourceSets {
+    payloadLimitsGenerator {
+        java {
+            srcDirs = ['src/payloadLimitsGenerator/java']
+        }
+    }
+}
+
+dependencies {
+    payloadLimitsGeneratorImplementation "com.google.protobuf:protobuf-java:$protoVersion"
+}
+
+def generatedPayloadLimitsDir = layout.buildDirectory.dir('generated/payloadlimits/java')
+
+def generatePayloadLimitValidator = tasks.register('generatePayloadLimitValidator', JavaExec) {
+    dependsOn 'compilePayloadLimitsGeneratorJava', 'generateProto'
+    classpath = sourceSets.payloadLimitsGenerator.runtimeClasspath
+    mainClass = 'io.temporal.internal.payload.limits.gen.PayloadLimitValidatorGenerator'
+    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadLimitsDir.get().asFile.absolutePath
+    inputs.file(apiDescriptorSet)
+    inputs.files(sourceSets.payloadLimitsGenerator.runtimeClasspath)
+    outputs.dir(generatedPayloadLimitsDir)
+}
+
+sourceSets.main.java.srcDir(generatePayloadLimitValidator)
+
+tasks.named('compilePayloadLimitsGeneratorJava') {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+    options.errorprone.error('MissingCasesInEnumSwitch')
 }
 
 javadocJar {
