@@ -1,6 +1,7 @@
 package io.temporal.internal.sync;
 
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.workflow.CancellationScope;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
@@ -91,15 +92,28 @@ class CompletablePromiseImpl<V> implements CompletablePromise<V> {
   public V cancellableGetImpl(boolean cancellable, long timeout, TimeUnit unit)
       throws TimeoutException {
     if (!completed) {
-      WorkflowInternal.await(
-          Duration.ofMillis(unit.toMillis(timeout)),
-          "Feature.get",
-          () -> {
-            if (cancellable) {
-              CancellationScope.throwCanceled();
-            }
-            return completed;
-          });
+      Runnable waitForCompletion =
+          () ->
+              WorkflowInternal.await(
+                  Duration.ofMillis(unit.toMillis(timeout)),
+                  "Feature.get",
+                  () -> {
+                    if (cancellable) {
+                      CancellationScope.throwCanceled();
+                    }
+                    return completed;
+                  });
+      if (!cancellable
+          && WorkflowInternal.checkSdkFlag(SdkFlag.DETACH_NON_CANCELLABLE_PROMISE_GET_TIMER)) {
+        CancellationScope timeoutScope = Workflow.newDetachedCancellationScope(waitForCompletion);
+        try {
+          timeoutScope.run();
+        } finally {
+          timeoutScope.cancel("Promise.get completed");
+        }
+      } else {
+        waitForCompletion.run();
+      }
     }
     if (!completed) {
       throw new TimeoutException();
