@@ -7,6 +7,10 @@ appropriate heading (create the heading if it does not yet exist). Within
 each heading content can be free-form. Feel free to include examples, links
 to docs, or any other relevant information.
 
+A release PR moves the entries being released into exactly one new heading in
+the form `## [X.Y.Z] - YYYY-MM-DD` (or `X.Y.Z-RCN` for a release candidate) and
+leaves an `## [Unreleased]` section above it. Versioned sections are immutable.
+
 ### :boom: Breaking Changes — removed or backwards-incompatible features
 ### Added                   — new features
 ### Changed                 — changes in existing functionality
