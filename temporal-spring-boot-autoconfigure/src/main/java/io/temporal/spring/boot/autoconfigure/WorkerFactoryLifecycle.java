@@ -5,10 +5,11 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.context.SmartLifecycle;
 
 /**
- * Shuts down a started {@link WorkerFactory} when the application context stops and waits for its
+ * Shuts down a started {@link WorkerFactory} when the application context closes and waits for its
  * workers to terminate, so that in-flight tasks complete before the beans they use, including the
  * service stubs, are destroyed. The wait is bounded by {@code
- * spring.lifecycle.timeout-per-shutdown-phase}. The factory is started elsewhere.
+ * spring.lifecycle.timeout-per-shutdown-phase}. The factory is started elsewhere. A shut down
+ * factory cannot be started again, so the factory keeps running while the context is paused.
  */
 public class WorkerFactoryLifecycle implements SmartLifecycle {
 
@@ -22,6 +23,10 @@ public class WorkerFactoryLifecycle implements SmartLifecycle {
 
   @Override
   public boolean isAutoStartup() {
+    return false;
+  }
+
+  public boolean isPauseable() {
     return false;
   }
 
