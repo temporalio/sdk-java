@@ -40,6 +40,9 @@ to docs, or any other relevant information.
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Local activity retries that back off through a workflow timer now keep the original scheduleToClose deadline after
+  the workflow is replayed (worker restart or cache eviction). Previously the deadline restarted from the replay time
+  and the activity could run more attempts than its `ScheduleToCloseTimeout` allows.
 
 ## Previous releases
 
