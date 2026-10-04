@@ -8,6 +8,7 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
@@ -51,6 +52,7 @@ public final class SingleWorkerOptions {
     private PreferredVersionProvider preferredVersionProvider;
     private @Nullable ExternalStorageRunner externalStorageRunner;
     private CancellationToken<CancellationException> storageCancellation = CancellationToken.none();
+    private PrefixedMdc loggerMdc;
 
     private Builder() {}
 
@@ -81,6 +83,7 @@ public final class SingleWorkerOptions {
       this.preferredVersionProvider = options.getPreferredVersionProvider();
       this.externalStorageRunner = options.getExternalStorageRunner();
       this.storageCancellation = options.getStorageCancellation();
+      this.loggerMdc = options.getLoggerMdc();
     }
 
     public Builder setIdentity(String identity) {
@@ -205,6 +208,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setLoggerMdc(PrefixedMdc loggerMdc) {
+      this.loggerMdc = loggerMdc;
+      return this;
+    }
+
     public SingleWorkerOptions build() {
       PollerOptions pollerOptions = this.pollerOptions;
       if (pollerOptions == null) {
@@ -224,6 +232,11 @@ public final class SingleWorkerOptions {
       Duration drainStickyTaskQueueTimeout = this.drainStickyTaskQueueTimeout;
       if (drainStickyTaskQueueTimeout == null) {
         drainStickyTaskQueueTimeout = Duration.ofSeconds(0);
+      }
+
+      PrefixedMdc loggerMdc = this.loggerMdc;
+      if (loggerMdc == null) {
+        loggerMdc = new PrefixedMdc(null);
       }
 
       return new SingleWorkerOptions(
@@ -249,7 +262,8 @@ public final class SingleWorkerOptions {
           this.workerControlTaskQueue,
           this.preferredVersionProvider,
           this.externalStorageRunner,
-          this.storageCancellation);
+          this.storageCancellation,
+          loggerMdc);
     }
   }
 
@@ -276,6 +290,7 @@ public final class SingleWorkerOptions {
   private final PreferredVersionProvider preferredVersionProvider;
   private final @Nullable ExternalStorageRunner externalStorageRunner;
   private final CancellationToken<CancellationException> storageCancellation;
+  private final PrefixedMdc loggerMdc;
 
   private SingleWorkerOptions(
       String identity,
@@ -300,7 +315,8 @@ public final class SingleWorkerOptions {
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
       @Nullable ExternalStorageRunner externalStorageRunner,
-      CancellationToken<CancellationException> storageCancellation) {
+      CancellationToken<CancellationException> storageCancellation,
+      PrefixedMdc loggerMdc) {
     this.identity = identity;
     this.binaryChecksum = binaryChecksum;
     this.buildId = buildId;
@@ -324,6 +340,7 @@ public final class SingleWorkerOptions {
     this.preferredVersionProvider = preferredVersionProvider;
     this.externalStorageRunner = externalStorageRunner;
     this.storageCancellation = storageCancellation;
+    this.loggerMdc = loggerMdc;
   }
 
   public String getIdentity() {
@@ -436,5 +453,9 @@ public final class SingleWorkerOptions {
   public WorkerVersioningOptions getWorkerVersioningOptions() {
     return new WorkerVersioningOptions(
         this.getBuildId(), this.isUsingBuildIdForVersioning(), this.getDeploymentOptions());
+  }
+
+  public PrefixedMdc getLoggerMdc() {
+    return loggerMdc;
   }
 }

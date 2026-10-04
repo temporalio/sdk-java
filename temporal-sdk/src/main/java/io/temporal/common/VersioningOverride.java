@@ -31,4 +31,30 @@ public abstract class VersioningOverride {
   public static final class AutoUpgradeVersioningOverride extends VersioningOverride {
     public AutoUpgradeVersioningOverride() {}
   }
+
+  /**
+   * Routes the workflow to a specific deployment version until one workflow task completes there.
+   * After completion, the workflow's versioning behavior and deployment version come from that
+   * worker's completion response.
+   *
+   * <p>Requires Temporal Server 1.32.0 or later.
+   */
+  @Experimental
+  public static final class OneTimeVersioningOverride extends VersioningOverride {
+    private final WorkerDeploymentVersion targetVersion;
+
+    /**
+     * @param targetVersion The worker deployment version to route the workflow to initially.
+     */
+    public OneTimeVersioningOverride(@Nonnull WorkerDeploymentVersion targetVersion) {
+      this.targetVersion = targetVersion;
+    }
+
+    /**
+     * @return The worker deployment version to route the workflow to initially.
+     */
+    public WorkerDeploymentVersion getTargetVersion() {
+      return targetVersion;
+    }
+  }
 }
