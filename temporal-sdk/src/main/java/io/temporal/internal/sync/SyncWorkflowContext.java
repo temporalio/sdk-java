@@ -986,6 +986,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (options.getPriority() != null) {
       attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
+    if (options.getVersioningOverride() != null) {
+      attributes.setVersioningOverride(ProtoConverters.toProto(options.getVersioningOverride()));
+    }
     return new StartChildWorkflowExecutionParameters(
         attributes, options.getCancellationType(), metadata);
   }

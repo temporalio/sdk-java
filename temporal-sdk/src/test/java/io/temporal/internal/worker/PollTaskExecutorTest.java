@@ -2,6 +2,7 @@ package io.temporal.internal.worker;
 
 import static org.junit.Assert.assertEquals;
 
+import io.temporal.internal.logging.PrefixedMdc;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -39,7 +40,8 @@ public class PollTaskExecutorTest {
               },
               pollerOptions,
               1,
-              false);
+              false,
+              new PrefixedMdc(null));
 
       // Execute on a different thread with a different context class loader to simulate
       // ForkJoinPool

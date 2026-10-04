@@ -16,6 +16,7 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder
 import io.temporal.common.RetryOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.Signal;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.*;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
@@ -649,6 +650,7 @@ public class DeterministicRunnerTest {
         .thenReturn(WorkflowExecution.newBuilder().setWorkflowId("id1").setRunId("run1").build());
     when(replayWorkflowContext.getNamespace()).thenReturn("namespace");
     when(replayWorkflowContext.getWorkflowType()).thenReturn(WorkflowType.getDefaultInstance());
+    when(replayWorkflowContext.getLoggerMdc()).thenReturn(new PrefixedMdc(null));
 
     SyncWorkflowContext syncWorkflowContext =
         DummySyncWorkflowContext.newDummySyncWorkflowContext();

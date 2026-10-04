@@ -43,6 +43,7 @@ public class WorkerFactoryOptions {
     private boolean usingVirtualWorkflowThreads;
     private ExecutorService overrideLocalActivityTaskExecutor;
     private Duration shutdownCheckInterval;
+    private String loggerTagPrefix;
 
     private Builder() {}
 
@@ -60,6 +61,7 @@ public class WorkerFactoryOptions {
       this.usingVirtualWorkflowThreads = options.usingVirtualWorkflowThreads;
       this.overrideLocalActivityTaskExecutor = options.overrideLocalActivityTaskExecutor;
       this.shutdownCheckInterval = options.shutdownCheckInterval;
+      this.loggerTagPrefix = options.loggerTagPrefix;
     }
 
     /**
@@ -173,6 +175,18 @@ public class WorkerFactoryOptions {
       return this;
     }
 
+    /**
+     * Sets a prefix for SDK-defined structured logging tags set by the workers created by this
+     * factory. Defaults to empty (no prefix).
+     *
+     * <p>This setting does not affect telemetry tags.
+     */
+    @Experimental
+    public Builder setLoggerTagPrefix(String loggerTagPrefix) {
+      this.loggerTagPrefix = loggerTagPrefix;
+      return this;
+    }
+
     public WorkerFactoryOptions build() {
       return new WorkerFactoryOptions(
           workflowCacheSize,
@@ -184,6 +198,7 @@ public class WorkerFactoryOptions {
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
           shutdownCheckInterval,
+          loggerTagPrefix,
           false);
     }
 
@@ -209,6 +224,7 @@ public class WorkerFactoryOptions {
           usingVirtualWorkflowThreads,
           overrideLocalActivityTaskExecutor,
           shutdownCheckInterval,
+          loggerTagPrefix,
           true);
     }
   }
@@ -222,6 +238,7 @@ public class WorkerFactoryOptions {
   private final boolean usingVirtualWorkflowThreads;
   private final ExecutorService overrideLocalActivityTaskExecutor;
   private final Duration shutdownCheckInterval;
+  private final String loggerTagPrefix;
 
   private WorkerFactoryOptions(
       int workflowCacheSize,
@@ -233,6 +250,7 @@ public class WorkerFactoryOptions {
       boolean usingVirtualWorkflowThreads,
       ExecutorService overrideLocalActivityTaskExecutor,
       Duration shutdownCheckInterval,
+      String loggerTagPrefix,
       boolean validate) {
     if (validate) {
       Preconditions.checkState(workflowCacheSize >= 0, "negative workflowCacheSize");
@@ -262,6 +280,9 @@ public class WorkerFactoryOptions {
       } else {
         shutdownCheckInterval = DEFAULT_SHUTDOWN_CHECK_INTERVAL;
       }
+      if (loggerTagPrefix == null) {
+        loggerTagPrefix = "";
+      }
     }
     this.workflowCacheSize = workflowCacheSize;
     this.maxWorkflowThreadCount = maxWorkflowThreadCount;
@@ -273,6 +294,7 @@ public class WorkerFactoryOptions {
     this.usingVirtualWorkflowThreads = usingVirtualWorkflowThreads;
     this.overrideLocalActivityTaskExecutor = overrideLocalActivityTaskExecutor;
     this.shutdownCheckInterval = shutdownCheckInterval;
+    this.loggerTagPrefix = loggerTagPrefix;
   }
 
   public int getWorkflowCacheSize() {
@@ -328,6 +350,11 @@ public class WorkerFactoryOptions {
   @Experimental
   public Duration getShutdownCheckInterval() {
     return shutdownCheckInterval;
+  }
+
+  @Experimental
+  public String getLoggerTagPrefix() {
+    return loggerTagPrefix;
   }
 
   /**

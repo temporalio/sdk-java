@@ -17,6 +17,7 @@ import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -38,7 +39,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 final class ActivityWorker implements SuspendableWorker {
   private static final Logger log = LoggerFactory.getLogger(ActivityWorker.class);
@@ -108,7 +108,8 @@ final class ActivityWorker implements SuspendableWorker {
               new TaskHandlerImpl(handler),
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              options.isUsingVirtualThreads());
+              options.isUsingVirtualThreads(),
+              options.getLoggerMdc());
 
       boolean useAsyncPoller =
           pollerOptions.getPollerBehavior() instanceof PollerBehaviorAutoscaling;
@@ -321,12 +322,13 @@ final class ActivityWorker implements SuspendableWorker {
                   MetricsTag.WORKFLOW_TYPE,
                   pollResponse.getWorkflowType().getName()));
 
-      MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
-      MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
-      MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, pollResponse.getWorkflowType().getName());
-      MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
-      MDC.put(LoggerTag.ATTEMPT, Integer.toString(pollResponse.getAttempt()));
+      PrefixedMdc mdc = options.getLoggerMdc();
+      mdc.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
+      mdc.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
+      mdc.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
+      mdc.put(LoggerTag.WORKFLOW_TYPE, pollResponse.getWorkflowType().getName());
+      mdc.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
+      mdc.put(LoggerTag.ATTEMPT, Integer.toString(pollResponse.getAttempt()));
 
       ActivityTaskHandler.Result result = null;
       boolean taskFailed = false;
@@ -345,12 +347,12 @@ final class ActivityWorker implements SuspendableWorker {
         if (taskFailed) {
           taskCounter.recordFailed();
         }
-        MDC.remove(LoggerTag.ACTIVITY_ID);
-        MDC.remove(LoggerTag.ACTIVITY_TYPE);
-        MDC.remove(LoggerTag.WORKFLOW_ID);
-        MDC.remove(LoggerTag.WORKFLOW_TYPE);
-        MDC.remove(LoggerTag.RUN_ID);
-        MDC.remove(LoggerTag.ATTEMPT);
+        mdc.remove(LoggerTag.ACTIVITY_ID);
+        mdc.remove(LoggerTag.ACTIVITY_TYPE);
+        mdc.remove(LoggerTag.WORKFLOW_ID);
+        mdc.remove(LoggerTag.WORKFLOW_TYPE);
+        mdc.remove(LoggerTag.RUN_ID);
+        mdc.remove(LoggerTag.ATTEMPT);
         if (
         // handleActivity throw an exception (not a normal scenario)
         result == null
@@ -579,10 +581,11 @@ final class ActivityWorker implements SuspendableWorker {
         Exception e,
         PollActivityTaskQueueResponseOrBuilder pollResponse,
         ActivityTaskHandler.Result result) {
-      MDC.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
-      MDC.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
-      MDC.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
-      MDC.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
+      PrefixedMdc mdc = options.getLoggerMdc();
+      mdc.put(LoggerTag.ACTIVITY_ID, pollResponse.getActivityId());
+      mdc.put(LoggerTag.ACTIVITY_TYPE, pollResponse.getActivityType().getName());
+      mdc.put(LoggerTag.WORKFLOW_ID, pollResponse.getWorkflowExecution().getWorkflowId());
+      mdc.put(LoggerTag.RUN_ID, pollResponse.getWorkflowExecution().getRunId());
 
       if (log.isDebugEnabled()) {
         log.debug(
