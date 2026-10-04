@@ -2,6 +2,7 @@ package io.temporal.internal.sync;
 
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.async.MethodReferenceDisassembler;
+import io.temporal.internal.common.SdkFlag;
 import io.temporal.workflow.CompletablePromise;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
@@ -12,13 +13,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Contains support for asynchronous invocations. The basic idea is that any code is invoked in a
- * separate WorkflowThread. Internally it maps to a task executed by a thread pool, so there is not
- * much overhead doing it if operation doesn't block for a long time tying a physical thread. Async
- * allows to have asynchronous implementation of synchronous interfaces. If synchronous interface is
- * invoked using {@link #execute(boolean, Functions.Func)} then {@link #isAsync()} going to return
- * true and implementation can take non blocking path and return {@link Promise} as a result using
- * {@link #setAsyncResult(Promise)}. Then it can return any value from the sync method as it is
- * going to be ignored.
+ * separate WorkflowThread. Internally, it maps to a task executed by a thread pool, so there is not
+ * much overhead doing it if the operation doesn't block for a long time tying a physical thread.
+ * Async allows to have asynchronous implementation of synchronous interfaces. If a synchronous
+ * interface is invoked using {@link #execute(boolean, Functions.Func)} then {@link #isAsync()}
+ * going to return true and implementation can take non-blocking path and return {@link Promise} as
+ * a result using {@link #setAsyncResult(Promise)}. Then it can return any value from the sync
+ * method as it is going to be ignored.
  */
 public final class AsyncInternal {
 
@@ -265,28 +266,44 @@ public final class AsyncInternal {
    * @return promise on the return value of the asynchronous invocation of {@code func}
    */
   private static <R> Promise<R> execute(boolean temporalStub, Functions.Func<R> func) {
-    if (temporalStub) {
-      initAsyncInvocation();
-      try {
-        func.apply();
-        return getAsyncInvocationResult();
-      } catch (Exception e) {
-        return Workflow.newFailedPromise(Workflow.wrap(e));
-      } finally {
-        closeAsyncInvocation();
-      }
-    } else {
-      CompletablePromise<R> result = Workflow.newPromise();
-      WorkflowThread.newThread(
-          () -> {
-            try {
+    WorkflowThread currentThread = DeterministicRunnerImpl.currentThreadInternal();
+    // Enable this flag with tryUseSdkFlag only in a release after it is introduced. This check
+    // belongs before the branch so lambda histories can carry the flag if a later compiler starts
+    // detecting the same call as a stub method reference.
+    boolean scheduleAsyncStubOperations =
+        currentThread
+            .getWorkflowContext()
+            .getReplayContext()
+            .checkSdkFlag(SdkFlag.SCHEDULE_ASYNC_STUB_OPERATIONS);
+    if (temporalStub && !scheduleAsyncStubOperations) {
+      return invokeTemporalStub(func);
+    }
+    CompletablePromise<R> result = Workflow.newPromise();
+    WorkflowThread.newThread(
+        () -> {
+          try {
+            if (temporalStub) {
+              result.completeFrom(invokeTemporalStub(func));
+            } else {
               result.complete(func.apply());
-            } catch (Exception e) {
-              result.completeExceptionally(Workflow.wrap(e));
             }
-          },
-          false);
-      return result;
+          } catch (Exception e) {
+            result.completeExceptionally(Workflow.wrap(e));
+          }
+        },
+        false);
+    return result;
+  }
+
+  static <R> Promise<R> invokeTemporalStub(Functions.Func<R> func) {
+    initAsyncInvocation();
+    try {
+      func.apply();
+      return getAsyncInvocationResult();
+    } catch (Exception e) {
+      return Workflow.newFailedPromise(Workflow.wrap(e));
+    } finally {
+      closeAsyncInvocation();
     }
   }
 

@@ -17,6 +17,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ContinueAsNewInput;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.TimerOptions;
@@ -38,6 +39,7 @@ public class SyncWorkflowContextTest {
   public void setUp() {
     this.context = DummySyncWorkflowContext.newDummySyncWorkflowContext();
     this.context.setReplayContext(mockReplayWorkflowContext);
+    when(mockReplayWorkflowContext.getLoggerMdc()).thenReturn(new PrefixedMdc(null));
   }
 
   @Test

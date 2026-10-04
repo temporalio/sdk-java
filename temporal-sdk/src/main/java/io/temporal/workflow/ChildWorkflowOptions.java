@@ -60,6 +60,7 @@ public final class ChildWorkflowOptions {
     private String staticSummary;
     private String staticDetails;
     private Priority priority;
+    private VersioningOverride versioningOverride;
 
     private Builder() {}
 
@@ -87,6 +88,7 @@ public final class ChildWorkflowOptions {
       this.staticSummary = options.getStaticSummary();
       this.staticDetails = options.getStaticDetails();
       this.priority = options.getPriority();
+      this.versioningOverride = options.getVersioningOverride();
     }
 
     /**
@@ -337,6 +339,25 @@ public final class ChildWorkflowOptions {
     }
 
     /**
+     * Sets an explicit versioning override for this child, independently of the parent's
+     * versioning. If unset, the child normally inherits the parent's effective versioning behavior
+     * and deployment version, subject to task queue and deployment compatibility.
+     *
+     * <p>Supports {@link VersioningOverride.PinnedVersioningOverride}, {@link
+     * VersioningOverride.AutoUpgradeVersioningOverride}, and {@link
+     * VersioningOverride.OneTimeVersioningOverride}. If the server rejects the override, the child
+     * start fails with a {@link ChildWorkflowFailure} caused by {@link
+     * io.temporal.failure.InvalidVersioningOverrideFailure}.
+     *
+     * <p>Requires Temporal Server 1.32.0 or later.
+     */
+    @Experimental
+    public Builder setVersioningOverride(VersioningOverride versioningOverride) {
+      this.versioningOverride = versioningOverride;
+      return this;
+    }
+
+    /**
      * Merges the provided override options into this builder. Any non-null fields in the override
      * will take precedence over the fields in this builder, with the following exceptions:
      *
@@ -416,6 +437,10 @@ public final class ChildWorkflowOptions {
       this.staticDetails =
           (override.getStaticDetails() == null) ? this.staticDetails : override.getStaticDetails();
       this.priority = (override.getPriority() == null) ? this.priority : override.getPriority();
+      this.versioningOverride =
+          (override.getVersioningOverride() == null)
+              ? this.versioningOverride
+              : override.getVersioningOverride();
       return this;
     }
 
@@ -439,7 +464,8 @@ public final class ChildWorkflowOptions {
           versioningIntent,
           staticSummary,
           staticDetails,
-          priority);
+          priority,
+          versioningOverride);
     }
 
     @SuppressWarnings("deprecation")
@@ -467,7 +493,8 @@ public final class ChildWorkflowOptions {
               : versioningIntent,
           staticSummary,
           staticDetails,
-          priority);
+          priority,
+          versioningOverride);
     }
   }
 
@@ -493,6 +520,7 @@ public final class ChildWorkflowOptions {
   private final String staticSummary;
   private final String staticDetails;
   private final Priority priority;
+  private final VersioningOverride versioningOverride;
 
   private ChildWorkflowOptions(
       String namespace,
@@ -513,7 +541,8 @@ public final class ChildWorkflowOptions {
       @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
       String staticSummary,
       String staticDetails,
-      Priority priority) {
+      Priority priority,
+      VersioningOverride versioningOverride) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -533,6 +562,7 @@ public final class ChildWorkflowOptions {
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
     this.priority = priority;
+    this.versioningOverride = versioningOverride;
   }
 
   /**
@@ -627,6 +657,16 @@ public final class ChildWorkflowOptions {
     return priority;
   }
 
+  /**
+   * Returns the explicit child workflow versioning override, or null if unset.
+   *
+   * @see Builder#setVersioningOverride(VersioningOverride)
+   */
+  @Experimental
+  public VersioningOverride getVersioningOverride() {
+    return versioningOverride;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -654,7 +694,8 @@ public final class ChildWorkflowOptions {
         && versioningIntent == that.versioningIntent
         && Objects.equal(staticSummary, that.staticSummary)
         && Objects.equal(staticDetails, that.staticDetails)
-        && Objects.equal(priority, that.priority);
+        && Objects.equal(priority, that.priority)
+        && Objects.equal(versioningOverride, that.versioningOverride);
   }
 
   @Override
@@ -678,7 +719,8 @@ public final class ChildWorkflowOptions {
         versioningIntent,
         staticSummary,
         staticDetails,
-        priority);
+        priority,
+        versioningOverride);
   }
 
   @Override
@@ -726,6 +768,8 @@ public final class ChildWorkflowOptions {
         + staticDetails
         + ", priority="
         + priority
+        + ", versioningOverride="
+        + versioningOverride
         + '}';
   }
 }
