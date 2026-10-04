@@ -784,7 +784,12 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void sleep(Duration duration);
 
+  void sleep(Duration duration, TimerOptions options);
+
   boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition);
+
+  boolean await(
+      Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition);
 
   void await(String reason, Supplier<Boolean> unblockCondition);
 
