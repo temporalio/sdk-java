@@ -35,6 +35,16 @@ publication job.
 An ordinary pull request that only adds entries beneath `[Unreleased]` runs the
 candidate check but does not start a release.
 
+To run an existing release candidate manually, open the **Release** workflow,
+select **Run workflow** on `main`, enter the version without its leading `v`,
+and choose whether to hold the GitHub Release as a draft. The version must
+already have a versioned `CHANGELOG.md` section. The workflow finds the exact
+first-parent commit that introduced that section and runs it through the same
+validation, build, approval, and publication jobs as an automatic release.
+The manual draft selection overrides `DRAFT_RELEASE` for that run. It affects
+only the GitHub Release; Maven artifacts are published after approval either
+way.
+
 Maintainers can check the release scripts locally with
 `.github/scripts/test-release.sh`.
 

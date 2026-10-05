@@ -11,6 +11,17 @@ on:
   push:
     branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
     paths: [CHANGELOG.md]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version already present in CHANGELOG.md, without a leading v
+        required: true
+        type: string
+      draft_release:
+        description: Hold the GitHub Release as a draft after publishing Maven artifacts
+        required: true
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -21,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       commit: ${{ steps.metadata.outputs.commit }}
+      draft_release: ${{ steps.metadata.outputs.draft_release }}
       prerelease: ${{ steps.metadata.outputs.prerelease }}
       release: ${{ steps.metadata.outputs.release }}
       tag: ${{ steps.metadata.outputs.tag }}
@@ -36,12 +48,18 @@ jobs:
         id: metadata
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           EVENT_NAME: ${{ github.event_name }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          MANUAL_DRAFT_RELEASE: ${{ inputs.draft_release }}
+          MANUAL_REF: ${{ github.ref_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
         run: .github/scripts/release.sh candidate "$RUNNER_TEMP/release-notes.md"
 
       - name: Upload exact release notes
-        if: github.event_name == 'push' && steps.metadata.outputs.release == 'true'
+        if: >-
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          steps.metadata.outputs.release == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: release-notes-${{ steps.metadata.outputs.commit }}
@@ -65,7 +83,9 @@ jobs:
 
   build_maven:
     name: Test and inspect Maven publications
-    if: github.event_name == 'push' && needs.candidate.outputs.release == 'true'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
     needs: candidate
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -96,7 +116,9 @@ jobs:
 
   build_native:
     name: Build native test server
-    if: github.event_name == 'push' && needs.candidate.outputs.release == 'true'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
     needs: candidate
     uses: ./.github/workflows/build-native-image.yml
     with:
@@ -106,7 +128,9 @@ jobs:
 
   package_native:
     name: Package native release assets
-    if: github.event_name == 'push' && needs.candidate.outputs.release == 'true'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
     needs: [candidate, build_native]
     runs-on: ubuntu-latest
     permissions:
@@ -140,7 +164,9 @@ jobs:
 
   publish:
     name: Publish ${{ needs.candidate.outputs.tag }}
-    if: github.event_name == 'push' && needs.candidate.outputs.release == 'true'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
     needs: [candidate, build_maven, package_native]
     runs-on: ubuntu-latest
     timeout-minutes: 150
@@ -195,6 +221,7 @@ jobs:
         env:
           DRAFT_RELEASE: ${{ vars.DRAFT_RELEASE }}
           GH_TOKEN: ${{ github.token }}
+          MANUAL_DRAFT_RELEASE: ${{ needs.candidate.outputs.draft_release }}
           PRERELEASE: ${{ needs.candidate.outputs.prerelease }}
         run: >-
           .github/scripts/release.sh publish-github

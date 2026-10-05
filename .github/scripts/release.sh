@@ -51,11 +51,36 @@ changelog_section() {
 
 # Validates a changelog transition and identifies a release candidate.
 candidate() {
-  require BASE_SHA
   require EVENT_NAME
   require HEAD_SHA
   local notes=${1:?Release notes output path is required.}
-  local base head version tag existing
+  local base dispatch_head draft_release existing release_commit tag version
+
+  if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+    require DEFAULT_BRANCH
+    require MANUAL_DRAFT_RELEASE
+    require MANUAL_REF
+    require MANUAL_VERSION
+    [[ "$MANUAL_REF" == "$DEFAULT_BRANCH" ]] \
+      || fail "Manual releases must run from $DEFAULT_BRANCH."
+    [[ "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] \
+      || fail "Manual release version must look like 1.2.3 or 1.2.3-RC1."
+    case "$MANUAL_DRAFT_RELEASE" in
+      true) draft_release=1 ;;
+      false) draft_release=0 ;;
+      *) fail "Manual draft selection must be true or false." ;;
+    esac
+
+    dispatch_head=$(git rev-parse --verify "$HEAD_SHA^{commit}")
+    release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
+      -S"## [$MANUAL_VERSION]" "$dispatch_head" -- CHANGELOG.md)
+    [[ -n "$release_commit" ]] \
+      || fail "Version $MANUAL_VERSION was not introduced on $DEFAULT_BRANCH."
+    BASE_SHA=$(git rev-parse --verify "$release_commit^1")
+    HEAD_SHA=$release_commit
+  else
+    require BASE_SHA
+  fi
 
   if [[ "$BASE_SHA" =~ ^0+$ ]]; then
     BASE_SHA=$(git rev-parse "$HEAD_SHA^")
@@ -84,6 +109,13 @@ candidate() {
     || fail "A release commit must add exactly one versioned changelog section."
 
   version=${added[0]}
+  if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+    [[ "$version" == "$MANUAL_VERSION" ]] \
+      || fail "Commit $head does not introduce version $MANUAL_VERSION."
+    diff -q <(changelog_section "$head" "$version" true) \
+      <(changelog_section "$dispatch_head" "$version" true) >/dev/null \
+      || fail "Release notes for $version changed after commit $head."
+  fi
   changelog_section "$head" "$version" > "$notes"
   [[ -s "$notes" ]] || fail "Release notes for $version are empty."
   git show "$head:CHANGELOG.md" | awk -v release="## [$version]" '
@@ -94,10 +126,13 @@ candidate() {
 
   tag="v$version"
   if existing=$(git rev-parse --verify "refs/tags/$tag^{commit}" 2>/dev/null); then
-    [[ "$EVENT_NAME" == push && "$existing" == "$head" ]] \
+    [[ ("$EVENT_NAME" == push || "$EVENT_NAME" == workflow_dispatch) && \
+      "$existing" == "$head" ]] \
       || fail "Release tag $tag already exists at $existing."
   fi
   write_output release true
+  [[ "$EVENT_NAME" == workflow_dispatch ]] \
+    && write_output draft_release "$draft_release"
   write_output version "$version"
   write_output tag "$tag"
   write_output commit "$head"
@@ -205,7 +240,7 @@ publish_github() {
   require RELEASE_VERSION
   local notes=${1:?Release notes path is required.}
   local assets=${2:?Release asset directory is required.}
-  local draft_release=${DRAFT_RELEASE:-0}
+  local draft_release=${MANUAL_DRAFT_RELEASE:-${DRAFT_RELEASE:-0}}
   local is_draft=false
   local release tag summary_title
   local release_assets=("$assets"/*)

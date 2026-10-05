@@ -39,6 +39,29 @@ head=$(git -C "$repository" rev-parse HEAD)
 grep -Fxq 'release=true' "$temporary_directory/output"
 grep -Fxq 'version=1.41.0' "$temporary_directory/output"
 grep -Fxq '### Fixed' "$temporary_directory/notes"
+printf 'Later change.\n' > "$repository/README.md"
+git -C "$repository" add README.md
+git -C "$repository" commit -qm later
+later=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  DEFAULT_BRANCH=main EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+    MANUAL_DRAFT_RELEASE=true MANUAL_REF=main MANUAL_VERSION=1.41.0 \
+    GITHUB_OUTPUT="$temporary_directory/manual-output" \
+    "$release_script" candidate "$temporary_directory/manual-notes"
+)
+grep -Fxq 'release=true' "$temporary_directory/manual-output"
+grep -Fxq "commit=$head" "$temporary_directory/manual-output"
+grep -Fxq 'draft_release=1' "$temporary_directory/manual-output"
+diff -q "$temporary_directory/notes" "$temporary_directory/manual-notes"
+(
+  cd "$repository"
+  DEFAULT_BRANCH=main EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+    MANUAL_DRAFT_RELEASE=false MANUAL_REF=main MANUAL_VERSION=1.41.0 \
+    GITHUB_OUTPUT="$temporary_directory/manual-public-output" \
+    "$release_script" candidate "$temporary_directory/manual-public-notes"
+)
+grep -Fxq 'draft_release=0' "$temporary_directory/manual-public-output"
 printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-04\n\n### Fixed\n- Fixed it.\n' \
   > "$repository/CHANGELOG.md"
 git -C "$repository" commit -qam rewrite
