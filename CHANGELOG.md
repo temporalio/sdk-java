@@ -32,6 +32,8 @@ to docs, or any other relevant information.
   limit, instead of sending it to the server. Disable with
   `WorkerOptions.Builder.setDisablePayloadErrorLimit`; tune warnings with the experimental
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
+- **Experimental**: Removed `ExternalStorage.Builder.setMaxConcurrentPayloadVisits`. It limited payload visits rather
+  than external storage operations. Use `setConcurrency` instead.
 
 ### Added
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
@@ -88,6 +90,9 @@ to docs, or any other relevant information.
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 - **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
   `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
+- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (across all drivers on that
+  instance) and `maxOperationsPerMessage` (for one message). Drivers must wrap store and retrieve calls with
+  `context.getLimiter()`.
 
 ### Changed
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
