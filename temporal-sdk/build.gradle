@@ -24,6 +24,11 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
 
+    // The Java 8 stub of Jackson3JsonPayloadConverter must declare the same public API as the
+    // Java 17 class (JEP 238), so the Jackson 3 types are needed at compile time only. The java17
+    // source set sees them through the main compile classpath.
+    compileOnly "tools.jackson.core:jackson-databind:$jackson3Version"
+
     testImplementation project(':temporal-testing')
     // The optional envconfig-backed test harness is loaded only while SDK tests are running.
     testRuntimeOnly project(':temporal-envconfig')
@@ -62,10 +67,6 @@ dependencies {
     // project's JVM compatibility (e.g. 21+ on CI edge runners).
     java17Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
     java17Implementation files({ sourceSets.main.compileClasspath })
-    java17CompileOnly "tools.jackson.core:jackson-databind:$jackson3Version"
-    // The Java 8 stub must declare the same public API as the Java 17 class (JEP 238), so it needs
-    // the Jackson 3 types at compile time only.
-    compileOnly "tools.jackson.core:jackson-databind:$jackson3Version"
 
     java21Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
 }
