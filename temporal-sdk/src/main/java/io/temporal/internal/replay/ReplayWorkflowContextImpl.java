@@ -14,6 +14,7 @@ import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SdkFlag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.statemachines.*;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.worker.SingleWorkerOptions;
@@ -485,5 +486,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public void failWorkflowTask(Throwable failure) {
     mutableState.failWorkflowTask(failure);
+  }
+
+  @Override
+  @Nonnull
+  public PrefixedMdc getLoggerMdc() {
+    return workerOptions.getLoggerMdc();
   }
 }
