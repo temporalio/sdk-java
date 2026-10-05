@@ -43,6 +43,7 @@ import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
@@ -65,12 +66,16 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@RunWith(JUnitParamsRunner.class)
 public class WorkflowWorkerTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorkerTest.class);
   private final TestStatsReporter reporter = new TestStatsReporter();
@@ -168,7 +173,7 @@ public class WorkflowWorkerTest {
                 });
 
     CountDownLatch handleTaskLatch = new CountDownLatch(1);
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -247,7 +252,7 @@ public class WorkflowWorkerTest {
     // Cleanup
     worker.shutdown(new ShutdownManager(), false).get();
     // Verify we only handled two tasks
-    verify(taskHandler, times(2)).handleWorkflowTask(any());
+    verify(taskHandler, times(2)).handleWorkflowTask(any(), any());
   }
 
   @Test
@@ -330,7 +335,7 @@ public class WorkflowWorkerTest {
 
     CountDownLatch handleTaskLatch = new CountDownLatch(1);
 
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -392,9 +397,10 @@ public class WorkflowWorkerTest {
     WorkflowTaskHandler taskHandler =
         new WorkflowTaskHandler() {
           @Override
-          public WorkflowTaskHandler.Result handleWorkflowTask(PollWorkflowTaskQueueResponse task)
+          public WorkflowTaskHandler.Result handleWorkflowTask(
+              PollWorkflowTaskQueueResponse task, StorageOperationMetrics downloadMetrics)
               throws Exception {
-            WorkflowTaskHandler.Result result = rootTaskHandler.handleWorkflowTask(task);
+            WorkflowTaskHandler.Result result = rootTaskHandler.handleWorkflowTask(task, null);
             return new WorkflowTaskHandler.Result(
                 result.getWorkflowType(),
                 result.getTaskCompleted(),
@@ -558,7 +564,7 @@ public class WorkflowWorkerTest {
                 });
 
     // The task is abandoned part way through, which is what stopping storage looks like.
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -851,7 +857,7 @@ public class WorkflowWorkerTest {
                 });
 
     CountDownLatch handled = new CountDownLatch(1);
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -962,7 +968,7 @@ public class WorkflowWorkerTest {
                     return null;
                   });
 
-      when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+      when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
           .thenAnswer(
               (Answer<WorkflowTaskHandler.Result>)
                   invocation ->
@@ -1136,5 +1142,105 @@ public class WorkflowWorkerTest {
             .build();
 
     assertSame(current, WorkflowWorker.deriveStorageTarget("ns", current, command));
+  }
+
+  private static ListAppender<ILoggingEvent> captureWorkerLogs() {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.setContext(loggerContext);
+    logs.start();
+    loggerContext.getLogger(WorkflowWorker.class.getName()).addAppender(logs);
+    return logs;
+  }
+
+  private static void stopCapturingWorkerLogs(ListAppender<ILoggingEvent> logs) {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    loggerContext.getLogger(WorkflowWorker.class.getName()).detachAppender(logs);
+    logs.stop();
+  }
+
+  private static PollWorkflowTaskQueueResponse durationLogTask() {
+    return PollWorkflowTaskQueueResponse.newBuilder()
+        .setWorkflowExecution(WorkflowExecution.newBuilder().setRunId("run-1").build())
+        .setStartedEventId(11)
+        .setAttempt(3)
+        .build();
+  }
+
+  @Test
+  public void aTaskWithinTheDurationThresholdIsNotWarnedAbout() {
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      WorkflowWorker.logWorkflowTaskDuration(
+          durationLogTask(),
+          "MyWorkflow",
+          Duration.ofSeconds(5),
+          Duration.ofSeconds(5),
+          new StorageOperationMetrics(),
+          new StorageOperationMetrics());
+      assertTrue(logs.list.isEmpty());
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+  }
+
+  @Test
+  public void aTaskOverTheDurationThresholdWarnsWithItsStorageMetrics() {
+    StorageOperationMetrics download = new StorageOperationMetrics();
+    download.recordBatch(2, 1024, 0, TimeUnit.MILLISECONDS.toNanos(40), "s3");
+    download.recordBatch(1, 512, 0, TimeUnit.MILLISECONDS.toNanos(40), "gcs");
+    StorageOperationMetrics upload = new StorageOperationMetrics();
+    upload.recordBatch(3, 2048, 0, TimeUnit.MILLISECONDS.toNanos(70), "s3");
+
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      WorkflowWorker.logWorkflowTaskDuration(
+          durationLogTask(),
+          "MyWorkflow",
+          Duration.ofMillis(6500),
+          Duration.ofSeconds(5),
+          download,
+          upload);
+
+      assertEquals(1, logs.list.size());
+      ILoggingEvent event = logs.list.get(0);
+      assertEquals(Level.WARN, event.getLevel());
+      String message = event.getFormattedMessage();
+      // run id, the completion event id (startedEventId + 1) and the attempt.
+      assertTrue(message, message.contains("[TMPRL1104] run-1:12:3"));
+      assertTrue(message, message.contains("exceeded 5 seconds"));
+      assertTrue(message, message.contains("WorkflowType=MyWorkflow"));
+      assertTrue(message, message.contains("WorkflowTaskDuration=6500ms"));
+      assertTrue(message, message.contains("PayloadDownloadCount=3"));
+      assertTrue(message, message.contains("PayloadDownloadSize=1536"));
+      // Both download batches ran over the same 40ms, so the union is 40ms rather than 80ms.
+      assertTrue(message, message.contains("PayloadDownloadDuration=40ms"));
+      assertTrue(message, message.contains("PayloadDownloadDrivers=[gcs, s3]"));
+      assertTrue(message, message.contains("PayloadUploadCount=3"));
+      assertTrue(message, message.contains("PayloadUploadDuration=70ms"));
+      assertTrue(message, message.contains("PayloadUploadDrivers=[s3]"));
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+  }
+
+  /** Cases are supplied as objects rather than CSV so null, blank and padded values survive. */
+  private Object[] thresholdCases() {
+    return new Object[][] {
+      {null, Duration.ofSeconds(5)},
+      {"10", Duration.ofSeconds(10)},
+      {" 30 ", Duration.ofSeconds(30)},
+      {"0", Duration.ZERO},
+      {"-5", Duration.ofSeconds(5)},
+      {"abc", Duration.ofSeconds(5)},
+      {"1.5", Duration.ofSeconds(5)},
+      {"", Duration.ofSeconds(5)},
+    };
+  }
+
+  @Test
+  @Parameters(method = "thresholdCases")
+  public void parsesThresholdOrFallsBackToTheDefault(String value, Duration expected) {
+    assertEquals(expected, WorkflowWorker.parseWftDurationWarnThreshold(value));
   }
 }

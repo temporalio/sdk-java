@@ -9,6 +9,7 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.worker.QueryReplayHelper;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
@@ -98,10 +99,11 @@ public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
         ReplayWorkflowTaskHandler.class.getDeclaredMethod(
             "createStatefulHandler",
             PollWorkflowTaskQueueResponse.Builder.class,
-            com.uber.m3.tally.Scope.class);
+            com.uber.m3.tally.Scope.class,
+            StorageOperationMetrics.class);
     method.setAccessible(true);
     return (ReplayWorkflowRunTaskHandler)
-        method.invoke(replayTaskHandler, replayTask, new NoopScope());
+        method.invoke(replayTaskHandler, replayTask, new NoopScope(), null);
   }
 
   private static <T> T getField(Object target, String fieldName, Class<T> expectedType)
