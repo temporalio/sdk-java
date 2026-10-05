@@ -194,7 +194,6 @@ public interface WorkflowInfo {
    * <p>Note: If unset or on an older server version, this method will return {@link
    * Priority#getDefaultInstance()}.
    */
-  @Experimental
   @Nonnull
   Priority getPriority();
 }

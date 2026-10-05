@@ -7,23 +7,33 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.google.common.base.Strings;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
+import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactoryOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
+@RunWith(JUnitParamsRunner.class)
 public class LoggerTest {
 
   private static final ListAppender<ILoggingEvent> listAppender = new ListAppender<>();
@@ -41,9 +51,14 @@ public class LoggerTest {
 
   private TestWorkflowEnvironment env;
 
-  @Before
-  public void setUp() throws Exception {
-    env = TestWorkflowEnvironment.newInstance();
+  public void setUp(String loggerTagPrefix) throws Exception {
+    WorkerFactoryOptions.Builder wfob = WorkerFactoryOptions.newBuilder();
+    if (!Strings.isNullOrEmpty(loggerTagPrefix)) {
+      wfob.setLoggerTagPrefix(loggerTagPrefix);
+    }
+    env =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder().setWorkerFactoryOptions(wfob.build()).build());
   }
 
   @After
@@ -97,7 +112,9 @@ public class LoggerTest {
   }
 
   @Test
-  public void testWorkflowLogger() throws ExecutionException, InterruptedException {
+  @Parameters({"", "temporal"})
+  public void testWorkflowLogger(String ltp) throws Exception {
+    setUp(ltp);
     Worker worker = env.newWorker(taskQueue);
     worker.registerWorkflowImplementationTypes(
         TestLoggingInWorkflow.class, TestLoggerInChildWorkflow.class);
@@ -116,26 +133,26 @@ public class LoggerTest {
     workflow.update(wfId);
     result.get();
 
-    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfId), false));
-    assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfId), false));
-    assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfId), false));
+    assertEquals(1, matchingLines(String.format("Start executing workflow %s.", wfId), ltp, false));
+    assertEquals(1, matchingLines(String.format("Executing child workflow %s.", wfId), ltp, false));
+    assertEquals(1, matchingLines(String.format("Done executing workflow %s.", wfId), ltp, false));
     // Assert the update log is present
-    assertEquals(1, matchingLines(String.format("Updating workflow %s.", wfId), true));
+    assertEquals(1, matchingLines(String.format("Updating workflow %s.", wfId), ltp, true));
   }
 
-  private int matchingLines(String message, boolean isUpdateMethod) {
+  private int matchingLines(String message, String ltp, boolean isUpdateMethod) {
     int i = 0;
     // Make copy to avoid ConcurrentModificationException
     List<ILoggingEvent> list = new ArrayList<>(listAppender.list);
     for (ILoggingEvent event : list) {
       if (event.getFormattedMessage().contains(message)) {
-        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_ID));
-        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.WORKFLOW_TYPE));
-        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.RUN_ID));
-        assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.TASK_QUEUE));
+        assertTrue(event.getMDCPropertyMap().containsKey(ltp + LoggerTag.WORKFLOW_ID));
+        assertTrue(event.getMDCPropertyMap().containsKey(ltp + LoggerTag.WORKFLOW_TYPE));
+        assertTrue(event.getMDCPropertyMap().containsKey(ltp + LoggerTag.RUN_ID));
+        assertTrue(event.getMDCPropertyMap().containsKey(ltp + LoggerTag.TASK_QUEUE));
         if (isUpdateMethod) {
-          assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.UPDATE_ID));
-          assertTrue(event.getMDCPropertyMap().containsKey(LoggerTag.UPDATE_NAME));
+          assertTrue(event.getMDCPropertyMap().containsKey(ltp + LoggerTag.UPDATE_ID));
+          assertTrue(event.getMDCPropertyMap().containsKey(ltp + LoggerTag.UPDATE_NAME));
         }
         i++;
       }

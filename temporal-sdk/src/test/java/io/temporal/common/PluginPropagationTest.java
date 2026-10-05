@@ -31,6 +31,8 @@ import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -42,11 +44,14 @@ import java.util.Arrays;
 import java.util.List;
 import javax.annotation.Nonnull;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Tests that plugins propagate through the full chain: WorkflowServiceStubsOptions →
  * WorkflowClientOptions → WorkerFactory
  */
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class PluginPropagationTest {
 
   @Test

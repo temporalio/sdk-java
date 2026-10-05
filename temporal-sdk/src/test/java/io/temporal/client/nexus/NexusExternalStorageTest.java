@@ -14,6 +14,8 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.EchoNexusServiceImpl;
 import io.temporal.workflow.shared.TestNexusServices;
@@ -31,8 +33,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /** End-to-end coverage of external storage on a standalone Nexus operation */
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus permissions required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class NexusExternalStorageTest {
 
   private static final RecordingDriver driver = new RecordingDriver("nexus-test");

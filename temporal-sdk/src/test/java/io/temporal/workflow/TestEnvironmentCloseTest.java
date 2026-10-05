@@ -2,11 +2,16 @@ package io.temporal.workflow;
 
 import static junit.framework.TestCase.assertTrue;
 
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.shared.TestActivities.NoArgsActivity;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class TestEnvironmentCloseTest {
 
   @Test

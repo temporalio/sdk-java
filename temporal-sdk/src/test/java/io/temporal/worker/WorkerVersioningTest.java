@@ -203,7 +203,7 @@ public class WorkerVersioningTest {
     Assert.assertEquals("version-v3", res3);
   }
 
-  @Test
+  @Test(timeout = 30_000)
   public void testRampWorkerVersioning() {
     assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
 
@@ -501,6 +501,122 @@ public class WorkerVersioningTest {
   public interface ContinueAsNewVersionUpgradeWorkflow {
     @WorkflowMethod
     String execute(int attempt);
+  }
+
+  @Test
+  public void testChildWorkflowPinnedVersioningOverride() {
+    assertChildWorkflowVersioningOverride("pinned", "2.0", "version-v2");
+  }
+
+  @Test
+  public void testChildWorkflowAutoUpgradeVersioningOverride() {
+    assertChildWorkflowVersioningOverride("auto-upgrade", "3.0", "version-v3");
+  }
+
+  @Test
+  public void testChildWorkflowOneTimeVersioningOverride() {
+    // The first task runs on v1, but the child reports AutoUpgrade and subsequently moves to v3.
+    assertChildWorkflowVersioningOverride("one-time", "1.0", "version-v3");
+  }
+
+  private void assertChildWorkflowVersioningOverride(
+      String override, String initialBuildId, String expectedResult) {
+    assumeTrue("Test Server doesn't support versioning", SDKTestWorkflowRule.useExternalService);
+
+    Worker w1 = testWorkflowRule.newWorkerWithBuildID("1.0");
+    WorkerDeploymentVersion v1 = w1.getWorkerOptions().getDeploymentOptions().getVersion();
+    w1.registerWorkflowImplementationTypes(
+        ChildOverrideParentImpl.class, TestWorkerVersioningAutoUpgradeV1.class);
+    w1.start();
+    Worker w2 = testWorkflowRule.newWorkerWithBuildID("2.0");
+    w2.registerWorkflowImplementationTypes(TestWorkerVersioningPinnedV2.class);
+    w2.start();
+    Worker w3 = testWorkflowRule.newWorkerWithBuildID("3.0");
+    WorkerDeploymentVersion v3 = w3.getWorkerOptions().getDeploymentOptions().getVersion();
+    w3.registerWorkflowImplementationTypes(TestWorkerVersioningAutoUpgradeV3.class);
+    w3.start();
+
+    waitUntilWorkerDeploymentVisible(v1);
+    waitUntilWorkerDeploymentVisible(w2.getWorkerOptions().getDeploymentOptions().getVersion());
+    DescribeWorkerDeploymentResponse deployment = waitUntilWorkerDeploymentVisible(v3);
+    setCurrentVersion(v3, deployment.getConflictToken());
+
+    ChildOverrideParent parent =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                ChildOverrideParent.class,
+                SDKTestOptions.newWorkflowOptionsWithTimeouts(testWorkflowRule.getTaskQueue())
+                    .toBuilder()
+                    .setVersioningOverride(new VersioningOverride.PinnedVersioningOverride(v1))
+                    .build());
+    String childId = parent.execute(override, v1.getDeploymentName());
+    // Wait for a completed task, not just the start event, before testing subsequent routing.
+    Eventually.assertEventually(
+        Duration.ofSeconds(15),
+        () ->
+            Assert.assertTrue(
+                testWorkflowRule.getExecutionHistory(childId).getEvents().stream()
+                    .filter(event -> event.hasWorkflowTaskCompletedEventAttributes())
+                    .anyMatch(
+                        event ->
+                            event
+                                .getWorkflowTaskCompletedEventAttributes()
+                                .getDeploymentVersion()
+                                .getBuildId()
+                                .equals(initialBuildId))));
+    TestWorkflows.QueryableWorkflow child =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(TestWorkflows.QueryableWorkflow.class, childId);
+    child.mySignal("done");
+    Assert.assertEquals(
+        expectedResult,
+        testWorkflowRule
+            .getWorkflowClient()
+            .newUntypedWorkflowStub(childId)
+            .getResult(String.class));
+  }
+
+  @WorkflowInterface
+  public interface ChildOverrideParent {
+    @WorkflowMethod
+    String execute(String override, String deploymentName);
+  }
+
+  public static class ChildOverrideParentImpl implements ChildOverrideParent {
+    @Override
+    @WorkflowVersioningBehavior(VersioningBehavior.PINNED)
+    public String execute(String override, String deploymentName) {
+      VersioningOverride versioningOverride;
+      switch (override) {
+        case "pinned":
+          versioningOverride =
+              new VersioningOverride.PinnedVersioningOverride(
+                  new WorkerDeploymentVersion(deploymentName, "2.0"));
+          break;
+        case "auto-upgrade":
+          versioningOverride = new VersioningOverride.AutoUpgradeVersioningOverride();
+          break;
+        case "one-time":
+          versioningOverride =
+              new VersioningOverride.OneTimeVersioningOverride(
+                  new WorkerDeploymentVersion(deploymentName, "1.0"));
+          break;
+        default:
+          throw new IllegalArgumentException("Unknown override: " + override);
+      }
+      TestWorkflows.QueryableWorkflow child =
+          Workflow.newChildWorkflowStub(
+              TestWorkflows.QueryableWorkflow.class,
+              ChildWorkflowOptions.newBuilder()
+                  .setParentClosePolicy(
+                      io.temporal.api.enums.v1.ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
+                  .setVersioningOverride(versioningOverride)
+                  .build());
+      Async.function(child::execute);
+      return Workflow.getWorkflowExecution(child).get().getWorkflowId();
+    }
   }
 
   public static class TestWorkerVersioningCanV1 implements ContinueAsNewVersionUpgradeWorkflow {

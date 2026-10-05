@@ -37,6 +37,50 @@ public class RootNexusClientInvokerTest {
               NexusClientOptions.getDefaultInstance().getDataConverter(),
               NexusClientOptions.getDefaultInstance().getIdentity()));
 
+  @Test
+  public void resultInputRejectsPartiallyIdentifiedOperation() {
+    // A partially identified operation would decode without a Nexus context, which for a converter
+    // that varies by context means reading the payload the wrong way rather than failing.
+    Assert.assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new GetNexusOperationResultInput<>(
+                "op-1",
+                null,
+                Deadline.after(10, TimeUnit.SECONDS),
+                String.class,
+                String.class,
+                "endpoint",
+                null,
+                "operation"));
+  }
+
+  @Test
+  public void resultInputAcceptsFullyIdentifiedOperation() {
+    GetNexusOperationResultInput<String> input =
+        new GetNexusOperationResultInput<>(
+            "op-1",
+            null,
+            Deadline.after(10, TimeUnit.SECONDS),
+            String.class,
+            String.class,
+            "endpoint",
+            "service",
+            "operation");
+    Assert.assertEquals("endpoint", input.getEndpoint());
+    Assert.assertEquals("service", input.getService());
+    Assert.assertEquals("operation", input.getOperation());
+  }
+
+  @Test
+  public void resultInputAcceptsUnidentifiedOperation() {
+    // A handle obtained by operation ID never saw a start request.
+    GetNexusOperationResultInput<String> input = input();
+    Assert.assertNull(input.getEndpoint());
+    Assert.assertNull(input.getService());
+    Assert.assertNull(input.getOperation());
+  }
+
   private static GetNexusOperationResultInput<String> input() {
     return new GetNexusOperationResultInput<>(
         "op-1", null, Deadline.after(10, TimeUnit.SECONDS), String.class, String.class);

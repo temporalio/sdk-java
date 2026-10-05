@@ -12,6 +12,7 @@ import io.temporal.common.SuggestContinueAsNewReason;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.SdkFlag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.statemachines.*;
 import io.temporal.workflow.Functions;
@@ -49,6 +50,7 @@ public class DummySyncWorkflowContext {
   private static final class DummyReplayWorkflowContext implements ReplayWorkflowContext {
 
     private final Timer timer = new Timer();
+    private final PrefixedMdc loggerMdc = new PrefixedMdc(null);
 
     @Override
     public WorkflowExecution getWorkflowExecution() {
@@ -389,6 +391,12 @@ public class DummySyncWorkflowContext {
     @Override
     public boolean isTargetWorkerDeploymentVersionChanged() {
       return false;
+    }
+
+    @Override
+    @Nonnull
+    public PrefixedMdc getLoggerMdc() {
+      return loggerMdc;
     }
   }
 }

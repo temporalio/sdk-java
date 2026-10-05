@@ -134,7 +134,7 @@ public class ActivityFailedMetricsTests {
       String workerType, String workflowType) {
     Map<String, String> tags = new HashMap<>();
     tags.put("task_queue", testWorkflowRule.getTaskQueue());
-    tags.put("namespace", "UnitTest");
+    tags.put("namespace", testWorkflowRule.getWorkflowClient().getOptions().getNamespace());
     tags.put("activity_type", "Execute");
     tags.put("exception", "ApplicationFailure");
     tags.put("failure_reason", "ActivityError");

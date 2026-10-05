@@ -15,6 +15,8 @@ import io.temporal.failure.NexusOperationFailure;
 import io.temporal.internal.Signal;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.WorkflowRunOperation;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
@@ -23,7 +25,10 @@ import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class CancelWorkflowAsyncOperationTest extends BaseNexusTest {
 
   private static final Signal opStarted = new Signal();

@@ -1,7 +1,6 @@
 package io.temporal.activity;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
@@ -165,7 +164,6 @@ public interface ActivityInfo {
    * <p>Note: If unset or on an older server version, this method will return {@link
    * Priority#getDefaultInstance()}.
    */
-  @Experimental
   @Nonnull
   Priority getPriority();
 

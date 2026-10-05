@@ -249,7 +249,6 @@ public final class ActivityOptions {
      *
      * <p>Defaults to inheriting priority from the workflow that scheduled the activity.
      */
-    @Experimental
     public Builder setPriority(Priority priority) {
       this.priority = priority;
       return this;
@@ -455,7 +454,6 @@ public final class ActivityOptions {
     return summary;
   }
 
-  @Experimental
   public Priority getPriority() {
     return priority;
   }

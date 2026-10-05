@@ -12,6 +12,8 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.converter.TransferTypeTestModel;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -26,6 +28,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class ScheduleTest {
   static final SearchAttributeKey<String> CUSTOM_KEYWORD_SA =
@@ -439,6 +442,9 @@ public class ScheduleTest {
   }
 
   @Test
+  @CloudTestExclusionNote(
+      "Cloud CI does not provision the custom search attribute used by this test.")
+  @Category(RequiresCloudProvisioning.class)
   public void updateSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
@@ -542,6 +548,9 @@ public class ScheduleTest {
   }
 
   @Test
+  @CloudTestExclusionNote(
+      "Cloud CI does not provision the custom search attribute used by this test.")
+  @Category(RequiresCloudProvisioning.class)
   public void listSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule

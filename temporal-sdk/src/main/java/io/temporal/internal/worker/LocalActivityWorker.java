@@ -20,6 +20,7 @@ import io.temporal.internal.activity.ActivityPollResponseToInfo;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
@@ -34,7 +35,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 final class LocalActivityWorker implements Startable, Shutdownable {
   private static final Logger log = LoggerFactory.getLogger(LocalActivityWorker.class);
@@ -400,6 +400,7 @@ final class LocalActivityWorker implements Startable, Shutdownable {
       PollActivityTaskQueueResponseOrBuilder activityTask = attemptTask.getAttemptTask();
       boolean taskFailed = false;
       boolean taskExecuted = false;
+      PrefixedMdc mdc = options.getLoggerMdc();
 
       try {
         // if an activity was already completed by any mean like scheduleToClose or scheduleToStart,
@@ -419,12 +420,12 @@ final class LocalActivityWorker implements Startable, Shutdownable {
                     MetricsTag.WORKFLOW_TYPE,
                     activityTask.getWorkflowType().getName()));
 
-        MDC.put(LoggerTag.ACTIVITY_ID, activityTask.getActivityId());
-        MDC.put(LoggerTag.ACTIVITY_TYPE, activityTask.getActivityType().getName());
-        MDC.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
-        MDC.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
-        MDC.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
-        MDC.put(LoggerTag.ATTEMPT, Integer.toString(activityTask.getAttempt()));
+        mdc.put(LoggerTag.ACTIVITY_ID, activityTask.getActivityId());
+        mdc.put(LoggerTag.ACTIVITY_TYPE, activityTask.getActivityType().getName());
+        mdc.put(LoggerTag.WORKFLOW_ID, activityTask.getWorkflowExecution().getWorkflowId());
+        mdc.put(LoggerTag.WORKFLOW_TYPE, activityTask.getWorkflowType().getName());
+        mdc.put(LoggerTag.RUN_ID, activityTask.getWorkflowExecution().getRunId());
+        mdc.put(LoggerTag.ATTEMPT, Integer.toString(activityTask.getAttempt()));
 
         slotSupplier.markSlotUsed(
             new LocalActivitySlotInfo(
@@ -498,12 +499,12 @@ final class LocalActivityWorker implements Startable, Shutdownable {
           }
         }
         slotSupplier.releaseSlot(reason, executionContext.getPermit());
-        MDC.remove(LoggerTag.ACTIVITY_ID);
-        MDC.remove(LoggerTag.ACTIVITY_TYPE);
-        MDC.remove(LoggerTag.WORKFLOW_ID);
-        MDC.remove(LoggerTag.WORKFLOW_TYPE);
-        MDC.remove(LoggerTag.RUN_ID);
-        MDC.remove(LoggerTag.ATTEMPT);
+        mdc.remove(LoggerTag.ACTIVITY_ID);
+        mdc.remove(LoggerTag.ACTIVITY_TYPE);
+        mdc.remove(LoggerTag.WORKFLOW_ID);
+        mdc.remove(LoggerTag.WORKFLOW_TYPE);
+        mdc.remove(LoggerTag.RUN_ID);
+        mdc.remove(LoggerTag.ATTEMPT);
       }
     }
 
@@ -684,7 +685,8 @@ final class LocalActivityWorker implements Startable, Shutdownable {
               new AttemptTaskHandlerImpl(handler),
               pollerOptions,
               slotSupplier.maximumSlots().orElse(Integer.MAX_VALUE),
-              options.isUsingVirtualThreads());
+              options.isUsingVirtualThreads(),
+              options.getLoggerMdc());
 
       this.workerMetricsScope.counter(MetricsType.WORKER_START_COUNTER).inc(1);
       this.slotQueue.start();

@@ -1,0 +1,12 @@
+description = '''Temporal Java SDK Google Cloud Run Worker Identity Support Module'''
+
+dependencies {
+    // This module shouldn't carry temporal-sdk with it, especially for situations when users may
+    // be using a shaded artifact.
+    compileOnly project(':temporal-sdk')
+
+    testImplementation project(':temporal-sdk')
+    testImplementation "junit:junit:${junitVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}

@@ -16,6 +16,8 @@ import io.temporal.common.interceptors.WorkflowClientInterceptorBase;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor.SignalInput;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.SignalMethod;
@@ -27,12 +29,16 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Verifies that headers attached to a signal by a client interceptor reach the inbound workflow
  * interceptor when running against the (time-skipping) test server. Regression test for the test
  * server dropping the header while building the WorkflowExecutionSignaled event.
  */
+@CloudTestExclusionNote(
+    "This test verifies signal header propagation behavior available only in the local test server.")
+@Category(RequiresLocalServer.class)
 public class SignalHeaderTest {
 
   private static final String HEADER_KEY = "signal-header-key";

@@ -7,6 +7,7 @@ import io.temporal.internal.common.NonIdempotentHandle;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.workflow.Functions;
@@ -76,11 +77,12 @@ class WorkflowThreadImpl implements WorkflowThread {
       threadContext.initializeCurrentThread(thread);
       DeterministicRunnerImpl.setCurrentThreadInternal(WorkflowThreadImpl.this);
 
-      MDC.put(LoggerTag.WORKFLOW_ID, replayWorkflowContext.getWorkflowId());
-      MDC.put(LoggerTag.WORKFLOW_TYPE, replayWorkflowContext.getWorkflowType().getName());
-      MDC.put(LoggerTag.RUN_ID, replayWorkflowContext.getRunId());
-      MDC.put(LoggerTag.TASK_QUEUE, replayWorkflowContext.getTaskQueue());
-      MDC.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
+      PrefixedMdc mdc = replayWorkflowContext.getLoggerMdc();
+      mdc.put(LoggerTag.WORKFLOW_ID, replayWorkflowContext.getWorkflowId());
+      mdc.put(LoggerTag.WORKFLOW_TYPE, replayWorkflowContext.getWorkflowType().getName());
+      mdc.put(LoggerTag.RUN_ID, replayWorkflowContext.getRunId());
+      mdc.put(LoggerTag.TASK_QUEUE, replayWorkflowContext.getTaskQueue());
+      mdc.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
 
       // Repopulate the context(s)
       ContextThreadLocal.setContextPropagators(this.contextPropagators);

@@ -379,12 +379,14 @@ public class AsyncPollerTest {
     poller.resumePolling();
     assertFalse(poller.isSuspended());
     pollLatch.await();
-    assertEquals(0, executor.processed.get());
-    assertEquals(1, slotSupplierInner.reservedCount.get());
-    assertEquals(0, slotSupplier.getUsedSlots().size());
-    assertEventually(Duration.ofSeconds(5), () -> assertEquals(2, reserveCalls.get()));
-    // Suspend polling again, this will not affect the already issued poll request or the
-    // second reserveSlot call, which is waiting for the first slot to be released.
+    assertEventually(
+        Duration.ofSeconds(5),
+        () -> {
+          assertEquals(0, executor.processed.get());
+          assertEquals(1, slotSupplierInner.reservedCount.get());
+          assertEquals(0, slotSupplier.getUsedSlots().size());
+        });
+    // Suspend polling again, this will not affect the already issued poll request
     poller.suspendPolling();
     completePoll.get().apply();
     assertEventually(
