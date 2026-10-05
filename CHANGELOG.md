@@ -19,6 +19,15 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- **Experimental**: Removed `ExternalStorage.Builder.setMaxConcurrentPayloadVisits`. It limited payload visits rather
+  than external storage operations. Use `setConcurrency` instead.
+
+### Added
+- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (across all drivers on that
+  instance) and `maxOperationsPerMessage` (for one message). Drivers must wrap store and retrieve calls with
+  `context.getLimiter()`.
+
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
