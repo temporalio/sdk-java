@@ -4,9 +4,10 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
 
 /**
- * A single decoded item yielded by a subscription. {@code payload} is the raw {@link Payload}; use
- * {@link WorkflowStreamClient#decodeItem(WorkflowStreamItem, Class)} to decode it with the stream
- * client's configured item converter.
+ * A single decoded item yielded by a subscription. {@code payload} is the raw {@link Payload};
+ * decode it at the call site with a payload converter, e.g. {@code
+ * DefaultDataConverter.STANDARD_INSTANCE.fromPayload(item.getPayload(), String.class,
+ * String.class)}.
  */
 @Experimental
 public final class WorkflowStreamItem {

@@ -3,6 +3,7 @@ package io.temporal.workflowstreams;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.Workflow;
@@ -76,7 +77,13 @@ public final class WorkflowStream {
   }
 
   private WorkflowStream(@Nullable WorkflowStreamState priorState, WorkflowStreamOptions options) {
-    this.dataConverter = WorkflowStreamDataConverter.create(options.getPayloadConverters());
+    // A converter built only from PayloadConverters is codec-free, so workflow-published
+    // items are never double-encoded against the worker's response codec.
+    if (options.getPayloadConverters().length > 0) {
+      this.dataConverter = new DefaultDataConverter(options.getPayloadConverters());
+    } else {
+      this.dataConverter = DefaultDataConverter.STANDARD_INSTANCE;
+    }
 
     if (priorState != null) {
       baseOffset = priorState.baseOffset;
