@@ -205,36 +205,52 @@ publish_github() {
   require RELEASE_VERSION
   local notes=${1:?Release notes path is required.}
   local assets=${2:?Release asset directory is required.}
-  local release tag
+  local draft_release=${DRAFT_RELEASE:-0}
+  local is_draft=false
+  local release tag summary_title
   local release_assets=("$assets"/*)
+  case "$draft_release" in
+    0) ;;
+    1) is_draft=true ;;
+    *) fail "DRAFT_RELEASE must be 0, 1, or unset." ;;
+  esac
   [[ "${#release_assets[@]}" -gt 0 ]] || fail "No GitHub release assets were produced."
 
   if ! release=$(gh release view --repo "$GITHUB_REPOSITORY" "$RELEASE_TAG" \
-    --json body,isDraft,isPrerelease,name,url 2>/dev/null); then
+    --json body,isDraft,isPrerelease,name,targetCommitish,url 2>/dev/null); then
     create=(release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
       --title "$RELEASE_TAG" --target "$RELEASE_COMMIT" --notes-file "$notes")
+    [[ "$is_draft" == true ]] && create+=(--draft)
     [[ "$PRERELEASE" == true ]] && create+=(--prerelease)
     create+=("${release_assets[@]}")
     gh "${create[@]}"
     release=$(gh release view --repo "$GITHUB_REPOSITORY" "$RELEASE_TAG" \
-      --json body,isDraft,isPrerelease,name,url)
+      --json body,isDraft,isPrerelease,name,targetCommitish,url)
   fi
 
-  jq -e --arg tag "$RELEASE_TAG" --argjson prerelease "$PRERELEASE" \
+  jq -e --arg tag "$RELEASE_TAG" --argjson draft "$is_draft" \
+    --argjson prerelease "$PRERELEASE" \
     --rawfile notes "$notes" \
     'def normalized: gsub("\r"; "") | sub("\n+$"; "");
      .name == $tag and ((.body | normalized) == ($notes | normalized)) and
-     .isDraft == false and .isPrerelease == $prerelease' <<<"$release" >/dev/null
-  tag=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
-  jq -e --arg commit "$RELEASE_COMMIT" \
-    '.object.type == "commit" and .object.sha == $commit' <<<"$tag" >/dev/null
+     .isDraft == $draft and .isPrerelease == $prerelease' <<<"$release" >/dev/null
+  if tag=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" 2>/dev/null); then
+    jq -e --arg commit "$RELEASE_COMMIT" \
+      '.object.type == "commit" and .object.sha == $commit' <<<"$tag" >/dev/null
+  else
+    [[ "$is_draft" == true ]] || fail "Published release tag $RELEASE_TAG is missing."
+    jq -e --arg commit "$RELEASE_COMMIT" \
+      '.targetCommitish == $commit' <<<"$release" >/dev/null
+  fi
 
   published_assets=$(mktemp -d)
   trap 'rm -rf "$published_assets"' EXIT
   gh release download --repo "$GITHUB_REPOSITORY" "$RELEASE_TAG" --dir "$published_assets"
   diff -qr "$assets" "$published_assets"
+  summary_title="Release published"
+  [[ "$is_draft" == true ]] && summary_title="Release drafted"
   {
-    echo "## Release published"
+    echo "## $summary_title"
     echo
     echo "- GitHub: $(jq -r .url <<<"$release")"
     echo "- Maven: https://central.sonatype.com/artifact/io.temporal/temporal-sdk/$RELEASE_VERSION"

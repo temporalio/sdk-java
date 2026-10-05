@@ -193,6 +193,7 @@ jobs:
 
       - name: Publish and verify GitHub release
         env:
+          DRAFT_RELEASE: ${{ vars.DRAFT_RELEASE }}
           GH_TOKEN: ${{ github.token }}
           PRERELEASE: ${{ needs.candidate.outputs.prerelease }}
         run: >-

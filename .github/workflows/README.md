@@ -26,6 +26,12 @@ GitHub release and tag. Release candidates are always bound to the full merge
 commit SHA. RC versions use headings such as
 `## [1.41.0-RC1] - 2026-10-03` and are published as GitHub prereleases.
 
+Set the `release-publication` environment variable `DRAFT_RELEASE` to `1` to
+leave the GitHub release as a draft for final inspection. The Maven artifacts
+are still published to Maven Central and cannot be recalled. Clear the variable
+or set it to `0` for the normal public GitHub release; other values fail the
+publication job.
+
 An ordinary pull request that only adds entries beneath `[Unreleased]` runs the
 candidate check but does not start a release.
 
