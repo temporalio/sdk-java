@@ -19,6 +19,10 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- **Experimental**: Removed `ExternalStorage.Builder.setMaxConcurrentPayloadVisits`. It limited payload visits rather
+  than external storage operations. Use `setConcurrency` instead.
+
 ### Added
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
@@ -29,6 +33,9 @@ to docs, or any other relevant information.
   set by Temporal SDK in worker context.
 - Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
+- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (across all drivers on that
+  instance) and `maxOperationsPerMessage` (for one message). Drivers must wrap store and retrieve calls with
+  `context.getLimiter()`.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
