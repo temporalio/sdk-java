@@ -36,6 +36,9 @@ to docs, or any other relevant information.
   `Async.function(() -> activities.first())` preserves command order during replay. The call runs on a workflow thread,
   so workflow outbound interceptors can wait while scheduling it. The flag remains disabled by default, and existing
   unflagged histories retain their previous behavior.
+- `TemporalDevServer`, `TemporalDevServerOptions`, `TestWorkflowEnvironment.startLocal`, and the `useDevServer` methods
+  of `TestWorkflowRule` and `TestWorkflowExtension` are no longer marked experimental. `TemporalDevServerOptions` remain
+  specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
