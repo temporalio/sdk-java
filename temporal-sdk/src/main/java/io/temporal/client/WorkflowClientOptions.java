@@ -190,9 +190,10 @@ public final class WorkflowClientOptions {
     }
 
     /**
-     * Disables reporting the JVM version, detected hosting environments (Docker, Kubernetes, cloud
-     * platforms), and OS platform in worker heartbeats. This information is sent once per worker,
-     * with the first heartbeat accepted by the server.
+     * Disables reporting runtime versions (JVM, detected Graal native images, and Kotlin), detected
+     * hosting environments (Docker, Kubernetes, cloud platforms), and OS platform in worker
+     * heartbeats. This information is sent once per worker, with the first heartbeat accepted by
+     * the server.
      *
      * @param disableWorkerEnvironmentInfo true to omit environment information from heartbeats
      */
