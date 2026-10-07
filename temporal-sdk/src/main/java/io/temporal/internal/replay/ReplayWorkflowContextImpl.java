@@ -83,6 +83,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
+  public Random getRandomStream(String name) {
+    return workflowStateMachines.getRandomStream(name);
+  }
+
+  @Override
   public Scope getMetricsScope() {
     return replayAwareWorkflowMetricsScope;
   }
@@ -351,9 +356,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
             : (min, max) ->
                 WorkflowInternal.readOnly(
                     () ->
-                        preferredVersionProvider.getPreferredVersion(
-                            new PreferredVersionProviderInput(
-                                WorkflowInternal.getWorkflowInfo(), changeId, min, max))),
+                        WorkflowInternal.notSubjectToReplay(
+                            () ->
+                                preferredVersionProvider.getPreferredVersion(
+                                    new PreferredVersionProviderInput(
+                                        WorkflowInternal.getWorkflowInfo(), changeId, min, max)))),
         callback);
   }
 

@@ -159,6 +159,7 @@ class SyncWorkflow implements ReplayWorkflow {
             if (!callbacks.isReplaying()) {
               try {
                 workflowContext.setReadOnly(true);
+                workflowContext.setSubjectToReplay(false);
                 workflowProc.handleValidateUpdate(updateName, updateId, input, eventId, header);
               } catch (ReadOnlyException r) {
                 // Rethrow instead on rejecting the update to fail the WFT
@@ -174,6 +175,7 @@ class SyncWorkflow implements ReplayWorkflow {
                 return;
               } finally {
                 workflowContext.setReadOnly(false);
+                workflowContext.setSubjectToReplay(true);
               }
             }
             callbacks.accept();
