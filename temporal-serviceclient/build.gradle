@@ -75,6 +75,10 @@ sourceSets {
   }
 }
 
+// Descriptor set emitted by generateProto and read by the payload visitor generator; see the
+// payload visitor section below.
+def apiDescriptorSet = layout.buildDirectory.file('generated/descriptors/temporal-api.desc')
+
 protobuf {
     // version/variables substitution is not supported in protobuf section.
     // protoc and protoc-gen-grpc-java versions are selected to be compatible
@@ -91,7 +95,16 @@ protobuf {
         }
     }
     generateProtoTasks {
-        all().each { task -> task.dependsOn updateSubmodules }
+        all().each { task ->
+            task.dependsOn updateSubmodules
+            // The payload visitor generator reads the API descriptors from this file rather than
+            // from compiled proto classes; see the payload visitor section below.
+            if (task.sourceSet.name == 'main') {
+                task.generateDescriptorSet = true
+                task.descriptorSetOptions.includeImports = true
+                task.descriptorSetOptions.path = apiDescriptorSet.get().asFile.absolutePath
+            }
+        }
         all()*.builtins {
             java {
                 option 'annotate_code'
@@ -111,6 +124,46 @@ clean {
 
 protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
+}
+
+// --- Payload visitor code generation ---
+// A build-time generator emits GeneratedPayloadVisitor.java, which knows how to walk every
+// payload-bearing Temporal API message. The generated source is added to the main source set.
+//
+// The generator reads the API descriptors from the descriptor set emitted by generateProto, not from
+// compiled proto classes. The protos are generated into this module's own main source set, so a
+// generator that needed them compiled would form a cycle with the compilation that consumes its
+// output. Its source set therefore depends only on protobuf-java.
+sourceSets {
+    payloadVisitorGenerator {
+        java {
+            srcDirs = ['src/payloadVisitorGenerator/java']
+        }
+    }
+}
+
+dependencies {
+    payloadVisitorGeneratorImplementation "com.google.protobuf:protobuf-java:$protoVersion"
+}
+
+def generatedPayloadVisitorDir = layout.buildDirectory.dir('generated/payloadvisitor/java')
+
+def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) {
+    dependsOn 'compilePayloadVisitorGeneratorJava', 'generateProto'
+    classpath = sourceSets.payloadVisitorGenerator.runtimeClasspath
+    mainClass = 'io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator'
+    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath
+    inputs.file(apiDescriptorSet)
+    inputs.files(sourceSets.payloadVisitorGenerator.runtimeClasspath)
+    outputs.dir(generatedPayloadVisitorDir)
+}
+
+sourceSets.main.java.srcDir(generatePayloadVisitor)
+
+tasks.named('compilePayloadVisitorGeneratorJava') {
+    options.encoding = 'UTF-8'
+    options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
+    options.errorprone.error('MissingCasesInEnumSwitch')
 }
 
 javadocJar {
