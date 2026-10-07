@@ -1535,11 +1535,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         input.getExecution(),
         input.getReason(),
         (r, exception) -> {
-          if (exception == null) {
-            result.complete(null);
-          } else {
-            result.completeExceptionally(exception);
-          }
+          runner.executeInWorkflowThread(
+              "external workflow cancellation callback",
+              () -> {
+                if (exception == null) {
+                  result.complete(null);
+                } else {
+                  result.completeExceptionally(exception);
+                }
+              });
         });
     return new CancelWorkflowOutput(result);
   }
