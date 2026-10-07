@@ -11,6 +11,7 @@ import io.temporal.payload.storage.ExternalStorage;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.Nullable;
 
 /**
@@ -42,18 +43,21 @@ public class NexusClientOptions {
   private final DataConverter dataConverter;
   private final String identity;
   private final @Nullable ExternalStorage externalStorage;
+  private final NexusClientPlugin[] plugins;
 
   private NexusClientOptions(
       String namespace,
       List<NexusClientInterceptor> interceptors,
       DataConverter dataConverter,
       String identity,
-      @Nullable ExternalStorage externalStorage) {
+      @Nullable ExternalStorage externalStorage,
+      NexusClientPlugin[] plugins) {
     this.namespace = namespace;
     this.interceptors = interceptors;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.externalStorage = externalStorage;
+    this.plugins = plugins;
   }
 
   /** Get the namespace this client will operate on. */
@@ -86,6 +90,11 @@ public class NexusClientOptions {
    */
   public String getIdentity() {
     return identity;
+  }
+
+  /** Get the plugins of this client. */
+  public NexusClientPlugin[] getPlugins() {
+    return plugins;
   }
 
   /**
@@ -130,11 +139,14 @@ public class NexusClientOptions {
 
   /** Builder for {@link NexusClientOptions}. */
   public static class Builder {
+    private static final NexusClientPlugin[] EMPTY_PLUGINS = new NexusClientPlugin[0];
+
     private String namespace;
     private List<NexusClientInterceptor> interceptors = Collections.emptyList();
     private DataConverter dataConverter = GlobalDataConverter.get();
     private String identity;
     private ExternalStorage externalStorage;
+    private NexusClientPlugin[] plugins;
 
     private Builder() {}
 
@@ -147,6 +159,7 @@ public class NexusClientOptions {
       dataConverter = options.dataConverter;
       identity = options.identity;
       externalStorage = options.externalStorage;
+      plugins = options.plugins;
     }
 
     /** Set the namespace this client will operate on. */
@@ -195,6 +208,16 @@ public class NexusClientOptions {
       return this;
     }
 
+    /**
+     * Set the plugins for this client.
+     *
+     * @param plugins specifies the plugins to use with the client.
+     */
+    public NexusClientOptions.Builder setPlugins(NexusClientPlugin... plugins) {
+      this.plugins = Objects.requireNonNull(plugins);
+      return this;
+    }
+
     public NexusClientOptions build() {
       String resolvedIdentity =
           identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
@@ -203,7 +226,8 @@ public class NexusClientOptions {
           interceptors,
           dataConverter,
           resolvedIdentity,
-          externalStorage);
+          externalStorage,
+          plugins == null ? EMPTY_PLUGINS : plugins);
     }
   }
 }

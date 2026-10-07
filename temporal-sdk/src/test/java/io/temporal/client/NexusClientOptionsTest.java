@@ -35,6 +35,7 @@ public class NexusClientOptionsTest {
   @Test
   public void testNewBuilderFromOptionsCopiesAllFields() {
     NexusClientInterceptor interceptor = mock(NexusClientInterceptor.class);
+    NexusClientPlugin plugin = mock(NexusClientPlugin.class);
     DataConverter dc = mock(DataConverter.class);
 
     NexusClientOptions original =
@@ -44,6 +45,7 @@ public class NexusClientOptionsTest {
             .setDataConverter(dc)
             .setExternalStorage(storage())
             .setInterceptors(Collections.singletonList(interceptor))
+            .setPlugins(plugin)
             .build();
 
     NexusClientOptions copy = NexusClientOptions.newBuilder(original).build();
@@ -53,6 +55,7 @@ public class NexusClientOptionsTest {
     assertSame(original.getDataConverter(), copy.getDataConverter());
     assertEquals(original.getInterceptors(), copy.getInterceptors());
     assertSame(original.getExternalStorage(), copy.getExternalStorage());
+    assertArrayEquals(new NexusClientPlugin[] {plugin}, copy.getPlugins());
   }
 
   @Test

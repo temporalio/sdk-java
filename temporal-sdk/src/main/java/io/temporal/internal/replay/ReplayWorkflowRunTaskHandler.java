@@ -338,6 +338,9 @@ class ReplayWorkflowRunTaskHandler implements WorkflowRunTaskHandler {
   public void close() {
     lock.lock();
     try {
+      // Destroying the workflow threads runs their finally blocks. Treat that as replay so
+      // replay-aware code, such as logging and tracing, does not act on it.
+      workflowStateMachines.setReplaying(true);
       replayWorkflowExecutor.close();
     } finally {
       lock.unlock();
