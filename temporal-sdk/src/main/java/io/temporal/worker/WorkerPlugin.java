@@ -20,7 +20,6 @@
 
 package io.temporal.worker;
 
-import io.temporal.common.Experimental;
 import io.temporal.common.SimplePlugin;
 import io.temporal.common.WorkflowExecutionHistory;
 import java.util.function.BiConsumer;
@@ -64,7 +63,6 @@ import javax.annotation.Nonnull;
  * @see io.temporal.client.WorkflowClientPlugin
  * @see SimplePlugin
  */
-@Experimental
 public interface WorkerPlugin {
 
   /**

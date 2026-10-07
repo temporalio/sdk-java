@@ -1,6 +1,5 @@
 package io.temporal.client.schedules;
 
-import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
@@ -111,7 +110,6 @@ public final class ScheduleClientOptions {
      *
      * @param plugins specifies the plugins to use with the client.
      */
-    @Experimental
     public Builder setPlugins(ScheduleClientPlugin... plugins) {
       this.plugins = plugins;
       return this;
@@ -201,7 +199,6 @@ public final class ScheduleClientOptions {
    *
    * @return The plugins to use with the client.
    */
-  @Experimental
   public ScheduleClientPlugin[] getPlugins() {
     return plugins == null ? new ScheduleClientPlugin[0] : Arrays.copyOf(plugins, plugins.length);
   }
