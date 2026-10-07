@@ -50,7 +50,7 @@ import org.junit.runner.RunWith;
 public class ActivityTimeoutTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).build();
+      SDKTestWorkflowRule.newBuilder().setDoNotStart(true).setTestTimeoutSeconds(20).build();
 
   /**
    * An activity reaches startToClose timeout once, max retries are set to 1. o
