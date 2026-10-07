@@ -43,6 +43,11 @@ to docs, or any other relevant information.
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Spring Boot: closing the application context now waits for workers to finish in-flight tasks, bounded by
+  `spring.lifecycle.timeout-per-shutdown-phase`. Previously the root namespace workers were shut down without waiting,
+  so their pollers and task completions hit the already closed service stubs (`UNAVAILABLE: Channel shutdown invoked`),
+  and the non-root namespace workers were not shut down when their own context closed. A paused context, such as a
+  cached Spring TestContext one, keeps its workers running: a shut down worker factory cannot be started again.
 
 ## Previous releases
 
