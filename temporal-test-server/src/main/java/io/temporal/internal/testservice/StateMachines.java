@@ -585,7 +585,8 @@ class StateMachines {
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::childWorkflowCompleted)
         .add(STARTED, FAIL, FAILED, StateMachines::childWorkflowFailed)
         .add(STARTED, TIME_OUT, TIMED_OUT, StateMachines::timeoutChildWorkflow)
-        .add(STARTED, CANCEL, CANCELED, StateMachines::childWorkflowCanceled);
+        .add(STARTED, CANCEL, CANCELED, StateMachines::childWorkflowCanceled)
+        .add(STARTED, TERMINATE, TERMINATED, StateMachines::childWorkflowTerminated);
   }
 
   public static StateMachine<UpdateWorkflowExecutionData> newUpdateWorkflowExecution(
@@ -1167,6 +1168,24 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_CANCELED)
             .setChildWorkflowExecutionCanceledEventAttributes(updatedAttr)
+            .build();
+    ctx.addEvent(event);
+  }
+
+  private static void childWorkflowTerminated(
+      RequestContext ctx,
+      ChildWorkflowData data,
+      ChildWorkflowExecutionTerminatedEventAttributes a,
+      long notUsed) {
+    ChildWorkflowExecutionTerminatedEventAttributes updatedAttr =
+        a.toBuilder()
+            .setInitiatedEventId(data.initiatedEventId)
+            .setStartedEventId(data.startedEventId)
+            .build();
+    HistoryEvent event =
+        HistoryEvent.newBuilder()
+            .setEventType(EventType.EVENT_TYPE_CHILD_WORKFLOW_EXECUTION_TERMINATED)
+            .setChildWorkflowExecutionTerminatedEventAttributes(updatedAttr)
             .build();
     ctx.addEvent(event);
   }
