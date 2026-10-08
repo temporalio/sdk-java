@@ -11,13 +11,14 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor.ListNexusOper
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.ListNexusOperationExecutionsOutput;
 import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
+import io.temporal.internal.client.ClientDataConverterFactory;
 import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.internal.client.NexusOperationHandleImpl;
 import io.temporal.internal.client.RootNexusClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
-import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.List;
@@ -41,16 +42,17 @@ public class NexusClientImpl implements NexusClient {
   public static NexusClient newInstance(WorkflowServiceStubs service, NexusClientOptions options) {
     enforceNonWorkflowThread();
     return WorkflowThreadMarker.protectFromWorkflowThread(
-        new NexusClientImpl(service, options.toResolvedOptions()), NexusClient.class);
+        new NexusClientImpl(service, options), NexusClient.class);
   }
 
-  NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientResolvedOptions options) {
-    options =
-        new NexusClientResolvedOptions(
-            options.getNamespace(),
-            options.getInterceptors(),
-            TemporalTransferTypeDataConverter.wrap(options.getDataConverter()),
-            options.getIdentity());
+  NexusClientImpl(WorkflowServiceStubs workflowServiceStubs, NexusClientOptions clientOptions) {
+    NexusClientResolvedOptions options =
+        clientOptions.toResolvedOptions(
+            clientOptions.getExternalStorage() == null
+                ? ClientDataConverterFactory.forClient(clientOptions.getDataConverter())
+                : ClientDataConverterFactory.forClient(
+                    clientOptions.getDataConverter(),
+                    ExternalStorageRunner.create(clientOptions.getExternalStorage())));
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;

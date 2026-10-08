@@ -6,12 +6,12 @@ import com.uber.m3.tally.Scope;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
+import io.temporal.internal.client.ClientDataConverterFactory;
 import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootScheduleClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.common.PluginUtils;
-import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
@@ -74,7 +74,7 @@ final class ScheduleClientImpl implements ScheduleClient {
     options = builder.build();
     options =
         ScheduleClientOptions.newBuilder(options)
-            .setDataConverter(TemporalTransferTypeDataConverter.wrap(options.getDataConverter()))
+            .setDataConverter(ClientDataConverterFactory.forClient(options.getDataConverter()))
             .build();
 
     workflowServiceStubs =

@@ -8,10 +8,10 @@ import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.ActivityHandleImpl;
+import io.temporal.internal.client.ClientDataConverterFactory;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
-import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -40,7 +40,7 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
     options =
         ActivityClientOptions.newBuilder(options)
-            .setDataConverter(TemporalTransferTypeDataConverter.wrap(options.getDataConverter()))
+            .setDataConverter(ClientDataConverterFactory.forClient(options.getDataConverter()))
             .build();
     this.stubs = stubs;
     this.options = options;
