@@ -39,11 +39,15 @@ public class ScheduleProtoUtil {
 
   private final GenericWorkflowClient genericClient;
   private final ScheduleClientOptions clientOptions;
+  private final DataConverter dataConverter;
 
   public ScheduleProtoUtil(
-      GenericWorkflowClient genericClient, ScheduleClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      ScheduleClientOptions clientOptions,
+      DataConverter dataConverter) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
+    this.dataConverter = dataConverter;
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
@@ -70,12 +74,9 @@ public class ScheduleProtoUtil {
     if (action instanceof ScheduleActionStartWorkflow) {
       ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
       DataConverter dataConverterWithWorkflowContext =
-          clientOptions
-              .getDataConverter()
-              .withContext(
-                  new WorkflowSerializationContext(
-                      clientOptions.getNamespace(),
-                      startWorkflowAction.getOptions().getWorkflowId()));
+          dataConverter.withContext(
+              new WorkflowSerializationContext(
+                  clientOptions.getNamespace(), startWorkflowAction.getOptions().getWorkflowId()));
 
       WorkflowOptions wfOptions = startWorkflowAction.getOptions();
       // Disallow some options
@@ -401,7 +402,7 @@ public class ScheduleProtoUtil {
         new ScheduleListSchedule(action, spec, state),
         info,
         entry.getMemo().getFieldsMap(),
-        this.clientOptions.getDataConverter(),
+        dataConverter,
         Collections.unmodifiableMap(SearchAttributesUtil.decode(entry.getSearchAttributes())));
   }
 
@@ -411,11 +412,9 @@ public class ScheduleProtoUtil {
     if (action.hasStartWorkflow()) {
       NewWorkflowExecutionInfo startWfAction = action.getStartWorkflow();
       DataConverter dataConverterWithWorkflowContext =
-          clientOptions
-              .getDataConverter()
-              .withContext(
-                  new WorkflowSerializationContext(
-                      clientOptions.getNamespace(), startWfAction.getWorkflowId()));
+          dataConverter.withContext(
+              new WorkflowSerializationContext(
+                  clientOptions.getNamespace(), startWfAction.getWorkflowId()));
 
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());

@@ -3,6 +3,7 @@ package io.temporal.client.schedules;
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.internal.WorkflowThreadMarker;
@@ -72,10 +73,8 @@ final class ScheduleClientImpl implements ScheduleClient {
     // Set merged plugins after configuration, then build
     builder.setPlugins(mergedPlugins);
     options = builder.build();
-    options =
-        ScheduleClientOptions.newBuilder(options)
-            .setDataConverter(ClientDataConverterFactory.forClient(options.getDataConverter()))
-            .build();
+    DataConverter internalDataConverter =
+        ClientDataConverterFactory.forClient(options.getDataConverter());
 
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
@@ -88,7 +87,7 @@ final class ScheduleClientImpl implements ScheduleClient {
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
-    this.scheduleClientCallsInvoker = initializeClientInvoker();
+    this.scheduleClientCallsInvoker = initializeClientInvoker(internalDataConverter);
   }
 
   private static ScheduleClientPlugin[] extractScheduleClientPlugins(
@@ -105,9 +104,9 @@ final class ScheduleClientImpl implements ScheduleClient {
     return schedulePlugins.toArray(new ScheduleClientPlugin[0]);
   }
 
-  private ScheduleClientCallsInterceptor initializeClientInvoker() {
+  private ScheduleClientCallsInterceptor initializeClientInvoker(DataConverter dataConverter) {
     ScheduleClientCallsInterceptor scheduleClientInvoker =
-        new RootScheduleClientInvoker(genericClient, options);
+        new RootScheduleClientInvoker(genericClient, options, dataConverter);
     for (ScheduleClientInterceptor clientInterceptor : interceptors) {
       scheduleClientInvoker =
           clientInterceptor.scheduleClientCallsInterceptor(scheduleClientInvoker);

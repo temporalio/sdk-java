@@ -9,6 +9,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 import org.junit.Before;
@@ -67,6 +68,20 @@ public class ActivityCompletionClientImplTest {
     }
 
     verify(completionHandle).apply();
+  }
+
+  @Test
+  public void taskTokenHeartbeatUsesSerializationContext() {
+    byte[] taskToken = new byte[] {1, 2, 3};
+    ActivitySerializationContext context =
+        new ActivitySerializationContext(
+            "test-namespace", "workflow-id", "workflow-type", "activity-type", "queue", false);
+    when(factory.getClient(taskToken, scope, context)).thenReturn(manualClient);
+
+    client.withContext(context).heartbeat(taskToken, "details");
+
+    verify(factory).getClient(taskToken, scope, context);
+    verify(manualClient).recordHeartbeat("details");
   }
 
   // completeExceptionally(String activityId, Optional<String> activityRunId, Exception result)

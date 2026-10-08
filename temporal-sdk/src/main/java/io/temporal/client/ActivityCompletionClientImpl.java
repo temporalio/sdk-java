@@ -129,7 +129,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
-    factory.getClient(taskToken, metricsScope).recordHeartbeat(details);
+    factory.getClient(taskToken, metricsScope, serializationContext).recordHeartbeat(details);
   }
 
   @Override

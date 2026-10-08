@@ -49,11 +49,15 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
 
   private final GenericWorkflowClient genericClient;
   private final ActivityClientOptions clientOptions;
+  private final DataConverter dataConverter;
 
   public RootActivityClientInvoker(
-      GenericWorkflowClient genericClient, ActivityClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      ActivityClientOptions clientOptions,
+      DataConverter dataConverter) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
+    this.dataConverter = dataConverter;
   }
 
   @Override
@@ -63,16 +67,14 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throw new IllegalArgumentException("taskQueue must not be null or empty");
     }
     DataConverter dc =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new ActivitySerializationContext(
-                    clientOptions.getNamespace(),
-                    null,
-                    null,
-                    input.getActivityType(),
-                    options.getTaskQueue(),
-                    false));
+        dataConverter.withContext(
+            new ActivitySerializationContext(
+                clientOptions.getNamespace(),
+                null,
+                null,
+                input.getActivityType(),
+                options.getTaskQueue(),
+                false));
 
     InternalNexusOperationContext nexusContext =
         CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
@@ -213,8 +215,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws TimeoutException {
     String namespace = clientOptions.getNamespace();
-    DataConverter dc =
-        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
+    DataConverter dc = dataConverter.withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
@@ -289,8 +290,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
-    DataConverter dc =
-        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
+    DataConverter dc = dataConverter.withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     return pollActivityUntilOutcome(input, deadline)
         .handle(
@@ -394,8 +394,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
     return new DescribeActivityOutput(
-        new ActivityExecutionDescription(
-            response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
+        new ActivityExecutionDescription(response, dataConverter, clientOptions.getNamespace()));
   }
 
   @Override
