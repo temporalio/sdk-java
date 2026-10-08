@@ -1,6 +1,5 @@
 package io.temporal.testing;
 
-import io.temporal.common.Experimental;
 import io.temporal.testing.internal.devserver.TemporalDevServerLauncher;
 import javax.annotation.Nonnull;
 
@@ -16,7 +15,6 @@ import javax.annotation.Nonnull;
  * }
  * }</pre>
  */
-@Experimental
 public final class TemporalDevServer implements AutoCloseable {
   private final String target;
   private final String namespace;

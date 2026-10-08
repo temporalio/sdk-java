@@ -1,6 +1,7 @@
 package io.temporal.internal.payload.visitor.gen;
 
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import java.io.IOException;
@@ -12,10 +13,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -26,7 +25,12 @@ import java.util.TreeMap;
  * google.protobuf.Any}, treated conservatively as payload-bearing), and emits one {@code visit_*}
  * method per such type plus a registry keyed by descriptor full name.
  *
- * <p>Usage: {@code PayloadVisitorGenerator <output-source-root>}.
+ * <p>Descriptors are read from a protoc-emitted descriptor set file rather than from compiled proto
+ * classes, so that this generator does not depend on the compiled output of the module it generates
+ * into. Accessor names derived by the naming rules below are therefore checked by compiling the
+ * generated source rather than by reflection here.
+ *
+ * <p>Usage: {@code PayloadVisitorGenerator <descriptor-set-file> <output-source-root>}.
  */
 public final class PayloadVisitorGenerator {
 
@@ -68,20 +72,28 @@ public final class PayloadVisitorGenerator {
     }
   }
 
+  /** Proto files whose services seed the walk. */
+  static final String WORKFLOW_SERVICE_PROTO = "temporal/api/workflowservice/v1/service.proto";
+
+  static final String OPERATOR_SERVICE_PROTO = "temporal/api/operatorservice/v1/service.proto";
+
   public static void main(String[] args) throws Exception {
-    if (args.length < 1) {
-      throw new IllegalArgumentException("usage: PayloadVisitorGenerator <output-source-root>");
+    if (args.length < 2) {
+      throw new IllegalArgumentException(
+          "usage: PayloadVisitorGenerator <descriptor-set-file> <output-source-root>");
     }
-    new PayloadVisitorGenerator().run(Paths.get(args[0]));
+    new PayloadVisitorGenerator().run(Paths.get(args[0]), Paths.get(args[1]));
   }
 
   private ProtoClosure closure;
 
-  void run(Path outputRoot) throws IOException {
+  void run(Path descriptorSetFile, Path outputRoot)
+      throws IOException, DescriptorValidationException {
+    Map<String, FileDescriptor> files = ProtoDescriptorSets.load(descriptorSetFile);
     List<FileDescriptor> seeds =
         Arrays.asList(
-            io.temporal.api.workflowservice.v1.ServiceProto.getDescriptor(),
-            io.temporal.api.operatorservice.v1.ServiceProto.getDescriptor());
+            ProtoDescriptorSets.require(files, WORKFLOW_SERVICE_PROTO),
+            ProtoDescriptorSets.require(files, OPERATOR_SERVICE_PROTO));
 
     this.closure = ProtoClosure.of(seeds);
 
@@ -92,8 +104,6 @@ public final class PayloadVisitorGenerator {
         emitted.put(d.getFullName(), d);
       }
     }
-
-    verifyAccessors(emitted.values());
 
     String source = emit(emitted);
 
@@ -213,80 +223,8 @@ public final class PayloadVisitorGenerator {
     return javaPackage(d) + "." + String.join(".", names);
   }
 
-  /** Binary class name (nested types joined with {@code $}) for reflective verification. */
-  static String binaryClassName(Descriptor d) {
-    Deque<String> names = new ArrayDeque<>();
-    for (Descriptor c = d; c != null; c = c.getContainingType()) {
-      names.addFirst(c.getName());
-    }
-    return javaPackage(d) + "." + String.join("$", names);
-  }
-
   static String methodName(String full) {
     return "visit_" + full.replace('.', '_');
-  }
-
-  // --- Accessor verification (build-time safety net for the naming rules) ---
-
-  private void verifyAccessors(Iterable<Descriptor> descriptors) {
-    for (Descriptor d : descriptors) {
-      Class<?> builder;
-      try {
-        builder = Class.forName(binaryClassName(d) + "$Builder");
-      } catch (ClassNotFoundException e) {
-        throw new IllegalStateException("no builder class for " + d.getFullName(), e);
-      }
-      Set<String> methods = new HashSet<>();
-      for (java.lang.reflect.Method m : builder.getMethods()) {
-        methods.add(m.getName());
-      }
-      for (FieldDescriptor f : d.getFields()) {
-        for (String required : requiredMethods(classify(f).kind, base(f))) {
-          if (!methods.contains(required)) {
-            throw new IllegalStateException(
-                "expected builder method "
-                    + builder.getName()
-                    + "#"
-                    + required
-                    + " for field "
-                    + d.getFullName()
-                    + "."
-                    + f.getName()
-                    + " ("
-                    + classify(f).kind
-                    + ")");
-          }
-        }
-      }
-    }
-  }
-
-  static List<String> requiredMethods(Kind kind, String base) {
-    switch (kind) {
-      case SINGLE_PAYLOAD:
-        return Arrays.asList("has" + base, "get" + base, "set" + base);
-      case REPEATED_PAYLOAD:
-        return Arrays.asList("get" + base + "List", "clear" + base, "addAll" + base);
-      case PAYLOADS_SINGLE:
-        return Arrays.asList("has" + base, "get" + base, "set" + base);
-      case PAYLOADS_REPEATED:
-        return Arrays.asList("get" + base, "get" + base + "Count", "set" + base);
-      case MAP_PAYLOAD:
-        return Arrays.asList("get" + base + "Map", "put" + base);
-      case MAP_PAYLOADS:
-      case MAP_ANY:
-      case MAP_MESSAGE:
-        return Arrays.asList("get" + base + "Map", "put" + base);
-      case ANY_SINGLE:
-      case MESSAGE_SINGLE:
-        return Arrays.asList("has" + base, "get" + base + "Builder");
-      case ANY_REPEATED:
-      case MESSAGE_REPEATED:
-        return Arrays.asList("get" + base + "BuilderList");
-      case IGNORE:
-        return Arrays.asList();
-    }
-    throw new AssertionError(kind);
   }
 
   // --- Emission ---
