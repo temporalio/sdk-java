@@ -196,16 +196,31 @@ jobs:
           pattern: ${{ format('*-{0}', needs.candidate.outputs.commit) }}
           path: release-inputs
 
+      - name: Publish or draft GitHub release
+        id: github_release
+        env:
+          DRAFT_RELEASE: ${{ vars.DRAFT_RELEASE }}
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_DRAFT_RELEASE: ${{ needs.candidate.outputs.draft_release }}
+          PRERELEASE: ${{ needs.candidate.outputs.prerelease }}
+        run: >-
+          .github/scripts/release.sh publish-github
+          "release-inputs/release-notes-$RELEASE_COMMIT/release-notes.md"
+          "release-inputs/release-assets-$RELEASE_COMMIT"
+
       - name: Set up Java
+        if: steps.github_release.outputs.draft == 'false'
         uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
         with:
           java-version: "23"
           distribution: temurin
 
       - name: Set up Gradle
+        if: steps.github_release.outputs.draft == 'false'
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
       - name: Publish and verify Maven artifacts
+        if: steps.github_release.outputs.draft == 'false'
         env:
           GRADLE_USER_HOME: ${{ runner.temp }}/release-gradle-home
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
@@ -216,14 +231,3 @@ jobs:
           RH_USER: ${{ secrets.RH_USER }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
         run: .github/scripts/release.sh publish-maven
-
-      - name: Publish and verify GitHub release
-        env:
-          DRAFT_RELEASE: ${{ vars.DRAFT_RELEASE }}
-          GH_TOKEN: ${{ github.token }}
-          MANUAL_DRAFT_RELEASE: ${{ needs.candidate.outputs.draft_release }}
-          PRERELEASE: ${{ needs.candidate.outputs.prerelease }}
-        run: >-
-          .github/scripts/release.sh publish-github
-          "release-inputs/release-notes-$RELEASE_COMMIT/release-notes.md"
-          "release-inputs/release-assets-$RELEASE_COMMIT"
