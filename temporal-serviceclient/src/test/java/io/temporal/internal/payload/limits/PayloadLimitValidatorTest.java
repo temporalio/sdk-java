@@ -284,8 +284,7 @@ public class PayloadLimitValidatorTest {
 
   @Test
   public void visitsProtocolMessageBody() {
-    // Message.body is a google.protobuf.Any reached because Message is a forced whole-message leaf
-    // and the parent recurses into `messages`.
+    // Message.body is a google.protobuf.Any, which is measured as a whole message like a Failure.
     RespondWorkflowTaskCompletedRequest req =
         RespondWorkflowTaskCompletedRequest.newBuilder()
             .addMessages(Message.newBuilder().setBody(Any.getDefaultInstance()))

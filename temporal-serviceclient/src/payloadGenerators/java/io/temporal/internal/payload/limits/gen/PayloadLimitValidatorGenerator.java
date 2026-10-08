@@ -55,6 +55,7 @@ public final class PayloadLimitValidatorGenerator {
   static final String HEADER = "temporal.api.common.v1.Header";
   static final String SEARCH_ATTRIBUTES = "temporal.api.common.v1.SearchAttributes";
   static final String FAILURE = "temporal.api.failure.v1.Failure";
+  static final String ANY = "google.protobuf.Any";
 
   static final String OUTPUT_PACKAGE = "io.temporal.internal.payload.limits";
   static final String OUTPUT_CLASS = "GeneratedPayloadLimitValidator";
@@ -62,22 +63,13 @@ public final class PayloadLimitValidatorGenerator {
   /**
    * Types the walk stops at: it emits a table-driven leaf check at the holding field rather than
    * descending into their inner payload fields. {@code Failure} is measured as a whole proto
-   * because that is how the server size-checks it (e.g. FailWorkflowExecution).
+   * because that is how the server size-checks it (e.g. FailWorkflowExecution). {@code Any} is
+   * measured whole too: its contents are opaque here and may hold payloads, so every {@code Any}
+   * field has to be classified like any other payload-bearing field.
    */
   static final Set<String> TERMINAL_LEAVES =
-      new HashSet<>(Arrays.asList(PAYLOAD, PAYLOADS, MEMO, HEADER, SEARCH_ATTRIBUTES, FAILURE));
-
-  /**
-   * Field paths the server size-checks as a whole serialized sub-message even though the field is
-   * not itself payload-bearing (so payload reachability never reaches them). Measured via whole-
-   * message size, classified via the table like any other leaf; the owning message is forced into
-   * the closure so parents recurse into it.
-   */
-  static final String[] EXTRA_WHOLE_MESSAGE_LEAVES = {
-    // protocol Message body (google.protobuf.Any): the server blob-checks proto.Size(message.Body)
-    // when processing update messages and fails the WFT on exceed.
-    "temporal.api.protocol.v1.Message.body",
-  };
+      new HashSet<>(
+          Arrays.asList(PAYLOAD, PAYLOADS, MEMO, HEADER, SEARCH_ATTRIBUTES, FAILURE, ANY));
 
   // ===========================================================================
   // Payload-limits decision tables — the source of truth for how the SDK mirrors the server's
@@ -102,7 +94,9 @@ public final class PayloadLimitValidatorGenerator {
     "temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes.input",
     "temporal.api.command.v1.StartChildWorkflowExecutionCommandAttributes.input",
     "temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttributes.search_attributes", // indexed_fields data-sum
-    "temporal.api.protocol.v1.Message.body", // whole Any body; see EXTRA_WHOLE_MESSAGE_LEAVES
+    // Whole Any body: the server blob-checks proto.Size(message.Body) when processing update
+    // messages and fails the workflow task when it's exceeded.
+    "temporal.api.protocol.v1.Message.body",
     "temporal.api.query.v1.WorkflowQuery.query_args",
     "temporal.api.workflow.v1.NewWorkflowExecutionInfo.input",
     "temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest.details",
@@ -301,7 +295,6 @@ public final class PayloadLimitValidatorGenerator {
   private final Map<String, FieldPolicy> table = loadTable();
   private final Set<String> usedKeys = new HashSet<>();
   private final Set<String> unclassified = new TreeSet<>();
-  private final Set<String> extraLeafOwners = new HashSet<>();
 
   /**
    * Full names of the messages that can produce at least one check; see {@link #validatingClosure}.
@@ -316,11 +309,6 @@ public final class PayloadLimitValidatorGenerator {
             ProtoDescriptorSets.require(files, WORKFLOW_SERVICE_PROTO),
             ProtoDescriptorSets.require(files, OPERATOR_SERVICE_PROTO));
     this.closure = ProtoClosure.of(seeds);
-
-    for (String path : EXTRA_WHOLE_MESSAGE_LEAVES) {
-      int dot = path.lastIndexOf('.');
-      extraLeafOwners.add(path.substring(0, dot));
-    }
 
     // Roots: the RPC input (request) message of every method of the seed services.
     Set<Descriptor> roots = new LinkedHashSet<>();
@@ -416,11 +404,9 @@ public final class PayloadLimitValidatorGenerator {
 
   // --- Reachability + classification -----------------------------------------
 
-  /**
-   * Whether {@code d} is part of the validated closure (payload-reachable or an extra-leaf owner).
-   */
+  /** Whether {@code d} is part of the validated closure, i.e. can transitively hold a payload. */
   private boolean included(Descriptor d) {
-    return closure.reaches(d) || extraLeafOwners.contains(d.getFullName());
+    return closure.reaches(d);
   }
 
   /**
@@ -463,6 +449,15 @@ public final class PayloadLimitValidatorGenerator {
       if (PAYLOADS.equals(name)) {
         return Target.leaf(LeafKind.MAP_PAYLOADS);
       }
+      if (ANY.equals(name)) {
+        // No map of Any exists today, so there is no measurement for one; skipping it would let
+        // an opaque, possibly payload-bearing field go unclassified.
+        throw new IllegalStateException(
+            "payload-limits: map field `"
+                + f.getFullName()
+                + "` holds google.protobuf.Any values, which the generator cannot measure yet; add a"
+                + " LeafKind for it to PayloadLimitValidatorGenerator");
+      }
       if (ProtoNames.isTemporal(value.getMessageType())) {
         return Target.struct(StructShape.MAP, value.getMessageType());
       }
@@ -502,7 +497,7 @@ public final class PayloadLimitValidatorGenerator {
     if (SEARCH_ATTRIBUTES.equals(typeName)) {
       return LeafKind.SINGLE_SEARCH_ATTRIBUTES;
     }
-    if (FAILURE.equals(typeName)) {
+    if (FAILURE.equals(typeName) || ANY.equals(typeName)) {
       return repeated ? LeafKind.REPEATED_WHOLE_MESSAGE : LeafKind.WHOLE_MESSAGE;
     }
     return null;
@@ -537,30 +532,13 @@ public final class PayloadLimitValidatorGenerator {
     }
   }
 
-  /** Every measured leaf of {@code d}, in emission order: terminal leaves, then forced extras. */
+  /** Every measured leaf of {@code d}, in field order. */
   private List<Leaf> leavesOf(Descriptor d) {
     List<Leaf> leaves = new ArrayList<>();
     for (FieldDescriptor f : d.getFields()) {
       Target t = classify(f);
       if (t.leaf != null) {
         leaves.add(new Leaf(f, t.leaf));
-      }
-    }
-    leaves.addAll(extraLeavesOf(d));
-    return leaves;
-  }
-
-  /** The {@link #EXTRA_WHOLE_MESSAGE_LEAVES} entries owned by {@code d}. */
-  private List<Leaf> extraLeavesOf(Descriptor d) {
-    List<Leaf> leaves = new ArrayList<>();
-    for (String path : EXTRA_WHOLE_MESSAGE_LEAVES) {
-      int dot = path.lastIndexOf('.');
-      if (!path.substring(0, dot).equals(d.getFullName())) {
-        continue;
-      }
-      FieldDescriptor f = d.findFieldByName(path.substring(dot + 1));
-      if (f != null) {
-        leaves.add(new Leaf(f, LeafKind.WHOLE_MESSAGE));
       }
     }
     return leaves;
@@ -693,10 +671,6 @@ public final class PayloadLimitValidatorGenerator {
           && validating.contains(t.child.getFullName())) {
         emitStruct(sb, f, t.structShape, t.child, fi++);
       }
-    }
-    // Extra whole-message leaves whose owner is this message.
-    for (Leaf leaf : extraLeavesOf(d)) {
-      emitLeaf(sb, d.getFullName(), leaf.field, leaf.kind);
     }
     sb.append("  }\n\n");
   }
