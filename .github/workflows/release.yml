@@ -179,7 +179,6 @@ jobs:
       actions: read
       contents: write
     env:
-      GRADLE_USER_HOME: ${{ runner.temp }}/release-gradle-home
       RELEASE_COMMIT: ${{ needs.candidate.outputs.commit }}
       RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
       RELEASE_VERSION: ${{ needs.candidate.outputs.version }}
@@ -208,6 +207,7 @@ jobs:
 
       - name: Publish and verify Maven artifacts
         env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/release-gradle-home
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
           KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
           KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
