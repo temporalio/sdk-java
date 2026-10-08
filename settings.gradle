@@ -9,6 +9,7 @@ project(':temporal-opentracing').projectDir = file('contrib/temporal-opentracing
 include 'temporal-opentelemetry'
 project(':temporal-opentelemetry').projectDir = file('contrib/temporal-opentelemetry')
 include 'temporal-kotlin'
+// Retained for the one-time relocation POM; implementation lives in ai-integrations.
 include 'temporal-spring-ai'
 project(':temporal-spring-ai').projectDir = file('contrib/temporal-spring-ai')
 include 'temporal-workflowstreams'

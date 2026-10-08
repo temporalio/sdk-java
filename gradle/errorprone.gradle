@@ -1,4 +1,7 @@
 subprojects {
+    if (!plugins.hasPlugin('java')) {
+        return
+    }
     //https://github.com/tbroyer/gradle-errorprone-plugin
     apply plugin: 'net.ltgt.errorprone'
 
