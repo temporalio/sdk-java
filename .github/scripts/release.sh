@@ -57,12 +57,9 @@ candidate() {
   local base dispatch_head draft_release existing release_commit tag version
 
   if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
-    require DEFAULT_BRANCH
     require MANUAL_DRAFT_RELEASE
     require MANUAL_REF
     require MANUAL_VERSION
-    [[ "$MANUAL_REF" == "$DEFAULT_BRANCH" ]] \
-      || fail "Manual releases must run from $DEFAULT_BRANCH."
     [[ "$MANUAL_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?$ ]] \
       || fail "Manual release version must look like 1.2.3 or 1.2.3-RC1."
     case "$MANUAL_DRAFT_RELEASE" in
@@ -75,7 +72,7 @@ candidate() {
     release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
       -S"## [$MANUAL_VERSION]" "$dispatch_head" -- CHANGELOG.md)
     [[ -n "$release_commit" ]] \
-      || fail "Version $MANUAL_VERSION was not introduced on $DEFAULT_BRANCH."
+      || fail "Version $MANUAL_VERSION was not introduced on $MANUAL_REF."
     BASE_SHA=$(git rev-parse --verify "$release_commit^1")
     HEAD_SHA=$release_commit
   else
@@ -87,8 +84,13 @@ candidate() {
   fi
   base=$(git rev-parse --verify "$BASE_SHA^{commit}")
   head=$(git rev-parse --verify "$HEAD_SHA^{commit}")
-  git merge-base --is-ancestor "$base" "$head" \
-    || fail "The base commit must be an ancestor of the release commit."
+  if [[ "$EVENT_NAME" == pull_request ]]; then
+    base=$(git merge-base "$base" "$head") \
+      || fail "The pull request branches must have a common ancestor."
+  else
+    git merge-base --is-ancestor "$base" "$head" \
+      || fail "The base commit must be an ancestor of the release commit."
+  fi
 
   mapfile -t base_versions < <(changelog_versions "$base")
   mapfile -t head_versions < <(changelog_versions "$head")

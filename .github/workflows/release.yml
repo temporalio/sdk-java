@@ -18,7 +18,7 @@ on:
         required: true
         type: string
       draft_release:
-        description: Hold the GitHub Release as a draft after publishing Maven artifacts
+        description: Hold the GitHub Release as a draft and leave Maven unpublished
         required: true
         default: true
         type: boolean
@@ -48,7 +48,6 @@ jobs:
         id: metadata
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           EVENT_NAME: ${{ github.event_name }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           MANUAL_DRAFT_RELEASE: ${{ inputs.draft_release }}

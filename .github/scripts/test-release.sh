@@ -26,6 +26,24 @@ base=$(git -C "$repository" rev-parse HEAD)
 )
 grep -Fxq 'release=false' "$temporary_directory/no-release-output"
 
+git -C "$repository" switch -qc feature
+printf '# Changelog\n\n## [Unreleased]\n\n### Fixed\n- Fixed it.\n- Fixed on the feature branch.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam feature
+feature=$(git -C "$repository" rev-parse HEAD)
+git -C "$repository" switch -q -
+printf 'The target branch advanced.\n' > "$repository/README.md"
+git -C "$repository" add README.md
+git -C "$repository" commit -qm advance
+target=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$target" HEAD_SHA="$feature" EVENT_NAME=pull_request \
+    GITHUB_OUTPUT="$temporary_directory/divergent-output" \
+    "$release_script" candidate "$temporary_directory/divergent-notes"
+)
+grep -Fxq 'release=false' "$temporary_directory/divergent-output"
+
 printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-03\n\n### Fixed\n- Fixed it.\n' \
   > "$repository/CHANGELOG.md"
 git -C "$repository" commit -qam release
@@ -43,10 +61,11 @@ printf 'Later change.\n' > "$repository/README.md"
 git -C "$repository" add README.md
 git -C "$repository" commit -qm later
 later=$(git -C "$repository" rev-parse HEAD)
+git -C "$repository" branch releases/1.41.x "$later"
 (
   cd "$repository"
-  DEFAULT_BRANCH=main EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
-    MANUAL_DRAFT_RELEASE=true MANUAL_REF=main MANUAL_VERSION=1.41.0 \
+  EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+    MANUAL_DRAFT_RELEASE=true MANUAL_REF=releases/1.41.x MANUAL_VERSION=1.41.0 \
     GITHUB_OUTPUT="$temporary_directory/manual-output" \
     "$release_script" candidate "$temporary_directory/manual-notes"
 )
@@ -56,7 +75,7 @@ grep -Fxq 'draft_release=1' "$temporary_directory/manual-output"
 diff -q "$temporary_directory/notes" "$temporary_directory/manual-notes"
 (
   cd "$repository"
-  DEFAULT_BRANCH=main EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+  EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
     MANUAL_DRAFT_RELEASE=false MANUAL_REF=main MANUAL_VERSION=1.41.0 \
     GITHUB_OUTPUT="$temporary_directory/manual-public-output" \
     "$release_script" candidate "$temporary_directory/manual-public-notes"

@@ -39,13 +39,14 @@ An ordinary pull request that only adds entries beneath `[Unreleased]` runs the
 candidate check but does not start a release.
 
 To run an existing release candidate manually, open the **Release** workflow,
-select **Run workflow** on `main`, enter the version without its leading `v`,
-and choose whether to hold the GitHub Release as a draft. The version must
-already have a versioned `CHANGELOG.md` section. The workflow finds the exact
-first-parent commit that introduced that section and runs it through the same
-validation, build, approval, and publication jobs as an automatic release.
-The manual draft selection overrides `DRAFT_RELEASE` for that run. Maven is
-published only after the GitHub release is public.
+select **Run workflow** on `main` or a supported backport branch, enter the
+version without its leading `v`, and choose whether to hold the GitHub Release
+as a draft. The version must already have a versioned `CHANGELOG.md` section.
+The workflow finds the exact first-parent commit on the selected branch that
+introduced that section and runs it through the same validation, build,
+approval, and publication jobs as an automatic release. The manual draft
+selection overrides `DRAFT_RELEASE` for that run. Maven is published only after
+the GitHub release is public.
 
 Maintainers can check the release scripts locally with
 `.github/scripts/test-release.sh`.
@@ -55,8 +56,11 @@ Maintainers can check the release scripts locally with
 Configure the existing `release-publication` environment with required
 reviewers. GitHub permits up to six users or teams with repository read access,
 and one listed reviewer must approve. Preventing self-review is recommended.
-Keep its deployment branch policy restricted to `main` and make these secrets
-available to the workflow, preferably as environment secrets:
+Restrict its deployment branch policy to `main` and the supported backport
+patterns `releases/*`, `v*.*.x`, `*.*.x`, and `release_*_*_x`. Add an explicit
+pattern for each additional slash-separated level used below `releases/`.
+Make these secrets available to the workflow, preferably as environment
+secrets:
 
 - `JAR_SIGNING_KEY`
 - `JAR_SIGNING_KEY_ID`
