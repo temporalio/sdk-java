@@ -41,6 +41,8 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
+  and backoff coefficients until validation or annotation merging supplies them.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 
