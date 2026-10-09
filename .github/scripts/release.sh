@@ -63,6 +63,16 @@ changelog_heading() {
   changelog_section "$1" "$2" true | sed -n '1p'
 }
 
+# Finds the first-parent commit that added an exact heading line.
+changelog_heading_commit() {
+  local head=$1
+  local heading=$2
+  local pattern
+
+  pattern=$(printf '%s\n' "$heading" | sed 's/[][\\.^$*+?(){}|]/\\&/g')
+  git log -1 --first-parent --format=%H -G"^$pattern$" "$head" -- CHANGELOG.md
+}
+
 # Rejects malformed or repeated semantic-version headings at a commit.
 validate_version_headings() {
   local commit=$1
@@ -127,8 +137,7 @@ candidate() {
     heading=$(changelog_heading "$dispatch_head" "$MANUAL_VERSION")
     [[ -n "$heading" ]] \
       || fail "Version $MANUAL_VERSION was not found on $MANUAL_REF."
-    release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
-      -S"$heading" "$dispatch_head" -- CHANGELOG.md)
+    release_commit=$(changelog_heading_commit "$dispatch_head" "$heading")
     [[ -n "$release_commit" ]] \
       || fail "Version $MANUAL_VERSION was not introduced on $MANUAL_REF."
     BASE_SHA=$(git rev-parse --verify "$release_commit^1")
@@ -164,8 +173,7 @@ candidate() {
       || fail "Release notes for $version changed after commit $head."
   elif [[ "$EVENT_NAME" == push ]]; then
     heading=$(changelog_heading "$head" "$version")
-    release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
-      -S"$heading" "$head" -- CHANGELOG.md)
+    release_commit=$(changelog_heading_commit "$head" "$heading")
     [[ -n "$release_commit" ]] \
       || fail "The commit that introduced version $version was not found."
     git merge-base --is-ancestor "$base" "$release_commit" \

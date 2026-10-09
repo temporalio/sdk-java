@@ -88,6 +88,8 @@ if (cd "$repository" && BASE_SHA="$base" HEAD_SHA="$head" EVENT_NAME=push \
   exit 1
 fi
 git -C "$repository" tag -d v1.41.0 >/dev/null
+printf '# Changelog\n\n## [Unreleased]\n\nReference: `## [1.41.0] - 2026-10-03`\n\n## [1.41.0] - 2026-10-03\n\n### Fixed\n- Fixed it.\n' \
+  > "$repository/CHANGELOG.md"
 printf 'Later change.\n' > "$repository/README.md"
 git -C "$repository" add README.md
 git -C "$repository" commit -qm later
