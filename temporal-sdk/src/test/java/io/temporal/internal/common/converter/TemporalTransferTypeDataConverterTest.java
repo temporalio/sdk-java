@@ -221,6 +221,30 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   @Test
+  public void mismatchedConverterResultFailsAtTheArrayDecodeBoundary() {
+    Payload payload = DefaultDataConverter.newDefaultInstance().toPayload("value").get();
+    Optional<Payloads> payloads = Optional.of(Payloads.newBuilder().addPayloads(payload).build());
+
+    assertMismatchedResult(
+        assertThrows(
+            DataConverterException.class,
+            () -> converter.fromPayload(payload, MismatchedModel.class, MismatchedModel.class)));
+    assertMismatchedResult(
+        assertThrows(
+            DataConverterException.class,
+            () ->
+                converter.fromPayloads(0, payloads, MismatchedModel.class, MismatchedModel.class)));
+    assertMismatchedResult(
+        assertThrows(
+            DataConverterException.class,
+            () ->
+                converter.fromPayloads(
+                    payloads,
+                    new Class<?>[] {MismatchedModel.class},
+                    new Type[] {MismatchedModel.class})));
+  }
+
+  @Test
   public void callbackFailuresPropagateUnchanged() {
     CallbackException expected =
         assertThrows(CallbackException.class, () -> converter.toPayload(new FailingModel()));
@@ -252,6 +276,12 @@ public class TemporalTransferTypeDataConverterTest {
             DataConverterException.class,
             () -> converter.toPayload(modelClass.getDeclaredConstructor().newInstance()));
     assertTrue(exception.getMessage().contains(modelClass.getName()));
+  }
+
+  private void assertMismatchedResult(DataConverterException exception) {
+    assertTrue(exception.getMessage().contains(MismatchedConverter.class.getName()));
+    assertTrue(exception.getMessage().contains(MismatchedModel.class.getName()));
+    assertTrue(exception.getMessage().contains(String.class.getName()));
   }
 
   @TransferTypeConvertible(ModelConverter.class)
@@ -503,6 +533,28 @@ public class TemporalTransferTypeDataConverterTest {
     @Override
     public NullTransferModel fromTransferType(Object value, Type valueType) {
       return new NullTransferModel();
+    }
+  }
+
+  @TransferTypeConvertible(MismatchedConverter.class)
+  public static final class MismatchedModel {}
+
+  public static final class MismatchedConverter implements TransferTypeConverter<String> {
+    public MismatchedConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      return String.class;
+    }
+
+    @Override
+    public Object toTransferType(String value) {
+      return value;
+    }
+
+    @Override
+    public String fromTransferType(Object value, Type valueType) {
+      return (String) value;
     }
   }
 

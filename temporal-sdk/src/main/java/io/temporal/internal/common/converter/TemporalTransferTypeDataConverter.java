@@ -72,8 +72,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     Type requestedType = requestedType(valueClass, valueType);
     TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayload(payload, transfer.rawType, transfer.type);
-    // Prevent a converter from returning a value that cannot be passed to the requested model type.
-    return valueClass.cast(fromTransferValue(value, descriptor, requestedType));
+    return fromTransferValue(value, descriptor, requestedType, valueClass);
   }
 
   @Override
@@ -87,8 +86,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     Type requestedType = requestedType(valueClass, valueType);
     TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayloads(index, content, transfer.rawType, transfer.type);
-    // Prevent a converter from returning a value that cannot be passed to the requested model type.
-    return valueClass.cast(fromTransferValue(value, descriptor, requestedType));
+    return fromTransferValue(value, descriptor, requestedType, valueClass);
   }
 
   @Override
@@ -128,7 +126,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     for (int i = 0; i < values.length && i < payloadCount; i++) {
       if (descriptors[i] != null) {
         Type requestedType = requestedType(parameterTypes[i], genericParameterTypes[i]);
-        values[i] = fromTransferValue(values[i], descriptors[i], requestedType);
+        values[i] = fromTransferValue(values[i], descriptors[i], requestedType, parameterTypes[i]);
       }
     }
     return values;
@@ -160,9 +158,21 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     return descriptor == null ? value : descriptor.converter().toTransferType(value);
   }
 
-  private static Object fromTransferValue(
-      Object value, ConverterDescriptor descriptor, Type valueType) {
-    return descriptor.converter().fromTransferType(value, valueType);
+  private static <T> T fromTransferValue(
+      Object value, ConverterDescriptor descriptor, Type valueType, Class<T> valueClass) {
+    Object result = descriptor.converter().fromTransferType(value, valueType);
+    if (result != null && !valueClass.isInstance(result)) {
+      throw new DataConverterException(
+          "Transfer type converter "
+              + descriptor.converterClass.getName()
+              + " declared by "
+              + descriptor.modelClass.getName()
+              + " returned "
+              + result.getClass().getName()
+              + " instead of "
+              + valueClass.getName());
+    }
+    return valueClass.cast(result);
   }
 
   private static Type requestedType(Class<?> valueClass, Type valueType) {
