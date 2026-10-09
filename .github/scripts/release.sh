@@ -29,10 +29,19 @@ changelog_versions() {
     | sort
 }
 
+# Lists every semantic-version token used in a level-two heading.
+changelog_version_tokens() {
+  git show "$1:CHANGELOG.md" \
+    | sed -nE 's/^## \[([0-9]+\.[0-9]+\.[0-9]+(-RC[0-9]+)?)\].*$/\1/p' \
+    | sort
+}
+
 # Extracts one version's changelog section at a given commit.
 changelog_section() {
-  git show "$1:CHANGELOG.md" | awk -v heading="## [$2]" -v include="${3:-false}" '
+  git show "$1:CHANGELOG.md" | awk -v heading="## [$2] - " -v include="${3:-false}" '
     !seen && index($0, heading) == 1 {
+      date = substr($0, length(heading) + 1)
+      if (date !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) next
       seen = 1
       capture = 1
       if (include == "true") lines[++count] = $0
@@ -54,14 +63,16 @@ changelog_transition() {
   local base=$1
   local head=$2
   local duplicate version
-  local -a added base_versions head_versions
+  local -a added base_tokens base_versions head_tokens head_versions
 
   mapfile -t base_versions < <(changelog_versions "$base")
   mapfile -t head_versions < <(changelog_versions "$head")
-  duplicate=$(printf '%s\n' "${base_versions[@]}" | uniq -d | sed -n '1p')
+  mapfile -t base_tokens < <(changelog_version_tokens "$base")
+  mapfile -t head_tokens < <(changelog_version_tokens "$head")
+  duplicate=$(printf '%s\n' "${base_tokens[@]}" | uniq -d | sed -n '1p')
   [[ -z "$duplicate" ]] \
     || fail "Changelog version $duplicate appears more than once at $base."
-  duplicate=$(printf '%s\n' "${head_versions[@]}" | uniq -d | sed -n '1p')
+  duplicate=$(printf '%s\n' "${head_tokens[@]}" | uniq -d | sed -n '1p')
   [[ -z "$duplicate" ]] \
     || fail "Changelog version $duplicate appears more than once at $head."
   for version in "${base_versions[@]}"; do
