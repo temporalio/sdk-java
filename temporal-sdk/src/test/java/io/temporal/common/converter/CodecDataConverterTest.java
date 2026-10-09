@@ -10,6 +10,7 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.codec.PayloadCodecException;
 import java.util.Collections;
@@ -107,6 +108,22 @@ public class CodecDataConverterTest {
     assertEquals("test", decodedDetailsPayloads.get(0, String.class, String.class));
     assertEquals((Integer) 123, decodedDetailsPayloads.get(1, Integer.class, Integer.class));
     assertArrayEquals(new int[] {1, 2, 3}, decodedDetailsPayloads.get(2, int[].class, int[].class));
+  }
+
+  @Test
+  public void transferTypeFailureDetailsAreEncodedOnce() {
+    DataConverter transferAware = TemporalTransferTypeDataConverter.wrap(dataConverter);
+    Failure failure =
+        transferAware.exceptionToFailure(
+            ApplicationFailure.newFailure("Message", "Type", new TransferTypeTestModel("detail")));
+
+    Payload detail = failure.getApplicationFailureInfo().getDetails().getPayloads(0);
+    assertTrue(isEncoded(detail));
+    ApplicationFailure restored = (ApplicationFailure) transferAware.failureToException(failure);
+    TransferTypeTestModel model = restored.getDetails().get(0, TransferTypeTestModel.class);
+    assertEquals("detail", model.value());
+    assertTrue(model.wasTransferred());
+    assertEquals("Message", restored.getOriginalMessage());
   }
 
   @Test

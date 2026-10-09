@@ -11,6 +11,7 @@ import io.temporal.api.schedule.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.ListScheduleListDescriptionIterator;
 import io.temporal.client.schedules.*;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -26,14 +27,18 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   private final GenericWorkflowClient genericClient;
 
   private final ScheduleClientOptions clientOptions;
+  private final DataConverter dataConverter;
 
   private final ScheduleProtoUtil scheduleRequestHeader;
 
   public RootScheduleClientInvoker(
-      GenericWorkflowClient genericClient, ScheduleClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      ScheduleClientOptions clientOptions,
+      DataConverter dataConverter) {
     this.genericClient = genericClient;
     this.clientOptions = clientOptions;
-    this.scheduleRequestHeader = new ScheduleProtoUtil(genericClient, clientOptions);
+    this.dataConverter = dataConverter;
+    this.scheduleRequestHeader = new ScheduleProtoUtil(genericClient, clientOptions, dataConverter);
   }
 
   @Override
@@ -52,8 +57,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       // TODO we don't have a workflow context here, maybe we need a schedule context?
       request.setMemo(
           Memo.newBuilder()
-              .putAllFields(
-                  intoPayloadMap(clientOptions.getDataConverter(), input.getOptions().getMemo())));
+              .putAllFields(intoPayloadMap(dataConverter, input.getOptions().getMemo())));
     }
 
     if (input.getOptions().getSearchAttributes() != null
@@ -187,7 +191,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
                   SearchAttributesUtil.decode(response.getSearchAttributes())),
               SearchAttributesUtil.decodeTyped(response.getSearchAttributes()),
               response.getMemo().getFieldsMap(),
-              clientOptions.getDataConverter()));
+              dataConverter));
     } catch (Exception e) {
       throw new ScheduleException(e);
     }

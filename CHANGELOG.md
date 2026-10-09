@@ -20,6 +20,11 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### Added
+- Applications can use the experimental `@TransferTypeConvertible` annotation and
+  `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
+  applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
+  details. `WorkflowClient.getOptions().getDataConverter()` returns the transfer-aware converter
+  that the client uses.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`

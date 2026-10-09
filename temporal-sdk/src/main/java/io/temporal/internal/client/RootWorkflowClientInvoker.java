@@ -57,7 +57,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final QueryRejectCondition queryRejectCondition;
   private final EagerWorkflowTaskDispatcher eagerWorkflowTaskDispatcher;
   private final WorkflowClientRequestFactory requestsHelper;
-  private final WorkflowClientDataConverterFactory converterFactory;
+  private final ClientDataConverterFactory converterFactory;
   private final @Nullable ExternalStorageRunner externalStorage;
 
   public RootWorkflowClientInvoker(
@@ -72,7 +72,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       WorkflowClientOptions clientOptions,
       WorkerFactoryRegistry workerFactoryRegistry,
       @Nullable ExternalStorageRunner externalStorage) {
-    this.converterFactory = new WorkflowClientDataConverterFactory(clientOptions, externalStorage);
+    this.converterFactory = new ClientDataConverterFactory(clientOptions, externalStorage);
     this.externalStorage = externalStorage;
     this.genericClient = genericClient;
     this.namespace = clientOptions.getNamespace();
