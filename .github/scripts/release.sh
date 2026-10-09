@@ -58,23 +58,37 @@ changelog_section() {
   '
 }
 
+# Prints one version's exact dated heading at a given commit.
+changelog_heading() {
+  changelog_section "$1" "$2" true | sed -n '1p'
+}
+
+# Rejects malformed or repeated semantic-version headings at a commit.
+validate_version_headings() {
+  local commit=$1
+  local duplicate
+  local -a tokens versions
+
+  mapfile -t tokens < <(changelog_version_tokens "$commit")
+  mapfile -t versions < <(changelog_versions "$commit")
+  diff -q <(printf '%s\n' "${tokens[@]}") \
+    <(printf '%s\n' "${versions[@]}") >/dev/null \
+    || fail "Version headings at $commit must use ## [X.Y.Z] - YYYY-MM-DD."
+  duplicate=$(printf '%s\n' "${tokens[@]}" | uniq -d | sed -n '1p')
+  [[ -z "$duplicate" ]] \
+    || fail "Changelog version $duplicate appears more than once at $commit."
+}
+
 # Validates a changelog transition and prints its newly added version, if any.
 changelog_transition() {
   local base=$1
   local head=$2
-  local duplicate version
-  local -a added base_tokens base_versions head_tokens head_versions
+  local version
+  local -a added base_versions head_versions
 
+  validate_version_headings "$head"
   mapfile -t base_versions < <(changelog_versions "$base")
   mapfile -t head_versions < <(changelog_versions "$head")
-  mapfile -t base_tokens < <(changelog_version_tokens "$base")
-  mapfile -t head_tokens < <(changelog_version_tokens "$head")
-  duplicate=$(printf '%s\n' "${base_tokens[@]}" | uniq -d | sed -n '1p')
-  [[ -z "$duplicate" ]] \
-    || fail "Changelog version $duplicate appears more than once at $base."
-  duplicate=$(printf '%s\n' "${head_tokens[@]}" | uniq -d | sed -n '1p')
-  [[ -z "$duplicate" ]] \
-    || fail "Changelog version $duplicate appears more than once at $head."
   for version in "${base_versions[@]}"; do
     diff -q <(changelog_section "$base" "$version" true) \
       <(changelog_section "$head" "$version" true) >/dev/null \
@@ -94,7 +108,7 @@ candidate() {
   require EVENT_NAME
   require HEAD_SHA
   local notes=${1:?Release notes output path is required.}
-  local base dispatch_head draft_release existing release_base release_commit tag version
+  local base dispatch_head draft_release existing heading release_base release_commit tag version
 
   if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
     require MANUAL_DRAFT_RELEASE
@@ -109,8 +123,12 @@ candidate() {
     esac
 
     dispatch_head=$(git rev-parse --verify "$HEAD_SHA^{commit}")
+    validate_version_headings "$dispatch_head"
+    heading=$(changelog_heading "$dispatch_head" "$MANUAL_VERSION")
+    [[ -n "$heading" ]] \
+      || fail "Version $MANUAL_VERSION was not found on $MANUAL_REF."
     release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
-      -S"## [$MANUAL_VERSION]" "$dispatch_head" -- CHANGELOG.md)
+      -S"$heading" "$dispatch_head" -- CHANGELOG.md)
     [[ -n "$release_commit" ]] \
       || fail "Version $MANUAL_VERSION was not introduced on $MANUAL_REF."
     BASE_SHA=$(git rev-parse --verify "$release_commit^1")
@@ -145,8 +163,9 @@ candidate() {
       <(changelog_section "$dispatch_head" "$version" true) >/dev/null \
       || fail "Release notes for $version changed after commit $head."
   elif [[ "$EVENT_NAME" == push ]]; then
+    heading=$(changelog_heading "$head" "$version")
     release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
-      -S"## [$version]" "$head" -- CHANGELOG.md)
+      -S"$heading" "$head" -- CHANGELOG.md)
     [[ -n "$release_commit" ]] \
       || fail "The commit that introduced version $version was not found."
     git merge-base --is-ancestor "$base" "$release_commit" \

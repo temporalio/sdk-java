@@ -45,15 +45,27 @@ target=$(git -C "$repository" rev-parse HEAD)
 grep -Fxq 'release=false' "$temporary_directory/divergent-output"
 
 git -C "$repository" switch -qc malformed
-printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - TBD\n\nWrong notes.\n\n## [1.41.0] - 2026-10-03\n\nCorrect notes.\n' \
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - TBD\n\nWrong notes.\n' \
   > "$repository/CHANGELOG.md"
 git -C "$repository" commit -qam malformed
 malformed=$(git -C "$repository" rev-parse HEAD)
 if (cd "$repository" && BASE_SHA="$target" HEAD_SHA="$malformed" EVENT_NAME=pull_request \
   "$release_script" candidate "$temporary_directory/malformed-notes" 2>/dev/null); then
-  echo "Malformed duplicate release headings must be rejected." >&2
+  echo "Malformed release headings must be rejected." >&2
   exit 1
 fi
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-03\n\nCorrect notes.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam corrected
+corrected=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$malformed" HEAD_SHA="$corrected" EVENT_NAME=push \
+    GITHUB_OUTPUT="$temporary_directory/corrected-output" \
+    "$release_script" candidate "$temporary_directory/corrected-notes"
+)
+grep -Fxq "commit=$corrected" "$temporary_directory/corrected-output"
+grep -Fxq 'Correct notes.' "$temporary_directory/corrected-notes"
 git -C "$repository" switch -q -
 
 printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-03\n\n### Fixed\n- Fixed it.\n' \
