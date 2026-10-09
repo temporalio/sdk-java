@@ -41,6 +41,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Spring Boot now drains root and non-root workers during application context shutdown, including
+  SIGINT and SIGTERM, within `spring.lifecycle.timeout-per-shutdown-phase`. Closing a child context
+  no longer shuts down its parent's non-root workers.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 

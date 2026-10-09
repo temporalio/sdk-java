@@ -14,6 +14,7 @@ import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import io.temporal.spring.boot.autoconfigure.internal.WorkerFactoryLifecycle;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
 import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import io.temporal.spring.boot.autoconfigure.template.NamespaceTemplate;
@@ -42,6 +43,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationListener;
+import org.springframework.context.SmartLifecycle;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.DependsOn;
@@ -202,11 +204,17 @@ public class RootNamespaceAutoConfiguration {
   }
 
   @Primary
-  @Bean(name = "temporalWorkerFactory", destroyMethod = "shutdown")
+  @Bean(name = "temporalWorkerFactory", destroyMethod = "")
   @Conditional(WorkersPresentCondition.class)
   public WorkerFactory workerFactory(
       @Qualifier("temporalWorkersTemplate") WorkersTemplate workersTemplate) {
     return workersTemplate.getWorkerFactory();
+  }
+
+  @Bean
+  @Conditional(WorkersPresentCondition.class)
+  public SmartLifecycle temporalWorkerFactoryLifecycle(WorkerFactory workerFactory) {
+    return new WorkerFactoryLifecycle(workerFactory);
   }
 
   @Primary

@@ -23,7 +23,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.ApplicationContextEvent;
-import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.ContextRefreshedEvent;
 
 @AutoConfiguration(
@@ -70,8 +69,6 @@ public class NonRootNamespaceAutoConfiguration {
         if (event instanceof ContextRefreshedEvent) {
           onStart();
         }
-      } else if (event instanceof ContextClosedEvent) {
-        onStop();
       }
     }
 
@@ -99,14 +96,6 @@ public class NonRootNamespaceAutoConfiguration {
                             namespace));
             workersTemplate.getWorkerFactory().start();
             log.info("started workers for non-root namespace [{}]", namespace);
-          });
-    }
-
-    private void onStop() {
-      this.executeByNamespace(
-          (nonRootNamespaceProperties, workersTemplate) -> {
-            log.info("shutdown workers for non-root namespace");
-            workersTemplate.getWorkerFactory().shutdown();
           });
     }
 

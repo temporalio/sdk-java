@@ -65,6 +65,7 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    systemProperty 'temporal.test.classpath', sourceSets.test.runtimeClasspath.asPath
     testLogging {
         events("passed", "skipped", "failed")
     }
