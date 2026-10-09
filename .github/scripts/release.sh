@@ -49,12 +49,41 @@ changelog_section() {
   '
 }
 
+# Validates a changelog transition and prints its newly added version, if any.
+changelog_transition() {
+  local base=$1
+  local head=$2
+  local duplicate version
+  local -a added base_versions head_versions
+
+  mapfile -t base_versions < <(changelog_versions "$base")
+  mapfile -t head_versions < <(changelog_versions "$head")
+  duplicate=$(printf '%s\n' "${base_versions[@]}" | uniq -d | sed -n '1p')
+  [[ -z "$duplicate" ]] \
+    || fail "Changelog version $duplicate appears more than once at $base."
+  duplicate=$(printf '%s\n' "${head_versions[@]}" | uniq -d | sed -n '1p')
+  [[ -z "$duplicate" ]] \
+    || fail "Changelog version $duplicate appears more than once at $head."
+  for version in "${base_versions[@]}"; do
+    diff -q <(changelog_section "$base" "$version" true) \
+      <(changelog_section "$head" "$version" true) >/dev/null \
+      || fail "Published changelog section $version was changed."
+  done
+
+  mapfile -t added < <(comm -13 \
+    <(printf '%s\n' "${base_versions[@]}") \
+    <(printf '%s\n' "${head_versions[@]}"))
+  [[ "${#added[@]}" -le 1 ]] \
+    || fail "A release commit must add exactly one versioned changelog section."
+  printf '%s' "${added[0]:-}"
+}
+
 # Validates a changelog transition and identifies a release candidate.
 candidate() {
   require EVENT_NAME
   require HEAD_SHA
   local notes=${1:?Release notes output path is required.}
-  local base dispatch_head draft_release existing release_commit tag version
+  local base dispatch_head draft_release existing release_base release_commit tag version
 
   if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
     require MANUAL_DRAFT_RELEASE
@@ -92,31 +121,32 @@ candidate() {
       || fail "The base commit must be an ancestor of the release commit."
   fi
 
-  mapfile -t base_versions < <(changelog_versions "$base")
-  mapfile -t head_versions < <(changelog_versions "$head")
-  for version in "${base_versions[@]}"; do
-    diff -q <(changelog_section "$base" "$version" true) \
-      <(changelog_section "$head" "$version" true) >/dev/null \
-      || fail "Published changelog section $version was changed."
-  done
-
-  mapfile -t added < <(comm -13 \
-    <(printf '%s\n' "${base_versions[@]}") \
-    <(printf '%s\n' "${head_versions[@]}"))
-  if [[ "${#added[@]}" -eq 0 ]]; then
+  version=$(changelog_transition "$base" "$head")
+  if [[ -z "$version" ]]; then
     write_output release false
     return
   fi
-  [[ "${#added[@]}" -eq 1 ]] \
-    || fail "A release commit must add exactly one versioned changelog section."
 
-  version=${added[0]}
   if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
     [[ "$version" == "$MANUAL_VERSION" ]] \
       || fail "Commit $head does not introduce version $MANUAL_VERSION."
     diff -q <(changelog_section "$head" "$version" true) \
       <(changelog_section "$dispatch_head" "$version" true) >/dev/null \
       || fail "Release notes for $version changed after commit $head."
+  elif [[ "$EVENT_NAME" == push ]]; then
+    release_commit=$(git log -1 --first-parent --format=%H --fixed-strings \
+      -S"## [$version]" "$head" -- CHANGELOG.md)
+    [[ -n "$release_commit" ]] \
+      || fail "The commit that introduced version $version was not found."
+    git merge-base --is-ancestor "$base" "$release_commit" \
+      || fail "Version $version was introduced before this push."
+    release_base=$(git rev-parse --verify "$release_commit^1")
+    [[ $(changelog_transition "$release_base" "$release_commit") == "$version" ]] \
+      || fail "Commit $release_commit does not introduce version $version."
+    diff -q <(changelog_section "$release_commit" "$version" true) \
+      <(changelog_section "$head" "$version" true) >/dev/null \
+      || fail "Release notes for $version changed after commit $release_commit."
+    head=$release_commit
   fi
   changelog_section "$head" "$version" > "$notes"
   [[ -s "$notes" ]] || fail "Release notes for $version are empty."

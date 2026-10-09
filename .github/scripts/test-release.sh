@@ -68,6 +68,14 @@ printf 'Later change.\n' > "$repository/README.md"
 git -C "$repository" add README.md
 git -C "$repository" commit -qm later
 later=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$base" HEAD_SHA="$later" EVENT_NAME=push \
+    GITHUB_OUTPUT="$temporary_directory/push-output" \
+    "$release_script" candidate "$temporary_directory/push-notes"
+)
+grep -Fxq "commit=$head" "$temporary_directory/push-output"
+diff -q "$temporary_directory/notes" "$temporary_directory/push-notes"
 git -C "$repository" branch releases/1.41.x "$later"
 (
   cd "$repository"
@@ -88,6 +96,14 @@ diff -q "$temporary_directory/notes" "$temporary_directory/manual-notes"
     "$release_script" candidate "$temporary_directory/manual-public-notes"
 )
 grep -Fxq 'draft_release=0' "$temporary_directory/manual-public-output"
+printf '\n## [1.41.0] - 2026-10-04\n\nDuplicate.\n' >> "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam duplicate
+duplicate=$(git -C "$repository" rev-parse HEAD)
+if (cd "$repository" && BASE_SHA="$later" HEAD_SHA="$duplicate" EVENT_NAME=push \
+  "$release_script" candidate "$temporary_directory/duplicate-notes" 2>/dev/null); then
+  echo "Duplicate release headings must be rejected." >&2
+  exit 1
+fi
 printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-04\n\n### Fixed\n- Fixed it.\n' \
   > "$repository/CHANGELOG.md"
 git -C "$repository" commit -qam rewrite
