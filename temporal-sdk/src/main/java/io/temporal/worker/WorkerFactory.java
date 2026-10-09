@@ -45,7 +45,12 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Maintains worker creation and lifecycle. */
+/**
+ * Maintains worker creation and lifecycle. Applications are responsible for calling {@link
+ * #shutdown()} and {@link #awaitTermination(long, TimeUnit)} before exiting. For example, a JVM
+ * shutdown hook can drain workers on SIGINT and SIGTERM. Hosting integrations such as Temporal
+ * Spring Boot manage this lifecycle for the application.
+ */
 public final class WorkerFactory {
   private static final Logger log = LoggerFactory.getLogger(WorkerFactory.class);
 

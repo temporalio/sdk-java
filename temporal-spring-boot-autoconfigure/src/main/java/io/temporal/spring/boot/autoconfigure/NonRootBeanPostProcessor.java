@@ -14,6 +14,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
+import io.temporal.spring.boot.autoconfigure.internal.WorkerFactoryLifecycle;
 import io.temporal.spring.boot.autoconfigure.properties.ConnectionProperties;
 import io.temporal.spring.boot.autoconfigure.properties.NonRootNamespaceProperties;
 import io.temporal.spring.boot.autoconfigure.properties.TemporalProperties;
@@ -193,6 +194,9 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     beanFactory.registerSingleton(
         beanPrefix + ScheduleClient.class.getSimpleName(), scheduleClient);
     beanFactory.registerSingleton(beanPrefix + WorkerFactory.class.getSimpleName(), workerFactory);
+    beanFactory.registerSingleton(
+        beanPrefix + WorkerFactoryLifecycle.class.getSimpleName(),
+        new WorkerFactoryLifecycle(workerFactory));
   }
 
   @Override
