@@ -1,18 +1,23 @@
 package io.temporal.internal.payload.visitor.gen;
 
+import static io.temporal.internal.payload.gen.ProtoNames.base;
+import static io.temporal.internal.payload.gen.ProtoNames.isTemporal;
+import static io.temporal.internal.payload.gen.ProtoNames.methodName;
+import static io.temporal.internal.payload.gen.ProtoNames.sourceClassName;
+
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
+import io.temporal.internal.payload.gen.ProtoClosure;
+import io.temporal.internal.payload.gen.ProtoDescriptorSets;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,8 +32,8 @@ import java.util.TreeMap;
  *
  * <p>Descriptors are read from a protoc-emitted descriptor set file rather than from compiled proto
  * classes, so that this generator does not depend on the compiled output of the module it generates
- * into. Accessor names derived by the naming rules below are therefore checked by compiling the
- * generated source rather than by reflection here.
+ * into. Accessor names derived by {@link io.temporal.internal.payload.gen.ProtoNames} are therefore
+ * checked by compiling the generated source rather than by reflection here.
  *
  * <p>Usage: {@code PayloadVisitorGenerator <descriptor-set-file> <output-source-root>}.
  */
@@ -166,65 +171,6 @@ public final class PayloadVisitorGenerator {
     }
     return new FieldPlan(
         repeated ? Kind.MESSAGE_REPEATED : Kind.MESSAGE_SINGLE, f.getMessageType());
-  }
-
-  static boolean isTemporal(Descriptor d) {
-    return d.getFullName().startsWith("temporal.");
-  }
-
-  // --- Java naming ---
-
-  /** Mirrors protoc's UnderscoresToCamelCase used to derive Java accessor names. */
-  static String camel(String input, boolean capNext) {
-    StringBuilder sb = new StringBuilder();
-    for (int i = 0; i < input.length(); i++) {
-      char c = input.charAt(i);
-      if (c >= 'a' && c <= 'z') {
-        sb.append(capNext ? Character.toUpperCase(c) : c);
-        capNext = false;
-      } else if (c >= 'A' && c <= 'Z') {
-        if (i == 0 && !capNext) {
-          sb.append(Character.toLowerCase(c));
-        } else {
-          sb.append(c);
-        }
-        capNext = false;
-      } else if (c >= '0' && c <= '9') {
-        sb.append(c);
-        capNext = true;
-      } else {
-        capNext = true;
-      }
-    }
-    return sb.toString();
-  }
-
-  /** Capitalized accessor base, e.g. {@code schedule_activity} -> {@code ScheduleActivity}. */
-  static String base(FieldDescriptor f) {
-    return camel(f.getName(), true);
-  }
-
-  static String javaPackage(Descriptor d) {
-    String pkg = d.getFile().getOptions().getJavaPackage();
-    if (pkg == null || pkg.isEmpty()) {
-      throw new IllegalStateException("message " + d.getFullName() + " has no java_package option");
-    }
-    return pkg;
-  }
-
-  /**
-   * Source-form class name, e.g. {@code io.temporal.api.common.v1.Payload.ExternalPayloadDetails}.
-   */
-  static String sourceClassName(Descriptor d) {
-    Deque<String> names = new ArrayDeque<>();
-    for (Descriptor c = d; c != null; c = c.getContainingType()) {
-      names.addFirst(c.getName());
-    }
-    return javaPackage(d) + "." + String.join(".", names);
-  }
-
-  static String methodName(String full) {
-    return "visit_" + full.replace('.', '_');
   }
 
   // --- Emission ---
