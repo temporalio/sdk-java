@@ -29,14 +29,14 @@ import org.junit.jupiter.api.Test;
 class TestActivityEnvironmentTransferTypeTest {
 
   @Test
-  void activityContextExposesConfiguredConverter() {
+  void activityContextExposesTransferAwareConverter() {
     TrackingDataConverter trackingConverter = new TrackingDataConverter();
     TestActivityEnvironment environment = newEnvironment(trackingConverter);
     try {
       environment.registerActivitiesImplementations(new ConverterActivityImpl(trackingConverter));
       ConverterActivity activity = environment.newActivityStub(ConverterActivity.class);
 
-      assertTrue(activity.usesConfiguredConverter());
+      assertTrue(activity.usesTransferAwareConverter());
     } finally {
       environment.close();
     }
@@ -192,20 +192,25 @@ class TestActivityEnvironmentTransferTypeTest {
   @ActivityInterface
   public interface ConverterActivity {
     @ActivityMethod
-    boolean usesConfiguredConverter();
+    boolean usesTransferAwareConverter();
   }
 
   private static final class ConverterActivityImpl implements ConverterActivity {
-    private final DataConverter expectedConverter;
+    private final TrackingDataConverter configuredConverter;
 
-    private ConverterActivityImpl(DataConverter expectedConverter) {
-      this.expectedConverter = expectedConverter;
+    private ConverterActivityImpl(TrackingDataConverter configuredConverter) {
+      this.configuredConverter = configuredConverter;
     }
 
     @Override
-    public boolean usesConfiguredConverter() {
-      return Activity.getExecutionContext().getWorkflowClient().getOptions().getDataConverter()
-          == expectedConverter;
+    public boolean usesTransferAwareConverter() {
+      DataConverter exposed =
+          Activity.getExecutionContext().getWorkflowClient().getOptions().getDataConverter();
+      int callsBefore = configuredConverter.toPayloadCalls;
+      Payload payload = exposed.toPayload(new TransferModel("value")).get();
+      return exposed != configuredConverter
+          && configuredConverter.toPayloadCalls > callsBefore
+          && "json/protobuf".equals(payload.getMetadataOrThrow("encoding").toStringUtf8());
     }
   }
 
