@@ -57,6 +57,13 @@ head=$(git -C "$repository" rev-parse HEAD)
 grep -Fxq 'release=true' "$temporary_directory/output"
 grep -Fxq 'version=1.41.0' "$temporary_directory/output"
 grep -Fxq '### Fixed' "$temporary_directory/notes"
+git -C "$repository" tag -a v1.41.0 -m "Annotated release tag" "$head"
+if (cd "$repository" && BASE_SHA="$base" HEAD_SHA="$head" EVENT_NAME=push \
+  "$release_script" candidate "$temporary_directory/annotated-notes" 2>/dev/null); then
+  echo "Annotated release tags must be rejected." >&2
+  exit 1
+fi
+git -C "$repository" tag -d v1.41.0 >/dev/null
 printf 'Later change.\n' > "$repository/README.md"
 git -C "$repository" add README.md
 git -C "$repository" commit -qm later

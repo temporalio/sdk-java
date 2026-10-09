@@ -134,6 +134,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       actions: read
+      contents: read
     steps:
       - name: Checkout exact release commit
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -225,8 +226,8 @@ jobs:
           KEY: ${{ secrets.JAR_SIGNING_KEY }}
           KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
           KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          MAVEN_RETRY_REQUIRED: ${{ steps.github_release.outputs.maven_retry_required }}
           MAVEN_RETRY_COMMIT: ${{ vars.MAVEN_RETRY_COMMIT }}
           RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
           RH_USER: ${{ secrets.RH_USER }}
-          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: .github/scripts/release.sh publish-maven

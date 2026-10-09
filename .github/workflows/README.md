@@ -50,6 +50,8 @@ the GitHub release is public.
 
 Maintainers can check the release scripts locally with
 `.github/scripts/test-release.sh`.
+The local check requires Bash 4 or newer and GNU `sha256sum`; on macOS these
+are available from the Homebrew `bash` and `coreutils` packages.
 
 ### One-time repository setup
 
@@ -88,3 +90,7 @@ commit and rerun the workflow. Clear the variable after the release; its value
 is bound to that commit and cannot authorize another candidate. A published
 version or GitHub tag that points to another commit is a permanent error and
 must not be replaced.
+
+A run that finds an already-public GitHub release but no matching Central POM
+uses the same recovery gate, even when it is a fresh manual run. Promote drafts
+through the workflow to keep the first Maven publication attempt unambiguous.

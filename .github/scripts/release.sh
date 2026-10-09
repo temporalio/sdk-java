@@ -128,6 +128,8 @@ candidate() {
 
   tag="v$version"
   if existing=$(git rev-parse --verify "refs/tags/$tag^{commit}" 2>/dev/null); then
+    [[ $(git cat-file -t "refs/tags/$tag") == commit ]] \
+      || fail "Release tag $tag must be a lightweight tag."
     [[ ("$EVENT_NAME" == push || "$EVENT_NAME" == workflow_dispatch) && \
       "$existing" == "$head" ]] \
       || fail "Release tag $tag already exists at $existing."
@@ -183,18 +185,22 @@ central_state() {
 # Publishes the signed staging repository and waits for Maven Central.
 publish_maven() {
   require GRADLE_USER_HOME
+  require MAVEN_RETRY_REQUIRED
   require RELEASE_COMMIT
   require RELEASE_VERSION
-  require RUN_ATTEMPT
   require RUNNER_TEMP
   local state variable signing_directory status attempt
 
   state=$(central_state)
   [[ "$state" == absent ]] || return
-  [[ "$RUN_ATTEMPT" =~ ^[0-9]+$ ]] || fail "RUN_ATTEMPT must be numeric."
-  if ((RUN_ATTEMPT > 1)) && [[ "${MAVEN_RETRY_COMMIT:-}" != "$RELEASE_COMMIT" ]]; then
-    fail "Inspect Sonatype, then set MAVEN_RETRY_COMMIT to $RELEASE_COMMIT before rerunning."
-  fi
+  case "$MAVEN_RETRY_REQUIRED" in
+    false) ;;
+    true)
+      [[ "${MAVEN_RETRY_COMMIT:-}" == "$RELEASE_COMMIT" ]] \
+        || fail "Inspect Sonatype, then set MAVEN_RETRY_COMMIT to $RELEASE_COMMIT before rerunning."
+      ;;
+    *) fail "MAVEN_RETRY_REQUIRED must be true or false." ;;
+  esac
   for variable in KEY KEY_ID KEY_PASSWORD RH_PASSWORD RH_USER; do
     [[ -n "${!variable:-}" ]] || fail "Release secret $variable is not configured."
   done
@@ -243,7 +249,7 @@ publish_github() {
   local assets=${2:?Release asset directory is required.}
   local draft_release=${MANUAL_DRAFT_RELEASE:-${DRAFT_RELEASE:-1}}
   local requested_draft=false
-  local actual_draft published_assets release summary_title tag
+  local actual_draft maven_retry_required=false published_assets release summary_title tag
   local release_assets=("$assets"/*)
   case "$draft_release" in
     0) ;;
@@ -262,6 +268,8 @@ publish_github() {
     gh "${create[@]}"
     release=$(gh release view --repo "$GITHUB_REPOSITORY" "$RELEASE_TAG" \
       --json body,isDraft,isPrerelease,name,targetCommitish,url)
+  elif [[ $(jq -r .isDraft <<<"$release") == false ]]; then
+    maven_retry_required=true
   fi
 
   jq -e --arg tag "$RELEASE_TAG" --argjson prerelease "$PRERELEASE" \
@@ -272,7 +280,8 @@ publish_github() {
   actual_draft=$(jq -r .isDraft <<<"$release")
   if tag=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" 2>/dev/null); then
     jq -e --arg commit "$RELEASE_COMMIT" \
-      '.object.type == "commit" and .object.sha == $commit' <<<"$tag" >/dev/null
+      '.object.type == "commit" and .object.sha == $commit' <<<"$tag" >/dev/null \
+      || fail "Release tag $RELEASE_TAG must be lightweight and point to $RELEASE_COMMIT."
   else
     [[ "$actual_draft" == true ]] || fail "Published release tag $RELEASE_TAG is missing."
     jq -e --arg commit "$RELEASE_COMMIT" \
@@ -292,10 +301,12 @@ publish_github() {
     [[ "$actual_draft" == false ]] || fail "GitHub release $RELEASE_TAG remains a draft."
     tag=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")
     jq -e --arg commit "$RELEASE_COMMIT" \
-      '.object.type == "commit" and .object.sha == $commit' <<<"$tag" >/dev/null
+      '.object.type == "commit" and .object.sha == $commit' <<<"$tag" >/dev/null \
+      || fail "Release tag $RELEASE_TAG must be lightweight and point to $RELEASE_COMMIT."
   fi
 
   write_output draft "$actual_draft"
+  write_output maven_retry_required "$maven_retry_required"
   summary_title="Release published"
   [[ "$actual_draft" == true ]] && summary_title="Release drafted"
   {
