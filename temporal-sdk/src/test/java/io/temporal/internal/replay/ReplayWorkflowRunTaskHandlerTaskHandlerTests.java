@@ -152,7 +152,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
 
     // Act
     WorkflowTaskHandler.Result result =
-        taskHandler.handleWorkflowTask(HistoryUtils.generateWorkflowTaskWithInitialHistory());
+        taskHandler.handleWorkflowTask(HistoryUtils.generateWorkflowTaskWithInitialHistory(), null);
     // Assert
     assertEquals(0, cache.size());
     assertNotNull(result.getTaskCompleted());
@@ -206,7 +206,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             HistoryUtils.generateWorkflowTaskWithInitialHistory().toBuilder()
                 .setHistory(History.newBuilder().build())
                 .setNextPageToken(ByteString.EMPTY)
-                .build());
+                .build(),
+            null);
 
     // Assert
     assertEquals(0, cache.size());
@@ -264,7 +265,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             client,
             null);
 
-    taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build());
+    taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build(), null);
 
     ArgumentCaptor<HistoryEvent> event = ArgumentCaptor.forClass(HistoryEvent.class);
     verify(workflow).start(event.capture(), any());
@@ -327,7 +328,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
         "stopping storage must not be turned into a workflow task failure",
         CancellationException.class,
         () ->
-            taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build()));
+            taskHandler.handleWorkflowTask(
+                fullTask.toBuilder().setHistory(storedHistory).build(), null));
   }
 
   @Test
@@ -366,7 +368,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null);
 
     WorkflowTaskHandler.Result result =
-        taskHandler.handleWorkflowTask(fullTask.toBuilder().setHistory(storedHistory).build());
+        taskHandler.handleWorkflowTask(
+            fullTask.toBuilder().setHistory(storedHistory).build(), null);
 
     assertNotNull(
         "a failed download must be reported rather than ending the task", result.getTaskFailed());
@@ -433,7 +436,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null);
 
     taskHandler.handleWorkflowTask(
-        fullTask.toBuilder().setHistory(History.getDefaultInstance()).build());
+        fullTask.toBuilder().setHistory(History.getDefaultInstance()).build(), null);
 
     ArgumentCaptor<HistoryEvent> event = ArgumentCaptor.forClass(HistoryEvent.class);
     verify(workflow).start(event.capture(), any());
@@ -502,7 +505,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
+    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask, null);
 
     assertTrue(result.isCompletionCommand());
     assertEquals(0, cache.size()); // do not cache if completion command
@@ -534,7 +537,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     PollWorkflowTaskQueueResponse workflowTask =
         HistoryUtils.generateWorkflowTaskWithInitialHistory();
 
-    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask);
+    WorkflowTaskHandler.Result result = taskHandler.handleWorkflowTask(workflowTask, null);
 
     assertTrue(result.isCompletionCommand());
     assertEquals(Version.SDK_NAME, result.getTaskCompleted().getSdkMetadata().getSdkName());

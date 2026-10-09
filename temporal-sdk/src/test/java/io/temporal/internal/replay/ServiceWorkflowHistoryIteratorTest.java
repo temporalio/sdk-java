@@ -153,7 +153,7 @@ public class ServiceWorkflowHistoryIteratorTest {
     PollWorkflowTaskQueueResponse workflowTask =
         PollWorkflowTaskQueueResponse.newBuilder().setNextPageToken(NEXT_PAGE_TOKEN).build();
     return new ServiceWorkflowHistoryIterator(
-        null, "default", workflowTask, null, storage, storageCancellation) {
+        null, "default", workflowTask, null, storage, storageCancellation, null) {
       @Override
       GetWorkflowExecutionHistoryResponse queryWorkflowExecutionHistory() {
         return GetWorkflowExecutionHistoryResponse.newBuilder().setHistory(page).build();

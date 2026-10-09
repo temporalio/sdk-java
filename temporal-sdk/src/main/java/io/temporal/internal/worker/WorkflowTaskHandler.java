@@ -5,6 +5,7 @@ import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nullable;
@@ -137,12 +138,16 @@ public interface WorkflowTaskHandler {
    * Handles a single workflow task
    *
    * @param workflowTask The workflow task to handle.
+   * @param downloadMetrics Accumulates external storage retrievals performed for this task, or null
+   *     to collect nothing.
    * @return One of the possible workflow task replies: RespondWorkflowTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondWorkflowTaskFailedRequest
    * @throws Exception an original exception or error if the processing should be just abandoned
    *     without replying to the server
    */
-  Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask) throws Exception;
+  Result handleWorkflowTask(
+      PollWorkflowTaskQueueResponse workflowTask, @Nullable StorageOperationMetrics downloadMetrics)
+      throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();
