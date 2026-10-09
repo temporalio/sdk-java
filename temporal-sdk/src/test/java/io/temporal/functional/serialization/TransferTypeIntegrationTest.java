@@ -39,6 +39,20 @@ public class TransferTypeIntegrationTest {
   }
 
   @Test
+  public void workflowClientOptionsExposeTransferAwareConverter() {
+    TransferTypeTestModel model = new TransferTypeTestModel("client");
+    io.temporal.common.converter.DataConverter exposed =
+        testWorkflowRule.getWorkflowClient().getOptions().getDataConverter();
+
+    io.temporal.api.common.v1.Payload payload = exposed.toPayload(model).get();
+    assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
+    assertTrue(
+        exposed
+            .fromPayload(payload, TransferTypeTestModel.class, TransferTypeTestModel.class)
+            .wasTransferred());
+  }
+
+  @Test
   public void workflowHistoryWithTransferTypesReplays() throws Exception {
     TransferWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TransferWorkflow.class);

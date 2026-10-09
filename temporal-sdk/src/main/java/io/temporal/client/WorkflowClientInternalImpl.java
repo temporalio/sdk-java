@@ -54,7 +54,6 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
 
   private final GenericWorkflowClient genericClient;
   private final WorkflowClientOptions options;
-  private final WorkflowClientOptions internalOptions;
   private final DataConverter internalDataConverter;
   private final ManualActivityCompletionClientFactory manualActivityCompletionClientFactory;
   private final WorkflowClientCallsInterceptor workflowClientCallsInvoker;
@@ -108,11 +107,10 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     builder.setPlugins(mergedPlugins);
     options = builder.validateAndBuildWithDefaults();
     this.internalDataConverter = ClientDataConverterFactory.forClient(options.getDataConverter());
+    this.options =
+        WorkflowClientOptions.newBuilder(options).setDataConverter(internalDataConverter).build();
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
-    this.options = options;
-    this.internalOptions =
-        WorkflowClientOptions.newBuilder(options).setDataConverter(internalDataConverter).build();
     this.workflowServiceStubs = workflowServiceStubs;
     this.metricsScope =
         workflowServiceStubs
@@ -149,7 +147,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
     WorkflowClientCallsInterceptor workflowClientInvoker =
         new RootWorkflowClientInvoker(
-            genericClient, internalOptions, workerFactoryRegistry, externalStorageRunner);
+            genericClient, options, workerFactoryRegistry, externalStorageRunner);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
           clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);
@@ -178,7 +176,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     checkAnnotation(workflowInterface, WorkflowMethod.class);
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
-            workflowInterface, internalOptions, workflowClientCallsInvoker, options);
+            workflowInterface, this.options, workflowClientCallsInvoker, options);
     return (T)
         Proxy.newProxyInstance(
             workflowInterface.getClassLoader(),
@@ -255,7 +253,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     WorkflowInvocationHandler invocationHandler =
         new WorkflowInvocationHandler(
             workflowInterface,
-            internalOptions,
+            options,
             workflowClientCallsInvoker,
             execution.build(),
             legacyTargeting,
@@ -279,8 +277,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   @SuppressWarnings("deprecation")
   public WorkflowStub newUntypedWorkflowStub(String workflowType, WorkflowOptions workflowOptions) {
     WorkflowStub result =
-        new WorkflowStubImpl(
-            internalOptions, workflowClientCallsInvoker, workflowType, workflowOptions);
+        new WorkflowStubImpl(options, workflowClientCallsInvoker, workflowType, workflowOptions);
     for (WorkflowClientInterceptor i : interceptors) {
       result = i.newUntypedWorkflowStub(workflowType, workflowOptions, result);
     }
@@ -332,7 +329,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     }
     WorkflowStub result =
         new WorkflowStubImpl(
-            internalOptions,
+            options,
             workflowClientCallsInvoker,
             workflowType,
             execution.build(),

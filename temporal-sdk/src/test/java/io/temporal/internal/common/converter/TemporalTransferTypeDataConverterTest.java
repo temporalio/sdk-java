@@ -16,12 +16,16 @@ import com.google.common.reflect.TypeToken;
 import com.google.protobuf.StringValue;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.FailureConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
+import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.DefaultFailureConverter;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
@@ -48,6 +52,85 @@ public class TemporalTransferTypeDataConverterTest {
     assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
     assertFalse(payload.getMetadataMap().containsKey("temporal-transfer-type"));
     assertEquals(new Model("value"), converter.fromPayload(payload, Model.class, Model.class));
+  }
+
+  @Test
+  public void failureDetailsUseTransferTypesOnBothSides() {
+    Failure failure =
+        converter.exceptionToFailure(
+            ApplicationFailure.newFailure("message", "type", new Model("detail")));
+
+    assertEquals(
+        "json/protobuf",
+        failure
+            .getApplicationFailureInfo()
+            .getDetails()
+            .getPayloads(0)
+            .getMetadataOrThrow("encoding")
+            .toStringUtf8());
+    ApplicationFailure restored = (ApplicationFailure) converter.failureToException(failure);
+    assertEquals(new Model("detail"), restored.getDetails().get(0, Model.class, Model.class));
+  }
+
+  @Test
+  public void defaultConverterUsesTransferTypesForFailureDetails() {
+    DataConverter unwrapped = DefaultDataConverter.newDefaultInstance();
+    Failure failure =
+        unwrapped.exceptionToFailure(
+            ApplicationFailure.newFailure("message", "type", new Model("detail")));
+
+    assertEquals(
+        "json/protobuf",
+        failure
+            .getApplicationFailureInfo()
+            .getDetails()
+            .getPayloads(0)
+            .getMetadataOrThrow("encoding")
+            .toStringUtf8());
+    ApplicationFailure restored = (ApplicationFailure) unwrapped.failureToException(failure);
+    assertEquals(new Model("detail"), restored.getDetails().get(0, Model.class, Model.class));
+  }
+
+  @Test
+  public void configuredFailureConverterReceivesTransferAwareDetailsConverter() {
+    FailureConverter failureConverter =
+        new FailureConverter() {
+          private final DefaultFailureConverter standard = new DefaultFailureConverter();
+
+          @Override
+          public RuntimeException failureToException(
+              Failure failure, DataConverter detailsConverter) {
+            assertEquals(
+                new Model("detail"),
+                detailsConverter.fromPayload(
+                    failure.getApplicationFailureInfo().getDetails().getPayloads(0),
+                    Model.class,
+                    Model.class));
+            return standard.failureToException(failure, detailsConverter);
+          }
+
+          @Override
+          public Failure exceptionToFailure(Throwable throwable, DataConverter detailsConverter) {
+            assertEquals(
+                "json/protobuf",
+                detailsConverter
+                    .toPayload(new Model("detail"))
+                    .get()
+                    .getMetadataOrThrow("encoding")
+                    .toStringUtf8());
+            return standard.exceptionToFailure(throwable, detailsConverter);
+          }
+        };
+    converter =
+        TemporalTransferTypeDataConverter.wrap(
+            DefaultDataConverter.newDefaultInstance().withFailureConverter(failureConverter));
+
+    Failure failure =
+        converter.exceptionToFailure(
+            ApplicationFailure.newFailure("message", "type", new Model("detail")));
+    ApplicationFailure restored = (ApplicationFailure) converter.failureToException(failure);
+
+    assertEquals(new Model("detail"), restored.getDetails().get(0, Model.class, Model.class));
   }
 
   @Test

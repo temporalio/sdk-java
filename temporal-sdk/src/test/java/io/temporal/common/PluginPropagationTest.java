@@ -24,6 +24,7 @@ import static org.junit.Assert.*;
 
 import com.google.protobuf.StringValue;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -69,12 +70,12 @@ public class PluginPropagationTest {
     TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance(testOptions);
     try {
       assertSame(originalConverter, originalOptions.getDataConverter());
-      assertSame(plugin.dataConverter, env.getWorkflowClient().getOptions().getDataConverter());
-      Payload payload =
-          ((WorkflowClientInternal) env.getWorkflowClient().getInternal())
-              .getInternalDataConverter()
-              .toPayload(new TransferModel())
-              .get();
+      WorkflowClient client = env.getWorkflowClient();
+      DataConverter exposed = client.getOptions().getDataConverter();
+      assertNotSame(plugin.dataConverter, exposed);
+      assertSame(
+          exposed, ((WorkflowClientInternal) client.getInternal()).getInternalDataConverter());
+      Payload payload = exposed.toPayload(new TransferModel()).get();
       assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
     } finally {
       env.close();
