@@ -570,6 +570,25 @@ public final class WorkflowInternal {
             });
   }
 
+  public static boolean await(
+      Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition)
+      throws DestroyWorkflowThreadError {
+    assertNotReadOnly(reason);
+    return getWorkflowOutboundInterceptor()
+        .await(
+            timeout,
+            options,
+            reason,
+            () -> {
+              getRootWorkflowContext().setReadOnly(true);
+              try {
+                return unblockCondition.get();
+              } finally {
+                getRootWorkflowContext().setReadOnly(false);
+              }
+            });
+  }
+
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
     assertNotReadOnly("side effect");
     return getWorkflowOutboundInterceptor().sideEffect(resultClass, resultType, func);
@@ -708,6 +727,11 @@ public final class WorkflowInternal {
   public static void sleep(Duration duration) {
     assertNotReadOnly("sleep");
     getWorkflowOutboundInterceptor().sleep(duration);
+  }
+
+  public static void sleep(Duration duration, TimerOptions options) {
+    assertNotReadOnly("sleep");
+    getWorkflowOutboundInterceptor().sleep(duration, options);
   }
 
   public static boolean isWorkflowThread() {
