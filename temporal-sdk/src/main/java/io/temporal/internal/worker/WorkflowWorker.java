@@ -21,9 +21,13 @@ import io.temporal.api.errordetails.v1.WorkflowTaskCompletionBufferLostFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.common.PayloadsTooLargeFailure;
 import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.payload.visitor.MessageVisitor;
@@ -816,6 +820,45 @@ final class WorkflowWorker implements SuspendableWorker {
                       workflowTypeScope,
                       workflowStorageTarget(workflowExecution, workflowType),
                       uploadMetrics);
+                } catch (StatusRuntimeException e) {
+                  Optional<PayloadLimitViolation> violation =
+                      PayloadLimitViolationException.find(e);
+                  if (!violation.isPresent()) {
+                    throw e;
+                  }
+                  releaseReason = SlotReleaseReason.error(e);
+                  // The validator already logged the violation, so the generic reporting failure
+                  // warning is not logged as well.
+                  cache.invalidate(
+                      workflowExecution,
+                      workflowTypeScope,
+                      "Workflow task completion exceeded the payload size limit",
+                      e);
+                  taskFailedCause =
+                      WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE;
+                  if (currentTask.getAttempt() > 1) {
+                    log.debug(
+                        "Not failing workflow task on non-first attempt. WorkflowId={}, RunId={}, attempt={}",
+                        workflowExecution.getWorkflowId(),
+                        workflowExecution.getRunId(),
+                        currentTask.getAttempt());
+                  } else {
+                    RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
+                        RespondWorkflowTaskFailedRequest.newBuilder()
+                            .setFailure(
+                                payloadsTooLargeFailure(
+                                    workflowExecution.getWorkflowId(), violation.get()))
+                            .setCause(
+                                WorkflowTaskFailedCause
+                                    .WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE);
+                    sendTaskFailed(
+                        currentTask.getTaskToken(),
+                        taskFailedBuilder,
+                        result.getRequestRetryOptions(),
+                        workflowTypeScope,
+                        workflowStorageTarget(workflowExecution, workflowType),
+                        uploadMetrics);
+                  }
                 } catch (ExternalStorageTaskFailure e) {
                   releaseReason = SlotReleaseReason.error(e);
                   handleReportingFailure(
@@ -869,6 +912,9 @@ final class WorkflowWorker implements SuspendableWorker {
                   break;
                 case WORKFLOW_TASK_FAILED_CAUSE_REQUEST_TOO_LARGE:
                   taskFailureType = MetricsTag.TASK_FAILURE_VALUE_REQUEST_TOO_LARGE;
+                  break;
+                case WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE:
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE;
                   break;
                 default:
                   taskFailureType = MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR;
@@ -1077,6 +1123,9 @@ final class WorkflowWorker implements SuspendableWorker {
       return service
           .blockingStub()
           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+          .withOption(
+              PayloadErrorLimits.CALL_OPTIONS_KEY,
+              options.payloadErrorLimits(namespaceCapabilities))
           .respondWorkflowTaskCompleted(request);
     }
 
@@ -1224,6 +1273,13 @@ final class WorkflowWorker implements SuspendableWorker {
           .getDataConverter()
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
           .exceptionToFailure(applicationFailure);
+    }
+
+    private Failure payloadsTooLargeFailure(String workflowId, PayloadLimitViolation violation) {
+      return options
+          .getDataConverter()
+          .withContext(new WorkflowSerializationContext(namespace, workflowId))
+          .exceptionToFailure(PayloadsTooLargeFailure.of(violation));
     }
 
     private Failure grpcMessageTooLargeFailure(

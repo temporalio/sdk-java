@@ -3,8 +3,10 @@ package io.temporal.internal.activity;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import java.lang.reflect.Type;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 interface HeartbeatContext {
 
@@ -35,4 +37,17 @@ interface HeartbeatContext {
 
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
+
+  /**
+   * Returns whether this context already reported the activity task's outcome to the server, so the
+   * activity's own result must not be sent. Waits for a report that is still being sent.
+   */
+  boolean awaitTaskReported();
+
+  /**
+   * Returns the payload limit violation that failed a heartbeat, or null. Unless this context
+   * already reported it, the activity must report the violation instead of its own outcome.
+   */
+  @Nullable
+  PayloadLimitViolation getPayloadLimitViolation();
 }

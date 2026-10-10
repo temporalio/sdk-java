@@ -23,6 +23,10 @@ to docs, or any other relevant information.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- Workers now retryably fail a workflow or activity task whose payloads exceed the namespace's size
+  limit, instead of sending it to the server. Disable with
+  `WorkerOptions.Builder.setDisablePayloadErrorLimit`; tune warnings with the experimental
+  `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
