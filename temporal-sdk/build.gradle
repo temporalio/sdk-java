@@ -24,6 +24,11 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-api'
     }
 
+    // The Java 8 stub of Jackson3JsonPayloadConverter must declare the same public API as the
+    // Java 17 class (JEP 238), so the Jackson 3 types are needed at compile time only. The java17
+    // source set sees them through the main compile classpath.
+    compileOnly "tools.jackson.core:jackson-databind:$jackson3Version"
+
     testImplementation project(':temporal-testing')
     // The optional envconfig-backed test harness is loaded only while SDK tests are running.
     testRuntimeOnly project(':temporal-envconfig')
@@ -62,7 +67,6 @@ dependencies {
     // project's JVM compatibility (e.g. 21+ on CI edge runners).
     java17Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
     java17Implementation files({ sourceSets.main.compileClasspath })
-    java17CompileOnly "tools.jackson.core:jackson-databind:$jackson3Version"
 
     java21Implementation files(sourceSets.main.output.classesDirs) { builtBy compileJava }
 }
@@ -202,9 +206,8 @@ task testCloud(type: Test) {
 }
 
 // On Java 17+, prepend java17 classes to all test classpaths so that Class.forName finds
-// the real Jackson3JsonPayloadConverter instead of the Java 8 stub. This lets us test
-// the present-java17-but-absent-jackson3 behavior (NoClassDefFoundError) in the same
-// test that tests the Java 8 stub behavior (UnsupportedOperationException).
+// the real Jackson3JsonPayloadConverter instead of the Java 8 stub, matching what the
+// multi-release jar resolves to at runtime.
 tasks.withType(Test).configureEach {
     dependsOn compileJava17Java
     doFirst {
@@ -257,9 +260,8 @@ testing {
         jackson3Tests(JvmTestSuite) {
             dependencies {
                 // java17 output must come before project() (added by configureEach) so that
-                // the compiler and runtime see the real Jackson3JsonPayloadConverter — which
-                // has a wider API than the Java 8 stub (newDefaultJsonMapper, JsonMapper
-                // constructor) because the stub can't reference Jackson 3 types.
+                // the compiler and runtime see the real Jackson3JsonPayloadConverter rather
+                // than the Java 8 stub, which only throws.
                 implementation files(sourceSets.java17.output.classesDirs) { builtBy compileJava17Java }
                 implementation "tools.jackson.core:jackson-databind:$jackson3Version"
             }
@@ -271,6 +273,7 @@ testing {
                                 languageVersion = JavaLanguageVersion.of(project.property("testJavaVersion") as int)
                             }
                         }
+                        systemProperty 'temporal.sdk.mainClassesDirs', sourceSets.main.output.classesDirs.asPath
                         shouldRunAfter(test)
                     }
                 }

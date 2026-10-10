@@ -41,6 +41,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- The Java 8 entry of `Jackson3JsonPayloadConverter` in the multi-release jar now declares the same public API as the
+  Java 17 class, including the `JsonMapper` constructor and `newDefaultJsonMapper(boolean)`. Tools that compile against
+  the base entry, such as IntelliJ's build system, no longer reject `new Jackson3JsonPayloadConverter(mapper)`.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 
