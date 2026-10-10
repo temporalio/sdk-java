@@ -1,4 +1,0 @@
-io.temporal.springai.autoconfigure.SpringAiTemporalAutoConfiguration
-io.temporal.springai.autoconfigure.SpringAiVectorStoreAutoConfiguration
-io.temporal.springai.autoconfigure.SpringAiEmbeddingAutoConfiguration
-io.temporal.springai.autoconfigure.SpringAiMcpAutoConfiguration

@@ -29,6 +29,9 @@ to docs, or any other relevant information.
   set by Temporal SDK in worker context.
 
 ### Changed
+- Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
+  `io.temporal:temporal-spring-ai` now publishes a one-time relocation POM to `io.temporal:spring-ai:0.1.0`;
+  the integration is versioned independently of the SDK.
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 - Added versioned scheduling for asynchronous Temporal stub calls. When enabled, switching between a stub method

@@ -16,6 +16,7 @@ dependencies {
         api project(':temporal-sdk')
         api project(':temporal-serviceclient')
         api project(':temporal-shaded')
+        // Retained for the final relocation release of the old coordinate.
         api project(':temporal-spring-ai')
         api project(':temporal-spring-boot-autoconfigure')
         api project(':temporal-spring-boot-starter')

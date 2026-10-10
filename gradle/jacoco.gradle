@@ -28,7 +28,7 @@ def jacocoExclusions = [
         '**/io/temporal/internal/docker/RegisterTestNamespace**'
 ]
 
-def jacocoSubprojects = (subprojects- project(':temporal-bom'))
+def jacocoSubprojects = subprojects.findAll { it.plugins.hasPlugin('java') }
 
 reporting {
     reports {
@@ -61,7 +61,7 @@ coverallsJacoco {
 tasks.coverallsJacoco.dependsOn(testCodeCoverageReport)
 
 subprojects {
-    if (name == 'temporal-bom') {
+    if (!plugins.hasPlugin('java')) {
         return
     }
     apply plugin: 'jacoco'
