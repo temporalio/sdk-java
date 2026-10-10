@@ -1,5 +1,7 @@
 package io.temporal.internal.activity;
 
+import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY;
+
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.protobuf.ByteString;
@@ -12,19 +14,27 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.*;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.MetricsType;
 import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -84,6 +94,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final Optional<Payloads> prevAttemptHeartbeatDetails;
   private final long heartbeatTimeoutMillis;
   private final long localHeartbeatTimeoutBufferMillis;
+  private final @Nullable PayloadErrorLimits payloadErrorLimits;
+  private volatile boolean taskReported;
 
   // turned into true on a reception of the first heartbeat
   private boolean receivedAHeartbeat = false;
@@ -114,7 +126,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
       String identity,
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
-      @Nullable ExternalStorageRunner externalStorage) {
+      @Nullable ExternalStorageRunner externalStorage,
+      @Nullable PayloadErrorLimits payloadErrorLimits) {
     this(
         service,
         namespace,
@@ -126,6 +139,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
         externalStorage,
+        payloadErrorLimits,
         getLocalHeartbeatTimeoutBufferMillis());
   }
 
@@ -140,8 +154,10 @@ class HeartbeatContextImpl implements HeartbeatContext {
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       @Nullable ExternalStorageRunner externalStorage,
+      @Nullable PayloadErrorLimits payloadErrorLimits,
       long localHeartbeatTimeoutBufferMillis) {
     this.service = service;
+    this.payloadErrorLimits = payloadErrorLimits;
     this.metricsScope = metricsScope;
     this.dataConverter = dataConverter;
     this.externalStorage = externalStorage;
@@ -457,7 +473,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
       }
       RecordActivityTaskHeartbeatRequest request = builder.build();
       RecordActivityTaskHeartbeatResponse status =
-          ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
+          ActivityClientHelper.sendHeartbeatRequest(
+              service, request, metricsScope, payloadErrorLimits);
       if (status.getCancelRequested()) {
         requestCancelLocked();
       } else if (status.getActivityReset()) {
@@ -468,7 +485,13 @@ class HeartbeatContextImpl implements HeartbeatContext {
         lastException = null;
       }
     } catch (StatusRuntimeException e) {
-      if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+      Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
+      if (violation.isPresent()) {
+        failActivityWithPayloadsTooLarge(violation.get());
+        // The server answers an oversized heartbeat by failing the activity and requesting
+        // cancellation, so do the same here.
+        requestCancelLocked();
+      } else if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
         lastException = new ActivityNotExistsException(info, e);
       } else if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT
           || e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
@@ -477,6 +500,49 @@ class HeartbeatContextImpl implements HeartbeatContext {
         throw e;
       }
     }
+  }
+
+  /**
+   * Fails the activity because a heartbeat exceeded the namespace's payload error limits. The
+   * failure is retryable, unlike the server's own rejection, so that a corrected activity can be
+   * redeployed and succeed on its next attempt.
+   */
+  private void failActivityWithPayloadsTooLarge(PayloadLimitViolation violation) {
+    metricsScope
+        .tagged(
+            Collections.singletonMap(
+                MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE))
+        .counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER)
+        .inc(1);
+    ApplicationFailure applicationFailure =
+        ApplicationFailure.newBuilder()
+            .setMessage(violation.getMessage())
+            .setType(PayloadLimitViolationException.FAILURE_TYPE)
+            .build();
+    applicationFailure.setStackTrace(new StackTraceElement[0]);
+    RespondActivityTaskFailedRequest request =
+        RespondActivityTaskFailedRequest.newBuilder()
+            .setTaskToken(ByteString.copyFrom(info.getTaskToken()))
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setFailure(dataConverterWithActivityContext.exceptionToFailure(applicationFailure))
+            .build();
+    try {
+      service
+          .blockingStub()
+          .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+          .respondActivityTaskFailed(request);
+      // The flag is set before cancellation is requested, so an activity that sees the
+      // cancellation also sees that its result must not be sent.
+      taskReported = true;
+    } catch (StatusRuntimeException e) {
+      log.warn("Failed to fail activity after an oversized heartbeat", e);
+    }
+  }
+
+  @Override
+  public boolean isTaskReported() {
+    return taskReported;
   }
 
   private void requestCancelLocked() {

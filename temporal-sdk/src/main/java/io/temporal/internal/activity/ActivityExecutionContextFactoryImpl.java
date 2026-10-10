@@ -4,6 +4,7 @@ import com.uber.m3.tally.Scope;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -12,6 +13,7 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public class ActivityExecutionContextFactoryImpl implements ActivityExecutionContextFactory {
@@ -24,6 +26,7 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
   private final ScheduledExecutorService heartbeatExecutor;
   private final ManualActivityCompletionClientFactory manualCompletionClientFactory;
   private final @Nullable ExternalStorageRunner externalStorage;
+  private final Supplier<PayloadErrorLimits> payloadErrorLimits;
   private final ConcurrentMap<ByteBuffer, ActivityExecutionContextImpl> activeContexts =
       new ConcurrentHashMap<>();
 
@@ -36,6 +39,33 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
       DataConverter dataConverter,
       ScheduledExecutorService heartbeatExecutor,
       @Nullable ExternalStorageRunner externalStorage) {
+    this(
+        client,
+        identity,
+        namespace,
+        maxHeartbeatThrottleInterval,
+        defaultHeartbeatThrottleInterval,
+        dataConverter,
+        heartbeatExecutor,
+        externalStorage,
+        () -> null);
+  }
+
+  /**
+   * @param payloadErrorLimits read when each activity starts, because the namespace's limits are
+   *     only known once the worker factory has started.
+   */
+  public ActivityExecutionContextFactoryImpl(
+      WorkflowClient client,
+      String identity,
+      String namespace,
+      Duration maxHeartbeatThrottleInterval,
+      Duration defaultHeartbeatThrottleInterval,
+      DataConverter dataConverter,
+      ScheduledExecutorService heartbeatExecutor,
+      @Nullable ExternalStorageRunner externalStorage,
+      Supplier<PayloadErrorLimits> payloadErrorLimits) {
+    this.payloadErrorLimits = Objects.requireNonNull(payloadErrorLimits);
     this.client = Objects.requireNonNull(client);
     this.identity = identity;
     this.namespace = Objects.requireNonNull(namespace);
@@ -69,7 +99,8 @@ public class ActivityExecutionContextFactoryImpl implements ActivityExecutionCon
             maxHeartbeatThrottleInterval,
             defaultHeartbeatThrottleInterval,
             () -> cleanupContext(info.getTaskToken(), false),
-            externalStorage);
+            externalStorage,
+            payloadErrorLimits.get());
     activeContexts.put(taskToken, context);
     return context;
   }

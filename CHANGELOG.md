@@ -19,6 +19,12 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- Workers now retryably fail a workflow or activity task whose payloads exceed the namespace's size
+  limit, instead of sending it to the server. Disable with
+  `WorkerOptions.Builder.setDisablePayloadErrorLimit`; tune warnings with the experimental
+  `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
+
 ### Added
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time

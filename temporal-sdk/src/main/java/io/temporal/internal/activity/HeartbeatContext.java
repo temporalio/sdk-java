@@ -35,4 +35,10 @@ interface HeartbeatContext {
 
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
+
+  /**
+   * Returns whether this context already reported the activity task's outcome to the server, so the
+   * activity's own result must not be sent.
+   */
+  boolean isTaskReported();
 }

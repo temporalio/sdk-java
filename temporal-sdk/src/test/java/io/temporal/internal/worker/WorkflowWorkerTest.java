@@ -20,6 +20,8 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
@@ -42,6 +44,11 @@ import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.limits.LimitClass;
+import io.temporal.internal.payload.limits.LimitSeverity;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.replay.ReplayWorkflow;
@@ -50,6 +57,7 @@ import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testUtils.HistoryUtils;
@@ -710,6 +718,142 @@ public class WorkflowWorkerTest {
         sent.getValue().getCause());
   }
 
+  @Test
+  public void aCompletionOverThePayloadErrorLimitFailsTheTaskRetryably() throws Exception {
+    NamespaceCapabilities capabilities = payloadErrorLimits();
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+
+    runOneTask(
+        null,
+        capabilities,
+        smallCompletion(),
+        CancellationToken.none(),
+        1,
+        blockingStub ->
+            when(blockingStub.respondWorkflowTaskCompleted(
+                    any(RespondWorkflowTaskCompletedRequest.class)))
+                .thenThrow(payloadLimitViolation()),
+        blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
+
+    assertEquals(
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE,
+        sent.getValue().getCause());
+    Failure failure = sent.getValue().getFailure();
+    assertEquals(PAYLOAD_LIMIT_ERROR_MESSAGE, failure.getMessage());
+    assertEquals("PayloadsTooLarge", failure.getApplicationFailureInfo().getType());
+    assertFalse(failure.getApplicationFailureInfo().getNonRetryable());
+    reporter.assertCounter(
+        MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER,
+        ImmutableMap.of(
+            "worker_type",
+            "WorkflowWorker",
+            "workflow_type",
+            WORKFLOW_TYPE,
+            MetricsTag.TASK_FAILURE_TYPE,
+            MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE),
+        1);
+  }
+
+  @Test
+  public void aLaterAttemptOverThePayloadErrorLimitIsLeftToTimeOut() throws Exception {
+    runOneTask(
+        null,
+        payloadErrorLimits(),
+        smallCompletion(),
+        CancellationToken.none(),
+        2,
+        blockingStub ->
+            when(blockingStub.respondWorkflowTaskCompleted(
+                    any(RespondWorkflowTaskCompletedRequest.class)))
+                .thenThrow(payloadLimitViolation()),
+        blockingStub ->
+            verify(blockingStub, never())
+                .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class)));
+  }
+
+  @Test
+  public void completionsCarryTheNamespacePayloadErrorLimits() throws Exception {
+    NamespaceCapabilities capabilities = payloadErrorLimits();
+    runOneTask(
+        null,
+        capabilities,
+        smallCompletion(),
+        CancellationToken.none(),
+        1,
+        blockingStub -> {},
+        blockingStub ->
+            verify(blockingStub)
+                .withOption(
+                    PayloadErrorLimits.CALL_OPTIONS_KEY, capabilities.getPayloadErrorLimits()));
+  }
+
+  @Test
+  public void aViolationWhileReportingAFailureIsNotConverted() throws Exception {
+    // Only completions are rejected for payload limits; a workflow's own failure report must not
+    // be turned into a PAYLOADS_TOO_LARGE failure.
+    RespondWorkflowTaskFailedRequest taskFailed =
+        RespondWorkflowTaskFailedRequest.newBuilder()
+            .setCause(
+                WorkflowTaskFailedCause
+                    .WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE)
+            .build();
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+    runOneTask(
+        null,
+        payloadErrorLimits(),
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, null, taskFailed, null, null, false, null, null),
+        CancellationToken.none(),
+        1,
+        blockingStub -> {},
+        blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
+    assertEquals(
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE,
+        sent.getValue().getCause());
+  }
+
+  private static final String PAYLOAD_LIMIT_ERROR_MESSAGE =
+      "[TMPRL1103] Attempted to upload payloads with size that exceeded the error limit.";
+
+  private static NamespaceCapabilities payloadErrorLimits() {
+    NamespaceCapabilities capabilities = new NamespaceCapabilities();
+    capabilities.setFromLimits(
+        NamespaceInfo.Limits.newBuilder()
+            .setBlobSizeLimitError(100)
+            .setMemoSizeLimitError(100)
+            .build());
+    return capabilities;
+  }
+
+  /** Returns what the payload limits interceptor throws for a completion over an error limit. */
+  private static StatusRuntimeException payloadLimitViolation() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation(
+            "commands[0].complete_workflow_execution_command_attributes.result",
+            LimitClass.BLOB,
+            LimitSeverity.ERROR,
+            1000,
+            100);
+    return Status.INVALID_ARGUMENT
+        .withDescription(violation.getMessage())
+        .withCause(new PayloadLimitViolationException(violation))
+        .asRuntimeException();
+  }
+
+  private static WorkflowTaskHandler.Result smallCompletion() {
+    RespondWorkflowTaskCompletedRequest taskCompleted =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setCompleteWorkflowExecutionCommandAttributes(
+                        CompleteWorkflowExecutionCommandAttributes.getDefaultInstance()))
+            .build();
+    return new WorkflowTaskHandler.Result(
+        WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null);
+  }
+
   private static final int ONE_MEGABYTE = 1024 * 1024;
 
   private static NamespaceCapabilities completionSizeLimit(long limitBytes) {
@@ -776,6 +920,28 @@ public class WorkflowWorkerTest {
       CancellationToken<CancellationException> storageCancellation,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
       throws Exception {
+    runOneTask(
+        driver,
+        namespaceCapabilities,
+        handlerResult,
+        storageCancellation,
+        1,
+        blockingStub -> {},
+        verification);
+  }
+
+  /**
+   * @param stubSetup runs after the default stubbing, so it can override it.
+   */
+  private void runOneTask(
+      @Nullable TestStorageDriver driver,
+      NamespaceCapabilities namespaceCapabilities,
+      WorkflowTaskHandler.Result handlerResult,
+      CancellationToken<CancellationException> storageCancellation,
+      int attempt,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> stubSetup,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -832,10 +998,12 @@ public class WorkflowWorkerTest {
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
     when(blockingStub.respondWorkflowTaskCompleted(any(RespondWorkflowTaskCompletedRequest.class)))
         .thenReturn(RespondWorkflowTaskCompletedResponse.getDefaultInstance());
+    stubSetup.accept(blockingStub);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()
             .setTaskToken(ByteString.copyFrom("token", UTF_8))
+            .setAttempt(attempt)
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId(RUN_ID).build())
             .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())

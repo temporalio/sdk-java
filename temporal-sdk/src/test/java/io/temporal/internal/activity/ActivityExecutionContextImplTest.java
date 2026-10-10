@@ -60,6 +60,7 @@ public class ActivityExecutionContextImplTest {
             Duration.ofSeconds(60),
             Duration.ofSeconds(30),
             () -> {},
+            null,
             null);
 
     context.useLocalManualCompletion();

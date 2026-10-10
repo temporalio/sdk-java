@@ -91,6 +91,9 @@ final class ActivityTaskExecutors {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
+        if (context.isTaskReported()) {
+          return taskAlreadyReported(info);
+        }
 
         return this.constructSuccessfulResultValue(info, result, dataConverterWithActivityContext);
       } catch (Throwable e) {
@@ -121,6 +124,9 @@ final class ActivityTaskExecutors {
               ex);
         }
 
+        if (context.isTaskReported()) {
+          return taskAlreadyReported(info);
+        }
         return mapToActivityFailure(
             ex,
             info.getActivityId(),
@@ -140,6 +146,11 @@ final class ActivityTaskExecutors {
           context.cancelOutstandingHeartbeat();
         }
       }
+    }
+
+    /** Returns a result that sends nothing, because the task's outcome was already reported. */
+    private static ActivityTaskHandler.Result taskAlreadyReported(ActivityInfoInternal info) {
+      return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, false);
     }
 
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();

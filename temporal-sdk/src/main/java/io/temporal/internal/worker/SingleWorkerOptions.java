@@ -9,6 +9,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
@@ -48,6 +49,7 @@ public final class SingleWorkerOptions {
     private WorkerDeploymentOptions deploymentOptions;
     private String workerInstanceKey;
     private boolean allowActivityHeartbeatDuringShutdown;
+    private boolean payloadErrorLimitDisabled;
     private String workerControlTaskQueue;
     private PreferredVersionProvider preferredVersionProvider;
     private @Nullable ExternalStorageRunner externalStorageRunner;
@@ -79,6 +81,7 @@ public final class SingleWorkerOptions {
       this.deploymentOptions = options.getDeploymentOptions();
       this.workerInstanceKey = options.getWorkerInstanceKey();
       this.allowActivityHeartbeatDuringShutdown = options.getAllowActivityHeartbeatDuringShutdown();
+      this.payloadErrorLimitDisabled = options.isPayloadErrorLimitDisabled();
       this.workerControlTaskQueue = options.getWorkerControlTaskQueue();
       this.preferredVersionProvider = options.getPreferredVersionProvider();
       this.externalStorageRunner = options.getExternalStorageRunner();
@@ -186,6 +189,11 @@ public final class SingleWorkerOptions {
       return this;
     }
 
+    public Builder setPayloadErrorLimitDisabled(boolean payloadErrorLimitDisabled) {
+      this.payloadErrorLimitDisabled = payloadErrorLimitDisabled;
+      return this;
+    }
+
     public Builder setWorkerControlTaskQueue(String workerControlTaskQueue) {
       this.workerControlTaskQueue = workerControlTaskQueue;
       return this;
@@ -259,6 +267,7 @@ public final class SingleWorkerOptions {
           this.deploymentOptions,
           this.workerInstanceKey,
           this.allowActivityHeartbeatDuringShutdown,
+          this.payloadErrorLimitDisabled,
           this.workerControlTaskQueue,
           this.preferredVersionProvider,
           this.externalStorageRunner,
@@ -286,6 +295,7 @@ public final class SingleWorkerOptions {
   private final WorkerDeploymentOptions deploymentOptions;
   private final String workerInstanceKey;
   private final boolean allowActivityHeartbeatDuringShutdown;
+  private final boolean payloadErrorLimitDisabled;
   private final String workerControlTaskQueue;
   private final PreferredVersionProvider preferredVersionProvider;
   private final @Nullable ExternalStorageRunner externalStorageRunner;
@@ -312,6 +322,7 @@ public final class SingleWorkerOptions {
       WorkerDeploymentOptions deploymentOptions,
       String workerInstanceKey,
       boolean allowActivityHeartbeatDuringShutdown,
+      boolean payloadErrorLimitDisabled,
       String workerControlTaskQueue,
       PreferredVersionProvider preferredVersionProvider,
       @Nullable ExternalStorageRunner externalStorageRunner,
@@ -336,6 +347,7 @@ public final class SingleWorkerOptions {
     this.deploymentOptions = deploymentOptions;
     this.workerInstanceKey = workerInstanceKey;
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.payloadErrorLimitDisabled = payloadErrorLimitDisabled;
     this.workerControlTaskQueue = workerControlTaskQueue;
     this.preferredVersionProvider = preferredVersionProvider;
     this.externalStorageRunner = externalStorageRunner;
@@ -376,6 +388,19 @@ public final class SingleWorkerOptions {
 
   public boolean getAllowActivityHeartbeatDuringShutdown() {
     return allowActivityHeartbeatDuringShutdown;
+  }
+
+  public boolean isPayloadErrorLimitDisabled() {
+    return payloadErrorLimitDisabled;
+  }
+
+  /**
+   * Returns the payload and memo error limits this worker attaches to its completions, or null when
+   * the namespace advertises none or enforcement is disabled.
+   */
+  @Nullable
+  public PayloadErrorLimits payloadErrorLimits(NamespaceCapabilities namespaceCapabilities) {
+    return payloadErrorLimitDisabled ? null : namespaceCapabilities.getPayloadErrorLimits();
   }
 
   public DataConverter getDataConverter() {

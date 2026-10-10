@@ -1128,6 +1128,7 @@ public final class Worker {
         .setWorkerInstanceKey(workerInstanceKey)
         .setWorkerControlTaskQueue(workerControlTaskQueue)
         .setPreferredVersionProvider(options.getPreferredVersionProvider())
+        .setPayloadErrorLimitDisabled(options.isPayloadErrorLimitDisabled())
         .setLoggerMdc(new PrefixedMdc(factoryOptions.getLoggerTagPrefix()));
   }
 

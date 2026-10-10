@@ -18,6 +18,9 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -30,6 +33,7 @@ import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
 import io.temporal.worker.tuning.*;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
@@ -408,6 +412,11 @@ final class ActivityWorker implements SuspendableWorker {
         sendStorageFailure(taskToken, metricsScope, e.getCause());
         return result;
       } catch (Exception e) {
+        Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
+        if (violation.isPresent()) {
+          sendPayloadsTooLargeFailure(taskToken, metricsScope, violation.get());
+          return result;
+        }
         logExceptionDuringResultReporting(e, pollResponse, result);
         // TODO this class doesn't report activity success and failure metrics now, instead it's
         //  located inside an activity handler. We should lift it up to this level,
@@ -461,9 +470,11 @@ final class ActivityWorker implements SuspendableWorker {
 
         grpcRetryer.retry(
             () ->
-                service
-                    .blockingStub()
-                    .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                PayloadErrorLimits.attach(
+                        service
+                            .blockingStub()
+                            .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope),
+                        options.payloadErrorLimits(namespaceCapabilities))
                     .respondActivityTaskCompleted(request),
             replyGrpcRetryerOptions);
       } else {
@@ -499,9 +510,11 @@ final class ActivityWorker implements SuspendableWorker {
 
             grpcRetryer.retry(
                 () ->
-                    service
-                        .blockingStub()
-                        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    PayloadErrorLimits.attach(
+                            service
+                                .blockingStub()
+                                .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope),
+                            options.payloadErrorLimits(namespaceCapabilities))
                         .respondActivityTaskCanceled(request),
                 replyGrpcRetryerOptions);
           }
@@ -550,6 +563,34 @@ final class ActivityWorker implements SuspendableWorker {
               .setType(ExternalStorageTaskFailure.class.getSimpleName())
               .build();
       applicationFailure.setStackTrace(new StackTraceElement[0]);
+      return sendFailure(taskToken, metricsScope, applicationFailure);
+    }
+
+    /**
+     * Fails an activity whose completion exceeded the namespace's payload error limits, instead of
+     * sending the completion. The failure is retryable, unlike the server's own rejection, so that
+     * a corrected activity can be redeployed and succeed on its next attempt.
+     */
+    private void sendPayloadsTooLargeFailure(
+        ByteString taskToken, Scope metricsScope, PayloadLimitViolation violation) {
+      metricsScope
+          .tagged(
+              Collections.singletonMap(
+                  MetricsTag.TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE))
+          .counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER)
+          .inc(1);
+      ApplicationFailure applicationFailure =
+          ApplicationFailure.newBuilder()
+              .setMessage(violation.getMessage())
+              .setType(PayloadLimitViolationException.FAILURE_TYPE)
+              .build();
+      applicationFailure.setStackTrace(new StackTraceElement[0]);
+      sendFailure(taskToken, metricsScope, applicationFailure);
+    }
+
+    @SuppressWarnings("deprecation")
+    private RespondActivityTaskFailedRequest sendFailure(
+        ByteString taskToken, Scope metricsScope, ApplicationFailure applicationFailure) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setTaskToken(taskToken)

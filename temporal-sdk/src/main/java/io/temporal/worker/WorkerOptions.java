@@ -80,6 +80,7 @@ public final class WorkerOptions {
     private PollerBehavior activityTaskPollersBehavior;
     private PollerBehavior nexusTaskPollersBehavior;
     private boolean allowActivityHeartbeatDuringShutdown;
+    private boolean disablePayloadErrorLimit;
     private PreferredVersionProvider preferredVersionProvider;
     // Track whether the user explicitly configured the pollers for a task type (called either the
     // max-concurrent-pollers or the poller-behavior setter). A type left unconfigured is eligible
@@ -126,6 +127,7 @@ public final class WorkerOptions {
       this.activityTaskPollersBehavior = o.activityTaskPollersBehavior;
       this.nexusTaskPollersBehavior = o.nexusTaskPollersBehavior;
       this.allowActivityHeartbeatDuringShutdown = o.allowActivityHeartbeatDuringShutdown;
+      this.disablePayloadErrorLimit = o.disablePayloadErrorLimit;
       this.preferredVersionProvider = o.preferredVersionProvider;
       this.workflowTaskPollersConfigured = o.workflowTaskPollersConfigured;
       this.activityTaskPollersConfigured = o.activityTaskPollersConfigured;
@@ -611,6 +613,29 @@ public final class WorkerOptions {
     }
 
     /**
+     * Disables the worker's enforcement of the namespace's payload and memo error limits. Defaults
+     * to false.
+     *
+     * <p>By default, a workflow or activity task whose completion contains a payload or memo larger
+     * than the namespace's error limit is failed by the worker, retryably and with a {@code
+     * [TMPRL1103]} error log, instead of being sent: a workflow task fails with cause {@code
+     * PAYLOADS_TOO_LARGE}, and an activity fails with an {@code ApplicationFailure} of type {@code
+     * PayloadsTooLarge}. When set to true, oversized completions are sent and the server enforces
+     * the limit. Warnings configured through {@code WorkflowServiceStubsOptions.setPayloadLimits}
+     * are logged either way.
+     *
+     * <p>Disable enforcement when a proxy between the worker and the server changes payload sizes,
+     * for example through compression, encryption, or external storage.
+     *
+     * @see <a href="https://docs.temporal.io/troubleshooting/blob-size-limit-error">Blob size limit
+     *     error</a>
+     */
+    public Builder setDisablePayloadErrorLimit(boolean disablePayloadErrorLimit) {
+      this.disablePayloadErrorLimit = disablePayloadErrorLimit;
+      return this;
+    }
+
+    /**
      * Sets a provider that can choose the version recorded by the first non-replay {@link
      * io.temporal.workflow.Workflow#getVersion(String, int, int)} call for a change ID.
      *
@@ -655,6 +680,7 @@ public final class WorkerOptions {
           activityTaskPollersBehavior,
           nexusTaskPollersBehavior,
           allowActivityHeartbeatDuringShutdown,
+          disablePayloadErrorLimit,
           preferredVersionProvider,
           workflowTaskPollersConfigured,
           activityTaskPollersConfigured,
@@ -797,6 +823,7 @@ public final class WorkerOptions {
           activityTaskPollersBehavior,
           nexusTaskPollersBehavior,
           allowActivityHeartbeatDuringShutdown,
+          disablePayloadErrorLimit,
           preferredVersionProvider,
           workflowTaskPollersConfigured,
           activityTaskPollersConfigured,
@@ -834,6 +861,7 @@ public final class WorkerOptions {
   private final PollerBehavior activityTaskPollersBehavior;
   private final PollerBehavior nexusTaskPollersBehavior;
   private final boolean allowActivityHeartbeatDuringShutdown;
+  private final boolean disablePayloadErrorLimit;
   private final PreferredVersionProvider preferredVersionProvider;
   private final boolean workflowTaskPollersConfigured;
   private final boolean activityTaskPollersConfigured;
@@ -870,6 +898,7 @@ public final class WorkerOptions {
       PollerBehavior activityTaskPollersBehavior,
       PollerBehavior nexusTaskPollersBehavior,
       boolean allowActivityHeartbeatDuringShutdown,
+      boolean disablePayloadErrorLimit,
       PreferredVersionProvider preferredVersionProvider,
       boolean workflowTaskPollersConfigured,
       boolean activityTaskPollersConfigured,
@@ -904,6 +933,7 @@ public final class WorkerOptions {
     this.activityTaskPollersBehavior = activityTaskPollersBehavior;
     this.nexusTaskPollersBehavior = nexusTaskPollersBehavior;
     this.allowActivityHeartbeatDuringShutdown = allowActivityHeartbeatDuringShutdown;
+    this.disablePayloadErrorLimit = disablePayloadErrorLimit;
     this.preferredVersionProvider = preferredVersionProvider;
     this.workflowTaskPollersConfigured = workflowTaskPollersConfigured;
     this.activityTaskPollersConfigured = activityTaskPollersConfigured;
@@ -1079,6 +1109,14 @@ public final class WorkerOptions {
     return allowActivityHeartbeatDuringShutdown;
   }
 
+  /**
+   * @return true if the worker does not enforce the namespace's payload and memo error limits.
+   * @see Builder#setDisablePayloadErrorLimit(boolean)
+   */
+  public boolean isPayloadErrorLimitDisabled() {
+    return disablePayloadErrorLimit;
+  }
+
   @Experimental
   public PreferredVersionProvider getPreferredVersionProvider() {
     return preferredVersionProvider;
@@ -1120,6 +1158,7 @@ public final class WorkerOptions {
         && Objects.equals(activityTaskPollersBehavior, that.activityTaskPollersBehavior)
         && Objects.equals(nexusTaskPollersBehavior, that.nexusTaskPollersBehavior)
         && allowActivityHeartbeatDuringShutdown == that.allowActivityHeartbeatDuringShutdown
+        && disablePayloadErrorLimit == that.disablePayloadErrorLimit
         && Objects.equals(preferredVersionProvider, that.preferredVersionProvider);
   }
 
@@ -1156,6 +1195,7 @@ public final class WorkerOptions {
         activityTaskPollersBehavior,
         nexusTaskPollersBehavior,
         allowActivityHeartbeatDuringShutdown,
+        disablePayloadErrorLimit,
         preferredVersionProvider);
   }
 
@@ -1223,6 +1263,8 @@ public final class WorkerOptions {
         + nexusTaskPollersBehavior
         + ", allowActivityHeartbeatDuringShutdown="
         + allowActivityHeartbeatDuringShutdown
+        + ", disablePayloadErrorLimit="
+        + disablePayloadErrorLimit
         + ", preferredVersionProvider="
         + preferredVersionProvider
         + '}';

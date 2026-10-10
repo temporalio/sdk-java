@@ -115,4 +115,9 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   public Object getInstance() {
     return activity;
   }
+
+  @Override
+  public boolean isTaskReported() {
+    return false;
+  }
 }

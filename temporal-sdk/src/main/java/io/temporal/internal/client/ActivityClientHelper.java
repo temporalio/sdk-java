@@ -8,7 +8,9 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import javax.annotation.Nullable;
 
 /**
  * Contains methods that could but didn't become a part of the main {@link
@@ -22,9 +24,17 @@ public final class ActivityClientHelper {
       WorkflowServiceStubs service,
       RecordActivityTaskHeartbeatRequest request,
       Scope metricsScope) {
-    return service
-        .blockingStub()
-        .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+    return sendHeartbeatRequest(service, request, metricsScope, null);
+  }
+
+  public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
+      WorkflowServiceStubs service,
+      RecordActivityTaskHeartbeatRequest request,
+      Scope metricsScope,
+      @Nullable PayloadErrorLimits payloadErrorLimits) {
+    return PayloadErrorLimits.attach(
+            service.blockingStub().withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope),
+            payloadErrorLimits)
         .recordActivityTaskHeartbeat(request);
   }
 

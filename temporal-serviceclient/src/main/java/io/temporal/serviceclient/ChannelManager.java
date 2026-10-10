@@ -8,6 +8,7 @@ import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.MetadataUtils;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse.Capabilities;
+import io.temporal.internal.payload.limits.PayloadLimitsInterceptor;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.retryer.GrpcRetryer.GrpcRetryerOptions;
 import java.time.Duration;
@@ -129,6 +130,19 @@ final class ChannelManager {
         new GrpcMetricsInterceptor(options.getMetricsScope());
 
     channel = ClientInterceptors.intercept(channel, metricsInterceptor);
+
+    // The payload limits interceptor sits inside the custom interceptors, so it checks the request
+    // as finally sent, and outside the metrics interceptor, so a request it rejects locally is not
+    // counted as a failed RPC.
+    if (options instanceof WorkflowServiceStubsOptions) {
+      PayloadLimitsOptions payloadLimits =
+          ((WorkflowServiceStubsOptions) options).getPayloadLimits();
+      channel =
+          ClientInterceptors.intercept(
+              channel,
+              new PayloadLimitsInterceptor(
+                  payloadLimits.getPayloadsWarnSize(), payloadLimits.getMemoWarnSize()));
+    }
 
     // if this interceptor is enabled, it should be added first or in front of any requests
     // modifying interceptors

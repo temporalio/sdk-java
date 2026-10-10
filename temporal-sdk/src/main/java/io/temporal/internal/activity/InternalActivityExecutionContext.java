@@ -15,4 +15,10 @@ public interface InternalActivityExecutionContext extends ActivityExecutionConte
 
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
+
+  /**
+   * Returns whether the activity task's outcome was already reported to the server, for example
+   * because an oversized heartbeat failed it, so the activity's own result must not be sent.
+   */
+  boolean isTaskReported();
 }
