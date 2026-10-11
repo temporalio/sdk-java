@@ -1385,7 +1385,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowFailed");
         });
   }
 
@@ -1398,7 +1397,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(Action.TIME_OUT, ctx, a.getRetryState(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowTimedOut");
         });
   }
 
@@ -1424,7 +1422,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.COMPLETE, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowCompleted");
         });
   }
 
@@ -1437,7 +1434,6 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           child.action(StateMachines.Action.CANCEL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowCanceled");
         });
   }
 
@@ -1594,7 +1590,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflowTaskStateMachine.getData().workflowCompleted = true;
     processWorkflowCompletionCallbacks(ctx);
     if (parent.isPresent()) {
-      ctx.lockTimer("processFailWorkflowExecution notify parent"); // unlocked by the parent
+      // Keeps time from skipping until the parent schedules a workflow task.
+      ctx.lockTimer("processFailWorkflowExecution notify parent");
       ChildWorkflowExecutionFailedEventAttributes a =
           ChildWorkflowExecutionFailedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
@@ -1617,6 +1614,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   }
                 } catch (Throwable e) {
                   log.error("Failure reporting child failure", e);
+                } finally {
+                  // Released even if the parent already closed, so time skipping is not stuck.
+                  timerService.unlockTimeSkipping("processFailWorkflowExecution notify parent");
                 }
               });
     }
@@ -1641,7 +1641,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     // years
     workflow.getData().runTimerCancellationHandle.apply();
     if (parent.isPresent()) {
-      ctx.lockTimer("processCompleteWorkflowExecution notify parent"); // unlocked by the parent
+      // Keeps time from skipping until the parent schedules a workflow task.
+      ctx.lockTimer("processCompleteWorkflowExecution notify parent");
       ChildWorkflowExecutionCompletedEventAttributes a =
           ChildWorkflowExecutionCompletedEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
@@ -1665,6 +1666,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   }
                 } catch (Throwable e) {
                   log.error("Failure reporting child completion", e);
+                } finally {
+                  // Released even if the parent already closed, so time skipping is not stuck.
+                  timerService.unlockTimeSkipping("processCompleteWorkflowExecution notify parent");
                 }
               });
     }
@@ -1718,7 +1722,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     workflowTaskStateMachine.getData().workflowCompleted = true;
     processWorkflowCompletionCallbacks(ctx);
     if (parent.isPresent()) {
-      ctx.lockTimer("processCancelWorkflowExecution notify parent"); // unlocked by the parent
+      // Keeps time from skipping until the parent schedules a workflow task.
+      ctx.lockTimer("processCancelWorkflowExecution notify parent");
       ChildWorkflowExecutionCanceledEventAttributes a =
           ChildWorkflowExecutionCanceledEventAttributes.newBuilder()
               .setInitiatedEventId(parentChildInitiatedEventId.getAsLong())
@@ -1742,6 +1747,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                   }
                 } catch (Throwable e) {
                   log.error("Failure reporting child cancellation", e);
+                } finally {
+                  // Released even if the parent already closed, so time skipping is not stuck.
+                  timerService.unlockTimeSkipping("processCancelWorkflowExecution notify parent");
                 }
               });
     }
@@ -2646,7 +2654,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             workflowTaskStateMachine.getData().workflowCompleted = true;
             processWorkflowCompletionCallbacks(ctx);
             if (parent.isPresent()) {
-              ctx.lockTimer("timeoutWorkflow notify parent"); // unlocked by the parent
+              // Keeps time from skipping until the parent schedules a workflow task.
+              ctx.lockTimer("timeoutWorkflow notify parent");
             }
             ForkJoinPool.commonPool().execute(() -> reportWorkflowTimeoutToParent(ctx));
           });
@@ -2677,6 +2686,9 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
     } catch (Exception e) {
       log.error("Failure reporting child timing out", e);
+    } finally {
+      // Released even if the parent already closed, so time skipping is not stuck.
+      timerService.unlockTimeSkipping("timeoutWorkflow notify parent");
     }
   }
 

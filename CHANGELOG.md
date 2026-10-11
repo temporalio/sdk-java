@@ -43,6 +43,8 @@ to docs, or any other relevant information.
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Test server no longer disables time skipping when a child workflow closes after its parent, for example an abandoned
+  child. Previously every later sleep or timer on that test server ran in real time.
 
 ## Previous releases
 
