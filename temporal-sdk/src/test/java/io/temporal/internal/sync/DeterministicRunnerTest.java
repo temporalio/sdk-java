@@ -4,6 +4,7 @@ import static junit.framework.TestCase.*;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
+import com.uber.m3.tally.Counter;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
@@ -999,5 +1000,43 @@ public class DeterministicRunnerTest {
               assertEquals(4, supplierCalls.get());
             });
     d.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+  }
+
+  @Test
+  public void testUnaccessedFailedPromiseMetric() {
+    Counter counter = closeRunnerWithFailedPromises(false);
+    verify(counter, times(2)).inc(1);
+  }
+
+  @Test
+  public void testAccessedFailedPromisesDoNotIncrementMetric() {
+    Counter counter = closeRunnerWithFailedPromises(true);
+    verifyNoInteractions(counter);
+  }
+
+  private Counter closeRunnerWithFailedPromises(boolean accessFailures) {
+    Counter counter = mock(Counter.class);
+    Scope scope = mock(Scope.class);
+    when(scope.counter(MetricsType.WORKFLOW_UNACCESSED_FAILED_PROMISE_COUNTER)).thenReturn(counter);
+    SyncWorkflowContext context = spy(DummySyncWorkflowContext.newDummySyncWorkflowContext());
+    doReturn(scope).when(context).getMetricsScope();
+    DeterministicRunner runner =
+        DeterministicRunner.newRunner(
+            threadPool::submit,
+            context,
+            () -> {
+              Promise<Object> read = Workflow.newFailedPromise(new RuntimeException("read"));
+              Promise<Object> handled = Workflow.newFailedPromise(new RuntimeException("handled"));
+              if (accessFailures) {
+                read.getFailure();
+                handled.exceptionally(failure -> null);
+              }
+              WorkflowThread.await("blocked", () -> false);
+            });
+    runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+    assertFalse(runner.isDone());
+    runner.close();
+    runner.close();
+    return counter;
   }
 }

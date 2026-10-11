@@ -20,6 +20,8 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### Added
+- Added `temporal_workflow_unaccessed_failed_promise`, counting failed promises reported by the
+  existing unaccessed-promise warning during runner cleanup.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
