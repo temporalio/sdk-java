@@ -15,7 +15,8 @@ public @interface WorkflowImpl {
   /**
    * @return names of Workers to register this workflow implementation with. Workers with these
    *     names must be present in the application config or auto-discovered from {@link
-   *     #taskQueues()}. Worker is named by its task queue if its name is not specified.
+   *     #taskQueues()}. Worker is named by its task queue if its name is not specified. Can be
+   *     specified by a property key, e.g.: ${propertyKey}.
    */
   String[] workers() default {};
 
