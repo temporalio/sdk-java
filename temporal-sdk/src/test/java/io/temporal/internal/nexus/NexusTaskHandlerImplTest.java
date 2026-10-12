@@ -1,7 +1,6 @@
 package io.temporal.internal.nexus;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.RootScopeBuilder;
@@ -18,7 +17,6 @@ import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
@@ -108,12 +106,9 @@ public class NexusTaskHandlerImplTest {
   }
 
   @Test
-  public void nexusOperationContextExposesConfiguredConverter() throws TimeoutException {
-    DataConverter userDataConverter = DefaultDataConverter.newDefaultInstance();
+  public void nexusOperationContextExposesWorkerWorkflowClient() throws TimeoutException {
     WorkflowClient client = mock(WorkflowClient.class);
-    when(client.getOptions())
-        .thenReturn(WorkflowClientOptions.newBuilder().setDataConverter(userDataConverter).build());
-    ConverterContextNexusService service = new ConverterContextNexusService(userDataConverter);
+    ClientContextNexusService service = new ClientContextNexusService(client);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
         new NexusTaskHandlerImpl(
             client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
@@ -134,7 +129,7 @@ public class NexusTaskHandlerImplTest {
     NexusTaskHandler.Result result =
         nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
     Assert.assertNull(result.getHandlerException());
-    Assert.assertTrue(service.usesConfiguredConverter);
+    Assert.assertTrue(service.usesWorkerWorkflowClient);
   }
 
   @Test
@@ -447,24 +442,20 @@ public class NexusTaskHandlerImplTest {
   }
 
   @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
-  public class ConverterContextNexusService {
-    private final DataConverter expectedConverter;
-    private boolean usesConfiguredConverter;
+  public class ClientContextNexusService {
+    private final WorkflowClient expectedClient;
+    private boolean usesWorkerWorkflowClient;
 
-    ConverterContextNexusService(DataConverter expectedConverter) {
-      this.expectedConverter = expectedConverter;
+    ClientContextNexusService(WorkflowClient expectedClient) {
+      this.expectedClient = expectedClient;
     }
 
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (ctx, details, name) -> {
-            usesConfiguredConverter =
-                io.temporal.nexus.Nexus.getOperationContext()
-                        .getWorkflowClient()
-                        .getOptions()
-                        .getDataConverter()
-                    == expectedConverter;
+            usesWorkerWorkflowClient =
+                io.temporal.nexus.Nexus.getOperationContext().getWorkflowClient() == expectedClient;
             return name;
           });
     }

@@ -103,7 +103,6 @@ public class WorkerPollerAutoEnrollStartupTest {
             .setIdentity("test-worker")
             .validateAndBuildWithDefaults();
     WorkflowClientInternal clientInternal = mock(WorkflowClientInternal.class);
-    when(clientInternal.getInternalDataConverter()).thenReturn(clientOptions.getDataConverter());
     WorkflowClient client = mock(WorkflowClient.class);
     when(client.getInternal()).thenReturn(clientInternal);
     when(client.getWorkflowServiceStubs()).thenReturn(service);

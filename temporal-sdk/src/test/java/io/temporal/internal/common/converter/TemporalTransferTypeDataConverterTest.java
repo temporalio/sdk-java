@@ -17,10 +17,12 @@ import com.google.protobuf.StringValue;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.FailureConverter;
+import io.temporal.common.converter.PayloadConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
@@ -30,19 +32,39 @@ import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
 
+@RunWith(Parameterized.class)
 public class TemporalTransferTypeDataConverterTest {
+  @Parameterized.Parameters(name = "wrapped={0}")
+  public static List<Object[]> converterModes() {
+    return Arrays.asList(new Object[] {false}, new Object[] {true});
+  }
+
+  private final boolean wrapped;
   private DataConverter converter;
+
+  public TemporalTransferTypeDataConverterTest(boolean wrapped) {
+    this.wrapped = wrapped;
+  }
 
   @Before
   public void setUp() {
-    converter = TemporalTransferTypeDataConverter.wrap(DefaultDataConverter.newDefaultInstance());
+    DataConverter standard = DefaultDataConverter.newDefaultInstance();
+    converter =
+        wrapped
+            ? TemporalTransferTypeDataConverter.wrap(
+                new CodecDataConverter(standard, Collections.emptyList()))
+            : standard;
+    assertEquals(wrapped, converter instanceof TemporalTransferTypeDataConverter);
   }
 
   @Test
@@ -52,6 +74,42 @@ public class TemporalTransferTypeDataConverterTest {
     assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
     assertFalse(payload.getMetadataMap().containsKey("temporal-transfer-type"));
     assertEquals(new Model("value"), converter.fromPayload(payload, Model.class, Model.class));
+  }
+
+  @Test
+  public void defaultConverterIsTransferAwareForDirectAndContextualUse() {
+    DefaultDataConverter standard = DefaultDataConverter.newDefaultInstance();
+    assertSame(standard, TemporalTransferTypeDataConverter.wrap(standard));
+
+    Payload payload = standard.toPayload(new Model("direct")).get();
+    assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
+    assertEquals(new Model("direct"), standard.fromPayload(payload, Model.class, Model.class));
+    Failure failure =
+        standard.exceptionToFailure(
+            ApplicationFailure.newFailure("message", "type", new Model("direct")));
+    assertEquals(payload, failure.getApplicationFailureInfo().getDetails().getPayloads(0));
+
+    DataConverter contextual = standard.withContext(mock(SerializationContext.class));
+    assertSame(contextual, TemporalTransferTypeDataConverter.wrap(contextual));
+    Optional<Payloads> values = contextual.toPayloads(new Model("context"));
+    assertEquals(
+        new Model("context"), contextual.fromPayloads(0, values, Model.class, Model.class));
+    assertEquals(
+        new Model("context"),
+        contextual.fromPayloads(values, new Class<?>[] {Model.class}, new Type[] {Model.class})[0]);
+  }
+
+  @Test
+  public void defaultConverterOverridesRemainEffectiveAfterTransferConversion() {
+    DefaultDataConverter standard = DefaultDataConverter.newDefaultInstance();
+    PayloadConverter override = mock(PayloadConverter.class);
+    Payload payload = Payload.getDefaultInstance();
+    when(override.getEncodingType()).thenReturn("json/protobuf");
+    when(override.toData(any())).thenReturn(Optional.of(payload));
+    standard.withPayloadConverterOverrides(override);
+
+    assertSame(payload, standard.toPayload(new Model("value")).get());
+    verify(override).toData(StringValue.of("value"));
   }
 
   @Test
@@ -143,6 +201,23 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   @Test
+  public void classValueCachesNullResults() {
+    AtomicInteger computations = new AtomicInteger();
+    ClassValue<Object> absentValue =
+        new ClassValue<Object>() {
+          @Override
+          protected Object computeValue(Class<?> type) {
+            computations.incrementAndGet();
+            return null;
+          }
+        };
+
+    assertNull(absentValue.get(String.class));
+    assertNull(absentValue.get(String.class));
+    assertEquals(1, computations.get());
+  }
+
+  @Test
   public void nullRawAndUnannotatedValuesPassThrough() {
     assertEquals(
         DefaultDataConverter.STANDARD_PAYLOAD_CONVERTERS[0].getEncodingType(),
@@ -219,29 +294,22 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   @Test
-  public void conversionIsTopLevelAndPerformsOneTransferStep() {
-    SecondStepConverter.invocations.set(0);
+  public void nestedValuesAreNotTransferConverted() {
     NestedModelConverter.invocations.set(0);
 
-    FirstStepModel firstStep =
-        converter.fromPayload(
-            converter.toPayload(new FirstStepModel("one")).get(),
-            FirstStepModel.class,
-            FirstStepModel.class);
     OrdinaryContainer container =
         converter.fromPayload(
             converter.toPayload(new OrdinaryContainer(new NestedModel("two"))).get(),
             OrdinaryContainer.class,
             OrdinaryContainer.class);
 
-    assertEquals("one", firstStep.value);
-    assertEquals(0, SecondStepConverter.invocations.get());
     assertEquals("two", container.value.value);
     assertEquals(0, NestedModelConverter.invocations.get());
   }
 
   @Test
-  public void genericRequestedTypeIsPreservedAndSelectsTransferType() {
+  public void genericConverterClassIsAcceptedAndReceivesRequestedType() {
+    assertEquals(1, GenericValueConverter.class.getTypeParameters().length);
     Type stringType = new TypeToken<GenericValue<String>>() {}.getType();
     Type integerType = new TypeToken<GenericValue<Integer>>() {}.getType();
 
@@ -292,10 +360,40 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   @Test
+  public void arrayDecodeAcceptsClassArrayForParameterizedTransferType()
+      throws NoSuchMethodException {
+    Optional<Payloads> payloads =
+        converter.toPayloads(new ListModel<String>(Arrays.asList("one", "two")));
+    Type[] genericParameterTypes =
+        RawListModelMethod.class
+            .getDeclaredMethod("accept", ListModel.class)
+            .getGenericParameterTypes();
+    assertSame(Class[].class, genericParameterTypes.getClass());
+
+    Object[] values =
+        converter.fromPayloads(payloads, new Class<?>[] {ListModel.class}, genericParameterTypes);
+
+    assertEquals(Arrays.asList("one", "two"), ((ListModel<?>) values[0]).values);
+  }
+
+  private static class RawListModelMethod {
+    void accept(ListModel value) {}
+  }
+
+  @Test
   public void invalidDeclarationsFailAsDataConverterExceptions() {
     assertInvalid(AbstractModel.class);
-    assertInvalid(MissingPublicConstructorModel.class);
-    assertInvalid(ThrowingConstructorModel.class);
+    assertTrue(
+        assertInvalid(MissingPublicConstructorModel.class)
+            .getMessage()
+            .contains("must have an accessible public no-argument constructor"));
+    assertTrue(
+        assertInvalid(NonPublicConverterModel.class)
+            .getMessage()
+            .contains("must be a public class"));
+    DataConverterException constructorFailure = assertInvalid(ThrowingConstructorModel.class);
+    assertTrue(constructorFailure.getMessage().contains("constructor threw an exception"));
+    assertEquals("constructor", constructorFailure.getCause().getMessage());
 
     Payload payload = DefaultDataConverter.newDefaultInstance().toPayload("value").get();
     assertThrows(
@@ -328,10 +426,24 @@ public class TemporalTransferTypeDataConverterTest {
   }
 
   @Test
-  public void callbackFailuresPropagateUnchanged() {
-    CallbackException expected =
-        assertThrows(CallbackException.class, () -> converter.toPayload(new FailingModel()));
-    assertEquals("callback", expected.getMessage());
+  public void callbackFailuresAreWrappedWithTheirCause() {
+    Payload payload = DefaultDataConverter.newDefaultInstance().toPayload("value").get();
+
+    assertCallbackFailure(() -> converter.toPayload(new FailingModel()));
+    assertCallbackFailure(
+        () -> converter.fromPayload(payload, FailingModel.class, FailingModel.class));
+    assertCallbackFailure(
+        () ->
+            converter.fromPayload(
+                payload, FailingTransferTypeModel.class, FailingTransferTypeModel.class));
+  }
+
+  @Test
+  public void dataConverterExceptionFromCallbackPassesThrough() {
+    assertSame(
+        ExistingFailureConverter.FAILURE,
+        assertThrows(
+            DataConverterException.class, () -> converter.toPayload(new ExistingFailureModel())));
   }
 
   @Test
@@ -353,12 +465,19 @@ public class TemporalTransferTypeDataConverterTest {
     verify(delegate, never()).toPayload(any());
   }
 
-  private void assertInvalid(Class<?> modelClass) {
+  private DataConverterException assertInvalid(Class<?> modelClass) {
     DataConverterException exception =
         assertThrows(
             DataConverterException.class,
             () -> converter.toPayload(modelClass.getDeclaredConstructor().newInstance()));
     assertTrue(exception.getMessage().contains(modelClass.getName()));
+    return exception;
+  }
+
+  private void assertCallbackFailure(Runnable call) {
+    DataConverterException failure = assertThrows(DataConverterException.class, call::run);
+    assertTrue(failure.getCause() instanceof CallbackException);
+    assertEquals("callback", failure.getCause().getMessage());
   }
 
   private void assertMismatchedResult(DataConverterException exception) {
@@ -482,8 +601,8 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
-  public static final class GenericValueConverter
-      implements TransferTypeConverter<GenericValue<?>> {
+  public static final class GenericValueConverter<T>
+      implements TransferTypeConverter<GenericValue<T>> {
     static Type lastRequestedType;
 
     public GenericValueConverter() {}
@@ -495,14 +614,15 @@ public class TemporalTransferTypeDataConverterTest {
     }
 
     @Override
-    public Object toTransferType(GenericValue<?> value) {
+    public Object toTransferType(GenericValue<T> value) {
       return value.value;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public GenericValue<?> fromTransferType(Object value, Type valueType) {
+    public GenericValue<T> fromTransferType(Object value, Type valueType) {
       lastRequestedType = valueType;
-      return new GenericValue<Object>(value);
+      return new GenericValue<T>((T) value);
     }
   }
 
@@ -566,6 +686,31 @@ public class TemporalTransferTypeDataConverterTest {
     @Override
     public MissingPublicConstructorModel fromTransferType(Object value, Type valueType) {
       return new MissingPublicConstructorModel();
+    }
+  }
+
+  @TransferTypeConvertible(NonPublicConverter.class)
+  public static final class NonPublicConverterModel {
+    public NonPublicConverterModel() {}
+  }
+
+  private static final class NonPublicConverter
+      implements TransferTypeConverter<NonPublicConverterModel> {
+    public NonPublicConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      return String.class;
+    }
+
+    @Override
+    public Object toTransferType(NonPublicConverterModel value) {
+      return "value";
+    }
+
+    @Override
+    public NonPublicConverterModel fromTransferType(Object value, Type valueType) {
+      return new NonPublicConverterModel();
     }
   }
 
@@ -663,6 +808,54 @@ public class TemporalTransferTypeDataConverterTest {
     }
   }
 
+  @TransferTypeConvertible(FailingTransferTypeConverter.class)
+  public static final class FailingTransferTypeModel {}
+
+  public static final class FailingTransferTypeConverter
+      implements TransferTypeConverter<FailingTransferTypeModel> {
+    public FailingTransferTypeConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      throw new CallbackException("callback");
+    }
+
+    @Override
+    public Object toTransferType(FailingTransferTypeModel value) {
+      return "value";
+    }
+
+    @Override
+    public FailingTransferTypeModel fromTransferType(Object value, Type valueType) {
+      return new FailingTransferTypeModel();
+    }
+  }
+
+  @TransferTypeConvertible(ExistingFailureConverter.class)
+  public static final class ExistingFailureModel {}
+
+  public static final class ExistingFailureConverter
+      implements TransferTypeConverter<ExistingFailureModel> {
+    static final DataConverterException FAILURE = new DataConverterException("callback");
+
+    public ExistingFailureConverter() {}
+
+    @Override
+    public Type getTransferType(Type valueType) {
+      return String.class;
+    }
+
+    @Override
+    public Object toTransferType(ExistingFailureModel value) {
+      throw FAILURE;
+    }
+
+    @Override
+    public ExistingFailureModel fromTransferType(Object value, Type valueType) {
+      throw FAILURE;
+    }
+  }
+
   @TransferTypeConvertible(NullRepresentationConverter.class)
   public static final class NullRepresentationModel {
     private final boolean reconstructed;
@@ -694,69 +887,6 @@ public class TemporalTransferTypeDataConverterTest {
     public NullRepresentationModel fromTransferType(Object value, Type valueType) {
       assertNull(value);
       return new NullRepresentationModel(true);
-    }
-  }
-
-  @TransferTypeConvertible(FirstStepConverter.class)
-  public static final class FirstStepModel {
-    private final String value;
-
-    private FirstStepModel(String value) {
-      this.value = value;
-    }
-  }
-
-  public static final class FirstStepConverter implements TransferTypeConverter<FirstStepModel> {
-    public FirstStepConverter() {}
-
-    @Override
-    public Type getTransferType(Type valueType) {
-      return SecondStepModel.class;
-    }
-
-    @Override
-    public Object toTransferType(FirstStepModel value) {
-      return new SecondStepModel(value.value);
-    }
-
-    @Override
-    public FirstStepModel fromTransferType(Object value, Type valueType) {
-      return new FirstStepModel(((SecondStepModel) value).value);
-    }
-  }
-
-  @TransferTypeConvertible(SecondStepConverter.class)
-  public static final class SecondStepModel {
-    public String value;
-
-    public SecondStepModel() {}
-
-    private SecondStepModel(String value) {
-      this.value = value;
-    }
-  }
-
-  public static final class SecondStepConverter implements TransferTypeConverter<SecondStepModel> {
-    private static final AtomicInteger invocations = new AtomicInteger();
-
-    public SecondStepConverter() {}
-
-    @Override
-    public Type getTransferType(Type valueType) {
-      invocations.incrementAndGet();
-      return String.class;
-    }
-
-    @Override
-    public Object toTransferType(SecondStepModel value) {
-      invocations.incrementAndGet();
-      return value.value;
-    }
-
-    @Override
-    public SecondStepModel fromTransferType(Object value, Type valueType) {
-      invocations.incrementAndGet();
-      return new SecondStepModel((String) value);
     }
   }
 

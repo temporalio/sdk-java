@@ -13,7 +13,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 public class ScheduleProtoUtilTest {
-  private final ScheduleProtoUtil util = new ScheduleProtoUtil(null, null, null);
+  private final ScheduleProtoUtil util =
+      new ScheduleProtoUtil(null, ScheduleClientOptions.newBuilder().build(), null);
 
   @Test
   public void policyToProtoOmitsDefaultCatchupWindow() {

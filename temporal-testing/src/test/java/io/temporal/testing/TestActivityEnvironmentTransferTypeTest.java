@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nonnull;
 import org.junit.jupiter.api.Test;
 
-class TestActivityEnvironmentTransferTypeTest {
+public class TestActivityEnvironmentTransferTypeTest {
 
   @Test
   void activityContextExposesTransferAwareConverter() {

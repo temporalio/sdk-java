@@ -6,11 +6,13 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.util.Arrays;
@@ -25,9 +27,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
         protected ConverterDescriptor computeValue(Class<?> type) {
           TransferTypeConvertible annotation =
               type.getDeclaredAnnotation(TransferTypeConvertible.class);
-          return annotation == null
-              ? ConverterDescriptor.NONE
-              : new ConverterDescriptor(type, annotation.value());
+          return annotation == null ? null : new ConverterDescriptor(type, annotation.value());
         }
       };
 
@@ -39,7 +39,8 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
 
   /** Wraps a converter once. */
   public static DataConverter wrap(DataConverter converter) {
-    if (converter instanceof TemporalTransferTypeDataConverter) {
+    if (converter instanceof TemporalTransferTypeDataConverter
+        || converter.getClass() == DefaultDataConverter.class) {
       return converter;
     }
     return new TemporalTransferTypeDataConverter(converter);
@@ -65,28 +66,27 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
   @Override
   public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
       throws DataConverterException {
-    ConverterDescriptor descriptor = descriptorFor(valueClass);
-    if (descriptor == null) {
+    TransferType transfer = transferTypeFor(valueClass, valueType);
+    if (transfer == null) {
       return delegate.fromPayload(payload, valueClass, valueType);
     }
-    Type requestedType = requestedType(valueClass, valueType);
-    TransferType transfer = descriptor.transferTypeFor(requestedType);
     Object value = delegate.fromPayload(payload, transfer.rawType, transfer.type);
-    return fromTransferValue(value, descriptor, requestedType, valueClass);
+    return transfer.fromValue(value, valueClass);
   }
 
   @Override
   public <T> T fromPayloads(
       int index, Optional<Payloads> content, Class<T> valueClass, Type valueType)
       throws DataConverterException {
-    ConverterDescriptor descriptor = descriptorFor(valueClass);
-    if (descriptor == null || !hasPayload(index, content)) {
+    if (!hasPayload(index, content)) {
       return delegate.fromPayloads(index, content, valueClass, valueType);
     }
-    Type requestedType = requestedType(valueClass, valueType);
-    TransferType transfer = descriptor.transferTypeFor(requestedType);
+    TransferType transfer = transferTypeFor(valueClass, valueType);
+    if (transfer == null) {
+      return delegate.fromPayloads(index, content, valueClass, valueType);
+    }
     Object value = delegate.fromPayloads(index, content, transfer.rawType, transfer.type);
-    return fromTransferValue(value, descriptor, requestedType, valueClass);
+    return transfer.fromValue(value, valueClass);
   }
 
   @Override
@@ -107,16 +107,17 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     }
 
     Class<?>[] transferClasses = parameterTypes.clone();
-    Type[] transferTypes = genericParameterTypes.clone();
-    ConverterDescriptor[] descriptors = new ConverterDescriptor[parameterTypes.length];
+    // Preserve types for unannotated parameters while allowing parameterized transfer types:
+    // cloning a Class[] returned by reflection would still produce a Class[].
+    Type[] transferTypes =
+        Arrays.copyOf(genericParameterTypes, genericParameterTypes.length, Type[].class);
+    TransferType[] transfers = new TransferType[parameterTypes.length];
     int payloadCount = content.get().getPayloadsCount();
 
-    for (int i = 0; i < parameterTypes.length; i++) {
-      ConverterDescriptor descriptor = descriptorFor(parameterTypes[i]);
-      descriptors[i] = descriptor;
-      if (descriptor != null && i < payloadCount) {
-        Type requestedType = requestedType(parameterTypes[i], genericParameterTypes[i]);
-        TransferType transfer = descriptor.transferTypeFor(requestedType);
+    for (int i = 0; i < parameterTypes.length && i < payloadCount; i++) {
+      TransferType transfer = transferTypeFor(parameterTypes[i], genericParameterTypes[i]);
+      transfers[i] = transfer;
+      if (transfer != null) {
         transferClasses[i] = transfer.rawType;
         transferTypes[i] = transfer.type;
       }
@@ -124,9 +125,8 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
 
     Object[] values = delegate.fromPayloads(content, transferClasses, transferTypes);
     for (int i = 0; i < values.length && i < payloadCount; i++) {
-      if (descriptors[i] != null) {
-        Type requestedType = requestedType(parameterTypes[i], genericParameterTypes[i]);
-        values[i] = fromTransferValue(values[i], descriptors[i], requestedType, parameterTypes[i]);
+      if (transfers[i] != null) {
+        values[i] = transfers[i].fromValue(values[i], parameterTypes[i]);
       }
     }
     return values;
@@ -150,17 +150,35 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     return wrap(delegate.withContext(context));
   }
 
-  private static Object toTransferValue(Object value) {
+  /** Applies the transfer conversion for an outbound value when its class declares one. */
+  public static Object toTransferValue(Object value) {
     if (value == null || value instanceof RawValue) {
       return value;
     }
     ConverterDescriptor descriptor = descriptorFor(value.getClass());
-    return descriptor == null ? value : descriptor.converter().toTransferType(value);
+    if (descriptor == null) {
+      return value;
+    }
+    try {
+      return descriptor.converter().toTransferType(value);
+    } catch (DataConverterException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new DataConverterException("Failed to convert " + descriptor.modelClass.getName(), e);
+    }
   }
 
   private static <T> T fromTransferValue(
       Object value, ConverterDescriptor descriptor, Type valueType, Class<T> valueClass) {
-    Object result = descriptor.converter().fromTransferType(value, valueType);
+    Object result;
+    try {
+      result = descriptor.converter().fromTransferType(value, valueType);
+    } catch (DataConverterException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new DataConverterException(
+          "Failed to reconstruct " + descriptor.modelClass.getName(), e);
+    }
     if (result != null && !valueClass.isInstance(result)) {
       throw new DataConverterException(
           "Transfer type converter "
@@ -179,26 +197,49 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
     return valueType == null ? valueClass : valueType;
   }
 
+  /** Returns the transfer representation for an annotated model, or null otherwise. */
+  public static TransferType transferTypeFor(Class<?> valueClass, Type valueType) {
+    ConverterDescriptor descriptor = descriptorFor(valueClass);
+    return descriptor == null
+        ? null
+        : descriptor.transferTypeFor(requestedType(valueClass, valueType));
+  }
+
   private static ConverterDescriptor descriptorFor(Class<?> valueClass) {
     if (valueClass == RawValue.class) {
       return null;
     }
-    ConverterDescriptor descriptor = CONVERTER_DESCRIPTORS.get(valueClass);
-    return descriptor == ConverterDescriptor.NONE ? null : descriptor;
+    return CONVERTER_DESCRIPTORS.get(valueClass);
   }
 
   private static boolean hasPayload(int index, Optional<Payloads> content) {
     return content.isPresent() && index >= 0 && index < content.get().getPayloadsCount();
   }
 
-  private static final class TransferType {
+  public static final class TransferType {
     private final Type type;
     private final Class<Object> rawType;
+    private final ConverterDescriptor descriptor;
+    private final Type requestedType;
 
     @SuppressWarnings("unchecked")
-    private TransferType(Type type) {
+    private TransferType(Type type, ConverterDescriptor descriptor, Type requestedType) {
       this.type = type;
       this.rawType = (Class<Object>) TypeToken.of(type).getRawType();
+      this.descriptor = descriptor;
+      this.requestedType = requestedType;
+    }
+
+    public Type getType() {
+      return type;
+    }
+
+    public Class<Object> getRawType() {
+      return rawType;
+    }
+
+    public <T> T fromValue(Object value, Class<T> valueClass) {
+      return fromTransferValue(value, descriptor, requestedType, valueClass);
     }
   }
 
@@ -211,27 +252,29 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
    * callers from constructing duplicate converter instances. Once construction succeeds, every
    * caller reuses the same instance.
    */
+  @SuppressWarnings(
+      "rawtypes") // A generic converter class literal cannot retain its type arguments.
   private static final class ConverterDescriptor {
-    /** Represents cached absence while keeping descriptor lookup results non-null. */
-    private static final ConverterDescriptor NONE = new ConverterDescriptor();
-
     private final Class<?> modelClass;
-    private final Class<? extends TransferTypeConverter<?>> converterClass;
+    private final Class<? extends TransferTypeConverter> converterClass;
     private volatile TransferTypeConverter<Object> converter;
 
-    private ConverterDescriptor() {
-      this.modelClass = null;
-      this.converterClass = null;
-    }
-
     private ConverterDescriptor(
-        Class<?> modelClass, Class<? extends TransferTypeConverter<?>> converterClass) {
+        Class<?> modelClass, Class<? extends TransferTypeConverter> converterClass) {
       this.modelClass = modelClass;
       this.converterClass = converterClass;
     }
 
     private TransferType transferTypeFor(Type valueType) {
-      Type type = converter().getTransferType(valueType);
+      Type type;
+      try {
+        type = converter().getTransferType(valueType);
+      } catch (DataConverterException e) {
+        throw e;
+      } catch (Exception e) {
+        throw new DataConverterException(
+            "Failed to determine transfer type for " + modelClass.getName(), e);
+      }
       // The delegate and TypeToken require a concrete type to decode the transfer representation.
       if (type == null) {
         throw new DataConverterException(
@@ -240,7 +283,7 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
                 + " returned a null transfer type for "
                 + modelClass.getName());
       }
-      return new TransferType(type);
+      return new TransferType(type, this, valueType);
     }
 
     /**
@@ -270,12 +313,18 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
       if (converterClass.isMemberClass() && !Modifier.isStatic(converterClass.getModifiers())) {
         throw declarationFailure("must be static when declared as an inner class", null);
       }
+      for (Class<?> type = converterClass; type != null; type = type.getEnclosingClass()) {
+        if (!Modifier.isPublic(type.getModifiers())) {
+          throw declarationFailure("must be a public class", null);
+        }
+      }
       try {
         // A public no-argument constructor keeps converter creation independent of application
         // state.
-        Constructor<? extends TransferTypeConverter<?>> constructor =
-            converterClass.getConstructor();
+        Constructor<? extends TransferTypeConverter> constructor = converterClass.getConstructor();
         return constructor.newInstance();
+      } catch (InvocationTargetException e) {
+        throw declarationFailure("constructor threw an exception", e.getCause());
       } catch (ReflectiveOperationException | SecurityException e) {
         throw declarationFailure("must have an accessible public no-argument constructor", e);
       }

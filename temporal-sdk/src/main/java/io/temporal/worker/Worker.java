@@ -133,10 +133,6 @@ public final class Worker {
     WorkflowClientInternal clientInternal = (WorkflowClientInternal) client.getInternal();
     ExternalStorageRunner externalStorageRunner = clientInternal.getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
-    WorkflowClientOptions clientOptions =
-        WorkflowClientOptions.newBuilder(client.getOptions())
-            .setDataConverter(clientInternal.getInternalDataConverter())
-            .build();
     String namespace = clientOptions.getNamespace();
     this.namespace = namespace;
     String workerControlTaskQueue =

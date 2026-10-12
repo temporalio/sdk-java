@@ -11,11 +11,12 @@ import java.lang.annotation.Target;
  * Associates a model class with the converter used to produce its transfer representation.
  *
  * <p>The annotation is read only from the exact declared class and is not inherited. Conversion is
- * applied to top-level values only and performs one transfer step. The configured {@link
+ * applied to top-level values within a transfer-aware data converter. The configured {@link
  * DataConverter} remains responsible for serialization, payload codecs, and wire encoding.
  *
- * <p>The converter class must be concrete and have a public no-argument constructor. Converter
- * instances are cached, so implementations must be stateless and thread-safe.
+ * <p>The converter and its enclosing classes must be public. The converter must be concrete and
+ * have a public no-argument constructor. Converter instances are cached, so implementations must be
+ * stateless and thread-safe.
  */
 @Experimental
 @Documented
@@ -23,5 +24,6 @@ import java.lang.annotation.Target;
 @Target(ElementType.TYPE)
 public @interface TransferTypeConvertible {
   /** The converter associated with the annotated model class. */
-  Class<? extends TransferTypeConverter<?>> value();
+  @SuppressWarnings("rawtypes")
+  Class<? extends TransferTypeConverter> value();
 }

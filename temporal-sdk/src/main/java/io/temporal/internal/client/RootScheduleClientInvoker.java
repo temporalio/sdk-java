@@ -26,7 +26,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
   private final GenericWorkflowClient genericClient;
 
-  private final ScheduleClientOptions clientOptions;
+  private final String namespace;
+  private final String identity;
   private final DataConverter dataConverter;
 
   private final ScheduleProtoUtil scheduleRequestHeader;
@@ -36,7 +37,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       ScheduleClientOptions clientOptions,
       DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.clientOptions = clientOptions;
+    this.namespace = clientOptions.getNamespace();
+    this.identity = clientOptions.getIdentity();
     this.dataConverter = dataConverter;
     this.scheduleRequestHeader = new ScheduleProtoUtil(genericClient, clientOptions, dataConverter);
   }
@@ -47,8 +49,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     CreateScheduleRequest.Builder request =
         CreateScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setScheduleId(input.getId())
             .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule()));
@@ -111,7 +113,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   public ListScheduleOutput listSchedules(ListSchedulesInput input) {
     ListScheduleListDescriptionIterator iterator =
         new ListScheduleListDescriptionIterator(
-            clientOptions.getNamespace(), input.getQuery(), input.getPageSize(), genericClient);
+            namespace, input.getQuery(), input.getPageSize(), genericClient);
     iterator.init();
     Iterator<ScheduleListDescription> wrappedIterator =
         Iterators.transform(
@@ -145,8 +147,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -161,8 +163,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   public void deleteSchedule(DeleteScheduleInput input) {
     DeleteScheduleRequest request =
         DeleteScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .build();
     try {
@@ -176,7 +178,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   public DescribeScheduleOutput describeSchedule(DescribeScheduleInput input) {
     DescribeScheduleRequest request =
         DescribeScheduleRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .build();
 
@@ -203,8 +205,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -224,8 +226,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -242,8 +244,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -264,8 +266,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     UpdateScheduleRequest.Builder request =
         UpdateScheduleRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setScheduleId(input.getDescription().getId())
             .setRequestId(UUID.randomUUID().toString())
             .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()));

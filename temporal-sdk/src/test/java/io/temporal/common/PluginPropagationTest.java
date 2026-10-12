@@ -56,7 +56,7 @@ import org.junit.experimental.categories.Category;
 public class PluginPropagationTest {
 
   @Test
-  public void workflowPluginReplacesConverterBeforeTransferWrapping() {
+  public void workflowPluginReplacesConverterWithTransferAwareDefault() {
     DataConverter originalConverter = DefaultDataConverter.newDefaultInstance();
     TransferConverterPlugin plugin = new TransferConverterPlugin();
     WorkflowClientOptions originalOptions =
@@ -72,7 +72,7 @@ public class PluginPropagationTest {
       assertSame(originalConverter, originalOptions.getDataConverter());
       WorkflowClient client = env.getWorkflowClient();
       DataConverter exposed = client.getOptions().getDataConverter();
-      assertNotSame(plugin.dataConverter, exposed);
+      assertSame(plugin.dataConverter, exposed);
       assertSame(
           exposed, ((WorkflowClientInternal) client.getInternal()).getInternalDataConverter());
       Payload payload = exposed.toPayload(new TransferModel()).get();

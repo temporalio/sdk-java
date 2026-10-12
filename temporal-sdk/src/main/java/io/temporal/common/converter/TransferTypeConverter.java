@@ -7,9 +7,9 @@ import javax.annotation.Nullable;
 /**
  * Converts a model to and from a representation handled by the configured {@link DataConverter}.
  *
- * <p>Conversion is applied only to top-level values and performs one transfer step. The {@code
- * valueType} arguments contain the complete requested model type, including generic arguments.
- * Implementations must be stateless and thread-safe because converter instances are cached.
+ * <p>Conversion is applied only to top-level values. The {@code valueType} arguments contain the
+ * complete requested model type, including generic arguments. Implementations must be stateless and
+ * thread-safe because converter instances are cached.
  *
  * @param <T> annotated model type converted to and from its transfer representation
  */
