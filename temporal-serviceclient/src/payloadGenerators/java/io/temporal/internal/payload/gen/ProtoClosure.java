@@ -1,9 +1,8 @@
-package io.temporal.internal.payload.visitor.gen;
+package io.temporal.internal.payload.gen;
 
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
-import io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator.FieldPlan;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -15,13 +14,24 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Shared proto-descriptor model for the build-time generators: the message closure reachable from a
- * set of seed services, and which of those messages can transitively contain a {@code Payload}.
+ * The message closure reachable from a set of seed services, and which of those messages can
+ * transitively contain a {@code Payload}.
+ *
+ * <p>A {@code google.protobuf.Any} counts as payload-bearing, because its contents are opaque here
+ * and may hold payloads.
+ *
+ * <p>Shared by the payload visitor and payload limit validator generators. Reachability decides
+ * which messages the visitor traverses, so narrowing it silently stops payloads from being visited
+ * (and offloaded); verify any change by confirming both generators' output is unchanged.
  */
-final class ProtoClosure {
+public final class ProtoClosure {
+
+  private static final String PAYLOAD = "temporal.api.common.v1.Payload";
+  private static final String PAYLOADS = "temporal.api.common.v1.Payloads";
+  private static final String ANY = "google.protobuf.Any";
 
   /** All non-map-entry messages in the closure, in discovery order. */
-  final List<Descriptor> allMessages;
+  public final List<Descriptor> allMessages;
 
   /** Full names of the messages that can transitively contain a payload. */
   private final Set<String> reaches;
@@ -32,12 +42,12 @@ final class ProtoClosure {
   }
 
   /** Whether {@code d} can transitively contain a payload. */
-  boolean reaches(Descriptor d) {
+  public boolean reaches(Descriptor d) {
     return reaches.contains(d.getFullName());
   }
 
   /** Builds the closure and payload-reachability set from the given seed file descriptors. */
-  static ProtoClosure of(List<FileDescriptor> seeds) {
+  public static ProtoClosure of(List<FileDescriptor> seeds) {
     List<Descriptor> all = collectMessages(fileClosure(seeds));
     return new ProtoClosure(all, computeReachability(all));
   }
@@ -91,26 +101,13 @@ final class ProtoClosure {
       boolean direct = false;
       List<Descriptor> refs = new ArrayList<>();
       for (FieldDescriptor f : d.getFields()) {
-        FieldPlan plan = PayloadVisitorGenerator.classify(f);
-        switch (plan.kind) {
-          case SINGLE_PAYLOAD:
-          case REPEATED_PAYLOAD:
-          case PAYLOADS_SINGLE:
-          case PAYLOADS_REPEATED:
-          case MAP_PAYLOAD:
-          case MAP_PAYLOADS:
-          case ANY_SINGLE:
-          case ANY_REPEATED:
-          case MAP_ANY:
+        Descriptor referenced = referencedMessage(f);
+        if (referenced == null) {
+          if (carriesPayloadDirectly(f)) {
             direct = true;
-            break;
-          case MESSAGE_SINGLE:
-          case MESSAGE_REPEATED:
-          case MAP_MESSAGE:
-            refs.add(plan.child);
-            break;
-          case IGNORE:
-            break;
+          }
+        } else {
+          refs.add(referenced);
         }
       }
       if (direct) {
@@ -135,5 +132,42 @@ final class ProtoClosure {
       }
     }
     return reaches;
+  }
+
+  /** Whether {@code f} holds payload data itself, in singular, repeated or map-valued form. */
+  private static boolean carriesPayloadDirectly(FieldDescriptor f) {
+    String name = valueMessageName(f);
+    return PAYLOAD.equals(name) || PAYLOADS.equals(name) || ANY.equals(name);
+  }
+
+  /**
+   * The Temporal message {@code f} refers to and should be recursed into, or {@code null} if it
+   * carries payload data directly or leads nowhere interesting.
+   */
+  private static Descriptor referencedMessage(FieldDescriptor f) {
+    if (carriesPayloadDirectly(f)) {
+      return null;
+    }
+    Descriptor value = valueMessage(f);
+    if (value == null || !ProtoNames.isTemporal(value)) {
+      return null;
+    }
+    return value;
+  }
+
+  /** The message type a field holds, unwrapping map values; {@code null} for non-message fields. */
+  private static Descriptor valueMessage(FieldDescriptor f) {
+    if (f.isMapField()) {
+      FieldDescriptor value = f.getMessageType().findFieldByNumber(2);
+      return value.getJavaType() == FieldDescriptor.JavaType.MESSAGE
+          ? value.getMessageType()
+          : null;
+    }
+    return f.getJavaType() == FieldDescriptor.JavaType.MESSAGE ? f.getMessageType() : null;
+  }
+
+  private static String valueMessageName(FieldDescriptor f) {
+    Descriptor value = valueMessage(f);
+    return value == null ? null : value.getFullName();
   }
 }

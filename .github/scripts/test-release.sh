@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Exercises changelog validation and deterministic packaging without external services.
+script_directory=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+release_script="$script_directory/release.sh"
+package_script="$script_directory/package-native-release.sh"
+temporary_directory=$(mktemp -d)
+trap 'rm -rf "$temporary_directory"' EXIT
+
+repository="$temporary_directory/repository"
+mkdir "$repository"
+git -C "$repository" init -q
+git -C "$repository" config user.email test@example.com
+git -C "$repository" config user.name "Release Test"
+printf '# Changelog\n\n## [Unreleased]\n\n### Fixed\n- Fixed it.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" add CHANGELOG.md
+git -C "$repository" commit -qm base
+base=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$base" HEAD_SHA="$base" EVENT_NAME=pull_request \
+    GITHUB_OUTPUT="$temporary_directory/no-release-output" \
+    "$release_script" candidate "$temporary_directory/no-release-notes"
+)
+grep -Fxq 'release=false' "$temporary_directory/no-release-output"
+
+git -C "$repository" switch -qc feature
+printf '# Changelog\n\n## [Unreleased]\n\n### Fixed\n- Fixed it.\n- Fixed on the feature branch.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam feature
+feature=$(git -C "$repository" rev-parse HEAD)
+git -C "$repository" switch -q -
+printf 'The target branch advanced.\n' > "$repository/README.md"
+git -C "$repository" add README.md
+git -C "$repository" commit -qm advance
+target=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$target" HEAD_SHA="$feature" EVENT_NAME=pull_request \
+    GITHUB_OUTPUT="$temporary_directory/divergent-output" \
+    "$release_script" candidate "$temporary_directory/divergent-notes"
+)
+grep -Fxq 'release=false' "$temporary_directory/divergent-output"
+
+git -C "$repository" switch -qc malformed
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - TBD\n\nWrong notes.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam malformed
+malformed=$(git -C "$repository" rev-parse HEAD)
+if (cd "$repository" && BASE_SHA="$target" HEAD_SHA="$malformed" EVENT_NAME=pull_request \
+  "$release_script" candidate "$temporary_directory/malformed-notes" 2>/dev/null); then
+  echo "Malformed release headings must be rejected." >&2
+  exit 1
+fi
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-03\n\nCorrect notes.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam corrected
+corrected=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$malformed" HEAD_SHA="$corrected" EVENT_NAME=push \
+    GITHUB_OUTPUT="$temporary_directory/corrected-output" \
+    "$release_script" candidate "$temporary_directory/corrected-notes"
+)
+grep -Fxq "commit=$corrected" "$temporary_directory/corrected-output"
+grep -Fxq 'Correct notes.' "$temporary_directory/corrected-notes"
+git -C "$repository" switch -q -
+
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-03\n\n### Fixed\n- Fixed it.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam release
+head=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$base" HEAD_SHA="$head" EVENT_NAME=pull_request \
+    GITHUB_OUTPUT="$temporary_directory/output" \
+    "$release_script" candidate "$temporary_directory/notes"
+)
+grep -Fxq 'release=true' "$temporary_directory/output"
+grep -Fxq 'version=1.41.0' "$temporary_directory/output"
+grep -Fxq '### Fixed' "$temporary_directory/notes"
+git -C "$repository" tag -a v1.41.0 -m "Annotated release tag" "$head"
+if (cd "$repository" && BASE_SHA="$base" HEAD_SHA="$head" EVENT_NAME=push \
+  "$release_script" candidate "$temporary_directory/annotated-notes" 2>/dev/null); then
+  echo "Annotated release tags must be rejected." >&2
+  exit 1
+fi
+git -C "$repository" tag -d v1.41.0 >/dev/null
+printf '# Changelog\n\n## [Unreleased]\n\nReference: `## [1.41.0] - 2026-10-03`\n\n## [1.41.0] - 2026-10-03\n\n### Fixed\n- Fixed it.\n' \
+  > "$repository/CHANGELOG.md"
+printf 'Later change.\n' > "$repository/README.md"
+git -C "$repository" add README.md
+git -C "$repository" commit -qm later
+later=$(git -C "$repository" rev-parse HEAD)
+(
+  cd "$repository"
+  BASE_SHA="$base" HEAD_SHA="$later" EVENT_NAME=push \
+    GITHUB_OUTPUT="$temporary_directory/push-output" \
+    "$release_script" candidate "$temporary_directory/push-notes"
+)
+grep -Fxq "commit=$head" "$temporary_directory/push-output"
+diff -q "$temporary_directory/notes" "$temporary_directory/push-notes"
+git -C "$repository" branch releases/1.41.x "$later"
+(
+  cd "$repository"
+  EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+    MANUAL_DRAFT_RELEASE=true MANUAL_REF=releases/1.41.x MANUAL_VERSION=1.41.0 \
+    GITHUB_OUTPUT="$temporary_directory/manual-output" \
+    "$release_script" candidate "$temporary_directory/manual-notes"
+)
+grep -Fxq 'release=true' "$temporary_directory/manual-output"
+grep -Fxq "commit=$head" "$temporary_directory/manual-output"
+grep -Fxq 'draft_release=1' "$temporary_directory/manual-output"
+diff -q "$temporary_directory/notes" "$temporary_directory/manual-notes"
+(
+  cd "$repository"
+  EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+    MANUAL_DRAFT_RELEASE=false MANUAL_REF=main MANUAL_VERSION=1.41.0 \
+    GITHUB_OUTPUT="$temporary_directory/manual-public-output" \
+    "$release_script" candidate "$temporary_directory/manual-public-notes"
+)
+grep -Fxq 'draft_release=0' "$temporary_directory/manual-public-output"
+printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-04\n\n### Fixed\n- Fixed it.\n' \
+  > "$repository/CHANGELOG.md"
+git -C "$repository" commit -qam rewrite
+rewrite=$(git -C "$repository" rev-parse HEAD)
+if (cd "$repository" && BASE_SHA="$head" HEAD_SHA="$rewrite" EVENT_NAME=push \
+  "$release_script" candidate "$temporary_directory/rewrite-notes" 2>/dev/null); then
+  echo "Published changelog edits must be rejected." >&2
+  exit 1
+fi
+
+native="$temporary_directory/native"
+for platform in linux_amd64_musl linux_amd64 macOS_amd64 macOS_arm64 linux_arm64 windows_amd64; do
+  mkdir -p "$native/release-native-$platform"
+  printf 'binary for %s' "$platform" > "$native/release-native-$platform/temporal-test-server"
+done
+RELEASE_VERSION=1.41.0 "$package_script" "$native" "$temporary_directory/first"
+RELEASE_VERSION=1.41.0 "$package_script" "$native" "$temporary_directory/second"
+diff -qr "$temporary_directory/first" "$temporary_directory/second"
+[[ $(find "$temporary_directory/first" -type f | wc -l) -eq 7 ]]
+(cd "$temporary_directory/first" && sha256sum -c SHA256SUMS)
