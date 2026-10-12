@@ -39,6 +39,8 @@ to docs, or any other relevant information.
 - `TemporalDevServer`, `TemporalDevServerOptions`, `TestWorkflowEnvironment.startLocal`, and the `useDevServer` methods
   of `TestWorkflowRule` and `TestWorkflowExtension` are no longer marked experimental. `TemporalDevServerOptions` remain
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
+- Calling a local activity stub method without a StartToClose or ScheduleToClose timeout now fails with a message that
+  names the activity and how to set the timeout, as it already did for regular activities.
 
 ### Fixed
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were

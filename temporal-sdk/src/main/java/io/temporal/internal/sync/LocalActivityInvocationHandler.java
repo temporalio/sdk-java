@@ -53,6 +53,13 @@ public class LocalActivityInvocationHandler extends ActivityInvocationHandlerBas
             .mergeActivityOptions(activityMethodOptions.get(activityName))
             .setMethodRetry(methodRetry)
             .build();
+    if (mergedOptions.getStartToCloseTimeout() == null
+        && mergedOptions.getScheduleToCloseTimeout() == null) {
+      throw new IllegalArgumentException(
+          "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for "
+              + activityName
+              + " local activity. Please set at least one of the above through the LocalActivityOptions of the stub or WorkflowImplementationOptions.");
+    }
     ActivityStub stub =
         LocalActivityStubImpl.newInstance(mergedOptions, activityExecutor, assertReadOnly);
     ActivityInvocationOptions invocationOptions = ActivityInvocationInternal.consumeOptions();
