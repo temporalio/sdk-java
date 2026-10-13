@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
  */
 public final class ExternalStorageRunner {
   /** Visits every payload at once. ExternalStorageConcurrency does the limiting. */
-  private static final int UNBOUNDED_PAYLOAD_VISITS = Integer.MAX_VALUE;
 
   /** Shared by every runner built from the same ExternalStorage. */
   private static final Map<ExternalStorage, AsyncSemaphore> PER_INSTANCE_SEMAPHORES =
@@ -191,7 +190,7 @@ public final class ExternalStorageRunner {
                     payloads, visitedTarget, cancellationToken, limits, metrics))
         .setInitialContext(target)
         .setMessageVisitor(targetVisitor)
-        .setConcurrency(UNBOUNDED_PAYLOAD_VISITS)
+        .setConcurrency(limits.maxOperationsPerMessage())
         .setSkipSearchAttributes(true)
         .build();
   }
@@ -203,7 +202,7 @@ public final class ExternalStorageRunner {
     return PayloadVisitorOptions.<Void>newBuilder(
             (context, payloads) ->
                 payloadTransformer.retrieve(payloads, cancellationToken, limits, metrics))
-        .setConcurrency(UNBOUNDED_PAYLOAD_VISITS)
+        .setConcurrency(limits.maxOperationsPerMessage())
         .setSkipSearchAttributes(true)
         .build();
   }
