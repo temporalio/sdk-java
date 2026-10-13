@@ -27,6 +27,9 @@ to docs, or any other relevant information.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
+- `ActivityInvocationOptions.Builder.setActivityOptionsOverride` customizes resolved Activity options
+  for a single typed or untyped Activity call, including asynchronous calls, without changing the stub.
+  Local Activity option overrides are not supported.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release

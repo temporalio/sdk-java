@@ -9,7 +9,6 @@ import io.temporal.workflow.Functions;
 import io.temporal.workflow.Promise;
 import java.lang.reflect.Type;
 import java.util.Objects;
-import javax.annotation.Nullable;
 
 class LocalActivityStubImpl extends ActivityStubBase {
   protected final LocalActivityOptions options;
@@ -43,8 +42,7 @@ class LocalActivityStubImpl extends ActivityStubBase {
       Object... args) {
     Objects.requireNonNull(invocationOptions, "invocationOptions");
     return getResult(
-        scheduleActivity(
-            activityName, resultClass, resultType, invocationOptions.getActivityId(), args),
+        scheduleActivity(activityName, resultClass, resultType, invocationOptions, args),
         resultClass);
   }
 
@@ -56,21 +54,30 @@ class LocalActivityStubImpl extends ActivityStubBase {
       ActivityInvocationOptions invocationOptions,
       Object... args) {
     Objects.requireNonNull(invocationOptions, "invocationOptions");
-    return scheduleActivity(
-        activityName, resultClass, resultType, invocationOptions.getActivityId(), args);
+    return scheduleActivity(activityName, resultClass, resultType, invocationOptions, args);
   }
 
   private <R> Promise<R> scheduleActivity(
       String activityName,
       Class<R> resultClass,
       Type resultType,
-      @Nullable String activityId,
+      ActivityInvocationOptions invocationOptions,
       Object... args) {
     this.assertReadOnly.apply();
+    if (invocationOptions.getActivityOptionsOverride() != null) {
+      throw new IllegalArgumentException(
+          "Activity options overrides are not supported for Local Activities");
+    }
     return activityExecutor
         .executeLocalActivity(
             new WorkflowOutboundCallsInterceptor.LocalActivityInput<>(
-                activityName, activityId, resultClass, resultType, args, options, Header.empty()))
+                activityName,
+                invocationOptions.getActivityId(),
+                resultClass,
+                resultType,
+                args,
+                options,
+                Header.empty()))
         .getResult();
   }
 }

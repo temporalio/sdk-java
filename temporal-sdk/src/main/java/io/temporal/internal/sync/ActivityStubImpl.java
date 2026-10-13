@@ -42,8 +42,7 @@ final class ActivityStubImpl extends ActivityStubBase {
       Object... args) {
     Objects.requireNonNull(invocationOptions, "invocationOptions");
     return getResult(
-        scheduleActivity(
-            activityName, resultClass, resultType, invocationOptions.getActivityId(), args),
+        scheduleActivity(activityName, resultClass, resultType, invocationOptions, args),
         resultClass);
   }
 
@@ -55,26 +54,38 @@ final class ActivityStubImpl extends ActivityStubBase {
       ActivityInvocationOptions invocationOptions,
       Object... args) {
     Objects.requireNonNull(invocationOptions, "invocationOptions");
-    return scheduleActivity(
-        activityName, resultClass, resultType, invocationOptions.getActivityId(), args);
+    return scheduleActivity(activityName, resultClass, resultType, invocationOptions, args);
   }
 
   private <R> Promise<R> scheduleActivity(
       String activityName,
       Class<R> resultClass,
       Type resultType,
-      String activityId,
+      ActivityInvocationOptions invocationOptions,
       Object... args) {
     this.assertReadOnly.apply();
+    ActivityOptions effectiveOptions = this.options;
+    if (invocationOptions.getActivityOptionsOverride() != null) {
+      ActivityOptions.Builder builder = ActivityOptions.newBuilder(this.options);
+      invocationOptions.getActivityOptionsOverride().apply(builder);
+      effectiveOptions = builder.validateAndBuildWithDefaults();
+      if (effectiveOptions.getStartToCloseTimeout() == null
+          && effectiveOptions.getScheduleToCloseTimeout() == null) {
+        throw new IllegalArgumentException(
+            "Both StartToCloseTimeout and ScheduleToCloseTimeout aren't specified for "
+                + activityName
+                + " activity. Please set at least one timeout in the activity options override.");
+      }
+    }
     return activityExecutor
         .executeActivity(
             new WorkflowOutboundCallsInterceptor.ActivityInput<>(
                 activityName,
-                activityId,
+                invocationOptions.getActivityId(),
                 resultClass,
                 resultType,
                 args,
-                this.options,
+                effectiveOptions,
                 Header.empty()))
         .getResult();
   }
