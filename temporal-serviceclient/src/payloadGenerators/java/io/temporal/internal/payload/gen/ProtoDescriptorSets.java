@@ -1,4 +1,4 @@
-package io.temporal.internal.payload.visitor.gen;
+package io.temporal.internal.payload.gen;
 
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
@@ -24,7 +24,7 @@ import java.util.Set;
  * the compiled classes would form a dependency cycle with the very compilation that consumes its
  * output.
  */
-final class ProtoDescriptorSets {
+public final class ProtoDescriptorSets {
   private ProtoDescriptorSets() {}
 
   /**
@@ -34,7 +34,7 @@ final class ProtoDescriptorSets {
    * <p>The descriptor set must have been generated with imports included; a file referenced as a
    * dependency but absent from the set is an error.
    */
-  static Map<String, FileDescriptor> load(Path descriptorSetFile)
+  public static Map<String, FileDescriptor> load(Path descriptorSetFile)
       throws IOException, DescriptorValidationException {
     FileDescriptorSet set;
     try (InputStream in = Files.newInputStream(descriptorSetFile)) {
@@ -86,7 +86,7 @@ final class ProtoDescriptorSets {
   }
 
   /** Looks up a file that must be present, with a message naming the missing file if it is not. */
-  static FileDescriptor require(Map<String, FileDescriptor> files, String name) {
+  public static FileDescriptor require(Map<String, FileDescriptor> files, String name) {
     FileDescriptor file = files.get(name);
     if (file == null) {
       throw new IllegalStateException("descriptor set does not contain `" + name + "`");

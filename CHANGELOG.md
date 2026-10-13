@@ -44,6 +44,11 @@ to docs, or any other relevant information.
 - The Java 8 entry of `Jackson3JsonPayloadConverter` in the multi-release jar now declares the same public API as the
   Java 17 class, including the `JsonMapper` constructor and `newDefaultJsonMapper(boolean)`. Tools that compile against
   the base entry, such as IntelliJ's build system, no longer reject `new Jackson3JsonPayloadConverter(mapper)`.
+- Kotlin `Async` method references compiled with Kotlin 2.4 now retain their inline behavior,
+  preventing `NonDeterministicException` when replaying workflows started with Kotlin 2.2. For
+  workflows already started with Kotlin 2.4 and SDK 1.40 or earlier, set the
+  `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property to preserve the previous
+  behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 

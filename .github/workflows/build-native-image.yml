@@ -17,6 +17,11 @@ on:
         description: "Upload the native test server executable as an artifact"
         required: false
         default: false
+      artifact_prefix:
+        type: string
+        description: "Optional prefix for uploaded artifact names"
+        required: false
+        default: ""
   workflow_call:
     inputs:
       ref:
@@ -29,6 +34,11 @@ on:
         description: "Upload the native test server executable as an artifact"
         required: false
         default: false
+      artifact_prefix:
+        type: string
+        description: "Optional prefix for uploaded artifact names"
+        required: false
+        default: ""
 env:
   INPUT_REF: ${{ inputs.ref }}
 
@@ -111,8 +121,9 @@ jobs:
         if: ${{ inputs.upload_artifact }}
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: ${{ matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)}}
+          name: ${{ format('{0}{1}', inputs.artifact_prefix, matrix.musl && format('{0}_{1}_musl', matrix.os_family, matrix.arch) || format('{0}_{1}', matrix.os_family, matrix.arch)) }}
           path: |
             temporal-test-server/build/native/nativeCompile/temporal-test-server*
           if-no-files-found: error
+          overwrite: true
           retention-days: 1
