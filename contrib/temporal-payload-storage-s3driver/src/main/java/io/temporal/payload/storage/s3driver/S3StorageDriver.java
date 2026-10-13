@@ -83,12 +83,6 @@ public final class S3StorageDriver implements StorageDriver {
     String describeSuffix = describeSuffix();
     List<CompletableFuture<StorageDriverClaim>> claimFutures = new ArrayList<>(payloads.size());
     for (Payload payload : payloads) {
-      byte[] data = payload.toByteArray();
-      String hexDigest = PayloadHasher.sha256Hex(data);
-      String bucket = bucketResolver.resolveBucket(context, payload);
-      String key = S3StorageKey.forPayload(target, HASH_ALGORITHM, hexDigest);
-      String location = storageLocation(bucket, key, describeSuffix);
-
       // We track current inflight request for cancellation
       AtomicReference<CompletableFuture<?>> inFlightRequest = new AtomicReference<>();
       CompletableFuture<StorageDriverClaim> claimFuture =
@@ -97,6 +91,11 @@ public final class S3StorageDriver implements StorageDriver {
               .permit(
                   payload,
                   () -> {
+                    byte[] data = payload.toByteArray();
+                    String hexDigest = PayloadHasher.sha256Hex(data);
+                    String bucket = bucketResolver.resolveBucket(context, payload);
+                    String key = S3StorageKey.forPayload(target, HASH_ALGORITHM, hexDigest);
+                    String location = storageLocation(bucket, key, describeSuffix);
                     CompletableFuture<Boolean> existsRequest = client.objectExists(bucket, key);
                     inFlightRequest.set(existsRequest);
                     return withFailureContext(existsRequest, "existence check failed " + location)
