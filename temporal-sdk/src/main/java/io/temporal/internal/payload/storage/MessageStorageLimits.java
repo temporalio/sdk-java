@@ -16,9 +16,18 @@ final class MessageStorageLimits {
   /** Limits operations across every message using the same ExternalStorage. */
   private final AsyncSemaphore perInstanceSemaphore;
 
+  /** The configured per message operation limit. */
+  private final int maxOperationsPerMessage;
+
   MessageStorageLimits(int maxOperationsPerMessage, AsyncSemaphore perInstanceSemaphore) {
     this.perMessageSemaphore = new AsyncSemaphore(maxOperationsPerMessage);
     this.perInstanceSemaphore = perInstanceSemaphore;
+    this.maxOperationsPerMessage = maxOperationsPerMessage;
+  }
+
+  /** Returns the configured per message operation limit. */
+  int maxOperationsPerMessage() {
+    return maxOperationsPerMessage;
   }
 
   /** Returns a limiter for a single driver call. */
