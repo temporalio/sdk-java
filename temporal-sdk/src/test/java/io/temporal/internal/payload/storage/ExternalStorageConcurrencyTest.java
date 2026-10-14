@@ -3,10 +3,12 @@ package io.temporal.internal.payload.storage;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.common.AsyncSemaphore;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.ExternalStorageConcurrency;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -160,6 +162,45 @@ public class ExternalStorageConcurrencyTest {
   }
 
   @Test
+  public void separateRunnersDoNotShareDriverOperations() throws Exception {
+    PermittingDriver driver = new PermittingDriver(4);
+    ExternalStorage storage =
+        ExternalStorage.newBuilder()
+            .setDriver(driver)
+            .setPayloadSizeThreshold(0)
+            .setConcurrency(
+                ExternalStorageConcurrency.newBuilder()
+                    .setMaxDriverOperations(2)
+                    .setMaxOperationsPerMessage(10)
+                    .build())
+            .build();
+
+    ExternalStorageRunner clientRunner = ExternalStorageRunner.create(storage);
+    ExternalStorageRunner workerRunner = ExternalStorageRunner.create(storage);
+
+    List<CompletableFuture<Void>> messages =
+        Arrays.asList(
+            clientRunner.storeAsync(
+                Payloads.newBuilder().addAllPayloads(payloads(3)),
+                null,
+                null,
+                CancellationToken.none()),
+            workerRunner.storeAsync(
+                Payloads.newBuilder().addAllPayloads(payloads(3)),
+                null,
+                null,
+                CancellationToken.none()));
+
+    driver.awaitExpectedOperations();
+    assertEquals("each runner allows 2, so two runners allow 4", 4, driver.peak.get());
+
+    driver.gate.complete(null);
+    for (CompletableFuture<Void> message : messages) {
+      message.get(5, TimeUnit.SECONDS);
+    }
+  }
+
+  @Test
   public void maxDriverOperationsSharedAcrossMessages() throws Exception {
     PermittingDriver driver = new PermittingDriver(3);
     AsyncSemaphore shared = new AsyncSemaphore(3);
@@ -173,7 +214,7 @@ public class ExternalStorageConcurrencyTest {
                 payloads(4), null, CancellationToken.none(), new MessageStorageLimits(10, shared)));
 
     driver.awaitExpectedOperations();
-    assertEquals("one instance-wide budget spans both messages", 3, driver.peak.get());
+    assertEquals("one driver operation limit spans both messages", 3, driver.peak.get());
 
     driver.gate.complete(null);
     for (CompletableFuture<List<Payload>> message : messages) {

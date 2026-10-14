@@ -30,6 +30,7 @@ import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.TaskCounter;
+import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -135,7 +136,10 @@ public final class Worker {
             .setDataConverter(clientInternal.getInternalDataConverter())
             .build();
     this.cache = cache;
-    ExternalStorageRunner externalStorageRunner = clientInternal.getExternalStorageRunner();
+    // A worker does not share the client's limit, even when built from that client.
+    ExternalStorage externalStorage = client.getOptions().getExternalStorage();
+    ExternalStorageRunner externalStorageRunner =
+        externalStorage == null ? null : ExternalStorageRunner.create(externalStorage);
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     String namespace = clientOptions.getNamespace();
     this.namespace = namespace;

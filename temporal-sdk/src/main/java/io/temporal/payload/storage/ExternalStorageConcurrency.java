@@ -30,7 +30,8 @@ public final class ExternalStorageConcurrency {
 
   /**
    * The maximum number of concurrent external storage operations that drivers can execute for a
-   * single {@link ExternalStorage}. All drivers on that instance share this limit. Defaults to 64.
+   * single client or worker. Each client and each worker gets its own limit of this size. Defaults
+   * to 64.
    */
   public int getMaxDriverOperations() {
     return maxDriverOperations;

@@ -90,9 +90,9 @@ to docs, or any other relevant information.
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 - **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
   `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
-- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (across all drivers on that
-  instance) and `maxOperationsPerMessage` (for one message). Drivers must wrap store and retrieve calls with
-  `context.getLimiter()`.
+- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (for one client or
+  worker) and `maxOperationsPerMessage` (for one message). Each client and each worker gets its own
+  `maxDriverOperations` limit. Drivers must wrap store and retrieve calls with `context.getLimiter()`.
 
 ### Changed
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
