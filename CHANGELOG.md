@@ -41,6 +41,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
+  so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
+  Temporal Cloud API keys).
 - Kotlin `Async` method references compiled with Kotlin 2.4 now retain their inline behavior,
   preventing `NonDeterministicException` when replaying workflows started with Kotlin 2.2. For
   workflows already started with Kotlin 2.4 and SDK 1.40 or earlier, set the
