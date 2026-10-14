@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component("TestActivityImpl")
-@ActivityImpl(workers = "mainWorker")
+@ActivityImpl(workers = "${default-worker.name:mainWorker}")
 @Profile("!auto-discovery-with-profile")
 public class TestActivityImpl implements TestActivity {
   @Override
