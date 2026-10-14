@@ -35,6 +35,7 @@ import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.namespace.v1.NamespaceInfo;
+import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
@@ -1178,6 +1179,29 @@ public class WorkflowWorkerTest {
           Duration.ofSeconds(5),
           new StorageOperationMetrics(),
           new StorageOperationMetrics());
+      assertTrue(logs.list.isEmpty());
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+  }
+
+  @Test
+  public void aSlowDirectQueryIsNotReportedAsASlowWorkflowTask() {
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      PollWorkflowTaskQueueResponse query =
+          durationLogTask().toBuilder()
+              .setQuery(WorkflowQuery.newBuilder().setQueryType("getState"))
+              .build();
+
+      WorkflowWorker.logWorkflowTaskDuration(
+          query,
+          "MyWorkflow",
+          Duration.ofSeconds(30),
+          Duration.ofSeconds(5),
+          new StorageOperationMetrics(),
+          new StorageOperationMetrics());
+
       assertTrue(logs.list.isEmpty());
     } finally {
       stopCapturingWorkerLogs(logs);

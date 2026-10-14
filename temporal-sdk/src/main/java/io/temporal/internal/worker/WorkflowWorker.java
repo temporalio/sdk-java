@@ -416,6 +416,12 @@ final class WorkflowWorker implements SuspendableWorker {
       Duration warnThreshold,
       StorageOperationMetrics downloadMetrics,
       StorageOperationMetrics uploadMetrics) {
+    // A direct query is answered on this path but is not a workflow task, so reporting a slow one
+    // as a slow workflow task would mislead. A query carried inside a real workflow task arrives
+    // in a different field and still counts toward that task.
+    if (task.hasQuery()) {
+      return;
+    }
     if (taskDuration.compareTo(warnThreshold) <= 0) {
       return;
     }
