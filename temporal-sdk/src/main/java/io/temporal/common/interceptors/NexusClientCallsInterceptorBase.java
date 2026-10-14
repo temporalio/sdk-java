@@ -1,14 +1,15 @@
 package io.temporal.common.interceptors;
 
-import io.temporal.common.Experimental;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 
 /**
  * Convenience base class for {@link NexusClientCallsInterceptor} implementations that need to
  * override only a subset of methods. All methods delegate to the wrapped {@code next} interceptor.
+ *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
  */
-@Experimental
 public class NexusClientCallsInterceptorBase implements NexusClientCallsInterceptor {
 
   private final NexusClientCallsInterceptor next;

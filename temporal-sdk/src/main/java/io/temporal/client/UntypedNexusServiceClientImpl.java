@@ -1,7 +1,6 @@
 package io.temporal.client;
 
 import io.temporal.api.common.v1.Payload;
-import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.StartNexusOperationExecutionInput;
@@ -18,7 +17,6 @@ import javax.annotation.Nullable;
  * endpoint, service name, and data converter, and translates operation-name calls into start RPCs
  * routed through the interceptor chain.
  */
-@Experimental
 class UntypedNexusServiceClientImpl implements UntypedNexusServiceClient {
 
   private final NexusClientCallsInterceptor invoker;

@@ -3,7 +3,6 @@ package io.temporal.client;
 import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.NexusOperationExecutionStatus;
 import io.temporal.api.nexus.v1.NexusOperationExecutionListInfo;
-import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributes;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -16,8 +15,10 @@ import javax.annotation.Nullable;
 /**
  * Information about a standalone Nexus operation execution returned by {@link
  * NexusClient#listNexusOperationExecutions}.
+ *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
  */
-@Experimental
 public class NexusOperationExecutionMetadata {
 
   private final @Nullable NexusOperationExecutionListInfo rawListInfo;

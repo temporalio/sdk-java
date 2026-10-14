@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -15,12 +14,14 @@ import javax.annotation.Nullable;
  * UntypedNexusOperationHandle} (returned by {@link NexusClient#getHandle(String, String)}) with
  * {@link #fromUntyped(UntypedNexusOperationHandle, Class)}.
  *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
+ *
  * @param <R> the result type of the Nexus operation
  * @see UntypedNexusOperationHandle
  * @see NexusServiceClient
  * @see NexusClient
  */
-@Experimental
 public interface NexusOperationHandle<R> extends UntypedNexusOperationHandle {
 
   /**

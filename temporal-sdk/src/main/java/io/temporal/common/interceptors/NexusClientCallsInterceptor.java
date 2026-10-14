@@ -9,7 +9,6 @@ import io.temporal.client.NexusOperationExecutionMetadata;
 import io.temporal.client.NexusOperationFailedException;
 import io.temporal.client.NexusOperationHandle;
 import io.temporal.client.StartNexusOperationOptions;
-import io.temporal.common.Experimental;
 import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
 import java.util.Collections;
@@ -29,8 +28,10 @@ import javax.annotation.Nullable;
  * NexusClientInterceptor#nexusClientCallsInterceptor(NexusClientCallsInterceptor)} during {@link
  * NexusClient} construction. Prefer extending {@link NexusClientCallsInterceptorBase} and
  * overriding only the methods you need.
+ *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
  */
-@Experimental
 public interface NexusClientCallsInterceptor {
 
   /**

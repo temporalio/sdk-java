@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
 import java.util.stream.Stream;
@@ -44,11 +43,13 @@ import javax.annotation.Nullable;
  * <p>For visibility queries across all operations in the namespace, see {@link
  * #listNexusOperationExecutions} and {@link #countNexusOperationExecutions}.
  *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
+ *
  * @see NexusServiceClient
  * @see UntypedNexusServiceClient
  * @see NexusOperationHandle
  */
-@Experimental
 public interface NexusClient {
 
   /**

@@ -1,11 +1,14 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.failure.TemporalException;
 import javax.annotation.Nullable;
 
-/** Base exception for standalone Nexus operation execution failures. */
-@Experimental
+/**
+ * Base exception for standalone Nexus operation execution failures.
+ *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
+ */
 public abstract class NexusOperationException extends TemporalException {
 
   private final String operationId;

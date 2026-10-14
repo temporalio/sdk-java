@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
@@ -14,8 +13,10 @@ import javax.annotation.Nullable;
  *   <li>operation was purged from the service after reaching its retention limit
  *   <li>attempt to cancel/terminate/delete an operation that is already closed
  * </ul>
+ *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
  */
-@Experimental
 public final class NexusOperationNotFoundException extends NexusOperationException {
 
   public NexusOperationNotFoundException(

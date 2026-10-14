@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.NexusClientInterceptor;
@@ -31,8 +30,10 @@ import javax.annotation.Nullable;
  *         .setDataConverter(myDataConverter)
  *         .build();
  * }</pre>
+ *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
  */
-@Experimental
 public class NexusClientOptions {
 
   private static final String DEFAULT_NAMESPACE = "default";

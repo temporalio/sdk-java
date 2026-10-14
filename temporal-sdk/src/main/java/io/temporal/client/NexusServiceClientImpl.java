@@ -2,7 +2,6 @@ package io.temporal.client;
 
 import io.nexusrpc.OperationDefinition;
 import io.nexusrpc.ServiceDefinition;
-import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.internal.util.MethodExtractor;
@@ -16,7 +15,6 @@ import javax.annotation.Nullable;
  * targets a method on the service interface (via a {@link Proxy} of {@code T}) and delegates the
  * start RPC to the interceptor chain inherited from the underlying {@link NexusClient}.
  */
-@Experimental
 class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
     implements NexusServiceClient<T> {
 
