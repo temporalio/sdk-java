@@ -63,6 +63,8 @@ public class OperationInputDeserializationErrorPropagationTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(TestNexus.class)
           .setNexusServiceImplementation(new PoisonInputServiceImpl())
+          // Retry delivery races schedule-to-close when the test server advances virtual time.
+          .setUseTimeskipping(false)
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
                   .setDataConverter(new PoisonInputDataConverter())
