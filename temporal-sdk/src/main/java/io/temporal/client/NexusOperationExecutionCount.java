@@ -1,6 +1,7 @@
 package io.temporal.client;
 
 import io.temporal.api.common.v1.Payload;
+import io.temporal.common.Experimental;
 import io.temporal.internal.common.SearchAttributesUtil;
 import java.util.Collections;
 import java.util.List;
@@ -8,15 +9,12 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 
-/**
- * Result of counting standalone Nexus operation executions.
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
- */
+/** Result of counting standalone Nexus operation executions. */
+@Experimental
 public class NexusOperationExecutionCount {
 
   /** An individual aggregation group. */
+  @Experimental
   public static class AggregationGroup {
     private final List<List<?>> groupValues;
     private final long count;

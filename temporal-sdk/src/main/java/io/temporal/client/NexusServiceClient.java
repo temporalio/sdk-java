@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import io.temporal.common.Experimental;
 import io.temporal.workflow.Functions;
 import java.util.concurrent.CompletableFuture;
 
@@ -16,9 +17,6 @@ import java.util.concurrent.CompletableFuture;
  * <p>Given a Nexus service interface:
  *
  * <pre>{@code
- * <p>Standalone Nexus Operations are in Public Preview.
- * We aim to preserve backward compatibility and avoid breaking changes.
- *
  * @Service
  * public interface GreeterService {
  *   @Operation String greet(String name);     // input + output
@@ -60,6 +58,7 @@ import java.util.concurrent.CompletableFuture;
  * @see NexusClient
  * @see UntypedNexusServiceClient
  */
+@Experimental
 public interface NexusServiceClient<T> extends UntypedNexusServiceClient {
 
   /**

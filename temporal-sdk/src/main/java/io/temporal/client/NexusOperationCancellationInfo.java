@@ -3,6 +3,7 @@ package io.temporal.client;
 import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.NexusOperationCancellationState;
 import io.temporal.api.nexus.v1.NexusOperationExecutionCancellationInfo;
+import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import java.time.Instant;
@@ -12,10 +13,8 @@ import javax.annotation.Nullable;
 /**
  * Information about a cancellation request issued against a standalone Nexus operation execution.
  * Returned by {@link NexusOperationExecutionDescription#getCancellationInfo()}.
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
  */
+@Experimental
 public final class NexusOperationCancellationInfo {
 
   private final NexusOperationExecutionCancellationInfo info;

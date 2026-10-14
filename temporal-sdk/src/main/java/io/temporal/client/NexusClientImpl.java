@@ -3,6 +3,7 @@ package io.temporal.client;
 import static io.temporal.internal.WorkflowThreadMarker.enforceNonWorkflowThread;
 
 import com.uber.m3.tally.Scope;
+import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.CountNexusOperationExecutionsInput;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor.CountNexusOperationExecutionsOutput;
@@ -24,6 +25,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Experimental
 public class NexusClientImpl implements NexusClient {
 
   private static final Logger log = LoggerFactory.getLogger(NexusClientImpl.class);

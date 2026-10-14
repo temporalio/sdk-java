@@ -2,16 +2,15 @@ package io.temporal.common.interceptors;
 
 import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
+import io.temporal.common.Experimental;
 
 /**
  * Outer interceptor for {@link NexusClient}. Implementations are registered via {@link
  * NexusClientOptions.Builder#setInterceptors(java.util.List)} and consulted once during client
  * construction to build the chain of {@link NexusClientCallsInterceptor}s that wraps the root
  * invoker.
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
  */
+@Experimental
 public interface NexusClientInterceptor {
 
   /**

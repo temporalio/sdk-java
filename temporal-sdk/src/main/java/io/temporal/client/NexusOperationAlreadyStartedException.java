@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
@@ -8,10 +9,8 @@ import javax.annotation.Nullable;
  * completed run that conflicts with the requested {@link
  * StartNexusOperationOptions#getIdReusePolicy()} / {@link
  * StartNexusOperationOptions#getIdConflictPolicy()}).
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
  */
+@Experimental
 public final class NexusOperationAlreadyStartedException extends NexusOperationException {
 
   private final String operation;

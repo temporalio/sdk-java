@@ -2,6 +2,7 @@ package io.temporal.client;
 
 import io.temporal.api.enums.v1.NexusOperationIdConflictPolicy;
 import io.temporal.api.enums.v1.NexusOperationIdReusePolicy;
+import io.temporal.common.Experimental;
 import io.temporal.common.SearchAttributes;
 import java.time.Duration;
 import java.util.Objects;
@@ -11,10 +12,8 @@ import javax.annotation.Nullable;
 /**
  * Per-call options for starting a standalone Nexus operation via {@link
  * UntypedNexusServiceClient#start} (or its typed counterpart).
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
  */
+@Experimental
 public final class StartNexusOperationOptions {
 
   public static Builder newBuilder() {

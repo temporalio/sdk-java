@@ -4,6 +4,7 @@ import com.google.common.base.Strings;
 import io.temporal.api.enums.v1.PendingNexusOperationState;
 import io.temporal.api.nexus.v1.NexusOperationExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeNexusOperationExecutionResponse;
+import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
@@ -17,10 +18,8 @@ import javax.annotation.Nullable;
 /**
  * Detailed information about a standalone Nexus operation execution, returned by {@link
  * UntypedNexusOperationHandle#describe()}.
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
  */
+@Experimental
 public final class NexusOperationExecutionDescription extends NexusOperationExecutionMetadata {
 
   private final DescribeNexusOperationExecutionResponse response;
@@ -55,7 +54,7 @@ public final class NexusOperationExecutionDescription extends NexusOperationExec
     this.dataConverterWithNexusContext = dataConverterWithNexusContext;
   }
 
-  /** Underlying proto response. */
+  /** Underlying proto response. Exposed while the Nexus SDK surface is still experimental. */
   @Nonnull
   public DescribeNexusOperationExecutionResponse getRawResponse() {
     return response;

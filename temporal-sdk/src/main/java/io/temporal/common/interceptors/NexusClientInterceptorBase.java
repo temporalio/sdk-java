@@ -1,11 +1,9 @@
 package io.temporal.common.interceptors;
 
-/**
- * Convenience base class for {@link NexusClientInterceptor} implementations.
- *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
- */
+import io.temporal.common.Experimental;
+
+/** Convenience base class for {@link NexusClientInterceptor} implementations. */
+@Experimental
 public class NexusClientInterceptorBase implements NexusClientInterceptor {
 
   @Override

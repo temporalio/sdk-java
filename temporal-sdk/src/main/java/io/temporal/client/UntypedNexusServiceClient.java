@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import javax.annotation.Nullable;
 
@@ -8,12 +9,10 @@ import javax.annotation.Nullable;
  * the operation contract is not available as a Java service interface at compile time. For a typed
  * variant, see {@link NexusServiceClient}.
  *
- * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
- * and avoid breaking changes.
- *
  * @see NexusServiceClient
  * @see NexusClient
  */
+@Experimental
 public interface UntypedNexusServiceClient {
 
   /**
