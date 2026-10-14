@@ -19,7 +19,7 @@ package io.temporal.common;
  * @param <T> the type of the copied value.
  */
 @Experimental
-public interface TemporalCopyable<T extends TemporalCopyable<T>> {
+public interface Copyable<T extends Copyable<T>> {
   /**
    * Returns an independent copy satisfying this interface's contract.
    *

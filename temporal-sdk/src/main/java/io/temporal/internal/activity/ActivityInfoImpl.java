@@ -15,6 +15,7 @@ import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class ActivityInfoImpl implements ActivityInfoInternal {
   private final String namespace;
@@ -22,18 +23,21 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   private final PollActivityTaskQueueResponseOrBuilder response;
   private final boolean local;
   private final Functions.Proc completionHandle;
+  private final ActivityInput input;
 
   ActivityInfoImpl(
       PollActivityTaskQueueResponseOrBuilder response,
       @Nonnull String namespace,
       @Nonnull String activityTaskQueue,
       boolean local,
-      Functions.Proc completionHandle) {
+      Functions.Proc completionHandle,
+      @Nullable LocalActivityArguments snapshot) {
     this.response = Objects.requireNonNull(response);
     this.namespace = Objects.requireNonNull(namespace);
     this.activityTaskQueue = Objects.requireNonNull(activityTaskQueue);
     this.local = local;
     this.completionHandle = completionHandle;
+    this.input = new ActivityInput(response, snapshot);
   }
 
   @Override
@@ -190,11 +194,8 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
   }
 
   @Override
-  public Optional<Payloads> getInput() {
-    if (response.hasInput()) {
-      return Optional.of(response.getInput());
-    }
-    return Optional.empty();
+  public ActivityInput getInput() {
+    return input;
   }
 
   @Override

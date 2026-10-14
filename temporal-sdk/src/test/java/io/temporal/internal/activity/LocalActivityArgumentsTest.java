@@ -1,13 +1,17 @@
 package io.temporal.internal.activity;
 
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
-import io.temporal.common.TemporalCopyable;
-import io.temporal.internal.common.TemporalCopyableUtils;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.common.Copyable;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.internal.common.CopyableUtils;
 import org.junit.Test;
 
 public class LocalActivityArgumentsTest {
-  private static class Value implements TemporalCopyable<Value> {
+  private static class Value implements Copyable<Value> {
     int value;
 
     @Override
@@ -39,6 +43,28 @@ public class LocalActivityArgumentsTest {
   }
 
   @Test
+  public void activityInputSelectsOneArgumentSource() {
+    DataConverter converter = DefaultDataConverter.STANDARD_INSTANCE;
+    PollActivityTaskQueueResponse response =
+        PollActivityTaskQueueResponse.newBuilder()
+            .setInput(converter.toPayloads("serialized").get())
+            .build();
+    Value original = new Value();
+    ActivityInput copied =
+        new ActivityInput(response, LocalActivityArguments.capture(new Object[] {original}));
+    DataConverter unusedConverter = mock(DataConverter.class);
+    Class<?>[] copyTypes = {Value.class};
+    assertNotSame(original, copied.getArguments(copyTypes, copyTypes, unusedConverter)[0]);
+    verifyNoInteractions(unusedConverter);
+
+    Class<?>[] serializedTypes = {String.class};
+    assertArrayEquals(
+        new Object[] {"serialized"},
+        new ActivityInput(response, null)
+            .getArguments(serializedTypes, serializedTypes, converter));
+  }
+
+  @Test
   public void immutableCopiesMayReturnThisButMixedBatchesMustNotCopy() {
     Value immutable =
         new Value() {
@@ -48,7 +74,7 @@ public class LocalActivityArgumentsTest {
           }
         };
     assertSame(immutable, LocalActivityArguments.capture(new Object[] {immutable}).copy()[0]);
-    TemporalCopyable<Value> mustNotCopy =
+    Copyable<Value> mustNotCopy =
         () -> {
           throw new AssertionError("Mixed batches must use serialization.");
         };
@@ -57,11 +83,11 @@ public class LocalActivityArgumentsTest {
 
   @Test(expected = NullPointerException.class)
   public void rejectsNullCopies() {
-    TemporalCopyableUtils.copy((TemporalCopyable<Value>) () -> null);
+    CopyableUtils.copy((Copyable<Value>) () -> null);
   }
 
   @Test(expected = IllegalArgumentException.class)
   public void rejectsCopiesOfAnotherType() {
-    TemporalCopyableUtils.copy((TemporalCopyable<Value>) Value::new);
+    CopyableUtils.copy((Copyable<Value>) Value::new);
   }
 }

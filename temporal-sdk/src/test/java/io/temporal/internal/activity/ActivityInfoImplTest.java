@@ -35,7 +35,8 @@ public class ActivityInfoImplTest {
                 io.temporal.api.common.v1.WorkflowType.newBuilder().setName("MyWorkflow"))
             .build();
 
-    ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
+    ActivityInfoImpl info =
+        new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null, null);
     assertEquals("wf-id", info.getWorkflowId());
     assertEquals("run-id", info.getWorkflowRunId());
     assertEquals("MyWorkflow", info.getWorkflowType());
@@ -47,7 +48,8 @@ public class ActivityInfoImplTest {
     // No workflowExecution set
     PollActivityTaskQueueResponse response = baseResponse().build();
 
-    ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
+    ActivityInfoImpl info =
+        new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null, null);
     assertNull(info.getWorkflowId());
     assertNull(info.getWorkflowRunId());
     assertNull(info.getWorkflowType());
@@ -62,7 +64,8 @@ public class ActivityInfoImplTest {
                 WorkflowExecution.newBuilder().setWorkflowId("").setRunId("").build())
             .build();
 
-    ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
+    ActivityInfoImpl info =
+        new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null, null);
     assertNull(info.getWorkflowId());
     assertNull(info.getWorkflowRunId());
     assertFalse(info.isInWorkflow());
@@ -71,7 +74,8 @@ public class ActivityInfoImplTest {
   @Test
   public void testEmptyActivityRunIdTreatedAsNull() {
     PollActivityTaskQueueResponse response = baseResponse().setActivityRunId("").build();
-    ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
+    ActivityInfoImpl info =
+        new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null, null);
     assertNull(info.getActivityRunId());
   }
 
@@ -84,7 +88,8 @@ public class ActivityInfoImplTest {
             .setWorkflowType(io.temporal.api.common.v1.WorkflowType.newBuilder().setName(""))
             .build();
 
-    ActivityInfoImpl info = new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null);
+    ActivityInfoImpl info =
+        new ActivityInfoImpl(response, NAMESPACE, "task-queue", false, null, null);
     // workflowId is set, but workflowType is empty → getWorkflowType() returns null
     assertEquals("wf-id", info.getWorkflowId());
     assertNull(info.getWorkflowType());

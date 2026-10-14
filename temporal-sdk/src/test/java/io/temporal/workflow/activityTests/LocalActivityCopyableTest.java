@@ -7,8 +7,8 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.Copyable;
 import io.temporal.common.RetryOptions;
-import io.temporal.common.TemporalCopyable;
 import io.temporal.common.converter.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.testing.*;
@@ -146,7 +146,7 @@ public class LocalActivityCopyableTest {
     }
   }
 
-  public static class MutableValue implements TemporalCopyable<MutableValue> {
+  public static class MutableValue implements Copyable<MutableValue> {
     public int value;
     public String mode;
 
