@@ -27,6 +27,10 @@ to docs, or any other relevant information.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
+- Added experimental `Workflow.getRandomStream(String name)`, which returns a deterministic pseudorandom stream private
+  to the given name.
+- Added experimental `WorkflowUnsafe.isSubjectToReplay()`, which reports whether the calling code is re-executed on
+  replay.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
