@@ -37,14 +37,16 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
                   ActivityTaskExecutors.POJOActivityImplementation.class,
                   "execute",
                   ActivityInfoInternal.class,
-                  Scope.class))
+                  Scope.class,
+                  LocalActivityArguments.class))
           // Dynamic
           .add(
               ReflectionUtils.getMethodNameForStackTraceCutoff(
                   ActivityTaskExecutors.DynamicActivityImplementation.class,
                   "execute",
                   ActivityInfoInternal.class,
-                  Scope.class))
+                  Scope.class,
+                  LocalActivityArguments.class))
           .build();
 
   private final DataConverter dataConverter;
@@ -105,11 +107,13 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
             localActivity,
             activityTask.getCompletionCallback());
     ActivityTaskExecutor activity = activities.get(activityType);
+    LocalActivityArguments arguments =
+        localActivity ? activityTask.getLocalActivityArguments() : null;
     if (activity != null) {
-      return activity.execute(activityInfo, metricsScope);
+      return activity.execute(activityInfo, metricsScope, arguments);
     }
     if (dynamicActivity != null) {
-      return dynamicActivity.execute(activityInfo, metricsScope);
+      return dynamicActivity.execute(activityInfo, metricsScope, arguments);
     }
 
     // unregistered activity
