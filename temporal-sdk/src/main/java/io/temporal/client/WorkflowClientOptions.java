@@ -170,7 +170,6 @@ public final class WorkflowClientOptions {
      * @see WorkflowClientPlugin
      * @see io.temporal.worker.WorkerPlugin
      */
-    @Experimental
     public Builder setPlugins(WorkflowClientPlugin... plugins) {
       this.plugins = Objects.requireNonNull(plugins);
       return this;
@@ -372,7 +371,6 @@ public final class WorkflowClientOptions {
    *
    * @return the array of workflow client plugins, never null
    */
-  @Experimental
   public WorkflowClientPlugin[] getPlugins() {
     return plugins;
   }

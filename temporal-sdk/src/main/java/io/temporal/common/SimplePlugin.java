@@ -106,7 +106,6 @@ import javax.annotation.Nonnull;
  * @see ScheduleClientPlugin
  * @see WorkerPlugin
  */
-@Experimental
 public abstract class SimplePlugin
     implements WorkflowServiceStubsPlugin,
         WorkflowClientPlugin,

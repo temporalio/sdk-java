@@ -120,7 +120,6 @@ public class WorkerFactoryOptions {
      * @return this builder for chaining
      * @see WorkerPlugin
      */
-    @Experimental
     public Builder setPlugins(WorkerPlugin... plugins) {
       this.plugins = plugins;
       return this;
@@ -319,7 +318,6 @@ public class WorkerFactoryOptions {
    *
    * @return the array of worker plugins, never null
    */
-  @Experimental
   public WorkerPlugin[] getPlugins() {
     return plugins;
   }

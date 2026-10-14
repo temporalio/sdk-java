@@ -31,6 +31,7 @@ to docs, or any other relevant information.
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
 
 ### Changed
+- Removed experimental annotations from the core plugin APIs and plugin option setters/getters.
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 - Added versioned scheduling for asynchronous Temporal stub calls. When enabled, switching between a stub method

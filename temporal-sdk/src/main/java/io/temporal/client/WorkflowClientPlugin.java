@@ -20,7 +20,6 @@
 
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.common.SimplePlugin;
 import javax.annotation.Nonnull;
 
@@ -58,7 +57,6 @@ import javax.annotation.Nonnull;
  * @see io.temporal.worker.WorkerPlugin
  * @see SimplePlugin
  */
-@Experimental
 public interface WorkflowClientPlugin {
 
   /**

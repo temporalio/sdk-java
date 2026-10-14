@@ -20,7 +20,6 @@
 
 package io.temporal.client.schedules;
 
-import io.temporal.common.Experimental;
 import javax.annotation.Nonnull;
 
 /**
@@ -32,7 +31,6 @@ import javax.annotation.Nonnull;
  *
  * @see io.temporal.serviceclient.WorkflowServiceStubsPlugin
  */
-@Experimental
 public interface ScheduleClientPlugin {
 
   /**
