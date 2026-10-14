@@ -4,6 +4,8 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
 import io.opentelemetry.api.logs.LoggerProvider;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.api.trace.TracerBuilder;
@@ -21,6 +23,7 @@ import io.opentelemetry.sdk.trace.SdkTracerProvider;
 import io.opentelemetry.sdk.trace.SdkTracerProviderBuilder;
 import io.temporal.common.Experimental;
 import io.temporal.opentelemetry.v2.internal.ReplaySafeIdGenerator;
+import io.temporal.opentelemetry.v2.internal.ReplaySafeMeter;
 import io.temporal.opentelemetry.v2.internal.ReplaySafeTracer;
 import io.temporal.opentelemetry.v2.internal.TemporalContextStorage;
 import java.io.Closeable;
@@ -28,7 +31,8 @@ import javax.annotation.Nonnull;
 
 /**
  * The {@link OpenTelemetry} to use for OpenTelemetry integration with Temporal. Register it with
- * {@code GlobalOpenTelemetry.set}; tracers obtained from it are replay safe inside workflows.
+ * {@code GlobalOpenTelemetry.set}; tracers and meters obtained from it are replay safe inside
+ * workflows.
  *
  * <p>Known limitations:
  *
@@ -36,6 +40,10 @@ import javax.annotation.Nonnull;
  *   <li>{@code SpanProcessor.onStart} runs for spans started during replay, but {@code onEnd} does
  *       not run for spans ended during replay, so do not rely on the two being called the same
  *       number of times.
+ *   <li>Observable instruments, from {@code buildWithCallback}, {@code buildObserver}, or {@code
+ *       batchCallback}, throw {@link IllegalStateException} when created from workflow code,
+ *       because their callbacks would stay registered across replays. Query handlers are not
+ *       checked, so do not create observable instruments in them either.
  *   <li>{@code Span.recordException} takes no timestamp, so an exception recorded during replay is
  *       timestamped with the replay time rather than the workflow time.
  *   <li>Continuations keep the context current when they were registered only on promises returned
@@ -43,13 +51,14 @@ import javax.annotation.Nonnull;
  *       Promise.allOf} and {@code Promise.anyOf}, run with the context current when the promise
  *       completes.
  *   <li>Continuations on the promise returned by cancelling an external workflow run outside a
- *       workflow thread, so spans they start get random IDs and are exported again on every replay.
+ *       workflow thread, so spans they start get random IDs, and their spans and metric recordings
+ *       are exported again on every replay.
  * </ul>
  */
 @Experimental
 public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
   private final ReplaySafeTracerProvider tracerProvider;
-  private final SdkMeterProvider meterProvider; // TODO - Make the meter provider replay safe
+  private final ReplaySafeMeterProvider meterProvider;
   // TODO: Make the logger provider replay safe and add logger interceptor methods for Temporal and
   // OpenTelemetry loggers.
   private final SdkLoggerProvider loggerProvider;
@@ -67,7 +76,7 @@ public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
                 .tracerProviderBuilder
                 .setIdGenerator(new ReplaySafeIdGenerator(builder.idGenerator))
                 .build());
-    this.meterProvider = builder.meterProviderBuilder.build();
+    this.meterProvider = new ReplaySafeMeterProvider(builder.meterProviderBuilder.build());
     this.loggerProvider = builder.loggerProviderBuilder.build();
     this.propagators = builder.propagators;
   }
@@ -193,6 +202,54 @@ public final class ReplaySafeOpenTelemetry implements OpenTelemetry, Closeable {
     @Override
     public void close() {
       delegate.close();
+    }
+  }
+
+  private static final class ReplaySafeMeterProvider implements MeterProvider, Closeable {
+    private final SdkMeterProvider delegate;
+
+    private ReplaySafeMeterProvider(SdkMeterProvider delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Meter get(@Nonnull String instrumentationScopeName) {
+      return new ReplaySafeMeter(delegate.get(instrumentationScopeName));
+    }
+
+    @Override
+    public MeterBuilder meterBuilder(@Nonnull String instrumentationScopeName) {
+      return new ReplaySafeMeterBuilder(delegate.meterBuilder(instrumentationScopeName));
+    }
+
+    @Override
+    public void close() {
+      delegate.close();
+    }
+  }
+
+  private static final class ReplaySafeMeterBuilder implements MeterBuilder {
+    private final MeterBuilder delegate;
+
+    private ReplaySafeMeterBuilder(MeterBuilder delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public MeterBuilder setSchemaUrl(@Nonnull String schemaUrl) {
+      delegate.setSchemaUrl(schemaUrl);
+      return this;
+    }
+
+    @Override
+    public MeterBuilder setInstrumentationVersion(@Nonnull String instrumentationScopeVersion) {
+      delegate.setInstrumentationVersion(instrumentationScopeVersion);
+      return this;
+    }
+
+    @Override
+    public Meter build() {
+      return new ReplaySafeMeter(delegate.build());
     }
   }
 
