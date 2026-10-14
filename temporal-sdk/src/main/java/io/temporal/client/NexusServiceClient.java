@@ -11,14 +11,14 @@ import java.util.concurrent.CompletableFuture;
  * the invocation and delegates to {@link NexusClient}. For visibility queries (list/count) across
  * operations, use {@link NexusClient} directly.
  *
+ * <p>Standalone Nexus Operations are in Public Preview. We aim to preserve backward compatibility
+ * and avoid breaking changes.
+ *
  * <h2>Usage</h2>
  *
  * <p>Given a Nexus service interface:
  *
  * <pre>{@code
- * <p>Standalone Nexus Operations are in Public Preview.
- * We aim to preserve backward compatibility and avoid breaking changes.
- *
  * @Service
  * public interface GreeterService {
  *   @Operation String greet(String name);     // input + output
