@@ -27,6 +27,8 @@ to docs, or any other relevant information.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
+- Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
+  placeholders such as `${my.worker.name}`, as `taskQueues` already does.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
@@ -41,6 +43,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
+  so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
+  Temporal Cloud API keys).
 - The Java 8 entry of `Jackson3JsonPayloadConverter` in the multi-release jar now declares the same public API as the
   Java 17 class, including the `JsonMapper` constructor and `newDefaultJsonMapper(boolean)`. Tools that compile against
   the base entry, such as IntelliJ's build system, no longer reject `new Jackson3JsonPayloadConverter(mapper)`.

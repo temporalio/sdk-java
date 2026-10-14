@@ -15,7 +15,7 @@ public @interface ActivityImpl {
   /**
    * @return names of Workers to register this activity bean with. Workers with these names must be
    *     present in the application config. Worker is named by its task queue if its name is not
-   *     specified.
+   *     specified. Can be specified as a property key, e.g.: ${propertyKey}.
    */
   String[] workers() default {};
 
