@@ -115,6 +115,8 @@ public final class WorkflowStateMachines {
   /** Used Workflow.newRandom and randomUUID together with currentRunId. */
   private long idCounter;
 
+  private final WorkflowRandomStreams randomStreams = new WorkflowRandomStreams();
+
   /** Current workflow time. */
   private long currentTimeMillis = -1;
 
@@ -1195,6 +1197,11 @@ public final class WorkflowStateMachines {
     return new Random(randomUUID().getLeastSignificantBits());
   }
 
+  public Random getRandomStream(String name) {
+    checkEventLoopExecuting();
+    return randomStreams.get(currentRunId, name);
+  }
+
   public void sideEffect(
       Functions.Func<Optional<Payloads>> func,
       UserMetadata userMetadata,
@@ -1548,6 +1555,7 @@ public final class WorkflowStateMachines {
     @Override
     public void updateRunId(String currentRunId) {
       WorkflowStateMachines.this.currentRunId = currentRunId;
+      randomStreams.reseed(currentRunId);
     }
   }
 

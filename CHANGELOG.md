@@ -49,6 +49,10 @@ to docs, or any other relevant information.
 - Workflow tasks taking longer than 5 seconds now log a `[TMPRL1104]` warning reporting the task duration and the
   external storage downloads and uploads that contributed to it. The threshold is configurable with the
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
+- Added experimental `Workflow.getRandomStream(String name)`, which returns a deterministic pseudorandom stream private
+  to the given name.
+- Added experimental `WorkflowUnsafe.isSubjectToReplay()`, which reports whether the calling code is re-executed on
+  replay.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
