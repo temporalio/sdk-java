@@ -12,6 +12,9 @@ Java SDK:
 - [Java SDK documentation](https://docs.temporal.io/docs/java/introduction)
 - [Javadoc API reference](https://www.javadoc.io/doc/io.temporal/temporal-sdk/latest/index.html)
 - [Sample applications](https://github.com/temporalio/samples-java#samples-directory)
+- [Standalone Nexus Operations](https://docs.temporal.io/develop/java/nexus/standalone-operations) are in
+  [Public Preview](https://docs.temporal.io/evaluate/development-production-features/release-stages#public-preview).
+  We aim to preserve backward compatibility and avoid breaking changes.
 
 Temporal:
 
