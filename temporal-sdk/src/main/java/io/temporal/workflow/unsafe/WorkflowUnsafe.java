@@ -1,5 +1,6 @@
 package io.temporal.workflow.unsafe;
 
+import io.temporal.common.Experimental;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.workflow.Functions;
 
@@ -44,6 +45,23 @@ public final class WorkflowUnsafe {
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();
+  }
+
+  /**
+   * Reports whether the currently executing code is re-executed when the Workflow replays.
+   *
+   * <p>Unlike {@link #isReplaying()}, this is a property of the calling context rather than of the
+   * Workflow's current state. The Workflow method and its constructor, signal and update handlers,
+   * and Await conditions are subject to replay. Query handlers, Update validators, and Side Effect
+   * functions run once against the current state and are never re-executed, so they are not subject
+   * to replay even while {@link #isReplaying()} reports true.
+   *
+   * @return true if the calling context is re-executed on replay. This method always returns false
+   *     if called from a non workflow thread.
+   */
+  @Experimental
+  public static boolean isSubjectToReplay() {
+    return WorkflowInternal.isSubjectToReplay();
   }
 
   /**
