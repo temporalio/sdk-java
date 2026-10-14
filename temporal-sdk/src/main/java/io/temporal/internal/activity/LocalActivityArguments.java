@@ -1,9 +1,9 @@
 package io.temporal.internal.activity;
 
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.common.TemporalCopyable;
+import io.temporal.common.Copyable;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.internal.common.TemporalCopyableUtils;
+import io.temporal.internal.common.CopyableUtils;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -25,7 +25,7 @@ public final class LocalActivityArguments {
       arguments = new Object[0];
     }
     for (Object argument : arguments) {
-      if (argument != null && !(argument instanceof TemporalCopyable)) {
+      if (argument != null && !(argument instanceof Copyable)) {
         return null;
       }
     }
@@ -59,7 +59,7 @@ public final class LocalActivityArguments {
   private static Object[] copy(Object[] arguments) {
     Object[] copy = new Object[arguments.length];
     for (int i = 0; i < arguments.length; i++) {
-      copy[i] = arguments[i] == null ? null : TemporalCopyableUtils.copy(arguments[i]);
+      copy[i] = arguments[i] == null ? null : CopyableUtils.copy(arguments[i]);
     }
     return copy;
   }
