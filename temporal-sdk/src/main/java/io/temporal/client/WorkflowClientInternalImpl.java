@@ -107,8 +107,7 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     builder.setPlugins(mergedPlugins);
     options = builder.validateAndBuildWithDefaults();
     this.internalDataConverter = ClientDataConverterFactory.forClient(options.getDataConverter());
-    this.options =
-        WorkflowClientOptions.newBuilder(options).setDataConverter(internalDataConverter).build();
+    this.options = options;
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;
@@ -147,7 +146,14 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
   private WorkflowClientCallsInterceptor initializeClientInvoker() {
     WorkflowClientCallsInterceptor workflowClientInvoker =
         new RootWorkflowClientInvoker(
-            genericClient, options, workerFactoryRegistry, externalStorageRunner);
+            genericClient,
+            options.getNamespace(),
+            options.getIdentity(),
+            options.getQueryRejectCondition(),
+            options.getContextPropagators(),
+            internalDataConverter,
+            workerFactoryRegistry,
+            externalStorageRunner);
     for (WorkflowClientInterceptor clientInterceptor : interceptors) {
       workflowClientInvoker =
           clientInterceptor.workflowClientCallsInterceptor(workflowClientInvoker);

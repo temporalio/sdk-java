@@ -1,31 +1,61 @@
 package io.temporal.functional.serialization;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.TransferTypeTestModel;
+import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import java.lang.reflect.Type;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+@RunWith(Parameterized.class)
 public class TransferTypeIntegrationTest {
-  @Rule
-  public SDKTestWorkflowRule testWorkflowRule =
-      SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(TransferWorkflowImpl.class, ActivityTransferWorkflowImpl.class)
-          .setActivityImplementations(new TransferActivityImpl())
-          .build();
+  @Parameterized.Parameters(name = "customConverter={0}")
+  public static Collection<Object[]> parameters() {
+    return Arrays.asList(new Object[][] {{false}, {true}});
+  }
+
+  private final DataConverter configuredConverter;
+
+  @Rule public SDKTestWorkflowRule testWorkflowRule;
+
+  public TransferTypeIntegrationTest(boolean customConverter) {
+    configuredConverter =
+        customConverter
+            ? new TransferRepresentationOnlyConverter()
+            : DefaultDataConverter.newDefaultInstance();
+    testWorkflowRule =
+        SDKTestWorkflowRule.newBuilder()
+            .setWorkflowClientOptions(
+                WorkflowClientOptions.newBuilder().setDataConverter(configuredConverter).build())
+            .setWorkflowTypes(TransferWorkflowImpl.class, ActivityTransferWorkflowImpl.class)
+            .setActivityImplementations(new TransferActivityImpl())
+            .build();
+  }
 
   @Test
   public void workflowClientAndWorkerRoundTripTransferTypes() {
@@ -39,15 +69,18 @@ public class TransferTypeIntegrationTest {
   }
 
   @Test
-  public void workflowClientOptionsExposeTransferAwareConverter() {
+  public void workflowClientKeepsConfiguredConverterAndUsesTransferAwareInternalConverter() {
     TransferTypeTestModel model = new TransferTypeTestModel("client");
-    io.temporal.common.converter.DataConverter exposed =
-        testWorkflowRule.getWorkflowClient().getOptions().getDataConverter();
+    assertSame(
+        configuredConverter, testWorkflowRule.getWorkflowClient().getOptions().getDataConverter());
+    DataConverter internal =
+        ((WorkflowClientInternal) testWorkflowRule.getWorkflowClient().getInternal())
+            .getInternalDataConverter();
 
-    io.temporal.api.common.v1.Payload payload = exposed.toPayload(model).get();
+    Payload payload = internal.toPayload(model).get();
     assertEquals("json/protobuf", payload.getMetadataOrThrow("encoding").toStringUtf8());
     assertTrue(
-        exposed
+        internal
             .fromPayload(payload, TransferTypeTestModel.class, TransferTypeTestModel.class)
             .wasTransferred());
   }
@@ -136,5 +169,33 @@ public class TransferTypeIntegrationTest {
         .setStartToCloseTimeout(Duration.ofSeconds(10))
         .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
         .build();
+  }
+
+  /** Requires the SDK to convert model values before delegating to this converter. */
+  private static final class TransferRepresentationOnlyConverter extends DefaultDataConverter {
+    private TransferRepresentationOnlyConverter() {
+      super(STANDARD_PAYLOAD_CONVERTERS);
+    }
+
+    @Override
+    public <T> Optional<Payload> toPayload(T value) {
+      if (value instanceof TransferTypeTestModel) {
+        throw new IllegalArgumentException("Expected the transfer representation, not the model.");
+      }
+      return super.toPayload(value);
+    }
+
+    @Override
+    public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType) {
+      if (valueClass == TransferTypeTestModel.class) {
+        throw new IllegalArgumentException("Expected the transfer type, not the model type.");
+      }
+      return super.fromPayload(payload, valueClass, valueType);
+    }
+
+    @Override
+    public DataConverter withContext(SerializationContext context) {
+      return this;
+    }
   }
 }

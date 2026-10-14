@@ -1,7 +1,6 @@
 package io.temporal.internal.client;
 
 import com.google.common.base.Strings;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
@@ -18,10 +17,12 @@ public final class ClientDataConverterFactory {
   private final ExternalStorageDataConverter workflowConverter;
 
   ClientDataConverterFactory(
-      WorkflowClientOptions clientOptions, @Nullable ExternalStorageRunner externalStorage) {
-    this.namespace = clientOptions.getNamespace();
+      String namespace,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
+    this.namespace = namespace;
     // Workflow reads must reject storage references even when no driver is configured.
-    this.workflowConverter = withStorage(clientOptions.getDataConverter(), externalStorage);
+    this.workflowConverter = withStorage(dataConverter, externalStorage);
   }
 
   /** Returns a transfer-aware client converter without external storage. */

@@ -5,7 +5,6 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import io.temporal.api.common.v1.Payload;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.TransferTypeTestModel;
@@ -48,13 +47,9 @@ public class ClientDataConverterFactoryTest {
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
-    WorkflowClientOptions options =
-        WorkflowClientOptions.newBuilder()
-            .setNamespace("test-namespace")
-            .setDataConverter(DefaultDataConverter.newDefaultInstance())
-            .build();
     DataConverter scoped =
-        new ClientDataConverterFactory(options, runner)
+        new ClientDataConverterFactory(
+                "test-namespace", DefaultDataConverter.newDefaultInstance(), runner)
             .forWorkflow("workflow-id", "run-id", "workflow-type");
 
     Payload reference = scoped.toPayload(new TransferTypeTestModel("value")).get();
@@ -84,12 +79,7 @@ public class ClientDataConverterFactoryTest {
             .get();
     DataConverter unconfiguredClient = ClientDataConverterFactory.forClient(configured);
     DataConverter unconfiguredWorkflow =
-        new ClientDataConverterFactory(
-                WorkflowClientOptions.newBuilder()
-                    .setNamespace("test-namespace")
-                    .setDataConverter(configured)
-                    .build(),
-                null)
+        new ClientDataConverterFactory("test-namespace", configured, null)
             .forWorkflow("workflow-id", null, null);
 
     assertTrue(unconfiguredClient.toPayload(new TransferTypeTestModel("inline")).isPresent());
