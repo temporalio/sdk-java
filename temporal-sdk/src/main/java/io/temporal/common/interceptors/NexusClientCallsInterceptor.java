@@ -12,9 +12,9 @@ import io.temporal.client.StartNexusOperationOptions;
 import io.temporal.common.Experimental;
 import io.temporal.payload.context.NexusSerializationContext;
 import java.lang.reflect.Type;
-import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Stream;
@@ -159,7 +159,12 @@ public interface NexusClientCallsInterceptor {
       this.operation = operation;
       this.input = input;
       this.options = options;
-      this.headers = headers == null ? Collections.emptyMap() : headers;
+      // Interceptors add propagation headers in place, so use a mutable, case-insensitive copy
+      // without modifying the caller's map.
+      this.headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+      if (headers != null) {
+        this.headers.putAll(headers);
+      }
     }
 
     public String getEndpoint() {

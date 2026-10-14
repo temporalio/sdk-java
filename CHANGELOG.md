@@ -31,6 +31,9 @@ to docs, or any other relevant information.
   to the given name.
 - Added experimental `WorkflowUnsafe.isSubjectToReplay()`, which reports whether the calling code is re-executed on
   replay.
+- Added experimental `ActivityClientPlugin` and `NexusClientPlugin`, which plugins on the service stubs use to configure
+  `ActivityClient` and `NexusClient`. `SimplePlugin` implements both, and its builder gained
+  `addScheduleClientInterceptors`, `addActivityClientInterceptors`, and `addNexusClientInterceptors`.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
@@ -43,6 +46,8 @@ to docs, or any other relevant information.
 - `TemporalDevServer`, `TemporalDevServerOptions`, `TestWorkflowEnvironment.startLocal`, and the `useDevServer` methods
   of `TestWorkflowRule` and `TestWorkflowExtension` are no longer marked experimental. `TemporalDevServerOptions` remain
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
+- `SimplePlugin` now applies its data converter customizer to schedule and Nexus clients, and its context
+  propagators to schedule and activity clients. Previously `SimplePlugin.configureScheduleClient` did nothing.
 
 ### Fixed
 - Kotlin `Async` method references compiled with Kotlin 2.4 now retain their inline behavior,
