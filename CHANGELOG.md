@@ -36,8 +36,8 @@ to docs, or any other relevant information.
   `addScheduleClientInterceptors`, `addActivityClientInterceptors`, and `addNexusClientInterceptors`.
 - Added the experimental `temporal-opentelemetry-v2` module. `OpenTelemetryPlugin` propagates OpenTelemetry context
   through Temporal headers and can optionally create spans for Temporal operations. `ReplaySafeOpenTelemetry` makes
-  workflow spans replay safe with deterministic span and trace IDs, and drops metric recordings made by replaying
-  workflow code.
+  workflow spans replay safe with deterministic span and trace IDs, and drops metric recordings and log records made
+  by replaying workflow code.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
