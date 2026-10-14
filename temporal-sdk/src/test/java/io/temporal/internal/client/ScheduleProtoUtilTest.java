@@ -9,12 +9,13 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.TransferTypeTestModel;
 import java.time.Duration;
+import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class ScheduleProtoUtilTest {
   private final ScheduleProtoUtil util =
-      new ScheduleProtoUtil(null, ScheduleClientOptions.newBuilder().build(), null);
+      new ScheduleProtoUtil(null, "test-namespace", Collections.emptyList(), null);
 
   @Test
   public void policyToProtoOmitsDefaultCatchupWindow() {
@@ -37,7 +38,11 @@ public class ScheduleProtoUtilTest {
     ScheduleClientOptions options =
         ScheduleClientOptions.newBuilder().setDataConverter(configured).build();
     ScheduleProtoUtil util =
-        new ScheduleProtoUtil(null, options, ClientDataConverterFactory.forClient(configured));
+        new ScheduleProtoUtil(
+            null,
+            options.getNamespace(),
+            options.getContextPropagators(),
+            ClientDataConverterFactory.forClient(configured));
     ScheduleActionStartWorkflow action =
         ScheduleActionStartWorkflow.newBuilder()
             .setWorkflowType("workflow-type")

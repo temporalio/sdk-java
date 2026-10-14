@@ -54,11 +54,12 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
 
   public RootActivityClientInvoker(
       GenericWorkflowClient genericClient,
-      ActivityClientOptions clientOptions,
+      String namespace,
+      String identity,
       DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.namespace = clientOptions.getNamespace();
-    this.identity = clientOptions.getIdentity();
+    this.namespace = namespace;
+    this.identity = identity;
     this.dataConverter = dataConverter;
   }
 

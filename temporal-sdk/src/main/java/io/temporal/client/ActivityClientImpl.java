@@ -57,7 +57,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       ActivityClientOptions options,
       DataConverter dataConverter) {
     ActivityClientCallsInterceptor invoker =
-        new RootActivityClientInvoker(genericClient, options, dataConverter);
+        new RootActivityClientInvoker(
+            genericClient, options.getNamespace(), options.getIdentity(), dataConverter);
     for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
       invoker = interceptor.activityClientCallsInterceptor(invoker);
     }

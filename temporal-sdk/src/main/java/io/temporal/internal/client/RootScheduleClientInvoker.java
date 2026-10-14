@@ -11,6 +11,7 @@ import io.temporal.api.schedule.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.ListScheduleListDescriptionIterator;
 import io.temporal.client.schedules.*;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -34,13 +35,16 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
   public RootScheduleClientInvoker(
       GenericWorkflowClient genericClient,
-      ScheduleClientOptions clientOptions,
+      String namespace,
+      String identity,
+      List<ContextPropagator> contextPropagators,
       DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.namespace = clientOptions.getNamespace();
-    this.identity = clientOptions.getIdentity();
+    this.namespace = namespace;
+    this.identity = identity;
     this.dataConverter = dataConverter;
-    this.scheduleRequestHeader = new ScheduleProtoUtil(genericClient, clientOptions, dataConverter);
+    this.scheduleRequestHeader =
+        new ScheduleProtoUtil(genericClient, namespace, contextPropagators, dataConverter);
   }
 
   @Override

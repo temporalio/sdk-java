@@ -44,11 +44,12 @@ public class ScheduleProtoUtil {
 
   public ScheduleProtoUtil(
       GenericWorkflowClient genericClient,
-      ScheduleClientOptions clientOptions,
+      String namespace,
+      List<ContextPropagator> contextPropagators,
       DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.namespace = clientOptions.getNamespace();
-    this.contextPropagators = clientOptions.getContextPropagators();
+    this.namespace = namespace;
+    this.contextPropagators = contextPropagators;
     this.dataConverter = dataConverter;
   }
 

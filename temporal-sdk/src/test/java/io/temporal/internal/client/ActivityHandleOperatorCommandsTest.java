@@ -43,7 +43,10 @@ public class ActivityHandleOperatorCommandsTest {
         "act-1",
         "run-1",
         new RootActivityClientInvoker(
-            genericClient, clientOptions, clientOptions.getDataConverter()));
+            genericClient,
+            clientOptions.getNamespace(),
+            clientOptions.getIdentity(),
+            clientOptions.getDataConverter()));
   }
 
   @Test
@@ -170,7 +173,10 @@ public class ActivityHandleOperatorCommandsTest {
   public void aRepeatedKeyFromAnInterceptorIsRejected() {
     RootActivityClientInvoker invoker =
         new RootActivityClientInvoker(
-            genericClient, clientOptions, clientOptions.getDataConverter());
+            genericClient,
+            clientOptions.getNamespace(),
+            clientOptions.getIdentity(),
+            clientOptions.getDataConverter());
 
     IllegalArgumentException e =
         assertThrows(

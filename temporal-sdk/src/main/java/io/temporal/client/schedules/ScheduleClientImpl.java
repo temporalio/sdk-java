@@ -106,7 +106,12 @@ final class ScheduleClientImpl implements ScheduleClient {
 
   private ScheduleClientCallsInterceptor initializeClientInvoker(DataConverter dataConverter) {
     ScheduleClientCallsInterceptor scheduleClientInvoker =
-        new RootScheduleClientInvoker(genericClient, options, dataConverter);
+        new RootScheduleClientInvoker(
+            genericClient,
+            options.getNamespace(),
+            options.getIdentity(),
+            options.getContextPropagators(),
+            dataConverter);
     for (ScheduleClientInterceptor clientInterceptor : interceptors) {
       scheduleClientInvoker =
           clientInterceptor.scheduleClientCallsInterceptor(scheduleClientInvoker);

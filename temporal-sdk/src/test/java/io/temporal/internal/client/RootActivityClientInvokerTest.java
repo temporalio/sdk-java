@@ -11,7 +11,6 @@ import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionResponse;
-import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -53,12 +52,7 @@ public class RootActivityClientInvokerTest {
                 .build());
     invoker =
         new RootActivityClientInvoker(
-            genericClient,
-            ActivityClientOptions.newBuilder()
-                .setNamespace(NAMESPACE)
-                .setIdentity("test-identity")
-                .build(),
-            DefaultDataConverter.newDefaultInstance());
+            genericClient, NAMESPACE, "test-identity", DefaultDataConverter.newDefaultInstance());
     nexusContext =
         new InternalNexusOperationContext(
             NAMESPACE,
@@ -250,7 +244,8 @@ public class RootActivityClientInvokerTest {
     invoker =
         new RootActivityClientInvoker(
             genericClient,
-            ActivityClientOptions.newBuilder().setNamespace(NAMESPACE).build(),
+            NAMESPACE,
+            "test-identity",
             ClientDataConverterFactory.forClient(DefaultDataConverter.newDefaultInstance()));
     invoker.startActivity(
         new StartActivityInput(
