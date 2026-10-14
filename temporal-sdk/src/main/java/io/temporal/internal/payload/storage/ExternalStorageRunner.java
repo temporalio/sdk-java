@@ -12,9 +12,6 @@ import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
-import java.util.Collections;
-import java.util.Map;
-import java.util.WeakHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -28,44 +25,32 @@ import javax.annotation.Nullable;
  * configure external storage.
  */
 public final class ExternalStorageRunner {
-  /** Visits every payload at once. ExternalStorageConcurrency does the limiting. */
-
-  /** Shared by every runner built from the same ExternalStorage. */
-  private static final Map<ExternalStorage, AsyncSemaphore> PER_INSTANCE_SEMAPHORES =
-      Collections.synchronizedMap(new WeakHashMap<>());
-
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int maxOperationsPerMessage;
 
-  /** Shared with every other runner built from the same ExternalStorage. */
-  private final AsyncSemaphore perInstanceSemaphore;
+  /** Limits the operations of the client or worker that owns this runner. */
+  private final AsyncSemaphore driverOperationSemaphore;
 
-  /** Returns a runner that shares its limits with others built from {@code options}. */
+  /** Returns a runner with its own MaxDriverOperations limit. */
   public static ExternalStorageRunner create(ExternalStorage options) {
     return new ExternalStorageRunner(
         ExternalStoragePayloadTransformer.fromOptions(options),
         options.getConcurrency().getMaxOperationsPerMessage(),
-        perInstanceSemaphoreFor(options));
-  }
-
-  /** Returns the limit shared by every runner built from {@code options}. */
-  private static AsyncSemaphore perInstanceSemaphoreFor(ExternalStorage options) {
-    return PER_INSTANCE_SEMAPHORES.computeIfAbsent(
-        options, o -> new AsyncSemaphore(o.getConcurrency().getMaxDriverOperations()));
+        new AsyncSemaphore(options.getConcurrency().getMaxDriverOperations()));
   }
 
   ExternalStorageRunner(
       ExternalStoragePayloadTransformer payloadTransformer,
       int maxOperationsPerMessage,
-      AsyncSemaphore perInstanceSemaphore) {
+      AsyncSemaphore driverOperationSemaphore) {
     this.payloadTransformer = payloadTransformer;
     this.maxOperationsPerMessage = maxOperationsPerMessage;
-    this.perInstanceSemaphore = perInstanceSemaphore;
+    this.driverOperationSemaphore = driverOperationSemaphore;
   }
 
   /** Returns limits scoped to a single message. */
   private MessageStorageLimits newMessageLimits() {
-    return new MessageStorageLimits(maxOperationsPerMessage, perInstanceSemaphore);
+    return new MessageStorageLimits(maxOperationsPerMessage, driverOperationSemaphore);
   }
 
   public void store(
