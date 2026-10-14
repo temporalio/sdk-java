@@ -139,8 +139,11 @@ public class AuthorizationTokenTest {
             .setStartToCloseTimeout(Duration.ofMinutes(1))
             .build();
 
-    // The test server does not implement StartActivityExecution; only the outgoing headers matter.
-    assertThrows(StatusRuntimeException.class, () -> client.start("SomeActivity", options));
+    // Only the outgoing request headers matter, not whether the server supports the call.
+    try {
+      client.start("SomeActivity", options);
+    } catch (StatusRuntimeException ignored) {
+    }
 
     List<GrpcRequest> startRequests =
         loggedRequests.stream()
