@@ -111,15 +111,19 @@ final class ExternalStoragePayloadTransformer {
               new StorageDriverStoreContextImpl(target, scope.token());
           for (Batch<Payload> batch : batches.values()) {
             long startNanos = System.nanoTime();
-            scope
-                .attach(batch.driver.store(context, batch.values()))
-                .map(
-                    claims -> {
-                      List<IndexedValue<Payload>> references =
-                          createReferencePayloads(batch, claims);
-                      recordBatch(metrics, batch, serializedSizeOf(batch.values()), startNanos);
-                      return references;
-                    });
+            CompletableFuture<List<StorageDriverClaim>> call =
+                batch.driver.store(context, batch.values());
+            // Observes the call rather than wrapping it: the scope must keep the driver's own
+            // future so cancellation still reaches the driver.
+            call.whenComplete(
+                (claims, error) ->
+                    recordBatch(
+                        metrics,
+                        batch.driver,
+                        startNanos,
+                        error == null ? batch.size() : 0,
+                        error == null ? serializedSizeOf(batch.values()) : 0));
+            scope.attach(call).map(claims -> createReferencePayloads(batch, claims));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
@@ -232,17 +236,20 @@ final class ExternalStoragePayloadTransformer {
               new StorageDriverRetrieveContextImpl(scope.token());
           for (Batch<StorageDriverClaim> batch : batches.values()) {
             long startNanos = System.nanoTime();
-            scope
-                .attach(batch.driver.retrieve(context, batch.values()))
-                .map(
-                    payloads -> {
-                      List<IndexedValue<Payload>> mapped =
-                          mapPayloadsToOriginalPositions(batch, payloads);
-                      // The reference's recorded size is not part of the exchange contract, so
-                      // measure what the driver actually returned.
-                      recordBatch(metrics, batch, serializedSizeOf(payloads), startNanos);
-                      return mapped;
-                    });
+            CompletableFuture<List<Payload>> call = batch.driver.retrieve(context, batch.values());
+            // Observes the call rather than wrapping it: the scope must keep the driver's own
+            // future so cancellation still reaches the driver.
+            call.whenComplete(
+                (payloads, error) ->
+                    recordBatch(
+                        metrics,
+                        batch.driver,
+                        startNanos,
+                        // The reference's recorded size is not part of the exchange contract, so
+                        // measure what the driver actually returned.
+                        error == null && payloads != null ? payloads.size() : 0,
+                        error == null && payloads != null ? serializedSizeOf(payloads) : 0));
+            scope.attach(call).map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
@@ -278,11 +285,20 @@ final class ExternalStoragePayloadTransformer {
     return total;
   }
 
+  /**
+   * Records a batch once the driver settles, whether or not it succeeded: the time was spent either
+   * way, and a driver that runs slowly and then fails is exactly when that attribution matters. The
+   * count and size describe what actually moved, so a failed batch contributes zero of both while
+   * still contributing its span.
+   */
   private static void recordBatch(
-      @Nullable StorageOperationMetrics metrics, Batch<?> batch, long sizeBytes, long startNanos) {
+      @Nullable StorageOperationMetrics metrics,
+      StorageDriver driver,
+      long startNanos,
+      int payloadCount,
+      long sizeBytes) {
     if (metrics != null) {
-      metrics.recordBatch(
-          batch.size(), sizeBytes, startNanos, System.nanoTime(), batch.driver.getName());
+      metrics.recordBatch(payloadCount, sizeBytes, startNanos, System.nanoTime(), driver.getName());
     }
   }
 
