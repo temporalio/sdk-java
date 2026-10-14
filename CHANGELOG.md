@@ -20,6 +20,8 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### Added
+- Worker heartbeats now report detected Graal native-image and Kotlin runtimes alongside the JVM
+  version. Detection is best effort and respects the worker environment information opt-out.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`

@@ -84,6 +84,7 @@ public final class Worker {
   // Reported in every heartbeat (including the one embedded in ShutdownWorkerRequest) until the
   // server accepts one, then cleared so it is sent only once per worker.
   private final AtomicReference<EnvironmentInfo> pendingEnvironmentInfo = new AtomicReference<>();
+  private final AtomicReference<Class<?>> kotlinImplementationClass = new AtomicReference<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -285,6 +286,7 @@ public final class Worker {
 
     workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
+    recordKotlinImplementations(workflowImplementationClasses);
   }
 
   /**
@@ -309,6 +311,7 @@ public final class Worker {
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
     workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
+    recordKotlinImplementations(workflowImplementationClasses);
   }
 
   /**
@@ -485,6 +488,22 @@ public final class Worker {
       activityWorker.registerActivityImplementations(activityImplementations);
     }
     workflowWorker.registerLocalActivityImplementations(activityImplementations);
+    for (Object implementation : activityImplementations) {
+      recordKotlinImplementations(implementation.getClass());
+    }
+  }
+
+  private void recordKotlinImplementations(Class<?>... implementationClasses) {
+    if (clientOptions.isWorkerEnvironmentInfoDisabled()
+        || kotlinImplementationClass.get() != null) {
+      return;
+    }
+    for (Class<?> implementationClass : implementationClasses) {
+      if (WorkerEnvironmentInfo.isKotlinImplementation(implementationClass)) {
+        kotlinImplementationClass.compareAndSet(null, implementationClass);
+        return;
+      }
+    }
   }
 
   /**
@@ -607,7 +626,8 @@ public final class Worker {
 
   Supplier<WorkerHeartbeat> buildHeartbeatCallback(
       String workerGroupingKey, @Nullable EnvironmentInfo environmentInfo) {
-    pendingEnvironmentInfo.set(environmentInfo);
+    pendingEnvironmentInfo.set(
+        WorkerEnvironmentInfo.withKotlinRuntime(environmentInfo, kotlinImplementationClass.get()));
     // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
     final Object callbackLock = new Object();
     final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
