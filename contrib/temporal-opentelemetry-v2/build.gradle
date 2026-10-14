@@ -2,6 +2,7 @@ description = '''Temporal Java SDK OpenTelemetry v2 Module'''
 
 ext {
     otelVersion = '1.66.0'
+    otelInstrumentationVersion = '2.32.0-alpha'
 }
 
 dependencies {
@@ -22,7 +23,7 @@ dependencies {
     testImplementation project(':temporal-serviceclient')
     testImplementation project(':temporal-testing')
     testImplementation "io.opentelemetry:opentelemetry-sdk-testing"
+    testImplementation "io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:$otelInstrumentationVersion"
     testImplementation "junit:junit:${junitVersion}"
-
-    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+    testImplementation group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
