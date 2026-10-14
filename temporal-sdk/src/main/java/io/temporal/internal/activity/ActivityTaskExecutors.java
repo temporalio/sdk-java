@@ -9,6 +9,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.client.ActivityCanceledException;
+import io.temporal.common.TemporalCopyable;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
@@ -17,6 +18,7 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.TemporalCopyableUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -34,7 +36,10 @@ final class ActivityTaskExecutors {
   static final Logger log = LoggerFactory.getLogger(ActivityTaskExecutor.class);
 
   interface ActivityTaskExecutor {
-    ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope);
+    ActivityTaskHandler.Result execute(
+        ActivityInfoInternal info,
+        Scope metricsScope,
+        @Nullable LocalActivityArguments localActivityArguments);
   }
 
   abstract static class BaseActivityTaskExecutor implements ActivityTaskExecutor {
@@ -55,7 +60,10 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    public ActivityTaskHandler.Result execute(ActivityInfoInternal info, Scope metricsScope) {
+    public ActivityTaskHandler.Result execute(
+        ActivityInfoInternal info,
+        Scope metricsScope,
+        @Nullable LocalActivityArguments localActivityArguments) {
       InternalActivityExecutionContext context =
           executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
@@ -80,7 +88,8 @@ final class ActivityTaskExecutors {
         }
         inboundCallsInterceptor.init(context);
 
-        Object[] args = provideArgs(info.getInput(), dataConverterWithActivityContext);
+        Object[] args =
+            provideArgs(info.getInput(), dataConverterWithActivityContext, localActivityArguments);
         Header header =
             new Header(
                 info.getHeader().orElse(io.temporal.api.common.v1.Header.getDefaultInstance()));
@@ -147,7 +156,9 @@ final class ActivityTaskExecutors {
     abstract Object getActivity();
 
     abstract Object[] provideArgs(
-        Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
+        Optional<Payloads> input,
+        DataConverter dataConverterWithActivityContext,
+        @Nullable LocalActivityArguments localActivityArguments);
 
     protected abstract ActivityTaskHandler.Result constructSuccessfulResultValue(
         ActivityInfoInternal info,
@@ -160,13 +171,19 @@ final class ActivityTaskExecutors {
         DataConverter dataConverterWithActivityContext) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder();
+      Object copiedResult = null;
       if (result != null) {
-        Optional<Payloads> serialized =
-            dataConverterWithActivityContext.toPayloads(result.getResult());
+        Object value = result.getResult();
+        if (info.isLocal() && result.getResult() instanceof TemporalCopyable) {
+          copiedResult = TemporalCopyableUtils.copy(value);
+          value = copiedResult;
+        }
+        // Serialize the same snapshot delivered to the workflow, not the activity's retained value.
+        Optional<Payloads> serialized = dataConverterWithActivityContext.toPayloads(value);
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
-          info.getActivityId(), request.build(), null, null, false);
+          info.getActivityId(), request.build(), null, null, false, copiedResult);
     }
 
     static void deserializeAndPopulateContext(
@@ -211,7 +228,16 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
+    Object[] provideArgs(
+        Optional<Payloads> input,
+        DataConverter dataConverterWithActivityContext,
+        @Nullable LocalActivityArguments localActivityArguments) {
+      if (localActivityArguments != null) {
+        if (localActivityArguments.canCopyTo(method.getParameterTypes())) {
+          return localActivityArguments.copy();
+        }
+        input = localActivityArguments.toPayloads(dataConverterWithActivityContext);
+      }
       return dataConverterWithActivityContext.fromPayloads(
           input, method.getParameterTypes(), method.getGenericParameterTypes());
     }
@@ -254,8 +280,17 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
-      EncodedValues encodedValues = new EncodedValues(input, dataConverterWithActivityContext);
+    Object[] provideArgs(
+        Optional<Payloads> input,
+        DataConverter dataConverterWithActivityContext,
+        @Nullable LocalActivityArguments localActivityArguments) {
+      EncodedValues encodedValues;
+      if (localActivityArguments == null) {
+        encodedValues = new EncodedValues(input, dataConverterWithActivityContext);
+      } else {
+        encodedValues = new EncodedValues(localActivityArguments.copy());
+        encodedValues.setDataConverter(dataConverterWithActivityContext);
+      }
       return new Object[] {encodedValues};
     }
 

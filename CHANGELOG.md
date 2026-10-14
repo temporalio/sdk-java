@@ -20,6 +20,9 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### Added
+- Added experimental `TemporalCopyable<T>` for isolated in-process copies. Local activities copy
+  eligible inputs for each attempt and outputs for live execution, preserving history serialization
+  and replay. Deeply immutable values may return themselves.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
