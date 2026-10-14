@@ -24,9 +24,9 @@ to docs, or any other relevant information.
   than external storage operations. Use `setConcurrency` instead.
 
 ### Added
-- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (across all drivers on that
-  instance) and `maxOperationsPerMessage` (for one message). Drivers must wrap store and retrieve calls with
-  `context.getLimiter()`.
+- Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (for one client or
+  worker) and `maxOperationsPerMessage` (for one message). Each client and each worker gets its own
+  `maxDriverOperations` limit. Drivers must wrap store and retrieve calls with `context.getLimiter()`.
 
 ## [1.41.0] - 2026-11-16
 

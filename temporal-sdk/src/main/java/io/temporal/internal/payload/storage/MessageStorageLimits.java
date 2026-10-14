@@ -13,15 +13,15 @@ final class MessageStorageLimits {
   /** Limits operations for this message alone. */
   private final AsyncSemaphore perMessageSemaphore;
 
-  /** Limits operations across every message using the same ExternalStorage. */
-  private final AsyncSemaphore perInstanceSemaphore;
+  /** Limits operations across every message run by the owning client or worker. */
+  private final AsyncSemaphore driverOperationSemaphore;
 
   /** The configured per message operation limit. */
   private final int maxOperationsPerMessage;
 
-  MessageStorageLimits(int maxOperationsPerMessage, AsyncSemaphore perInstanceSemaphore) {
+  MessageStorageLimits(int maxOperationsPerMessage, AsyncSemaphore driverOperationSemaphore) {
     this.perMessageSemaphore = new AsyncSemaphore(maxOperationsPerMessage);
-    this.perInstanceSemaphore = perInstanceSemaphore;
+    this.driverOperationSemaphore = driverOperationSemaphore;
     this.maxOperationsPerMessage = maxOperationsPerMessage;
   }
 
@@ -33,13 +33,14 @@ final class MessageStorageLimits {
   /** Returns a limiter for a single driver call. */
   <I> UsageTrackingLimiter<I> newLimiter(
       CancellationToken<CancellationException> cancellationToken) {
-    return new UsageTrackingLimiter<>(perMessageSemaphore, perInstanceSemaphore, cancellationToken);
+    return new UsageTrackingLimiter<>(
+        perMessageSemaphore, driverOperationSemaphore, cancellationToken);
   }
 
   /** Applies the storage limits to a single driver call. */
   static final class UsageTrackingLimiter<I> implements StorageDriverLimiter<I> {
     private final AsyncSemaphore perMessageSemaphore;
-    private final AsyncSemaphore perInstanceSemaphore;
+    private final AsyncSemaphore driverOperationSemaphore;
     private final CancellationToken<CancellationException> cancellationToken;
 
     /** Set when the driver takes its first permit. */
@@ -47,10 +48,10 @@ final class MessageStorageLimits {
 
     private UsageTrackingLimiter(
         AsyncSemaphore perMessageSemaphore,
-        AsyncSemaphore perInstanceSemaphore,
+        AsyncSemaphore driverOperationSemaphore,
         CancellationToken<CancellationException> cancellationToken) {
       this.perMessageSemaphore = perMessageSemaphore;
-      this.perInstanceSemaphore = perInstanceSemaphore;
+      this.driverOperationSemaphore = driverOperationSemaphore;
       this.cancellationToken = cancellationToken;
     }
 
@@ -61,14 +62,14 @@ final class MessageStorageLimits {
           .acquire()
           .thenCompose(
               ignored ->
-                  perInstanceSemaphore
+                  driverOperationSemaphore
                       .acquire()
                       .thenCompose(
                           alsoIgnored -> {
                             cancellationToken.throwIfCancellationRequested();
                             return operation.get();
                           })
-                      .whenComplete((result, error) -> perInstanceSemaphore.release()))
+                      .whenComplete((result, error) -> driverOperationSemaphore.release()))
           .whenComplete((result, error) -> perMessageSemaphore.release());
     }
 
