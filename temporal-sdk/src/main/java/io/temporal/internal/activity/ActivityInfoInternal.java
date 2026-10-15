@@ -2,7 +2,6 @@ package io.temporal.internal.activity;
 
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Header;
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 
@@ -21,7 +20,7 @@ interface ActivityInfoInternal extends ActivityInfo {
   /**
    * @return input parameters of the activity execution
    */
-  Optional<Payloads> getInput();
+  ActivityInput getInput();
 
   /**
    * @return header that is passed with the activity execution

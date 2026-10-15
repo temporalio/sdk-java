@@ -9,6 +9,6 @@ public class ActivityPollResponseToInfo {
       String namespace,
       String activityTaskQueue,
       boolean local) {
-    return new ActivityInfoImpl(response, namespace, activityTaskQueue, local, null);
+    return new ActivityInfoImpl(response, namespace, activityTaskQueue, local, null, null);
   }
 }

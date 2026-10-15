@@ -454,7 +454,11 @@ final class LocalActivityWorker implements Startable, Shutdownable {
         try {
           activityHandlerResult =
               handler.handle(
-                  new ActivityTask(activityTask, executionContext.getPermit(), () -> {}),
+                  new ActivityTask(
+                      activityTask,
+                      executionContext.getPermit(),
+                      () -> {},
+                      executionContext.getArguments()),
                   metricsScope,
                   true);
         } finally {

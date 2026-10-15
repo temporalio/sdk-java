@@ -108,16 +108,16 @@ public class LocalActivityStateMachineTest {
                 null);
 
         builder
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
 
         builder
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters2, c))
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters3, c))
-            .add((r) -> result = r.getT1());
+            .add((r) -> result = r.getT1().payloads);
       }
     }
     /*
@@ -289,7 +289,7 @@ public class LocalActivityStateMachineTest {
                 null,
                 null);
         builder
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }
@@ -375,7 +375,7 @@ public class LocalActivityStateMachineTest {
                 (r, c) -> {
                   completionCallback.set(c);
                 })
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c));
       }
     }

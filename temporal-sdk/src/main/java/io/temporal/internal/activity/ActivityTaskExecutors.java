@@ -9,13 +9,14 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.client.ActivityCanceledException;
+import io.temporal.common.Copyable;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.converter.EncodedValues;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityOutput;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.CopyableUtils;
 import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
@@ -147,7 +148,7 @@ final class ActivityTaskExecutors {
     abstract Object getActivity();
 
     abstract Object[] provideArgs(
-        Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
+        ActivityInput input, DataConverter dataConverterWithActivityContext);
 
     protected abstract ActivityTaskHandler.Result constructSuccessfulResultValue(
         ActivityInfoInternal info,
@@ -160,13 +161,19 @@ final class ActivityTaskExecutors {
         DataConverter dataConverterWithActivityContext) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder();
+      Object copiedResult = null;
       if (result != null) {
-        Optional<Payloads> serialized =
-            dataConverterWithActivityContext.toPayloads(result.getResult());
+        Object value = result.getResult();
+        if (info.isLocal() && result.getResult() instanceof Copyable) {
+          copiedResult = CopyableUtils.copy(value);
+          value = copiedResult;
+        }
+        // Serialize the same snapshot delivered to the workflow, not the activity's retained value.
+        Optional<Payloads> serialized = dataConverterWithActivityContext.toPayloads(value);
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
-          info.getActivityId(), request.build(), null, null, false);
+          info.getActivityId(), request.build(), null, null, false, copiedResult);
     }
 
     static void deserializeAndPopulateContext(
@@ -211,9 +218,11 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
-      return dataConverterWithActivityContext.fromPayloads(
-          input, method.getParameterTypes(), method.getGenericParameterTypes());
+    Object[] provideArgs(ActivityInput input, DataConverter dataConverterWithActivityContext) {
+      return input.getArguments(
+          method.getParameterTypes(),
+          method.getGenericParameterTypes(),
+          dataConverterWithActivityContext);
     }
 
     @Override
@@ -254,9 +263,8 @@ final class ActivityTaskExecutors {
     }
 
     @Override
-    Object[] provideArgs(Optional<Payloads> input, DataConverter dataConverterWithActivityContext) {
-      EncodedValues encodedValues = new EncodedValues(input, dataConverterWithActivityContext);
-      return new Object[] {encodedValues};
+    Object[] provideArgs(ActivityInput input, DataConverter dataConverterWithActivityContext) {
+      return new Object[] {input.getEncodedValues(dataConverterWithActivityContext)};
     }
 
     @Override
