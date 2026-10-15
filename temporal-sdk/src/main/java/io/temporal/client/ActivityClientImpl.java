@@ -8,6 +8,7 @@ import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.ActivityHandleImpl;
+import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
@@ -39,13 +40,19 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
     this.stubs = stubs;
     this.options = options;
+    WorkflowServiceStubs namespacedStubs =
+        new NamespaceInjectWorkflowServiceStubs(stubs, options.getNamespace());
     this.metricsScope =
         stubs.getOptions().getMetricsScope().tagged(MetricsTag.defaultTags(options.getNamespace()));
-    GenericWorkflowClientImpl genericClient = new GenericWorkflowClientImpl(stubs, metricsScope);
+    GenericWorkflowClientImpl genericClient =
+        new GenericWorkflowClientImpl(namespacedStubs, metricsScope);
     this.invoker = initializeClientInvoker(genericClient, options);
     this.manualActivityCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            stubs, options.getNamespace(), options.getIdentity(), options.getDataConverter());
+            namespacedStubs,
+            options.getNamespace(),
+            options.getIdentity(),
+            options.getDataConverter());
   }
 
   private static ActivityClientCallsInterceptor initializeClientInvoker(

@@ -27,6 +27,8 @@ to docs, or any other relevant information.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
+- Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
+  placeholders such as `${my.worker.name}`, as `taskQueues` already does.
 - Workflow tasks taking longer than 5 seconds now log a `[TMPRL1104]` warning reporting the task duration and the
   external storage downloads and uploads that contributed to it. The threshold is configurable with the
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
@@ -44,6 +46,14 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
+  so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
+  Temporal Cloud API keys).
+- Kotlin `Async` method references compiled with Kotlin 2.4 now retain their inline behavior,
+  preventing `NonDeterministicException` when replaying workflows started with Kotlin 2.2. For
+  workflows already started with Kotlin 2.4 and SDK 1.40 or earlier, set the
+  `temporal.kotlin.disableStaticAdapterUnwrapping` JVM system property to preserve the previous
+  behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 
