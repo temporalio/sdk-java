@@ -2,6 +2,7 @@ package io.temporal.workflow.activityTests;
 
 import static org.junit.Assert.*;
 
+import com.google.common.reflect.TypeToken;
 import io.temporal.activity.*;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.EventType;
@@ -48,15 +49,38 @@ public class LocalActivityCopyableTest {
           .setWorkflowClientOptions(clientOptions)
           .setWorkflowTypes(CopyWorkflowImpl.class)
           .setActivityImplementations(
-              activities,
-              (DynamicActivity)
-                  args -> {
-                    MutableValue input = args.get(0, MutableValue.class);
-                    int original = input.value;
-                    input.value = 100;
-                    return original;
-                  })
+              activities, (DynamicActivity) LocalActivityCopyableTest::executeDynamic)
           .build();
+
+  private static int executeDynamic(EncodedValues args) {
+    assertEquals(1, args.getSize());
+    if (Activity.getExecutionContext().getInfo().getActivityType().equals("DynamicGeneric")) {
+      Box<?> converted = args.get(0, Box.class, new TypeToken<Box<Long>>() {}.getType());
+      assertEquals(Long.class, converted.value.getClass());
+      assertEquals(Long.valueOf(1), converted.value);
+      return 1;
+    }
+    MutableValue input = args.get(0, MutableValue.class);
+    int original = input.value;
+    input.value = 100;
+    MutableValue second = args.get(0, MutableValue.class, MutableValue.class);
+    assertNotSame(input, second);
+    assertEquals(original, second.value);
+    second.value = 200;
+    assertEquals(original, args.get(0, MutableValue.class).value);
+    if (input.mode.equals("dynamicFallback")) {
+      assertEquals(original, args.get(0, PlainValue.class).value);
+      assertNull(args.get(1, MutableValue.class));
+      assertEquals(0, (int) args.get(1, int.class));
+      assertEquals(original, args.get(0, PlainValue.class, PlainValue.class).value);
+      EncodedValues snapshot =
+          new EncodedValues(args.toPayloads(), DefaultDataConverter.newDefaultInstance());
+      assertEquals(original, snapshot.get(0, MutableValue.class).value);
+      assertEquals(args.toPayloads(), snapshot.toPayloads());
+      assertEquals(1, args.getSize());
+    }
+    return original;
+  }
 
   @Test
   public void schedulingSnapshotAndActivityMutationAreIsolated() {
@@ -125,6 +149,23 @@ public class LocalActivityCopyableTest {
     assertEquals(1, converter.plainReads.get());
   }
 
+  @Test
+  public void dynamicFallbackUsesTheSchedulingSnapshotAndMissingArgumentDefaults() {
+    assertEquals("1:1", run("dynamicFallback"));
+    assertConversions(1, 0);
+    assertEquals(2, converter.plainReads.get());
+  }
+
+  @Test
+  public void dynamicGenericInputHonorsTheRequestedType() {
+    assertEquals("1", run("dynamicGeneric"));
+  }
+
+  @Test
+  public void pojoGenericInputHonorsTheDeclaredType() {
+    assertEquals("1", run("pojoGeneric"));
+  }
+
   private String run(String mode) {
     return rule.newWorkflowStub(CopyWorkflow.class).execute(mode, includeMarkerArguments);
   }
@@ -166,6 +207,21 @@ public class LocalActivityCopyableTest {
   public static class PlainValue {
     public int value;
     public String mode;
+  }
+
+  public static class Box<T> implements Copyable<Box<T>> {
+    public T value;
+
+    public Box() {}
+
+    Box(T value) {
+      this.value = value;
+    }
+
+    @Override
+    public Box<T> copy() {
+      return new Box<>(value);
+    }
   }
 
   @WorkflowInterface
@@ -228,7 +284,16 @@ public class LocalActivityCopyableTest {
           MutableValue sideEffect =
               Workflow.sideEffect(MutableValue.class, () -> new MutableValue(6, mode));
           return value + ":" + sideEffect.value;
+        case "dynamicGeneric":
+          return Integer.toString(
+              Workflow.newUntypedLocalActivityStub(options)
+                  .execute("DynamicGeneric", Integer.class, new Box<>(1)));
+        case "pojoGeneric":
+          return Long.toString(
+              Workflow.newUntypedLocalActivityStub(options)
+                  .execute("ReadBox", Long.class, new Box<>(1)));
         case "dynamic":
+        case "dynamicFallback":
           return Workflow.newUntypedLocalActivityStub(options)
                   .execute("DynamicCopy", Integer.class, input)
               + ":"
@@ -255,6 +320,9 @@ public class LocalActivityCopyableTest {
     int changeRetained();
 
     int mixed(MutableValue copyable, String ordinary);
+
+    @ActivityMethod(name = "ReadBox")
+    long readBox(Box<Long> value);
   }
 
   public static class CopyActivitiesImpl implements CopyActivities {
@@ -309,6 +377,11 @@ public class LocalActivityCopyableTest {
     @Override
     public int mixed(MutableValue copyable, String ordinary) {
       return mutate(copyable);
+    }
+
+    @Override
+    public long readBox(Box<Long> value) {
+      return value.value.longValue();
     }
   }
 

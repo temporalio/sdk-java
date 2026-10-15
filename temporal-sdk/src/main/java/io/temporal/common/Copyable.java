@@ -10,11 +10,12 @@ package io.temporal.common;
  * to a round trip through the configured data converter. The SDK may call it on workflow or
  * activity threads, including during replay. Object identity must not affect workflow behavior.
  *
- * <p>Currently, only local activities use this interface. Inputs use scheduling-time snapshots and
- * fresh copies per attempt when every non-null argument is copyable, regardless of marker options.
- * Excluding these inputs from history also avoids their serialization. Outputs remain serialized
- * for history and deserialized on replay. Other execution paths, including eager workflows and
- * eager activities, do not yet use this interface.
+ * <p>Currently, only local activities use this interface. Input batches use scheduling-time
+ * snapshots when every non-null argument is copyable. Compatible requested types use fresh copies;
+ * other types use the data converter. Copying is independent of marker options; omitted inputs
+ * avoid serialization unless conversion or explicit payload access requires it. Outputs remain
+ * serialized for history and deserialized on replay. Other execution paths, including eager
+ * workflows and eager activities, do not yet use this interface.
  *
  * @param <T> the type of the copied value.
  */
