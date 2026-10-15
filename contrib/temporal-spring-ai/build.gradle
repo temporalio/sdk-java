@@ -4,7 +4,7 @@ plugins {
 
 description = 'Temporal Spring AI relocation'
 
-// Publish once after io.temporal:spring-ai:0.1.0 is public, then remove this project.
+// Remove this project after publishing the one-time relocation release.
 publishing {
     publications {
         mavenJava(MavenPublication) {
