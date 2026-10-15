@@ -7,6 +7,7 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.Copyable;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.common.CopyableUtils;
 import org.junit.Test;
 
@@ -36,10 +37,13 @@ public class LocalActivityArgumentsTest {
     assertNotSame(first[0], second[0]);
     assertEquals(0, ((Value) second[0]).value);
     assertNull(second[1]);
-    assertTrue(snapshot.canCopyTo(new Class<?>[] {Value.class, Object.class}));
-    assertFalse(snapshot.canCopyTo(new Class<?>[] {String.class, Object.class}));
-    assertFalse(snapshot.canCopyTo(new Class<?>[] {Value.class, int.class}));
-    assertFalse(snapshot.canCopyTo(new Class<?>[0]));
+    Class<?>[] compatible = {Value.class, Object.class};
+    Class<?>[] incompatible = {String.class, Object.class};
+    Class<?>[] primitive = {Value.class, int.class};
+    assertTrue(snapshot.canCopyTo(compatible, compatible));
+    assertFalse(snapshot.canCopyTo(incompatible, incompatible));
+    assertFalse(snapshot.canCopyTo(primitive, primitive));
+    assertFalse(snapshot.canCopyTo(new Class<?>[0], new Class<?>[0]));
   }
 
   @Test
@@ -51,7 +55,9 @@ public class LocalActivityArgumentsTest {
             .build();
     Value original = new Value();
     ActivityInput copied =
-        new ActivityInput(response, LocalActivityArguments.capture(new Object[] {original}));
+        new ActivityInput(
+            PollActivityTaskQueueResponse.getDefaultInstance(),
+            LocalActivityArguments.capture(new Object[] {original}));
     DataConverter unusedConverter = mock(DataConverter.class);
     Class<?>[] copyTypes = {Value.class};
     assertNotSame(original, copied.getArguments(copyTypes, copyTypes, unusedConverter)[0]);
@@ -62,6 +68,18 @@ public class LocalActivityArgumentsTest {
         new Object[] {"serialized"},
         new ActivityInput(response, null)
             .getArguments(serializedTypes, serializedTypes, converter));
+  }
+
+  @Test
+  public void emptyDynamicInputUsesConverterDefaults() {
+    EncodedValues values =
+        new ActivityInput(
+                PollActivityTaskQueueResponse.getDefaultInstance(),
+                LocalActivityArguments.capture(new Object[0]))
+            .getEncodedValues(DefaultDataConverter.STANDARD_INSTANCE);
+    assertEquals(0, values.getSize());
+    assertNull(values.get(0, String.class));
+    assertEquals(Integer.valueOf(0), values.get(0, int.class));
   }
 
   @Test
