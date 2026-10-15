@@ -44,8 +44,17 @@ public final class ExternalStorageRunner {
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
+    store(builder, target, targetVisitor, cancellationToken, null);
+  }
+
+  public void store(
+      Message.Builder builder,
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     getOrThrowIfCancelled(
-        storeAsync(builder, target, targetVisitor, cancellationToken), cancellationToken);
+        storeAsync(builder, target, targetVisitor, cancellationToken, metrics), cancellationToken);
   }
 
   public CompletableFuture<Void> storeAsync(
@@ -53,17 +62,37 @@ public final class ExternalStorageRunner {
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(builder, storeOptions(target, targetVisitor, cancellationToken));
+    return storeAsync(builder, target, targetVisitor, cancellationToken, null);
+  }
+
+  public CompletableFuture<Void> storeAsync(
+      Message.Builder builder,
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
+    return PayloadVisitors.visit(
+        builder, storeOptions(target, targetVisitor, cancellationToken, metrics));
   }
 
   public <T extends Message> T retrieve(
       T message, CancellationToken<CancellationException> cancellationToken) {
-    return getOrThrowIfCancelled(retrieveAsync(message, cancellationToken), cancellationToken);
+    return retrieve(message, cancellationToken, null);
+  }
+
+  public <T extends Message> T retrieve(
+      T message,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
+    return getOrThrowIfCancelled(
+        retrieveAsync(message, cancellationToken, metrics), cancellationToken);
   }
 
   public <T extends Message> CompletableFuture<T> retrieveAsync(
-      T message, CancellationToken<CancellationException> cancellationToken) {
-    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken));
+      T message,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
+    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken, metrics));
   }
 
   /**
@@ -116,10 +145,11 @@ public final class ExternalStorageRunner {
   private PayloadVisitorOptions<StorageDriverTargetInfo> storeOptions(
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
-      CancellationToken<CancellationException> cancellationToken) {
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     return PayloadVisitorOptions.<StorageDriverTargetInfo>newBuilder(
             (visitedTarget, payloads) ->
-                payloadTransformer.store(payloads, visitedTarget, cancellationToken))
+                payloadTransformer.store(payloads, visitedTarget, cancellationToken, metrics))
         .setInitialContext(target)
         .setMessageVisitor(targetVisitor)
         .setConcurrency(payloadVisitConcurrency)
@@ -128,9 +158,11 @@ public final class ExternalStorageRunner {
   }
 
   private PayloadVisitorOptions<Void> retrieveOptions(
-      CancellationToken<CancellationException> cancellationToken) {
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     return PayloadVisitorOptions.<Void>newBuilder(
-            (context, payloads) -> payloadTransformer.retrieve(payloads, cancellationToken))
+            (context, payloads) ->
+                payloadTransformer.retrieve(payloads, cancellationToken, metrics))
         .setConcurrency(payloadVisitConcurrency)
         .setSkipSearchAttributes(true)
         .build();
