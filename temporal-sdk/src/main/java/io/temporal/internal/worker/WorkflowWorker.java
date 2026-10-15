@@ -408,6 +408,12 @@ final class WorkflowWorker implements SuspendableWorker {
    *
    * <p>Storage fields are always present, zero when nothing was offloaded, so the message template
    * stays constant for log aggregation.
+   *
+   * <p>The duration spans one task, from the start of handling through the
+   * RespondWorkflowTaskCompleted call, and so matches neither existing timer: {@link
+   * MetricsType#WORKFLOW_TASK_EXECUTION_LATENCY} stops before that call, and {@link
+   * MetricsType#WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY} covers every task the server hands back in
+   * one dispatch. Including the call is intended: it is time the server spends waiting.
    */
   static void logWorkflowTaskDuration(
       PollWorkflowTaskQueueResponse task,
