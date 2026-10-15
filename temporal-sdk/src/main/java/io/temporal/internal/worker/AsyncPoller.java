@@ -14,6 +14,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.IntSupplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,6 +121,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
                     newTarget);
                 pollerSemaphore.setMaxPermits(newTarget);
               });
+      asyncTaskPoller.setPollerTargetSupplier(pollScaleReportHandle::getTargetPollerCount);
       PollQueueTask pollQueue =
           new PollQueueTask(asyncTaskPoller, pollerSemaphore, pollScaleReportHandle);
       pollerBalancer.addPoller(asyncTaskPoller.getLabel());
@@ -164,6 +166,15 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
 
     default String getLabel() {
       return "PollTaskAsync";
+    }
+
+    /**
+     * Supplies the poller pool's current scaling target, reported to the server on each poll.
+     * Default no-op for pollers with no pool to report, such as Nexus, whose poll request carries
+     * no such field.
+     */
+    default void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
+      // no-op
     }
   }
 

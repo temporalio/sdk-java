@@ -6,6 +6,7 @@ import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
+import io.temporal.api.taskqueue.v1.PollerScalingInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
@@ -22,6 +23,7 @@ import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -86,10 +88,39 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
     this.pollRequest = pollRequest.build();
   }
 
+  /**
+   * Supplies the poller pool's current scaling target. Installed by AsyncPoller, which owns the
+   * scale report handle; null until then, and for a pool that is not autoscaling.
+   */
+  private volatile IntSupplier pollerTargetSupplier;
+
+  @Override
+  public void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
+    this.pollerTargetSupplier = pollerTargetSupplier;
+  }
+
+  /**
+   * The poll request with the pool's current scaling target attached, so the server can spread
+   * scaling suggestions across a fleet by share rather than by whoever receives the most tasks.
+   * Rebuilt per poll because the target moves; falls back to the prebuilt request when nothing is
+   * reporting, which the server reads as "no report".
+   */
+  private PollActivityTaskQueueRequest pollRequestWithScalingInfo() {
+    IntSupplier supplier = pollerTargetSupplier;
+    if (supplier == null) {
+      return pollRequest;
+    }
+    return pollRequest.toBuilder()
+        .setPollerScalingInfo(
+            PollerScalingInfo.newBuilder().setPollerTarget(supplier.getAsInt()).build())
+        .build();
+  }
+
   @Override
   public CompletableFuture<ActivityTask> poll(SlotPermit permit) {
+    PollActivityTaskQueueRequest request = pollRequestWithScalingInfo();
     if (log.isTraceEnabled()) {
-      log.trace("poll request begin: " + pollRequest);
+      log.trace("poll request begin: " + request);
     }
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
@@ -105,7 +136,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
                       service
                           .futureStub()
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                          .pollActivityTaskQueue(pollRequest)));
+                          .pollActivityTaskQueue(request)));
     } catch (Exception e) {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.ACTIVITY_TASK)
           .gauge(MetricsType.NUM_POLLERS)

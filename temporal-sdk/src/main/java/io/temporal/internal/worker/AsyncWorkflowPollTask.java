@@ -7,6 +7,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.taskqueue.v1.PollerScalingInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.GrpcUtils;
@@ -20,6 +21,7 @@ import io.temporal.worker.tuning.WorkflowSlotInfo;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -118,14 +120,43 @@ public class AsyncWorkflowPollTask
     }
   }
 
+  /**
+   * Supplies the poller pool's current scaling target. Installed by AsyncPoller, which owns the
+   * scale report handle; null until then, and for a pool that is not autoscaling.
+   */
+  private volatile IntSupplier pollerTargetSupplier;
+
+  @Override
+  public void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
+    this.pollerTargetSupplier = pollerTargetSupplier;
+  }
+
+  /**
+   * The poll request with the pool's current scaling target attached, so the server can spread
+   * scaling suggestions across a fleet by share rather than by whoever receives the most tasks.
+   * Rebuilt per poll because the target moves; falls back to the prebuilt request when nothing is
+   * reporting, which the server reads as "no report".
+   */
+  private PollWorkflowTaskQueueRequest pollRequestWithScalingInfo() {
+    IntSupplier supplier = pollerTargetSupplier;
+    if (supplier == null) {
+      return pollRequest;
+    }
+    return pollRequest.toBuilder()
+        .setPollerScalingInfo(
+            PollerScalingInfo.newBuilder().setPollerTarget(supplier.getAsInt()).build())
+        .build();
+  }
+
   @Override
   public CompletableFuture<WorkflowTask> poll(SlotPermit permit)
       throws AsyncPoller.PollTaskAsyncAbort {
     if (shutdown.get()) {
       throw new AsyncPoller.PollTaskAsyncAbort("Normal poller is disabled");
     }
+    PollWorkflowTaskQueueRequest request = pollRequestWithScalingInfo();
     if (log.isTraceEnabled()) {
-      log.trace("poll request begin: " + pollRequest);
+      log.trace("poll request begin: " + request);
     }
 
     MetricsTag.tagged(metricsScope, taskQueueTagValue)
@@ -141,7 +172,7 @@ public class AsyncWorkflowPollTask
                       service
                           .futureStub()
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                          .pollWorkflowTaskQueue(pollRequest)));
+                          .pollWorkflowTaskQueue(request)));
     } catch (Exception e) {
       MetricsTag.tagged(metricsScope, taskQueueTagValue)
           .gauge(MetricsType.NUM_POLLERS)
