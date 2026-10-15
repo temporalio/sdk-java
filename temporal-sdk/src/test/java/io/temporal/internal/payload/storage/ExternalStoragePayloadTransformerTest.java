@@ -443,7 +443,7 @@ public class ExternalStoragePayloadTransformerTest {
     }
   }
 
-  /** A fresh per-message budget, generous enough not to bound these tests. */
+  /** A fresh per-message limit, generous enough not to bound these tests. */
   private static MessageStorageLimits limits() {
     return new MessageStorageLimits(64, new AsyncSemaphore(64));
   }
