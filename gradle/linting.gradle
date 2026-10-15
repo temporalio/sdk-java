@@ -1,5 +1,5 @@
 subprojects {
-    if (name == 'temporal-bom') {
+    if (!plugins.hasPlugin('java')) {
         return
     }
     apply plugin: 'com.diffplug.spotless'

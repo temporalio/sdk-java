@@ -1369,11 +1369,22 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public void sleep(Duration duration) {
-    newTimer(duration).get();
+    sleep(duration, TimerOptions.newBuilder().build());
+  }
+
+  @Override
+  public void sleep(Duration duration, TimerOptions options) {
+    newTimer(duration, options).get();
   }
 
   @Override
   public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+    return await(timeout, TimerOptions.newBuilder().build(), reason, unblockCondition);
+  }
+
+  @Override
+  public boolean await(
+      Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition) {
     boolean cancelTimerOnCondition =
         replayContext.tryUseSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
 
@@ -1385,7 +1396,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       // Create timer in a cancellation scope so we can cancel it when condition is satisfied
       CompletablePromise<Void> timer = Workflow.newPromise();
       CancellationScope timerScope =
-          Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout)));
+          Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout, options)));
       timerScope.run();
 
       WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
@@ -1397,7 +1408,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       return conditionSatisfied;
     } else {
       // Old behavior: timer is not cancelled when condition is satisfied
-      Promise<Void> timer = newTimer(timeout);
+      Promise<Void> timer = newTimer(timeout, options);
       WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
       return !timer.isCompleted();
     }
