@@ -742,7 +742,8 @@ final class WorkflowWorker implements SuspendableWorker {
                             taskFailedBuilder,
                             result.getRequestRetryOptions(),
                             workflowTypeScope,
-                            workflowStorageTarget(workflowExecution, workflowType));
+                            workflowStorageTarget(workflowExecution, workflowType),
+                            uploadMetrics);
                       } else {
                         RespondWorkflowTaskCompletedResponse response =
                             sendTaskCompleted(
@@ -768,7 +769,8 @@ final class WorkflowWorker implements SuspendableWorker {
                         taskFailed.toBuilder(),
                         result.getRequestRetryOptions(),
                         workflowTypeScope,
-                        workflowStorageTarget(workflowExecution, workflowType));
+                        workflowStorageTarget(workflowExecution, workflowType),
+                        uploadMetrics);
                   }
 
                   // Apply post-completion metrics only if runnable present and the above succeeded
@@ -806,7 +808,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       taskFailedBuilder,
                       result.getRequestRetryOptions(),
                       workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                      workflowStorageTarget(workflowExecution, workflowType),
+                      uploadMetrics);
                 } catch (ExternalStorageTaskFailure e) {
                   releaseReason = SlotReleaseReason.error(e);
                   handleReportingFailure(
@@ -831,7 +834,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       storageFailedBuilder,
                       result.getRequestRetryOptions(),
                       workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                      workflowStorageTarget(workflowExecution, workflowType),
+                      uploadMetrics);
                 }
               }
             } catch (CancellationException e) {
@@ -1076,7 +1080,8 @@ final class WorkflowWorker implements SuspendableWorker {
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
         RpcRetryOptions retryOptions,
         Scope workflowTypeMetricsScope,
-        @Nullable StorageDriverTargetInfo storageTarget) {
+        @Nullable StorageDriverTargetInfo storageTarget,
+        @Nullable StorageOperationMetrics uploadMetrics) {
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
           new GrpcRetryer.GrpcRetryerOptions(
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
@@ -1090,7 +1095,7 @@ final class WorkflowWorker implements SuspendableWorker {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 
-      storeOutboundPayloads(taskFailed, storageTarget);
+      storeOutboundPayloads(taskFailed, storageTarget, null, uploadMetrics);
       RespondWorkflowTaskFailedRequest request = taskFailed.build();
       grpcRetryer.retry(
           () ->
