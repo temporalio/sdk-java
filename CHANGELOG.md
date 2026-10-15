@@ -19,6 +19,11 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
+  `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
+  `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+
 ### Added
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
@@ -29,6 +34,8 @@ to docs, or any other relevant information.
   set by Temporal SDK in worker context.
 - Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
+- `Workflow.sleep(Duration, TimerOptions)` and `Workflow.await(Duration, TimerOptions, Supplier)` let workflows set a
+  summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
 
 ### Changed
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
