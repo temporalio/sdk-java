@@ -8,7 +8,7 @@ import io.temporal.spring.boot.autoconfigure.bytaskqueue.TestNexusService;
 import org.springframework.stereotype.Component;
 
 @Component("TestNexusServiceImpl")
-@NexusServiceImpl(workers = "mainWorker")
+@NexusServiceImpl(workers = "${default-worker.name:mainWorker}")
 @ServiceImpl(service = TestNexusService.class)
 public class TestNexusServiceImpl {
   @OperationImpl

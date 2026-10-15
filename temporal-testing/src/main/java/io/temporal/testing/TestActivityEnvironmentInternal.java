@@ -406,7 +406,18 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public void sleep(Duration duration, TimerOptions options) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public boolean await(
+        Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition) {
       throw new UnsupportedOperationException("not implemented");
     }
 

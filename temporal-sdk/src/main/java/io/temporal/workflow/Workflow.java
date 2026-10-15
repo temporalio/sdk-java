@@ -886,6 +886,17 @@ public final class Workflow {
   }
 
   /**
+   * Must be called instead of {@link Thread#sleep(long)} to guarantee determinism.
+   *
+   * @param duration time to sleep.
+   * @param options options for the underlying timer, such as its summary.
+   * @see #newTimer(Duration, TimerOptions)
+   */
+  public static void sleep(Duration duration, TimerOptions options) {
+    WorkflowInternal.sleep(duration, options);
+  }
+
+  /**
    * Block current thread until unblockCondition is evaluated to true.
    *
    * @param unblockCondition condition that should return true to indicate that thread should
@@ -919,6 +930,31 @@ public final class Workflow {
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(
         timeout,
+        "await",
+        () -> {
+          CancellationScope.throwCanceled();
+          return unblockCondition.get();
+        });
+  }
+
+  /**
+   * Block current workflow thread until unblockCondition is evaluated to true or timeout passes.
+   *
+   * @param timeout time to unblock even if unblockCondition is not satisfied.
+   * @param options options for the timer that implements the timeout, such as its summary.
+   * @param unblockCondition condition that should return true to indicate that thread should
+   *     unblock. The condition is called on every state transition, so it should not contain any
+   *     code that mutates any workflow state. It should also not contain any time based conditions.
+   *     Use timeout parameter for those.
+   * @return false if timed out.
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
+   * @see #newTimer(Duration, TimerOptions)
+   */
+  public static boolean await(
+      Duration timeout, TimerOptions options, Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.await(
+        timeout,
+        options,
         "await",
         () -> {
           CancellationScope.throwCanceled();
