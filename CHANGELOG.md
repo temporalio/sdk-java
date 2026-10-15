@@ -36,6 +36,7 @@ to docs, or any other relevant information.
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
 - `Workflow.sleep(Duration, TimerOptions)` and `Workflow.await(Duration, TimerOptions, Supplier)` let workflows set a
   summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
+- Add nonblocking `Async.await` overloads whose promises complete when a workflow condition becomes true or a timeout expires.
 - Workflow tasks taking longer than 5 seconds now log a `[TMPRL1104]` warning reporting the task duration and the
   external storage downloads and uploads that contributed to it. The threshold is configurable with the
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
