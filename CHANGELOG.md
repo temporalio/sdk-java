@@ -36,6 +36,7 @@ to docs, or any other relevant information.
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
 - `Workflow.sleep(Duration, TimerOptions)` and `Workflow.await(Duration, TimerOptions, Supplier)` let workflows set a
   summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
+- Add nonblocking `Async.await` overloads whose promises complete when a workflow condition becomes true or a timeout expires.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
