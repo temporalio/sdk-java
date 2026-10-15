@@ -38,6 +38,12 @@ to docs, or any other relevant information.
   summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
 
 ### Changed
+- Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
+  `io.temporal:temporal-spring-ai` now publishes a one-time relocation POM to `io.temporal:spring-ai:0.1.0`;
+  the integration is versioned independently of the SDK. The standalone release requires Java 17+, Spring AI 2,
+  Spring Boot 4, and Temporal Java SDK 1.40.0+. Spring AI 1 / Spring Boot 3 applications should remain on
+  `io.temporal:temporal-spring-ai:1.40.x` until they migrate. Existing Spring AI 1 workflow histories are not
+  replay-compatible; complete those executions or use separate worker deployments.
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 - Added versioned scheduling for asynchronous Temporal stub calls. When enabled, switching between a stub method
