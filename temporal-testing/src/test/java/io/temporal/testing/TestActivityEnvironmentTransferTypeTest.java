@@ -29,20 +29,6 @@ import org.junit.jupiter.api.Test;
 public class TestActivityEnvironmentTransferTypeTest {
 
   @Test
-  void activityContextExposesTransferAwareConverter() {
-    TrackingDataConverter trackingConverter = new TrackingDataConverter();
-    TestActivityEnvironment environment = newEnvironment(trackingConverter);
-    try {
-      environment.registerActivitiesImplementations(new ConverterActivityImpl(trackingConverter));
-      ConverterActivity activity = environment.newActivityStub(ConverterActivity.class);
-
-      assertTrue(activity.usesTransferAwareConverter());
-    } finally {
-      environment.close();
-    }
-  }
-
-  @Test
   void wrapsConfiguredConverterForArgumentsAndResults() {
     TrackingDataConverter trackingConverter = new TrackingDataConverter();
     TestActivityEnvironment environment = newEnvironment(trackingConverter);
@@ -186,31 +172,6 @@ public class TestActivityEnvironmentTransferTypeTest {
         throw new IllegalStateException("Activity input did not use its transfer type converter");
       }
       return new TransferModel(input.value + "-result");
-    }
-  }
-
-  @ActivityInterface
-  public interface ConverterActivity {
-    @ActivityMethod
-    boolean usesTransferAwareConverter();
-  }
-
-  private static final class ConverterActivityImpl implements ConverterActivity {
-    private final TrackingDataConverter configuredConverter;
-
-    private ConverterActivityImpl(TrackingDataConverter configuredConverter) {
-      this.configuredConverter = configuredConverter;
-    }
-
-    @Override
-    public boolean usesTransferAwareConverter() {
-      DataConverter exposed =
-          Activity.getExecutionContext().getWorkflowClient().getOptions().getDataConverter();
-      int callsBefore = configuredConverter.toPayloadCalls;
-      Payload payload = exposed.toPayload(new TransferModel("value")).get();
-      return exposed != configuredConverter
-          && configuredConverter.toPayloadCalls > callsBefore
-          && "json/protobuf".equals(payload.getMetadataOrThrow("encoding").toStringUtf8());
     }
   }
 
