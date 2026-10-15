@@ -17,6 +17,15 @@ public final class MetricsType {
   public static final String WORKFLOW_FAILED_COUNTER = TEMPORAL_METRICS_PREFIX + "workflow_failed";
   public static final String WORKFLOW_CONTINUE_AS_NEW_COUNTER =
       TEMPORAL_METRICS_PREFIX + "workflow_continue_as_new";
+
+  /**
+   * Counts failed promises reported by the unaccessed-promise warning during runner cleanup,
+   * including cache eviction and Worker shutdown. Replay-time increments are suppressed; separate
+   * runners may report the same failure.
+   */
+  public static final String WORKFLOW_UNACCESSED_FAILED_PROMISE_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "workflow_unaccessed_failed_promise";
+
   public static final String CORRUPTED_SIGNALS_COUNTER =
       TEMPORAL_METRICS_PREFIX + "corrupted_signals";
 

@@ -8,6 +8,7 @@ import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.context.ContextThreadLocal;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
+import io.temporal.worker.MetricsType;
 import io.temporal.workflow.Promise;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -339,6 +340,10 @@ class DeterministicRunnerImpl implements DeterministicRunner {
               f.get();
               throw new Error("unreachable");
             } catch (RuntimeException e) {
+              workflowContext
+                  .getMetricsScope()
+                  .counter(MetricsType.WORKFLOW_UNACCESSED_FAILED_PROMISE_COUNTER)
+                  .inc(1);
               log.warn(
                   "Promise completed with exception and was never accessed. The ignored exception:",
                   CheckedExceptionWrapper.unwrap(e));
