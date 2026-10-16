@@ -3,6 +3,7 @@ package io.temporal.payload.storage.gcsdriver;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
+import io.temporal.internal.payload.storage.CompletableFutures;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
