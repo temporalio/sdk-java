@@ -48,12 +48,19 @@ import java.util.stream.StreamSupport;
 public class RootActivityClientInvoker implements ActivityClientCallsInterceptor {
 
   private final GenericWorkflowClient genericClient;
-  private final ActivityClientOptions clientOptions;
+  private final String namespace;
+  private final String identity;
+  private final DataConverter dataConverter;
 
   public RootActivityClientInvoker(
-      GenericWorkflowClient genericClient, ActivityClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      String namespace,
+      String identity,
+      DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.clientOptions = clientOptions;
+    this.namespace = namespace;
+    this.identity = identity;
+    this.dataConverter = dataConverter;
   }
 
   @Override
@@ -63,16 +70,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throw new IllegalArgumentException("taskQueue must not be null or empty");
     }
     DataConverter dc =
-        clientOptions
-            .getDataConverter()
-            .withContext(
-                new ActivitySerializationContext(
-                    clientOptions.getNamespace(),
-                    null,
-                    null,
-                    input.getActivityType(),
-                    options.getTaskQueue(),
-                    false));
+        dataConverter.withContext(
+            new ActivitySerializationContext(
+                namespace, null, null, input.getActivityType(), options.getTaskQueue(), false));
 
     InternalNexusOperationContext nexusContext =
         CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
@@ -86,8 +86,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
 
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setRequestId(requestId)
             .setActivityId(options.getId())
             .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
@@ -167,7 +167,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       try {
         nexusOperationMetadata.operationToken =
             io.temporal.internal.nexus.OperationTokenUtil.generateActivityExecutionOperationToken(
-                options.getId(), clientOptions.getNamespace());
+                options.getId(), namespace);
       } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
         throw new io.nexusrpc.handler.HandlerException(
             io.nexusrpc.handler.HandlerException.ErrorType.BAD_REQUEST,
@@ -212,9 +212,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws TimeoutException {
-    String namespace = clientOptions.getNamespace();
-    DataConverter dc =
-        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
+    DataConverter dc = dataConverter.withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
@@ -289,8 +287,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
-    DataConverter dc =
-        clientOptions.getDataConverter().withContext(resultSerializationContext(input));
+    DataConverter dc = dataConverter.withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     return pollActivityUntilOutcome(input, deadline)
         .handle(
@@ -306,7 +303,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       GetActivityResultInput<?> input, Deadline deadline) {
     PollActivityExecutionRequest.Builder pollRequest =
         PollActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setActivityId(input.getActivityId());
     if (input.getRunId() != null) {
       pollRequest.setRunId(input.getRunId());
@@ -375,15 +372,14 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   private ActivitySerializationContext resultSerializationContext(GetActivityResultInput<?> input) {
     // Currently, result doesn't have access to activity type and serialization context doesn't hold
     // activity ID.
-    return new ActivitySerializationContext(
-        clientOptions.getNamespace(), null, null, null, null, false);
+    return new ActivitySerializationContext(namespace, null, null, null, null, false);
   }
 
   @Override
   public DescribeActivityOutput describeActivity(DescribeActivityInput input) {
     DescribeActivityExecutionRequest.Builder req =
         DescribeActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setActivityId(input.getId())
             .setIncludeInput(input.getOptions().isIncludeInput())
             .setIncludeOutcome(input.getOptions().isIncludeOutcome())
@@ -394,16 +390,15 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
     DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
     return new DescribeActivityOutput(
-        new ActivityExecutionDescription(
-            response, clientOptions.getDataConverter(), clientOptions.getNamespace()));
+        new ActivityExecutionDescription(response, dataConverter, namespace));
   }
 
   @Override
   public CancelActivityOutput cancelActivity(CancelActivityInput input) {
     RequestCancelActivityExecutionRequest.Builder req =
         RequestCancelActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setRequestId(UUID.randomUUID().toString())
             .setActivityId(input.getId());
     if (input.getRunId() != null) {
@@ -420,8 +415,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public TerminateActivityOutput terminateActivity(TerminateActivityInput input) {
     TerminateActivityExecutionRequest.Builder req =
         TerminateActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setRequestId(UUID.randomUUID().toString())
             .setActivityId(input.getId());
     if (input.getRunId() != null) {
@@ -438,8 +433,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public PauseActivityOutput pauseActivity(PauseActivityInput input) {
     PauseActivityExecutionRequest.Builder req =
         PauseActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setRequestId(UUID.randomUUID().toString())
             .setActivityId(input.getId());
     if (input.getRunId() != null) {
@@ -456,8 +451,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
     UnpauseActivityExecutionRequest.Builder req =
         UnpauseActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setActivityId(input.getId())
             .setRequestId(UUID.randomUUID().toString());
     if (input.getRunId() != null) {
@@ -477,8 +472,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
     UpdateActivityExecutionOptionsRequest.Builder req =
         UpdateActivityExecutionOptionsRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setActivityId(input.getId())
             .setRequestId(UUID.randomUUID().toString());
     if (input.getRunId() != null) {
@@ -511,8 +506,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public ListActivitiesOutput listActivities(ListActivitiesInput input) {
     ListActivityExecutionIterator iterator =
-        new ListActivityExecutionIterator(
-            input.getQuery(), clientOptions.getNamespace(), genericClient);
+        new ListActivityExecutionIterator(input.getQuery(), namespace, genericClient);
     iterator.init();
     Iterator<ActivityExecutionMetadata> wrappedIterator =
         Iterators.transform(iterator, ActivityExecutionMetadata::fromListInfo);
@@ -526,7 +520,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public CountActivitiesOutput countActivities(CountActivitiesInput input) {
     CountActivityExecutionsRequest.Builder req =
-        CountActivityExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
+        CountActivityExecutionsRequest.newBuilder().setNamespace(namespace);
     if (input.getQuery() != null) {
       req.setQuery(input.getQuery());
     }

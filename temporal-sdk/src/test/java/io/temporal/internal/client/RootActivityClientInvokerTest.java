@@ -11,9 +11,10 @@ import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionResponse;
-import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.TransferTypeTestModel;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor.StartActivityInput;
 import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -51,11 +52,7 @@ public class RootActivityClientInvokerTest {
                 .build());
     invoker =
         new RootActivityClientInvoker(
-            genericClient,
-            ActivityClientOptions.newBuilder()
-                .setNamespace(NAMESPACE)
-                .setIdentity("test-identity")
-                .build());
+            genericClient, NAMESPACE, "test-identity", DefaultDataConverter.newDefaultInstance());
     nexusContext =
         new InternalNexusOperationContext(
             NAMESPACE,
@@ -240,6 +237,34 @@ public class RootActivityClientInvokerTest {
                         "TestActivity", Collections.emptyList(), options, Header.empty())));
 
     Assert.assertEquals("taskQueue must not be null or empty", exception.getMessage());
+  }
+
+  @Test
+  public void startUsesTheInternalTransferAwareConverter() {
+    invoker =
+        new RootActivityClientInvoker(
+            genericClient,
+            NAMESPACE,
+            "test-identity",
+            ClientDataConverterFactory.forClient(DefaultDataConverter.newDefaultInstance()));
+    invoker.startActivity(
+        new StartActivityInput(
+            "TestActivity",
+            Collections.singletonList(new TransferTypeTestModel("value")),
+            newStartActivityInput().getOptions(),
+            Header.empty()));
+
+    ArgumentCaptor<StartActivityExecutionRequest> captor =
+        ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
+    verify(genericClient).startActivity(captor.capture());
+    Assert.assertEquals(
+        "google.protobuf.StringValue",
+        captor
+            .getValue()
+            .getInput()
+            .getPayloads(0)
+            .getMetadataOrThrow("messageType")
+            .toStringUtf8());
   }
 
   private static StartActivityInput newStartActivityInput() {
