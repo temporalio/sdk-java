@@ -2,11 +2,11 @@ package io.temporal.payload.storage.s3driver;
 
 import static io.temporal.internal.payload.storage.CompletableFutures.failedFuture;
 
-import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
 import io.temporal.internal.payload.storage.CompletableFutures;
+import io.temporal.internal.payload.storage.PayloadHasher;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -88,7 +88,7 @@ public final class S3StorageDriver implements StorageDriver {
     List<CompletableFuture<StorageDriverClaim>> claimFutures = new ArrayList<>(payloads.size());
     for (Payload payload : payloads) {
       byte[] data = payload.toByteArray();
-      String hexDigest = Hashing.sha256().hashBytes(data).toString();
+      String hexDigest = PayloadHasher.sha256Hex(data);
       String bucket = bucketResolver.resolveBucket(context, payload);
       String key = S3StorageKey.forPayload(target, HASH_ALGORITHM, hexDigest);
       String location = storageLocation(bucket, key, describeSuffix);
@@ -165,7 +165,7 @@ public final class S3StorageDriver implements StorageDriver {
     if (expectedHash == null) {
       throw missingField(CLAIM_HASH_VALUE);
     }
-    String actualHash = Hashing.sha256().hashBytes(data).toString();
+    String actualHash = PayloadHasher.sha256Hex(data);
     if (!actualHash.equals(expectedHash)) {
       throw new S3StorageException(
           "integrity check failed [bucket="

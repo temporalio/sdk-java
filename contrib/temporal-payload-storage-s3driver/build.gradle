@@ -3,7 +3,6 @@ description = '''Temporal Java SDK External Storage S3 Driver'''
 dependencies {
     compileOnly project(':temporal-serviceclient')
     compileOnly project(':temporal-sdk')
-    implementation "com.google.guava:guava:$guavaVersion"
 
     testImplementation project(':temporal-serviceclient')
     testImplementation project(':temporal-sdk')
