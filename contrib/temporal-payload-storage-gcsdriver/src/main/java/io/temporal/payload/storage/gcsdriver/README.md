@@ -43,21 +43,23 @@ ExternalStorage externalStorage =
     .build();
 ```
 
-The application owns the Google client and executor. Use a dedicated pool with bounded threads
-and queue capacity; the sizes above are examples. Use an abort rejection policy so blocking I/O
-does not run on the caller. Shut down the executor and close the Google client after Temporal's
-storage work finishes. Cancellation interrupts tasks on a best-effort basis; configure operation
-and retry time limits on the Google client.
+The application owns the Google client and executor; see [Configuration](#configuration).
 
-Configure credentials on the Google client, normally through
+## Configuration
+
+Use a dedicated executor with bounded threads and queue capacity and an abort rejection policy.
+The pool sizes above are examples. Shut down the executor and close the Google client after
+Temporal's storage work finishes. Configure timeouts and retry limits on the client;
+cancellation uses best-effort interruption.
+
+Authenticate with
 [Application Default Credentials or workload identity](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc).
-The runtime identity needs permission to create and read objects. Configure a bucket lifecycle
-policy covering the workflow lifetime plus history retention, including replay needs. See
+The identity needs object creation and read permissions. Retain objects for the workflow lifetime
+plus history retention, including replay; see
 [Temporal's lifecycle guidance](https://docs.temporal.io/external-storage#lifecycle-management-for-external-storage).
 
-Use `setName(...)` when registering multiple GCS drivers with different buckets. Names default to
-`gcp.gcsdriver` and must remain registered on clients and workers while stored references exist.
-Use `setMaxPayloadSize(...)` to change the maximum serialized upload size, which defaults to 50 MiB.
+Use `setName(...)` for multiple drivers (default: `gcp.gcsdriver`). Keep names registered on clients
+and workers while references exist. `setMaxPayloadSize(...)` defaults to 50 MiB.
 
 ## GCS Storage Key Specification
 
