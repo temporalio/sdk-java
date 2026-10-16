@@ -517,6 +517,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   (LocalActivityCallback.LocalActivityFailedException) e;
               @Nullable Duration backoff = laException.getBackoff();
               if (backoff != null) {
+                // During replay the closure value is the replay wall clock, not the time the first
+                // attempt was scheduled. The marker carries the original one; prefer it so the
+                // scheduleToClose budget keeps counting from the first attempt. Markers without
+                // the value report -1 (no metadata) or 0 (no firstSkd); keep the closure value.
+                long markerOriginalScheduledTime = laException.getOriginalScheduledTimestamp();
+                long retryOriginalScheduledTime =
+                    markerOriginalScheduledTime > 0
+                        ? markerOriginalScheduledTime
+                        : originalScheduledTime;
                 WorkflowInternal.newTimer(backoff)
                     .thenApply(
                         unused -> {
@@ -526,7 +535,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                               options,
                               header,
                               input,
-                              originalScheduledTime,
+                              retryOriginalScheduledTime,
                               laException.getLastAttempt() + 1,
                               // Carry the attempt failure, not the local ActivityFailure wrapper.
                               laException.getFailure().getCause(),
