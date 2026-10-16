@@ -13,6 +13,7 @@ import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -60,7 +61,8 @@ public class ActivityExecutionContextImplTest {
             Duration.ofSeconds(60),
             Duration.ofSeconds(30),
             () -> {},
-            null);
+            null,
+            PayloadErrorLimits.NONE);
 
     context.useLocalManualCompletion();
 

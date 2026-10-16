@@ -40,6 +40,9 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
   /** Plugins for customizing service stubs configuration and connection */
   private final WorkflowServiceStubsPlugin[] plugins;
 
+  /** Warning thresholds for outbound payload and memo sizes */
+  private final PayloadLimitsOptions payloadLimits;
+
   private static final WorkflowServiceStubsPlugin[] EMPTY_PLUGINS =
       new WorkflowServiceStubsPlugin[0];
 
@@ -61,13 +64,15 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
       Duration rpcLongPollTimeout,
       Duration rpcQueryTimeout,
       RpcRetryOptions rpcRetryOptions,
-      WorkflowServiceStubsPlugin[] plugins) {
+      WorkflowServiceStubsPlugin[] plugins,
+      PayloadLimitsOptions payloadLimits) {
     super(serviceStubsOptions);
     this.disableHealthCheck = disableHealthCheck;
     this.rpcLongPollTimeout = rpcLongPollTimeout;
     this.rpcQueryTimeout = rpcQueryTimeout;
     this.rpcRetryOptions = rpcRetryOptions;
     this.plugins = plugins;
+    this.payloadLimits = payloadLimits;
   }
 
   /**
@@ -114,6 +119,17 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     return plugins;
   }
 
+  /**
+   * Returns the warning thresholds for outbound payload and memo sizes.
+   *
+   * <p>WARNING: The payload limit warning options are experimental and may change in the future.
+   *
+   * @return the payload limits options, never null.
+   */
+  public PayloadLimitsOptions getPayloadLimits() {
+    return payloadLimits;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -123,13 +139,19 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         && Objects.equals(rpcLongPollTimeout, that.rpcLongPollTimeout)
         && Objects.equals(rpcQueryTimeout, that.rpcQueryTimeout)
         && Objects.equals(rpcRetryOptions, that.rpcRetryOptions)
-        && Arrays.equals(plugins, that.plugins);
+        && Arrays.equals(plugins, that.plugins)
+        && Objects.equals(payloadLimits, that.payloadLimits);
   }
 
   @Override
   public int hashCode() {
     int result =
-        Objects.hash(disableHealthCheck, rpcLongPollTimeout, rpcQueryTimeout, rpcRetryOptions);
+        Objects.hash(
+            disableHealthCheck,
+            rpcLongPollTimeout,
+            rpcQueryTimeout,
+            rpcRetryOptions,
+            payloadLimits);
     result = 31 * result + Arrays.hashCode(plugins);
     return result;
   }
@@ -147,6 +169,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         + rpcRetryOptions
         + ", plugins="
         + Arrays.toString(plugins)
+        + ", payloadLimits="
+        + payloadLimits
         + '}';
   }
 
@@ -157,6 +181,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     private Duration rpcQueryTimeout = DEFAULT_QUERY_RPC_TIMEOUT;
     private RpcRetryOptions rpcRetryOptions = DefaultStubServiceOperationRpcRetryOptions.INSTANCE;
     private WorkflowServiceStubsPlugin[] plugins;
+    private PayloadLimitsOptions payloadLimits = PayloadLimitsOptions.getDefaultInstance();
 
     private Builder() {}
 
@@ -168,6 +193,7 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
         this.rpcQueryTimeout = castedOptions.rpcQueryTimeout;
         this.rpcRetryOptions = castedOptions.rpcRetryOptions;
         this.plugins = castedOptions.plugins;
+        this.payloadLimits = castedOptions.payloadLimits;
       }
     }
 
@@ -280,6 +306,21 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
     }
 
     /**
+     * Sets the warning thresholds for outbound payload and memo sizes. Defaults to {@link
+     * PayloadLimitsOptions#getDefaultInstance()}: 512 KiB per payload-bearing field and 2 KiB per
+     * memo.
+     *
+     * <p>Every request sent through these stubs is checked: a field over its warning threshold is
+     * logged but still sent. Workers additionally enforce the namespace's error limits.
+     *
+     * <p>WARNING: The payload limit warning options are experimental and may change in the future.
+     */
+    public Builder setPayloadLimits(PayloadLimitsOptions payloadLimits) {
+      this.payloadLimits = Objects.requireNonNull(payloadLimits);
+      return this;
+    }
+
+    /**
      * Sets the rpc timeout value for query calls. Default is 10 seconds.
      *
      * @param timeout timeout.
@@ -302,7 +343,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
           this.rpcRetryOptions,
-          this.plugins);
+          this.plugins,
+          this.payloadLimits);
     }
 
     /**
@@ -326,7 +368,8 @@ public final class WorkflowServiceStubsOptions extends ServiceStubsOptions {
           this.rpcLongPollTimeout,
           this.rpcQueryTimeout,
           retryOptions,
-          this.plugins == null ? EMPTY_PLUGINS : this.plugins);
+          this.plugins == null ? EMPTY_PLUGINS : this.plugins,
+          this.payloadLimits);
     }
   }
 }

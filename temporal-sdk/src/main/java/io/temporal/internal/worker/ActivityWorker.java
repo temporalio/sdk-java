@@ -14,10 +14,14 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
+import io.temporal.internal.common.PayloadsTooLargeFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -408,6 +412,11 @@ final class ActivityWorker implements SuspendableWorker {
         sendStorageFailure(taskToken, metricsScope, e.getCause());
         return result;
       } catch (Exception e) {
+        Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
+        if (violation.isPresent()) {
+          sendPayloadsTooLargeFailure(taskToken, metricsScope, violation.get());
+          return result;
+        }
         logExceptionDuringResultReporting(e, pollResponse, result);
         // TODO this class doesn't report activity success and failure metrics now, instead it's
         //  located inside an activity handler. We should lift it up to this level,
@@ -464,6 +473,9 @@ final class ActivityWorker implements SuspendableWorker {
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(
+                        PayloadErrorLimits.CALL_OPTIONS_KEY,
+                        options.payloadErrorLimits(namespaceCapabilities))
                     .respondActivityTaskCompleted(request),
             replyGrpcRetryerOptions);
       } else {
@@ -502,6 +514,9 @@ final class ActivityWorker implements SuspendableWorker {
                     service
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                        .withOption(
+                            PayloadErrorLimits.CALL_OPTIONS_KEY,
+                            options.payloadErrorLimits(namespaceCapabilities))
                         .respondActivityTaskCanceled(request),
                 replyGrpcRetryerOptions);
           }
@@ -550,6 +565,18 @@ final class ActivityWorker implements SuspendableWorker {
               .setType(ExternalStorageTaskFailure.class.getSimpleName())
               .build();
       applicationFailure.setStackTrace(new StackTraceElement[0]);
+      return sendFailure(taskToken, metricsScope, applicationFailure);
+    }
+
+    private void sendPayloadsTooLargeFailure(
+        ByteString taskToken, Scope metricsScope, PayloadLimitViolation violation) {
+      PayloadsTooLargeFailure.count(metricsScope, MetricsType.ACTIVITY_EXEC_FAILED_COUNTER);
+      sendFailure(taskToken, metricsScope, PayloadsTooLargeFailure.of(violation));
+    }
+
+    @SuppressWarnings("deprecation")
+    private RespondActivityTaskFailedRequest sendFailure(
+        ByteString taskToken, Scope metricsScope, ApplicationFailure applicationFailure) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setTaskToken(taskToken)
