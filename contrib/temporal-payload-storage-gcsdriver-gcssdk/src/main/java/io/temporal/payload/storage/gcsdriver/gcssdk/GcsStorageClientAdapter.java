@@ -6,7 +6,6 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import io.temporal.common.Experimental;
 import io.temporal.payload.storage.gcsdriver.GcsStorageDriverClient;
-import io.temporal.payload.storage.gcsdriver.GcsStorageException;
 import java.net.HttpURLConnection;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
@@ -24,6 +23,8 @@ import javax.annotation.Nonnull;
  * <p>The application configures credentials, transport, retries, and time limits on {@link
  * Storage}. It owns both resources and must shut them down after Temporal's storage work finishes.
  * Use a dedicated executor with bounded threads and queue capacity, and an abort rejection policy.
+ *
+ * <p>Provider failures propagate unchanged. The storage driver adds operation and location context.
  *
  * <p>Cancellation interrupts the executor task on a best-effort basis. Configure Google client time
  * limits to bound operations that do not respond to interruption. Cancellation cannot undo an
@@ -44,9 +45,6 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
   public CompletableFuture<Void> putObjectIfAbsent(
       @Nonnull String bucket, @Nonnull String objectName, @Nonnull byte[] data) {
     return submit(
-        "upload",
-        bucket,
-        objectName,
         () -> {
           try {
             storage.create(
@@ -68,12 +66,10 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
   @Nonnull
   @Override
   public CompletableFuture<byte[]> getObject(@Nonnull String bucket, @Nonnull String objectName) {
-    return submit(
-        "download", bucket, objectName, () -> storage.readAllBytes(BlobId.of(bucket, objectName)));
+    return submit(() -> storage.readAllBytes(BlobId.of(bucket, objectName)));
   }
 
-  private <T> CompletableFuture<T> submit(
-      String operation, String bucket, String objectName, Supplier<T> call) {
+  private <T> CompletableFuture<T> submit(Supplier<T> call) {
     CompletableFuture<T> result = new CompletableFuture<>();
     FutureTask<T> task =
         new FutureTask<T>(call::get) {
@@ -84,10 +80,10 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
             } catch (CancellationException e) {
               result.cancel(true);
             } catch (ExecutionException e) {
-              result.completeExceptionally(failure(operation, bucket, objectName, e.getCause()));
+              result.completeExceptionally(e.getCause());
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              result.completeExceptionally(failure(operation, bucket, objectName, e));
+              result.completeExceptionally(e);
             }
           }
         };
@@ -101,22 +97,9 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
       // Wire cancellation before submission so even queued tasks can be cancelled safely.
       executor.execute(task);
     } catch (RejectedExecutionException e) {
-      result.completeExceptionally(failure(operation, bucket, objectName, e));
+      result.completeExceptionally(e);
       task.cancel(true);
     }
     return result;
-  }
-
-  private static GcsStorageException failure(
-      String operation, String bucket, String objectName, Throwable cause) {
-    return new GcsStorageException(
-        operation
-            + " failed [bucket="
-            + bucket
-            + ", object_name="
-            + objectName
-            + "]: "
-            + cause.getMessage(),
-        cause);
   }
 }

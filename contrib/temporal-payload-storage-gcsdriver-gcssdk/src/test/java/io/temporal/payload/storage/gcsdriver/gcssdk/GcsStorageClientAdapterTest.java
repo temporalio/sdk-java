@@ -78,18 +78,13 @@ public class GcsStorageClientAdapterTest {
   }
 
   @Test
-  public void ordinaryCreateErrorsPropagateWithOriginalCauseAndLocation() throws Exception {
+  public void ordinaryCreateErrorsPropagateUnchanged() throws Exception {
     for (int code : new int[] {403, 404, 429, 500}) {
       StorageException original = new StorageException(code, "upload failure");
       when(storage.create(
               any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class)))
           .thenThrow(original);
-      GcsStorageException error =
-          failure(adapter.putObjectIfAbsent("bucket", "object", new byte[] {1}));
-      assertSame(original, error.getCause());
-      assertTrue(
-          error.getMessage(),
-          error.getMessage().contains("upload failed [bucket=bucket, object_name=object]"));
+      assertSame(original, failure(adapter.putObjectIfAbsent("bucket", "object", new byte[] {1})));
     }
   }
 
@@ -106,11 +101,7 @@ public class GcsStorageClientAdapterTest {
     for (int code : new int[] {404, 403, 412}) {
       StorageException original = new StorageException(code, "read failure");
       doThrow(original).when(storage).readAllBytes(BlobId.of("bucket", "object"));
-      GcsStorageException error = failure(adapter.getObject("bucket", "object"));
-      assertSame(original, error.getCause());
-      assertTrue(
-          error.getMessage(),
-          error.getMessage().contains("download failed [bucket=bucket, object_name=object]"));
+      assertSame(original, failure(adapter.getObject("bucket", "object")));
     }
   }
 
@@ -156,9 +147,9 @@ public class GcsStorageClientAdapterTest {
     ExecutorService rejected = mock(ExecutorService.class);
     RejectedExecutionException original = new RejectedExecutionException("queue is full");
     doThrow(original).when(rejected).execute(any(Runnable.class));
-    GcsStorageException error =
-        failure(new GcsStorageClientAdapter(storage, rejected).getObject("bucket", "object"));
-    assertSame(original, error.getCause());
+    assertSame(
+        original,
+        failure(new GcsStorageClientAdapter(storage, rejected).getObject("bucket", "object")));
     verifyNoInteractions(storage);
   }
 
@@ -192,10 +183,26 @@ public class GcsStorageClientAdapterTest {
     verify(storage, never()).close();
   }
 
-  private static GcsStorageException failure(CompletableFuture<?> future) throws Exception {
+  @Test
+  public void driverAddsContextAndKeepsOriginalProviderFailure() throws Exception {
+    StorageException original = new StorageException(403, "access denied");
+    when(storage.create(
+            any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class)))
+        .thenThrow(original);
+    GcsStorageDriver driver =
+        GcsStorageDriver.newBuilder().setClient(adapter).setBucket("bucket").build();
+    Throwable error =
+        failure(driver.store(() -> null, Collections.singletonList(Payload.getDefaultInstance())));
+    assertTrue(String.valueOf(error), error instanceof GcsStorageException);
+    assertSame(original, error.getCause());
+    assertTrue(
+        error.getMessage(),
+        error.getMessage().startsWith("upload failed [bucket=bucket, object_name="));
+  }
+
+  private static Throwable failure(CompletableFuture<?> future) throws Exception {
     ExecutionException error =
         assertThrows(ExecutionException.class, () -> future.get(5, TimeUnit.SECONDS));
-    assertTrue(String.valueOf(error.getCause()), error.getCause() instanceof GcsStorageException);
-    return (GcsStorageException) error.getCause();
+    return error.getCause();
   }
 }
