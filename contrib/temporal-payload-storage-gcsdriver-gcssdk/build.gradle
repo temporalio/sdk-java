@@ -1,8 +1,12 @@
 description = '''Temporal Java SDK External Storage GCS Driver - Google Cloud Storage Client'''
 
+ext {
+    googleCloudStorageVersion = '2.75.0'
+}
+
 dependencies {
     api project(':temporal-payload-storage-gcsdriver')
-    api 'com.google.cloud:google-cloud-storage:2.75.0'
+    api "com.google.cloud:google-cloud-storage:$googleCloudStorageVersion"
 
     // For the @Experimental annotation only.
     compileOnly project(':temporal-sdk')
