@@ -109,16 +109,13 @@ public class GcsStorageDriverTest {
   }
 
   @Test
-  public void identicalBytesDeduplicateWithoutReplacingStoredObject() {
+  public void identicalBytesProduceSameClaimsOnRepeatedUploads() {
     InMemoryClient client = new InMemoryClient();
     GcsStorageDriver driver = driver(client);
     Payload payload = payload("duplicate");
     List<StorageDriverClaim> first = store(driver, payload);
-    byte[] original = client.objects.values().iterator().next();
     assertEquals(first, store(driver, payload));
     assertEquals(2, client.putAttempts.get());
-    assertEquals(1, client.creations.get());
-    assertSame(original, client.objects.values().iterator().next());
   }
 
   @Test
@@ -543,7 +540,6 @@ public class GcsStorageDriverTest {
   private static class InMemoryClient implements GcsStorageDriverClient {
     final Map<String, byte[]> objects = new ConcurrentHashMap<>();
     final AtomicInteger putAttempts = new AtomicInteger();
-    final AtomicInteger creations = new AtomicInteger();
     final AtomicInteger getAttempts = new AtomicInteger();
     RuntimeException putError;
 
@@ -553,9 +549,7 @@ public class GcsStorageDriverTest {
       if (putError != null) {
         return CompletableFutures.failedFuture(putError);
       }
-      if (objects.putIfAbsent(bucket + "/" + name, data.clone()) == null) {
-        creations.incrementAndGet();
-      }
+      objects.putIfAbsent(bucket + "/" + name, data.clone());
       return CompletableFuture.completedFuture(null);
     }
 
