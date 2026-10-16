@@ -163,19 +163,13 @@ public class GcsStorageClientAdapterTest {
   }
 
   @Test
-  public void callerRunsExecutorCannotPerformBlockingIoOnCaller() throws Exception {
-    ExecutorService callerRuns = mock(ExecutorService.class);
-    doAnswer(
-            invocation -> {
-              invocation.getArgument(0, Runnable.class).run();
-              return null;
-            })
-        .when(callerRuns)
-        .execute(any(Runnable.class));
-    GcsStorageException error =
-        failure(new GcsStorageClientAdapter(storage, callerRuns).getObject("bucket", "object"));
-    assertTrue(error.getCause() instanceof RejectedExecutionException);
-    verifyNoInteractions(storage);
+  public void queuedCallCanReuseSubmittingExecutorThread() throws Exception {
+    byte[] data = {1, 2, 3};
+    when(storage.readAllBytes(BlobId.of("bucket", "object"))).thenReturn(data);
+    CompletableFuture<byte[]> download =
+        executor.submit(() -> adapter.getObject("bucket", "object")).get(5, TimeUnit.SECONDS);
+    assertArrayEquals(data, download.get(5, TimeUnit.SECONDS));
+    verify(storage).readAllBytes(BlobId.of("bucket", "object"));
   }
 
   @Test

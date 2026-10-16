@@ -23,7 +23,6 @@ import javax.annotation.Nonnull;
  * <p>The application configures credentials, transport, retries, and time limits on {@link
  * Storage}. It owns both resources and must shut them down after Temporal's storage work finishes.
  * Use a dedicated executor with bounded threads and queue capacity, and an abort rejection policy.
- * Calls executed on the submitting thread are rejected to keep blocking I/O off SDK callers.
  *
  * <p>Cancellation interrupts the executor task on a best-effort basis. Configure Google client time
  * limits to bound operations that do not respond to interruption. Cancellation cannot undo an
@@ -75,16 +74,8 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
   private <T> CompletableFuture<T> submit(
       String operation, String bucket, String objectName, Supplier<T> call) {
     CompletableFuture<T> result = new CompletableFuture<>();
-    Thread submittingThread = Thread.currentThread();
     FutureTask<T> task =
-        new FutureTask<T>(
-            () -> {
-              if (Thread.currentThread() == submittingThread) {
-                throw new RejectedExecutionException(
-                    "storage executor must not run tasks on the caller");
-              }
-              return call.get();
-            }) {
+        new FutureTask<T>(call::get) {
           @Override
           protected void done() {
             try {
