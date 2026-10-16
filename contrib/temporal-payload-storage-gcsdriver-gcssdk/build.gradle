@@ -1,0 +1,16 @@
+description = '''Temporal Java SDK External Storage GCS Driver - Google Cloud Storage Client'''
+
+dependencies {
+    api project(':temporal-payload-storage-gcsdriver')
+    api 'com.google.cloud:google-cloud-storage:2.75.0'
+
+    // For the @Experimental annotation only.
+    compileOnly project(':temporal-sdk')
+
+    // Exercise the Google and Temporal dependencies together on the ordinary test classpath.
+    testImplementation project(':temporal-serviceclient')
+    testImplementation project(':temporal-sdk')
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
