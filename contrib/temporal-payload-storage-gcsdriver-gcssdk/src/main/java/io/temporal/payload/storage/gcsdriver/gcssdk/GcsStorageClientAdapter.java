@@ -7,6 +7,7 @@ import com.google.cloud.storage.StorageException;
 import io.temporal.common.Experimental;
 import io.temporal.payload.storage.gcsdriver.GcsStorageDriverClient;
 import io.temporal.payload.storage.gcsdriver.GcsStorageException;
+import java.net.HttpURLConnection;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -55,10 +56,10 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
                 data,
                 Storage.BlobTargetOption.doesNotExist());
           } catch (StorageException e) {
-            // Only this conditional create's 412 means the object is already present.
-            if (e.getCode() != 412) {
+            if (e.getCode() != HttpURLConnection.HTTP_PRECON_FAILED) {
               throw e;
             }
+            // The doesNotExist() precondition failed because the object already exists.
           }
           return null;
         });
