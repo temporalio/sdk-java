@@ -75,6 +75,8 @@ to docs, or any other relevant information.
   behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
+  `WorkflowClient` and the `WorkerFactory` was listed twice.
 
 ## Previous releases
 

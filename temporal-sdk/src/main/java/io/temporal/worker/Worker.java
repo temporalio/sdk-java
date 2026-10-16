@@ -708,10 +708,12 @@ public final class Worker {
         hb.setTotalStickyCacheMiss(cache.getCacheMisses());
         hb.setCurrentStickyCacheSize(cache.getCurrentCacheSize());
 
-        // Plugins
-        for (WorkerPlugin plugin : plugins) {
-          hb.addPlugins(PluginInfo.newBuilder().setName(plugin.getName()).build());
-        }
+        // A plugin can be registered on both the client and the worker factory, so report each
+        // name once.
+        plugins.stream()
+            .map(WorkerPlugin::getName)
+            .distinct()
+            .forEach(name -> hb.addPlugins(PluginInfo.newBuilder().setName(name).build()));
 
         return hb.build();
       }
