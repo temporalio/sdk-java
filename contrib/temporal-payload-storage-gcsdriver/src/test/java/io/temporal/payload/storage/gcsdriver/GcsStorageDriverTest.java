@@ -2,6 +2,7 @@ package io.temporal.payload.storage.gcsdriver;
 
 import static org.junit.Assert.*;
 
+import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.common.v1.Payload;
@@ -184,7 +185,7 @@ public class GcsStorageDriverTest {
     client.uploads.get(1).complete(null);
     for (int i = 0; i < inputs.size(); i++) {
       assertEquals(
-          PayloadHasher.sha256Hex(inputs.get(i).toByteArray()),
+          Hashing.sha256().hashBytes(inputs.get(i).toByteArray()).toString(),
           batch.join().get(i).getClaimData().get("hash_value"));
     }
   }
@@ -302,7 +303,7 @@ public class GcsStorageDriverTest {
     Map<String, String> data = new HashMap<>(canonicalClaim().getClaimData());
     data.put("object_name", "invalid");
     data.put("key", "invalid");
-    data.put("hash_value", PayloadHasher.sha256Hex(invalid));
+    data.put("hash_value", Hashing.sha256().hashBytes(invalid).toString());
     GcsStorageException error =
         failure(
             driver(client)

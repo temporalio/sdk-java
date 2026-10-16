@@ -1,5 +1,6 @@
 package io.temporal.payload.storage.gcsdriver;
 
+import com.google.common.hash.Hashing;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
@@ -74,7 +75,7 @@ public final class GcsStorageDriver implements StorageDriver {
       }
       for (Payload payload : payloads) {
         byte[] data = payload.toByteArray();
-        String hash = PayloadHasher.sha256Hex(data);
+        String hash = Hashing.sha256().hashBytes(data).toString();
         String objectName = GcsStorageKey.forPayload(context.getTarget(), hash);
         prepared.add(new PreparedPayload(data, claimFor(bucket, objectName, hash)));
       }
@@ -160,7 +161,7 @@ public final class GcsStorageDriver implements StorageDriver {
 
   private static Payload verifyAndParse(byte[] data, Map<String, String> claim) {
     String location = location(claim.get("bucket"), claim.get("object_name"));
-    String actualHash = PayloadHasher.sha256Hex(data);
+    String actualHash = Hashing.sha256().hashBytes(data).toString();
     String expectedHash = claim.get("hash_value");
     if (!actualHash.equals(expectedHash)) {
       throw new GcsStorageException(
