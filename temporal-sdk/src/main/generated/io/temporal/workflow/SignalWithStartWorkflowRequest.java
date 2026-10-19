@@ -13,7 +13,7 @@ public final class SignalWithStartWorkflowRequest {
    */
   private final java.util.List<Object> args;
   /**
-   * Unique identifier for the workflow execution.
+   * Unique identifier for the workflow execution. Must be nonempty.
    */
   private final String id;
   /**
@@ -26,15 +26,16 @@ public final class SignalWithStartWorkflowRequest {
    */
   private final java.util.List<Object> signalArgs;
   /**
-   * Total workflow execution timeout, including retries and continue-as-new.
+   * Total workflow execution timeout, including retries and continue-as-new. Defaults
+   * to unlimited.
    */
   private final java.time.Duration executionTimeout;
   /**
-   * Timeout of a single workflow run.
+   * Timeout of a single workflow run. Defaults to the workflow execution timeout.
    */
   private final java.time.Duration runTimeout;
   /**
-   * Timeout of a single workflow task.
+   * Timeout of a single workflow task. Defaults to 10 seconds.
    */
   private final java.time.Duration taskTimeout;
   /**
@@ -45,7 +46,7 @@ public final class SignalWithStartWorkflowRequest {
   /**
    * Behavior when a workflow is currently running with the same ID. Set to use-existing
    * for idempotent deduplication on workflow ID. Cannot be set if id-reuse-policy is
-   * terminate-if-running.
+   * terminate-if-running. Defaults to use-existing.
    */
   private final io.temporal.api.enums.v1.WorkflowIdConflictPolicy idConflictPolicy;
   /**
@@ -78,8 +79,17 @@ public final class SignalWithStartWorkflowRequest {
    * cron-schedule.
    */
   private final java.time.Duration startDelay;
+  /**
+   * Static metadata for the workflow execution.
+   */
   private final io.temporal.workflow.UserMetadata userMetadata;
+  /**
+   * Namespace of the workflow execution.
+   */
   private final String namespace;
+  /**
+   * Headers for the request.
+   */
   private final java.util.Map<String, io.temporal.api.common.v1.Payload> headers;
   @com.fasterxml.jackson.annotation.JsonCreator
   public SignalWithStartWorkflowRequest(@com.fasterxml.jackson.annotation.JsonProperty("workflow") String workflow, @com.fasterxml.jackson.annotation.JsonProperty("args") java.util.List<Object> args, @com.fasterxml.jackson.annotation.JsonProperty("id") String id, @com.fasterxml.jackson.annotation.JsonProperty("taskQueue") String taskQueue, @com.fasterxml.jackson.annotation.JsonProperty("signal") String signal, @com.fasterxml.jackson.annotation.JsonProperty("signalArgs") java.util.List<Object> signalArgs, @com.fasterxml.jackson.annotation.JsonProperty("executionTimeout") java.time.Duration executionTimeout, @com.fasterxml.jackson.annotation.JsonProperty("runTimeout") java.time.Duration runTimeout, @com.fasterxml.jackson.annotation.JsonProperty("taskTimeout") java.time.Duration taskTimeout, @com.fasterxml.jackson.annotation.JsonProperty("idReusePolicy") io.temporal.api.enums.v1.WorkflowIdReusePolicy idReusePolicy, @com.fasterxml.jackson.annotation.JsonProperty("idConflictPolicy") io.temporal.api.enums.v1.WorkflowIdConflictPolicy idConflictPolicy, @com.fasterxml.jackson.annotation.JsonProperty("retryPolicy") io.temporal.common.RetryOptions retryPolicy, @com.fasterxml.jackson.annotation.JsonProperty("cronSchedule") String cronSchedule, @com.fasterxml.jackson.annotation.JsonProperty("memo") java.util.Map<String, Object> memo, @com.fasterxml.jackson.annotation.JsonProperty("searchAttributes") io.temporal.common.SearchAttributes searchAttributes, @com.fasterxml.jackson.annotation.JsonProperty("priority") io.temporal.common.Priority priority, @com.fasterxml.jackson.annotation.JsonProperty("versioningOverride") io.temporal.common.VersioningOverride versioningOverride, @com.fasterxml.jackson.annotation.JsonProperty("startDelay") java.time.Duration startDelay, @com.fasterxml.jackson.annotation.JsonProperty("userMetadata") io.temporal.workflow.UserMetadata userMetadata, @com.fasterxml.jackson.annotation.JsonProperty("namespace") String namespace, @com.fasterxml.jackson.annotation.JsonProperty("headers") java.util.Map<String, io.temporal.api.common.v1.Payload> headers) {
