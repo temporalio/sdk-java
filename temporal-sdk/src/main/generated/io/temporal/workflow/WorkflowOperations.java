@@ -4,10 +4,37 @@ package io.temporal.workflow;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public abstract class WorkflowOperations {
   protected WorkflowOperations() {}
-  public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(io.temporal.workflow.SignalWithStartWorkflowRequest request) {
-    io.temporal.workflow.SignalWithStartWorkflowResponse result = (io.temporal.workflow.SignalWithStartWorkflowResponse) io.temporal.workflow.Workflow.newUntypedNexusServiceStub("temporal.api.workflowservice.v1.WorkflowService", io.temporal.workflow.NexusServiceOptions.newBuilder().setEndpoint("__temporal_system").build()).execute("SignalWithStartWorkflowExecution", io.temporal.workflow.SignalWithStartWorkflowResponse.class, io.temporal.workflow.SignalWithStartWorkflowResponse.class, request);
-    return io.temporal.workflow.Workflow.newUntypedExternalWorkflowStub(io.temporal.api.common.v1.WorkflowExecution.newBuilder().setWorkflowId(request.getId()).setRunId(result.getRunId() == null ? "" : result.getRunId()).build());
+
+  public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
+      io.temporal.workflow.SignalWithStartWorkflowRequest request) {
+    io.temporal.workflow.SignalWithStartWorkflowResponse result =
+        (io.temporal.workflow.SignalWithStartWorkflowResponse)
+            io.temporal.workflow.Workflow.newUntypedNexusServiceStub(
+                    "temporal.api.workflowservice.v1.WorkflowService",
+                    io.temporal.workflow.NexusServiceOptions.newBuilder()
+                        .setEndpoint("__temporal_system")
+                        .build())
+                .execute(
+                    "SignalWithStartWorkflowExecution",
+                    io.temporal.workflow.SignalWithStartWorkflowResponse.class,
+                    io.temporal.workflow.SignalWithStartWorkflowResponse.class,
+                    request);
+    return io.temporal.workflow.Workflow.newUntypedExternalWorkflowStub(
+        io.temporal.api.common.v1.WorkflowExecution.newBuilder()
+            .setWorkflowId(request.getId())
+            .setRunId(result.getRunId() == null ? "" : result.getRunId())
+            .build());
   }
-  public static io.temporal.payload.context.SerializationContext signalWithStartWorkflowSerializationContext(io.temporal.workflow.SignalWithStartWorkflowRequest request) { return io.temporal.internal.nexus.system.TemporalModelConverters.signalWithStartWorkflowSerializationContext(request); }
-  public static <T> T withDataConverter(io.temporal.common.converter.DataConverter converter, java.util.function.Supplier<T> action) { return io.temporal.workflow.NexgenRuntime.withDataConverter(converter, action); }
+
+  public static io.temporal.payload.context.SerializationContext
+      signalWithStartWorkflowSerializationContext(
+          io.temporal.workflow.SignalWithStartWorkflowRequest request) {
+    return io.temporal.internal.nexus.system.TemporalModelConverters
+        .signalWithStartWorkflowSerializationContext(request);
+  }
+
+  public static <T> T withDataConverter(
+      io.temporal.common.converter.DataConverter converter, java.util.function.Supplier<T> action) {
+    return io.temporal.workflow.NexgenRuntime.withDataConverter(converter, action);
+  }
 }

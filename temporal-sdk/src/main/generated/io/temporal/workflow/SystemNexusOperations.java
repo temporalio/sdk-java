@@ -5,12 +5,36 @@ package io.temporal.workflow;
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class SystemNexusOperations {
   private SystemNexusOperations() {}
-  public static <R> io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<R> execute(SystemNexusWorkflowOutboundInterceptor interceptor, io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<R> input) {
-    if ("temporal.api.workflowservice.v1.WorkflowService".equals(input.getService()) && "SignalWithStartWorkflowExecution".equals(input.getOperation())) return (io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<R>) interceptor.executeSignalWithStartWorkflow((io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput) input);
-    throw new IllegalArgumentException("Unsupported system Nexus operation: " + input.getService() + "/" + input.getOperation());
+
+  public static <R>
+      io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<
+              R>
+          execute(
+              SystemNexusWorkflowOutboundInterceptor interceptor,
+              io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                          .ExecuteNexusOperationInput<
+                      R>
+                  input) {
+    if ("temporal.api.workflowservice.v1.WorkflowService".equals(input.getService())
+        && "SignalWithStartWorkflowExecution".equals(input.getOperation()))
+      return (io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                  .ExecuteNexusOperationOutput<
+              R>)
+          interceptor.executeSignalWithStartWorkflow(
+              (io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                      .ExecuteNexusOperationInput)
+                  input);
+    throw new IllegalArgumentException(
+        "Unsupported system Nexus operation: " + input.getService() + "/" + input.getOperation());
   }
-  public static io.temporal.payload.context.SerializationContext serializationContext(String service, String operation, Object request) {
-    if ("temporal.api.workflowservice.v1.WorkflowService".equals(service) && "SignalWithStartWorkflowExecution".equals(operation)) return io.temporal.internal.nexus.system.TemporalModelConverters.signalWithStartWorkflowSerializationContext((io.temporal.workflow.SignalWithStartWorkflowRequest) request);
+
+  public static io.temporal.payload.context.SerializationContext serializationContext(
+      String service, String operation, Object request) {
+    if ("temporal.api.workflowservice.v1.WorkflowService".equals(service)
+        && "SignalWithStartWorkflowExecution".equals(operation))
+      return io.temporal.internal.nexus.system.TemporalModelConverters
+          .signalWithStartWorkflowSerializationContext(
+              (io.temporal.workflow.SignalWithStartWorkflowRequest) request);
     return null;
   }
 }
