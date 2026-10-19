@@ -28,7 +28,9 @@ public final class SystemNexusPayloads {
   }
 
   public static Message.Builder unpack(Payload payload) {
-    if (!isSystemPayload(payload) || !ENCODING.equals(payload.getMetadataMap().get("encoding"))) {
+    // The marker controls generic visitation. Server responses use the same binary envelope
+    // without the marker and are decoded in the system operation's known converter scope.
+    if (!ENCODING.equals(payload.getMetadataMap().get("encoding"))) {
       throw new VisitorException("Invalid Temporal system payload encoding");
     }
     ByteString type = payload.getMetadataMap().get("messageType");

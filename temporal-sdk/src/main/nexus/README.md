@@ -13,7 +13,12 @@ Regenerate with nex-gen 0.2.9 built with its `advanced` feature:
 ./gradlew --offline spotlessApply
 ```
 
-Generated Java and `system-nexus-roots.txt` are checked in. The manifest derives
+Generated Java and `system-nexus-roots.txt` are checked in under
+`src/main/generated/io/temporal/workflow`, an isolated main Java source root.
+The generator uses `--package-name io.temporal.workflow` and the WIT annotation
+`@nexus.operations-class java="WorkflowOperations"`. `Workflow` extends this
+generated base once; additional operations require no handwritten facade methods.
+The generated request builders are directly usable from the workflow package. The manifest derives
 from operation input/output protobuf transfer types. The service client's Java
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.

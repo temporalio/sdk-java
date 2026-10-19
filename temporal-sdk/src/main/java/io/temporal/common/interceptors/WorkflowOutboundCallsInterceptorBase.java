@@ -17,7 +17,7 @@ import java.util.function.Supplier;
 
 /** Convenience base class for WorkflowOutboundCallsInterceptor implementations. */
 public class WorkflowOutboundCallsInterceptorBase
-    extends io.temporal.nexus.system.workflowservice.SystemNexusWorkflowOutboundInterceptor.Base
+    extends io.temporal.workflow.SystemNexusWorkflowOutboundInterceptor.Base
     implements WorkflowOutboundCallsInterceptor {
 
   private final WorkflowOutboundCallsInterceptor next;

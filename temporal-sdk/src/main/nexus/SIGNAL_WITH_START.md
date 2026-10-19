@@ -1,35 +1,34 @@
 # Signal with start inside workflows
 
-Signal with start atomically signals an external workflow, starting it when
-necessary. It uses the Temporal system Nexus endpoint and requires a server
-that supports that service.
+The generated workflow API atomically signals an external workflow, starting it
+when necessary. It requires a server supporting the system workflow service.
 
 ```java
-TargetWorkflow target = Workflow.newSignalWithStartWorkflowStub(
-    TargetWorkflow.class,
-    SignalWithStartWorkflowOptions.newBuilder()
-        .setWorkflowId("target")
+ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
+    SignalWithStartWorkflowRequest.newBuilder()
+        .setWorkflow("TargetWorkflow")
+        .setSignal("notify")
+        .setId("target")
         .setTaskQueue("target-queue")
+        .setArgs(Collections.singletonList(input))
+        .setSignalArgs(Collections.singletonList(signal))
         .build());
-TargetWorkflow external = Workflow.signalWithStart(
-    target,
-    () -> target.run(input),
-    () -> target.notifySignal(signal));
 ```
 
-The two lambdas capture exactly one workflow call and one signal call. Both
-must use `target`; capture does not start the workflow. The operation waits for
-signal delivery/start to complete and returns an external workflow stub for
-signaling and cancellation. It does not wait for the target workflow's result.
-Use `Async.function(() -> Workflow.signalWithStart(...))` for a `Promise`.
+Import `Workflow`, `SignalWithStartWorkflowRequest`, and `ExternalWorkflowStub`
+from `io.temporal.workflow`. The generated request builder contains the API's
+options, including timeouts, retry policy, memo, conflict policy, and flattened
+static summary/details setters. Workflow ID and task queue are explicit request
+fields. Namespace defaults to the caller's namespace. Request ID is omitted:
+the system service manages it.
 
-An untyped equivalent is available through
-`Workflow.newUntypedSignalWithStartWorkflowStub`. Options default the task queue
-to the caller's queue and generate a deterministic workflow ID when omitted.
-The destination namespace is the caller's namespace. Serialization uses that
-namespace and the destination workflow ID for nested payloads, codecs, and
-failure conversion; the system protobuf envelope remains server-readable.
+The call returns after signal delivery/start completes. The returned external
+stub supports further signals and cancellation. Use
+`Async.function(Workflow::signalWithStartWorkflow, request)` for a promise.
 
-Generated outbound interceptor hooks expose the system operation independently
-of ordinary Nexus operations. Existing outbound interceptor implementations
-remain compatible through default methods and the forwarding base class.
+`Workflow` inherits generated operations from `WorkflowOperations`. New WIT
+operations become available after regeneration, without adding handwritten
+options, capture proxies, stubs, or facade methods. The output transform, request
+fields, and serialization-context hook are declared in WIT. The converter uses
+the destination namespace and workflow ID for nested payloads, codecs, and
+failures; the outer system envelope remains server-readable.

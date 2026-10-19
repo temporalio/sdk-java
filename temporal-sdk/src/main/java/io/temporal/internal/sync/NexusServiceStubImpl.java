@@ -105,8 +105,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
       WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<R> input) {
     if (io.temporal.internal.nexus.system.SystemNexusDataConverter.ENDPOINT.equals(
         input.getEndpoint())) {
-      return io.temporal.nexus.system.workflowservice.SystemNexusOperations.execute(
-          outboundCallsInterceptor, input);
+      return io.temporal.workflow.SystemNexusOperations.execute(outboundCallsInterceptor, input);
     }
     return outboundCallsInterceptor.executeNexusOperation(input);
   }

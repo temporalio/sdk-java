@@ -833,7 +833,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (io.temporal.internal.nexus.system.SystemNexusDataConverter.ENDPOINT.equals(
         input.getEndpoint())) {
       io.temporal.payload.context.SerializationContext context =
-          io.temporal.nexus.system.workflowservice.SystemNexusOperations.serializationContext(
+          io.temporal.workflow.SystemNexusOperations.serializationContext(
               input.getService(), input.getOperation(), input.getArg());
       userMetadataDataConverter =
           context == null ? dataConverter : dataConverter.withContext(context);
