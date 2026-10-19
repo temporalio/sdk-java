@@ -422,6 +422,53 @@ public final class Worker {
   }
 
   /**
+   * Registers a workflow factory with its implementation class for worker environment reporting.
+   *
+   * <p>The implementation class is used only for metadata detection. The factory remains
+   * responsible for creating workflow instances and is not invoked during registration.
+   *
+   * @param workflowInterface workflow interface implemented by the factory's instances
+   * @param implementationClass implementation class created by the factory
+   * @param factory factory that creates a new workflow instance each time it is called
+   * @param options custom workflow implementation options for a worker
+   * @see #registerWorkflowImplementationFactory(Class, Func, WorkflowImplementationOptions)
+   */
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Class<? extends R> implementationClass,
+      Func<R> factory,
+      WorkflowImplementationOptions options) {
+    Objects.requireNonNull(implementationClass, "implementationClass");
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
+    recordKotlinImplementations(implementationClass);
+  }
+
+  /**
+   * Registers a workflow factory accepting workflow arguments with its implementation class for
+   * worker environment reporting.
+   *
+   * <p>The implementation class is used only for metadata detection. The factory remains
+   * responsible for creating workflow instances and is not invoked during registration.
+   *
+   * @param workflowInterface workflow interface implemented by the factory's instances
+   * @param implementationClass implementation class created by the factory
+   * @param factory factory that creates a new workflow instance from workflow arguments each time
+   *     it is called
+   * @param options custom workflow implementation options for a worker
+   * @see #registerWorkflowImplementationFactory(Class, Functions.Func1,
+   *     WorkflowImplementationOptions)
+   */
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Class<? extends R> implementationClass,
+      Functions.Func1<EncodedValues, R> factory,
+      WorkflowImplementationOptions options) {
+    Objects.requireNonNull(implementationClass, "implementationClass");
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
+    recordKotlinImplementations(implementationClass);
+  }
+
+  /**
    * Configures a factory to use when an instance of a workflow implementation is created.
    *
    * <p>The only valid use for this method is unit testing and mocking. <br>
