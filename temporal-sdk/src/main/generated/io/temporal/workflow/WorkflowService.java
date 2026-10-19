@@ -4,5 +4,6 @@ package io.temporal.workflow;
 @io.nexusrpc.Service(name = "temporal.api.workflowservice.v1.WorkflowService")
 public interface WorkflowService {
   @io.nexusrpc.Operation(name = "SignalWithStartWorkflowExecution")
-  io.temporal.workflow.SignalWithStartWorkflowResponse signalWithStartWorkflow(io.temporal.workflow.SignalWithStartWorkflowRequest request);
+  io.temporal.workflow.SignalWithStartWorkflowResponse signalWithStartWorkflow(
+      io.temporal.workflow.SignalWithStartWorkflowRequest request);
 }

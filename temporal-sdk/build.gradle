@@ -350,7 +350,7 @@ tasks.register('generateNexusSystemApi', Exec) {
     outputs.dir(nexusGeneratedDir)
     outputs.upToDateWhen { false }
     commandLine binary.get(), 'java', file('src/main/nexus/workflow-service.wit'),
-        file('src/main/nexus/deps'), '--native-api', '--system-nexus',
+        file('src/main/nexus/deps'), '--native-api', '--system-nexus', '--format',
         '--support-package', 'io.temporal.internal.nexus.system.TemporalModelConverters',
         '--package-name', 'io.temporal.workflow',
         '--descriptors', project(':temporal-serviceclient').layout.buildDirectory.file('generated/descriptors/temporal-api.desc').get().asFile,

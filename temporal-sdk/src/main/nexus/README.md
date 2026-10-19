@@ -26,6 +26,11 @@ from operation input/output protobuf transfer types. The service client's Java
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.
 
+Regeneration passes `--format` to nex-gen, which uses google-java-format 1.24.0
+to match the SDK's Spotless configuration. Nex-gen downloads and caches its
+standalone JAR on first use; for offline regeneration, set
+`NEXGEN_JAVA_FORMAT_JAR` to a local all-dependencies JAR. A JDK must be on `PATH`.
+
 `TemporalModelConverters` contains the SDK-owned conversion helpers. The emitted
 `NexgenRuntime` contains common generated Java code and is rendered from a Rust
 string in nex-gen. Normal Java SDK builds do not require Rust or nex-gen.

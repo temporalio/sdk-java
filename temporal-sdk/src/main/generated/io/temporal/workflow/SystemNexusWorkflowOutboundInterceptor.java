@@ -3,10 +3,39 @@ package io.temporal.workflow;
 
 /** Generated typed system Nexus hooks. */
 public interface SystemNexusWorkflowOutboundInterceptor {
-  <R> io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<R> executeNexusOperation(io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<R> input);
-  default  io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<io.temporal.workflow.SignalWithStartWorkflowResponse> executeSignalWithStartWorkflow(io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<io.temporal.workflow.SignalWithStartWorkflowResponse> input) { return executeNexusOperation(input); }
+  <R>
+      io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<
+              R>
+          executeNexusOperation(
+              io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                          .ExecuteNexusOperationInput<
+                      R>
+                  input);
+
+  default io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+              .ExecuteNexusOperationOutput<
+          io.temporal.workflow.SignalWithStartWorkflowResponse>
+      executeSignalWithStartWorkflow(
+          io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                      .ExecuteNexusOperationInput<
+                  io.temporal.workflow.SignalWithStartWorkflowResponse>
+              input) {
+    return executeNexusOperation(input);
+  }
+
   abstract class Base implements SystemNexusWorkflowOutboundInterceptor {
     protected abstract SystemNexusWorkflowOutboundInterceptor nextSystemNexusInterceptor();
-    @Override public  io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<io.temporal.workflow.SignalWithStartWorkflowResponse> executeSignalWithStartWorkflow(io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<io.temporal.workflow.SignalWithStartWorkflowResponse> input) { return nextSystemNexusInterceptor().executeSignalWithStartWorkflow(input); }
+
+    @Override
+    public io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                .ExecuteNexusOperationOutput<
+            io.temporal.workflow.SignalWithStartWorkflowResponse>
+        executeSignalWithStartWorkflow(
+            io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+                        .ExecuteNexusOperationInput<
+                    io.temporal.workflow.SignalWithStartWorkflowResponse>
+                input) {
+      return nextSystemNexusInterceptor().executeSignalWithStartWorkflow(input);
+    }
   }
 }
