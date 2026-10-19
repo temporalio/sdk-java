@@ -335,3 +335,38 @@ tasks.named('check') {
     dependsOn(testing.suites.jackson3Tests)
     dependsOn(testing.suites.virtualThreadTests)
 }
+
+// Explicit regeneration keeps normal SDK builds independent of the Rust toolchain.
+// Use -PnexgenBinary=/path/to/nexgen to test an unreleased generator.
+def nexusGeneratedDir = layout.buildDirectory.dir('generated/nexus/workflowservice').get().asFile
+def nexusCheckedInDir = file('src/main/java/io/temporal/nexus/system/workflowservice')
+tasks.register('generateNexusSystemApi', Exec) {
+    dependsOn ':temporal-serviceclient:generateProto'
+    def binary = providers.gradleProperty('nexgenBinary').orElse('nexgen')
+    inputs.dir('src/main/nexus')
+    inputs.file(project(':temporal-serviceclient').layout.buildDirectory.file('generated/descriptors/temporal-api.desc'))
+    inputs.property('nexgenVersion', '0.2.9')
+    outputs.dir(nexusGeneratedDir)
+    outputs.upToDateWhen { false }
+    commandLine binary.get(), 'java', file('src/main/nexus/workflow-service.wit'),
+        file('src/main/nexus/deps'), '--native-api', '--system-nexus',
+        '--support-package', 'io.temporal.internal.nexus.system.TemporalModelConverters',
+        '--package-name', 'io.temporal.nexus.system.workflowservice',
+        '--descriptors', project(':temporal-serviceclient').layout.buildDirectory.file('generated/descriptors/temporal-api.desc').get().asFile,
+        '--output', nexusGeneratedDir
+    doFirst {
+        def versionOutput = new ByteArrayOutputStream()
+        project.exec { invocation ->
+            invocation.commandLine(binary.get(), '--version')
+            invocation.standardOutput = versionOutput
+        }
+        if (versionOutput.toString('UTF-8').trim() != 'nexgen 0.2.9') {
+            throw new GradleException('System Nexus regeneration requires nexgen 0.2.9 with the advanced feature.')
+        }
+        delete nexusGeneratedDir
+    }
+    doLast { project.sync { spec -> spec.from(nexusGeneratedDir); spec.into(nexusCheckedInDir) } }
+}
+tasks.matching { it.name == 'compileJava' || it.name.startsWith('spotless') }.configureEach {
+    mustRunAfter 'generateNexusSystemApi'
+}

@@ -113,18 +113,14 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   public <T> Optional<Payload> toPayload(T value) {
     Optional<Payload> payload =
         ConverterUtils.withContext(dataConverter, serializationContext).toPayload(value);
-    List<Payload> encodedPayloads =
-        ConverterUtils.withContext(chainCodec, serializationContext)
-            .encode(Collections.singletonList(payload.get()));
+    List<Payload> encodedPayloads = encode(Collections.singletonList(payload.get()));
     Preconditions.checkState(encodedPayloads.size() == 1, "Expected one encoded payload");
     return Optional.of(encodedPayloads.get(0));
   }
 
   @Override
   public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType) {
-    List<Payload> decodedPayload =
-        ConverterUtils.withContext(chainCodec, serializationContext)
-            .decode(Collections.singletonList(payload));
+    List<Payload> decodedPayload = decode(Collections.singletonList(payload));
     Preconditions.checkState(decodedPayload.size() == 1, "Expected one decoded payload");
     return ConverterUtils.withContext(dataConverter, serializationContext)
         .fromPayload(decodedPayload.get(0), valueClass, valueType);
@@ -135,9 +131,7 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
     Optional<Payloads> payloads =
         ConverterUtils.withContext(dataConverter, serializationContext).toPayloads(values);
     if (payloads.isPresent()) {
-      List<Payload> encodedPayloads =
-          ConverterUtils.withContext(chainCodec, serializationContext)
-              .encode(payloads.get().getPayloadsList());
+      List<Payload> encodedPayloads = encode(payloads.get().getPayloadsList());
       payloads = Optional.of(Payloads.newBuilder().addAllPayloads(encodedPayloads).build());
     }
     return payloads;
@@ -193,13 +187,31 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   @Nonnull
   @Override
   public List<Payload> encode(@Nonnull List<Payload> payloads) {
-    return ConverterUtils.withContext(chainCodec, serializationContext).encode(payloads);
+    return visitSystemEnvelopes(payloads, true);
   }
 
   @Nonnull
   @Override
   public List<Payload> decode(@Nonnull List<Payload> payloads) {
-    return ConverterUtils.withContext(chainCodec, serializationContext).decode(payloads);
+    return visitSystemEnvelopes(payloads, false);
+  }
+
+  private List<Payload> visitSystemEnvelopes(List<Payload> payloads, boolean encode) {
+    PayloadCodec codec = ConverterUtils.withContext(chainCodec, serializationContext);
+    if (payloads.stream()
+        .noneMatch(io.temporal.internal.payload.visitor.SystemNexusPayloads::isSystemPayload)) {
+      return encode ? codec.encode(payloads) : codec.decode(payloads);
+    }
+    return io.temporal.internal.payload.visitor.PayloadVisitors.visit(
+            Payloads.newBuilder().addAllPayloads(payloads).build(),
+            io.temporal.internal.payload.visitor.PayloadVisitorOptions.newBuilder(
+                    (context, nested) ->
+                        java.util.concurrent.CompletableFuture.completedFuture(
+                            encode ? codec.encode(nested) : codec.decode(nested)))
+                .setSkipSearchAttributes(true)
+                .build())
+        .join()
+        .getPayloadsList();
   }
 
   private Failure.Builder encodeFailure(Failure.Builder failure) {

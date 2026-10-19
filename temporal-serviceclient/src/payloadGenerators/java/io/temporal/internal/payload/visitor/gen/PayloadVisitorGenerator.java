@@ -87,29 +87,55 @@ public final class PayloadVisitorGenerator {
       throw new IllegalArgumentException(
           "usage: PayloadVisitorGenerator <descriptor-set-file> <output-source-root>");
     }
-    new PayloadVisitorGenerator().run(Paths.get(args[0]), Paths.get(args[1]));
+    new PayloadVisitorGenerator()
+        .run(Paths.get(args[0]), Paths.get(args[1]), args.length > 2 ? Paths.get(args[2]) : null);
   }
 
   private ProtoClosure closure;
+  private final java.util.Set<String> systemRoots = new java.util.TreeSet<>();
 
   void run(Path descriptorSetFile, Path outputRoot)
       throws IOException, DescriptorValidationException {
+    run(descriptorSetFile, outputRoot, null);
+  }
+
+  void run(Path descriptorSetFile, Path outputRoot, Path systemRootsFile)
+      throws IOException, DescriptorValidationException {
     Map<String, FileDescriptor> files = ProtoDescriptorSets.load(descriptorSetFile);
+    if (systemRootsFile != null) {
+      for (String line : Files.readAllLines(systemRootsFile, StandardCharsets.UTF_8)) {
+        if (!line.trim().isEmpty()) systemRoots.add(line.trim());
+      }
+    }
     List<FileDescriptor> seeds =
         Arrays.asList(
             ProtoDescriptorSets.require(files, WORKFLOW_SERVICE_PROTO),
             ProtoDescriptorSets.require(files, OPERATOR_SERVICE_PROTO));
 
-    this.closure = ProtoClosure.of(seeds);
+    Map<String, Descriptor> messages = new TreeMap<>();
+    for (FileDescriptor file : files.values()) {
+      for (Descriptor descriptor : file.getMessageTypes()) indexMessages(descriptor, messages);
+    }
+    List<Descriptor> roots = new ArrayList<>();
+    for (String name : systemRoots) {
+      Descriptor root = messages.get(name);
+      if (root == null) throw new IllegalStateException("Unknown system Nexus root: " + name);
+      roots.add(root);
+    }
+    this.closure = ProtoClosure.of(seeds, roots);
 
     // Deterministic output order, keyed by descriptor full name.
     Map<String, Descriptor> emitted = new TreeMap<>();
     for (Descriptor d : closure.allMessages) {
-      if (reaches(d)) {
+      if (reaches(d) || systemRoots.contains(d.getFullName())) {
         emitted.put(d.getFullName(), d);
       }
     }
 
+    for (String root : systemRoots) {
+      if (!emitted.containsKey(root))
+        throw new IllegalStateException("Unknown system Nexus root: " + root);
+    }
     String source = emit(emitted);
 
     Path dir = outputRoot;
@@ -120,6 +146,11 @@ public final class PayloadVisitorGenerator {
     Path out = dir.resolve(OUTPUT_CLASS + ".java");
     Files.write(out, source.getBytes(StandardCharsets.UTF_8));
     System.out.println("PayloadVisitorGenerator: wrote " + emitted.size() + " visitors to " + out);
+  }
+
+  private static void indexMessages(Descriptor descriptor, Map<String, Descriptor> messages) {
+    messages.put(descriptor.getFullName(), descriptor);
+    for (Descriptor nested : descriptor.getNestedTypes()) indexMessages(nested, messages);
   }
 
   // --- Reachability + classification ---
@@ -186,9 +217,22 @@ public final class PayloadVisitorGenerator {
     sb.append("final class ").append(OUTPUT_CLASS).append(" {\n");
     sb.append("  private ").append(OUTPUT_CLASS).append("() {}\n\n");
 
+    sb.append("  private static Map<String, MessageRegistryEntry> buildSystemRoots() {\n");
+    sb.append("    Map<String, MessageRegistryEntry> m = new HashMap<>();\n");
+    for (String root : systemRoots) {
+      sb.append("    m.put(\"")
+          .append(root)
+          .append("\", REGISTRY.get(\"")
+          .append(root)
+          .append("\"));\n");
+    }
+    sb.append("    return m;\n  }\n");
+
     List<Descriptor> list = new ArrayList<>(emitted.values());
 
     sb.append("  static final Map<String, MessageRegistryEntry> REGISTRY = buildRegistry();\n\n");
+    sb.append(
+        "  static final Map<String, MessageRegistryEntry> SYSTEM_ROOTS = buildSystemRoots();\n");
     sb.append("  private static Map<String, MessageRegistryEntry> buildRegistry() {\n");
     sb.append("    Map<String, MessageRegistryEntry> m = new HashMap<>(")
         .append(Math.max(16, list.size() * 2))
