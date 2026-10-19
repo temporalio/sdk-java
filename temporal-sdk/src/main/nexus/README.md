@@ -1,8 +1,11 @@
 # System Nexus bindings
 
-The WIT definitions here describe the workflow-facing Java models for the
-vendored workflow service. They retain the upstream wire schema and add Java
-native type and serialization context annotations. Protobuf descriptors from
+The WIT definitions here are a temporary copy of the shared multi-language
+definitions in nex-gen's `advanced/samples/inputs/workflow-service.wit` and
+`deps/nexus-temporal-types/model.wit`. Keep the copies identical; Java directives
+belong in the shared source alongside the other languages. The SDK will
+eventually consume these definitions from the API repo instead. Protobuf
+descriptors from
 `temporal-serviceclient:generateProto` validate the mappings during generation.
 
 Regenerate with nex-gen 0.2.9 built with its `advanced` feature:
