@@ -56,6 +56,33 @@ import org.slf4j.Logger;
 public final class Workflow {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
 
+  /** Creates a typed stub whose workflow and signal calls can be captured by signalWithStart. */
+  @Experimental
+  public static <T> T newSignalWithStartWorkflowStub(
+      Class<T> workflowInterface, SignalWithStartWorkflowOptions options) {
+    return io.temporal.internal.sync.SignalWithStartWorkflowInvocationHandler.newStub(
+        workflowInterface, options);
+  }
+
+  /** Creates an untyped stub for signaling a workflow and starting it if necessary. */
+  @Experimental
+  public static SignalWithStartWorkflowStub newUntypedSignalWithStartWorkflowStub(
+      String workflowType, SignalWithStartWorkflowOptions options) {
+    return new io.temporal.internal.sync.SignalWithStartWorkflowStubImpl(workflowType, options);
+  }
+
+  /**
+   * Captures a workflow call and signal call on target, then sends one atomic system Nexus
+   * operation. Returns an external stub after signal delivery/start completes. Use Async.function
+   * for a Promise.
+   */
+  @Experimental
+  public static <T> T signalWithStart(
+      T target, Functions.Proc workflowCall, Functions.Proc signalCall) {
+    return io.temporal.internal.sync.SignalWithStartWorkflowInvocationHandler.signalWithStart(
+        target, workflowCall, signalCall);
+  }
+
   /**
    * Creates client stub to activities that implement given interface. `
    *
