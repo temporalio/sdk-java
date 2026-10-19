@@ -9,7 +9,7 @@ import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.RawValue;
 import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.visitor.SystemNexusPayloads;
-import io.temporal.nexus.system.workflowservice.NexgenRuntime;
+import io.temporal.workflow.NexgenRuntime;
 import java.lang.reflect.Type;
 import java.util.Optional;
 import javax.annotation.Nonnull;

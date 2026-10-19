@@ -3,11 +3,11 @@ package io.temporal.workflow.nexus;
 import static org.junit.Assert.*;
 
 import io.temporal.common.interceptors.*;
-import io.temporal.nexus.system.workflowservice.SignalWithStartWorkflowRequest;
-import io.temporal.nexus.system.workflowservice.SignalWithStartWorkflowResponse;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.*;
+import io.temporal.workflow.SignalWithStartWorkflowRequest;
+import io.temporal.workflow.SignalWithStartWorkflowResponse;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -61,21 +61,8 @@ public class SignalWithStartWorkflowTest {
           .build();
 
   @Test
-  public void typedUntypedAndAsyncCallsReturnExternalStubs() {
-    assertEquals(
-        "typed:run,untyped:run,async:run", rule.newWorkflowStubTimeoutOptions(Caller.class).run());
-  }
-
-  @WorkflowInterface
-  public interface Target {
-    @WorkflowMethod(name = "Target")
-    String run(String value);
-
-    @SignalMethod(name = "notify")
-    void notifySignal(String value);
-
-    @QueryMethod
-    String query();
+  public void generatedWorkflowMethodsReturnExternalStubs() {
+    assertEquals("sync:run,async:run", rule.newWorkflowStubTimeoutOptions(Caller.class).run());
   }
 
   @WorkflowInterface
@@ -87,64 +74,27 @@ public class SignalWithStartWorkflowTest {
   public static class CallerImpl implements Caller {
     @Override
     public String run() {
-      SignalWithStartWorkflowOptions options =
-          SignalWithStartWorkflowOptions.newBuilder()
-              .setWorkflowId("typed")
+      SignalWithStartWorkflowRequest request =
+          SignalWithStartWorkflowRequest.newBuilder()
+              .setWorkflow("Target")
+              .setSignal("notify")
+              .setId("sync")
               .setTaskQueue("queue")
+              .setArgs(java.util.Collections.singletonList("input"))
+              .setSignalArgs(java.util.Collections.singletonList("signal"))
               .build();
-      Target target = Workflow.newSignalWithStartWorkflowStub(Target.class, options);
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              Workflow.signalWithStart(
-                  target,
-                  () -> {
-                    target.run("input");
-                    target.run("duplicate");
-                  },
-                  () -> target.notifySignal("signal")));
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              Workflow.signalWithStart(
-                  target, () -> target.query(), () -> target.notifySignal("signal")));
-      Target other = Workflow.newSignalWithStartWorkflowStub(Target.class, options);
-      assertThrows(
-          IllegalStateException.class,
-          () ->
-              Workflow.signalWithStart(
-                  target, () -> other.run("input"), () -> target.notifySignal("signal")));
-      Target external =
-          Workflow.signalWithStart(
-              target, () -> target.run("input"), () -> target.notifySignal("signal"));
-      String typed =
-          Workflow.getWorkflowExecution(external).get().getWorkflowId()
-              + ":"
-              + Workflow.getWorkflowExecution(external).get().getRunId();
-      ExternalWorkflowStub untyped =
-          Workflow.newUntypedSignalWithStartWorkflowStub(
-                  "Target", options.toBuilder().setWorkflowId("untyped").build())
-              .signalWithStart("notify", new Object[] {"signal"}, "input");
-      Target asyncTarget =
-          Workflow.newSignalWithStartWorkflowStub(
-              Target.class, options.toBuilder().setWorkflowId("async").build());
-      Target async =
+      ExternalWorkflowStub sync = Workflow.signalWithStartWorkflow(request);
+      ExternalWorkflowStub async =
           Async.function(
-                  () ->
-                      Workflow.signalWithStart(
-                          asyncTarget,
-                          () -> asyncTarget.run("input"),
-                          () -> asyncTarget.notifySignal("signal")))
+                  Workflow::signalWithStartWorkflow, request.toBuilder().setId("async").build())
               .get();
-      return typed
-          + ","
-          + untyped.getExecution().getWorkflowId()
+      return sync.getExecution().getWorkflowId()
           + ":"
-          + untyped.getExecution().getRunId()
+          + sync.getExecution().getRunId()
           + ","
-          + Workflow.getWorkflowExecution(async).get().getWorkflowId()
+          + async.getExecution().getWorkflowId()
           + ":"
-          + Workflow.getWorkflowExecution(async).get().getRunId();
+          + async.getExecution().getRunId();
     }
   }
 }

@@ -159,7 +159,7 @@ def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) 
     mustRunAfter ':temporal-sdk:generateNexusSystemApi'
     classpath = sourceSets.payloadGenerators.runtimeClasspath
     mainClass = 'io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator'
-    def systemRoots = project(':temporal-sdk').file('src/main/java/io/temporal/nexus/system/workflowservice/system-nexus-roots.txt')
+    def systemRoots = project(':temporal-sdk').file('src/main/generated/io/temporal/workflow/system-nexus-roots.txt')
     args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath, systemRoots.absolutePath
     inputs.file(systemRoots)
     inputs.file(apiDescriptorSet)

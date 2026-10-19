@@ -75,7 +75,8 @@ to docs, or any other relevant information.
   server side for now for load balancing pollers between workers, and for creating a per-worker
   poller count metric.)
 - Workflows can signal with start through the system workflow service using
-  `Workflow.newSignalWithStartWorkflowStub`, `Workflow.signalWithStart`, or the untyped equivalent.
+  generated `Workflow.signalWithStartWorkflow(SignalWithStartWorkflowRequest)` API.
+  Request builders and operations are generated into `io.temporal.workflow`.
   System Nexus envelopes preserve destination workflow serialization context for nested payloads,
   codecs, and external payload storage. Requires a server supporting the system workflow service.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and

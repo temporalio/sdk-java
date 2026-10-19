@@ -7,7 +7,7 @@ world system {
 /// @nexus.endpoint "__temporal_system"
 /// @nexus.service-name "temporal.api.workflowservice.v1.WorkflowService"
 /// @nexus.namespace dotnet="Temporalio.Workflows"
-/// @nexus.operations-class dotnet="Workflow"
+/// @nexus.operations-class java="WorkflowOperations" dotnet="Workflow"
 /// @nexus.delay-load-temporalio-workflow
 /// @nexus.experimental
 interface workflow-service {
@@ -61,8 +61,8 @@ interface workflow-service {
     task-timeout: option<duration>,
     /// @nexus.omit
     identity: placeholder,
-    /// @nexus.doc "Request ID used to deduplicate workflow start requests."
-    request-id: option<string>,
+    /// @nexus.omit
+    request-id: placeholder,
     /// @nexus.doc "Behavior when a closed workflow with the same ID exists. Default is allow-duplicate."
     /// @nexus.proto-field "workflow_id_reuse_policy"
     /// @nexus.default "allow-duplicate"
@@ -113,6 +113,8 @@ interface workflow-service {
   ///   "Signal a workflow, starting it first if needed."
   ///   returns="A workflow handle to the started workflow."
   /// @nexus.output-transform
+  ///   java-type="io.temporal.workflow.ExternalWorkflowStub"
+  ///   java="io.temporal.workflow.Workflow.newUntypedExternalWorkflowStub(io.temporal.api.common.v1.WorkflowExecution.newBuilder().setWorkflowId(request.getId()).setRunId(result.getRunId() == null ? \"\" : result.getRunId()).build())"
   ///   python-type="temporalio.workflow.ExternalWorkflowHandle[WorkflowResult]"
   ///   python="temporalio.workflow.get_external_workflow_handle(request.id, run_id=result.run_id)"
   ///   typescript-type="workflow.ExternalWorkflowHandle"

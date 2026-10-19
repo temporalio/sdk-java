@@ -74,17 +74,26 @@ public class SystemSignalWithStartIntegrationTest {
     @Override
     public String run() {
       String id = Workflow.getInfo().getWorkflowId() + "-target";
-      SignalWithStartWorkflowOptions options =
-          SignalWithStartWorkflowOptions.newBuilder()
-              .setWorkflowId(id)
-              .setWorkflowIdConflictPolicy(
+      SignalWithStartWorkflowRequest request =
+          SignalWithStartWorkflowRequest.newBuilder()
+              .setWorkflow("SystemSignalTarget")
+              .setSignal("notifySignal")
+              .setId(id)
+              .setTaskQueue(Workflow.getInfo().getTaskQueue())
+              .setIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
+              .setArgs(java.util.Collections.singletonList("start"))
+              .setSignalArgs(java.util.Collections.singletonList("first"))
               .build();
-      Target target = Workflow.newSignalWithStartWorkflowStub(Target.class, options);
-      Workflow.signalWithStart(
-          target, () -> target.run("start"), () -> target.notifySignal("first"));
-      Workflow.signalWithStart(
-          target, () -> target.run("ignored"), () -> target.notifySignal("second"));
+      ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(request);
+      assertEquals(id, external.getExecution().getWorkflowId());
+      Async.function(
+              Workflow::signalWithStartWorkflow,
+              request.toBuilder()
+                  .setArgs(java.util.Collections.singletonList("ignored"))
+                  .setSignalArgs(java.util.Collections.singletonList("second"))
+                  .build())
+          .get();
       return id;
     }
   }

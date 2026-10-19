@@ -7,10 +7,10 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.common.converter.*;
 import io.temporal.internal.payload.visitor.SystemNexusPayloads;
-import io.temporal.nexus.system.workflowservice.*;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.workflow.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -38,6 +38,29 @@ public class SystemNexusDataConverterTest {
   }
 
   @Test
+  public void decodesUnmarkedServerResponse() {
+    Payload response =
+        SystemNexusPayloads.pack(
+                io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse
+                    .newBuilder()
+                    .setRunId("run")
+                    .setStarted(true)
+                    .build())
+            .toBuilder()
+            .removeMetadata("__temporal_system_payload")
+            .build();
+    assertFalse(SystemNexusPayloads.isSystemPayload(response));
+    SignalWithStartWorkflowResponse decoded =
+        new SystemNexusDataConverter(DefaultDataConverter.STANDARD_INSTANCE)
+            .fromPayload(
+                response,
+                SignalWithStartWorkflowResponse.class,
+                SignalWithStartWorkflowResponse.class);
+    assertEquals("run", decoded.getRunId());
+    assertEquals(Boolean.TRUE, decoded.getStarted());
+  }
+
+  @Test
   public void nestedPayloadsUseDestinationContextAndOuterEnvelopeBypassesCodecs() throws Exception {
     SignalWithStartWorkflowRequest request = request("target");
     WorkflowSerializationContext context =
@@ -56,6 +79,7 @@ public class SystemNexusDataConverterTest {
     assertFalse(encoded.getMetadataMap().containsKey("test-context"));
     SignalWithStartWorkflowExecutionRequest wire =
         SignalWithStartWorkflowExecutionRequest.parseFrom(encoded.getData());
+    assertEquals("", wire.getRequestId());
     assertEquals(
         "target", wire.getInput().getPayloads(0).getMetadataOrThrow("test-context").toStringUtf8());
     assertEquals(
