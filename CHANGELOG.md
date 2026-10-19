@@ -47,6 +47,9 @@ to docs, or any other relevant information.
 ## [1.41.0] - 2026-11-16
 
 ### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` now includes generated system Nexus operation hooks.
+  Direct implementations must implement the hooks; extending `WorkflowOutboundCallsInterceptorBase`
+  provides forwarding implementations.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
@@ -71,6 +74,10 @@ to docs, or any other relevant information.
   reports its current target, a fixed-size pool its configured size. (We'll use this count on the
   server side for now for load balancing pollers between workers, and for creating a per-worker
   poller count metric.)
+- Workflows can signal with start through the system workflow service using
+  `Workflow.newSignalWithStartWorkflowStub`, `Workflow.signalWithStart`, or the untyped equivalent.
+  System Nexus envelopes preserve destination workflow serialization context for nested payloads,
+  codecs, and external payload storage. Requires a server supporting the system workflow service.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
