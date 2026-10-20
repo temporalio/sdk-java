@@ -1,11 +1,13 @@
 package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.opentracing.OpenTracingClientInterceptor;
@@ -29,6 +31,9 @@ public class WorkflowClientOptionsTemplate {
       scheduleCustomizers;
   private final @Nullable List<WorkflowClientPlugin> workflowClientPlugins;
   private final @Nullable List<ScheduleClientPlugin> scheduleClientPlugins;
+  private final @Nullable List<ActivityClientInterceptor> activityClientInterceptors;
+  private final @Nullable List<TemporalOptionsCustomizer<ActivityClientOptions.Builder>>
+      activityCustomizers;
 
   public WorkflowClientOptionsTemplate(
       @Nonnull String namespace,
@@ -39,7 +44,10 @@ public class WorkflowClientOptionsTemplate {
       @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
       @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
       @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
-      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins) {
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Nullable List<ActivityClientInterceptor> activityClientInterceptors,
+      @Nullable
+          List<TemporalOptionsCustomizer<ActivityClientOptions.Builder>> activityCustomizers) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.workflowClientInterceptors = workflowClientInterceptors;
@@ -49,31 +57,8 @@ public class WorkflowClientOptionsTemplate {
     this.scheduleCustomizers = scheduleCustomizers;
     this.workflowClientPlugins = workflowClientPlugins;
     this.scheduleClientPlugins = scheduleClientPlugins;
-  }
-
-  /**
-   * @deprecated Use constructor with plugins parameters
-   */
-  @Deprecated
-  public WorkflowClientOptionsTemplate(
-      @Nonnull String namespace,
-      @Nullable DataConverter dataConverter,
-      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
-      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
-      @Nullable Tracer tracer,
-      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
-      @Nullable
-          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
-    this(
-        namespace,
-        dataConverter,
-        workflowClientInterceptors,
-        scheduleClientInterceptors,
-        tracer,
-        clientCustomizers,
-        scheduleCustomizers,
-        null,
-        null);
+    this.activityClientInterceptors = activityClientInterceptors;
+    this.activityCustomizers = activityCustomizers;
   }
 
   public WorkflowClientOptions createWorkflowClientOptions() {
@@ -122,6 +107,24 @@ public class WorkflowClientOptionsTemplate {
     if (scheduleCustomizers != null) {
       for (TemporalOptionsCustomizer<ScheduleClientOptions.Builder> customizer :
           scheduleCustomizers) {
+        options = customizer.customize(options);
+      }
+    }
+
+    return options.build();
+  }
+
+  public ActivityClientOptions createActivityClientOptions() {
+    ActivityClientOptions.Builder options =
+        ActivityClientOptions.newBuilder().setNamespace(namespace);
+    Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
+    if (activityClientInterceptors != null && !activityClientInterceptors.isEmpty()) {
+      options.setInterceptors(activityClientInterceptors);
+    }
+
+    if (activityCustomizers != null) {
+      for (TemporalOptionsCustomizer<ActivityClientOptions.Builder> customizer :
+          activityCustomizers) {
         options = customizer.customize(options);
       }
     }
