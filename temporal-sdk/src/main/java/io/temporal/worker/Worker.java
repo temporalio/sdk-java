@@ -84,6 +84,7 @@ public final class Worker {
   // Reported in every heartbeat (including the one embedded in ShutdownWorkerRequest) until the
   // server accepts one, then cleared so it is sent only once per worker.
   private final AtomicReference<EnvironmentInfo> pendingEnvironmentInfo = new AtomicReference<>();
+  private final AtomicReference<Class<?>> kotlinImplementationClass = new AtomicReference<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -287,6 +288,7 @@ public final class Worker {
 
     workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
+    recordKotlinImplementations(workflowImplementationClasses);
   }
 
   /**
@@ -311,6 +313,7 @@ public final class Worker {
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
     workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
+    recordKotlinImplementations(workflowImplementationClasses);
   }
 
   /**
@@ -419,6 +422,53 @@ public final class Worker {
   }
 
   /**
+   * Registers a workflow factory with its implementation class for worker environment reporting.
+   *
+   * <p>The implementation class is used only for metadata detection. The factory remains
+   * responsible for creating workflow instances and is not invoked during registration.
+   *
+   * @param workflowInterface workflow interface implemented by the factory's instances
+   * @param implementationClass implementation class created by the factory
+   * @param factory factory that creates a new workflow instance each time it is called
+   * @param options custom workflow implementation options for a worker
+   * @see #registerWorkflowImplementationFactory(Class, Func, WorkflowImplementationOptions)
+   */
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Class<? extends R> implementationClass,
+      Func<R> factory,
+      WorkflowImplementationOptions options) {
+    Objects.requireNonNull(implementationClass, "implementationClass");
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
+    recordKotlinImplementations(implementationClass);
+  }
+
+  /**
+   * Registers a workflow factory accepting workflow arguments with its implementation class for
+   * worker environment reporting.
+   *
+   * <p>The implementation class is used only for metadata detection. The factory remains
+   * responsible for creating workflow instances and is not invoked during registration.
+   *
+   * @param workflowInterface workflow interface implemented by the factory's instances
+   * @param implementationClass implementation class created by the factory
+   * @param factory factory that creates a new workflow instance from workflow arguments each time
+   *     it is called
+   * @param options custom workflow implementation options for a worker
+   * @see #registerWorkflowImplementationFactory(Class, Functions.Func1,
+   *     WorkflowImplementationOptions)
+   */
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Class<? extends R> implementationClass,
+      Functions.Func1<EncodedValues, R> factory,
+      WorkflowImplementationOptions options) {
+    Objects.requireNonNull(implementationClass, "implementationClass");
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
+    recordKotlinImplementations(implementationClass);
+  }
+
+  /**
    * Configures a factory to use when an instance of a workflow implementation is created.
    *
    * <p>The only valid use for this method is unit testing and mocking. <br>
@@ -487,6 +537,22 @@ public final class Worker {
       activityWorker.registerActivityImplementations(activityImplementations);
     }
     workflowWorker.registerLocalActivityImplementations(activityImplementations);
+    for (Object implementation : activityImplementations) {
+      recordKotlinImplementations(implementation.getClass());
+    }
+  }
+
+  private void recordKotlinImplementations(Class<?>... implementationClasses) {
+    if (clientOptions.isWorkerEnvironmentInfoDisabled()
+        || kotlinImplementationClass.get() != null) {
+      return;
+    }
+    for (Class<?> implementationClass : implementationClasses) {
+      if (WorkerEnvironmentInfo.isKotlinImplementation(implementationClass)) {
+        kotlinImplementationClass.compareAndSet(null, implementationClass);
+        return;
+      }
+    }
   }
 
   /**
@@ -609,7 +675,8 @@ public final class Worker {
 
   Supplier<WorkerHeartbeat> buildHeartbeatCallback(
       String workerGroupingKey, @Nullable EnvironmentInfo environmentInfo) {
-    pendingEnvironmentInfo.set(environmentInfo);
+    pendingEnvironmentInfo.set(
+        WorkerEnvironmentInfo.withKotlinRuntime(environmentInfo, kotlinImplementationClass.get()));
     // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
     final Object callbackLock = new Object();
     final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
