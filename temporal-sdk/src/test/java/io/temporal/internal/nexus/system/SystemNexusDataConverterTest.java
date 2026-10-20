@@ -135,16 +135,47 @@ public class SystemNexusDataConverterTest {
                 SignalWithStartWorkflowResponse.class)
             .getRunId());
     assertSame(encoded, converter.toPayload(new RawValue(encoded)).get());
-    DataConverter original = NexgenRuntime.dataConverter();
+    assertThrows(IllegalStateException.class, TemporalModelConverters::currentDataConverter);
+  }
+
+  @Test
+  public void converterScopesRestoreAfterNestedFailure() {
+    DataConverter outer = DefaultDataConverter.STANDARD_INSTANCE;
+    DataConverter inner = new DefaultDataConverter();
+    assertThrows(IllegalStateException.class, TemporalModelConverters::currentDataConverter);
+    SystemNexusDataConverter.withDataConverter(
+        outer,
+        () -> {
+          assertSame(outer, TemporalModelConverters.currentDataConverter());
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  SystemNexusDataConverter.withDataConverter(
+                      inner,
+                      () -> {
+                        assertSame(inner, TemporalModelConverters.currentDataConverter());
+                        throw new IllegalArgumentException("test");
+                      }));
+          assertSame(outer, TemporalModelConverters.currentDataConverter());
+          return null;
+        });
+    assertThrows(IllegalStateException.class, TemporalModelConverters::currentDataConverter);
+  }
+
+  @Test
+  public void transferConversionRequiresActiveUserConverter() {
+    SignalWithStartWorkflowRequest.Converter converter =
+        new SignalWithStartWorkflowRequest.Converter();
+    IllegalStateException encodeFailure =
+        assertThrows(
+            IllegalStateException.class, () -> converter.toTransferType(request("target")));
+    assertEquals("System Nexus user converter context is not active", encodeFailure.getMessage());
     assertThrows(
         IllegalStateException.class,
         () ->
-            NexgenRuntime.withDataConverter(
-                converter,
-                () -> {
-                  throw new IllegalStateException("test");
-                }));
-    assertSame(original, NexgenRuntime.dataConverter());
+            converter.fromTransferType(
+                SignalWithStartWorkflowExecutionRequest.getDefaultInstance(),
+                SignalWithStartWorkflowRequest.class));
   }
 
   @Test
@@ -181,7 +212,7 @@ public class SystemNexusDataConverterTest {
                 SignalWithStartWorkflowRequest.class,
                 SignalWithStartWorkflowRequest.class)
             .getId());
-    assertSame(DefaultDataConverter.STANDARD_INSTANCE, NexgenRuntime.dataConverter());
+    assertThrows(IllegalStateException.class, TemporalModelConverters::currentDataConverter);
   }
 
   @Test

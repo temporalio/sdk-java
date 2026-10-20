@@ -79,11 +79,9 @@ public final class UserMetadata {
     io.temporal.api.sdk.v1.UserMetadata.Builder proto =
         io.temporal.api.sdk.v1.UserMetadata.newBuilder();
     if (this.staticSummary != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto, "summary", converter.toPayload((this.staticSummary)).get());
+      proto.setSummary(converter.toPayload((this.staticSummary)).get());
     if (this.staticDetails != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto, "details", converter.toPayload((this.staticDetails)).get());
+      proto.setDetails(converter.toPayload((this.staticDetails)).get());
     return proto.build();
   }
 
@@ -92,20 +90,12 @@ public final class UserMetadata {
       io.temporal.common.converter.DataConverter converter,
       java.lang.reflect.Type modelType) {
     Builder builder = UserMetadata.newBuilder();
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "summary"))
+    if (proto.hasSummary())
       builder.setStaticSummary(
-          (Object)
-              io.temporal.workflow.NexgenRuntime.decode(
-                  io.temporal.workflow.NexgenRuntime.get(proto, "summary"),
-                  converter,
-                  Object.class));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "details"))
+          (Object) converter.fromPayload(proto.getSummary(), Object.class, Object.class));
+    if (proto.hasDetails())
       builder.setStaticDetails(
-          (Object)
-              io.temporal.workflow.NexgenRuntime.decode(
-                  io.temporal.workflow.NexgenRuntime.get(proto, "details"),
-                  converter,
-                  Object.class));
+          (Object) converter.fromPayload(proto.getDetails(), Object.class, Object.class));
     return builder.build();
   }
 
@@ -118,7 +108,8 @@ public final class UserMetadata {
     public Object toTransferType(UserMetadata value) {
       return value == null
           ? null
-          : value.toProto(io.temporal.workflow.NexgenRuntime.dataConverter());
+          : value.toProto(
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
     }
 
     public UserMetadata fromTransferType(Object value, java.lang.reflect.Type valueType) {
@@ -126,7 +117,7 @@ public final class UserMetadata {
           ? null
           : fromProto(
               (io.temporal.api.sdk.v1.UserMetadata) value,
-              io.temporal.workflow.NexgenRuntime.dataConverter(),
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
               valueType);
     }
   }

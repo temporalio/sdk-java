@@ -72,9 +72,8 @@ public final class SignalWithStartWorkflowResponse {
       io.temporal.common.converter.DataConverter converter) {
     io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse.Builder proto =
         io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse.newBuilder();
-    if (this.runId != null) io.temporal.workflow.NexgenRuntime.set(proto, "run_id", (this.runId));
-    if (this.started != null)
-      io.temporal.workflow.NexgenRuntime.set(proto, "started", (this.started));
+    if (this.runId != null) proto.setRunId((this.runId));
+    if (this.started != null) proto.setStarted((this.started));
     return proto.build();
   }
 
@@ -83,9 +82,8 @@ public final class SignalWithStartWorkflowResponse {
       io.temporal.common.converter.DataConverter converter,
       java.lang.reflect.Type modelType) {
     Builder builder = SignalWithStartWorkflowResponse.newBuilder();
-    if (true) builder.setRunId((String) io.temporal.workflow.NexgenRuntime.get(proto, "run_id"));
-    if (true)
-      builder.setStarted((Boolean) io.temporal.workflow.NexgenRuntime.get(proto, "started"));
+    builder.setRunId(proto.getRunId());
+    builder.setStarted(proto.getStarted());
     return builder.build();
   }
 
@@ -99,7 +97,8 @@ public final class SignalWithStartWorkflowResponse {
     public Object toTransferType(SignalWithStartWorkflowResponse value) {
       return value == null
           ? null
-          : value.toProto(io.temporal.workflow.NexgenRuntime.dataConverter());
+          : value.toProto(
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
     }
 
     public SignalWithStartWorkflowResponse fromTransferType(
@@ -108,7 +107,7 @@ public final class SignalWithStartWorkflowResponse {
           ? null
           : fromProto(
               (io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse) value,
-              io.temporal.workflow.NexgenRuntime.dataConverter(),
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
               valueType);
     }
   }

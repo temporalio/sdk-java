@@ -17,6 +17,11 @@ import java.util.Map;
 public final class TemporalModelConverters {
   private TemporalModelConverters() {}
 
+  /** Returns the user converter active during system Nexus transfer conversion. */
+  public static DataConverter currentDataConverter() {
+    return SystemNexusDataConverter.currentDataConverter();
+  }
+
   public static String workflowNamespace() {
     return Workflow.getInfo().getNamespace();
   }
