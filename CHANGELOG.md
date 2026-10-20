@@ -43,6 +43,9 @@ to docs, or any other relevant information.
   set by Temporal SDK in worker context.
 - Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
+- Spring Boot now provides singleton `NexusClient` beans for the root and configured non-root namespaces,
+  with namespace-specific data converters and `TemporalOptionsCustomizer<NexusClientOptions.Builder>`
+  customization. `NexusClientInterceptor` beans are automatically registered for the root client.
 - `Workflow.sleep(Duration, TimerOptions)` and `Workflow.await(Duration, TimerOptions, Supplier)` let workflows set a
   summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
 - Add nonblocking `Async.await` overloads whose promises complete when a workflow condition becomes true or a timeout expires.
