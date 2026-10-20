@@ -3,6 +3,7 @@ package io.temporal.workflow.nexus;
 import static org.junit.Assert.assertEquals;
 
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.WorkflowReplayer;
@@ -82,16 +83,16 @@ public class SystemSignalWithStartIntegrationTest {
               .setTaskQueue(Workflow.getInfo().getTaskQueue())
               .setIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
-              .setArgs(java.util.Collections.singletonList("start"))
-              .setSignalArgs(java.util.Collections.singletonList("first"))
+              .setArgs(DefaultDataConverter.STANDARD_INSTANCE.toPayloads("start").get())
+              .setSignalArgs(DefaultDataConverter.STANDARD_INSTANCE.toPayloads("first").get())
               .build();
       ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(request);
       assertEquals(id, external.getExecution().getWorkflowId());
       Async.function(
               Workflow::signalWithStartWorkflow,
               request.toBuilder()
-                  .setArgs(java.util.Collections.singletonList("ignored"))
-                  .setSignalArgs(java.util.Collections.singletonList("second"))
+                  .setArgs(DefaultDataConverter.STANDARD_INSTANCE.toPayloads("ignored").get())
+                  .setSignalArgs(DefaultDataConverter.STANDARD_INSTANCE.toPayloads("second").get())
                   .build())
           .get();
       return id;
