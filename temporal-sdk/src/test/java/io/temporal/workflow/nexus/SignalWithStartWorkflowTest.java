@@ -43,8 +43,23 @@ public class SignalWithStartWorkflowTest {
                                           request.getNamespace());
                                       assertEquals("notify", request.getSignal());
                                       assertEquals("queue", request.getTaskQueue());
-                                      assertEquals("input", request.getArgs().get(0));
-                                      assertEquals("signal", request.getSignalArgs().get(0));
+                                      assertEquals(
+                                          io.temporal.api.enums.v1.WorkflowIdReusePolicy
+                                              .WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
+                                          request.getIdReusePolicy());
+                                      if (request.getId().equals("defaults")) {
+                                        assertNull(request.getArgs());
+                                        assertNull(request.getSignalArgs());
+                                      } else {
+                                        assertEquals("input", request.getArgs().get(0));
+                                        assertEquals("signal", request.getSignalArgs().get(0));
+                                        assertEquals(
+                                            "summary",
+                                            request.getUserMetadata().getStaticSummary());
+                                        assertEquals(
+                                            java.time.Duration.ofMinutes(3),
+                                            request.getRunTimeout());
+                                      }
                                       return new ExecuteNexusOperationOutput<>(
                                           Workflow.newPromise(
                                               SignalWithStartWorkflowResponse.newBuilder()
@@ -62,7 +77,8 @@ public class SignalWithStartWorkflowTest {
 
   @Test
   public void generatedWorkflowMethodsReturnExternalStubs() {
-    assertEquals("sync:run,async:run", rule.newWorkflowStubTimeoutOptions(Caller.class).run());
+    assertEquals(
+        "sync:run,async:run,defaults:run", rule.newWorkflowStubTimeoutOptions(Caller.class).run());
   }
 
   @WorkflowInterface
@@ -74,27 +90,37 @@ public class SignalWithStartWorkflowTest {
   public static class CallerImpl implements Caller {
     @Override
     public String run() {
-      SignalWithStartWorkflowRequest request =
-          SignalWithStartWorkflowRequest.newBuilder()
-              .setWorkflow("Target")
-              .setSignal("notify")
-              .setId("sync")
-              .setTaskQueue("queue")
-              .setArgs(java.util.Collections.singletonList("input"))
-              .setSignalArgs(java.util.Collections.singletonList("signal"))
+      SignalWithStartWorkflowOptions options =
+          SignalWithStartWorkflowOptions.newBuilder()
+              .setArgs("input")
+              .setSignalArgs("signal")
+              .setStaticSummary("summary")
+              .setRunTimeout(java.time.Duration.ofMinutes(3))
               .build();
-      ExternalWorkflowStub sync = Workflow.signalWithStartWorkflow(request);
+      ExternalWorkflowStub sync =
+          Workflow.signalWithStartWorkflow("Target", "sync", "queue", "notify", options);
       ExternalWorkflowStub async =
           Async.function(
-                  Workflow::signalWithStartWorkflow, request.toBuilder().setId("async").build())
+                  Workflow::signalWithStartWorkflow,
+                  "Target",
+                  "async",
+                  "queue",
+                  "notify",
+                  options.toBuilder().build())
               .get();
+      ExternalWorkflowStub defaults =
+          Workflow.signalWithStartWorkflow("Target", "defaults", "queue", "notify");
       return sync.getExecution().getWorkflowId()
           + ":"
           + sync.getExecution().getRunId()
           + ","
           + async.getExecution().getWorkflowId()
           + ":"
-          + async.getExecution().getRunId();
+          + async.getExecution().getRunId()
+          + ","
+          + defaults.getExecution().getWorkflowId()
+          + ":"
+          + defaults.getExecution().getRunId();
     }
   }
 }

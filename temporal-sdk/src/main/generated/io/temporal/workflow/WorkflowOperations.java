@@ -6,6 +6,59 @@ public abstract class WorkflowOperations {
   protected WorkflowOperations() {}
 
   public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
+      String workflow, String id, String taskQueue, String signal) {
+    return signalWithStartWorkflow(
+        workflow,
+        id,
+        taskQueue,
+        signal,
+        io.temporal.workflow.SignalWithStartWorkflowOptions.getDefaultInstance());
+  }
+
+  /** Signal a workflow, starting it first if needed. */
+  public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
+      String workflow,
+      String id,
+      String taskQueue,
+      String signal,
+      io.temporal.workflow.SignalWithStartWorkflowOptions options) {
+    io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
+        io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
+    requestBuilder.setWorkflow(java.util.Objects.requireNonNull(workflow, "workflow"));
+    requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
+    requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
+    requestBuilder.setSignal(java.util.Objects.requireNonNull(signal, "signal"));
+    if (options != null) {
+      if (options.getArgs() != null) requestBuilder.setArgs(options.getArgs());
+      if (options.getSignalArgs() != null) requestBuilder.setSignalArgs(options.getSignalArgs());
+      if (options.getExecutionTimeout() != null)
+        requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
+      if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
+      if (options.getTaskTimeout() != null) requestBuilder.setTaskTimeout(options.getTaskTimeout());
+      if (options.getIdReusePolicy() != null)
+        requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
+      if (options.getIdConflictPolicy() != null)
+        requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
+      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
+      if (options.getCronSchedule() != null)
+        requestBuilder.setCronSchedule(options.getCronSchedule());
+      if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
+      if (options.getSearchAttributes() != null)
+        requestBuilder.setSearchAttributes(options.getSearchAttributes());
+      if (options.getPriority() != null) requestBuilder.setPriority(options.getPriority());
+      if (options.getVersioningOverride() != null)
+        requestBuilder.setVersioningOverride(options.getVersioningOverride());
+      if (options.getStartDelay() != null) requestBuilder.setStartDelay(options.getStartDelay());
+      if (options.getStaticSummary() != null)
+        requestBuilder.setStaticSummary(options.getStaticSummary());
+      if (options.getStaticDetails() != null)
+        requestBuilder.setStaticDetails(options.getStaticDetails());
+    }
+    io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
+    return executeSignalWithStartWorkflow(request);
+  }
+
+  static io.temporal.workflow.ExternalWorkflowStub executeSignalWithStartWorkflow(
       io.temporal.workflow.SignalWithStartWorkflowRequest request) {
     io.temporal.workflow.SignalWithStartWorkflowResponse result =
         (io.temporal.workflow.SignalWithStartWorkflowResponse)

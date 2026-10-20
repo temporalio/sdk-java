@@ -241,11 +241,11 @@ interface model {
   record user-metadata {
     /// @nexus.doc "Single-line fixed summary for the workflow execution that may appear in UI and CLI. This can be in single-line Temporal Markdown format."
     /// @nexus.proto-field "summary"
-    /// @nexus.flattened-type python="str" typescript="string" dotnet="string" go="string"
+    /// @nexus.flattened-type java="String" python="str" typescript="string" dotnet="string" go="string"
     static-summary: option<payload>,
     /// @nexus.doc "General fixed details for the workflow execution that may appear in UI and CLI. This can be in Temporal Markdown format and can span multiple lines. This value is fixed on the workflow execution and cannot be updated."
     /// @nexus.proto-field "details"
-    /// @nexus.flattened-type python="str" typescript="string" dotnet="string" go="string"
+    /// @nexus.flattened-type java="String" python="str" typescript="string" dotnet="string" go="string"
     static-details: option<payload>,
   }
 }
