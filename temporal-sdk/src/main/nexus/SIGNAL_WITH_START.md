@@ -25,6 +25,26 @@ stub supports further signals and cancellation. Use
 `Async.function(Workflow::signalWithStartWorkflow, workflowType, workflowId,
 taskQueue, signalName, options)` for a promise.
 
+The typed overload checks workflow and signal arguments against their interface:
+
+```java
+ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
+    TargetWorkflow.class, w -> w.run(input), "target", "target-queue",
+    w -> w.notifySignal(signal),
+    SignalWithStartWorkflowOptions.newBuilder().setRunTimeout(timeout).build());
+```
+
+Each callback must invoke exactly one method on its receiver: a `@WorkflowMethod`
+for the workflow callback and a `@SignalMethod` for the signal callback. Calls are
+captured without starting a child or sending a signal, and annotation names and
+inherited methods follow the existing SDK metadata rules. Method references such
+as `TargetWorkflow::run` work for methods without arguments; use a lambda to bind
+arguments. The workflow return value is discarded. The receiver is valid only
+inside its callback. Typed calls take all workflow/signal arguments from these
+callbacks and reject `setArgs` or `setSignalArgs` in options. Both typed and
+name-based forms return an external stub and support `Async.function` and the
+overload omitting options.
+
 `Workflow` inherits generated operations from `WorkflowOperations`. New WIT
 operations become available after regeneration, without adding handwritten
 options, capture proxies, stubs, or facade methods. The output transform, request

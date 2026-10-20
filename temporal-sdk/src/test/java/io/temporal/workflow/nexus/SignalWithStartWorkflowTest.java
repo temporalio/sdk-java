@@ -47,9 +47,14 @@ public class SignalWithStartWorkflowTest {
                                           io.temporal.api.enums.v1.WorkflowIdReusePolicy
                                               .WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
                                           request.getIdReusePolicy());
-                                      if (request.getId().equals("defaults")) {
-                                        assertNull(request.getArgs());
-                                        assertNull(request.getSignalArgs());
+                                      if (request.getId().contains("defaults")) {
+                                        if (request.getId().equals("defaults")) {
+                                          assertNull(request.getArgs());
+                                          assertNull(request.getSignalArgs());
+                                        } else {
+                                          assertTrue(request.getArgs().isEmpty());
+                                          assertTrue(request.getSignalArgs().isEmpty());
+                                        }
                                       } else {
                                         assertEquals("input", request.getArgs().get(0));
                                         assertEquals("signal", request.getSignalArgs().get(0));
@@ -78,7 +83,26 @@ public class SignalWithStartWorkflowTest {
   @Test
   public void generatedWorkflowMethodsReturnExternalStubs() {
     assertEquals(
-        "sync:run,async:run,defaults:run", rule.newWorkflowStubTimeoutOptions(Caller.class).run());
+        "sync:run,async:run,defaults:run,typed:run,typed-async:run,typed-defaults:run",
+        rule.newWorkflowStubTimeoutOptions(Caller.class).run());
+  }
+
+  @WorkflowInterface
+  public interface TypedTarget {
+    @WorkflowMethod(name = "Target")
+    int start(String input);
+
+    @SignalMethod(name = "notify")
+    void signalValue(String value);
+  }
+
+  @WorkflowInterface
+  public interface EmptyTarget {
+    @WorkflowMethod(name = "Target")
+    void start();
+
+    @SignalMethod(name = "notify")
+    void signalValue();
   }
 
   @WorkflowInterface
@@ -110,6 +134,47 @@ public class SignalWithStartWorkflowTest {
               .get();
       ExternalWorkflowStub defaults =
           Workflow.signalWithStartWorkflow("Target", "defaults", "queue", "notify");
+      SignalWithStartWorkflowOptions typedOptions =
+          SignalWithStartWorkflowOptions.newBuilder()
+              .setStaticSummary("summary")
+              .setRunTimeout(java.time.Duration.ofMinutes(3))
+              .build();
+      ExternalWorkflowStub typed =
+          Workflow.signalWithStartWorkflow(
+              TypedTarget.class,
+              w -> w.start("input"),
+              "typed",
+              "queue",
+              w -> w.signalValue("signal"),
+              typedOptions);
+      ExternalWorkflowStub typedAsync =
+          Async.function(
+                  () ->
+                      Workflow.signalWithStartWorkflow(
+                          TypedTarget.class,
+                          w -> w.start("input"),
+                          "typed-async",
+                          "queue",
+                          w -> w.signalValue("signal"),
+                          typedOptions))
+              .get();
+      ExternalWorkflowStub typedDefaults =
+          Workflow.signalWithStartWorkflow(
+              EmptyTarget.class,
+              EmptyTarget::start,
+              "typed-defaults",
+              "queue",
+              EmptyTarget::signalValue);
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              Workflow.signalWithStartWorkflow(
+                  TypedTarget.class,
+                  w -> w.start("input"),
+                  "invalid",
+                  "queue",
+                  w -> w.signalValue("signal"),
+                  options));
       return sync.getExecution().getWorkflowId()
           + ":"
           + sync.getExecution().getRunId()
@@ -120,7 +185,19 @@ public class SignalWithStartWorkflowTest {
           + ","
           + defaults.getExecution().getWorkflowId()
           + ":"
-          + defaults.getExecution().getRunId();
+          + defaults.getExecution().getRunId()
+          + ","
+          + typed.getExecution().getWorkflowId()
+          + ":"
+          + typed.getExecution().getRunId()
+          + ","
+          + typedAsync.getExecution().getWorkflowId()
+          + ":"
+          + typedAsync.getExecution().getRunId()
+          + ","
+          + typedDefaults.getExecution().getWorkflowId()
+          + ":"
+          + typedDefaults.getExecution().getRunId();
     }
   }
 }
