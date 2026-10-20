@@ -401,7 +401,7 @@ public final class SignalWithStartWorkflowRequest {
       return this;
     }
 
-    public Builder setStaticSummary(Object value) {
+    public Builder setStaticSummary(String value) {
       this.userMetadata =
           io.temporal.workflow.UserMetadata.newBuilder(this.userMetadata)
               .setStaticSummary(value)
@@ -409,7 +409,7 @@ public final class SignalWithStartWorkflowRequest {
       return this;
     }
 
-    public Builder setStaticDetails(Object value) {
+    public Builder setStaticDetails(String value) {
       this.userMetadata =
           io.temporal.workflow.UserMetadata.newBuilder(this.userMetadata)
               .setStaticDetails(value)

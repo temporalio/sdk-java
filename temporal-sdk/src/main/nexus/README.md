@@ -21,7 +21,8 @@ Generated Java and `system-nexus-roots.txt` are checked in under
 The generator uses `--package-name io.temporal.workflow` and the WIT annotation
 `@nexus.operations-class java="WorkflowOperations"`. `Workflow` extends this
 generated base once; additional operations require no handwritten facade methods.
-The generated request builders are directly usable from the workflow package. The manifest derives
+Generated operations take required fields as parameters and optional fields in
+generated options builders, all available from the workflow package. The manifest derives
 from operation input/output protobuf transfer types. The service client's Java
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.
