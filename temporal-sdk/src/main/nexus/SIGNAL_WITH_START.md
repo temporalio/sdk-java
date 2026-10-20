@@ -32,3 +32,9 @@ options, capture proxies, stubs, or facade methods. The output transform, reques
 fields, and serialization-context hook are declared in WIT. The converter uses
 the destination namespace and workflow ID for nested payloads, codecs, and
 failures; the outer system envelope remains server-readable.
+
+This operation serializes the request and deserializes a response with no user
+payloads. Future operations returning embedded payloads must use generic response
+models and propagate concrete result types from the API to transfer conversion.
+The ergonomic API with required parameters and a user-typed options struct is
+separate future work.
