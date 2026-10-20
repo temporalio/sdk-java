@@ -91,6 +91,7 @@ interface model {
   ///   go-name-extractor="WorkflowFunctionName"
   ///   dotnet-name-extractor="TemporalFunctionNames.WorkflowName"
   ///   dotnet-call-extractor="TemporalFunctionNames.ExtractCall"
+  ///   java-call-extractor="captureWorkflowCall"
   /// @nexus.add-rpc-compatible-with "workflow-type"
   type workflow-function = placeholder;
 
@@ -104,6 +105,7 @@ interface model {
   ///   typescript-name-extractor="signalFunctionName"
   ///   dotnet-name-extractor="TemporalFunctionNames.SignalName"
   ///   dotnet-call-extractor="TemporalFunctionNames.ExtractCall"
+  ///   java-call-extractor="captureSignalCall"
   ///   typescript-value-type="common.SignalDefinition<any[]>"
   ///   typescript-args-type="Value extends common.SignalDefinition<infer Args extends any[], any> ? Args : never"
   ///   typescript-import="@temporalio/common"

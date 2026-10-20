@@ -58,6 +58,96 @@ public abstract class WorkflowOperations {
     return executeSignalWithStartWorkflow(request);
   }
 
+  /**
+   * Signal a workflow, starting it first if needed.
+   *
+   * <p>Each callback must invoke exactly one method on its receiver. Method names and arguments are
+   * captured without executing the call. Supply callback arguments through the callback, not
+   * options. The callback return value is discarded.
+   */
+  public static <WorkflowInterface>
+      io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
+          Class<WorkflowInterface> workflowInterface,
+          io.temporal.workflow.Functions.Proc1<WorkflowInterface> workflow,
+          String id,
+          String taskQueue,
+          io.temporal.workflow.Functions.Proc1<WorkflowInterface> signal) {
+    return signalWithStartWorkflow(
+        workflowInterface,
+        workflow,
+        id,
+        taskQueue,
+        signal,
+        io.temporal.workflow.SignalWithStartWorkflowOptions.getDefaultInstance());
+  }
+
+  /**
+   * Signal a workflow, starting it first if needed.
+   *
+   * <p>Each callback must invoke exactly one method on its receiver. Method names and arguments are
+   * captured without executing the call. Supply callback arguments through the callback, not
+   * options. The callback return value is discarded.
+   */
+  public static <WorkflowInterface>
+      io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
+          Class<WorkflowInterface> workflowInterface,
+          io.temporal.workflow.Functions.Proc1<WorkflowInterface> workflow,
+          String id,
+          String taskQueue,
+          io.temporal.workflow.Functions.Proc1<WorkflowInterface> signal,
+          io.temporal.workflow.SignalWithStartWorkflowOptions options) {
+    io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
+        io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
+    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+        workflowInterface,
+        workflow,
+        (capturedName, capturedArguments) -> {
+          requestBuilder.setWorkflow(capturedName);
+          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+        });
+    requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
+    requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
+    io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
+        workflowInterface,
+        signal,
+        (capturedName, capturedArguments) -> {
+          requestBuilder.setSignal(capturedName);
+          requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
+        });
+    if (options != null) {
+      if (options.getArgs() != null)
+        throw new IllegalArgumentException(
+            "args must be supplied through the typed callback, not options");
+      if (options.getSignalArgs() != null)
+        throw new IllegalArgumentException(
+            "signalArgs must be supplied through the typed callback, not options");
+      if (options.getExecutionTimeout() != null)
+        requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
+      if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
+      if (options.getTaskTimeout() != null) requestBuilder.setTaskTimeout(options.getTaskTimeout());
+      if (options.getIdReusePolicy() != null)
+        requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
+      if (options.getIdConflictPolicy() != null)
+        requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
+      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
+      if (options.getCronSchedule() != null)
+        requestBuilder.setCronSchedule(options.getCronSchedule());
+      if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
+      if (options.getSearchAttributes() != null)
+        requestBuilder.setSearchAttributes(options.getSearchAttributes());
+      if (options.getPriority() != null) requestBuilder.setPriority(options.getPriority());
+      if (options.getVersioningOverride() != null)
+        requestBuilder.setVersioningOverride(options.getVersioningOverride());
+      if (options.getStartDelay() != null) requestBuilder.setStartDelay(options.getStartDelay());
+      if (options.getStaticSummary() != null)
+        requestBuilder.setStaticSummary(options.getStaticSummary());
+      if (options.getStaticDetails() != null)
+        requestBuilder.setStaticDetails(options.getStaticDetails());
+    }
+    io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
+    return executeSignalWithStartWorkflow(request);
+  }
+
   static io.temporal.workflow.ExternalWorkflowStub executeSignalWithStartWorkflow(
       io.temporal.workflow.SignalWithStartWorkflowRequest request) {
     io.temporal.workflow.SignalWithStartWorkflowResponse result =
