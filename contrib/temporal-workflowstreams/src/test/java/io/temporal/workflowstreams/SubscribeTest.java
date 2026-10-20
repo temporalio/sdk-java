@@ -111,6 +111,69 @@ public class SubscribeTest {
   }
 
   @Test
+  public void testSubscribeAfterCompletionDrainsRetainedPages() {
+    WorkflowStub stub = startHostWorkflow();
+    String value = new String(new char[400_000]).replace('\0', 'x');
+    stub.signal("publishLocal", "evt", value);
+    stub.signal("publishLocal", "other", "filtered");
+    stub.signal("publishLocal", "evt", value);
+    stub.signal("publishLocal", "evt", value);
+    stub.signal("finish");
+    stub.getResult(Void.class);
+    int historySize =
+        testWorkflowRule
+            .getExecutionHistory(stub.getExecution().getWorkflowId())
+            .getHistory()
+            .getEventsCount();
+    testWorkflowRule.invalidateWorkflowCache();
+
+    try (WorkflowStreamClient streamClient = newStreamClient(stub);
+        WorkflowStreamSubscription subscription =
+            streamClient.subscribe(SubscribeOptions.newBuilder().setTopics("evt").build())) {
+      for (long expected : new long[] {0, 2, 3}) {
+        WorkflowStreamItem item = subscription.next();
+        Assert.assertEquals(expected, item.getOffset());
+        Assert.assertEquals(value, decode(item));
+      }
+      Assert.assertFalse(subscription.hasNext());
+    }
+    Assert.assertEquals(
+        historySize,
+        testWorkflowRule
+            .getExecutionHistory(stub.getExecution().getWorkflowId())
+            .getHistory()
+            .getEventsCount());
+  }
+
+  @Test
+  public void testSubscribeAfterCompletionClampsTruncatedOffsetsAndFinishesEmptyReads() {
+    WorkflowStub stub = startHostWorkflow();
+    stub.signal("publishLocal", "evt", "a");
+    stub.signal("publishLocal", "evt", "b");
+    stub.signal("publishLocal", "evt", "c");
+    stub.update("truncate", Void.class, 2L);
+    stub.signal("finish");
+    stub.getResult(Void.class);
+
+    try (WorkflowStreamClient streamClient = newStreamClient(stub)) {
+      try (WorkflowStreamSubscription subscription =
+          streamClient.subscribe(SubscribeOptions.newBuilder().setFromOffset(1).build())) {
+        Assert.assertEquals("c", decode(subscription.next()));
+        Assert.assertFalse(subscription.hasNext());
+      }
+      for (SubscribeOptions options :
+          new SubscribeOptions[] {
+            SubscribeOptions.newBuilder().setFromOffset(3).build(),
+            SubscribeOptions.newBuilder().setTopics("missing").build()
+          }) {
+        try (WorkflowStreamSubscription subscription = streamClient.subscribe(options)) {
+          Assert.assertFalse(subscription.hasNext());
+        }
+      }
+    }
+  }
+
+  @Test
   public void testSubscribeFollowsContinueAsNew() {
     WorkflowStub stub = startHostWorkflow();
     try (WorkflowStreamClient streamClient = newStreamClient(stub)) {

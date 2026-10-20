@@ -69,6 +69,7 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Workflow Streams subscriptions now deliver retained items after workflow completion, failure, cancellation, termination, or timeout using a query pinned to the closed run.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).

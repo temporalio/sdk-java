@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The poll update payload: a request to long-poll for new items.
+ * The poll update or query payload: a request for items at a global offset.
  *
  * <p>Field names are part of the cross-language wire protocol; this type must serialize to JSON
  * with exactly these names.
