@@ -25,16 +25,4 @@ public abstract class WorkflowOperations {
             .setRunId(result.getRunId() == null ? "" : result.getRunId())
             .build());
   }
-
-  public static io.temporal.payload.context.SerializationContext
-      signalWithStartWorkflowSerializationContext(
-          io.temporal.workflow.SignalWithStartWorkflowRequest request) {
-    return io.temporal.internal.nexus.system.TemporalModelConverters
-        .signalWithStartWorkflowSerializationContext(request);
-  }
-
-  public static <T> T withDataConverter(
-      io.temporal.common.converter.DataConverter converter, java.util.function.Supplier<T> action) {
-    return io.temporal.workflow.NexgenRuntime.withDataConverter(converter, action);
-  }
 }

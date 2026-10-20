@@ -9,15 +9,36 @@ import io.temporal.common.converter.DataConverterException;
 import io.temporal.common.converter.RawValue;
 import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.visitor.SystemNexusPayloads;
-import io.temporal.workflow.NexgenRuntime;
 import java.lang.reflect.Type;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 /** Keeps the server-readable envelope separate from the destination workflow's user converter. */
 public final class SystemNexusDataConverter implements DataConverter {
   public static final String ENDPOINT = "__temporal_system";
+  private static final ThreadLocal<DataConverter> USER_CONVERTER = new ThreadLocal<>();
   private final DataConverter userConverter;
+
+  static DataConverter currentDataConverter() {
+    DataConverter converter = USER_CONVERTER.get();
+    if (converter == null)
+      throw new IllegalStateException("System Nexus user converter context is not active");
+    return converter;
+  }
+
+  static <T> T withDataConverter(DataConverter converter, Supplier<T> action) {
+    Objects.requireNonNull(converter, "converter");
+    DataConverter previous = USER_CONVERTER.get();
+    USER_CONVERTER.set(converter);
+    try {
+      return action.get();
+    } finally {
+      if (previous == null) USER_CONVERTER.remove();
+      else USER_CONVERTER.set(previous);
+    }
+  }
 
   public SystemNexusDataConverter(DataConverter userConverter) {
     this.userConverter = userConverter;
@@ -26,7 +47,7 @@ public final class SystemNexusDataConverter implements DataConverter {
   @Override
   public <T> Optional<Payload> toPayload(T value) {
     if (value instanceof RawValue) return Optional.of(((RawValue) value).getPayload());
-    return NexgenRuntime.withDataConverter(
+    return withDataConverter(
         userConverter,
         () -> {
           Object transferred = TemporalTransferTypeDataConverter.toTransferValue(value);
@@ -40,7 +61,7 @@ public final class SystemNexusDataConverter implements DataConverter {
   @Override
   public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType) {
     if (valueClass == RawValue.class) return valueClass.cast(new RawValue(payload));
-    return NexgenRuntime.withDataConverter(
+    return withDataConverter(
         userConverter,
         () -> {
           Message value = SystemNexusPayloads.unpack(payload).build();

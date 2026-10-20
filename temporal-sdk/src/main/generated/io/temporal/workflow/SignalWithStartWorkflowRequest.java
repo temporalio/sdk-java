@@ -450,105 +450,74 @@ public final class SignalWithStartWorkflowRequest {
     io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest.Builder proto =
         io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest.newBuilder();
     if (this.workflow != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "workflow_type",
+      proto.setWorkflowType(
           io.temporal.internal.nexus.system.TemporalModelConverters.workflowTypeToProto(
               converter, (this.workflow)));
     if (this.args != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "input",
+      proto.setInput(
           converter
               .toPayloads((this.args).toArray())
               .orElse(io.temporal.api.common.v1.Payloads.getDefaultInstance()));
-    if (this.id != null) io.temporal.workflow.NexgenRuntime.set(proto, "workflow_id", (this.id));
+    if (this.id != null) proto.setWorkflowId((this.id));
     if (this.taskQueue != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "task_queue",
+      proto.setTaskQueue(
           io.temporal.internal.nexus.system.TemporalModelConverters.taskQueueToProto(
               converter, (this.taskQueue)));
-    if (this.signal != null)
-      io.temporal.workflow.NexgenRuntime.set(proto, "signal_name", (this.signal));
+    if (this.signal != null) proto.setSignalName((this.signal));
     if (this.signalArgs != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "signal_input",
+      proto.setSignalInput(
           converter
               .toPayloads((this.signalArgs).toArray())
               .orElse(io.temporal.api.common.v1.Payloads.getDefaultInstance()));
     if (this.executionTimeout != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "workflow_execution_timeout",
+      proto.setWorkflowExecutionTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationToProto(
               converter, (this.executionTimeout)));
     if (this.runTimeout != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "workflow_run_timeout",
+      proto.setWorkflowRunTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationToProto(
               converter, (this.runTimeout)));
     if (this.taskTimeout != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "workflow_task_timeout",
+      proto.setWorkflowTaskTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationToProto(
               converter, (this.taskTimeout)));
     if (this.idReusePolicy != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto, "workflow_id_reuse_policy", (this.idReusePolicy).getNumber());
+      proto.setWorkflowIdReusePolicy(
+          io.temporal.api.enums.v1.WorkflowIdReusePolicy.forNumber(
+              (this.idReusePolicy).getNumber()));
     if (this.idConflictPolicy != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto, "workflow_id_conflict_policy", (this.idConflictPolicy).getNumber());
+      proto.setWorkflowIdConflictPolicy(
+          io.temporal.api.enums.v1.WorkflowIdConflictPolicy.forNumber(
+              (this.idConflictPolicy).getNumber()));
     if (this.retryPolicy != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "retry_policy",
+      proto.setRetryPolicy(
           io.temporal.internal.nexus.system.TemporalModelConverters.retryPolicyToProto(
               converter, (this.retryPolicy)));
-    if (this.cronSchedule != null)
-      io.temporal.workflow.NexgenRuntime.set(proto, "cron_schedule", (this.cronSchedule));
+    if (this.cronSchedule != null) proto.setCronSchedule((this.cronSchedule));
     if (this.memo != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "memo",
+      proto.setMemo(
           io.temporal.internal.nexus.system.TemporalModelConverters.memoToProto(
               converter, (this.memo)));
     if (this.searchAttributes != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "search_attributes",
+      proto.setSearchAttributes(
           io.temporal.internal.nexus.system.TemporalModelConverters.searchAttributesToProto(
               converter, (this.searchAttributes)));
     if (this.priority != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "priority",
+      proto.setPriority(
           io.temporal.internal.nexus.system.TemporalModelConverters.priorityToProto(
               converter, (this.priority)));
     if (this.versioningOverride != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "versioning_override",
+      proto.setVersioningOverride(
           io.temporal.internal.nexus.system.TemporalModelConverters.versioningOverrideToProto(
               converter, (this.versioningOverride)));
     if (this.startDelay != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "workflow_start_delay",
+      proto.setWorkflowStartDelay(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationToProto(
               converter, (this.startDelay)));
-    if (this.userMetadata != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto, "user_metadata", (this.userMetadata).toProto(converter));
-    if (this.namespace != null)
-      io.temporal.workflow.NexgenRuntime.set(proto, "namespace", (this.namespace));
+    if (this.userMetadata != null) proto.setUserMetadata((this.userMetadata).toProto(converter));
+    if (this.namespace != null) proto.setNamespace((this.namespace));
     if (this.headers != null)
-      io.temporal.workflow.NexgenRuntime.set(
-          proto,
-          "header",
+      proto.setHeader(
           io.temporal.internal.nexus.system.TemporalModelConverters.headerToProto(
               converter, (this.headers)));
     return proto.build();
@@ -559,127 +528,78 @@ public final class SignalWithStartWorkflowRequest {
       io.temporal.common.converter.DataConverter converter,
       java.lang.reflect.Type modelType) {
     Builder builder = SignalWithStartWorkflowRequest.newBuilder();
-    if (true)
-      builder.setWorkflow(
-          io.temporal.internal.nexus.system.TemporalModelConverters.workflowTypeFromProto(
-              converter,
-              (io.temporal.api.common.v1.WorkflowType)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "workflow_type")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "input"))
+    builder.setWorkflow(
+        io.temporal.internal.nexus.system.TemporalModelConverters.workflowTypeFromProto(
+            converter, proto.getWorkflowType()));
+    if (proto.hasInput())
       builder.setArgs(
           (java.util.List<Object>)
               (Object)
                   io.temporal.workflow.NexgenRuntime.decodeSequence(
-                      io.temporal.workflow.NexgenRuntime.get(proto, "input"),
-                      converter,
-                      io.temporal.workflow.NexgenRuntime.argument(
-                          new com.fasterxml.jackson.core.type.TypeReference<
-                              java.util.List<Object>>() {}.getType(),
-                          0)));
-    if (true) builder.setId((String) io.temporal.workflow.NexgenRuntime.get(proto, "workflow_id"));
-    if (true)
-      builder.setTaskQueue(
-          io.temporal.internal.nexus.system.TemporalModelConverters.taskQueueFromProto(
-              converter,
-              (io.temporal.api.taskqueue.v1.TaskQueue)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "task_queue")));
-    if (true)
-      builder.setSignal((String) io.temporal.workflow.NexgenRuntime.get(proto, "signal_name"));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "signal_input"))
+                      proto.getInput(), converter, Object.class, Object.class));
+    builder.setId(proto.getWorkflowId());
+    builder.setTaskQueue(
+        io.temporal.internal.nexus.system.TemporalModelConverters.taskQueueFromProto(
+            converter, proto.getTaskQueue()));
+    builder.setSignal(proto.getSignalName());
+    if (proto.hasSignalInput())
       builder.setSignalArgs(
           (java.util.List<Object>)
               (Object)
                   io.temporal.workflow.NexgenRuntime.decodeSequence(
-                      io.temporal.workflow.NexgenRuntime.get(proto, "signal_input"),
-                      converter,
-                      io.temporal.workflow.NexgenRuntime.argument(
-                          new com.fasterxml.jackson.core.type.TypeReference<
-                              java.util.List<Object>>() {}.getType(),
-                          0)));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "workflow_execution_timeout"))
+                      proto.getSignalInput(), converter, Object.class, Object.class));
+    if (proto.hasWorkflowExecutionTimeout())
       builder.setExecutionTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationFromProto(
-              converter,
-              (com.google.protobuf.Duration)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "workflow_execution_timeout")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "workflow_run_timeout"))
+              converter, proto.getWorkflowExecutionTimeout()));
+    if (proto.hasWorkflowRunTimeout())
       builder.setRunTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationFromProto(
-              converter,
-              (com.google.protobuf.Duration)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "workflow_run_timeout")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "workflow_task_timeout"))
+              converter, proto.getWorkflowRunTimeout()));
+    if (proto.hasWorkflowTaskTimeout())
       builder.setTaskTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationFromProto(
-              converter,
-              (com.google.protobuf.Duration)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "workflow_task_timeout")));
-    if (true)
-      builder.setIdReusePolicy(
-          io.temporal.api.enums.v1.WorkflowIdReusePolicy.forNumber(
-              ((com.google.protobuf.Descriptors.EnumValueDescriptor)
-                      io.temporal.workflow.NexgenRuntime.get(proto, "workflow_id_reuse_policy"))
-                  .getNumber()));
-    if (true)
-      builder.setIdConflictPolicy(
-          io.temporal.api.enums.v1.WorkflowIdConflictPolicy.forNumber(
-              ((com.google.protobuf.Descriptors.EnumValueDescriptor)
-                      io.temporal.workflow.NexgenRuntime.get(proto, "workflow_id_conflict_policy"))
-                  .getNumber()));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "retry_policy"))
+              converter, proto.getWorkflowTaskTimeout()));
+    builder.setIdReusePolicy(
+        io.temporal.api.enums.v1.WorkflowIdReusePolicy.forNumber(
+            (proto.getWorkflowIdReusePolicy()).getNumber()));
+    builder.setIdConflictPolicy(
+        io.temporal.api.enums.v1.WorkflowIdConflictPolicy.forNumber(
+            (proto.getWorkflowIdConflictPolicy()).getNumber()));
+    if (proto.hasRetryPolicy())
       builder.setRetryPolicy(
           io.temporal.internal.nexus.system.TemporalModelConverters.retryPolicyFromProto(
-              converter,
-              (io.temporal.api.common.v1.RetryPolicy)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "retry_policy")));
-    if (true)
-      builder.setCronSchedule(
-          (String) io.temporal.workflow.NexgenRuntime.get(proto, "cron_schedule"));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "memo"))
+              converter, proto.getRetryPolicy()));
+    builder.setCronSchedule(proto.getCronSchedule());
+    if (proto.hasMemo())
       builder.setMemo(
           io.temporal.internal.nexus.system.TemporalModelConverters.memoFromProto(
-              converter,
-              (io.temporal.api.common.v1.Memo)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "memo")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "search_attributes"))
+              converter, proto.getMemo()));
+    if (proto.hasSearchAttributes())
       builder.setSearchAttributes(
           io.temporal.internal.nexus.system.TemporalModelConverters.searchAttributesFromProto(
-              converter,
-              (io.temporal.api.common.v1.SearchAttributes)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "search_attributes")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "priority"))
+              converter, proto.getSearchAttributes()));
+    if (proto.hasPriority())
       builder.setPriority(
           io.temporal.internal.nexus.system.TemporalModelConverters.priorityFromProto(
-              converter,
-              (io.temporal.api.common.v1.Priority)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "priority")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "versioning_override"))
+              converter, proto.getPriority()));
+    if (proto.hasVersioningOverride())
       builder.setVersioningOverride(
           io.temporal.internal.nexus.system.TemporalModelConverters.versioningOverrideFromProto(
-              converter,
-              (io.temporal.api.workflow.v1.VersioningOverride)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "versioning_override")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "workflow_start_delay"))
+              converter, proto.getVersioningOverride()));
+    if (proto.hasWorkflowStartDelay())
       builder.setStartDelay(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationFromProto(
-              converter,
-              (com.google.protobuf.Duration)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "workflow_start_delay")));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "user_metadata"))
+              converter, proto.getWorkflowStartDelay()));
+    if (proto.hasUserMetadata())
       builder.setUserMetadata(
           io.temporal.workflow.UserMetadata.fromProto(
-              (io.temporal.api.sdk.v1.UserMetadata)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "user_metadata"),
-              converter,
-              io.temporal.workflow.UserMetadata.class));
-    if (true)
-      builder.setNamespace((String) io.temporal.workflow.NexgenRuntime.get(proto, "namespace"));
-    if (io.temporal.workflow.NexgenRuntime.has(proto, "header"))
+              proto.getUserMetadata(), converter, io.temporal.workflow.UserMetadata.class));
+    builder.setNamespace(proto.getNamespace());
+    if (proto.hasHeader())
       builder.setHeaders(
           io.temporal.internal.nexus.system.TemporalModelConverters.headerFromProto(
-              converter,
-              (io.temporal.api.common.v1.Header)
-                  io.temporal.workflow.NexgenRuntime.get(proto, "header")));
+              converter, proto.getHeader()));
     return builder.build();
   }
 
@@ -693,7 +613,8 @@ public final class SignalWithStartWorkflowRequest {
     public Object toTransferType(SignalWithStartWorkflowRequest value) {
       return value == null
           ? null
-          : value.toProto(io.temporal.workflow.NexgenRuntime.dataConverter());
+          : value.toProto(
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
     }
 
     public SignalWithStartWorkflowRequest fromTransferType(
@@ -702,7 +623,7 @@ public final class SignalWithStartWorkflowRequest {
           ? null
           : fromProto(
               (io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest) value,
-              io.temporal.workflow.NexgenRuntime.dataConverter(),
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
               valueType);
     }
   }

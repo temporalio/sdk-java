@@ -32,5 +32,10 @@ standalone JAR on first use; for offline regeneration, set
 `NEXGEN_JAVA_FORMAT_JAR` to a local all-dependencies JAR. A JDK must be on `PATH`.
 
 `TemporalModelConverters` contains the SDK-owned conversion helpers. The emitted
-`NexgenRuntime` contains common generated Java code and is rendered from a Rust
-string in nex-gen. Normal Java SDK builds do not require Rust or nex-gen.
+`NexgenRuntime` contains only payload-sequence decoding. Converter scoping lives
+in `SystemNexusDataConverter`; generated transfer converters obtain the active
+converter through `TemporalModelConverters.currentDataConverter()` and fail
+when no scope is active, matching Python. Protobuf field access is generated
+directly. Nex-gen assembles the required
+runtime helpers from Rust strings. Normal Java SDK builds do not require Rust
+or nex-gen.
