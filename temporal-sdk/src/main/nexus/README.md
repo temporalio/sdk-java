@@ -31,16 +31,17 @@ to match the SDK's Spotless configuration. Nex-gen downloads and caches its
 standalone JAR on first use; for offline regeneration, set
 `NEXGEN_JAVA_FORMAT_JAR` to a local all-dependencies JAR. A JDK must be on `PATH`.
 
-`TemporalModelConverters` contains the SDK-owned conversion helpers. The emitted
-`NexgenRuntime` contains only payload-sequence decoding. Converter scoping lives
-in `SystemNexusDataConverter`; generated transfer converters obtain the active
-converter through `TemporalModelConverters.currentDataConverter()` and fail
-when no scope is active, matching Python. Protobuf field access is generated
-directly. Nex-gen assembles the required runtime helpers from Rust strings.
+`TemporalModelConverters` contains SDK-owned structural conversion helpers.
+Generated models preserve embedded payloads, batches, memo, headers, search
+attributes, and failure details in serialized form. Transfer conversion copies
+them without invoking a user converter or needing type hints. These bindings
+require no `NexgenRuntime` or converter scope. API code serializes user values
+when constructing a request and supplies expected types when decoding results.
 Normal Java SDK builds do not require Rust or nex-gen.
 
 The SDK wraps any configured `DataConverter` in `SystemNexusDataConverter` for
-system operations. That wrapper handles the outer envelope and delegates nested
-user conversion; custom converters do not need to recognize system envelopes.
+system operations. That wrapper handles the outer envelope; embedded values are
+already serialized. It delegates operation failure conversion to the configured
+converter. Custom converters do not need to recognize system envelopes.
 The shared payload visitor descends into marked envelopes for payload traversal.
 `CodecDataConverter` contains no system Nexus handling.

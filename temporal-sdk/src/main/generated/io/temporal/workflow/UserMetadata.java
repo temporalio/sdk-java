@@ -9,28 +9,30 @@ public final class UserMetadata {
    * Single-line fixed summary for the workflow execution that may appear in UI and CLI. This can be
    * in single-line Temporal Markdown format.
    */
-  private final Object staticSummary;
+  private final io.temporal.api.common.v1.Payload staticSummary;
 
   /**
    * General fixed details for the workflow execution that may appear in UI and CLI. This can be in
    * Temporal Markdown format and can span multiple lines. This value is fixed on the workflow
    * execution and cannot be updated.
    */
-  private final Object staticDetails;
+  private final io.temporal.api.common.v1.Payload staticDetails;
 
   @com.fasterxml.jackson.annotation.JsonCreator
   public UserMetadata(
-      @com.fasterxml.jackson.annotation.JsonProperty("staticSummary") Object staticSummary,
-      @com.fasterxml.jackson.annotation.JsonProperty("staticDetails") Object staticDetails) {
+      @com.fasterxml.jackson.annotation.JsonProperty("staticSummary")
+          io.temporal.api.common.v1.Payload staticSummary,
+      @com.fasterxml.jackson.annotation.JsonProperty("staticDetails")
+          io.temporal.api.common.v1.Payload staticDetails) {
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
   }
 
-  public Object getStaticSummary() {
+  public io.temporal.api.common.v1.Payload getStaticSummary() {
     return staticSummary;
   }
 
-  public Object getStaticDetails() {
+  public io.temporal.api.common.v1.Payload getStaticDetails() {
     return staticDetails;
   }
 
@@ -55,16 +57,16 @@ public final class UserMetadata {
       this.staticDetails = value.staticDetails;
     }
 
-    private Object staticSummary = null;
+    private io.temporal.api.common.v1.Payload staticSummary = null;
 
-    public Builder setStaticSummary(Object value) {
+    public Builder setStaticSummary(io.temporal.api.common.v1.Payload value) {
       this.staticSummary = value;
       return this;
     }
 
-    private Object staticDetails = null;
+    private io.temporal.api.common.v1.Payload staticDetails = null;
 
-    public Builder setStaticDetails(Object value) {
+    public Builder setStaticDetails(io.temporal.api.common.v1.Payload value) {
       this.staticDetails = value;
       return this;
     }
@@ -74,28 +76,18 @@ public final class UserMetadata {
     }
   }
 
-  public io.temporal.api.sdk.v1.UserMetadata toProto(
-      io.temporal.common.converter.DataConverter converter) {
+  public io.temporal.api.sdk.v1.UserMetadata toProto() {
     io.temporal.api.sdk.v1.UserMetadata.Builder proto =
         io.temporal.api.sdk.v1.UserMetadata.newBuilder();
-    if (this.staticSummary != null)
-      proto.setSummary(converter.toPayload((this.staticSummary)).get());
-    if (this.staticDetails != null)
-      proto.setDetails(converter.toPayload((this.staticDetails)).get());
+    if (this.staticSummary != null) proto.setSummary((this.staticSummary));
+    if (this.staticDetails != null) proto.setDetails((this.staticDetails));
     return proto.build();
   }
 
-  public static UserMetadata fromProto(
-      io.temporal.api.sdk.v1.UserMetadata proto,
-      io.temporal.common.converter.DataConverter converter,
-      java.lang.reflect.Type modelType) {
+  public static UserMetadata fromProto(io.temporal.api.sdk.v1.UserMetadata proto) {
     Builder builder = UserMetadata.newBuilder();
-    if (proto.hasSummary())
-      builder.setStaticSummary(
-          (Object) converter.fromPayload(proto.getSummary(), Object.class, Object.class));
-    if (proto.hasDetails())
-      builder.setStaticDetails(
-          (Object) converter.fromPayload(proto.getDetails(), Object.class, Object.class));
+    if (proto.hasSummary()) builder.setStaticSummary(proto.getSummary());
+    if (proto.hasDetails()) builder.setStaticDetails(proto.getDetails());
     return builder.build();
   }
 
@@ -106,19 +98,11 @@ public final class UserMetadata {
     }
 
     public Object toTransferType(UserMetadata value) {
-      return value == null
-          ? null
-          : value.toProto(
-              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
+      return value == null ? null : value.toProto();
     }
 
     public UserMetadata fromTransferType(Object value, java.lang.reflect.Type valueType) {
-      return value == null
-          ? null
-          : fromProto(
-              (io.temporal.api.sdk.v1.UserMetadata) value,
-              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
-              valueType);
+      return value == null ? null : fromProto((io.temporal.api.sdk.v1.UserMetadata) value);
     }
   }
 }
