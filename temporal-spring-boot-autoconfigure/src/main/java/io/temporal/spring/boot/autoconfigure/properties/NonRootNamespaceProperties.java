@@ -21,13 +21,6 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
    * You guys can use this alias to get the beans. <br>
    * for example if you set spring.temporal.namespace[0].alias=foo <br>
    * We can get bean via @Autowired @Qualifier("fooNamespaceTemplate") NamespaceTemplate
-   *
-   * <p>The standalone activity client bean is named {@code <alias-or-namespace>ActivityClient}, for
-   * example {@code fooActivityClient}. It uses the namespace's data converter and the same service
-   * stubs and connection as its schedule client. Customize its options with a {@code
-   * TemporalOptionsCustomizer<ActivityClientOptions.Builder>} bean named {@code
-   * fooActivityClientCustomizer}; activity client interceptors for non-root namespaces must also be
-   * configured through this customizer.
    */
   private final @Nullable String alias;
 
