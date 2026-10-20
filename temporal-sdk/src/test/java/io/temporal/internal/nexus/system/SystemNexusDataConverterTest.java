@@ -1,6 +1,8 @@
 package io.temporal.internal.nexus.system;
 
 import static org.junit.Assert.*;
+import static org.mockito.AdditionalAnswers.delegatesTo;
+import static org.mockito.Mockito.*;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
@@ -105,18 +107,29 @@ public class SystemNexusDataConverterTest {
   }
 
   @Test
-  public void codecsVisitNestedPayloadsInsideRawSystemEnvelopes() {
+  public void customDataConverterReceivesUserValuesWithoutSystemEnvelopeHandling()
+      throws Exception {
     SignalWithStartWorkflowRequest request = request("target");
-    CodecDataConverter user =
-        new CodecDataConverter(
-            DefaultDataConverter.STANDARD_INSTANCE,
-            Collections.singletonList(new ContextCodec("target")));
-    Payload plain =
-        new SystemNexusDataConverter(DefaultDataConverter.STANDARD_INSTANCE)
-            .toPayload(request)
-            .get();
-    Payload encoded = user.encode(Collections.singletonList(plain)).get(0);
-    assertEquals(plain, user.decode(Collections.singletonList(encoded)).get(0));
+    DataConverter user =
+        mock(DataConverter.class, delegatesTo(DefaultDataConverter.STANDARD_INSTANCE));
+    SystemNexusDataConverter converter = new SystemNexusDataConverter(user);
+    Payload encoded = converter.toPayload(request).get();
+    assertTrue(SystemNexusPayloads.isSystemPayload(encoded));
+    SignalWithStartWorkflowExecutionRequest wire =
+        SignalWithStartWorkflowExecutionRequest.parseFrom(encoded.getData());
+    assertEquals("target", wire.getWorkflowId());
+    verify(user).toPayloads("workflow", 42);
+    verify(user).toPayloads("signal");
+    verify(user).toPayload("value");
+    verify(user, never()).toPayload(request);
+    verify(user, never()).toPayload(isA(com.google.protobuf.Message.class));
+    SignalWithStartWorkflowRequest decoded =
+        converter.fromPayload(
+            encoded, SignalWithStartWorkflowRequest.class, SignalWithStartWorkflowRequest.class);
+    assertEquals(request.getArgs(), decoded.getArgs());
+    assertEquals(request.getSignalArgs(), decoded.getSignalArgs());
+    assertEquals(request.getMemo(), decoded.getMemo());
+    assertEquals(request.getHeaders(), decoded.getHeaders());
   }
 
   @Test
