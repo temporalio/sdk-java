@@ -36,6 +36,11 @@ standalone JAR on first use; for offline regeneration, set
 in `SystemNexusDataConverter`; generated transfer converters obtain the active
 converter through `TemporalModelConverters.currentDataConverter()` and fail
 when no scope is active, matching Python. Protobuf field access is generated
-directly. Nex-gen assembles the required
-runtime helpers from Rust strings. Normal Java SDK builds do not require Rust
-or nex-gen.
+directly. Nex-gen assembles the required runtime helpers from Rust strings.
+Normal Java SDK builds do not require Rust or nex-gen.
+
+The SDK wraps any configured `DataConverter` in `SystemNexusDataConverter` for
+system operations. That wrapper handles the outer envelope and delegates nested
+user conversion; custom converters do not need to recognize system envelopes.
+The shared payload visitor descends into marked envelopes for payload traversal.
+`CodecDataConverter` contains no system Nexus handling.
