@@ -68,7 +68,8 @@ public final class SignalWithStartWorkflowResponse {
     }
   }
 
-  public io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse toProto() {
+  public io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse toProto(
+      io.temporal.common.converter.DataConverter converter) {
     io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse.Builder proto =
         io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse.newBuilder();
     if (this.runId != null) proto.setRunId((this.runId));
@@ -77,7 +78,9 @@ public final class SignalWithStartWorkflowResponse {
   }
 
   public static SignalWithStartWorkflowResponse fromProto(
-      io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse proto) {
+      io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse proto,
+      io.temporal.common.converter.DataConverter converter,
+      java.lang.reflect.Type modelType) {
     Builder builder = SignalWithStartWorkflowResponse.newBuilder();
     builder.setRunId(proto.getRunId());
     builder.setStarted(proto.getStarted());
@@ -92,7 +95,10 @@ public final class SignalWithStartWorkflowResponse {
     }
 
     public Object toTransferType(SignalWithStartWorkflowResponse value) {
-      return value == null ? null : value.toProto();
+      return value == null
+          ? null
+          : value.toProto(
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
     }
 
     public SignalWithStartWorkflowResponse fromTransferType(
@@ -100,7 +106,9 @@ public final class SignalWithStartWorkflowResponse {
       return value == null
           ? null
           : fromProto(
-              (io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse) value);
+              (io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse) value,
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
+              valueType);
     }
   }
 }

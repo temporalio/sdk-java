@@ -31,10 +31,8 @@ to docs, or any other relevant information.
 - Workflows can signal with start through the system workflow service using
   generated `Workflow.signalWithStartWorkflow(SignalWithStartWorkflowRequest)` API.
   Request builders and operations are generated into `io.temporal.workflow`.
-  Request models carry serialized protobuf payloads; API code serializes user values with the
-  destination workflow context before constructing the request. Transfer conversion preserves
-  opaque payload batches, and payload visitation supports external storage inside system envelopes.
-  Requires a server supporting the system workflow service.
+  System Nexus envelopes preserve destination workflow serialization context for nested payloads,
+  codecs, and external payload storage. Requires a server supporting the system workflow service.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure

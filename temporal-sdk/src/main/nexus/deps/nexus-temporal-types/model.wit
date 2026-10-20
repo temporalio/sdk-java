@@ -6,7 +6,7 @@ interface model {
 
   /// @nexus.proto "temporal.api.common.v1.Payload" typescript-import="@temporalio/proto"
   /// @nexus.type
-  ///   java="io.temporal.api.common.v1.Payload"
+  ///   java="Object"
   ///   python="typing.Any"
   ///   typescript="common.Payload"
   ///   go="any"
@@ -19,18 +19,20 @@ interface model {
   /// @nexus.proto "temporal.api.common.v1.Payloads"
   ///   typescript-import="@temporalio/proto"
   /// @nexus.type
-  ///   java="io.temporal.api.common.v1.Payloads"
+  ///   java="java.util.List<Object>"
   ///   go="[]any"
   ///   dotnet="IReadOnlyCollection<object?>"
   ///   dotnet-from="ProtoExtensions.FromPayloads"
   ///   dotnet-to="ProtoExtensions.ToPayloads"
   type payloads = list<payload>;
 
-  /// Temporal failure represented by a serialized protobuf or SDK-native error.
-  /// The surrounding SDK API owns payload serialization and typed decoding.
+  /// Temporal failure represented by the target SDK's native exception/error type.
+  /// The SDK failure converter owns the recursive cause and failure-info structure.
   /// @nexus.proto "temporal.api.failure.v1.Failure" typescript-import="@temporalio/proto"
   /// @nexus.type
-  ///   java="io.temporal.api.failure.v1.Failure"
+  ///   java="RuntimeException"
+  ///   java-from="failureFromProto"
+  ///   java-to="failureToProto"
   ///   python="BaseException"
   ///   typescript="Error"
   ///   go="error"
@@ -136,7 +138,9 @@ interface model {
 
   /// @nexus.proto "temporal.api.common.v1.Memo" typescript-import="@temporalio/proto"
   /// @nexus.type
-  ///   java="io.temporal.api.common.v1.Memo"
+  ///   java="java.util.Map<String, Object>"
+  ///   java-from="memoFromProto"
+  ///   java-to="memoToProto"
   ///   python="collections.abc.Mapping[str, typing.Any]"
   ///   typescript="Record<string, unknown>"
   ///   go="map[string]any"
@@ -146,7 +150,9 @@ interface model {
 
   /// @nexus.proto "temporal.api.common.v1.Header" typescript-import="@temporalio/proto"
   /// @nexus.type
-  ///   java="io.temporal.api.common.v1.Header"
+  ///   java="java.util.Map<String, io.temporal.api.common.v1.Payload>"
+  ///   java-from="headerFromProto"
+  ///   java-to="headerToProto"
   ///   python="collections.abc.Mapping[str, typing.Any]"
   ///   typescript="common.Headers"
   ///   go="map[string]any"
@@ -158,7 +164,9 @@ interface model {
 
   /// @nexus.proto "temporal.api.common.v1.SearchAttributes" typescript-import="@temporalio/proto"
   /// @nexus.type
-  ///   java="io.temporal.api.common.v1.SearchAttributes"
+  ///   java="io.temporal.common.SearchAttributes"
+  ///   java-from="searchAttributesFromProto"
+  ///   java-to="searchAttributesToProto"
   ///   python="temporalio.common.TypedSearchAttributes"
   ///   typescript="common.TypedSearchAttributes"
   ///   go="go.temporal.io/sdk/temporal.SearchAttributes"
