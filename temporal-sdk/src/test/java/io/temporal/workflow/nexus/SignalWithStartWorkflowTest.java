@@ -2,7 +2,6 @@ package io.temporal.workflow.nexus;
 
 import static org.junit.Assert.*;
 
-import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.*;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
@@ -44,20 +43,8 @@ public class SignalWithStartWorkflowTest {
                                           request.getNamespace());
                                       assertEquals("notify", request.getSignal());
                                       assertEquals("queue", request.getTaskQueue());
-                                      assertEquals(
-                                          "input",
-                                          DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
-                                              0,
-                                              java.util.Optional.of(request.getArgs()),
-                                              String.class,
-                                              String.class));
-                                      assertEquals(
-                                          "signal",
-                                          DefaultDataConverter.STANDARD_INSTANCE.fromPayloads(
-                                              0,
-                                              java.util.Optional.of(request.getSignalArgs()),
-                                              String.class,
-                                              String.class));
+                                      assertEquals("input", request.getArgs().get(0));
+                                      assertEquals("signal", request.getSignalArgs().get(0));
                                       return new ExecuteNexusOperationOutput<>(
                                           Workflow.newPromise(
                                               SignalWithStartWorkflowResponse.newBuilder()
@@ -93,8 +80,8 @@ public class SignalWithStartWorkflowTest {
               .setSignal("notify")
               .setId("sync")
               .setTaskQueue("queue")
-              .setArgs(DefaultDataConverter.STANDARD_INSTANCE.toPayloads("input").get())
-              .setSignalArgs(DefaultDataConverter.STANDARD_INSTANCE.toPayloads("signal").get())
+              .setArgs(java.util.Collections.singletonList("input"))
+              .setSignalArgs(java.util.Collections.singletonList("signal"))
               .build();
       ExternalWorkflowStub sync = Workflow.signalWithStartWorkflow(request);
       ExternalWorkflowStub async =
