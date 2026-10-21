@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
@@ -26,7 +27,12 @@ public class TypedWorkflowMethodCaptureTest {
   @WorkflowInterface
   public interface Target extends Base {
     @WorkflowMethod(name = "custom-workflow")
-    @MethodRetry(maximumAttempts = 3)
+    @MethodRetry(
+        initialIntervalSeconds = 7,
+        maximumAttempts = 3,
+        backoffCoefficient = 3,
+        maximumIntervalSeconds = 100,
+        doNotRetry = {"NoRetry"})
     @CronSchedule("0 * * * *")
     int start(String value);
 
@@ -62,7 +68,7 @@ public class TypedWorkflowMethodCaptureTest {
   }
 
   @Test
-  public void probesNamesArgumentsOptionsAndReturnTypesWithoutCommands() {
+  public void probesNamesArgumentsAnnotationsAndReturnTypesWithoutCommands() {
     Target target = stub(Target.class, "target");
     Functions.Func1<String, Integer> method = target::start;
     ProbeResult call =
@@ -74,9 +80,9 @@ public class TypedWorkflowMethodCaptureTest {
     assertArrayEquals(new Object[] {"input"}, call.getArguments());
     assertEquals(int.class, call.getResultClass());
     assertEquals(int.class, call.getResultType());
-    assertEquals("target", call.getOptions().getWorkflowId());
-    assertEquals(3, call.getOptions().getRetryOptions().getMaximumAttempts());
-    assertEquals("0 * * * *", call.getOptions().getCronSchedule());
+    assertEquals("target", call.getStub().getExecution().getWorkflowId());
+    assertEquals(3, call.getMethod().getAnnotation(MethodRetry.class).maximumAttempts());
+    assertEquals("0 * * * *", call.getMethod().getAnnotation(CronSchedule.class).value());
     assertSame(ExternalWorkflowStub.fromTyped(target), call.getStub());
     call.getArguments()[0] = "changed";
     assertEquals("input", call.getArguments()[0]);
@@ -97,6 +103,41 @@ public class TypedWorkflowMethodCaptureTest {
     assertThrows(IllegalStateException.class, () -> target.start("outside probe"));
     assertSame(
         normalSignal, assertThrows(RuntimeException.class, () -> target.signal("outside", 1)));
+  }
+
+  @Test
+  public void mergesOriginalAnnotationsWithExplicitValuesWithoutPrematureDefaults() {
+    Target target = stub(Target.class, "target");
+    Functions.Func1<String, Integer> method = target::start;
+    ProbeResult call =
+        ExternalWorkflowInvocationHandler.probe(
+            method, () -> method.apply("input"), WorkflowMethodType.WORKFLOW);
+    RetryOptions defaults = TemporalModelConverters.mergeMethodRetry(call, null);
+    assertEquals(java.time.Duration.ofSeconds(7), defaults.getInitialInterval());
+    assertEquals(3, defaults.getMaximumAttempts());
+    assertEquals(3.0, defaults.getBackoffCoefficient(), 0);
+    RetryOptions explicit = RetryOptions.newBuilder().setMaximumAttempts(9).build();
+    RetryOptions merged = TemporalModelConverters.mergeMethodRetry(call, explicit);
+    assertEquals(9, merged.getMaximumAttempts());
+    assertEquals(java.time.Duration.ofSeconds(7), merged.getInitialInterval());
+    assertEquals(java.time.Duration.ofSeconds(100), merged.getMaximumInterval());
+    assertEquals(3.0, merged.getBackoffCoefficient(), 0);
+    assertArrayEquals(new String[] {"NoRetry"}, merged.getDoNotRetry());
+    assertNull(explicit.getInitialInterval());
+    assertEquals("0 * * * *", TemporalModelConverters.mergeCronSchedule(call, null));
+    assertEquals("1 * * * *", TemporalModelConverters.mergeCronSchedule(call, "1 * * * *"));
+    assertEquals("", TemporalModelConverters.mergeCronSchedule(call, ""));
+
+    GenericTarget plain = stub(GenericTarget.class, "plain");
+    Functions.Func<List<String>> plainMethod = plain::start;
+    ProbeResult noAnnotations =
+        ExternalWorkflowInvocationHandler.probe(
+            plainMethod, () -> plainMethod.apply(), WorkflowMethodType.WORKFLOW);
+    assertNull(TemporalModelConverters.mergeMethodRetry(noAnnotations, null));
+    assertSame(explicit, TemporalModelConverters.mergeMethodRetry(noAnnotations, explicit));
+    assertNull(TemporalModelConverters.mergeCronSchedule(noAnnotations, null));
+    assertEquals("", TemporalModelConverters.mergeCronSchedule(noAnnotations, ""));
+    verifyNoInteractions(outbound);
   }
 
   @Test
@@ -211,6 +252,6 @@ public class TypedWorkflowMethodCaptureTest {
               method.apply(value);
             },
             WorkflowMethodType.WORKFLOW);
-    return result.getOptions().getWorkflowId() + ":" + result.getArguments()[0];
+    return result.getStub().getExecution().getWorkflowId() + ":" + result.getArguments()[0];
   }
 }

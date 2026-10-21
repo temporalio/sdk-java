@@ -31,6 +31,7 @@ to docs, or any other relevant information.
 - Workflows can signal with start through the system workflow service using
   generated `Workflow.signalWithStartWorkflow(workflowType, workflowId, taskQueue, signalName, options)` API.
   Typed overloads accept bound workflow/signal methods followed directly by checked arguments.
+  Typed calls merge workflow retry/cron annotations with explicit options using generated Java-only WIT hooks.
   Request builders and operations are generated into `io.temporal.workflow`.
   System Nexus envelopes preserve destination workflow serialization context for nested payloads,
   codecs, and external payload storage. Requires a server supporting the system workflow service.

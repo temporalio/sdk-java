@@ -1,10 +1,6 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.WorkflowExecution;
-import io.temporal.client.WorkflowOptions;
-import io.temporal.common.CronSchedule;
-import io.temporal.common.MethodRetry;
-import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
@@ -77,24 +73,16 @@ public class ExternalWorkflowInvocationHandler implements InvocationHandler {
     private final Object[] arguments;
     private final Class<?> resultClass;
     private final Type resultType;
-    private final WorkflowOptions options;
+    private final Method method;
 
     private ProbeResult(
         ExternalWorkflowStub stub, POJOWorkflowMethodMetadata metadata, Object[] args) {
       this.stub = stub;
       this.name = metadata.getName();
       this.arguments = args == null ? new Object[0] : args.clone();
-      Method method = metadata.getWorkflowMethod();
+      this.method = metadata.getWorkflowMethod();
       this.resultClass = method.getReturnType();
       this.resultType = method.getGenericReturnType();
-      MethodRetry retry = method.getAnnotation(MethodRetry.class);
-      CronSchedule cron = method.getAnnotation(CronSchedule.class);
-      this.options =
-          WorkflowOptions.newBuilder()
-              .setWorkflowId(stub.getExecution().getWorkflowId())
-              .setRetryOptions(RetryOptions.merge(retry, null))
-              .setCronSchedule(cron == null ? null : cron.value())
-              .build();
     }
 
     public ExternalWorkflowStub getStub() {
@@ -117,8 +105,8 @@ public class ExternalWorkflowInvocationHandler implements InvocationHandler {
       return resultType;
     }
 
-    public WorkflowOptions getOptions() {
-      return options;
+    public Method getMethod() {
+      return method;
     }
   }
 

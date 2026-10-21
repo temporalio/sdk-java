@@ -28,8 +28,11 @@ call-extractor hooks resolve annotated workflow/signal names and arguments
 without executing commands; the generated wrapper constructs the request.
 Primary callable arities zero through six and other callable arities zero or one
 come from Java rendering policy and the IDL's primary marker. No operation names
-or composite-operation roles are encoded in the generator. Probed options remain
-available in the SDK; automatic merging awaits IDL mapping and precedence rules.
+or composite-operation roles are encoded in the generator. Java-only
+`merge-from-function` hooks declare retry and cron merging from the workflow
+method's original annotations. The generator retains raw probe metadata, and
+SDK helpers apply normal client precedence without synthesizing `WorkflowOptions`.
+Explicit ID/task queue and other options remain independent of stub metadata.
 The manifest derives from operation input/output protobuf transfer types. The service client's Java
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.

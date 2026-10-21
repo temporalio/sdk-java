@@ -43,6 +43,22 @@ public class SignalWithStartWorkflowTest {
                                           request.getNamespace());
                                       assertEquals("notify", request.getSignal());
                                       assertEquals("queue", request.getTaskQueue());
+                                      if (request.getId().startsWith("typed")) {
+                                        assertEquals(
+                                            java.time.Duration.ofSeconds(7),
+                                            request.getRetryPolicy().getInitialInterval());
+                                        assertEquals(
+                                            request.getId().equals("typed-async") ? 9 : 3,
+                                            request.getRetryPolicy().getMaximumAttempts());
+                                        assertEquals(
+                                            request.getId().equals("typed-async")
+                                                ? ""
+                                                : "0 * * * *",
+                                            request.getCronSchedule());
+                                      } else {
+                                        assertNull(request.getRetryPolicy());
+                                        assertNull(request.getCronSchedule());
+                                      }
                                       assertEquals(
                                           io.temporal.api.enums.v1.WorkflowIdReusePolicy
                                               .WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
@@ -94,22 +110,28 @@ public class SignalWithStartWorkflowTest {
   @Test
   public void generatedWorkflowMethodsReturnExternalStubs() {
     assertEquals(
-        "sync:run,async:run,defaults:run,typed:run,typed-async:run,typed-defaults:run,arity6:run",
+        "sync:run,async:run,defaults:run,typed:run,typed-async:run,typed-defaults:run,typed-null-defaults:run,arity6:run",
         rule.newWorkflowStubTimeoutOptions(Caller.class).run());
   }
 
   @WorkflowInterface
   public interface TypedTarget {
     @WorkflowMethod(name = "Target")
+    @io.temporal.common.MethodRetry(initialIntervalSeconds = 7, maximumAttempts = 3)
+    @io.temporal.common.CronSchedule("0 * * * *")
     int start(String input);
 
     @SignalMethod(name = "notify")
+    @io.temporal.common.MethodRetry(maximumAttempts = 99)
+    @io.temporal.common.CronSchedule("signal-annotation-must-not-be-used")
     void signalValue(String value);
   }
 
   @WorkflowInterface
   public interface EmptyTarget {
     @WorkflowMethod(name = "Target")
+    @io.temporal.common.MethodRetry(initialIntervalSeconds = 7, maximumAttempts = 3)
+    @io.temporal.common.CronSchedule("0 * * * *")
     void start();
 
     @SignalMethod(name = "notify")
@@ -185,12 +207,21 @@ public class SignalWithStartWorkflowTest {
                           "queue",
                           target::signalValue,
                           "signal",
-                          typedOptions))
+                          typedOptions.toBuilder()
+                              .setRetryPolicy(
+                                  io.temporal.common.RetryOptions.newBuilder()
+                                      .setMaximumAttempts(9)
+                                      .build())
+                              .setCronSchedule("")
+                              .build()))
               .get();
       EmptyTarget empty = Workflow.newExternalWorkflowStub(EmptyTarget.class, "typed-defaults");
       ExternalWorkflowStub typedDefaults =
           Workflow.signalWithStartWorkflow(
               empty::start, "typed-defaults", "queue", empty::signalValue);
+      ExternalWorkflowStub typedNull =
+          Workflow.signalWithStartWorkflow(
+              empty::start, "typed-null-defaults", "queue", empty::signalValue, null);
       assertThrows(
           IllegalArgumentException.class,
           () ->
@@ -240,6 +271,10 @@ public class SignalWithStartWorkflowTest {
           + typedDefaults.getExecution().getWorkflowId()
           + ":"
           + typedDefaults.getExecution().getRunId()
+          + ","
+          + typedNull.getExecution().getWorkflowId()
+          + ":"
+          + typedNull.getExecution().getRunId()
           + ","
           + arity6.getExecution().getWorkflowId()
           + ":"

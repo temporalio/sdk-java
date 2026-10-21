@@ -2,6 +2,8 @@ package io.temporal.internal.nexus.system;
 
 import io.temporal.api.common.v1.*;
 import io.temporal.api.taskqueue.v1.TaskQueue;
+import io.temporal.common.CronSchedule;
+import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.VersioningOverride;
 import io.temporal.common.converter.DataConverter;
@@ -31,11 +33,12 @@ public final class TemporalModelConverters {
   }
 
   /** Captures one typed workflow invocation without starting a child workflow. */
-  public static void captureWorkflowCall(
+  public static ExternalWorkflowInvocationHandler.ProbeResult captureWorkflowCall(
       Object method, Functions.Proc invocation, BiConsumer<String, Object[]> result) {
     ExternalWorkflowInvocationHandler.ProbeResult call =
         ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.WORKFLOW);
     result.accept(call.getName(), call.getArguments());
+    return call;
   }
 
   /** Captures one typed signal invocation without sending a signal. */
@@ -44,6 +47,19 @@ public final class TemporalModelConverters {
     ExternalWorkflowInvocationHandler.ProbeResult call =
         ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.SIGNAL);
     result.accept(call.getName(), call.getArguments());
+  }
+
+  /** Merges the original method annotation with explicit retry settings. */
+  public static RetryOptions mergeMethodRetry(
+      ExternalWorkflowInvocationHandler.ProbeResult call, RetryOptions explicit) {
+    return RetryOptions.merge(call.getMethod().getAnnotation(MethodRetry.class), explicit);
+  }
+
+  /** Explicit schedules, including an empty string, override the method annotation. */
+  public static String mergeCronSchedule(
+      ExternalWorkflowInvocationHandler.ProbeResult call, String explicit) {
+    CronSchedule annotation = call.getMethod().getAnnotation(CronSchedule.class);
+    return OptionsUtils.merge(annotation == null ? "" : annotation.value(), explicit, String.class);
   }
 
   public static WorkflowSerializationContext signalWithStartWorkflowSerializationContext(

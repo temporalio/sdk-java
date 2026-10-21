@@ -43,17 +43,29 @@ the functional interface. The operation itself returns an external stub, not the
 workflow result.
 
 The existing external invocation handler probes method names, arguments, result
-types, target execution, and annotation-derived retry/cron options using scoped
+types, target execution, and the original annotated method using scoped
 thread locals. It sends no commands while probing and restores normal invocation
 behavior afterward, including on failure. Query/update methods and receiver
 lambdas are rejected. Typed calls reject `setArgs` or `setSignalArgs` in options.
 Both forms support `Async.function` and an overload omitting options.
 
-Workflow ID and task queue remain explicit. The IDL does not define how probed
-options map to request fields, precedence between those options and explicit
-options, or relationships between the workflow and signal references. Automatic
-options merging and cross-reference constraints are deferred rather than
-hardcoded in the generator. Explicit ID, task queue, and options govern this call.
+Typed calls merge the workflow method's `@MethodRetry` and `@CronSchedule` with
+explicit retry/cron options, matching the client SDK. Retry fields use
+`RetryOptions.merge(annotation, explicitOptions)`; explicit non-default settings
+take precedence over annotation values. Cron uses the annotation when the
+explicit value is null; an explicit empty string disables the annotated schedule.
+The signal method's annotations are not used for these fields. Defaults apply
+with null or omitted options. Untyped calls have no method annotations to merge.
+
+The shared WIT declares `@nexus.merge-from-function function="workflow"` hooks
+on the retry and cron fields. Java generation retains the function's raw probe
+metadata and calls the selected SDK merge helpers, without synthesizing
+`WorkflowOptions` or hardcoding retry/cron policy in the generator. This directive
+currently affects Java only.
+
+Workflow ID and task queue remain explicit. Relationships between workflow and
+signal references are not declared and cross-reference constraints remain
+deferred. Other options use their explicit values and existing defaults.
 
 `Workflow` inherits generated operations from `WorkflowOperations`. New WIT
 operations become available after regeneration, without adding handwritten
