@@ -1,5 +1,7 @@
 description = '''Temporal Java SDK External Storage GCS Driver - Google Cloud Storage Client'''
 
+apply from: "$rootDir/gradle/fakeGcsServer.gradle"
+
 ext {
     googleCloudStorageVersion = '2.75.0'
 }

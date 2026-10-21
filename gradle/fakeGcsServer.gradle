@@ -1,0 +1,81 @@
+import java.nio.file.Files
+import java.nio.file.FileAlreadyExistsException
+import java.security.MessageDigest
+
+def emulatorVersion = '1.56.1'
+def checksums = [
+        Darwin_amd64: 'bbcbb78e57c4a7ad242bc971b70a57f963c8daa616ae649254562fbd7f2bc54d',
+        Darwin_arm64: '039d7a520869115b9bc1b354f73612d2dad0aa27b22104f111d8c94985007fe1',
+        Linux_amd64: '0f2f9f6884417acd5cc27126a9aa237ccc627372a4aa5008b399641de6db9469',
+        Linux_arm64: '89a4b887a50834ce5844f47f9938a1203a89330e660b2af7851b858fa489fa96',
+        Windows_amd64: '79c1a92b6d666c6fc2a60439f8ebee9e01b918dad90cae6f003ade4a5877a566',
+]
+def osName = System.getProperty('os.name').toLowerCase(Locale.ROOT)
+def platform = osName.contains('windows') ? 'Windows' :
+        osName.contains('mac') ? 'Darwin' : osName.contains('linux') ? 'Linux' : osName
+def machine = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+def arch = [x86_64: 'amd64', aarch64: 'arm64'].get(machine, machine)
+def target = "${platform}_${arch}".toString()
+def filename = platform == 'Windows' ? 'fake-gcs-server.exe' : 'fake-gcs-server'
+def cache = new File(gradle.gradleUserHomeDir, "caches/fake-gcs-server/${emulatorVersion}/${target}")
+def executable = new File(cache, filename)
+
+def prepareFakeGcsServer = tasks.register('prepareFakeGcsServer') {
+    group = 'verification'
+    description = 'Downloads and caches the fake GCS server used by adapter tests.'
+    inputs.property('emulatorVersion', emulatorVersion)
+    outputs.file(executable)
+    doLast {
+        if (executable.isFile()) {
+            return
+        }
+        if (!checksums.containsKey(target)) {
+            throw new GradleException("No fake GCS server binary for ${target}")
+        }
+        if (gradle.startParameter.offline) {
+            throw new GradleException('Run prepareFakeGcsServer once without --offline to cache the binary.')
+        }
+        Files.createDirectories(cache.toPath())
+        def staging = Files.createTempDirectory(cache.toPath(), 'install-').toFile()
+        try {
+            def archive = new File(staging, 'server.tar.gz')
+            def url = new URL('https://github.com/fsouza/fake-gcs-server/releases/download/' +
+                    "v${emulatorVersion}/fake-gcs-server_${emulatorVersion}_${target}.tar.gz")
+            def connection = url.openConnection()
+            connection.connectTimeout = 30000
+            connection.readTimeout = 30000
+            connection.inputStream.withCloseable { input ->
+                archive.withOutputStream { output -> output << input }
+            }
+            def digest = MessageDigest.getInstance('SHA-256').digest(archive.bytes).encodeHex().toString()
+            if (digest != checksums[target]) {
+                throw new GradleException("Checksum mismatch for ${url}")
+            }
+            copy {
+                from tarTree(resources.gzip(archive))
+                include filename
+                into staging
+            }
+            def stagedExecutable = new File(staging, filename)
+            if (platform != 'Windows' && !stagedExecutable.setExecutable(true)) {
+                throw new GradleException("Cannot make ${stagedExecutable} executable")
+            }
+            try {
+                Files.move(stagedExecutable.toPath(), executable.toPath())
+            } catch (FileAlreadyExistsException ignored) {
+                // Another Gradle invocation may have populated the shared cache.
+            }
+        } finally {
+            delete staging
+        }
+    }
+}
+
+test {
+    dependsOn prepareFakeGcsServer
+    systemProperty 'io.temporal.testing.fakeGcsServer', executable.absolutePath
+}
+
+rootProject.tasks.named('prepareDevServerTests').configure {
+    dependsOn prepareFakeGcsServer
+}

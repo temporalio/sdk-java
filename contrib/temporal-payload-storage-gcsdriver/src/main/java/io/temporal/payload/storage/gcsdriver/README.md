@@ -137,3 +137,13 @@ output:
 Reads require `object_name` and ignore unknown fields. Downloads
 use the bucket recorded in the claim, so changing the upload bucket does not invalidate earlier
 references. Every download verifies SHA-256 before parsing the payload.
+
+## Testing
+
+```bash
+./gradlew :temporal-payload-storage-gcsdriver:test :temporal-payload-storage-gcsdriver-gcssdk:test
+```
+
+Gradle downloads and caches [fake-gcs-server](https://github.com/fsouza/fake-gcs-server)
+under `~/.gradle/caches/fake-gcs-server`. JUnit starts it on a free local port and
+cleans up the server and test buckets afterward.
