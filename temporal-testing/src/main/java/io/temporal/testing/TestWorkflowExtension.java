@@ -23,6 +23,7 @@ import java.lang.reflect.Parameter;
 import java.time.Instant;
 import java.util.*;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -79,6 +80,7 @@ public class TestWorkflowExtension
   private static final String NEXUS_ENDPOINT_KEY = "nexusEndpoint";
 
   private final WorkerOptions workerOptions;
+  private final String workerTaskQueue;
   private final WorkflowClientOptions workflowClientOptions;
   private final ActivityClientOptions activityClientOptions;
   private final WorkerFactoryOptions workerFactoryOptions;
@@ -100,6 +102,7 @@ public class TestWorkflowExtension
 
   private TestWorkflowExtension(Builder builder) {
     workerOptions = builder.workerOptions;
+    workerTaskQueue = builder.workerTaskQueue;
     if (builder.workflowClientOptions != null) {
       workflowClientOptions = builder.workflowClientOptions;
     } else {
@@ -214,7 +217,10 @@ public class TestWorkflowExtension
 
     try {
       String taskQueue =
-          String.format("WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
+          workerTaskQueue != null
+              ? workerTaskQueue
+              : String.format(
+                  "WorkflowTest-%s-%s", context.getDisplayName(), context.getUniqueId());
       String nexusEndpointName = String.format("WorkflowTestNexusEndpoint-%s", UUID.randomUUID());
       boolean createNexusEndpoint =
           !doNotSetupNexusEndpoint && nexusServiceImplementations.length > 0;
@@ -327,6 +333,7 @@ public class TestWorkflowExtension
     private static final Object[] NO_NEXUS_SERVICES = new Object[0];
 
     private WorkerOptions workerOptions = WorkerOptions.getDefaultInstance();
+    private String workerTaskQueue;
     private WorkflowClientOptions workflowClientOptions;
     private ActivityClientOptions activityClientOptions;
     private WorkerFactoryOptions workerFactoryOptions;
@@ -354,6 +361,25 @@ public class TestWorkflowExtension
      */
     public Builder setWorkerOptions(WorkerOptions options) {
       this.workerOptions = options;
+      return this;
+    }
+
+    /**
+     * Sets the task queue used by the worker, injected workflow stubs and {@link WorkflowOptions},
+     * and any automatically created Nexus endpoint. If unset or {@code null}, a task queue name is
+     * generated for each test.
+     *
+     * <p>When using an external service, avoid sharing the same task queue across parallel tests in
+     * the same namespace, as their workers may process each other's tasks.
+     *
+     * @param workerTaskQueue task queue name, or {@code null} to use a generated name.
+     * @throws IllegalArgumentException if the task queue name is empty.
+     */
+    public Builder setWorkerTaskQueue(@Nullable String workerTaskQueue) {
+      if (workerTaskQueue != null && workerTaskQueue.isEmpty()) {
+        throw new IllegalArgumentException("workerTaskQueue should not be an empty string");
+      }
+      this.workerTaskQueue = workerTaskQueue;
       return this;
     }
 
