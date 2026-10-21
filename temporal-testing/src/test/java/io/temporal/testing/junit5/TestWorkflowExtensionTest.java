@@ -120,7 +120,8 @@ public class TestWorkflowExtensionTest {
         () -> assertTrue(testEnv.isStarted()),
         () -> assertNotNull(workflowClient),
         () -> assertNotNull(activityClient),
-        () -> assertNotNull(workflowOptions.getTaskQueue()),
+        () -> assertTrue(workflowOptions.getTaskQueue().startsWith("WorkflowTest-")),
+        () -> assertEquals(worker.getTaskQueue(), workflowOptions.getTaskQueue()),
         () -> assertNotNull(worker),
         () ->
             assertEquals(

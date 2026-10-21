@@ -25,6 +25,8 @@ to docs, or any other relevant information.
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 
 ### Added
+- `TestWorkflowExtension.Builder.setWorkerTaskQueue` lets tests specify a custom worker task queue.
+  When unset or `null`, the extension continues to generate a task queue name for each test.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
