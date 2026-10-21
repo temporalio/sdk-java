@@ -39,6 +39,9 @@ public final class TestStatsReporter implements StatsReporter {
               + counters.get(metricName).get()
               + "'");
     }
+    if (timers.containsKey(metricName)) {
+      fail("Timer '" + metricName + "' was reported");
+    }
   }
 
   public synchronized void assertCounter(String name, Map<String, String> tags, long expected) {
@@ -87,6 +90,20 @@ public final class TestStatsReporter implements StatsReporter {
               + "', reported metrics: \n "
               + String.join("\n ", timers.keySet()));
     }
+  }
+
+  public synchronized void assertTimer(
+      String name, Map<String, String> tags, Predicate<StatsAccumulator> isExpected) {
+    String metricName = getMetricName(name, tags);
+    StatsAccumulator value = timers.get(metricName);
+    if (value == null) {
+      fail(
+          "No metric '"
+              + metricName
+              + "', reported metrics: \n "
+              + String.join("\n ", timers.keySet()));
+    }
+    assertTrue(metricName + " count: " + value.count(), isExpected.test(value));
   }
 
   public synchronized void assertTimerMinDuration(

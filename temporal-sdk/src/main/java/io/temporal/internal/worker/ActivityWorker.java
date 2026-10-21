@@ -333,6 +333,13 @@ final class ActivityWorker implements SuspendableWorker {
       ActivityTaskHandler.Result result = null;
       boolean taskFailed = false;
       try {
+        // Schedule to start latency does not depend on the activity type, so it is reported with
+        // the worker scope.
+        workerMetricsScope
+            .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
+            .record(
+                ProtobufTimeUtils.toM3Duration(
+                    pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
         result = handleActivity(task, metricsScope);
         if (result.getTaskFailed() != null
             && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
@@ -382,12 +389,6 @@ final class ActivityWorker implements SuspendableWorker {
             false);
       }
       PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
-      metricsScope
-          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-          .record(
-              ProtobufTimeUtils.toM3Duration(
-                  pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
-
       ActivityTaskHandler.Result result;
 
       Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
