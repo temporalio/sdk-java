@@ -77,8 +77,10 @@ interface workflow-service {
     /// @nexus.name go="WorkflowIDConflictPolicy"
     id-conflict-policy: option<workflow-id-conflict-policy>,
     /// @nexus.doc "Retry policy for the workflow."
+    /// @nexus.merge-from-function function="workflow" java="mergeMethodRetry"
     retry-policy: option<retry-policy>,
     /// @nexus.doc "Cron schedule for recurring workflow executions. See https://docs.temporal.io/cron-job."
+    /// @nexus.merge-from-function function="workflow" java="mergeCronSchedule"
     cron-schedule: option<string>,
     /// @nexus.doc "Memo for the workflow."
     memo: option<memo>,

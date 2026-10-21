@@ -92,6 +92,7 @@ interface model {
   ///   dotnet-name-extractor="TemporalFunctionNames.WorkflowName"
   ///   dotnet-call-extractor="TemporalFunctionNames.ExtractCall"
   ///   java-call-extractor="captureWorkflowCall"
+  ///   java-call-metadata-type="io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult"
   /// @nexus.add-rpc-compatible-with "workflow-type"
   type workflow-function = placeholder;
 

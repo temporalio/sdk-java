@@ -43,6 +43,8 @@ public class SystemSignalWithStartIntegrationTest {
   @WorkflowInterface
   public interface Target {
     @WorkflowMethod(name = "SystemSignalTarget")
+    @io.temporal.common.MethodRetry(initialIntervalSeconds = 1, maximumAttempts = 3)
+    @io.temporal.common.CronSchedule("0 * * * *")
     String run(String initial);
 
     @SignalMethod
@@ -76,6 +78,7 @@ public class SystemSignalWithStartIntegrationTest {
       String id = Workflow.getInfo().getWorkflowId() + "-target";
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
+              .setCronSchedule("")
               .setIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
               .build();

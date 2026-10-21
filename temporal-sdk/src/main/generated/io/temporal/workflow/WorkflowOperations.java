@@ -62,8 +62,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowResult> io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Func<WorkflowResult> workflow,
@@ -82,8 +83,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowResult> io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Func<WorkflowResult> workflow,
@@ -93,13 +95,14 @@ public abstract class WorkflowOperations {
       io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -124,9 +127,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -139,6 +139,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -147,8 +153,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -170,8 +177,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -183,13 +191,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -214,9 +223,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -229,6 +235,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -237,8 +249,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Proc workflow,
@@ -257,8 +270,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Proc workflow,
@@ -268,13 +282,14 @@ public abstract class WorkflowOperations {
       io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -299,9 +314,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -314,6 +326,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -322,8 +340,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1> io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Proc workflow,
@@ -344,8 +363,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1> io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Proc workflow,
@@ -356,13 +376,14 @@ public abstract class WorkflowOperations {
       io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -387,9 +408,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -402,6 +420,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -410,8 +434,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -433,8 +458,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -446,13 +472,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -477,9 +504,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -492,6 +516,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -500,8 +530,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -525,8 +556,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -539,13 +571,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -570,9 +603,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -585,6 +615,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -593,8 +629,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1> io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Proc1<WorkflowArg1> workflow,
@@ -615,8 +652,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1> io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       io.temporal.workflow.Functions.Proc1<WorkflowArg1> workflow,
@@ -627,13 +665,14 @@ public abstract class WorkflowOperations {
       io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -658,9 +697,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -673,6 +709,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -681,8 +723,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -706,8 +749,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -720,13 +764,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -751,9 +796,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -766,6 +808,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -774,8 +822,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -799,8 +848,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -813,13 +863,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -844,9 +895,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -859,6 +907,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -867,8 +921,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -894,8 +949,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -909,13 +965,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -940,9 +997,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -955,6 +1009,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -963,8 +1023,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -988,8 +1049,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1002,13 +1064,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1033,9 +1096,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1048,6 +1108,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1056,8 +1122,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1083,8 +1150,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1098,13 +1166,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1129,9 +1198,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1144,6 +1210,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1152,8 +1224,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1181,8 +1254,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1198,13 +1272,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1229,9 +1304,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1244,6 +1316,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1252,8 +1330,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1283,8 +1362,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1301,13 +1381,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1332,9 +1413,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1347,6 +1425,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1355,8 +1439,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1382,8 +1467,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1397,13 +1483,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1428,9 +1515,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1443,6 +1527,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1451,8 +1541,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1480,8 +1571,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1496,13 +1588,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1527,9 +1620,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1542,6 +1632,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1550,8 +1646,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1581,8 +1678,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1599,13 +1697,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1630,9 +1729,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1645,6 +1741,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1653,8 +1755,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1686,8 +1789,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowResult>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1705,13 +1809,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1736,9 +1841,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1751,6 +1853,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1759,8 +1867,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1790,8 +1899,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1808,13 +1918,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1839,9 +1950,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1854,6 +1962,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1862,8 +1976,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1895,8 +2010,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -1914,13 +2030,14 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -1945,9 +2062,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -1960,6 +2074,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -1968,8 +2088,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5, WorkflowResult>
@@ -2007,8 +2128,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5, WorkflowResult>
@@ -2032,13 +2154,16 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2063,9 +2188,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2078,6 +2200,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2086,8 +2214,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           SignalArg1,
@@ -2133,8 +2262,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           SignalArg1,
@@ -2165,13 +2295,16 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2196,9 +2329,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2211,6 +2341,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2219,8 +2355,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -2252,8 +2389,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -2271,13 +2409,16 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2302,9 +2443,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2317,6 +2455,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2325,8 +2469,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -2360,8 +2505,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <SignalArg1, WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -2380,13 +2526,16 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () -> workflow.apply(workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2411,9 +2560,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2426,6 +2572,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2434,8 +2586,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           WorkflowArg1,
@@ -2482,8 +2635,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           WorkflowArg1,
@@ -2515,15 +2669,21 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () ->
-            workflow.apply(
-                workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5, workflowArg6),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1,
+                    workflowArg2,
+                    workflowArg3,
+                    workflowArg4,
+                    workflowArg5,
+                    workflowArg6),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2548,9 +2708,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2563,6 +2720,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2571,8 +2734,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           SignalArg1,
@@ -2622,8 +2786,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           SignalArg1,
@@ -2657,15 +2822,21 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () ->
-            workflow.apply(
-                workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5, workflowArg6),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1,
+                    workflowArg2,
+                    workflowArg3,
+                    workflowArg4,
+                    workflowArg5,
+                    workflowArg6),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2690,9 +2861,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2705,6 +2873,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2713,8 +2887,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5, WorkflowArg6>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -2753,8 +2928,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <WorkflowArg1, WorkflowArg2, WorkflowArg3, WorkflowArg4, WorkflowArg5, WorkflowArg6>
       io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
@@ -2778,15 +2954,21 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () ->
-            workflow.apply(
-                workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5, workflowArg6),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1,
+                    workflowArg2,
+                    workflowArg3,
+                    workflowArg4,
+                    workflowArg5,
+                    workflowArg6),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2811,9 +2993,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2826,6 +3005,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
@@ -2834,8 +3019,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           SignalArg1,
@@ -2883,8 +3069,9 @@ public abstract class WorkflowOperations {
    * Signal a workflow, starting it first if needed.
    *
    * <p>Pass bound method references followed by their arguments. SDK-owned call extractors probe
-   * these invocations. Supply invocation arguments as parameters, not in options. Other required
-   * fields remain explicit; automatic merging of probed options is not defined.
+   * these invocations. Supply invocation arguments as parameters, not in options. Fields with
+   * declared merge-from-function hooks merge explicit values with the named callable's metadata.
+   * Other required fields remain explicit.
    */
   public static <
           SignalArg1,
@@ -2916,15 +3103,21 @@ public abstract class WorkflowOperations {
           io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
-    io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
-        workflow,
-        () ->
-            workflow.apply(
-                workflowArg1, workflowArg2, workflowArg3, workflowArg4, workflowArg5, workflowArg6),
-        (capturedName, capturedArguments) -> {
-          requestBuilder.setWorkflow(capturedName);
-          requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
-        });
+    io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult workflowMetadata =
+        io.temporal.internal.nexus.system.TemporalModelConverters.captureWorkflowCall(
+            workflow,
+            () ->
+                workflow.apply(
+                    workflowArg1,
+                    workflowArg2,
+                    workflowArg3,
+                    workflowArg4,
+                    workflowArg5,
+                    workflowArg6),
+            (capturedName, capturedArguments) -> {
+              requestBuilder.setWorkflow(capturedName);
+              requestBuilder.setArgs(java.util.Arrays.asList(capturedArguments));
+            });
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
     io.temporal.internal.nexus.system.TemporalModelConverters.captureSignalCall(
@@ -2949,9 +3142,6 @@ public abstract class WorkflowOperations {
         requestBuilder.setIdReusePolicy(options.getIdReusePolicy());
       if (options.getIdConflictPolicy() != null)
         requestBuilder.setIdConflictPolicy(options.getIdConflictPolicy());
-      if (options.getRetryPolicy() != null) requestBuilder.setRetryPolicy(options.getRetryPolicy());
-      if (options.getCronSchedule() != null)
-        requestBuilder.setCronSchedule(options.getCronSchedule());
       if (options.getMemo() != null) requestBuilder.setMemo(options.getMemo());
       if (options.getSearchAttributes() != null)
         requestBuilder.setSearchAttributes(options.getSearchAttributes());
@@ -2964,6 +3154,12 @@ public abstract class WorkflowOperations {
       if (options.getStaticDetails() != null)
         requestBuilder.setStaticDetails(options.getStaticDetails());
     }
+    requestBuilder.setRetryPolicy(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeMethodRetry(
+            workflowMetadata, options == null ? null : options.getRetryPolicy()));
+    requestBuilder.setCronSchedule(
+        io.temporal.internal.nexus.system.TemporalModelConverters.mergeCronSchedule(
+            workflowMetadata, options == null ? null : options.getCronSchedule()));
     io.temporal.workflow.SignalWithStartWorkflowRequest request = requestBuilder.build();
     return executeSignalWithStartWorkflow(request);
   }
