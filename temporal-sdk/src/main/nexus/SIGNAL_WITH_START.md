@@ -29,21 +29,31 @@ The typed overload checks workflow and signal arguments against their interface:
 
 ```java
 ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
-    TargetWorkflow.class, w -> w.run(input), "target", "target-queue",
-    w -> w.notifySignal(signal),
+    target::run, input, "target", "target-queue",
+    target::notifySignal, signal,
     SignalWithStartWorkflowOptions.newBuilder().setRunTimeout(timeout).build());
 ```
 
-Each callback must invoke exactly one method on its receiver: a `@WorkflowMethod`
-for the workflow callback and a `@SignalMethod` for the signal callback. Calls are
-captured without starting a child or sending a signal, and annotation names and
-inherited methods follow the existing SDK metadata rules. Method references such
-as `TargetWorkflow::run` work for methods without arguments; use a lambda to bind
-arguments. The workflow return value is discarded. The receiver is valid only
-inside its callback. Typed calls take all workflow/signal arguments from these
-callbacks and reject `setArgs` or `setSignalArgs` in options. Both typed and
-name-based forms return an external stub and support `Async.function` and the
-overload omitting options.
+Create `target` with `Workflow.newExternalWorkflowStub(TargetWorkflow.class, "target")`.
+Pass bound workflow and signal methods followed directly by their arguments.
+Typed overloads cover zero through six workflow arguments and zero or one signal
+argument, including void workflow methods. Other arities use the name-based API.
+The compiler checks arguments and retains generic workflow result information in
+the functional interface. The operation itself returns an external stub, not the
+workflow result.
+
+The existing external invocation handler probes method names, arguments, result
+types, target execution, and annotation-derived retry/cron options using scoped
+thread locals. It sends no commands while probing and restores normal invocation
+behavior afterward, including on failure. Query/update methods and receiver
+lambdas are rejected. Typed calls reject `setArgs` or `setSignalArgs` in options.
+Both forms support `Async.function` and an overload omitting options.
+
+Workflow ID and task queue remain explicit. The IDL does not define how probed
+options map to request fields, precedence between those options and explicit
+options, or relationships between the workflow and signal references. Automatic
+options merging and cross-reference constraints are deferred rather than
+hardcoded in the generator. Explicit ID, task queue, and options govern this call.
 
 `Workflow` inherits generated operations from `WorkflowOperations`. New WIT
 operations become available after regeneration, without adding handwritten

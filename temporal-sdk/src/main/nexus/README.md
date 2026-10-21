@@ -23,9 +23,13 @@ The generator uses `--package-name io.temporal.workflow` and the WIT annotation
 generated base once; additional operations require no handwritten facade methods.
 Generated operations take required fields as parameters and optional fields in
 generated options builders, all available from the workflow package.
-Typed overloads use workflow interfaces and invocation callbacks. SDK-owned
+Typed overloads take bound methods followed directly by arguments. SDK-owned
 call-extractor hooks resolve annotated workflow/signal names and arguments
 without executing commands; the generated wrapper constructs the request.
+Primary callable arities zero through six and other callable arities zero or one
+come from Java rendering policy and the IDL's primary marker. No operation names
+or composite-operation roles are encoded in the generator. Probed options remain
+available in the SDK; automatic merging awaits IDL mapping and precedence rules.
 The manifest derives from operation input/output protobuf transfer types. The service client's Java
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.

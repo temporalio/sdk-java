@@ -1,16 +1,126 @@
 package io.temporal.internal.sync;
 
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.common.CronSchedule;
+import io.temporal.common.MethodRetry;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.common.metadata.WorkflowMethodType;
+import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.JavaLambdaUtils;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
+import java.lang.invoke.MethodHandleInfo;
+import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+import java.lang.reflect.Type;
+import java.util.Objects;
 
-/** Dynamic implementation of a strongly typed child workflow interface. */
-class ExternalWorkflowInvocationHandler implements InvocationHandler {
+/** Dynamic implementation of a strongly typed external workflow interface. */
+public class ExternalWorkflowInvocationHandler implements InvocationHandler {
+
+  private static final ThreadLocal<ProbeContext> probeContext = new ThreadLocal<>();
+  private static final ThreadLocal<ProbeResult> probeResult = new ThreadLocal<>();
+
+  /** Probes one invocation without starting a workflow or sending a signal. */
+  public static ProbeResult probe(
+      Object method, Functions.Proc invocation, WorkflowMethodType expected) {
+    Objects.requireNonNull(invocation, "invocation");
+    if (probeContext.get() != null) {
+      throw new IllegalStateException("Already probing an external workflow invocation");
+    }
+    SerializedLambda reference =
+        JavaLambdaUtils.toSerializedLambda(Objects.requireNonNull(method, "method"));
+    Object target = JavaLambdaUtils.getTarget(reference);
+    if (reference == null
+        || reference.getImplMethodKind() != MethodHandleInfo.REF_invokeInterface
+        || target == null
+        || !Proxy.isProxyClass(target.getClass())
+        || !(Proxy.getInvocationHandler(target) instanceof ExternalWorkflowInvocationHandler)) {
+      throw new IllegalArgumentException(
+          "Expected a bound method from Workflow.newExternalWorkflowStub");
+    }
+    ProbeContext context = new ProbeContext(expected);
+    probeContext.set(context);
+    try {
+      invocation.apply();
+      ProbeResult result = probeResult.get();
+      if (context.invocations != 1 || result == null) {
+        throw new IllegalArgumentException(
+            "Expected exactly one external workflow " + expected + " invocation");
+      }
+      return result;
+    } finally {
+      probeResult.remove();
+      probeContext.remove();
+    }
+  }
+
+  private static final class ProbeContext {
+    private final WorkflowMethodType expected;
+    private int invocations;
+
+    private ProbeContext(WorkflowMethodType expected) {
+      this.expected = Objects.requireNonNull(expected, "expected");
+    }
+  }
+
+  /** Metadata captured from a bound external workflow method. */
+  public static final class ProbeResult {
+    private final ExternalWorkflowStub stub;
+    private final String name;
+    private final Object[] arguments;
+    private final Class<?> resultClass;
+    private final Type resultType;
+    private final WorkflowOptions options;
+
+    private ProbeResult(
+        ExternalWorkflowStub stub, POJOWorkflowMethodMetadata metadata, Object[] args) {
+      this.stub = stub;
+      this.name = metadata.getName();
+      this.arguments = args == null ? new Object[0] : args.clone();
+      Method method = metadata.getWorkflowMethod();
+      this.resultClass = method.getReturnType();
+      this.resultType = method.getGenericReturnType();
+      MethodRetry retry = method.getAnnotation(MethodRetry.class);
+      CronSchedule cron = method.getAnnotation(CronSchedule.class);
+      this.options =
+          WorkflowOptions.newBuilder()
+              .setWorkflowId(stub.getExecution().getWorkflowId())
+              .setRetryOptions(RetryOptions.merge(retry, null))
+              .setCronSchedule(cron == null ? null : cron.value())
+              .build();
+    }
+
+    public ExternalWorkflowStub getStub() {
+      return stub;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public Object[] getArguments() {
+      return arguments.clone();
+    }
+
+    public Class<?> getResultClass() {
+      return resultClass;
+    }
+
+    public Type getResultType() {
+      return resultType;
+    }
+
+    public WorkflowOptions getOptions() {
+      return options;
+    }
+  }
 
   private final ExternalWorkflowStub stub;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
@@ -40,6 +150,15 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
       return stub;
     }
     POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+    ProbeContext context = probeContext.get();
+    if (context != null) {
+      if (++context.invocations != 1 || methodMetadata.getType() != context.expected) {
+        throw new IllegalArgumentException(
+            "Expected exactly one external workflow " + context.expected + " invocation");
+      }
+      probeResult.set(new ProbeResult(stub, methodMetadata, args));
+      return InternalUtils.getValueOrDefault(null, method.getReturnType());
+    }
     switch (methodMetadata.getType()) {
       case QUERY:
         throw new UnsupportedOperationException(
