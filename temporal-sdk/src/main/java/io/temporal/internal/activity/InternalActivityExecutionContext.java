@@ -1,6 +1,8 @@
 package io.temporal.internal.activity;
 
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import javax.annotation.Nullable;
 
 /**
  * Internal context object passed to an Activity implementation, providing more internal details
@@ -15,4 +17,18 @@ public interface InternalActivityExecutionContext extends ActivityExecutionConte
 
   /** Cancel any pending heartbeat and discard cached heartbeat details. */
   void cancelOutstandingHeartbeat();
+
+  /**
+   * Returns whether the activity task's outcome was already reported to the server, for example
+   * because an oversized heartbeat failed it, so the activity's own result must not be sent. Waits
+   * for a report that is still being sent.
+   */
+  boolean awaitTaskReported();
+
+  /**
+   * Returns the payload limit violation that failed a heartbeat, or null. Unless the task was
+   * already reported, the activity must report the violation instead of its own outcome.
+   */
+  @Nullable
+  PayloadLimitViolation getPayloadLimitViolation();
 }

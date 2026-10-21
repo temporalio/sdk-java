@@ -15,6 +15,7 @@ import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.worker.PollerOptions;
 import io.temporal.testUtils.LoggerUtils;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestActivities;
 import java.time.Duration;
 import java.util.List;
@@ -36,16 +37,25 @@ public class GrpcMessageTooLargeTest {
     VERY_LARGE_DATA = argBuilder.toString();
   }
 
+  // These workers send payloads over the namespace's error limit, which the worker would otherwise
+  // reject before the gRPC message size limit is reached.
+  private static final WorkerOptions PAYLOAD_ERROR_LIMIT_DISABLED =
+      WorkerOptions.newBuilder().setDisablePayloadErrorLimit(true).build();
+
   @Rule
   public SDKTestWorkflowRule activityStartWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(ActivityStartWorkflowImpl.class)
           .setActivityImplementations(new TestActivityImpl())
+          .setWorkerOptions(PAYLOAD_ERROR_LIMIT_DISABLED)
           .build();
 
   @Rule
   public SDKTestWorkflowRule failureWorkflowRule =
-      SDKTestWorkflowRule.newBuilder().setWorkflowTypes(FailureWorkflowImpl.class).build();
+      SDKTestWorkflowRule.newBuilder()
+          .setWorkflowTypes(FailureWorkflowImpl.class)
+          .setWorkerOptions(PAYLOAD_ERROR_LIMIT_DISABLED)
+          .build();
 
   @Rule
   public SDKTestWorkflowRule querySuccessWorkflowRule =

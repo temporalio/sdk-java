@@ -35,7 +35,7 @@ dependencies {
         testRuntimeOnly "com.google.protobuf:protobuf-java-util:$protoVersionEdge"
         testRuntimeOnly "io.grpc:grpc-bom:$grpcVersionEdge"
     }
-    testRuntimeOnly "ch.qos.logback:logback-classic:${logbackVersion}"
+    testImplementation "ch.qos.logback:logback-classic:${logbackVersion}"
 }
 
 task initSubmodules(type: Exec) {
