@@ -60,7 +60,7 @@ interface model {
   workflow-call: async func(callable-prefix: callable-prefix, args: payloads) -> workflow-result;
 
   /// Callable result annotation for signal functions.
-  /// @nexus.type python="None | collections.abc.Awaitable[None]" typescript="void" go="any" dotnet="void"
+  /// @nexus.type java="Void" python="None | collections.abc.Awaitable[None]" typescript="void" go="any" dotnet="void"
   type signal-result = placeholder;
 
   /// @nexus.function-args

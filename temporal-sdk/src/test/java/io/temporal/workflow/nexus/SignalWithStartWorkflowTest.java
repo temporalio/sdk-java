@@ -57,6 +57,17 @@ public class SignalWithStartWorkflowTest {
                                         }
                                       } else {
                                         assertEquals("input", request.getArgs().get(0));
+                                        if (request.getId().equals("arity6")) {
+                                          assertEquals(
+                                              java.util.Arrays.asList(
+                                                  "input",
+                                                  2,
+                                                  3L,
+                                                  true,
+                                                  java.util.Collections.singletonList("nested"),
+                                                  java.util.Collections.singletonMap("key", 4)),
+                                              request.getArgs());
+                                        }
                                         assertEquals("signal", request.getSignalArgs().get(0));
                                         assertEquals(
                                             "summary",
@@ -83,7 +94,7 @@ public class SignalWithStartWorkflowTest {
   @Test
   public void generatedWorkflowMethodsReturnExternalStubs() {
     assertEquals(
-        "sync:run,async:run,defaults:run,typed:run,typed-async:run,typed-defaults:run",
+        "sync:run,async:run,defaults:run,typed:run,typed-async:run,typed-defaults:run,arity6:run",
         rule.newWorkflowStubTimeoutOptions(Caller.class).run());
   }
 
@@ -103,6 +114,21 @@ public class SignalWithStartWorkflowTest {
 
     @SignalMethod(name = "notify")
     void signalValue();
+  }
+
+  @WorkflowInterface
+  public interface SixArgumentTarget {
+    @WorkflowMethod(name = "Target")
+    java.util.List<String> start(
+        String first,
+        int second,
+        long third,
+        boolean fourth,
+        java.util.List<String> fifth,
+        java.util.Map<String, Integer> sixth);
+
+    @SignalMethod(name = "notify")
+    void signalValue(String value);
   }
 
   @WorkflowInterface
@@ -139,42 +165,58 @@ public class SignalWithStartWorkflowTest {
               .setStaticSummary("summary")
               .setRunTimeout(java.time.Duration.ofMinutes(3))
               .build();
+      TypedTarget target = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed");
       ExternalWorkflowStub typed =
           Workflow.signalWithStartWorkflow(
-              TypedTarget.class,
-              w -> w.start("input"),
+              target::start,
+              "input",
               "typed",
               "queue",
-              w -> w.signalValue("signal"),
+              target::signalValue,
+              "signal",
               typedOptions);
       ExternalWorkflowStub typedAsync =
           Async.function(
                   () ->
                       Workflow.signalWithStartWorkflow(
-                          TypedTarget.class,
-                          w -> w.start("input"),
+                          target::start,
+                          "input",
                           "typed-async",
                           "queue",
-                          w -> w.signalValue("signal"),
+                          target::signalValue,
+                          "signal",
                           typedOptions))
               .get();
+      EmptyTarget empty = Workflow.newExternalWorkflowStub(EmptyTarget.class, "typed-defaults");
       ExternalWorkflowStub typedDefaults =
           Workflow.signalWithStartWorkflow(
-              EmptyTarget.class,
-              EmptyTarget::start,
-              "typed-defaults",
-              "queue",
-              EmptyTarget::signalValue);
+              empty::start, "typed-defaults", "queue", empty::signalValue);
       assertThrows(
           IllegalArgumentException.class,
           () ->
               Workflow.signalWithStartWorkflow(
-                  TypedTarget.class,
-                  w -> w.start("input"),
+                  target::start,
+                  "input",
                   "invalid",
                   "queue",
-                  w -> w.signalValue("signal"),
+                  target::signalValue,
+                  "signal",
                   options));
+      SixArgumentTarget six = Workflow.newExternalWorkflowStub(SixArgumentTarget.class, "arity6");
+      ExternalWorkflowStub arity6 =
+          Workflow.signalWithStartWorkflow(
+              six::start,
+              "input",
+              2,
+              3L,
+              true,
+              java.util.Collections.singletonList("nested"),
+              java.util.Collections.singletonMap("key", 4),
+              "arity6",
+              "queue",
+              six::signalValue,
+              "signal",
+              typedOptions);
       return sync.getExecution().getWorkflowId()
           + ":"
           + sync.getExecution().getRunId()
@@ -197,7 +239,11 @@ public class SignalWithStartWorkflowTest {
           + ","
           + typedDefaults.getExecution().getWorkflowId()
           + ":"
-          + typedDefaults.getExecution().getRunId();
+          + typedDefaults.getExecution().getRunId()
+          + ","
+          + arity6.getExecution().getWorkflowId()
+          + ":"
+          + arity6.getExecution().getRunId();
     }
   }
 }

@@ -79,13 +79,15 @@ public class SystemSignalWithStartIntegrationTest {
               .setIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
               .build();
+      Target target = Workflow.newExternalWorkflowStub(Target.class, id);
       ExternalWorkflowStub external =
           Workflow.signalWithStartWorkflow(
-              Target.class,
-              w -> w.run("start"),
+              target::run,
+              "start",
               id,
               Workflow.getInfo().getTaskQueue(),
-              w -> w.notifySignal("first"),
+              target::notifySignal,
+              "first",
               options);
       assertEquals(id, external.getExecution().getWorkflowId());
       Async.function(

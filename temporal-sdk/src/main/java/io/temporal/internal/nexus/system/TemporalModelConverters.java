@@ -5,21 +5,16 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.VersioningOverride;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
-import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.common.*;
+import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.SignalWithStartWorkflowRequest;
 import io.temporal.workflow.Workflow;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 
 /** SDK-owned model conversion hooks used by the generated system Nexus bindings. */
@@ -36,82 +31,19 @@ public final class TemporalModelConverters {
   }
 
   /** Captures one typed workflow invocation without starting a child workflow. */
-  public static <T> void captureWorkflowCall(
-      Class<T> workflowInterface, Functions.Proc1<T> call, BiConsumer<String, Object[]> result) {
-    captureCall(workflowInterface, call, WorkflowMethodType.WORKFLOW, result);
+  public static void captureWorkflowCall(
+      Object method, Functions.Proc invocation, BiConsumer<String, Object[]> result) {
+    ExternalWorkflowInvocationHandler.ProbeResult call =
+        ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.WORKFLOW);
+    result.accept(call.getName(), call.getArguments());
   }
 
   /** Captures one typed signal invocation without sending a signal. */
-  public static <T> void captureSignalCall(
-      Class<T> workflowInterface, Functions.Proc1<T> call, BiConsumer<String, Object[]> result) {
-    captureCall(workflowInterface, call, WorkflowMethodType.SIGNAL, result);
-  }
-
-  private static <T> void captureCall(
-      Class<T> workflowInterface,
-      Functions.Proc1<T> call,
-      WorkflowMethodType expected,
-      BiConsumer<String, Object[]> result) {
-    Objects.requireNonNull(call, "call");
-    MethodCapture capture = new MethodCapture(workflowInterface, expected);
-    T receiver =
-        workflowInterface.cast(
-            Proxy.newProxyInstance(
-                workflowInterface.getClassLoader(), new Class<?>[] {workflowInterface}, capture));
-    try {
-      call.apply(receiver);
-    } finally {
-      capture.active = false;
-    }
-    if (capture.invocations != 1 || capture.name == null) {
-      throw new IllegalArgumentException(
-          "Callback must invoke exactly one " + expected + " method");
-    }
-    result.accept(capture.name, capture.arguments);
-  }
-
-  private static final class MethodCapture implements InvocationHandler {
-    private final POJOWorkflowInterfaceMetadata metadata;
-    private final WorkflowMethodType expected;
-    private boolean active = true;
-    private int invocations;
-    private String name;
-    private Object[] arguments;
-
-    private MethodCapture(Class<?> workflowInterface, WorkflowMethodType expected) {
-      this.metadata = POJOWorkflowInterfaceMetadata.newInstance(workflowInterface);
-      this.expected = expected;
-    }
-
-    @Override
-    public Object invoke(Object proxy, Method method, Object[] args) {
-      if (method.getDeclaringClass() == Object.class) {
-        switch (method.getName()) {
-          case "toString":
-            return "WorkflowMethodCapture{" + metadata.getInterfaceClass().getName() + "}";
-          case "hashCode":
-            return System.identityHashCode(proxy);
-          case "equals":
-            return proxy == args[0];
-        }
-      }
-      if (!active) {
-        throw new IllegalStateException(
-            "Captured workflow receiver cannot be used outside its callback");
-      }
-      if (++invocations != 1) {
-        throw new IllegalArgumentException(
-            "Callback must invoke exactly one " + expected + " method");
-      }
-      POJOWorkflowMethodMetadata methodMetadata = metadata.getMethodMetadata(method);
-      if (methodMetadata.getType() != expected) {
-        throw new IllegalArgumentException(
-            "Expected a " + expected + " method, got " + methodMetadata.getType());
-      }
-      name = methodMetadata.getName();
-      arguments = args == null ? new Object[0] : args.clone();
-      return InternalUtils.getValueOrDefault(null, method.getReturnType());
-    }
+  public static void captureSignalCall(
+      Object method, Functions.Proc invocation, BiConsumer<String, Object[]> result) {
+    ExternalWorkflowInvocationHandler.ProbeResult call =
+        ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.SIGNAL);
+    result.accept(call.getName(), call.getArguments());
   }
 
   public static WorkflowSerializationContext signalWithStartWorkflowSerializationContext(
