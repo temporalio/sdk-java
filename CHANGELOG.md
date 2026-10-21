@@ -20,11 +20,21 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` now includes generated system Nexus operation hooks.
+  Direct implementations must implement the hooks; extending `WorkflowOutboundCallsInterceptorBase`
+  provides forwarding implementations.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 
 ### Added
+- Workflows can signal with start through the system workflow service using
+  generated `Workflow.signalWithStartWorkflow(workflowType, args, workflowId, taskQueue, signalName, signalArgs, options)` API.
+  Typed overloads accept bound workflow/signal methods followed directly by checked arguments.
+  Typed calls merge workflow retry/cron annotations with explicit options using generated Java-only WIT hooks.
+  Request builders and operations are generated into `io.temporal.workflow`.
+  System Nexus envelopes preserve destination workflow serialization context for nested payloads,
+  codecs, and external payload storage. Requires a server supporting the system workflow service.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure

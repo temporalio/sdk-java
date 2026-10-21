@@ -828,10 +828,24 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     // contextualized by the endpoint, service and operation instead. The same converter decodes the
     // result and converts failures, so each operation keeps the converter selected for it even when
     // several operations are in flight at once.
-    DataConverter nexusDataConverter =
-        dataConverter.withContext(
-            new NexusSerializationContext(
-                input.getEndpoint(), input.getService(), input.getOperation()));
+    final DataConverter nexusDataConverter;
+    final DataConverter userMetadataDataConverter;
+    if (io.temporal.internal.nexus.system.SystemNexusDataConverter.ENDPOINT.equals(
+        input.getEndpoint())) {
+      io.temporal.payload.context.SerializationContext context =
+          io.temporal.workflow.SystemNexusOperations.serializationContext(
+              input.getService(), input.getOperation(), input.getArg());
+      userMetadataDataConverter =
+          context == null ? dataConverter : dataConverter.withContext(context);
+      nexusDataConverter =
+          new io.temporal.internal.nexus.system.SystemNexusDataConverter(userMetadataDataConverter);
+    } else {
+      nexusDataConverter =
+          dataConverter.withContext(
+              new NexusSerializationContext(
+                  input.getEndpoint(), input.getService(), input.getOperation()));
+      userMetadataDataConverter = nexusDataConverter;
+    }
 
     Optional<Payload> payload = nexusDataConverter.toPayload(input.getArg());
 
@@ -852,7 +866,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     @Nullable
     UserMetadata userMetadata =
-        makeUserMetaData(input.getOptions().getSummary(), null, nexusDataConverter);
+        makeUserMetaData(input.getOptions().getSummary(), null, userMetadataDataConverter);
 
     StartNexusOperationParameters parameters =
         new StartNexusOperationParameters(

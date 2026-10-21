@@ -149,15 +149,19 @@ sourceSets {
 
 dependencies {
     payloadGeneratorsImplementation "com.google.protobuf:protobuf-java:$protoVersion"
+    testImplementation sourceSets.payloadGenerators.output
 }
 
 def generatedPayloadVisitorDir = layout.buildDirectory.dir('generated/payloadvisitor/java')
 
 def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) {
     dependsOn 'compilePayloadGeneratorsJava', 'generateProto'
+    mustRunAfter ':temporal-sdk:generateNexusSystemApi'
     classpath = sourceSets.payloadGenerators.runtimeClasspath
     mainClass = 'io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator'
-    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath
+    def systemRoots = project(':temporal-sdk').file('src/main/generated/io/temporal/workflow/system-nexus-roots.txt')
+    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath, systemRoots.absolutePath
+    inputs.file(systemRoots)
     inputs.file(apiDescriptorSet)
     inputs.files(sourceSets.payloadGenerators.runtimeClasspath)
     outputs.dir(generatedPayloadVisitorDir)
