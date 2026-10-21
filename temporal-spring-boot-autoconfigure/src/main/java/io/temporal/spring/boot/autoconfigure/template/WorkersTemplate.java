@@ -306,6 +306,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       WorkflowImpl annotation = AnnotationUtils.findAnnotation(clazz, WorkflowImpl.class);
 
       for (String workerName : annotation.workers()) {
+        workerName = environment.resolvePlaceholders(workerName);
         Worker worker = workers.getByName(workerName);
         if (worker == null) {
           throw new BeanDefinitionValidationException(
@@ -328,6 +329,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           ActivityImpl annotation = AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
           if (annotation != null) {
             for (String workerName : annotation.workers()) {
+              workerName = environment.resolvePlaceholders(workerName);
               Worker worker = workers.getByName(workerName);
               if (worker == null) {
                 throw new BeanDefinitionValidationException(
@@ -353,6 +355,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               AnnotationUtils.findAnnotation(targetClass, NexusServiceImpl.class);
           if (annotation != null) {
             for (String workerName : annotation.workers()) {
+              workerName = environment.resolvePlaceholders(workerName);
               Worker worker = workers.getByName(workerName);
               if (worker == null) {
                 throw new BeanDefinitionValidationException(
@@ -609,6 +612,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 .createWorkflowImplementationOptions(worker, clazz, null);
         worker.registerWorkflowImplementationFactory(
             DynamicWorkflow.class,
+            (Class<? extends DynamicWorkflow>) clazz,
             (encodedValues) -> {
               if (ctor.isPresent()) {
                 try {
@@ -676,6 +680,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
+          (Class<? extends T>) clazz,
           (encodedValues) -> {
             try {
               Constructor<?> ctor = workflowMetadata.getWorkflowInit();
@@ -711,6 +716,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
         worker.registerWorkflowImplementationFactory(
             (Class<T>) workflowMethod.getWorkflowInterface(),
+            (Class<? extends T>) clazz,
             () -> (T) beanFactory.createBean(clazz),
             workflowImplementationOptions);
         addRegisteredWorkflowImpl(

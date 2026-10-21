@@ -7,7 +7,7 @@ import java.time.Duration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Profile;
 
-@WorkflowImpl(workers = "mainWorker")
+@WorkflowImpl(workers = "${default-worker.name:mainWorker}")
 @Profile("auto-discovery-with-profile")
 public class OtherTestWorkflowImpl implements TestWorkflow {
 

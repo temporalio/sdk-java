@@ -1,10 +1,14 @@
 package io.temporal.testing.internal;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.grpc.Metadata;
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.envconfig.ClientConfigProfile;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -48,6 +52,47 @@ public class ExternalServiceTestConfiguratorTest {
     assertEquals(
         "Bearer api-key",
         metadata.get(Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER)));
+  }
+
+  @Test
+  public void configureTestWorkflowRulePreservesClientOptions() {
+    DataConverter converter = DefaultDataConverter.newDefaultInstance();
+    TestWorkflowRule rule =
+        ExternalServiceTestConfigurator.configureFromEnvConfig(
+                TestWorkflowRule.newBuilder().setWorkflowClientOptions(clientOptions(converter)),
+                newProfile())
+            .build();
+    try {
+      WorkflowClientOptions options = rule.getWorkflowClient().getOptions();
+      assertSame(converter, options.getDataConverter());
+      assertEquals("test-identity", options.getIdentity());
+      assertEquals("envconfig-namespace", options.getNamespace());
+    } finally {
+      rule.getTestEnvironment().close();
+    }
+  }
+
+  @Test
+  public void configureTestEnvironmentPreservesClientOptions() {
+    DataConverter converter = DefaultDataConverter.newDefaultInstance();
+    TestEnvironmentOptions options =
+        ExternalServiceTestConfigurator.configureFromEnvConfig(
+                TestEnvironmentOptions.newBuilder()
+                    .setWorkflowClientOptions(clientOptions(converter)),
+                newProfile())
+            .build();
+
+    assertSame(converter, options.getWorkflowClientOptions().getDataConverter());
+    assertEquals("test-identity", options.getWorkflowClientOptions().getIdentity());
+    assertEquals("envconfig-namespace", options.getWorkflowClientOptions().getNamespace());
+  }
+
+  private static WorkflowClientOptions clientOptions(DataConverter converter) {
+    return WorkflowClientOptions.newBuilder()
+        .setNamespace("test-namespace")
+        .setIdentity("test-identity")
+        .setDataConverter(converter)
+        .build();
   }
 
   @Test
