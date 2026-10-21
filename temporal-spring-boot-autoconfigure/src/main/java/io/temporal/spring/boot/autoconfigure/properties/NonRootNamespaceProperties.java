@@ -16,6 +16,7 @@ public class NonRootNamespaceProperties extends NamespaceProperties {
    * - WorkersTemplate <br>
    * - WorkflowClient <br>
    * - ScheduleClient <br>
+   * - ActivityClient <br>
    * - WorkerFactory <br>
    * You guys can use this alias to get the beans. <br>
    * for example if you set spring.temporal.namespace[0].alias=foo <br>

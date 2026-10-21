@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import io.grpc.health.v1.HealthCheckResponse;
+import io.temporal.client.ActivityClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.testing.TestWorkflowEnvironment;
@@ -28,6 +29,8 @@ public class ClientOnlyTest {
 
   @Autowired ScheduleClient scheduleClient;
 
+  @Autowired ActivityClient activityClient;
+
   @BeforeEach
   void setUp() {
     applicationContext.start();
@@ -45,6 +48,12 @@ public class ClientOnlyTest {
   public void testScheduleClientWiring() {
     assertNotNull(scheduleClient);
     assertNotNull(scheduleClient.getHandle("test"));
+  }
+
+  @Test
+  public void testActivityClientWiring() {
+    assertNotNull(activityClient);
+    assertNotNull(activityClient.getHandle("test", null));
   }
 
   @ComponentScan(

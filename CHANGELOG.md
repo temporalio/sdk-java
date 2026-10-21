@@ -25,6 +25,8 @@ to docs, or any other relevant information.
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 
 ### Added
+- Spring Boot now auto-configures `ActivityClient` for root and non-root namespaces, with namespace-specific
+  data converters, options customization, and root activity client interceptor registration.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
