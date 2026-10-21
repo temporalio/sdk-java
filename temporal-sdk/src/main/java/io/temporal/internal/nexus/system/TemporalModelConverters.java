@@ -112,9 +112,7 @@ public final class TemporalModelConverters {
   }
 
   public static Memo memoToProto(DataConverter converter, Map<String, Object> value) {
-    Memo.Builder builder = Memo.newBuilder();
-    value.forEach((key, item) -> builder.putFields(key, converter.toPayload(item).get()));
-    return builder.build();
+    return Memo.newBuilder().putAllFields(HeaderUtils.intoPayloadMap(converter, value)).build();
   }
 
   public static Map<String, Object> memoFromProto(DataConverter converter, Memo value) {
