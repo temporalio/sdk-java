@@ -2,6 +2,7 @@ package io.temporal.internal.common;
 
 import static io.temporal.internal.common.LinkConverter.linkToNexusLink;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToActivity;
+import static io.temporal.internal.common.LinkConverter.nexusLinkToCallback;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToLink;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToNexusOperation;
 import static io.temporal.internal.common.LinkConverter.nexusLinkToWorkflowEvent;
@@ -11,8 +12,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
+import io.temporal.api.common.v1.Execution;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.ExecutionType;
+import java.util.Arrays;
 import org.junit.Test;
 
 /**
@@ -32,6 +36,7 @@ public class LinkConverterTest {
   private static final String WORKFLOW = Link.Workflow.getDescriptor().getFullName();
   private static final String NEXUS_OPERATION = Link.NexusOperation.getDescriptor().getFullName();
   private static final String ACTIVITY = Link.Activity.getDescriptor().getFullName();
+  private static final String CALLBACK = Link.Callback.getDescriptor().getFullName();
 
   // ===============================================================================================
   // Encode.
@@ -174,6 +179,63 @@ public class LinkConverterTest {
         ACTIVITY, activity("ns", "act/id", "run-id"));
   }
 
+  /** The path keyword names the execution type. */
+  @Test
+  public void encodesCallbackForEachExecutionType() {
+    assertEncodes(
+        "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks/req-id",
+        CALLBACK,
+        callback("ns", ExecutionType.EXECUTION_TYPE_WORKFLOW, "wf-id", "run-id", "req-id"));
+    assertEncodes(
+        "temporal:///namespaces/ns/activities/act-id/run-id/callbacks/req-id",
+        CALLBACK,
+        callback("ns", ExecutionType.EXECUTION_TYPE_ACTIVITY, "act-id", "run-id", "req-id"));
+    assertEncodes(
+        "temporal:///namespaces/ns/nexus-operations/op-id/run-id/callbacks/req-id",
+        CALLBACK,
+        callback("ns", ExecutionType.EXECUTION_TYPE_NEXUS_OPERATION, "op-id", "run-id", "req-id"));
+  }
+
+  /**
+   * One {@code componentPath} param per segment, in the path's order rather than sorted, with each
+   * segment form-encoded.
+   */
+  @Test
+  public void encodesComponentPathAsRepeatedParamInOrder() {
+    String url = "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks/req-id";
+    ExecutionType wf = ExecutionType.EXECUTION_TYPE_WORKFLOW;
+    assertEncodes(
+        url + "?componentPath=A%3AB&componentPath=C%2FD&componentPath=E_F",
+        CALLBACK,
+        callback("ns", wf, "wf-id", "run-id", "req-id", "A:B", "C/D", "E_F"));
+    assertEncodes(
+        url + "?componentPath=Updates&componentPath=id%2Cwith%2Ccommas",
+        CALLBACK,
+        callback("ns", wf, "wf-id", "run-id", "req-id", "Updates", "id,with,commas"));
+    assertEncodes(
+        url + "?componentPath=zulu&componentPath=alpha",
+        CALLBACK,
+        callback("ns", wf, "wf-id", "run-id", "req-id", "zulu", "alpha"));
+  }
+
+  /**
+   * An encoded {@code /callbacks/} inside the business ID must not read as the tail, and the
+   * request ID is escaped like any other segment.
+   */
+  @Test
+  public void encodesReservedCharactersInCallbackPath() {
+    assertEncodes(
+        "temporal:///namespaces/ns%2Fwith-slash/workflows/wf-id%2Fcallbacks%2Ffake/run-id"
+            + "/callbacks/request%20id%3Fx%3D1",
+        CALLBACK,
+        callback(
+            "ns/with-slash",
+            ExecutionType.EXECUTION_TYPE_WORKFLOW,
+            "wf-id/callbacks/fake",
+            "run-id",
+            "request id?x=1"));
+  }
+
   /** The event type goes on the wire in the short PascalCase form. */
   @Test
   public void encodesEventTypeInPascalCase() {
@@ -314,6 +376,7 @@ public class LinkConverterTest {
     assertRejected(WORKFLOW_EVENT, "https:///namespaces/ns/workflows/wf-id/run-id/history");
     assertRejected(WORKFLOW, "https:///namespaces/ns/workflows/wf-id/run-id");
     assertRejected(NEXUS_OPERATION, "https:///namespaces/ns/nexus-operations/op/run-id/details");
+    assertRejected(CALLBACK, "https:///namespaces/ns/workflows/wf-id/run-id/callbacks/req-id");
   }
 
   /** A workflow link ends at the run ID; a workflow-event link ends at {@code /history}. */
@@ -328,9 +391,12 @@ public class LinkConverterTest {
     assertRejected(
         WORKFLOW_EVENT, "temporal:///namespaces/ns/workflows/wf-id/run-id/history/extra");
     assertRejected(WORKFLOW, "temporal:///namespaces/ns/workflows/wf-id/run-id/extra");
+    assertRejected(
+        CALLBACK, "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks/req-id/extra");
     // A trailing slash is an empty extra segment, not a no-op.
     assertRejected(WORKFLOW_EVENT, "temporal:///namespaces/ns/workflows/wf-id/run-id/history/");
     assertRejected(WORKFLOW, "temporal:///namespaces/ns/workflows/wf-id/run-id/");
+    assertRejected(CALLBACK, "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks/req-id/");
   }
 
   /** A repeated key takes its first occurrence, as api-go does. No encoder emits one. */
@@ -347,17 +413,24 @@ public class LinkConverterTest {
     assertRejected(WORKFLOW, "temporal:///namespaces/ns/workflows/wf-id");
     assertRejected(NEXUS_OPERATION, "temporal:///namespaces/ns/nexus-operations/op-id/run-id");
     assertRejected(ACTIVITY, "temporal:///namespaces/ns/activities/act-id/run-id");
+    assertRejected(CALLBACK, "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks");
   }
 
   @Test
   public void rejectsEmptyPathSegment() {
     assertRejected(WORKFLOW_EVENT, "temporal:///namespaces//workflows/wf-id/run-id/history");
     assertRejected(WORKFLOW_EVENT, "temporal:///namespaces/ns/workflows//run-id/history");
+    assertRejected(CALLBACK, "temporal:///namespaces/ns/workflows//run-id/callbacks/req-id");
+    assertRejected(CALLBACK, "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks/");
   }
 
   @Test
   public void rejectsWrongKindSegment() {
     assertRejected(WORKFLOW_EVENT, "temporal:///namespaces/ns/activities/wf-id/run-id/history");
+    // A callback's keyword varies, but only over the execution types.
+    assertRejected(
+        CALLBACK, "temporal:///namespaces/ns/schedules/sched-id/run-id/callbacks/req-id");
+    assertRejected(CALLBACK, "temporal:///namespaces/ns/workflows/wf-id/run-id/history/req-id");
   }
 
   /** The declared type is authoritative on every decoder, not just the dispatcher. */
@@ -369,6 +442,9 @@ public class LinkConverterTest {
     assertNull(nexusLinkToWorkflowLink(nexusLink(WORKFLOW_EVENT, workflowEventUrl)));
     assertNull(nexusLinkToActivity(nexusLink(WORKFLOW_EVENT, workflowEventUrl)));
     assertNull(nexusLinkToNexusOperation(nexusLink(WORKFLOW_EVENT, workflowEventUrl)));
+    String callbackUrl = "temporal:///namespaces/ns/workflows/wf-id/run-id/callbacks/req-id";
+    assertRejected(ACTIVITY, callbackUrl);
+    assertNull(nexusLinkToCallback(nexusLink(ACTIVITY, callbackUrl)));
   }
 
   @Test
@@ -421,11 +497,20 @@ public class LinkConverterTest {
   // ===============================================================================================
 
   @Test
-  public void dispatchCoversAllFourLinkTypes() {
+  public void dispatchCoversAllLinkTypes() {
     assertNotNull(linkToNexusLink(eventRef("ns", "w", "r", 1, EventType.EVENT_TYPE_TIMER_STARTED)));
     assertNotNull(linkToNexusLink(workflow("ns", "w", "r", "")));
     assertNotNull(linkToNexusLink(nexusOperation("ns", "o", "r")));
     assertNotNull(linkToNexusLink(activity("ns", "a", "r")));
+    assertNotNull(
+        linkToNexusLink(callback("ns", ExecutionType.EXECUTION_TYPE_WORKFLOW, "w", "r", "q")));
+  }
+
+  /** A callback on an execution type with no path keyword is dropped rather than misencoded. */
+  @Test
+  public void unsupportedCallbackExecutionTypeEncodesToNull() {
+    assertNull(
+        linkToNexusLink(callback("ns", ExecutionType.EXECUTION_TYPE_UNSPECIFIED, "w", "r", "q")));
   }
 
   /**
@@ -551,6 +636,24 @@ public class LinkConverterTest {
     return Link.newBuilder()
         .setActivity(
             Link.Activity.newBuilder().setNamespace(ns).setActivityId(actId).setRunId(runId))
+        .build();
+  }
+
+  private static Link callback(
+      String ns,
+      ExecutionType type,
+      String businessId,
+      String runId,
+      String requestId,
+      String... componentPath) {
+    return Link.newBuilder()
+        .setCallback(
+            Link.Callback.newBuilder()
+                .setNamespace(ns)
+                .setExecution(
+                    Execution.newBuilder().setType(type).setBusinessId(businessId).setRunId(runId))
+                .setRequestId(requestId)
+                .addAllComponentPath(Arrays.asList(componentPath)))
         .build();
   }
 }
