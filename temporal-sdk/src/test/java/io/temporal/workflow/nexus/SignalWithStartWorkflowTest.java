@@ -64,13 +64,8 @@ public class SignalWithStartWorkflowTest {
                                               .WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
                                           request.getIdReusePolicy());
                                       if (request.getId().contains("defaults")) {
-                                        if (request.getId().equals("defaults")) {
-                                          assertNull(request.getArgs());
-                                          assertNull(request.getSignalArgs());
-                                        } else {
-                                          assertTrue(request.getArgs().isEmpty());
-                                          assertTrue(request.getSignalArgs().isEmpty());
-                                        }
+                                        assertTrue(request.getArgs().isEmpty());
+                                        assertTrue(request.getSignalArgs().isEmpty());
                                       } else {
                                         assertEquals("input", request.getArgs().get(0));
                                         if (request.getId().equals("arity6")) {
@@ -164,29 +159,34 @@ public class SignalWithStartWorkflowTest {
     public String run() {
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
-              .setArgs("input")
-              .setSignalArgs("signal")
               .setStaticSummary("summary")
               .setRunTimeout(java.time.Duration.ofMinutes(3))
               .build();
       ExternalWorkflowStub sync =
-          Workflow.signalWithStartWorkflow("Target", "sync", "queue", "notify", options);
+          Workflow.signalWithStartWorkflow(
+              "Target",
+              new Object[] {"input"},
+              "sync",
+              "queue",
+              "notify",
+              new Object[] {"signal"},
+              options);
       ExternalWorkflowStub async =
           Async.function(
-                  Workflow::signalWithStartWorkflow,
-                  "Target",
-                  "async",
-                  "queue",
-                  "notify",
-                  options.toBuilder().build())
+                  () ->
+                      Workflow.signalWithStartWorkflow(
+                          "Target",
+                          new Object[] {"input"},
+                          "async",
+                          "queue",
+                          "notify",
+                          new Object[] {"signal"},
+                          options.toBuilder().build()))
               .get();
       ExternalWorkflowStub defaults =
-          Workflow.signalWithStartWorkflow("Target", "defaults", "queue", "notify");
-      SignalWithStartWorkflowOptions typedOptions =
-          SignalWithStartWorkflowOptions.newBuilder()
-              .setStaticSummary("summary")
-              .setRunTimeout(java.time.Duration.ofMinutes(3))
-              .build();
+          Workflow.signalWithStartWorkflow(
+              "Target", new Object[0], "defaults", "queue", "notify", new Object[0]);
+      SignalWithStartWorkflowOptions typedOptions = options;
       TypedTarget target = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed");
       ExternalWorkflowStub typed =
           Workflow.signalWithStartWorkflow(
@@ -222,17 +222,6 @@ public class SignalWithStartWorkflowTest {
       ExternalWorkflowStub typedNull =
           Workflow.signalWithStartWorkflow(
               empty::start, "typed-null-defaults", "queue", empty::signalValue, null);
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              Workflow.signalWithStartWorkflow(
-                  target::start,
-                  "input",
-                  "invalid",
-                  "queue",
-                  target::signalValue,
-                  "signal",
-                  options));
       SixArgumentTarget six = Workflow.newExternalWorkflowStub(SixArgumentTarget.class, "arity6");
       ExternalWorkflowStub arity6 =
           Workflow.signalWithStartWorkflow(

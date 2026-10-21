@@ -94,12 +94,15 @@ public class SystemSignalWithStartIntegrationTest {
               options);
       assertEquals(id, external.getExecution().getWorkflowId());
       Async.function(
-              Workflow::signalWithStartWorkflow,
-              "SystemSignalTarget",
-              id,
-              Workflow.getInfo().getTaskQueue(),
-              "notifySignal",
-              options.toBuilder().setArgs("ignored").setSignalArgs("second").build())
+              () ->
+                  Workflow.signalWithStartWorkflow(
+                      "SystemSignalTarget",
+                      new Object[] {"ignored"},
+                      id,
+                      Workflow.getInfo().getTaskQueue(),
+                      "notifySignal",
+                      new Object[] {"second"},
+                      options))
           .get();
       return id;
     }
