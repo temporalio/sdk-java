@@ -540,34 +540,13 @@ public final class WorkflowInternal {
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    getWorkflowOutboundInterceptor()
-        .await(
-            reason,
-            () -> {
-              getRootWorkflowContext().setReadOnly(true);
-              try {
-                return unblockCondition.get();
-              } finally {
-                getRootWorkflowContext().setReadOnly(false);
-              }
-            });
+    getWorkflowOutboundInterceptor().await(reason, unblockCondition);
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    return getWorkflowOutboundInterceptor()
-        .await(
-            timeout,
-            reason,
-            () -> {
-              getRootWorkflowContext().setReadOnly(true);
-              try {
-                return unblockCondition.get();
-              } finally {
-                getRootWorkflowContext().setReadOnly(false);
-              }
-            });
+    return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
   }
 
   public static boolean await(
@@ -756,17 +735,6 @@ public final class WorkflowInternal {
       return func.apply();
     } finally {
       workflowContext.setReadOnly(previousReadOnly);
-    }
-  }
-
-  public static <T> T notSubjectToReplay(Functions.Func<T> func) {
-    SyncWorkflowContext workflowContext = getRootWorkflowContext();
-    boolean previousSubjectToReplay = workflowContext.isSubjectToReplay();
-    workflowContext.setSubjectToReplay(false);
-    try {
-      return func.apply();
-    } finally {
-      workflowContext.setSubjectToReplay(previousSubjectToReplay);
     }
   }
 
@@ -975,19 +943,22 @@ public final class WorkflowInternal {
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 
-  static boolean isReadOnly() {
-    return getRootWorkflowContext().isReadOnly();
+  /** Returns false if not under workflow code. */
+  public static boolean isReadOnly() {
+    boolean inWorkflow = isWorkflowThread() || QueryDispatcher.isQueryHandler();
+    return inWorkflow && getRootWorkflowContext().isReadOnly();
   }
 
   static void assertNotReadOnly(String action) {
-    if (isReadOnly()) {
-      throw new ReadOnlyException(action);
+    if (!isReadOnly()) {
+      return;
     }
-  }
-
-  public static boolean isSubjectToReplay() {
-    Optional<WorkflowThread> thread = DeterministicRunnerImpl.currentThreadInternalIfPresent();
-    return thread.isPresent() && getRootWorkflowContext().isSubjectToReplay();
+    // This thread is being destroyed, so throw the error that ends it. Workflow code could catch a
+    // ReadOnlyException and keep running.
+    if (isWorkflowThread() && getWorkflowThread().getWorkflowThreadContext().isDestroyRequested()) {
+      throw new DestroyWorkflowThreadError();
+    }
+    throw new ReadOnlyException(action);
   }
 
   static void assertNotInUpdateHandler(String message) {

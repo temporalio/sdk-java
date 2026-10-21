@@ -99,7 +99,6 @@ class QueryDispatcher {
     }
     try {
       replayContext.setReadOnly(true);
-      replayContext.setSubjectToReplay(false);
       queryHandlerWorkflowContext.set(replayContext);
       Object result =
           inboundCallsInterceptor
@@ -108,7 +107,6 @@ class QueryDispatcher {
       return dataConverterWithWorkflowContext.toPayloads(result);
     } finally {
       replayContext.setReadOnly(false);
-      replayContext.setSubjectToReplay(true);
       queryHandlerWorkflowContext.set(null);
     }
   }

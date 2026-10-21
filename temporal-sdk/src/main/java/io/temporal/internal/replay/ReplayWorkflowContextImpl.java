@@ -356,11 +356,9 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
             : (min, max) ->
                 WorkflowInternal.readOnly(
                     () ->
-                        WorkflowInternal.notSubjectToReplay(
-                            () ->
-                                preferredVersionProvider.getPreferredVersion(
-                                    new PreferredVersionProviderInput(
-                                        WorkflowInternal.getWorkflowInfo(), changeId, min, max)))),
+                        preferredVersionProvider.getPreferredVersion(
+                            new PreferredVersionProviderInput(
+                                WorkflowInternal.getWorkflowInfo(), changeId, min, max))),
         callback);
   }
 

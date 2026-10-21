@@ -102,7 +102,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private NexusServiceOptions defaultNexusServiceOptions = null;
   private Map<String, NexusServiceOptions> nexusServiceOptionsMap;
   private boolean readOnly = false;
-  private boolean subjectToReplay = true;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
 
@@ -1095,12 +1094,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           () -> {
             try {
               readOnly = true;
-              subjectToReplay = false;
               R r = func.apply();
               return dataConverterWithCurrentWorkflowContext.toPayloads(r);
             } finally {
               readOnly = false;
-              subjectToReplay = true;
             }
           },
           userMetadata,
@@ -1157,8 +1154,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         metadata,
         (storedBinary) -> {
           try {
+            // This callback is only run during live execution.
             readOnly = true;
-            subjectToReplay = false;
             Optional<R> stored =
                 storedBinary.map(
                     (b) ->
@@ -1174,7 +1171,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             return Optional.empty(); // returned only when value doesn't need to be updated
           } finally {
             readOnly = false;
-            subjectToReplay = true;
           }
         },
         (p) ->
@@ -1189,8 +1185,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (unserialized != null) {
       return unserialized;
     }
-    return dataConverterWithCurrentWorkflowContext.fromPayloads(
-        0, result.get(), resultClass, resultType);
+
+    // Live execution skips this decode when a new value is recorded.
+    readOnly = true;
+    try {
+      return dataConverterWithCurrentWorkflowContext.fromPayloads(
+          0, result.get(), resultClass, resultType);
+    } finally {
+      readOnly = false;
+    }
   }
 
   @Override
@@ -1317,14 +1320,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     this.readOnly = readOnly;
   }
 
-  boolean isSubjectToReplay() {
-    return subjectToReplay;
-  }
-
-  void setSubjectToReplay(boolean subjectToReplay) {
-    this.subjectToReplay = subjectToReplay;
-  }
-
   @Override
   public Map<Long, SignalHandlerInfo> getRunningSignalHandlers() {
     return signalDispatcher.getRunningSignalHandlers();
@@ -1398,12 +1393,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public boolean await(
       Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition) {
+    Supplier<Boolean> condition = readOnly(unblockCondition);
     boolean cancelTimerOnCondition =
         replayContext.tryUseSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
 
     if (cancelTimerOnCondition) {
       // If condition is already satisfied, skip creating timer
-      if (unblockCondition.get()) {
+      if (condition.get()) {
         return true;
       }
       // Create timer in a cancellation scope so we can cancel it when condition is satisfied
@@ -1412,7 +1408,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout, options)));
       timerScope.run();
 
-      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || condition.get()));
 
       boolean conditionSatisfied = !timer.isCompleted();
       if (conditionSatisfied) {
@@ -1422,14 +1418,25 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     } else {
       // Old behavior: timer is not cancelled when condition is satisfied
       Promise<Void> timer = newTimer(timeout, options);
-      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || condition.get()));
       return !timer.isCompleted();
     }
   }
 
   @Override
   public void await(String reason, Supplier<Boolean> unblockCondition) {
-    WorkflowThread.await(reason, unblockCondition);
+    WorkflowThread.await(reason, readOnly(unblockCondition));
+  }
+
+  private Supplier<Boolean> readOnly(Supplier<Boolean> condition) {
+    return () -> {
+      readOnly = true;
+      try {
+        return condition.get();
+      } finally {
+        readOnly = false;
+      }
+    };
   }
 
   @SuppressWarnings("deprecation")

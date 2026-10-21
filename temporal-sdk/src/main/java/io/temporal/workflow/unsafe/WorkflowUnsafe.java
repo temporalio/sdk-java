@@ -48,20 +48,21 @@ public final class WorkflowUnsafe {
   }
 
   /**
-   * Reports whether the currently executing code is re-executed when the Workflow replays.
+   * Reports whether the currently executing code is read-only. Read-only code cannot schedule
+   * commands or change Workflow state, for example a Query handler, an Update validator, or an
+   * Await condition. Read-only code can also run a different number of times during live execution
+   * and on replay, so guard draws from {@link
+   * io.temporal.workflow.Workflow#getRandomStream(String)} with this.
    *
-   * <p>Unlike {@link #isReplaying()}, this is a property of the calling context rather than of the
-   * Workflow's current state. The Workflow method and its constructor, signal and update handlers,
-   * and Await conditions are subject to replay. Query handlers, Update validators, and Side Effect
-   * functions run once against the current state and are never re-executed, so they are not subject
-   * to replay even while {@link #isReplaying()} reports true.
+   * <p>Code that can also run outside a Workflow, such as a payload converter, should check {@link
+   * #isWorkflowThread()} too, because this returns false there.
    *
-   * @return true if the calling context is re-executed on replay. This method always returns false
-   *     if called from a non workflow thread.
+   * @return true if the calling context is read-only. This method always returns false if called
+   *     from outside Workflow code.
    */
   @Experimental
-  public static boolean isSubjectToReplay() {
-    return WorkflowInternal.isSubjectToReplay();
+  public static boolean isReadOnly() {
+    return WorkflowInternal.isReadOnly();
   }
 
   /**

@@ -51,7 +51,7 @@ to docs, or any other relevant information.
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
 - Added experimental `Workflow.getRandomStream(String name)`, which returns a deterministic pseudorandom stream private
   to the given name.
-- Added experimental `WorkflowUnsafe.isSubjectToReplay()`, which reports whether the calling code is re-executed on
+- Added experimental `WorkflowUnsafe.isReadOnly()`, which reports whether the calling code is read-only.
   replay.
 
 ### Changed

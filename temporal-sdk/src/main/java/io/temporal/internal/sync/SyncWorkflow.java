@@ -37,6 +37,8 @@ class SyncWorkflow implements ReplayWorkflow {
 
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflow.class);
 
+  static final String UPDATE_THREAD_NAME_PREFIX = "update ";
+
   private final WorkflowThreadExecutor workflowThreadExecutor;
   private final SyncWorkflowDefinition workflow;
   @Nonnull private final WorkflowImplementationOptions workflowImplementationOptions;
@@ -148,7 +150,7 @@ class SyncWorkflow implements ReplayWorkflow {
       UpdateProtocolCallback callbacks) {
     final UpdateInfo updateInfo = new UpdateInfoImpl(updateName, updateId);
     runner.executeInWorkflowThread(
-        "update " + updateName,
+        UPDATE_THREAD_NAME_PREFIX + updateName,
         () -> {
           try {
             workflowContext.setCurrentUpdateInfo(updateInfo);
@@ -159,7 +161,6 @@ class SyncWorkflow implements ReplayWorkflow {
             if (!callbacks.isReplaying()) {
               try {
                 workflowContext.setReadOnly(true);
-                workflowContext.setSubjectToReplay(false);
                 workflowProc.handleValidateUpdate(updateName, updateId, input, eventId, header);
               } catch (ReadOnlyException r) {
                 // Rethrow instead on rejecting the update to fail the WFT
@@ -175,7 +176,6 @@ class SyncWorkflow implements ReplayWorkflow {
                 return;
               } finally {
                 workflowContext.setReadOnly(false);
-                workflowContext.setSubjectToReplay(true);
               }
             }
             callbacks.accept();
