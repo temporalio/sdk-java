@@ -173,6 +173,8 @@ public final class PayloadLimitValidatorGenerator {
     "temporal.api.sdk.v1.UserMetadata.details",
     "temporal.api.sdk.v1.UserMetadata.summary",
     "temporal.api.nexus.v1.EndpointSpec.description",
+    // Callback context has dedicated per-callback and aggregate limits, not blob/memo limits.
+    "temporal.api.common.v1.Callback.NexusHandler.source_context",
     // Event group marker label: custom 400-byte server-side limit, not blob/memo.
     "temporal.api.sdk.v1.EventGroupMarker.Label.label",
     // Update input args: frontend records a metric only — enforced on delivery via Message.body.

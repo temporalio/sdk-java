@@ -30,6 +30,10 @@ to docs, or any other relevant information.
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
   details. `WorkflowClient.getOptions().getDataConverter()` returns the transfer-aware converter
   that the client uses.
+- Worker heartbeats now report detected Graal native-image and Kotlin runtimes alongside the JVM
+  version. Detection is best effort and respects the worker environment information opt-out.
+  Factory registration overloads accept an implementation class for runtime detection, including
+  Spring Boot workflow registrations.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
@@ -75,6 +79,8 @@ to docs, or any other relevant information.
   behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
+  `WorkflowClient` and the `WorkerFactory` was listed twice.
 
 ## Previous releases
 
