@@ -2,6 +2,7 @@ package io.temporal.workflowstreams;
 
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
@@ -173,6 +174,66 @@ public class ListenerSubscribeTest {
       await(listener.completed, "onCompleted");
       Assert.assertNull(listener.error.get());
       handle.getDoneFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+    }
+  }
+
+  @Test
+  public void testClosedStreamCompletionWaitsForDelivery() throws Exception {
+    WorkflowStub stub = startHostWorkflow();
+    stub.signal("publishLocal", "evt", "tail");
+    stub.signal("finish");
+    stub.getResult(Void.class);
+    RecordingListener listener = new RecordingListener();
+    CompletableFuture<Void> gate = new CompletableFuture<>();
+    listener.gates.add(gate);
+    try (WorkflowStreamClient streamClient = newStreamClient(stub);
+        WorkflowStreamSubscriptionHandle handle = streamClient.subscribe(FAST_POLL, listener)) {
+      awaitItems(listener, 1);
+      Assert.assertEquals("tail", decode(listener.items.get(0)));
+      Assert.assertEquals(1, listener.completed.getCount());
+      Assert.assertFalse(handle.getDoneFuture().isDone());
+      gate.complete(null);
+      handle.getDoneFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      Assert.assertEquals(0, listener.completed.getCount());
+      Assert.assertNull(listener.error.get());
+    }
+  }
+
+  @Test
+  public void testClosedStreamPagesStayPinnedAfterWorkflowIdReuse() throws Exception {
+    WorkflowStub stub = startHostWorkflow();
+    String value = new String(new char[400_000]).replace('\0', 'x');
+    for (int i = 0; i < 3; i++) {
+      stub.signal("publishLocal", "evt", value);
+    }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+    RecordingListener listener = new RecordingListener();
+    CompletableFuture<Void> gate = new CompletableFuture<>();
+    listener.gates.add(gate);
+    try (WorkflowStreamClient streamClient = newStreamClient(stub);
+        WorkflowStreamSubscriptionHandle handle = streamClient.subscribe(FAST_POLL, listener)) {
+      awaitItems(listener, 1);
+      SubscribeHostWorkflow replacement =
+          testWorkflowRule
+              .getWorkflowClient()
+              .newWorkflowStub(
+                  SubscribeHostWorkflow.class,
+                  WorkflowOptions.newBuilder()
+                      .setWorkflowId(stub.getExecution().getWorkflowId())
+                      .setTaskQueue(testWorkflowRule.getTaskQueue())
+                      .build());
+      WorkflowClient.start(replacement::execute, null);
+      replacement.publishLocal("evt", "replacement");
+      gate.complete(null);
+      handle.getDoneFuture().get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      Assert.assertEquals(3, listener.items.size());
+      for (int i = 0; i < 3; i++) {
+        Assert.assertEquals(value, decode(listener.items.get(i)));
+        Assert.assertEquals(i, listener.items.get(i).getOffset());
+      }
+      replacement.finish();
+      WorkflowStub.fromTyped(replacement).getResult(Void.class);
     }
   }
 

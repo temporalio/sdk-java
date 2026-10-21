@@ -3,6 +3,7 @@ package io.temporal.workflowstreams.internal;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowExecutionDescription;
 import io.temporal.client.WorkflowStub;
 import io.temporal.client.WorkflowTargetOptions;
 import io.temporal.client.WorkflowUpdateHandle;
@@ -63,6 +64,7 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
   // update's outcome so that, if that run continues-as-new mid-poll (failing the outcome), we
   // still know which run to inspect to tell a rollover apart from a terminal end.
   private String polledRunId = "";
+  private WorkflowStub terminalRunStub;
 
   private volatile boolean closed;
   private final AtomicBoolean started = new AtomicBoolean();
@@ -114,6 +116,16 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
       finishSilent();
       return;
     }
+    if (terminalRunStub != null) {
+      // Query failures must surface directly, without reclassifying a closed run.
+      deliver(
+          terminalRunStub.query(
+              WorkflowStreamConstants.POLL_QUERY_NAME,
+              PollResult.class,
+              new PollInput(topics, offset)));
+      return;
+    }
+    polledRunId = "";
     WorkflowUpdateHandle<PollResult> handle;
     try {
       // Wait only for ACCEPTED so startUpdate returns the handle (and its run id) as soon
@@ -170,6 +182,8 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
       if (i == items.size()) {
         if (moreReady) {
           hop(this::poll);
+        } else if (terminalRunStub != null) {
+          finishCompleted();
         } else {
           schedule(this::poll, pollCooldownMs);
         }
@@ -232,14 +246,21 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
     // The workflow may have continued-as-new or completed between polls. Follow the chain,
     // exit cleanly on a terminal state, otherwise surface the error. describe() is a blocking
     // call, which is why error handling always runs on the executor.
-    WorkflowExecutionStatus status = describePolledRun();
+    WorkflowExecutionDescription description = describePolledRun();
+    WorkflowExecutionStatus status = description.getStatus();
     if (status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW) {
       // Subsequent polls use the latest-run stub, addressing the successor automatically.
       hop(this::poll);
       return;
     }
-    if (isTerminal(status)) {
-      finishCompleted();
+    if (isTerminal(status) && !description.getExecution().getRunId().isEmpty()) {
+      terminalRunStub =
+          client.newUntypedWorkflowStub(
+              WorkflowTargetOptions.newBuilder()
+                  .setWorkflowId(workflowId)
+                  .setRunId(description.getExecution().getRunId())
+                  .build());
+      hop(this::poll);
       return;
     }
     finishError(e);
@@ -252,23 +273,19 @@ public final class SubscriptionDriver implements WorkflowStreamSubscriptionHandl
    * the latest run automatically. A blank run id (no poll has been admitted yet) falls back to
    * describing the latest run.
    */
-  private WorkflowExecutionStatus describePolledRun() {
-    try {
-      WorkflowStub stub;
-      if (polledRunId == null || polledRunId.isEmpty()) {
-        stub = latestRunStub;
-      } else {
-        stub =
-            client.newUntypedWorkflowStub(
-                WorkflowTargetOptions.newBuilder()
-                    .setWorkflowId(workflowId)
-                    .setRunId(polledRunId)
-                    .build());
-      }
-      return stub.describe().getStatus();
-    } catch (RuntimeException e) {
-      return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
+  private WorkflowExecutionDescription describePolledRun() {
+    WorkflowStub stub;
+    if (polledRunId == null || polledRunId.isEmpty()) {
+      stub = latestRunStub;
+    } else {
+      stub =
+          client.newUntypedWorkflowStub(
+              WorkflowTargetOptions.newBuilder()
+                  .setWorkflowId(workflowId)
+                  .setRunId(polledRunId)
+                  .build());
     }
+    return stub.describe();
   }
 
   private void finishSilent() {

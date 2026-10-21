@@ -75,6 +75,28 @@ public class WorkflowStreamTest {
   }
 
   @Test
+  public void testPollQueryReturnsImmediatelyForEmptyAndExhaustedStreams() {
+    WorkflowStub stub = startHostWorkflow();
+    PollResult empty =
+        stub.query(
+            WorkflowStreamConstants.POLL_QUERY_NAME,
+            PollResult.class,
+            new PollInput(Collections.emptyList(), 0));
+    Assert.assertTrue(empty.items.isEmpty());
+    Assert.assertFalse(empty.moreReady);
+    stub.signal("finish");
+    stub.getResult(Void.class);
+    PollResult exhausted =
+        stub.query(
+            WorkflowStreamConstants.POLL_QUERY_NAME,
+            PollResult.class,
+            new PollInput(Collections.singletonList("missing"), 100));
+    Assert.assertTrue(exhausted.items.isEmpty());
+    Assert.assertEquals(0, exhausted.nextOffset);
+    Assert.assertFalse(exhausted.moreReady);
+  }
+
+  @Test
   public void testPublisherDedup() {
     WorkflowStub stub = startHostWorkflow();
 

@@ -20,10 +20,10 @@ import javax.annotation.Nullable;
 
 /**
  * The workflow-side stream object: an append-only, multi-topic log served to external publishers
- * (via signal), subscribers (via update), and offset queries (via query).
+ * (via signal) and subscribers (via update while running and query after closure).
  *
  * <p>Construct it once with {@link #newInstance}, preferably in a {@link
- * io.temporal.workflow.WorkflowInit} constructor: the factory registers all three handlers on the
+ * io.temporal.workflow.WorkflowInit} constructor: the factory registers all stream handlers on the
  * current workflow, and a {@code @WorkflowInit} constructor runs before any handler dispatch, so
  * polls arriving with the first workflow task are accepted. Constructing it at the start of the
  * workflow method also works — signals received earlier are buffered by the SDK — but polls and
@@ -274,6 +274,15 @@ public final class WorkflowStream {
             WorkflowStreamConstants.ERROR_TYPE_TRUNCATED_OFFSET);
       }
 
+      return collectBatch(input);
+    }
+
+    @Override
+    public PollResult pollQuery(PollInput input) {
+      return collectBatch(input);
+    }
+
+    private PollResult collectBatch(PollInput input) {
       long logOffset = Math.max(input.fromOffset - baseOffset, 0);
 
       Set<String> topicSet =

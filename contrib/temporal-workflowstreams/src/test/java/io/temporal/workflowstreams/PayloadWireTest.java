@@ -1,5 +1,6 @@
 package io.temporal.workflowstreams;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DataConverter;
@@ -7,6 +8,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.workflowstreams.internal.PayloadWire;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -63,6 +65,32 @@ public class PayloadWireTest {
 
     byte[] b = DC.fromPayload(got, byte[].class, byte[].class);
     Assert.assertArrayEquals(original, b);
+  }
+
+  @Test
+  public void testSharedClosedStreamPollVector() throws Exception {
+    String wire = "ChgKCGVuY29kaW5nEgxiaW5hcnkvcGxhaW4SA2FiYw==";
+    Payload payload =
+        Payload.newBuilder()
+            .putMetadata("encoding", ByteString.copyFromUtf8("binary/plain"))
+            .setData(ByteString.copyFromUtf8("abc"))
+            .build();
+    Assert.assertEquals(wire, PayloadWire.encode(payload));
+    Assert.assertEquals(payload, PayloadWire.decode(wire));
+    ObjectMapper mapper = new ObjectMapper();
+    Assert.assertEquals(
+        mapper.readTree("{\"topics\":[\"events\"],\"from_offset\":3}"),
+        mapper.readTree(
+            mapper.writeValueAsString(new PollInput(Collections.singletonList("events"), 3))));
+    Assert.assertEquals(
+        mapper.readTree(
+            "{\"items\":[{\"topic\":\"events\",\"data\":\""
+                + wire
+                + "\",\"offset\":3}],\"next_offset\":4,\"more_ready\":false}"),
+        mapper.readTree(
+            mapper.writeValueAsString(
+                new PollResult(
+                    Collections.singletonList(new WireItem("events", wire, 3)), 4, false))));
   }
 
   @Test

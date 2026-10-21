@@ -4,7 +4,8 @@ A durable publish/subscribe log hosted inside a Temporal Workflow.
 
 External code (activities, starters, other processes) publishes messages to
 named topics via **signals**; subscribers long-poll for new items via
-**updates**; a **query** exposes the current offset. The stream is backed by
+**updates**, then read retained items after closure via **queries**; a separate
+**query** exposes the current offset. The stream is backed by
 Temporal's durable execution, giving ordered, durable, exactly-once delivery
 with client-side batching, publisher dedup, continue-as-new survival,
 truncation, and ~1 MB response paging.
@@ -18,7 +19,7 @@ All APIs in this module are experimental and may change.
 ## Workflow side
 
 Construct a `WorkflowStream` once in a `@WorkflowInit` constructor. The factory
-registers the publish signal, poll update, and offset query handlers, and a
+registers the publish signal, poll update, poll query, and offset query handlers. A
 `@WorkflowInit` constructor runs before any handler dispatch, so polls and
 offset queries arriving with the first workflow task (e.g. from
 update-with-start) are accepted rather than rejected.
@@ -114,6 +115,18 @@ when the buffer reaches the max batch size, on `forceFlush`, on an explicit
 
 ## Subscribing
 
+Subscriptions keep polling through updates while the workflow runs. After a
+confirmed terminal state, they query that run for its remaining retained items
+and finish after delivering the final page. The poll query shares
+`__temporal_workflow_stream_poll` with the update, returns immediately, and reads
+from the retained base when the requested offset was truncated. Continue-as-new
+still follows the successor run.
+
+Upgrade workers before using upgraded clients. Closed-stream reads require
+retained history and an available compatible worker; configured query rejection
+and query failures are surfaced to the subscriber. Query reads do not add history
+events.
+
 There are two subscriber APIs over one shared poll engine: a non-blocking
 listener and a blocking iterator. Neither occupies a thread while a poll is
 blocked on the server — polling runs on a small executor shared by all of a
@@ -206,7 +219,7 @@ the per-item payload encoding (base64 of the serialized
 `temporal.api.common.v1.Payload`) match other languages' packages
 exactly, so a Java publisher or subscriber interoperates with a workflow
 written in any of them and vice versa. The data converter codec chain
-(encryption, compression) runs once on the signal/update envelope — never per
+(encryption, compression) runs once on the signal/update/query envelope — never per
 item — so payloads are not double-encoded.
 
 One Java-specific caveat: the protocol envelope types are serialized by the
