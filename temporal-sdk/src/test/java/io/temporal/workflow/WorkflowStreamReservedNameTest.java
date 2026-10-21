@@ -44,6 +44,7 @@ public class WorkflowStreamReservedNameTest {
     TestStreamReservedNameWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestStreamReservedNameWorkflow.class);
     WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+    testWorkflowRule.waitForTheEndOfWFT(execution.getWorkflowId());
 
     WorkflowStub stub =
         testWorkflowRule.getWorkflowClient().newUntypedWorkflowStub(execution.getWorkflowId());
