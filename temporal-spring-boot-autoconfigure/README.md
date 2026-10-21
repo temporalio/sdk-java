@@ -2,6 +2,23 @@
 
 For documentation on the Temporal Spring Boot Integration, please visit [https://docs.temporal.io/develop/java/spring-boot-integration](https://docs.temporal.io/develop/java/spring-boot-integration)
 
+# NexusClient
+
+Inject `NexusClient` for the root namespace, or use `@Qualifier("<alias>NexusClient")`
+for a non-root namespace (namespace replaces alias when omitted). Each client is a singleton
+using its namespace's connection and data converter.
+
+```java
+    @Bean
+    TemporalOptionsCustomizer<NexusClientOptions.Builder> nexusClientCustomizer() {
+        return builder -> builder.setIdentity("my-application");
+    }
+```
+
+For non-root customization, name the bean `<alias>NexusClientCustomizer`.
+`NexusClientInterceptor` beans apply to the root client only; configure non-root interceptors
+through the namespace's options customizer.
+
 # Running Multiple Name Space (experimental)
 
 Along with the root namespace, you can configure multiple non-root namespaces in the application.yml file. Different namespaces can have different configurations including but not limited to different connection options, registered workflows/activities, data converters etc.

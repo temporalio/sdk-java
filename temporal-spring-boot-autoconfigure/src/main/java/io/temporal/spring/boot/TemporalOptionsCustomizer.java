@@ -18,8 +18,9 @@ import javax.annotation.Nonnull;
  *
  * @param <T> Temporal Options Builder to customize. Respected types: {@link
  *     WorkflowServiceStubsOptions.Builder}, {@link WorkflowClientOptions.Builder}, {@link
- *     TestEnvironmentOptions.Builder}, {@link WorkerOptions.Builder}, {@link
- *     WorkerFactoryOptions.Builder}, {@link WorkflowImplementationOptions.Builder}
+ *     io.temporal.client.NexusClientOptions.Builder}, {@link TestEnvironmentOptions.Builder},
+ *     {@link WorkerOptions.Builder}, {@link WorkerFactoryOptions.Builder}, {@link
+ *     WorkflowImplementationOptions.Builder}
  * @see WorkerOptionsCustomizer to get access to a name and task queue of a worker that's being
  *     customized
  */
