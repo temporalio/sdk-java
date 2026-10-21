@@ -29,7 +29,7 @@ to docs, or any other relevant information.
 
 ### Added
 - Workflows can signal with start through the system workflow service using
-  generated `Workflow.signalWithStartWorkflow(workflowType, workflowId, taskQueue, signalName, options)` API.
+  generated `Workflow.signalWithStartWorkflow(workflowType, args, workflowId, taskQueue, signalName, signalArgs, options)` API.
   Typed overloads accept bound workflow/signal methods followed directly by checked arguments.
   Typed calls merge workflow retry/cron annotations with explicit options using generated Java-only WIT hooks.
   Request builders and operations are generated into `io.temporal.workflow`.

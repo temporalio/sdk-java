@@ -5,25 +5,25 @@ when necessary. It requires a server supporting the system workflow service.
 
 ```java
 ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
-    "TargetWorkflow", "target", "target-queue", "notify",
+    "TargetWorkflow", new Object[] {input}, "target", "target-queue",
+    "notify", new Object[] {signal},
     SignalWithStartWorkflowOptions.newBuilder()
-        .setArgs(input)
-        .setSignalArgs(signal)
+        .setRunTimeout(timeout)
         .build());
 ```
 
 Import `Workflow`, `SignalWithStartWorkflowOptions`, and `ExternalWorkflowStub`
 from `io.temporal.workflow`. The generated options builder contains the API's
 options, including timeouts, retry policy, memo, conflict policy, and flattened
-static summary/details setters. Workflow type, ID, task queue, and signal name
+static summary/details setters. Workflow type, argument array, ID, task queue, signal name, and signal argument array
 are required parameters. An overload without options uses defaults. The request
 is constructed internally. Namespace defaults to the caller's namespace. Request ID is omitted:
 the system service manages it.
 
 The call returns after signal delivery/start completes. The returned external
 stub supports further signals and cancellation. Use
-`Async.function(Workflow::signalWithStartWorkflow, workflowType, workflowId,
-taskQueue, signalName, options)` for a promise.
+`Async.function(() -> Workflow.signalWithStartWorkflow(workflowType, args,
+workflowId, taskQueue, signalName, signalArgs, options))` for a promise.
 
 The typed overload checks workflow and signal arguments against their interface:
 
@@ -46,7 +46,8 @@ The existing external invocation handler probes method names, arguments, result
 types, target execution, and the original annotated method using scoped
 thread locals. It sends no commands while probing and restores normal invocation
 behavior afterward, including on failure. Query/update methods and receiver
-lambdas are rejected. Typed calls reject `setArgs` or `setSignalArgs` in options.
+lambdas are rejected. Both APIs take invocation arguments directly; options do
+not contain argument fields.
 Both forms support `Async.function` and an overload omitting options.
 
 Typed calls merge the workflow method's `@MethodRetry` and `@CronSchedule` with

@@ -4,12 +4,6 @@ package io.temporal.workflow;
 /** Signal a workflow, starting it first if needed. */
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class SignalWithStartWorkflowOptions {
-  /** Arguments for the workflow. */
-  private final java.util.List<Object> args;
-
-  /** Arguments for the signal. */
-  private final java.util.List<Object> signalArgs;
-
   /**
    * Total workflow execution timeout, including retries and continue-as-new. Defaults to unlimited.
    */
@@ -70,8 +64,6 @@ public final class SignalWithStartWorkflowOptions {
   }
 
   private SignalWithStartWorkflowOptions(
-      java.util.List<Object> args,
-      java.util.List<Object> signalArgs,
       java.time.Duration executionTimeout,
       java.time.Duration runTimeout,
       java.time.Duration taskTimeout,
@@ -86,8 +78,6 @@ public final class SignalWithStartWorkflowOptions {
       java.time.Duration startDelay,
       String staticSummary,
       String staticDetails) {
-    this.args = args;
-    this.signalArgs = signalArgs;
     this.executionTimeout = executionTimeout;
     this.runTimeout = runTimeout;
     this.taskTimeout = taskTimeout;
@@ -102,14 +92,6 @@ public final class SignalWithStartWorkflowOptions {
     this.startDelay = startDelay;
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
-  }
-
-  public java.util.List<Object> getArgs() {
-    return args;
-  }
-
-  public java.util.List<Object> getSignalArgs() {
-    return signalArgs;
   }
 
   public java.time.Duration getExecutionTimeout() {
@@ -185,8 +167,6 @@ public final class SignalWithStartWorkflowOptions {
 
     private Builder(SignalWithStartWorkflowOptions value) {
       if (value == null) return;
-      this.args = value.args;
-      this.signalArgs = value.signalArgs;
       this.executionTimeout = value.executionTimeout;
       this.runTimeout = value.runTimeout;
       this.taskTimeout = value.taskTimeout;
@@ -201,30 +181,6 @@ public final class SignalWithStartWorkflowOptions {
       this.startDelay = value.startDelay;
       this.staticSummary = value.staticSummary;
       this.staticDetails = value.staticDetails;
-    }
-
-    private java.util.List<Object> args = null;
-
-    public Builder setArgs(java.util.List<Object> value) {
-      this.args = value;
-      return this;
-    }
-
-    public Builder setArgs(Object... values) {
-      this.args = values == null ? null : java.util.Arrays.asList(values);
-      return this;
-    }
-
-    private java.util.List<Object> signalArgs = null;
-
-    public Builder setSignalArgs(java.util.List<Object> value) {
-      this.signalArgs = value;
-      return this;
-    }
-
-    public Builder setSignalArgs(Object... values) {
-      this.signalArgs = values == null ? null : java.util.Arrays.asList(values);
-      return this;
     }
 
     private java.time.Duration executionTimeout = null;
@@ -328,8 +284,6 @@ public final class SignalWithStartWorkflowOptions {
 
     public SignalWithStartWorkflowOptions build() {
       return new SignalWithStartWorkflowOptions(
-          args,
-          signalArgs,
           executionTimeout,
           runTimeout,
           taskTimeout,

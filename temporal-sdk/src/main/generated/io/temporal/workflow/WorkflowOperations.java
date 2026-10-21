@@ -6,31 +6,41 @@ public abstract class WorkflowOperations {
   protected WorkflowOperations() {}
 
   public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
-      String workflow, String id, String taskQueue, String signal) {
+      String workflow,
+      Object[] args,
+      String id,
+      String taskQueue,
+      String signal,
+      Object[] signalArgs) {
     return signalWithStartWorkflow(
         workflow,
+        args,
         id,
         taskQueue,
         signal,
+        signalArgs,
         io.temporal.workflow.SignalWithStartWorkflowOptions.getDefaultInstance());
   }
 
   /** Signal a workflow, starting it first if needed. */
   public static io.temporal.workflow.ExternalWorkflowStub signalWithStartWorkflow(
       String workflow,
+      Object[] args,
       String id,
       String taskQueue,
       String signal,
+      Object[] signalArgs,
       io.temporal.workflow.SignalWithStartWorkflowOptions options) {
     io.temporal.workflow.SignalWithStartWorkflowRequest.Builder requestBuilder =
         io.temporal.workflow.SignalWithStartWorkflowRequest.newBuilder();
+    requestBuilder.setArgs(java.util.Arrays.asList(java.util.Objects.requireNonNull(args, "args")));
     requestBuilder.setWorkflow(java.util.Objects.requireNonNull(workflow, "workflow"));
     requestBuilder.setId(java.util.Objects.requireNonNull(id, "id"));
     requestBuilder.setTaskQueue(java.util.Objects.requireNonNull(taskQueue, "taskQueue"));
+    requestBuilder.setSignalArgs(
+        java.util.Arrays.asList(java.util.Objects.requireNonNull(signalArgs, "signalArgs")));
     requestBuilder.setSignal(java.util.Objects.requireNonNull(signal, "signal"));
     if (options != null) {
-      if (options.getArgs() != null) requestBuilder.setArgs(options.getArgs());
-      if (options.getSignalArgs() != null) requestBuilder.setSignalArgs(options.getSignalArgs());
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -113,12 +123,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -209,12 +213,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -300,12 +298,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -394,12 +386,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -490,12 +476,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -589,12 +569,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -683,12 +657,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -782,12 +750,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -881,12 +843,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -983,12 +939,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1082,12 +1032,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1184,12 +1128,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1290,12 +1228,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1399,12 +1331,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1501,12 +1427,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1606,12 +1526,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1715,12 +1629,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1827,12 +1735,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -1936,12 +1838,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2048,12 +1944,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2174,12 +2064,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2315,12 +2199,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2429,12 +2307,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2546,12 +2418,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2694,12 +2560,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2847,12 +2707,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -2979,12 +2833,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
@@ -3128,12 +2976,6 @@ public abstract class WorkflowOperations {
           requestBuilder.setSignalArgs(java.util.Arrays.asList(capturedArguments));
         });
     if (options != null) {
-      if (options.getArgs() != null)
-        throw new IllegalArgumentException(
-            "args must be supplied through the bound call, not options");
-      if (options.getSignalArgs() != null)
-        throw new IllegalArgumentException(
-            "signalArgs must be supplied through the bound call, not options");
       if (options.getExecutionTimeout() != null)
         requestBuilder.setExecutionTimeout(options.getExecutionTimeout());
       if (options.getRunTimeout() != null) requestBuilder.setRunTimeout(options.getRunTimeout());
