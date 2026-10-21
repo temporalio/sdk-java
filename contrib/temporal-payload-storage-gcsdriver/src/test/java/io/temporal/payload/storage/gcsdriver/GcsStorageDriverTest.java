@@ -202,21 +202,18 @@ public class GcsStorageDriverTest {
   }
 
   @Test
-  public void canonicalAndLegacyClaimsReadOriginalBucketAndIgnoreUnknownFields() {
+  public void canonicalClaimsReadOriginalBucketAndIgnoreUnknownFields() {
     InMemoryClient client = new InMemoryClient();
     Payload hello = Payload.newBuilder().setData(ByteString.copyFromUtf8("hello")).build();
     client.objects.put("test-bucket/v0/d/sha256/" + HELLO_HASH, hello.toByteArray());
     GcsStorageDriver driver = builder(client).setBucket("new-upload-bucket").build();
-    for (String removed : new String[] {"key", "object_name", "neither"}) {
-      Map<String, String> data = new HashMap<>(canonicalClaim().getClaimData());
-      data.remove(removed);
-      data.put("future_field", "ignored");
-      assertEquals(
-          Collections.singletonList(hello),
-          driver
-              .retrieve(RETRIEVE_CONTEXT, Collections.singletonList(new StorageDriverClaim(data)))
-              .join());
-    }
+    Map<String, String> data = new HashMap<>(canonicalClaim().getClaimData());
+    data.put("future_field", "ignored");
+    assertEquals(
+        Collections.singletonList(hello),
+        driver
+            .retrieve(RETRIEVE_CONTEXT, Collections.singletonList(new StorageDriverClaim(data)))
+            .join());
   }
 
   @Test
@@ -225,7 +222,6 @@ public class GcsStorageDriverTest {
     for (String field : new String[] {"bucket", "object_name", "hash_algorithm", "hash_value"}) {
       for (String invalid : new String[] {null, ""}) {
         Map<String, String> data = new HashMap<>(canonicalClaim().getClaimData());
-        data.remove("key");
         if (invalid == null) {
           data.remove(field);
         } else {
@@ -244,17 +240,17 @@ public class GcsStorageDriverTest {
   }
 
   @Test
-  public void rejectsConflictingObjectNames() {
+  public void requiresCanonicalObjectName() {
     InMemoryClient client = new InMemoryClient();
     Map<String, String> data = new HashMap<>(canonicalClaim().getClaimData());
-    data.put("key", "another-object");
+    data.put("key", data.remove("object_name"));
     assertTrue(
         failure(
                 driver(client)
                     .retrieve(
                         RETRIEVE_CONTEXT, Collections.singletonList(new StorageDriverClaim(data))))
             .getMessage()
-            .contains("conflicting"));
+            .contains("object_name"));
     assertEquals(0, client.getAttempts.get());
   }
 
@@ -299,7 +295,6 @@ public class GcsStorageDriverTest {
     client.objects.put("test-bucket/invalid", invalid);
     Map<String, String> data = new HashMap<>(canonicalClaim().getClaimData());
     data.put("object_name", "invalid");
-    data.put("key", "invalid");
     data.put("hash_value", PayloadHasher.sha256Hex(invalid));
     GcsStorageException error =
         failure(
@@ -502,7 +497,6 @@ public class GcsStorageDriverTest {
     Map<String, String> claim = new HashMap<>();
     claim.put("bucket", "test-bucket");
     claim.put("object_name", "v0/d/sha256/" + HELLO_HASH);
-    claim.put("key", "v0/d/sha256/" + HELLO_HASH);
     claim.put("hash_algorithm", "sha256");
     claim.put("hash_value", HELLO_HASH);
     return new StorageDriverClaim(claim);

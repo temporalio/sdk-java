@@ -104,16 +104,7 @@ public final class GcsStorageDriver implements StorageDriver {
       for (StorageDriverClaim claim : claims) {
         Map<String, String> data = new HashMap<>(claim.getClaimData());
         String claimBucket = requiredField(data, "bucket");
-        String objectName = data.get("object_name");
-        String legacyName = data.get("key");
-        if (objectName != null && legacyName != null && !objectName.equals(legacyName)) {
-          throw new GcsStorageException(
-              "claim has conflicting object_name and key " + location(claimBucket, objectName));
-        }
-        if (objectName == null) {
-          data.put("object_name", legacyName);
-        }
-        objectName = requiredField(data, "object_name");
+        String objectName = requiredField(data, "object_name");
         String algorithm = requiredField(data, "hash_algorithm");
         if (!HASH_ALGORITHM.equals(algorithm)) {
           throw new GcsStorageException("unsupported hash algorithm \"" + algorithm + "\"");
@@ -145,7 +136,6 @@ public final class GcsStorageDriver implements StorageDriver {
     Map<String, String> data = new HashMap<>();
     data.put("bucket", bucket);
     data.put("object_name", objectName);
-    data.put("key", objectName);
     data.put("hash_algorithm", HASH_ALGORITHM);
     data.put("hash_value", hash);
     return new StorageDriverClaim(data);

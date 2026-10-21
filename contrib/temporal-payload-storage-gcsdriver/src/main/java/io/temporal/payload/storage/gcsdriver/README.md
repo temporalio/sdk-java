@@ -131,10 +131,9 @@ output:
 | --- | --- |
 | `bucket` | Actual upload bucket. |
 | `object_name` | Complete object name. |
-| `key` | Same value as `object_name`, for early Go GCS claim compatibility. |
 | `hash_algorithm` | `sha256`. |
 | `hash_value` | Lower-case SHA-256 hex digest of the stored bytes. |
 
-Reads accept either name field, reject conflicting values, and ignore unknown fields. Downloads
+Reads require `object_name` and ignore unknown fields. Downloads
 use the bucket recorded in the claim, so changing the upload bucket does not invalidate earlier
 references. Every download verifies SHA-256 before parsing the payload.
