@@ -182,16 +182,17 @@ public final class TemporalModelConverters {
   @SuppressWarnings("deprecation")
   public static VersioningOverride versioningOverrideFromProto(
       DataConverter converter, io.temporal.api.workflow.v1.VersioningOverride value) {
-    if (value.hasOneTime())
+    if (value.hasOneTime() && value.getOneTime().hasTargetDeploymentVersion())
       return new VersioningOverride.OneTimeVersioningOverride(
           deployment(value.getOneTime().getTargetDeploymentVersion()));
-    if (value.hasPinned())
+    if (value.hasPinned() && value.getPinned().hasVersion())
       return new VersioningOverride.PinnedVersioningOverride(
           deployment(value.getPinned().getVersion()));
     if (!value.getPinnedVersion().isEmpty())
       return new VersioningOverride.PinnedVersioningOverride(
           io.temporal.common.WorkerDeploymentVersion.fromCanonicalString(value.getPinnedVersion()));
-    return new VersioningOverride.AutoUpgradeVersioningOverride();
+    if (value.getAutoUpgrade()) return new VersioningOverride.AutoUpgradeVersioningOverride();
+    throw new IllegalArgumentException("Unknown versioning override proto shape");
   }
 
   private static io.temporal.common.WorkerDeploymentVersion deployment(

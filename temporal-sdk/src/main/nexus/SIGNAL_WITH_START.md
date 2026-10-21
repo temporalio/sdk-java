@@ -75,6 +75,11 @@ fields, and serialization-context hook are declared in WIT. The converter uses
 the destination namespace and workflow ID for nested payloads, codecs, and
 failures; the outer system envelope remains server-readable.
 
+`SystemSignalWithStartIntegrationTest` verifies this converter selection against a
+supporting server with a signing codec, overlapping calls to distinct destination
+workflows, payload inspection in history, and replay. Converter unit tests cover
+valid and unknown versioning override shapes; unknown shapes are rejected.
+
 This operation serializes the request and deserializes a response with no user
 payloads. Future operations returning embedded payloads must use generic response
 models and propagate concrete result types from the API to transfer conversion.
