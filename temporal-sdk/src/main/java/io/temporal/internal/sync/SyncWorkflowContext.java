@@ -1430,11 +1430,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   private Supplier<Boolean> readOnly(Supplier<Boolean> condition) {
     return () -> {
+      boolean previousReadOnly = readOnly;
       readOnly = true;
       try {
         return condition.get();
       } finally {
-        readOnly = false;
+        readOnly = previousReadOnly;
       }
     };
   }

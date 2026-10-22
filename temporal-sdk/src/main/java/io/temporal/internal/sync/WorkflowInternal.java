@@ -540,13 +540,16 @@ public final class WorkflowInternal {
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    getWorkflowOutboundInterceptor().await(reason, unblockCondition);
+    // Interceptors may evaluate the condition themselves before delegating, so it is read-only here
+    // too, not only where SyncWorkflowContext evaluates it.
+    getWorkflowOutboundInterceptor().await(reason, () -> readOnly(unblockCondition::get));
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    return getWorkflowOutboundInterceptor().await(timeout, reason, unblockCondition);
+    return getWorkflowOutboundInterceptor()
+        .await(timeout, reason, () -> readOnly(unblockCondition::get));
   }
 
   public static boolean await(
@@ -554,18 +557,7 @@ public final class WorkflowInternal {
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
     return getWorkflowOutboundInterceptor()
-        .await(
-            timeout,
-            options,
-            reason,
-            () -> {
-              getRootWorkflowContext().setReadOnly(true);
-              try {
-                return unblockCondition.get();
-              } finally {
-                getRootWorkflowContext().setReadOnly(false);
-              }
-            });
+        .await(timeout, options, reason, () -> readOnly(unblockCondition::get));
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
