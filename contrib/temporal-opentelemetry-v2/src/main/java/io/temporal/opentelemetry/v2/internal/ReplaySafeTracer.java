@@ -11,6 +11,7 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.ContextKey;
 import io.opentelemetry.context.Scope;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 
@@ -52,7 +53,9 @@ public final class ReplaySafeTracer implements Tracer {
         delegate.setStartTimestamp(Workflow.currentTimeMillis(), TimeUnit.MILLISECONDS);
       }
       try (Scope ignored = Context.current().with(TRACER_NAME, tracerName).makeCurrent()) {
-        return new ReplaySafeSpan(delegate.startSpan());
+        Span span = delegate.startSpan();
+        // Read-only code does not run a deterministic number of times, so its spans always export.
+        return WorkflowUnsafe.isReadOnly() ? span : new ReplaySafeSpan(span);
       }
     }
 
