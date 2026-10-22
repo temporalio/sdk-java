@@ -65,12 +65,13 @@ public class OpenTelemetryScheduleClientCallsInterceptor
 
   /**
    * Writes the current trace into a copy of the action header, so the caller's header, which may be
-   * immutable or reused, is never modified.
+   * immutable or reused, is never modified. A trace already in the header is removed, because it
+   * can be left over from an earlier create or update.
    */
   private Schedule withTraceHeader(Schedule schedule) {
     ScheduleActionStartWorkflow action = (ScheduleActionStartWorkflow) schedule.getAction();
     Header header = new Header(new HashMap<>(action.getHeader().getValues()));
-    tracer.injectOutboundHeader(header);
+    tracer.replaceOutboundHeader(header);
     return Schedule.newBuilder(schedule)
         .setAction(ScheduleActionStartWorkflow.newBuilder(action).setHeader(header).build())
         .build();

@@ -97,6 +97,12 @@ final class SpanCodec {
     write(Context.current(), header.getValues());
   }
 
+  /** Replaces the span and baggage in {@code header} with the current ones, if any. */
+  void replace(Header header) {
+    header.getValues().remove(headerKey);
+    write(header);
+  }
+
   Map<String, Payload> serialize(Context context) {
     Map<String, Payload> header = new HashMap<>();
     write(context, header);

@@ -84,8 +84,8 @@ public final class InterceptorTracer {
     return traceOutbound(operation, name, attributes, () -> codec.write(header), call);
   }
 
-  void injectOutboundHeader(Header header) {
-    codec.write(header);
+  void replaceOutboundHeader(Header header) {
+    codec.replace(header);
   }
 
   <R, E extends Throwable> R traceOutbound(
