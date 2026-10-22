@@ -80,6 +80,7 @@ public class SDKTestWorkflowRule implements TestRule {
   @Nullable private final Timeout globalTimeout;
 
   private final TestWorkflowRule testWorkflowRule;
+  private final WorkflowClientOptions workflowClientOptions;
 
   private SDKTestWorkflowRule(SDKTestWorkflowRule.Builder builder) {
     globalTimeout =
@@ -92,6 +93,7 @@ public class SDKTestWorkflowRule implements TestRule {
 
     testWorkflowRule =
         ExternalServiceTestConfigurator.configure(builder.testWorkflowRuleBuilder).build();
+    workflowClientOptions = builder.workflowClientOptions;
   }
 
   public static Builder newBuilder() {
@@ -103,6 +105,8 @@ public class SDKTestWorkflowRule implements TestRule {
 
     private boolean workerFactoryOptionsAreSet = false;
     private boolean workerOptionsAreSet = false;
+    private WorkflowClientOptions workflowClientOptions =
+        WorkflowClientOptions.newBuilder().build();
     private final TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
     public Builder() {
@@ -116,6 +120,7 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
+      this.workflowClientOptions = workflowClientOptions;
       testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
       return this;
     }
@@ -274,12 +279,13 @@ public class SDKTestWorkflowRule implements TestRule {
    * service stubs. Use for tests that exercise the standalone Nexus client surface.
    */
   public NexusClient getNexusClient() {
-    WorkflowClientOptions options = getWorkflowClient().getOptions();
+    // The Workflow client's converter already has the service stubs plugins applied, and the Nexus
+    // client applies them again, so start from the converter the test configured.
     return NexusClient.newInstance(
         getWorkflowServiceStubs(),
         NexusClientOptions.newBuilder()
-            .setNamespace(options.getNamespace())
-            .setDataConverter(options.getDataConverter())
+            .setNamespace(getWorkflowClient().getOptions().getNamespace())
+            .setDataConverter(workflowClientOptions.getDataConverter())
             .build());
   }
 
