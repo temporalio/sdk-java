@@ -48,6 +48,35 @@ public class SDKTestWorkflowRuleNexusClientTest {
   }
 
   @Test
+  public void nexusClientUsesConverterFromWorkflowClientPlugin() {
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("customize-converter")
+            .customizeDataConverter(converter -> configuredConverter)
+            .build();
+    SDKTestWorkflowRule testWorkflowRule =
+        SDKTestWorkflowRule.newBuilder()
+            .setWorkflowClientOptions(WorkflowClientOptions.newBuilder().setPlugins(plugin).build())
+            .build();
+    try {
+      RuntimeException thrown =
+          assertThrows(
+              RuntimeException.class,
+              () ->
+                  testWorkflowRule
+                      .getNexusClient()
+                      .newUntypedNexusServiceClient("endpoint", "service")
+                      .start(
+                          "operation",
+                          StartNexusOperationOptions.newBuilder().setId("id").build(),
+                          "probe"));
+
+      assertSame(expected, thrown);
+    } finally {
+      testWorkflowRule.getTestEnvironment().close();
+    }
+  }
+
+  @Test
   public void nexusClientCustomizesConverterOnce() {
     AtomicBoolean customizedTwice = new AtomicBoolean();
     SimplePlugin plugin =
