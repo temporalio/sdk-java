@@ -27,6 +27,7 @@ final class MutableSideEffectStateMachine {
   private final String id;
   private UserMetadata metadata;
   private final Functions.Func<Boolean> replaying;
+  private final Functions.Func<Boolean> useReplayRecovery;
   private final Functions.Proc1<CancellableCommand> commandSink;
 
   private Optional<Payloads> result = Optional.empty();
@@ -128,6 +129,21 @@ final class MutableSideEffectStateMachine {
 
     State getExecutionState() {
       return replaying.apply() ? State.REPLAYING : State.EXECUTING;
+    }
+
+    @Override
+    public void handleWorkflowTaskStarted() {
+      // Recover only when the flag is already enabled. Unflagged tasks retain the callback timing
+      // of the SDK that wrote them.
+      if (getState() == State.RESULT_NOTIFIED_REPLAYING && useReplayRecovery.apply()) {
+        notifySkippedReplaying();
+      }
+    }
+
+    void notifySkippedReplaying() {
+      if (getState() == State.RESULT_NOTIFIED_REPLAYING) {
+        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
+      }
     }
 
     @Override
@@ -249,30 +265,34 @@ final class MutableSideEffectStateMachine {
       String id,
       UserMetadata metadata,
       Functions.Func<Boolean> replaying,
+      Functions.Func<Boolean> useReplayRecovery,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     return new MutableSideEffectStateMachine(
-        id, metadata, replaying, commandSink, stateMachineSink);
+        id, metadata, replaying, useReplayRecovery, commandSink, stateMachineSink);
   }
 
   private MutableSideEffectStateMachine(
       String id,
       UserMetadata metadata,
       Functions.Func<Boolean> replaying,
+      Functions.Func<Boolean> useReplayRecovery,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     this.id = Objects.requireNonNull(id);
     this.metadata = metadata;
     this.replaying = Objects.requireNonNull(replaying);
+    this.useReplayRecovery = Objects.requireNonNull(useReplayRecovery);
     this.commandSink = Objects.requireNonNull(commandSink);
   }
 
-  public void mutableSideEffect(
+  public InvocationStateMachine mutableSideEffect(
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
       Functions.Proc1<StateMachine> stateMachineSink) {
     InvocationStateMachine ism = new InvocationStateMachine(func, callback, stateMachineSink);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
+    return ism;
   }
 }
