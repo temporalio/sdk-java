@@ -540,34 +540,16 @@ public final class WorkflowInternal {
   public static void await(String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
-    getWorkflowOutboundInterceptor()
-        .await(
-            reason,
-            () -> {
-              getRootWorkflowContext().setReadOnly(true);
-              try {
-                return unblockCondition.get();
-              } finally {
-                getRootWorkflowContext().setReadOnly(false);
-              }
-            });
+    // Interceptors may evaluate the condition themselves before delegating, so it is read-only here
+    // too, not only where SyncWorkflowContext evaluates it.
+    getWorkflowOutboundInterceptor().await(reason, () -> readOnly(unblockCondition::get));
   }
 
   public static boolean await(Duration timeout, String reason, Supplier<Boolean> unblockCondition)
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
     return getWorkflowOutboundInterceptor()
-        .await(
-            timeout,
-            reason,
-            () -> {
-              getRootWorkflowContext().setReadOnly(true);
-              try {
-                return unblockCondition.get();
-              } finally {
-                getRootWorkflowContext().setReadOnly(false);
-              }
-            });
+        .await(timeout, reason, () -> readOnly(unblockCondition::get));
   }
 
   public static boolean await(
@@ -575,18 +557,7 @@ public final class WorkflowInternal {
       throws DestroyWorkflowThreadError {
     assertNotReadOnly(reason);
     return getWorkflowOutboundInterceptor()
-        .await(
-            timeout,
-            options,
-            reason,
-            () -> {
-              getRootWorkflowContext().setReadOnly(true);
-              try {
-                return unblockCondition.get();
-              } finally {
-                getRootWorkflowContext().setReadOnly(false);
-              }
-            });
+        .await(timeout, options, reason, () -> readOnly(unblockCondition::get));
   }
 
   public static <R> R sideEffect(Class<R> resultClass, Type resultType, Func<R> func) {
@@ -785,6 +756,10 @@ public final class WorkflowInternal {
     return getRootWorkflowContext().newRandom();
   }
 
+  public static Random getRandomStream(String name) {
+    return getRootWorkflowContext().getReplayContext().getRandomStream(name);
+  }
+
   public static Logger getLogger(Class<?> clazz) {
     Logger logger = LoggerFactory.getLogger(clazz);
     return new ReplayAwareLogger(
@@ -960,14 +935,22 @@ public final class WorkflowInternal {
     return DeterministicRunnerImpl.currentThreadInternal().getWorkflowContext();
   }
 
-  static boolean isReadOnly() {
-    return getRootWorkflowContext().isReadOnly();
+  /** Returns false if not under workflow code. */
+  public static boolean isReadOnly() {
+    boolean inWorkflow = isWorkflowThread() || QueryDispatcher.isQueryHandler();
+    return inWorkflow && getRootWorkflowContext().isReadOnly();
   }
 
   static void assertNotReadOnly(String action) {
-    if (isReadOnly()) {
-      throw new ReadOnlyException(action);
+    if (!isReadOnly()) {
+      return;
     }
+    // This thread is being destroyed, so throw the error that ends it. Workflow code could catch a
+    // ReadOnlyException and keep running.
+    if (isWorkflowThread() && getWorkflowThread().getWorkflowThreadContext().isDestroyRequested()) {
+      throw new DestroyWorkflowThreadError();
+    }
+    throw new ReadOnlyException(action);
   }
 
   static void assertNotInUpdateHandler(String message) {

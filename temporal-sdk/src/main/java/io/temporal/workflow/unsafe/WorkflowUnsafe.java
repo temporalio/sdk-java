@@ -1,5 +1,6 @@
 package io.temporal.workflow.unsafe;
 
+import io.temporal.common.Experimental;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.workflow.Functions;
 
@@ -44,6 +45,24 @@ public final class WorkflowUnsafe {
    */
   public static boolean isReplaying() {
     return WorkflowInternal.isReplaying();
+  }
+
+  /**
+   * Reports whether the currently executing code is read-only. Read-only code cannot schedule
+   * commands or change Workflow state, for example a Query handler, an Update validator, or an
+   * Await condition. Read-only code can also run a different number of times during live execution
+   * and on replay, so guard draws from {@link
+   * io.temporal.workflow.Workflow#getRandomStream(String)} with this.
+   *
+   * <p>Code that can also run outside a Workflow, such as a payload converter, should check {@link
+   * #isWorkflowThread()} too, because this returns false there.
+   *
+   * @return true if the calling context is read-only. This method always returns false if called
+   *     from outside Workflow code.
+   */
+  @Experimental
+  public static boolean isReadOnly() {
+    return WorkflowInternal.isReadOnly();
   }
 
   /**

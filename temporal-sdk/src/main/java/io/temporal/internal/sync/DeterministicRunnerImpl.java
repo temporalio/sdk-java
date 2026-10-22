@@ -310,6 +310,9 @@ class DeterministicRunnerImpl implements DeterministicRunner {
     }
 
     closeStarted = true;
+    // Destroying the remaining threads runs their finally blocks. An eviction can happen at any
+    // time, so when those blocks run is not deterministic. Make them read-only.
+    workflowContext.setReadOnly(true);
     // lock is taken here
     try {
       // in some circumstances when a workflow broke Deadline Detector,

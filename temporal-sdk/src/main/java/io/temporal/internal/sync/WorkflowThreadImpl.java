@@ -84,10 +84,19 @@ class WorkflowThreadImpl implements WorkflowThread {
       mdc.put(LoggerTag.TASK_QUEUE, replayWorkflowContext.getTaskQueue());
       mdc.put(LoggerTag.NAMESPACE, replayWorkflowContext.getNamespace());
 
-      // Repopulate the context(s)
-      ContextThreadLocal.setContextPropagators(this.contextPropagators);
-      ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
       try {
+        // Repopulate the context(s)
+        ContextThreadLocal.setContextPropagators(this.contextPropagators);
+        // A rejected Update's thread only runs during live execution, so its context propagation
+        // is read-only.
+        boolean updateThread = name.startsWith(SyncWorkflow.UPDATE_THREAD_NAME_PREFIX);
+        SyncWorkflowContext workflowContext = getWorkflowContext();
+        workflowContext.setReadOnly(updateThread);
+        try {
+          ContextThreadLocal.propagateContextToCurrentThread(this.propagatedContexts);
+        } finally {
+          workflowContext.setReadOnly(false);
+        }
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise, r starts executing without control of the sync.
         threadContext.initialYield();
