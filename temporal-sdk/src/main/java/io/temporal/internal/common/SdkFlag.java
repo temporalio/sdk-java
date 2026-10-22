@@ -50,6 +50,22 @@ public enum SdkFlag {
    * Bug: https://github.com/temporalio/sdk-java/issues/2989
    */
   SCHEDULE_ASYNC_STUB_OPERATIONS(6),
+  /*
+   * Resolves skipped mutable-side-effect invocations after all command events in their replayed
+   * workflow task have been applied. An invocation still waiting for a marker at that point
+   * cancels its replay placeholder and returns the cached value. This lets its callback run at
+   * that task's workflow time, before the next task advances time or delivers signals.
+   *
+   * Also resolves pending replay placeholders at a live-task boundary, preventing empty
+   * RecordMarker commands from being sent to the server when no command event triggered cleanup.
+   *
+   * Introduced: 1.41.0
+   *
+   * Enabled: (pending)
+   *
+   * Bug: https://github.com/temporalio/sdk-java/issues/3163
+   */
+  MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY(7),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;
