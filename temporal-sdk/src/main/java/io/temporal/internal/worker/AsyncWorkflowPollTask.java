@@ -129,6 +129,8 @@ public class AsyncWorkflowPollTask
   @Override
   public void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
     this.pollerTargetSupplier = pollerTargetSupplier;
+    // Also hand it to the tracker, which is what the heartbeat builder can reach.
+    pollerTracker.setPollerTargetSupplier(pollerTargetSupplier);
   }
 
   /**

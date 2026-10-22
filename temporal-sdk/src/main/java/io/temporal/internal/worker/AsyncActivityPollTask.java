@@ -97,6 +97,8 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
   @Override
   public void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
     this.pollerTargetSupplier = pollerTargetSupplier;
+    // Also hand it to the tracker, which is what the heartbeat builder can reach.
+    pollerTracker.setPollerTargetSupplier(pollerTargetSupplier);
   }
 
   /**

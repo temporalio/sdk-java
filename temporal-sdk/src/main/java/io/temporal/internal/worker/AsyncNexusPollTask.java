@@ -21,6 +21,7 @@ import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -108,6 +109,16 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
       }
     }
     this.pollRequest = pollRequest.build();
+  }
+
+  /**
+   * The nexus poll request has no field for a poller target, so unlike the workflow and activity
+   * tasks this only feeds the tracker -- the heartbeat reports a target for every autoscaling pool,
+   * not only the pools poll-time fairness acts on.
+   */
+  @Override
+  public void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
+    pollerTracker.setPollerTargetSupplier(pollerTargetSupplier);
   }
 
   @Override
