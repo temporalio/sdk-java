@@ -24,13 +24,18 @@ import static org.junit.Assert.*;
 
 import com.google.protobuf.StringValue;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.NexusClient;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.schedules.ScheduleClient;
+import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
 import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
 import io.temporal.testing.CloudTestExclusionNote;
@@ -401,6 +406,49 @@ public class PluginPropagationTest {
           Arrays.asList(
               "client-plugin-configureWorkerFactory", "factory-plugin-configureWorkerFactory"),
           callLog);
+    } finally {
+      env.close();
+    }
+  }
+
+  @Test
+  public void testPluginPropagatesFromServiceStubsToStandaloneClients() {
+    List<String> installed = new ArrayList<>();
+    SimplePlugin plugin =
+        SimplePlugin.newBuilder("client-tracking")
+            .addScheduleClientInterceptors(
+                next -> {
+                  installed.add("schedule");
+                  return next;
+                })
+            .addActivityClientInterceptors(
+                next -> {
+                  installed.add("activity");
+                  return next;
+                })
+            .addNexusClientInterceptors(
+                next -> {
+                  installed.add("nexus");
+                  return next;
+                })
+            .build();
+
+    WorkflowServiceStubsOptions stubsOptions =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setPlugins((io.temporal.serviceclient.WorkflowServiceStubsPlugin) plugin)
+            .build();
+    TestWorkflowEnvironment env =
+        TestWorkflowEnvironment.newInstance(
+            TestEnvironmentOptions.newBuilder()
+                .setWorkflowServiceStubsOptions(stubsOptions)
+                .build());
+    try {
+      WorkflowServiceStubs stubs = env.getWorkflowServiceStubs();
+      ScheduleClient.newInstance(stubs, ScheduleClientOptions.newBuilder().build());
+      ActivityClient.newInstance(stubs);
+      NexusClient.newInstance(stubs);
+
+      assertEquals(Arrays.asList("schedule", "activity", "nexus"), installed);
     } finally {
       env.close();
     }
