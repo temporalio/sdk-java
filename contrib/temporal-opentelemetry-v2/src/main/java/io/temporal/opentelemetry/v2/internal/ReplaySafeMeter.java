@@ -402,7 +402,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -439,7 +439,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -476,7 +476,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -513,7 +513,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -550,7 +550,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -587,7 +587,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -624,7 +624,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override
@@ -661,7 +661,7 @@ public final class ReplaySafeMeter implements Meter {
 
     @Override
     public boolean isEnabled() {
-      return !OpenTelemetrySuppression.shouldSuppress() && delegate.isEnabled();
+      return delegate.isEnabled();
     }
 
     @Override

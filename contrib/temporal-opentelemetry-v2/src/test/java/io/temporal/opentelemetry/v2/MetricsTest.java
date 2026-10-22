@@ -111,7 +111,7 @@ public class MetricsTest extends OtelTestBase {
     assertEquals(1, singleLongValue(WORKFLOW_COUNTER));
     assertEquals(1, singleLongValue(ACTIVITY_COUNTER));
     assertEquals(ImmutableSet.of(true), liveEnabled);
-    assertEquals(ImmutableSet.of(false), replayEnabled);
+    assertEquals(ImmutableSet.of(true), replayEnabled);
   }
 
   private static long singleLongValue(String name) {
