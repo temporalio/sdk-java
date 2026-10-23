@@ -612,6 +612,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 .createWorkflowImplementationOptions(worker, clazz, null);
         worker.registerWorkflowImplementationFactory(
             DynamicWorkflow.class,
+            (Class<? extends DynamicWorkflow>) clazz,
             (encodedValues) -> {
               if (ctor.isPresent()) {
                 try {
@@ -679,6 +680,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
+          (Class<? extends T>) clazz,
           (encodedValues) -> {
             try {
               Constructor<?> ctor = workflowMetadata.getWorkflowInit();
@@ -714,6 +716,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
         worker.registerWorkflowImplementationFactory(
             (Class<T>) workflowMethod.getWorkflowInterface(),
+            (Class<? extends T>) clazz,
             () -> (T) beanFactory.createBean(clazz),
             workflowImplementationOptions);
         addRegisteredWorkflowImpl(
