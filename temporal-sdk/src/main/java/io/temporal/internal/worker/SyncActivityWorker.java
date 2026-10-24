@@ -68,7 +68,8 @@ public class SyncActivityWorker implements SuspendableWorker {
             options.getDataConverter(),
             activityExecutionContextFactory,
             options.getWorkerInterceptors(),
-            options.getContextPropagators());
+            options.getContextPropagators(),
+            options.getHeaderCodec());
     this.worker =
         new ActivityWorker(
             client.getWorkflowServiceStubs(),

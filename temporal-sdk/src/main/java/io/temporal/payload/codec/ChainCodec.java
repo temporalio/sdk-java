@@ -57,4 +57,60 @@ public class ChainCodec implements PayloadCodec {
   public PayloadCodec withContext(@Nonnull SerializationContext context) {
     return new ChainCodec(codecs, context);
   }
+
+  /** Returns true when this chain contains no codecs other than empty chains. */
+  public boolean isEmpty() {
+    return codecs.stream()
+        .allMatch(codec -> codec instanceof ChainCodec && ((ChainCodec) codec).isEmpty());
+  }
+
+  /**
+   * Returns a header-only view that rejects missing encoders after contextual binding.
+   *
+   * <p>Binding before processing headers prevents a component's contextual codec from silently
+   * turning an enabled header pipeline into an empty chain. Normal value codec behavior is
+   * unchanged.
+   */
+  public PayloadCodec forHeaders() {
+    List<PayloadCodec> bound = new ArrayList<>();
+    collectHeaderCodecs(bound);
+    ChainCodec execution = new ChainCodec(bound);
+    return new PayloadCodec() {
+      @Nonnull
+      @Override
+      public List<Payload> encode(@Nonnull List<Payload> payloads) {
+        return execution.encode(payloads);
+      }
+
+      @Nonnull
+      @Override
+      public List<Payload> decode(@Nonnull List<Payload> payloads) {
+        return execution.decode(payloads);
+      }
+
+      @Nonnull
+      @Override
+      public PayloadCodec withContext(@Nonnull SerializationContext context) {
+        return new ChainCodec(codecs, context).forHeaders();
+      }
+    };
+  }
+
+  private void collectHeaderCodecs(List<PayloadCodec> bound) {
+    if (codecs.isEmpty()) {
+      throw new IllegalArgumentException("Header codec binding must not return an empty chain");
+    }
+    for (PayloadCodec codec : codecs) {
+      PayloadCodec scoped =
+          codec == null ? null : context == null ? codec : codec.withContext(context);
+      if (scoped == null) {
+        throw new IllegalArgumentException("Header codec binding must not return null");
+      }
+      if (scoped instanceof ChainCodec) {
+        ((ChainCodec) scoped).collectHeaderCodecs(bound);
+      } else {
+        bound.add(scoped);
+      }
+    }
+  }
 }

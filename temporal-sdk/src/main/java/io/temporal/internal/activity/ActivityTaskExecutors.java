@@ -17,7 +17,9 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
@@ -39,6 +41,7 @@ final class ActivityTaskExecutors {
 
   abstract static class BaseActivityTaskExecutor implements ActivityTaskExecutor {
     private final DataConverter dataConverter;
+    private final @Nullable PayloadCodec headerCodec;
     private final List<ContextPropagator> contextPropagators;
     private final WorkerInterceptor[] interceptors;
     private final ActivityExecutionContextFactory executionContextFactory;
@@ -47,8 +50,10 @@ final class ActivityTaskExecutors {
         DataConverter dataConverter,
         List<ContextPropagator> contextPropagators,
         WorkerInterceptor[] interceptors,
-        ActivityExecutionContextFactory executionContextFactory) {
+        ActivityExecutionContextFactory executionContextFactory,
+        @Nullable PayloadCodec headerCodec) {
       this.dataConverter = dataConverter;
+      this.headerCodec = headerCodec;
       this.contextPropagators = contextPropagators;
       this.interceptors = interceptors;
       this.executionContextFactory = executionContextFactory;
@@ -71,8 +76,13 @@ final class ActivityTaskExecutors {
           dataConverter.withContext(serializationContext);
 
       try {
-        info.getHeader()
-            .ifPresent(value -> deserializeAndPopulateContext(value, contextPropagators));
+        io.temporal.api.common.v1.Header decodedHeader =
+            HeaderUtils.decode(
+                info.getHeader().orElse(io.temporal.api.common.v1.Header.getDefaultInstance()),
+                HeaderUtils.withContext(headerCodec, serializationContext));
+        if (info.getHeader().isPresent()) {
+          deserializeAndPopulateContext(decodedHeader, contextPropagators);
+        }
 
         ActivityInboundCallsInterceptor inboundCallsInterceptor = createRootInboundInterceptor();
         for (WorkerInterceptor interceptor : interceptors) {
@@ -81,9 +91,7 @@ final class ActivityTaskExecutors {
         inboundCallsInterceptor.init(context);
 
         Object[] args = provideArgs(info.getInput(), dataConverterWithActivityContext);
-        Header header =
-            new Header(
-                info.getHeader().orElse(io.temporal.api.common.v1.Header.getDefaultInstance()));
+        Header header = new Header(decodedHeader);
         ActivityOutput result =
             inboundCallsInterceptor.execute(
                 new ActivityInboundCallsInterceptor.ActivityInput(header, args));
@@ -193,8 +201,9 @@ final class ActivityTaskExecutors {
         DataConverter dataConverter,
         List<ContextPropagator> contextPropagators,
         WorkerInterceptor[] interceptors,
-        ActivityExecutionContextFactory executionContextFactory) {
-      super(dataConverter, contextPropagators, interceptors, executionContextFactory);
+        ActivityExecutionContextFactory executionContextFactory,
+        @Nullable PayloadCodec headerCodec) {
+      super(dataConverter, contextPropagators, interceptors, executionContextFactory, headerCodec);
       this.method = interfaceMethod;
       this.activity = activity;
     }
@@ -237,8 +246,9 @@ final class ActivityTaskExecutors {
         DataConverter dataConverter,
         List<ContextPropagator> contextPropagators,
         WorkerInterceptor[] interceptors,
-        ActivityExecutionContextFactory executionContextFactory) {
-      super(dataConverter, contextPropagators, interceptors, executionContextFactory);
+        ActivityExecutionContextFactory executionContextFactory,
+        @Nullable PayloadCodec headerCodec) {
+      super(dataConverter, contextPropagators, interceptors, executionContextFactory, headerCodec);
       this.activity = activity;
     }
 

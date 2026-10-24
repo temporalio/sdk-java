@@ -20,6 +20,7 @@ import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.env.ReflectionUtils;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.TypeAlreadyRegisteredException;
@@ -29,6 +30,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
+  private final @Nullable PayloadCodec headerCodec;
   public static final ImmutableSet<String> ACTIVITY_HANDLER_STACKTRACE_CUTOFF =
       ImmutableSet.<String>builder()
           // POJO
@@ -64,13 +66,15 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
       @Nonnull DataConverter dataConverter,
       @Nonnull ActivityExecutionContextFactory executionContextFactory,
       @Nonnull WorkerInterceptor[] interceptors,
-      @Nullable List<ContextPropagator> contextPropagators) {
+      @Nullable List<ContextPropagator> contextPropagators,
+      @Nullable PayloadCodec headerCodec) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.dataConverter = Objects.requireNonNull(dataConverter);
     this.executionContextFactory = Objects.requireNonNull(executionContextFactory);
     this.interceptors = Objects.requireNonNull(interceptors);
     this.contextPropagators = contextPropagators;
+    this.headerCodec = headerCodec;
   }
 
   @Override
@@ -147,7 +151,8 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
               dataConverter,
               contextPropagators,
               interceptors,
-              executionContextFactory);
+              executionContextFactory,
+              headerCodec);
     } else {
       Class<?> cls = activity.getClass();
       POJOActivityImplMetadata activityImplMetadata = POJOActivityImplMetadata.newInstance(cls);
@@ -166,7 +171,8 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
                 dataConverter,
                 contextPropagators,
                 interceptors,
-                executionContextFactory);
+                executionContextFactory,
+                headerCodec);
         activities.put(typeName, implementation);
       }
     }

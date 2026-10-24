@@ -33,6 +33,7 @@ public class DummySyncWorkflowContext {
             new UpdateDispatcher(DefaultDataConverter.STANDARD_INSTANCE),
             null,
             DefaultDataConverter.STANDARD_INSTANCE,
+            null,
             null);
     context.setReplayContext(new DummyReplayWorkflowContext());
     context.initHeadOutboundCallsInterceptor(context);

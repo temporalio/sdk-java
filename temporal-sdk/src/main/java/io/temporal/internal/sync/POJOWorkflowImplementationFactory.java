@@ -25,6 +25,7 @@ import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.TypeAlreadyRegisteredException;
 import io.temporal.worker.WorkflowImplementationOptions;
@@ -62,6 +63,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
   private final WorkerInterceptor[] workerInterceptors;
 
   private final DataConverter dataConverter;
+  private final @Nullable PayloadCodec headerCodec;
   private final List<ContextPropagator> contextPropagators;
   private final long defaultDeadlockDetectionTimeout;
 
@@ -97,6 +99,7 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       @Nonnull String namespace) {
     Objects.requireNonNull(singleWorkerOptions);
     this.dataConverter = singleWorkerOptions.getDataConverter();
+    this.headerCodec = singleWorkerOptions.getHeaderCodec();
     this.workflowThreadExecutor = Objects.requireNonNull(workflowThreadExecutor);
     this.workerInterceptors = Objects.requireNonNull(workerInterceptors);
     this.cache = cache;
@@ -309,7 +312,8 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
         workflowThreadExecutor,
         cache,
         contextPropagators,
-        defaultDeadlockDetectionTimeout);
+        defaultDeadlockDetectionTimeout,
+        headerCodec);
   }
 
   @Override

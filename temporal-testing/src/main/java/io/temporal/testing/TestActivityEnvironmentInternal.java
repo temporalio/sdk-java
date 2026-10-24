@@ -31,6 +31,7 @@ import io.temporal.internal.activity.ActivityExecutionContextFactory;
 import io.temporal.internal.activity.ActivityExecutionContextFactoryImpl;
 import io.temporal.internal.activity.ActivityTaskHandlerImpl;
 import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
@@ -131,7 +132,8 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
             dataConverter,
             activityExecutionContextFactory,
             testEnvironmentOptions.getWorkerFactoryOptions().getWorkerInterceptors(),
-            workflowClient.getOptions().getContextPropagators());
+            workflowClient.getOptions().getContextPropagators(),
+            HeaderUtils.resolveHeaderCodec(dataConverter));
   }
 
   private class HeartbeatInterceptingService extends WorkflowServiceGrpc.WorkflowServiceImplBase {

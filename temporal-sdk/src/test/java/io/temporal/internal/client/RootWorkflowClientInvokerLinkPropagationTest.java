@@ -77,7 +77,8 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
             options.getQueryRejectCondition(),
             options.getContextPropagators(),
             options.getDataConverter(),
-            new WorkerFactoryRegistry());
+            new WorkerFactoryRegistry(),
+            null);
     Scope metricsScope = new RootScopeBuilder().reportEvery(com.uber.m3.util.Duration.ofMillis(10));
     nexusCtx =
         new InternalNexusOperationContext(

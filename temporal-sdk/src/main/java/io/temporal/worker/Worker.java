@@ -24,6 +24,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.WorkflowInternal;
@@ -1186,6 +1187,7 @@ public final class Worker {
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
+        .setHeaderCodec(HeaderUtils.resolveHeaderCodec(clientOptions.getDataConverter()))
         .setExternalStorageRunner(externalStorageRunner)
         .setIdentity(identity)
         .setBuildId(buildId)

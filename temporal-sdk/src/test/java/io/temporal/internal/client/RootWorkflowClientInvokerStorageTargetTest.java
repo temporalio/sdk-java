@@ -20,6 +20,11 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.CodecDataConverterTest.PrefixPayloadCodec;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.HeaderEncodingDataConverter;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.QueryInput;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSignalInput;
@@ -207,6 +212,29 @@ public class RootWorkflowClientInvokerStorageTargetTest {
         sent.getValue().getHeader().getFieldsOrThrow("trace"));
   }
 
+  @Test
+  public void headerCodecRunsBeforeExternalStorage() {
+    CapturingDriver driver = new CapturingDriver();
+    GenericWorkflowClient rpc = mock(GenericWorkflowClient.class);
+    PrefixPayloadCodec codec = new PrefixPayloadCodec();
+    DataConverter converter =
+        new HeaderEncodingDataConverter(
+            new CodecDataConverter(
+                DefaultDataConverter.STANDARD_INSTANCE, Collections.singletonList(codec), false));
+    Header header = headerWith("trace", "context");
+    invoker(rpc, driver, converter)
+        .signal(
+            new WorkflowSignalInput(
+                WorkflowExecution.newBuilder().setWorkflowId("wf").build(),
+                "signal",
+                header,
+                new Object[0]));
+    assertEquals(
+        Collections.singletonList(
+            codec.encode(Collections.singletonList(header.getValues().get("trace"))).get(0)),
+        driver.stored);
+  }
+
   private static Header headerWith(String key, String value) {
     return new Header(Collections.singletonMap(key, tracePayload(value)));
   }
@@ -221,8 +249,16 @@ public class RootWorkflowClientInvokerStorageTargetTest {
 
   private static RootWorkflowClientInvoker invoker(
       GenericWorkflowClient rpc, StorageDriver driver) {
+    return invoker(rpc, driver, DefaultDataConverter.STANDARD_INSTANCE);
+  }
+
+  private static RootWorkflowClientInvoker invoker(
+      GenericWorkflowClient rpc, StorageDriver driver, DataConverter converter) {
     WorkflowClientOptions options =
-        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).validateAndBuildWithDefaults();
+        WorkflowClientOptions.newBuilder()
+            .setNamespace(NAMESPACE)
+            .setDataConverter(converter)
+            .validateAndBuildWithDefaults();
     return new RootWorkflowClientInvoker(
         rpc,
         options.getNamespace(),
