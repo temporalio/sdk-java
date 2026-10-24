@@ -35,6 +35,8 @@ import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.internal.nexus.OperationTokenUtil;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -60,25 +62,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final WorkflowClientRequestFactory requestsHelper;
   private final ClientDataConverterFactory converterFactory;
   private final @Nullable ExternalStorageRunner externalStorage;
-
-  public RootWorkflowClientInvoker(
-      GenericWorkflowClient genericClient,
-      String namespace,
-      String identity,
-      QueryRejectCondition queryRejectCondition,
-      List<ContextPropagator> contextPropagators,
-      DataConverter dataConverter,
-      WorkerFactoryRegistry workerFactoryRegistry) {
-    this(
-        genericClient,
-        namespace,
-        identity,
-        queryRejectCondition,
-        contextPropagators,
-        dataConverter,
-        workerFactoryRegistry,
-        null);
-  }
+  private final @Nullable PayloadCodec headerCodec;
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
@@ -92,6 +76,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     this.converterFactory =
         new ClientDataConverterFactory(namespace, dataConverter, externalStorage);
     this.externalStorage = externalStorage;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.identity = identity;
@@ -119,6 +104,12 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       String workflowId,
       @Nullable String runId,
       @Nullable String workflowType) {
+    Header encoded =
+        HeaderUtils.encode(
+            header.build(),
+            HeaderUtils.withContext(
+                headerCodec, new WorkflowSerializationContext(namespace, workflowId)));
+    header.clearFields().putAllFields(encoded.getFieldsMap());
     if (externalStorage == null || header.getFieldsCount() == 0) {
       return;
     }
@@ -372,10 +363,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setRunId(startResponse.getRunId())
-            .setWorkflowId(
-                toStartRequest(dataConverterWithWorkflowContext, startInput)
-                    .build()
-                    .getWorkflowId())
+            .setWorkflowId(startInput.getWorkflowId())
             .build();
     return new WorkflowUpdateWithStartOutput<>(new WorkflowStartOutput(execution), updateHandle);
   }

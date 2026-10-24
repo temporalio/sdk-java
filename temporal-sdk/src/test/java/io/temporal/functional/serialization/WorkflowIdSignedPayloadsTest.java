@@ -11,6 +11,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.*;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.*;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.payload.codec.PayloadCodec;
@@ -53,10 +54,11 @@ public class WorkflowIdSignedPayloadsTest {
       new ManualCompletionActivityImpl();
 
   private static final DataConverter codecDataConverter =
-      new CodecDataConverter(
-          DefaultDataConverter.STANDARD_INSTANCE,
-          Collections.singletonList(new PayloadEncoderWithWorkflowIdSignature()),
-          true);
+      new HeaderEncodingDataConverter(
+          new CodecDataConverter(
+              DefaultDataConverter.STANDARD_INSTANCE,
+              Collections.singletonList(new PayloadEncoderWithWorkflowIdSignature()),
+              true));
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -67,7 +69,10 @@ public class WorkflowIdSignedPayloadsTest {
               DynamicWorkflowImpl.class,
               WorkflowWithQuery.class)
           .setWorkflowClientOptions(
-              WorkflowClientOptions.newBuilder().setDataConverter(codecDataConverter).build())
+              WorkflowClientOptions.newBuilder()
+                  .setDataConverter(codecDataConverter)
+                  .setContextPropagators(Collections.singletonList(new HeaderContext()))
+                  .build())
           .setActivityImplementations(
               heartbeatingActivity, manualCompletionActivity, new DynamicActivityImpl())
           .build();
@@ -79,6 +84,18 @@ public class WorkflowIdSignedPayloadsTest {
     TestWorkflows.TestWorkflow1 workflowStub =
         testWorkflowRule.newWorkflowStubTimeoutOptions(TestWorkflows.TestWorkflow1.class);
     assertEquals("result", workflowStub.execute("input"));
+    assertEquals(
+        "signed",
+        testWorkflowRule
+            .getHistoryEvents(
+                WorkflowStub.fromTyped(workflowStub).getExecution().getWorkflowId(),
+                EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .get(0)
+            .getWorkflowExecutionStartedEventAttributes()
+            .getHeader()
+            .getFieldsOrThrow("header-context")
+            .getMetadataOrThrow(EncodingKeys.METADATA_ENCODING_KEY)
+            .toStringUtf8());
   }
 
   @Test(timeout = 30_000)
@@ -304,6 +321,40 @@ public class WorkflowIdSignedPayloadsTest {
     @Override
     public Object execute(EncodedValues args) {
       return "Hello " + args.get(0, String.class);
+    }
+  }
+
+  private static class HeaderContext implements ContextPropagator {
+    private static final Payload VALUE =
+        DefaultDataConverter.STANDARD_INSTANCE.toPayload("context").get();
+
+    @Override
+    public String getName() {
+      return "header-context";
+    }
+
+    @Override
+    public Map<String, Payload> serializeContext(Object context) {
+      return Collections.singletonMap("header-context", VALUE);
+    }
+
+    @Override
+    public Object deserializeContext(Map<String, Payload> header) {
+      // Cron runs started by the server need not carry the original headers.
+      if (header.containsKey("header-context")) {
+        assertEquals(VALUE, header.get("header-context"));
+      }
+      return "context";
+    }
+
+    @Override
+    public Object getCurrentContext() {
+      return "context";
+    }
+
+    @Override
+    public void setCurrentContext(Object context) {
+      assertEquals("context", context);
     }
   }
 

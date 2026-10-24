@@ -100,7 +100,8 @@ public class SyncWorkflowWorker implements SuspendableWorker {
             localActivityOptions.getDataConverter(),
             laActivityExecutionContextFactory,
             localActivityOptions.getWorkerInterceptors(),
-            localActivityOptions.getContextPropagators());
+            localActivityOptions.getContextPropagators(),
+            localActivityOptions.getHeaderCodec());
     laWorker =
         new LocalActivityWorker(
             namespace, taskQueue, localActivityOptions, laTaskHandler, laSlotSupplier);

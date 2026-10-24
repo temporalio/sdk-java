@@ -51,6 +51,39 @@ If you cannot use protobuf-java 3.25 >=, you can try `temporal-shaded` which inc
 
 We'd love your help in improving the Temporal Java SDK. Please review our [contribution guidelines](CONTRIBUTING.md).
 
+## Automatic payload-header codecs
+
+Automatic header codec processing is opt-in:
+
+```java
+DataConverter payloadConverter = DefaultDataConverter.newDefaultInstance();
+DataConverter converter =
+    new HeaderEncodingDataConverter(new CodecDataConverter(payloadConverter, codecs));
+WorkflowClientOptions options =
+    WorkflowClientOptions.newBuilder()
+        .setDataConverter(converter)
+        .build();
+```
+
+The wrapper enables codec-only processing of already serialized payload headers.
+Workers inherit it from their workflow client. Independently created activity and schedule clients
+must also configure the wrapper and use compatible codecs.
+Construct header payloads with `payloadConverter`, not `converter`: do not manually codec them or
+serialize a `Payload` again as an application value. Context propagators and inbound interceptors
+receive decoded payloads. Tracing retains its standard serialization, but its payload headers
+participate in the codec stage. Nexus string transport headers and gRPC metadata are unaffected.
+
+Ordinary `CodecDataConverter` retains the previous header behavior. It implements
+`DataConverterWithCodec`, combining value conversion and `PayloadCodecProvider` stage exposure without
+opting into header processing. `HeaderEncodingDataConverter` requires this combined capability and
+rejects a null or empty codec stage. Disabled converters' stages are not inspected.
+Before enabling the wrapper for existing histories or schedules, ensure your decoder accepts their
+legacy plaintext headers; codec failures do not fall back to plaintext. SDK-owned converter wrappers
+forward the opt-in `HeaderCodecProvider` capability. Keep `HeaderEncodingDataConverter` outermost,
+or make custom wrappers explicitly implement and forward `HeaderCodecProvider`, whose codec must
+support serialization contexts. An opaque outer wrapper can hide the opt-in; the SDK does not
+discover delegates through reflection or value conversion.
+
 ## Development
 
 ### Development Environment

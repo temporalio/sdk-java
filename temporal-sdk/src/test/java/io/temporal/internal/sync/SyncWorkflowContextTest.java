@@ -9,19 +9,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.Header;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ChildWorkflowInput;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor.ContinueAsNewInput;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
+import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.ContinueAsNewOptions;
 import io.temporal.workflow.TimerOptions;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -40,6 +48,64 @@ public class SyncWorkflowContextTest {
     this.context = DummySyncWorkflowContext.newDummySyncWorkflowContext();
     this.context.setReplayContext(mockReplayWorkflowContext);
     when(mockReplayWorkflowContext.getLoggerMdc()).thenReturn(new PrefixedMdc(null));
+  }
+
+  @Test
+  @SuppressWarnings("deprecation")
+  public void childHeaderCodecUsesEffectiveDestinationNamespace() {
+    when(mockReplayWorkflowContext.getNamespace()).thenReturn("parent");
+    when(mockReplayWorkflowContext.getWorkflowType())
+        .thenReturn(WorkflowType.newBuilder().setName("Parent").build());
+    when(mockReplayWorkflowContext.getTaskQueue()).thenReturn("queue");
+    for (String childNamespace : new String[] {null, "", "destination"}) {
+      PayloadCodec codec = mock(PayloadCodec.class);
+      when(codec.withContext(any())).thenReturn(codec);
+      when(codec.encode(any())).thenAnswer(call -> call.getArgument(0));
+      SyncWorkflowContext context =
+          new SyncWorkflowContext(
+              "parent",
+              WorkflowExecution.newBuilder().setWorkflowId("parent-id").build(),
+              null,
+              null,
+              null,
+              null,
+              null,
+              DefaultDataConverter.STANDARD_INSTANCE,
+              Collections.emptyList(),
+              codec);
+      context.setReplayContext(mockReplayWorkflowContext);
+      ExecutorService threadPool = Executors.newCachedThreadPool();
+      DeterministicRunner runner =
+          DeterministicRunner.newRunner(
+              threadPool::submit,
+              context,
+              () ->
+                  context.executeChildWorkflow(
+                      new ChildWorkflowInput<>(
+                          "child-id",
+                          "Child",
+                          Void.class,
+                          Void.class,
+                          new Object[0],
+                          ChildWorkflowOptions.newBuilder().setNamespace(childNamespace).build(),
+                          new Header(
+                              Collections.singletonMap("key", Payload.getDefaultInstance())))));
+      try {
+        runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
+        ArgumentCaptor<SerializationContext> captured =
+            ArgumentCaptor.forClass(SerializationContext.class);
+        verify(codec).withContext(captured.capture());
+        WorkflowSerializationContext serializationContext =
+            (WorkflowSerializationContext) captured.getValue();
+        assertEquals(
+            childNamespace == null || childNamespace.isEmpty() ? "parent" : childNamespace,
+            serializationContext.getNamespace());
+        assertEquals("child-id", serializationContext.getWorkflowId());
+      } finally {
+        runner.close();
+        threadPool.shutdown();
+      }
+    }
   }
 
   @Test

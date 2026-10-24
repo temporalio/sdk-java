@@ -5,9 +5,13 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.ScheduleActionStartWorkflow;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.SchedulePolicy;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.CodecDataConverterTest.PrefixPayloadCodec;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.HeaderEncodingDataConverter;
 import io.temporal.common.converter.TransferTypeTestModel;
+import io.temporal.common.interceptors.Header;
 import java.time.Duration;
 import java.util.Collections;
 import org.junit.Assert;
@@ -30,6 +34,47 @@ public class ScheduleProtoUtilTest {
                 SchedulePolicy.newBuilder().setCatchupWindow(Duration.ofMinutes(5)).build())
             .getCatchupWindow()
             .getSeconds());
+  }
+
+  @Test
+  public void headerCodecRoundTripPreservesScheduleUpdates() {
+    for (boolean enabled : new boolean[] {false, true}) {
+      CodecDataConverter codecConverter =
+          new CodecDataConverter(
+              DefaultDataConverter.STANDARD_INSTANCE,
+              Collections.singletonList(new PrefixPayloadCodec()),
+              false);
+      DataConverter converter =
+          enabled ? new HeaderEncodingDataConverter(codecConverter) : codecConverter;
+      ScheduleProtoUtil util =
+          new ScheduleProtoUtil(null, "namespace", Collections.emptyList(), converter);
+      Header header =
+          new Header(
+              Collections.singletonMap(
+                  "_tracer-data", DefaultDataConverter.STANDARD_INSTANCE.toPayload("trace").get()));
+      ScheduleActionStartWorkflow action =
+          ScheduleActionStartWorkflow.newBuilder()
+              .setWorkflowType("workflow")
+              .setOptions(
+                  WorkflowOptions.newBuilder().setWorkflowId("id").setTaskQueue("q").build())
+              .setHeader(header)
+              .build();
+      ScheduleAction proto = util.actionToProto(action);
+      Assert.assertEquals(
+          enabled,
+          proto
+              .getStartWorkflow()
+              .getHeader()
+              .getFieldsOrThrow("_tracer-data")
+              .getData()
+              .startsWith(PrefixPayloadCodec.PREFIX));
+      ScheduleActionStartWorkflow restored =
+          (ScheduleActionStartWorkflow) util.protoToAction(proto);
+      Assert.assertEquals(header.getValues(), restored.getHeader().getValues());
+      Assert.assertEquals(
+          proto.getStartWorkflow().getHeader(),
+          util.actionToProto(restored).getStartWorkflow().getHeader());
+    }
   }
 
   @Test

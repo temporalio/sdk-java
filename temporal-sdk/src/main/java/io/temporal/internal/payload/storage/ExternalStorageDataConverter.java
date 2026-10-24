@@ -6,6 +6,9 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
+import io.temporal.internal.common.HeaderUtils;
+import io.temporal.payload.codec.HeaderCodecProvider;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.lang.reflect.Type;
@@ -19,7 +22,7 @@ import javax.annotation.Nullable;
  * <p>This is an internal class that is not exposed to users or workflow code. The intent is to use
  * this data converter to consolidate extstore usage within the SDK.
  */
-public final class ExternalStorageDataConverter implements DataConverter {
+public final class ExternalStorageDataConverter implements DataConverter, HeaderCodecProvider {
 
   private final DataConverter delegate;
   private final @Nullable ExternalStorageRunner externalStorage;
@@ -42,6 +45,12 @@ public final class ExternalStorageDataConverter implements DataConverter {
   public ExternalStorageDataConverter withStorageTarget(
       @Nullable StorageDriverTargetInfo storageTarget) {
     return new ExternalStorageDataConverter(delegate, externalStorage, storageTarget);
+  }
+
+  @Nullable
+  @Override
+  public PayloadCodec getHeaderCodec() {
+    return HeaderUtils.getHeaderCodec(delegate);
   }
 
   @Override

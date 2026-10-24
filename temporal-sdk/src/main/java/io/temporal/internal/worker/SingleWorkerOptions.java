@@ -10,6 +10,7 @@ import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.worker.PreferredVersionProvider;
 import io.temporal.worker.WorkerDeploymentOptions;
 import java.time.Duration;
@@ -34,6 +35,7 @@ public final class SingleWorkerOptions {
     private String buildId;
     private boolean useBuildIdForVersioning;
     private DataConverter dataConverter;
+    private PayloadCodec headerCodec;
     private PollerOptions pollerOptions;
     private Scope metricsScope;
     private boolean enableLoggingInReplay;
@@ -63,6 +65,7 @@ public final class SingleWorkerOptions {
       this.identity = options.getIdentity();
       this.binaryChecksum = options.getBinaryChecksum();
       this.dataConverter = options.getDataConverter();
+      this.headerCodec = options.getHeaderCodec();
       this.pollerOptions = options.getPollerOptions();
       this.metricsScope = options.getMetricsScope();
       this.enableLoggingInReplay = options.getEnableLoggingInReplay();
@@ -99,6 +102,11 @@ public final class SingleWorkerOptions {
 
     public Builder setDataConverter(DataConverter dataConverter) {
       this.dataConverter = dataConverter;
+      return this;
+    }
+
+    public Builder setHeaderCodec(@Nullable PayloadCodec headerCodec) {
+      this.headerCodec = headerCodec;
       return this;
     }
 
@@ -245,6 +253,7 @@ public final class SingleWorkerOptions {
           this.buildId,
           this.useBuildIdForVersioning,
           dataConverter,
+          headerCodec,
           pollerOptions,
           metricsScope,
           this.enableLoggingInReplay,
@@ -291,6 +300,7 @@ public final class SingleWorkerOptions {
   private final @Nullable ExternalStorageRunner externalStorageRunner;
   private final CancellationToken<CancellationException> storageCancellation;
   private final PrefixedMdc loggerMdc;
+  private final @Nullable PayloadCodec headerCodec;
 
   private SingleWorkerOptions(
       String identity,
@@ -298,6 +308,7 @@ public final class SingleWorkerOptions {
       String buildId,
       boolean useBuildIdForVersioning,
       DataConverter dataConverter,
+      @Nullable PayloadCodec headerCodec,
       PollerOptions pollerOptions,
       Scope metricsScope,
       boolean enableLoggingInReplay,
@@ -322,6 +333,7 @@ public final class SingleWorkerOptions {
     this.buildId = buildId;
     this.useBuildIdForVersioning = useBuildIdForVersioning;
     this.dataConverter = dataConverter;
+    this.headerCodec = headerCodec;
     this.pollerOptions = pollerOptions;
     this.metricsScope = metricsScope;
     this.enableLoggingInReplay = enableLoggingInReplay;
@@ -380,6 +392,11 @@ public final class SingleWorkerOptions {
 
   public DataConverter getDataConverter() {
     return dataConverter;
+  }
+
+  @Nullable
+  public PayloadCodec getHeaderCodec() {
+    return headerCodec;
   }
 
   public PollerOptions getPollerOptions() {

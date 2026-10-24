@@ -113,6 +113,9 @@ public interface ContextPropagator {
    * interceptors, because they all share the same single keyspace of a single instance of {@code
    * temporal.api.common.v1.Header}
    *
+   * <p>With automatic header codecs enabled, return serialized but not codec-encoded payloads. The
+   * SDK applies the codec after merging headers and decodes before {@link #deserializeContext}.
+   *
    * @return serialized representation to be sent in request {@code temporal.api.common.v1.Header}
    */
   Map<String, Payload> serializeContext(Object context);

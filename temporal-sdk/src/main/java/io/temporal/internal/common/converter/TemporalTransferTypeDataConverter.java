@@ -10,6 +10,9 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.common.converter.TransferTypeConverter;
 import io.temporal.common.converter.TransferTypeConvertible;
+import io.temporal.internal.common.HeaderUtils;
+import io.temporal.payload.codec.HeaderCodecProvider;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -18,9 +21,10 @@ import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Applies type-owned transfer conversion around an SDK-managed data converter. */
-public final class TemporalTransferTypeDataConverter implements DataConverter {
+public final class TemporalTransferTypeDataConverter implements DataConverter, HeaderCodecProvider {
   private static final ClassValue<ConverterDescriptor> CONVERTER_DESCRIPTORS =
       new ClassValue<ConverterDescriptor>() {
         @Override
@@ -35,6 +39,12 @@ public final class TemporalTransferTypeDataConverter implements DataConverter {
 
   private TemporalTransferTypeDataConverter(DataConverter delegate) {
     this.delegate = delegate;
+  }
+
+  @Nullable
+  @Override
+  public PayloadCodec getHeaderCodec() {
+    return HeaderUtils.getHeaderCodec(delegate);
   }
 
   /** Wraps a converter once. */

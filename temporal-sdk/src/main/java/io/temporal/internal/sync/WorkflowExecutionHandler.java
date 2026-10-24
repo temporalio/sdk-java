@@ -48,7 +48,7 @@ class WorkflowExecutionHandler {
     try {
       Optional<Payloads> input =
           attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
-      output = workflow.execute(new Header(attributes.getHeader()), input);
+      output = workflow.execute(context.getStartHeader(), input);
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     } finally {
@@ -85,7 +85,7 @@ class WorkflowExecutionHandler {
       long eventId,
       io.temporal.api.common.v1.Header header) {
     try {
-      context.handleSignal(signalName, input, eventId, new Header(header));
+      context.handleSignal(signalName, input, eventId, context.decodeHeader(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
@@ -93,30 +93,22 @@ class WorkflowExecutionHandler {
 
   public Optional<Payloads> handleQuery(
       String type, io.temporal.api.common.v1.Header header, Optional<Payloads> args) {
-    return context.handleQuery(type, new Header(header), args);
+    return context.handleQuery(type, context.decodeHeader(header), args);
   }
 
   public void handleValidateUpdate(
-      String updateName,
-      String updateId,
-      Optional<Payloads> input,
-      long eventId,
-      io.temporal.api.common.v1.Header header) {
+      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
     try {
-      context.handleValidateUpdate(updateName, updateId, input, eventId, new Header(header));
+      context.handleValidateUpdate(updateName, updateId, input, eventId, header);
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName,
-      String updateId,
-      Optional<Payloads> input,
-      long eventId,
-      io.temporal.api.common.v1.Header header) {
+      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
     try {
-      return context.handleExecuteUpdate(updateName, updateId, input, eventId, new Header(header));
+      return context.handleExecuteUpdate(updateName, updateId, input, eventId, header);
     } catch (UnsupportedContinueAsNewRequest e) {
       // Re-throw to fail the workflow task
       throw e;

@@ -13,12 +13,17 @@ import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.HeaderEncodingDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
+import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.time.Duration;
+import java.util.Collections;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
@@ -38,6 +43,11 @@ public class SpanContextPropagationTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
+                  .setDataConverter(
+                      new HeaderEncodingDataConverter(
+                          new CodecDataConverter(
+                              DefaultDataConverter.STANDARD_INSTANCE,
+                              Collections.singletonList(new HeaderCodecTest.CountingCodec()))))
                   .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
@@ -63,6 +73,9 @@ public class SpanContextPropagationTest {
   public interface TestWorkflow {
     @WorkflowMethod
     String workflow1(String input);
+
+    @QueryMethod
+    String query();
   }
 
   public static class OpenTracingAwareActivityImpl implements TestActivity {
@@ -96,6 +109,11 @@ public class SpanContextPropagationTest {
 
       return activity.activity1(input);
     }
+
+    @Override
+    public String query() {
+      return mockTracer.activeSpan().getBaggageItem(BAGGAGE_ITEM_KEY);
+    }
   }
 
   /**
@@ -121,6 +139,7 @@ public class SpanContextPropagationTest {
                   .setTaskQueue(testWorkflowRule.getTaskQueue())
                   .validateBuildWithDefaults());
       assertEquals(BAGGAGE_ITEM_VALUE, workflow.workflow1("input"));
+      assertEquals(BAGGAGE_ITEM_VALUE, workflow.query());
     } finally {
       span.finish();
     }

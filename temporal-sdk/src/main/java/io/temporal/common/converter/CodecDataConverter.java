@@ -27,8 +27,11 @@ import javax.annotation.Nullable;
  * <p>The underlying {@link DataConverter} is expected to be responsible for conversion between user
  * objects and bytes represented as {@link Payloads}, while the underlying chain of codecs is
  * responsible for a subsequent byte &lt;-&gt; byte manipulation such as encryption or compression
+ *
+ * <p>This converter exposes its codec stage but does not enable automatic header processing. Wrap
+ * it in {@link HeaderEncodingDataConverter} to opt in.
  */
-public class CodecDataConverter implements DataConverter, PayloadCodec {
+public class CodecDataConverter implements DataConverterWithCodec, PayloadCodec {
   private static final String ENCODED_FAILURE_MESSAGE = "Encoded failure";
 
   private final DataConverter dataConverter;
@@ -188,6 +191,14 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   @Override
   public CodecDataConverter withContext(@Nonnull SerializationContext context) {
     return new CodecDataConverter(dataConverter, chainCodec, encodeFailureAttributes, context);
+  }
+
+  @Nullable
+  @Override
+  public PayloadCodec getPayloadCodec() {
+    return chainCodec.isEmpty()
+        ? null
+        : ConverterUtils.withContext(chainCodec, serializationContext);
   }
 
   @Nonnull

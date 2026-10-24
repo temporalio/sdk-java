@@ -8,11 +8,15 @@ import io.opentracing.mock.MockSpan;
 import io.opentracing.mock.MockTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.client.*;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.HeaderEncodingDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
+import java.util.Collections;
 import java.util.List;
 import org.junit.After;
 import org.junit.Rule;
@@ -31,6 +35,11 @@ public class SignalWithStartTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
+                  .setDataConverter(
+                      new HeaderEncodingDataConverter(
+                          new CodecDataConverter(
+                              DefaultDataConverter.STANDARD_INSTANCE,
+                              Collections.singletonList(new HeaderCodecTest.CountingCodec()))))
                   .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(

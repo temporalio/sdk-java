@@ -18,6 +18,7 @@ import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.UpdateProtocolCallback;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.UpdateInfo;
@@ -62,7 +63,8 @@ class SyncWorkflow implements ReplayWorkflow {
       WorkflowThreadExecutor workflowThreadExecutor,
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
-      long defaultDeadlockDetectionTimeout) {
+      long defaultDeadlockDetectionTimeout,
+      @Nullable PayloadCodec headerCodec) {
     this.workflow = Objects.requireNonNull(workflow);
     this.workflowImplementationOptions =
         workflowImplementationOptions == null
@@ -85,7 +87,8 @@ class SyncWorkflow implements ReplayWorkflow {
             updateDispatcher,
             workflowImplementationOptions,
             dataConverter,
-            contextPropagators);
+            contextPropagators,
+            headerCodec);
   }
 
   @Override
@@ -151,6 +154,8 @@ class SyncWorkflow implements ReplayWorkflow {
         "update " + updateName,
         () -> {
           try {
+            io.temporal.common.interceptors.Header decodedHeader =
+                workflowContext.decodeHeader(header);
             workflowContext.setCurrentUpdateInfo(updateInfo);
             PrefixedMdc mdc = workflowContext.getReplayContext().getLoggerMdc();
             mdc.put(LoggerTag.UPDATE_ID, updateInfo.getUpdateId());
@@ -159,7 +164,8 @@ class SyncWorkflow implements ReplayWorkflow {
             if (!callbacks.isReplaying()) {
               try {
                 workflowContext.setReadOnly(true);
-                workflowProc.handleValidateUpdate(updateName, updateId, input, eventId, header);
+                workflowProc.handleValidateUpdate(
+                    updateName, updateId, input, eventId, decodedHeader);
               } catch (ReadOnlyException r) {
                 // Rethrow instead on rejecting the update to fail the WFT
                 throw r;
@@ -179,7 +185,8 @@ class SyncWorkflow implements ReplayWorkflow {
             callbacks.accept();
             try {
               Optional<Payloads> result =
-                  workflowProc.handleExecuteUpdate(updateName, updateId, input, eventId, header);
+                  workflowProc.handleExecuteUpdate(
+                      updateName, updateId, input, eventId, decodedHeader);
               callbacks.complete(result, null);
             } catch (WorkflowExecutionException e) {
               callbacks.complete(Optional.empty(), e.getFailure());

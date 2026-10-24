@@ -32,6 +32,7 @@ import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
@@ -40,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 
 /**
  * Terminus of the activity interceptor chain. Implements all activity RPCs against the Temporal
@@ -51,6 +53,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   private final String namespace;
   private final String identity;
   private final DataConverter dataConverter;
+  private final @Nullable PayloadCodec headerCodec;
 
   public RootActivityClientInvoker(
       GenericWorkflowClient genericClient,
@@ -61,6 +64,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     this.namespace = namespace;
     this.identity = identity;
     this.dataConverter = dataConverter;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
   }
 
   @Override
@@ -69,10 +73,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (Strings.isNullOrEmpty(options.getTaskQueue())) {
       throw new IllegalArgumentException("taskQueue must not be null or empty");
     }
-    DataConverter dc =
-        dataConverter.withContext(
-            new ActivitySerializationContext(
-                namespace, null, null, input.getActivityType(), options.getTaskQueue(), false));
+    ActivitySerializationContext serializationContext =
+        new ActivitySerializationContext(
+            namespace, null, null, input.getActivityType(), options.getTaskQueue(), false);
+    DataConverter dc = dataConverter.withContext(serializationContext);
 
     InternalNexusOperationContext nexusContext =
         CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
@@ -135,7 +139,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
     }
 
-    io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
+    io.temporal.api.common.v1.Header grpcHeader =
+        HeaderUtils.toHeaderGrpc(
+            input.getHeader(), null, HeaderUtils.withContext(headerCodec, serializationContext));
     request.setHeader(grpcHeader);
 
     List<Link> protoLinks = Collections.emptyList();

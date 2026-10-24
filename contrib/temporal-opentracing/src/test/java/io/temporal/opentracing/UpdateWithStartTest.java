@@ -9,6 +9,9 @@ import io.opentracing.mock.MockTracer;
 import io.opentracing.util.ThreadLocalScopeManager;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.client.*;
+import io.temporal.common.converter.CodecDataConverter;
+import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.converter.HeaderEncodingDataConverter;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.CompletablePromise;
@@ -17,6 +20,7 @@ import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -38,6 +42,11 @@ public class UpdateWithStartTest {
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
+                  .setDataConverter(
+                      new HeaderEncodingDataConverter(
+                          new CodecDataConverter(
+                              DefaultDataConverter.STANDARD_INSTANCE,
+                              Collections.singletonList(new HeaderCodecTest.CountingCodec()))))
                   .setInterceptors(new OpenTracingClientInterceptor(OT_OPTIONS))
                   .validateAndBuildWithDefaults())
           .setWorkerFactoryOptions(
