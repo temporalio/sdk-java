@@ -25,6 +25,11 @@ to docs, or any other relevant information.
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 
 ### Added
+- Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
+  the configured client's payload codec. Only opted-in producers' output is encoded, while
+  application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
+  views. Existing propagators default to false; custom converter wrappers can expose their codec
+  through `PayloadCodecProvider`.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
@@ -78,6 +83,7 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Schedule action headers are now preserved when describing and updating a schedule.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).

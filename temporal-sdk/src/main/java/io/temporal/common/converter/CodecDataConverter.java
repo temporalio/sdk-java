@@ -11,6 +11,7 @@ import io.temporal.api.failure.v1.ResetWorkflowFailureInfo;
 import io.temporal.api.failure.v1.TimeoutFailureInfo;
 import io.temporal.payload.codec.ChainCodec;
 import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.codec.PayloadCodecProvider;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.Collection;
@@ -27,8 +28,11 @@ import javax.annotation.Nullable;
  * <p>The underlying {@link DataConverter} is expected to be responsible for conversion between user
  * objects and bytes represented as {@link Payloads}, while the underlying chain of codecs is
  * responsible for a subsequent byte &lt;-&gt; byte manipulation such as encryption or compression
+ *
+ * <p>This converter exposes its codec stage for tracing and context propagators that opt into
+ * header codec processing. Ordinary user-supplied header payloads remain wire-ready.
  */
-public class CodecDataConverter implements DataConverter, PayloadCodec {
+public class CodecDataConverter implements DataConverter, PayloadCodecProvider, PayloadCodec {
   private static final String ENCODED_FAILURE_MESSAGE = "Encoded failure";
 
   private final DataConverter dataConverter;
@@ -188,6 +192,12 @@ public class CodecDataConverter implements DataConverter, PayloadCodec {
   @Override
   public CodecDataConverter withContext(@Nonnull SerializationContext context) {
     return new CodecDataConverter(dataConverter, chainCodec, encodeFailureAttributes, context);
+  }
+
+  @Nullable
+  @Override
+  public PayloadCodec getPayloadCodec() {
+    return ConverterUtils.withContext(chainCodec, serializationContext);
   }
 
   @Nonnull

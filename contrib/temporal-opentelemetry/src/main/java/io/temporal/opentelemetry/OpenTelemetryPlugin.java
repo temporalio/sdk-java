@@ -37,6 +37,7 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
   private final Runnable flushHook;
   private final IdGenerator idGenerator;
   private final boolean flushOnWorkerFactoryShutdown;
+  private final boolean encodeHeaders;
   private final List<Scope> metricsScopes = new ArrayList<>();
 
   private OpenTelemetry openTelemetry;
@@ -53,6 +54,7 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
     this.flushHook = builder.flushHook;
     this.idGenerator = builder.idGenerator;
     this.flushOnWorkerFactoryShutdown = builder.flushOnWorkerFactoryShutdown;
+    this.encodeHeaders = builder.encodeHeaders;
   }
 
   public static Builder newBuilder() {
@@ -94,7 +96,7 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
   @Override
   public void configureWorkflowClient(@Nonnull WorkflowClientOptions.Builder builder) {
     OpenTracingOptions tracingOptions =
-        OpenTelemetryWorker.createOpenTracingOptions(getOpenTelemetry());
+        OpenTelemetryWorker.createOpenTracingOptions(getOpenTelemetry(), encodeHeaders);
     OpenTelemetryWorker.appendClientInterceptor(
         builder, new io.temporal.opentracing.OpenTracingClientInterceptor(tracingOptions));
   }
@@ -102,7 +104,7 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
   @Override
   public void configureWorkerFactory(@Nonnull WorkerFactoryOptions.Builder builder) {
     OpenTracingOptions tracingOptions =
-        OpenTelemetryWorker.createOpenTracingOptions(getOpenTelemetry());
+        OpenTelemetryWorker.createOpenTracingOptions(getOpenTelemetry(), encodeHeaders);
     OpenTelemetryWorker.appendWorkerInterceptor(
         builder, new io.temporal.opentracing.OpenTracingWorkerInterceptor(tracingOptions));
   }
@@ -155,6 +157,17 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
 
   /** Builder for {@link OpenTelemetryPlugin}. */
   public static final class Builder {
+    private boolean encodeHeaders;
+
+    /**
+     * Uses the configured client's payload codec for tracing headers. Defaults to false;
+     * application-supplied headers and standard tracing serialization are unchanged.
+     */
+    public Builder setEncodeHeaders(boolean encodeHeaders) {
+      this.encodeHeaders = encodeHeaders;
+      return this;
+    }
+
     private final Map<String, String> env;
     private OpenTelemetry openTelemetry;
     private String endpoint;

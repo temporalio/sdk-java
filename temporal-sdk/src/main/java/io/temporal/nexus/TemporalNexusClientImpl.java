@@ -7,7 +7,6 @@ import io.nexusrpc.handler.HandlerException;
 import io.nexusrpc.handler.HandlerException.RetryBehavior;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
-import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
@@ -21,12 +20,11 @@ import io.temporal.client.WorkflowUpdateException;
 import io.temporal.client.WorkflowUpdateHandle;
 import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.common.Experimental;
-import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
-import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.NexusStartActivityResponse;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
@@ -40,9 +38,7 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -1106,7 +1102,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
               activityType,
               args,
               options,
-              propagatedHeader(),
+              HeaderUtils.fromContextPropagators(client.getOptions().getContextPropagators()),
               request -> {
                 ActivityClientCallsInterceptor.StartActivityInput input =
                     new ActivityClientCallsInterceptor.StartActivityInput(
@@ -1166,17 +1162,5 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
     } finally {
       nexusContext.setNexusOperationMetadata(null);
     }
-  }
-
-  private Header propagatedHeader() {
-    List<ContextPropagator> propagators = client.getOptions().getContextPropagators();
-    if (propagators.isEmpty()) {
-      return Header.empty();
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : propagators) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new Header(result);
   }
 }

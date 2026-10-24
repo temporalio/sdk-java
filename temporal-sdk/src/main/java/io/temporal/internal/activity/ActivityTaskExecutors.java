@@ -17,7 +17,9 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
@@ -40,6 +42,7 @@ final class ActivityTaskExecutors {
 
   abstract static class BaseActivityTaskExecutor implements ActivityTaskExecutor {
     private final DataConverter dataConverter;
+    private final @Nullable PayloadCodec headerCodec;
     private final List<ContextPropagator> contextPropagators;
     private final WorkerInterceptor[] interceptors;
     private final ActivityExecutionContextFactory executionContextFactory;
@@ -50,6 +53,7 @@ final class ActivityTaskExecutors {
         WorkerInterceptor[] interceptors,
         ActivityExecutionContextFactory executionContextFactory) {
       this.dataConverter = dataConverter;
+      this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
       this.contextPropagators = contextPropagators;
       this.interceptors = interceptors;
       this.executionContextFactory = executionContextFactory;
@@ -80,8 +84,13 @@ final class ActivityTaskExecutors {
               : dataConverterWithActivityContext;
 
       try {
-        info.getHeader()
-            .ifPresent(value -> deserializeAndPopulateContext(value, contextPropagators));
+        Header header =
+            new Header(
+                info.getHeader().orElse(io.temporal.api.common.v1.Header.getDefaultInstance()),
+                HeaderUtils.withContext(headerCodec, serializationContext));
+        if (info.getHeader().isPresent()) {
+          deserializeAndPopulateContext(header, contextPropagators);
+        }
 
         ActivityInboundCallsInterceptor inboundCallsInterceptor = createRootInboundInterceptor();
         for (WorkerInterceptor interceptor : interceptors) {
@@ -90,9 +99,6 @@ final class ActivityTaskExecutors {
         inboundCallsInterceptor.init(context);
 
         Object[] args = provideArgs(info.getInput(), dataConverterWithActivityContext);
-        Header header =
-            new Header(
-                info.getHeader().orElse(io.temporal.api.common.v1.Header.getDefaultInstance()));
         ActivityOutput result =
             inboundCallsInterceptor.execute(
                 new ActivityInboundCallsInterceptor.ActivityInput(header, args));
@@ -176,14 +182,16 @@ final class ActivityTaskExecutors {
     }
 
     static void deserializeAndPopulateContext(
-        @Nonnull io.temporal.api.common.v1.Header header,
-        @Nullable List<ContextPropagator> contextPropagatorList) {
+        @Nonnull Header header, @Nullable List<ContextPropagator> contextPropagatorList) {
       if (contextPropagatorList == null || contextPropagatorList.isEmpty()) {
         return;
       }
 
-      Map<String, Payload> headerData = new HashMap<>(header.getFieldsMap());
       for (ContextPropagator propagator : contextPropagatorList) {
+        Map<String, Payload> headerData =
+            propagator.encodeHeaders()
+                ? header.getCodecDecodedValues()
+                : new HashMap<>(header.getValues());
         propagator.setCurrentContext(propagator.deserializeContext(headerData));
       }
     }
