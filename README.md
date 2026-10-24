@@ -51,6 +51,38 @@ If you cannot use protobuf-java 3.25 >=, you can try `temporal-shaded` which inc
 
 We'd love your help in improving the Temporal Java SDK. Please review our [contribution guidelines](CONTRIBUTING.md).
 
+## Automatic payload-header codecs
+
+User-supplied header payloads are wire-ready, including any codec encoding.
+Tracing and context propagators can independently opt into processing their own
+headers with the codec from the configured client's data converter:
+
+```java
+DataConverter payloadConverter = DefaultDataConverter.newDefaultInstance();
+DataConverter converter = new CodecDataConverter(payloadConverter, codecs);
+WorkflowClientOptions options =
+    WorkflowClientOptions.newBuilder()
+        .setDataConverter(converter)
+        .build();
+```
+
+Set `OpenTracingOptions.Builder.setEncodeHeaders(true)` to encode only that integration's
+tracing headers, retaining standard tracing serialization. The OpenTelemetry plugin and worker
+configuration builders expose the same option. Context propagators opt in by overriding
+`ContextPropagator.encodeHeaders()` to return true; the default is false.
+
+Opted-in propagators must produce serialized **but not already codec-encoded** payloads.
+The SDK applies the configured client's codec to that producer's output, not to other headers.
+Receiving integrations and propagators must opt in to read encoded headers and use a compatible codec.
+They receive private decoded views of the original wire headers; codecs must pass through
+encodings they do not recognize. Ordinary interceptors continue to receive wire-ready payloads.
+Retained schedule headers remain wire-ready and are not re-encoded when an action is reused.
+
+`CodecDataConverter` exposes its codec through `PayloadCodecProvider`; custom converter wrappers
+must forward that capability. Without a configured codec, processing is an identity operation.
+No value conversion is applied to header payloads. Nexus string headers and gRPC metadata are
+unaffected. Codec failures are propagated, never retried as plaintext.
+
 ## Development
 
 ### Development Environment
