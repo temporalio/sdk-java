@@ -1153,13 +1153,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         id,
         metadata,
         (storedBinary) -> {
-          Optional<R> stored =
-              storedBinary.map(
-                  (b) ->
-                      dataConverterWithCurrentWorkflowContext.fromPayloads(
-                          0, Optional.of(b), resultClass, resultType));
           try {
+            // This callback is only run during live execution.
             readOnly = true;
+            Optional<R> stored =
+                storedBinary.map(
+                    (b) ->
+                        dataConverterWithCurrentWorkflowContext.fromPayloads(
+                            0, Optional.of(b), resultClass, resultType));
             R funcResult =
                 Objects.requireNonNull(
                     func.apply(), "mutableSideEffect function " + "returned null");
@@ -1184,8 +1185,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     if (unserialized != null) {
       return unserialized;
     }
-    return dataConverterWithCurrentWorkflowContext.fromPayloads(
-        0, result.get(), resultClass, resultType);
+
+    // Live execution skips this decode when a new value is recorded.
+    readOnly = true;
+    try {
+      return dataConverterWithCurrentWorkflowContext.fromPayloads(
+          0, result.get(), resultClass, resultType);
+    } finally {
+      readOnly = false;
+    }
   }
 
   @Override
@@ -1385,12 +1393,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   @Override
   public boolean await(
       Duration timeout, TimerOptions options, String reason, Supplier<Boolean> unblockCondition) {
+    Supplier<Boolean> condition = readOnly(unblockCondition);
     boolean cancelTimerOnCondition =
         replayContext.tryUseSdkFlag(SdkFlag.CANCEL_AWAIT_TIMER_ON_CONDITION);
 
     if (cancelTimerOnCondition) {
       // If condition is already satisfied, skip creating timer
-      if (unblockCondition.get()) {
+      if (condition.get()) {
         return true;
       }
       // Create timer in a cancellation scope so we can cancel it when condition is satisfied
@@ -1399,7 +1408,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
           Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout, options)));
       timerScope.run();
 
-      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || condition.get()));
 
       boolean conditionSatisfied = !timer.isCompleted();
       if (conditionSatisfied) {
@@ -1409,14 +1418,26 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     } else {
       // Old behavior: timer is not cancelled when condition is satisfied
       Promise<Void> timer = newTimer(timeout, options);
-      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+      WorkflowThread.await(reason, () -> (timer.isCompleted() || condition.get()));
       return !timer.isCompleted();
     }
   }
 
   @Override
   public void await(String reason, Supplier<Boolean> unblockCondition) {
-    WorkflowThread.await(reason, unblockCondition);
+    WorkflowThread.await(reason, readOnly(unblockCondition));
+  }
+
+  private Supplier<Boolean> readOnly(Supplier<Boolean> condition) {
+    return () -> {
+      boolean previousReadOnly = readOnly;
+      readOnly = true;
+      try {
+        return condition.get();
+      } finally {
+        readOnly = previousReadOnly;
+      }
+    };
   }
 
   @SuppressWarnings("deprecation")
