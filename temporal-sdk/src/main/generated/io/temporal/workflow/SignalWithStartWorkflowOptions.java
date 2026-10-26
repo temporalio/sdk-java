@@ -4,6 +4,12 @@ package io.temporal.workflow;
 /** Signal a workflow, starting it first if needed. */
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class SignalWithStartWorkflowOptions {
+  /** Unique identifier for the workflow execution. Must be nonempty. */
+  private final String id;
+
+  /** Task queue to run the workflow on. */
+  private final String taskQueue;
+
   /**
    * Total workflow execution timeout, including retries and continue-as-new. Defaults to unlimited.
    */
@@ -59,11 +65,9 @@ public final class SignalWithStartWorkflowOptions {
    */
   private final String staticDetails;
 
-  public static SignalWithStartWorkflowOptions getDefaultInstance() {
-    return SignalWithStartWorkflowOptions.newBuilder().build();
-  }
-
   private SignalWithStartWorkflowOptions(
+      String id,
+      String taskQueue,
       java.time.Duration executionTimeout,
       java.time.Duration runTimeout,
       java.time.Duration taskTimeout,
@@ -78,6 +82,8 @@ public final class SignalWithStartWorkflowOptions {
       java.time.Duration startDelay,
       String staticSummary,
       String staticDetails) {
+    this.id = java.util.Objects.requireNonNull(id, "id");
+    this.taskQueue = java.util.Objects.requireNonNull(taskQueue, "taskQueue");
     this.executionTimeout = executionTimeout;
     this.runTimeout = runTimeout;
     this.taskTimeout = taskTimeout;
@@ -92,6 +98,14 @@ public final class SignalWithStartWorkflowOptions {
     this.startDelay = startDelay;
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
+  }
+
+  public String getId() {
+    return id;
+  }
+
+  public String getTaskQueue() {
+    return taskQueue;
   }
 
   public java.time.Duration getExecutionTimeout() {
@@ -167,6 +181,8 @@ public final class SignalWithStartWorkflowOptions {
 
     private Builder(SignalWithStartWorkflowOptions value) {
       if (value == null) return;
+      this.id = value.id;
+      this.taskQueue = value.taskQueue;
       this.executionTimeout = value.executionTimeout;
       this.runTimeout = value.runTimeout;
       this.taskTimeout = value.taskTimeout;
@@ -181,6 +197,20 @@ public final class SignalWithStartWorkflowOptions {
       this.startDelay = value.startDelay;
       this.staticSummary = value.staticSummary;
       this.staticDetails = value.staticDetails;
+    }
+
+    private String id = null;
+
+    public Builder setId(String value) {
+      this.id = value;
+      return this;
+    }
+
+    private String taskQueue = null;
+
+    public Builder setTaskQueue(String value) {
+      this.taskQueue = value;
+      return this;
     }
 
     private java.time.Duration executionTimeout = null;
@@ -284,6 +314,8 @@ public final class SignalWithStartWorkflowOptions {
 
     public SignalWithStartWorkflowOptions build() {
       return new SignalWithStartWorkflowOptions(
+          id,
+          taskQueue,
           executionTimeout,
           runTimeout,
           taskTimeout,

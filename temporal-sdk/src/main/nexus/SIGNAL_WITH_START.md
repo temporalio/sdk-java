@@ -5,9 +5,11 @@ when necessary. It requires a server supporting the system workflow service.
 
 ```java
 ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
-    "TargetWorkflow", new Object[] {input}, "target", "target-queue",
+    "TargetWorkflow", new Object[] {input},
     "notify", new Object[] {signal},
     SignalWithStartWorkflowOptions.newBuilder()
+        .setId("target")
+        .setTaskQueue("target-queue")
         .setRunTimeout(timeout)
         .build());
 ```
@@ -15,23 +17,26 @@ ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
 Import `Workflow`, `SignalWithStartWorkflowOptions`, and `ExternalWorkflowStub`
 from `io.temporal.workflow`. The generated options builder contains the API's
 options, including timeouts, retry policy, memo, conflict policy, and flattened
-static summary/details setters. Workflow type, argument array, ID, task queue, signal name, and signal argument array
-are required parameters. An overload without options uses defaults. The request
+static summary/details setters. Workflow ID and task queue are required options;
+the builder rejects missing values. Only the workflow and signal references or
+names and their inputs are direct parameters. Every overload requires a non-null
+options object. The request
 is constructed internally. Namespace defaults to the caller's namespace. Request ID is omitted:
 the system service manages it.
 
 The call returns after signal delivery/start completes. The returned external
 stub supports further signals and cancellation. Use
 `Async.function(() -> Workflow.signalWithStartWorkflow(workflowType, args,
-workflowId, taskQueue, signalName, signalArgs, options))` for a promise.
+signalName, signalArgs, options))` for a promise.
 
 The typed overload checks workflow and signal arguments against their interface:
 
 ```java
 ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
-    target::run, input, "target", "target-queue",
+    target::run, input,
     target::notifySignal, signal,
-    SignalWithStartWorkflowOptions.newBuilder().setRunTimeout(timeout).build());
+    SignalWithStartWorkflowOptions.newBuilder()
+        .setId("target").setTaskQueue("target-queue").setRunTimeout(timeout).build());
 ```
 
 Create `target` with `Workflow.newExternalWorkflowStub(TargetWorkflow.class, "target")`.
@@ -48,7 +53,7 @@ thread locals. It sends no commands while probing and restores normal invocation
 behavior afterward, including on failure. Query/update methods and receiver
 lambdas are rejected. Both APIs take invocation arguments directly; options do
 not contain argument fields.
-Both forms support `Async.function` and an overload omitting options.
+Both forms support `Async.function`.
 
 Typed calls merge the workflow method's `@MethodRetry` and `@CronSchedule` with
 explicit retry/cron options, matching the client SDK. Retry fields use
@@ -56,7 +61,7 @@ explicit retry/cron options, matching the client SDK. Retry fields use
 take precedence over annotation values. Cron uses the annotation when the
 explicit value is null; an explicit empty string disables the annotated schedule.
 The signal method's annotations are not used for these fields. Defaults apply
-with null or omitted options. Untyped calls have no method annotations to merge.
+when retry/cron options are unset. Untyped calls have no method annotations to merge.
 
 The shared WIT declares `@nexus.merge-from-function function="workflow"` hooks
 on the retry and cron fields. Java generation retains the function's raw probe
@@ -64,7 +69,7 @@ metadata and calls the selected SDK merge helpers, without synthesizing
 `WorkflowOptions` or hardcoding retry/cron policy in the generator. This directive
 currently affects Java only.
 
-Workflow ID and task queue remain explicit. Relationships between workflow and
+Workflow ID and task queue remain explicit options. Relationships between workflow and
 signal references are not declared and cross-reference constraints remain
 deferred. Other options use their explicit values and existing defaults.
 

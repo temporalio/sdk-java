@@ -21,8 +21,10 @@ Generated Java and `system-nexus-roots.txt` are checked in under
 The generator uses `--package-name io.temporal.workflow` and the WIT annotation
 `@nexus.operations-class java="WorkflowOperations"`. `Workflow` extends this
 generated base once; additional operations require no handwritten facade methods.
-Generated operations take required fields as parameters and optional fields in
-generated options builders, all available from the workflow package.
+Generated operations take only function references/names and their inputs as
+parameters. All other fields, including required ID/task queue values, live in
+a mandatory generated options object. Its builder validates required values.
+All generated API types are available from the workflow package.
 Typed overloads take bound methods followed directly by arguments. SDK-owned
 call-extractor hooks resolve annotated workflow/signal names and arguments
 without executing commands; the generated wrapper constructs the request.
