@@ -121,6 +121,8 @@ public class SystemSignalWithStartIntegrationTest {
                 () -> {
                   SignalWithStartWorkflowOptions options =
                       SignalWithStartWorkflowOptions.newBuilder()
+                          .setId(id)
+                          .setTaskQueue(Workflow.getInfo().getTaskQueue())
                           .setCronSchedule("")
                           .setIdConflictPolicy(
                               WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
@@ -130,18 +132,10 @@ public class SystemSignalWithStartIntegrationTest {
                           .build();
                   Target target = Workflow.newExternalWorkflowStub(Target.class, id);
                   Workflow.signalWithStartWorkflow(
-                      target::run,
-                      "start",
-                      id,
-                      Workflow.getInfo().getTaskQueue(),
-                      target::notifySignal,
-                      "first",
-                      options);
+                      target::run, "start", target::notifySignal, "first", options);
                   Workflow.signalWithStartWorkflow(
                       "SystemSignalTarget",
                       new Object[] {"ignored"},
-                      id,
-                      Workflow.getInfo().getTaskQueue(),
                       "notifySignal",
                       new Object[] {"second"},
                       options);
@@ -249,6 +243,8 @@ public class SystemSignalWithStartIntegrationTest {
       String id = Workflow.getInfo().getWorkflowId() + "-target";
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
+              .setId(id)
+              .setTaskQueue(Workflow.getInfo().getTaskQueue())
               .setCronSchedule("")
               .setIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
@@ -256,21 +252,13 @@ public class SystemSignalWithStartIntegrationTest {
       Target target = Workflow.newExternalWorkflowStub(Target.class, id);
       ExternalWorkflowStub external =
           Workflow.signalWithStartWorkflow(
-              target::run,
-              "start",
-              id,
-              Workflow.getInfo().getTaskQueue(),
-              target::notifySignal,
-              "first",
-              options);
+              target::run, "start", target::notifySignal, "first", options);
       assertEquals(id, external.getExecution().getWorkflowId());
       Async.function(
               () ->
                   Workflow.signalWithStartWorkflow(
                       "SystemSignalTarget",
                       new Object[] {"ignored"},
-                      id,
-                      Workflow.getInfo().getTaskQueue(),
                       "notifySignal",
                       new Object[] {"second"},
                       options))

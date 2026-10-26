@@ -109,6 +109,25 @@ public class SignalWithStartWorkflowTest {
         rule.newWorkflowStubTimeoutOptions(Caller.class).run());
   }
 
+  @Test
+  public void optionsRequireWorkflowIdAndTaskQueue() {
+    assertThrows(
+        NullPointerException.class,
+        () ->
+            Workflow.signalWithStartWorkflow(
+                "Target", new Object[0], "notify", new Object[0], null));
+    assertThrows(
+        NullPointerException.class,
+        () -> SignalWithStartWorkflowOptions.newBuilder().setTaskQueue("queue").build());
+    assertThrows(
+        NullPointerException.class,
+        () -> SignalWithStartWorkflowOptions.newBuilder().setId("id").build());
+    SignalWithStartWorkflowOptions options =
+        SignalWithStartWorkflowOptions.newBuilder().setId("id").setTaskQueue("queue").build();
+    assertEquals("id", options.getId());
+    assertEquals("queue", options.toBuilder().setId("copy").build().getTaskQueue());
+  }
+
   @WorkflowInterface
   public interface TypedTarget {
     @WorkflowMethod(name = "Target")
@@ -159,55 +178,53 @@ public class SignalWithStartWorkflowTest {
     public String run() {
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
+              .setId("sync")
+              .setTaskQueue("queue")
               .setStaticSummary("summary")
               .setRunTimeout(java.time.Duration.ofMinutes(3))
               .build();
       ExternalWorkflowStub sync =
           Workflow.signalWithStartWorkflow(
-              "Target",
-              new Object[] {"input"},
-              "sync",
-              "queue",
-              "notify",
-              new Object[] {"signal"},
-              options);
+              "Target", new Object[] {"input"}, "notify", new Object[] {"signal"}, options);
       ExternalWorkflowStub async =
           Async.function(
                   () ->
                       Workflow.signalWithStartWorkflow(
                           "Target",
                           new Object[] {"input"},
-                          "async",
-                          "queue",
                           "notify",
                           new Object[] {"signal"},
-                          options.toBuilder().build()))
+                          options.toBuilder().setId("async").build()))
               .get();
       ExternalWorkflowStub defaults =
           Workflow.signalWithStartWorkflow(
-              "Target", new Object[0], "defaults", "queue", "notify", new Object[0]);
+              "Target",
+              new Object[0],
+              "notify",
+              new Object[0],
+              SignalWithStartWorkflowOptions.newBuilder()
+                  .setId("defaults")
+                  .setTaskQueue("queue")
+                  .build());
       SignalWithStartWorkflowOptions typedOptions = options;
       TypedTarget target = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed");
       ExternalWorkflowStub typed =
           Workflow.signalWithStartWorkflow(
               target::start,
               "input",
-              "typed",
-              "queue",
               target::signalValue,
               "signal",
-              typedOptions);
+              typedOptions.toBuilder().setId("typed").build());
       ExternalWorkflowStub typedAsync =
           Async.function(
                   () ->
                       Workflow.signalWithStartWorkflow(
                           target::start,
                           "input",
-                          "typed-async",
-                          "queue",
                           target::signalValue,
                           "signal",
                           typedOptions.toBuilder()
+                              .setId("typed-async")
                               .setRetryPolicy(
                                   io.temporal.common.RetryOptions.newBuilder()
                                       .setMaximumAttempts(9)
@@ -218,10 +235,23 @@ public class SignalWithStartWorkflowTest {
       EmptyTarget empty = Workflow.newExternalWorkflowStub(EmptyTarget.class, "typed-defaults");
       ExternalWorkflowStub typedDefaults =
           Workflow.signalWithStartWorkflow(
-              empty::start, "typed-defaults", "queue", empty::signalValue);
+              empty::start,
+              empty::signalValue,
+              SignalWithStartWorkflowOptions.newBuilder()
+                  .setId("typed-defaults")
+                  .setTaskQueue("queue")
+                  .build());
       ExternalWorkflowStub typedNull =
           Workflow.signalWithStartWorkflow(
-              empty::start, "typed-null-defaults", "queue", empty::signalValue, null);
+              empty::start,
+              empty::signalValue,
+              SignalWithStartWorkflowOptions.newBuilder()
+                  .setId("typed-null-defaults")
+                  .setTaskQueue("queue")
+                  .build());
+      assertThrows(
+          NullPointerException.class,
+          () -> Workflow.signalWithStartWorkflow(empty::start, empty::signalValue, null));
       SixArgumentTarget six = Workflow.newExternalWorkflowStub(SixArgumentTarget.class, "arity6");
       ExternalWorkflowStub arity6 =
           Workflow.signalWithStartWorkflow(
@@ -232,11 +262,9 @@ public class SignalWithStartWorkflowTest {
               true,
               java.util.Collections.singletonList("nested"),
               java.util.Collections.singletonMap("key", 4),
-              "arity6",
-              "queue",
               six::signalValue,
               "signal",
-              typedOptions);
+              typedOptions.toBuilder().setId("arity6").build());
       return sync.getExecution().getWorkflowId()
           + ":"
           + sync.getExecution().getRunId()
