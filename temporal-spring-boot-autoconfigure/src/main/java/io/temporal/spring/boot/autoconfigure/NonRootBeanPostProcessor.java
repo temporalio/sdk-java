@@ -3,6 +3,8 @@ package io.temporal.spring.boot.autoconfigure;
 import com.google.common.base.MoreObjects;
 import com.uber.m3.tally.Scope;
 import io.opentracing.Tracer;
+import io.temporal.client.NexusClient;
+import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
@@ -134,6 +136,8 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
     }
     List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleClientCustomizers =
         findBeanByNameSpaceForTemporalCustomizer(beanPrefix, ScheduleClientOptions.Builder.class);
+    List<TemporalOptionsCustomizer<NexusClientOptions.Builder>> nexusClientCustomizers =
+        findBeanByNameSpaceForTemporalCustomizer(beanPrefix, NexusClientOptions.Builder.class);
     List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
         workflowImplementationCustomizers =
             findBeanByNameSpaceForTemporalCustomizer(
@@ -169,11 +173,14 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
             workflowImplementationCustomizers,
             workflowClientPlugins,
             scheduleClientPlugins,
-            workerPlugins);
+            workerPlugins,
+            null,
+            nexusClientCustomizers);
 
     ClientTemplate clientTemplate = namespaceTemplate.getClientTemplate();
     WorkflowClient workflowClient = clientTemplate.getWorkflowClient();
     ScheduleClient scheduleClient = clientTemplate.getScheduleClient();
+    NexusClient nexusClient = clientTemplate.getNexusClient();
     WorkersTemplate workersTemplate = namespaceTemplate.getWorkersTemplate();
     WorkerFactory workerFactory = workersTemplate.getWorkerFactory();
 
@@ -192,6 +199,7 @@ public class NonRootBeanPostProcessor implements BeanPostProcessor, BeanFactoryA
         beanPrefix + WorkflowClient.class.getSimpleName(), workflowClient);
     beanFactory.registerSingleton(
         beanPrefix + ScheduleClient.class.getSimpleName(), scheduleClient);
+    beanFactory.registerSingleton(beanPrefix + NexusClient.class.getSimpleName(), nexusClient);
     beanFactory.registerSingleton(beanPrefix + WorkerFactory.class.getSimpleName(), workerFactory);
   }
 
