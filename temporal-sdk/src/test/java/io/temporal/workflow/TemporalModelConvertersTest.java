@@ -1,4 +1,4 @@
-package io.temporal.internal.nexus.system;
+package io.temporal.workflow;
 
 import static org.junit.Assert.*;
 

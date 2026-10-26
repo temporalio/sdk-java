@@ -97,8 +97,7 @@ public final class SignalWithStartWorkflowResponse {
     public Object toTransferType(SignalWithStartWorkflowResponse value) {
       return value == null
           ? null
-          : value.toProto(
-              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
+          : value.toProto(io.temporal.workflow.TemporalModelConverters.currentDataConverter());
     }
 
     public SignalWithStartWorkflowResponse fromTransferType(
@@ -107,7 +106,7 @@ public final class SignalWithStartWorkflowResponse {
           ? null
           : fromProto(
               (io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse) value,
-              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
+              io.temporal.workflow.TemporalModelConverters.currentDataConverter(),
               valueType);
     }
   }

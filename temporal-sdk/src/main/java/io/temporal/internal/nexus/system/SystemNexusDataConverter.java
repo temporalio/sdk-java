@@ -21,7 +21,8 @@ public final class SystemNexusDataConverter implements DataConverter {
   private static final ThreadLocal<DataConverter> USER_CONVERTER = new ThreadLocal<>();
   private final DataConverter userConverter;
 
-  static DataConverter currentDataConverter() {
+  /** Returns the user converter active in the current synchronous transfer conversion scope. */
+  public static DataConverter currentDataConverter() {
     DataConverter converter = USER_CONVERTER.get();
     if (converter == null)
       throw new IllegalStateException("System Nexus user converter context is not active");

@@ -39,8 +39,9 @@ interface workflow-service {
     ///   go="Workflow function identifying the workflow to start."
     /// @nexus.proto-field "workflow_type"
     workflow: workflow-function,
-    /// @nexus.doc "Unique identifier for the workflow execution. Must be nonempty."
+    /// @nexus.doc "Unique identifier for the workflow execution. Must be nonempty." java="Workflow ID. Typed calls derive it from the workflow reference when omitted; an explicit ID must match. Required for name-based calls."
     /// @nexus.proto-field "workflow_id"
+    /// @nexus.merge-from-function function="workflow" java="mergeWorkflowIdForStart"
     id: string,
     /// @nexus.doc "Task queue to run the workflow on."
     task-queue: task-queue,

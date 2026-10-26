@@ -32,7 +32,7 @@ public final class SystemNexusOperations {
       String service, String operation, Object request) {
     if ("temporal.api.workflowservice.v1.WorkflowService".equals(service)
         && "SignalWithStartWorkflowExecution".equals(operation))
-      return io.temporal.internal.nexus.system.TemporalModelConverters
+      return io.temporal.workflow.TemporalModelConverters
           .signalWithStartWorkflowSerializationContext(
               (io.temporal.workflow.SignalWithStartWorkflowRequest) request);
     return null;

@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.CronSchedule;
 import io.temporal.common.MethodRetry;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
@@ -107,6 +108,41 @@ public class TypedWorkflowMethodCaptureTest {
     assertThrows(IllegalStateException.class, () -> target.start("outside probe"));
     assertSame(
         normalSignal, assertThrows(RuntimeException.class, () -> target.signal("outside", 1)));
+  }
+
+  @Test
+  public void mergesOriginalAnnotationsWithExplicitValuesWithoutPrematureDefaults() {
+    Target target = stub(Target.class, "target");
+    Functions.Func1<String, Integer> method = target::start;
+    ProbeResult call =
+        ExternalWorkflowInvocationHandler.probe(
+            () -> method.apply("input"), WorkflowMethodType.WORKFLOW);
+    RetryOptions defaults = TemporalModelConverters.mergeMethodRetry(call, null);
+    assertEquals(java.time.Duration.ofSeconds(7), defaults.getInitialInterval());
+    assertEquals(3, defaults.getMaximumAttempts());
+    assertEquals(3.0, defaults.getBackoffCoefficient(), 0);
+    RetryOptions explicit = RetryOptions.newBuilder().setMaximumAttempts(9).build();
+    RetryOptions merged = TemporalModelConverters.mergeMethodRetry(call, explicit);
+    assertEquals(9, merged.getMaximumAttempts());
+    assertEquals(java.time.Duration.ofSeconds(7), merged.getInitialInterval());
+    assertEquals(java.time.Duration.ofSeconds(100), merged.getMaximumInterval());
+    assertEquals(3.0, merged.getBackoffCoefficient(), 0);
+    assertArrayEquals(new String[] {"NoRetry"}, merged.getDoNotRetry());
+    assertNull(explicit.getInitialInterval());
+    assertEquals("0 * * * *", TemporalModelConverters.mergeCronSchedule(call, null));
+    assertEquals("1 * * * *", TemporalModelConverters.mergeCronSchedule(call, "1 * * * *"));
+    assertEquals("", TemporalModelConverters.mergeCronSchedule(call, ""));
+
+    GenericTarget plain = stub(GenericTarget.class, "plain");
+    Functions.Func<List<String>> plainMethod = plain::start;
+    ProbeResult noAnnotations =
+        ExternalWorkflowInvocationHandler.probe(
+            () -> plainMethod.apply(), WorkflowMethodType.WORKFLOW);
+    assertNull(TemporalModelConverters.mergeMethodRetry(noAnnotations, null));
+    assertSame(explicit, TemporalModelConverters.mergeMethodRetry(noAnnotations, explicit));
+    assertNull(TemporalModelConverters.mergeCronSchedule(noAnnotations, null));
+    assertEquals("", TemporalModelConverters.mergeCronSchedule(noAnnotations, ""));
+    verifyNoInteractions(outbound);
   }
 
   @Test

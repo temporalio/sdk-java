@@ -4,7 +4,10 @@ package io.temporal.workflow;
 /** Signal a workflow, starting it first if needed. */
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class SignalWithStartWorkflowOptions {
-  /** Unique identifier for the workflow execution. Must be nonempty. */
+  /**
+   * Workflow ID. Typed calls derive it from the workflow reference when omitted; an explicit ID
+   * must match. Required for name-based calls.
+   */
   private final String id;
 
   /** Task queue to run the workflow on. */
@@ -82,7 +85,7 @@ public final class SignalWithStartWorkflowOptions {
       java.time.Duration startDelay,
       String staticSummary,
       String staticDetails) {
-    this.id = java.util.Objects.requireNonNull(id, "id");
+    this.id = id;
     this.taskQueue = java.util.Objects.requireNonNull(taskQueue, "taskQueue");
     this.executionTimeout = executionTimeout;
     this.runTimeout = runTimeout;
