@@ -536,10 +536,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             WorkflowTaskData data = this.workflowTaskStateMachine.getData();
 
-            boolean completed =
-                workflow.getState() == StateMachines.State.COMPLETED
-                    || workflow.getState() == StateMachines.State.FAILED
-                    || workflow.getState() == StateMachines.State.CANCELED;
+            boolean completed = isTerminalState();
             if (!completed
                 && ((ctx.isNeedWorkflowTask()
                         || !workflowTaskStateMachine.getData().bufferedEvents.isEmpty())
@@ -603,9 +600,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                               stickyExecutionAttributes == null
                                   ? startRequest.getTaskQueue().getName()
                                   : stickyExecutionAttributes.getWorkerTaskQueue().getName());
+                      // Register before dispatch because a worker can respond immediately.
+                      this.queries.put(queryId.getQueryId(), consistent.getResult());
                       store.sendQueryTask(
                           executionId, taskQueueId, task, getStartRequest().getPriority());
-                      this.queries.put(queryId.getQueryId(), consistent.getResult());
                     }
                   }
                   data.queryBuffer.clear();
