@@ -19,6 +19,7 @@ import io.temporal.client.NexusClient;
 import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.WorkflowQueryException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.SearchAttributeKey;
@@ -80,6 +81,7 @@ public class SDKTestWorkflowRule implements TestRule {
   @Nullable private final Timeout globalTimeout;
 
   private final TestWorkflowRule testWorkflowRule;
+  private final WorkflowClientOptions workflowClientOptions;
 
   private SDKTestWorkflowRule(SDKTestWorkflowRule.Builder builder) {
     globalTimeout =
@@ -92,6 +94,7 @@ public class SDKTestWorkflowRule implements TestRule {
 
     testWorkflowRule =
         ExternalServiceTestConfigurator.configure(builder.testWorkflowRuleBuilder).build();
+    workflowClientOptions = builder.workflowClientOptions;
   }
 
   public static Builder newBuilder() {
@@ -103,6 +106,8 @@ public class SDKTestWorkflowRule implements TestRule {
 
     private boolean workerFactoryOptionsAreSet = false;
     private boolean workerOptionsAreSet = false;
+    private WorkflowClientOptions workflowClientOptions =
+        WorkflowClientOptions.newBuilder().build();
     private final TestWorkflowRule.Builder testWorkflowRuleBuilder;
 
     public Builder() {
@@ -116,6 +121,7 @@ public class SDKTestWorkflowRule implements TestRule {
     }
 
     public Builder setWorkflowClientOptions(WorkflowClientOptions workflowClientOptions) {
+      this.workflowClientOptions = workflowClientOptions;
       testWorkflowRuleBuilder.setWorkflowClientOptions(workflowClientOptions);
       return this;
     }
@@ -274,12 +280,18 @@ public class SDKTestWorkflowRule implements TestRule {
    * service stubs. Use for tests that exercise the standalone Nexus client surface.
    */
   public NexusClient getNexusClient() {
-    WorkflowClientOptions options = getWorkflowClient().getOptions();
+    // The Workflow client applies the service stubs plugins and its own plugins. The Nexus client
+    // applies the service stubs plugins again, so start from the configured converter with only the
+    // Workflow client's own plugins applied.
+    WorkflowClientOptions.Builder options = WorkflowClientOptions.newBuilder(workflowClientOptions);
+    for (WorkflowClientPlugin plugin : workflowClientOptions.getPlugins()) {
+      plugin.configureWorkflowClient(options);
+    }
     return NexusClient.newInstance(
         getWorkflowServiceStubs(),
         NexusClientOptions.newBuilder()
-            .setNamespace(options.getNamespace())
-            .setDataConverter(options.getDataConverter())
+            .setNamespace(getWorkflowClient().getOptions().getNamespace())
+            .setDataConverter(options.build().getDataConverter())
             .build());
   }
 

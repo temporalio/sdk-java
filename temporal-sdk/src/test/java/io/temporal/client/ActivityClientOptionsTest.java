@@ -21,6 +21,7 @@ public class ActivityClientOptionsTest {
   @Test
   public void testToBuilderCopiesAllFields() {
     ActivityClientInterceptor interceptor = mock(ActivityClientInterceptor.class);
+    ActivityClientPlugin plugin = mock(ActivityClientPlugin.class);
     ContextPropagator propagator = mock(ContextPropagator.class);
     DataConverter dc = mock(DataConverter.class);
 
@@ -31,6 +32,7 @@ public class ActivityClientOptionsTest {
             .setDataConverter(dc)
             .setInterceptors(Collections.singletonList(interceptor))
             .setContextPropagators(Collections.singletonList(propagator))
+            .setPlugins(plugin)
             .build();
 
     ActivityClientOptions copy = original.toBuilder().build();
@@ -40,6 +42,7 @@ public class ActivityClientOptionsTest {
     assertSame(original.getDataConverter(), copy.getDataConverter());
     assertEquals(original.getInterceptors(), copy.getInterceptors());
     assertEquals(original.getContextPropagators(), copy.getContextPropagators());
+    assertArrayEquals(new ActivityClientPlugin[] {plugin}, copy.getPlugins());
   }
 
   @Test

@@ -53,6 +53,9 @@ to docs, or any other relevant information.
   to the given name.
 - Added experimental `WorkflowUnsafe.isReadOnly()`, which reports whether the calling code is read-only.
   replay.
+- Added experimental `ActivityClientPlugin` and `NexusClientPlugin`, which plugins on the service stubs use to configure
+  `ActivityClient` and `NexusClient`. `SimplePlugin` implements both, and its builder gained
+  `addScheduleClientInterceptors`, `addActivityClientInterceptors`, and `addNexusClientInterceptors`.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
@@ -71,6 +74,8 @@ to docs, or any other relevant information.
 - `TemporalDevServer`, `TemporalDevServerOptions`, `TestWorkflowEnvironment.startLocal`, and the `useDevServer` methods
   of `TestWorkflowRule` and `TestWorkflowExtension` are no longer marked experimental. `TemporalDevServerOptions` remain
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
+- `SimplePlugin` now applies its data converter customizer to schedule and Nexus clients, and its context
+  propagators to schedule and activity clients. Previously `SimplePlugin.configureScheduleClient` did nothing.
 
 ### Fixed
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
