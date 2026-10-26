@@ -121,7 +121,6 @@ public class SystemSignalWithStartIntegrationTest {
                 () -> {
                   SignalWithStartWorkflowOptions options =
                       SignalWithStartWorkflowOptions.newBuilder()
-                          .setId(id)
                           .setTaskQueue(Workflow.getInfo().getTaskQueue())
                           .setCronSchedule("")
                           .setIdConflictPolicy(
@@ -138,7 +137,7 @@ public class SystemSignalWithStartIntegrationTest {
                       new Object[] {"ignored"},
                       "notifySignal",
                       new Object[] {"second"},
-                      options);
+                      options.toBuilder().setId(id).build());
                 }));
       }
       Promise.allOf(calls).get();
@@ -243,7 +242,6 @@ public class SystemSignalWithStartIntegrationTest {
       String id = Workflow.getInfo().getWorkflowId() + "-target";
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
-              .setId(id)
               .setTaskQueue(Workflow.getInfo().getTaskQueue())
               .setCronSchedule("")
               .setIdConflictPolicy(
@@ -254,15 +252,12 @@ public class SystemSignalWithStartIntegrationTest {
           Workflow.signalWithStartWorkflow(
               target::run, "start", target::notifySignal, "first", options);
       assertEquals(id, external.getExecution().getWorkflowId());
-      Async.function(
-              () ->
-                  Workflow.signalWithStartWorkflow(
-                      "SystemSignalTarget",
-                      new Object[] {"ignored"},
-                      "notifySignal",
-                      new Object[] {"second"},
-                      options))
-          .get();
+      Workflow.signalWithStartWorkflow(
+          "SystemSignalTarget",
+          new Object[] {"ignored"},
+          "notifySignal",
+          new Object[] {"second"},
+          options.toBuilder().setId(id).build());
       return id;
     }
   }

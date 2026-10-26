@@ -108,8 +108,7 @@ public final class UserMetadata {
     public Object toTransferType(UserMetadata value) {
       return value == null
           ? null
-          : value.toProto(
-              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
+          : value.toProto(io.temporal.workflow.TemporalModelConverters.currentDataConverter());
     }
 
     public UserMetadata fromTransferType(Object value, java.lang.reflect.Type valueType) {
@@ -117,7 +116,7 @@ public final class UserMetadata {
           ? null
           : fromProto(
               (io.temporal.api.sdk.v1.UserMetadata) value,
-              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
+              io.temporal.workflow.TemporalModelConverters.currentDataConverter(),
               valueType);
     }
   }

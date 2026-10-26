@@ -22,8 +22,10 @@ The generator uses `--package-name io.temporal.workflow` and the WIT annotation
 `@nexus.operations-class java="WorkflowOperations"`. `Workflow` extends this
 generated base once; additional operations require no handwritten facade methods.
 Generated operations take only function references/names and their inputs as
-parameters. All other fields, including required ID/task queue values, live in
-a mandatory generated options object. Its builder validates required values.
+parameters. All other fields live in a mandatory generated options object.
+Its builder validates required values, except merged fields resolved at
+invocation. Typed calls derive an omitted workflow ID from the workflow
+reference; name-based calls require an explicit ID before dispatch.
 All generated API types are available from the workflow package.
 Typed overloads take bound methods followed directly by arguments. SDK-owned
 call-extractor hooks resolve annotated workflow/signal names and arguments
@@ -31,10 +33,11 @@ without executing commands; the generated wrapper constructs the request.
 Primary callable arities zero through six and other callable arities zero or one
 come from Java rendering policy and the IDL's primary marker. No operation names
 or composite-operation roles are encoded in the generator. Java-only
-`merge-from-function` hooks declare retry and cron merging from the workflow
+`merge-from-function` hooks declare ID resolution plus retry and cron merging from the workflow
 method's original annotations. The generator retains raw probe metadata, and
 SDK helpers apply normal client precedence without synthesizing `WorkflowOptions`.
-Explicit ID/task queue and other options remain independent of stub metadata.
+Explicit workflow IDs must match the workflow reference, which must not be
+pinned to a run ID. Signal execution bindings are ignored.
 The manifest derives from operation input/output protobuf transfer types. The service client's Java
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.
@@ -44,7 +47,9 @@ to match the SDK's Spotless configuration. Nex-gen downloads and caches its
 standalone JAR on first use; for offline regeneration, set
 `NEXGEN_JAVA_FORMAT_JAR` to a local all-dependencies JAR. A JDK must be on `PATH`.
 
-`TemporalModelConverters` contains the SDK-owned conversion helpers. The emitted
+`TemporalModelConverters` is package-private in `io.temporal.workflow`, alongside
+the generated classes, and contains SDK-owned conversion helpers. The nexgen
+sample support file contains its own copies of these implementations. The emitted
 `NexgenRuntime` contains only payload-sequence decoding. Converter scoping lives
 in `SystemNexusDataConverter`; generated transfer converters obtain the active
 converter through `TemporalModelConverters.currentDataConverter()` and fail

@@ -17,8 +17,9 @@ ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
 Import `Workflow`, `SignalWithStartWorkflowOptions`, and `ExternalWorkflowStub`
 from `io.temporal.workflow`. The generated options builder contains the API's
 options, including timeouts, retry policy, memo, conflict policy, and flattened
-static summary/details setters. Workflow ID and task queue are required options;
-the builder rejects missing values. Only the workflow and signal references or
+static summary/details setters. Task queue is a required option. The workflow ID
+can be omitted for typed calls and is required for name-based calls before
+dispatch. Only the workflow and signal references or
 names and their inputs are direct parameters. Every overload requires a non-null
 options object. The request
 is constructed internally. Namespace defaults to the caller's namespace. Request ID is omitted:
@@ -36,10 +37,15 @@ ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
     target::run, input,
     target::notifySignal, signal,
     SignalWithStartWorkflowOptions.newBuilder()
-        .setId("target").setTaskQueue("target-queue").setRunTimeout(timeout).build());
+        .setTaskQueue("target-queue").setRunTimeout(timeout).build());
 ```
 
 Create `target` with `Workflow.newExternalWorkflowStub(TargetWorkflow.class, "target")`.
+Typed calls derive their destination ID from this workflow reference. A supplied
+ID must match it. A workflow reference pinned to a run ID is rejected because
+signal-with-start cannot honor that restriction. The signal reference provides
+its name and arguments; its workflow ID and run ID are ignored. Options are not
+modified, so ID-less options can be reused with different workflow references.
 Pass bound workflow and signal methods followed directly by their arguments.
 Typed overloads cover zero through six workflow arguments and zero or one signal
 argument, including void workflow methods. Other arities use the name-based API.
@@ -69,9 +75,10 @@ metadata and calls the selected SDK merge helpers, without synthesizing
 `WorkflowOptions` or hardcoding retry/cron policy in the generator. This directive
 currently affects Java only.
 
-Workflow ID and task queue remain explicit options. Relationships between workflow and
-signal references are not declared and cross-reference constraints remain
-deferred. Other options use their explicit values and existing defaults.
+The shared ID field uses the same `merge-from-function` hook, referring to the
+workflow function. Required values are validated after resolution; no extra
+identity-specific generator metadata is needed. Other options use their
+explicit values and existing defaults.
 
 `Workflow` inherits generated operations from `WorkflowOperations`. New WIT
 operations become available after regeneration, without adding handwritten

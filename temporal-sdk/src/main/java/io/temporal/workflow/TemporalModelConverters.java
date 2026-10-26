@@ -1,4 +1,4 @@
-package io.temporal.internal.nexus.system;
+package io.temporal.workflow;
 
 import io.temporal.api.common.v1.*;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -9,18 +9,16 @@ import io.temporal.common.VersioningOverride;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.common.*;
+import io.temporal.internal.nexus.system.SystemNexusDataConverter;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
 import io.temporal.payload.context.WorkflowSerializationContext;
-import io.temporal.workflow.Functions;
-import io.temporal.workflow.SignalWithStartWorkflowRequest;
-import io.temporal.workflow.Workflow;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 /** SDK-owned model conversion hooks used by the generated system Nexus bindings. */
-public final class TemporalModelConverters {
+final class TemporalModelConverters {
   private TemporalModelConverters() {}
 
   /** Returns the user converter active during system Nexus transfer conversion. */
@@ -47,6 +45,25 @@ public final class TemporalModelConverters {
     ExternalWorkflowInvocationHandler.ProbeResult call =
         ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.SIGNAL);
     result.accept(call.getName(), call.getArguments());
+  }
+
+  /** Resolves a start operation's workflow ID from its bound workflow reference. */
+  public static String mergeWorkflowIdForStart(
+      ExternalWorkflowInvocationHandler.ProbeResult call, String explicit) {
+    WorkflowExecution execution = call.getStub().getExecution();
+    if (!execution.getRunId().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Cannot start through a workflow reference bound to a run ID");
+    }
+    String id = execution.getWorkflowId();
+    if (id.isEmpty()) {
+      throw new IllegalArgumentException("Workflow reference must have a nonempty workflow ID");
+    }
+    if (explicit != null && !explicit.equals(id)) {
+      throw new IllegalArgumentException(
+          "Explicit workflow ID does not match the workflow reference");
+    }
+    return id;
   }
 
   /** Merges the original method annotation with explicit retry settings. */

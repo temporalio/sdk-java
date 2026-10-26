@@ -1,4 +1,4 @@
-package io.temporal.internal.nexus.system;
+package io.temporal.workflow;
 
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
@@ -12,7 +12,6 @@ import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult;
 import io.temporal.internal.sync.StubMarker;
-import io.temporal.workflow.*;
 import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.concurrent.*;

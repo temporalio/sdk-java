@@ -30,7 +30,9 @@ to docs, or any other relevant information.
 ### Added
 - Workflows can signal with start through the system workflow service using
   generated `Workflow.signalWithStartWorkflow(workflowType, args, signalName, signalArgs, options)` API;
-  workflow ID and task queue are required values in the mandatory generated options object.
+  task queue is required in the mandatory generated options object.
+  Typed calls derive an omitted ID from the workflow reference and reject conflicting IDs or run-pinned workflow references;
+  signal reference execution bindings are ignored. Name-based calls require an explicit ID.
   Typed overloads accept bound workflow/signal methods followed directly by checked arguments.
   Typed calls merge workflow retry/cron annotations with explicit options using generated Java-only WIT hooks.
   Request builders and operations are generated into `io.temporal.workflow`.

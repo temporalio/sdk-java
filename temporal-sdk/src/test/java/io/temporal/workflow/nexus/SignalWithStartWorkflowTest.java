@@ -12,10 +12,13 @@ import org.junit.Rule;
 import org.junit.Test;
 
 public class SignalWithStartWorkflowTest {
+  private final java.util.concurrent.atomic.AtomicInteger scheduledOperations =
+      new java.util.concurrent.atomic.AtomicInteger();
+
   @Rule
   public SDKTestWorkflowRule rule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(CallerImpl.class)
+          .setWorkflowTypes(CallerImpl.class, IdentityCallerImpl.class)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkerInterceptors(
@@ -37,6 +40,7 @@ public class SignalWithStartWorkflowTest {
                                                 input) {
                                       SignalWithStartWorkflowRequest request =
                                           (SignalWithStartWorkflowRequest) input.getArg();
+                                      scheduledOperations.incrementAndGet();
                                       assertEquals("Target", request.getWorkflow());
                                       assertEquals(
                                           Workflow.getInfo().getNamespace(),
@@ -48,10 +52,10 @@ public class SignalWithStartWorkflowTest {
                                             java.time.Duration.ofSeconds(7),
                                             request.getRetryPolicy().getInitialInterval());
                                         assertEquals(
-                                            request.getId().equals("typed-async") ? 9 : 3,
+                                            request.getId().equals("typed-overrides") ? 9 : 3,
                                             request.getRetryPolicy().getMaximumAttempts());
                                         assertEquals(
-                                            request.getId().equals("typed-async")
+                                            request.getId().equals("typed-overrides")
                                                 ? ""
                                                 : "0 * * * *",
                                             request.getCronSchedule());
@@ -105,20 +109,28 @@ public class SignalWithStartWorkflowTest {
   @Test
   public void generatedWorkflowMethodsReturnExternalStubs() {
     assertEquals(
-        "sync:run,async:run,defaults:run,typed:run,typed-async:run,typed-defaults:run,typed-null-defaults:run,arity6:run",
+        "sync:run,defaults:run,typed:run,typed-overrides:run,typed-defaults:run,arity6:run",
         rule.newWorkflowStubTimeoutOptions(Caller.class).run());
   }
 
   @Test
-  public void optionsRequireWorkflowIdAndTaskQueue() {
+  public void optionsDeferWorkflowIdValidationUntilInvocation() {
     assertThrows(
         NullPointerException.class,
         () ->
             Workflow.signalWithStartWorkflow(
                 "Target", new Object[0], "notify", new Object[0], null));
-    assertThrows(
-        NullPointerException.class,
-        () -> SignalWithStartWorkflowOptions.newBuilder().setTaskQueue("queue").build());
+    SignalWithStartWorkflowOptions withoutId =
+        SignalWithStartWorkflowOptions.newBuilder().setTaskQueue("queue").build();
+    assertNull(withoutId.getId());
+    assertEquals(
+        "id",
+        assertThrows(
+                NullPointerException.class,
+                () ->
+                    Workflow.signalWithStartWorkflow(
+                        "Target", new Object[0], "notify", new Object[0], withoutId))
+            .getMessage());
     assertThrows(
         NullPointerException.class,
         () -> SignalWithStartWorkflowOptions.newBuilder().setId("id").build());
@@ -173,6 +185,86 @@ public class SignalWithStartWorkflowTest {
     String run();
   }
 
+  @Test
+  public void workflowReferenceDeterminesIdentityAndSignalBindingIsIgnored() {
+    assertEquals(
+        java.util.Arrays.asList("typed-identity-a", "typed-identity-b"),
+        rule.newWorkflowStubTimeoutOptions(IdentityCaller.class).run());
+    assertEquals(2, scheduledOperations.get());
+  }
+
+  @WorkflowInterface
+  public interface IdentityCaller {
+    @WorkflowMethod
+    java.util.List<String> run();
+  }
+
+  public static class IdentityCallerImpl implements IdentityCaller {
+    @Override
+    public java.util.List<String> run() {
+      SignalWithStartWorkflowOptions options =
+          SignalWithStartWorkflowOptions.newBuilder()
+              .setTaskQueue("queue")
+              .setStaticSummary("summary")
+              .setRunTimeout(java.time.Duration.ofMinutes(3))
+              .build();
+      TypedTarget first = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed-identity-a");
+      TypedTarget second = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed-identity-b");
+      TypedTarget signal =
+          Workflow.newExternalWorkflowStub(
+              TypedTarget.class,
+              io.temporal.api.common.v1.WorkflowExecution.newBuilder()
+                  .setWorkflowId("ignored-signal-id")
+                  .setRunId("ignored-signal-run")
+                  .build());
+      ExternalWorkflowStub a =
+          Workflow.signalWithStartWorkflow(
+              first::start, "input", signal::signalValue, "signal", options);
+      ExternalWorkflowStub b =
+          Workflow.signalWithStartWorkflow(
+              second::start, "input", signal::signalValue, "signal", options);
+      assertNull(options.getId());
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              Workflow.signalWithStartWorkflow(
+                  first::start,
+                  "input",
+                  signal::signalValue,
+                  "signal",
+                  options.toBuilder().setId("different-id").build()));
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              Workflow.signalWithStartWorkflow(
+                  first::start,
+                  "input",
+                  signal::signalValue,
+                  "signal",
+                  options.toBuilder().setId("").build()));
+      TypedTarget pinned =
+          Workflow.newExternalWorkflowStub(
+              TypedTarget.class,
+              io.temporal.api.common.v1.WorkflowExecution.newBuilder()
+                  .setWorkflowId("typed-identity-a")
+                  .setRunId("pinned-run")
+                  .build());
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              Workflow.signalWithStartWorkflow(
+                  pinned::start, "input", signal::signalValue, "signal", options));
+      TypedTarget missingId = Workflow.newExternalWorkflowStub(TypedTarget.class, "");
+      assertThrows(
+          IllegalArgumentException.class,
+          () ->
+              Workflow.signalWithStartWorkflow(
+                  missingId::start, "input", signal::signalValue, "signal", options));
+      return java.util.Arrays.asList(
+          a.getExecution().getWorkflowId(), b.getExecution().getWorkflowId());
+    }
+  }
+
   public static class CallerImpl implements Caller {
     @Override
     public String run() {
@@ -186,16 +278,6 @@ public class SignalWithStartWorkflowTest {
       ExternalWorkflowStub sync =
           Workflow.signalWithStartWorkflow(
               "Target", new Object[] {"input"}, "notify", new Object[] {"signal"}, options);
-      ExternalWorkflowStub async =
-          Async.function(
-                  () ->
-                      Workflow.signalWithStartWorkflow(
-                          "Target",
-                          new Object[] {"input"},
-                          "notify",
-                          new Object[] {"signal"},
-                          options.toBuilder().setId("async").build()))
-              .get();
       ExternalWorkflowStub defaults =
           Workflow.signalWithStartWorkflow(
               "Target",
@@ -215,40 +297,24 @@ public class SignalWithStartWorkflowTest {
               target::signalValue,
               "signal",
               typedOptions.toBuilder().setId("typed").build());
-      ExternalWorkflowStub typedAsync =
-          Async.function(
-                  () ->
-                      Workflow.signalWithStartWorkflow(
-                          target::start,
-                          "input",
-                          target::signalValue,
-                          "signal",
-                          typedOptions.toBuilder()
-                              .setId("typed-async")
-                              .setRetryPolicy(
-                                  io.temporal.common.RetryOptions.newBuilder()
-                                      .setMaximumAttempts(9)
-                                      .build())
-                              .setCronSchedule("")
-                              .build()))
-              .get();
+      ExternalWorkflowStub typedOverrides =
+          Workflow.signalWithStartWorkflow(
+              Workflow.newExternalWorkflowStub(TypedTarget.class, "typed-overrides")::start,
+              "input",
+              target::signalValue,
+              "signal",
+              typedOptions.toBuilder()
+                  .setId("typed-overrides")
+                  .setRetryPolicy(
+                      io.temporal.common.RetryOptions.newBuilder().setMaximumAttempts(9).build())
+                  .setCronSchedule("")
+                  .build());
       EmptyTarget empty = Workflow.newExternalWorkflowStub(EmptyTarget.class, "typed-defaults");
       ExternalWorkflowStub typedDefaults =
           Workflow.signalWithStartWorkflow(
               empty::start,
               empty::signalValue,
-              SignalWithStartWorkflowOptions.newBuilder()
-                  .setId("typed-defaults")
-                  .setTaskQueue("queue")
-                  .build());
-      ExternalWorkflowStub typedNull =
-          Workflow.signalWithStartWorkflow(
-              empty::start,
-              empty::signalValue,
-              SignalWithStartWorkflowOptions.newBuilder()
-                  .setId("typed-null-defaults")
-                  .setTaskQueue("queue")
-                  .build());
+              SignalWithStartWorkflowOptions.newBuilder().setTaskQueue("queue").build());
       assertThrows(
           NullPointerException.class,
           () -> Workflow.signalWithStartWorkflow(empty::start, empty::signalValue, null));
@@ -269,10 +335,6 @@ public class SignalWithStartWorkflowTest {
           + ":"
           + sync.getExecution().getRunId()
           + ","
-          + async.getExecution().getWorkflowId()
-          + ":"
-          + async.getExecution().getRunId()
-          + ","
           + defaults.getExecution().getWorkflowId()
           + ":"
           + defaults.getExecution().getRunId()
@@ -281,17 +343,13 @@ public class SignalWithStartWorkflowTest {
           + ":"
           + typed.getExecution().getRunId()
           + ","
-          + typedAsync.getExecution().getWorkflowId()
+          + typedOverrides.getExecution().getWorkflowId()
           + ":"
-          + typedAsync.getExecution().getRunId()
+          + typedOverrides.getExecution().getRunId()
           + ","
           + typedDefaults.getExecution().getWorkflowId()
           + ":"
           + typedDefaults.getExecution().getRunId()
-          + ","
-          + typedNull.getExecution().getWorkflowId()
-          + ":"
-          + typedNull.getExecution().getRunId()
           + ","
           + arity6.getExecution().getWorkflowId()
           + ":"
