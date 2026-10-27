@@ -13,7 +13,9 @@ import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,6 +31,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
 
   private final DescribeActivityExecutionResponse response;
   private final DataConverter dataConverter;
+  private final DataConverter resultDataConverter;
 
   public ActivityExecutionDescription(
       DescribeActivityExecutionResponse response, DataConverter dataConverter, String namespace) {
@@ -50,10 +53,20 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         response.getInfo().getTaskQueue(),
         SearchAttributesUtil.decodeTyped(response.getInfo().getSearchAttributes()));
     this.response = response;
-    this.dataConverter =
-        dataConverter.withContext(
-            new ActivitySerializationContext(
-                namespace, null, null, getActivityType(), getTaskQueue(), false));
+    SerializationContext activityContext =
+        new ActivitySerializationContext(
+            namespace, null, null, getActivityType(), getTaskQueue(), false);
+    this.dataConverter = dataConverter.withContext(activityContext);
+    // An activity started from a Nexus operation handler returns its result and failure to the
+    // Nexus caller, so they are serialized with the handler's Nexus context, which the server
+    // returns with the activity info. Input, heartbeat details and user metadata keep the activity
+    // context.
+    this.resultDataConverter =
+        response.getInfo().hasPropagatedNexusSerializationContext()
+            ? dataConverter.withContext(
+                PropagatedNexusSerializationContext.fromProto(
+                    response.getInfo().getPropagatedNexusSerializationContext()))
+            : this.dataConverter;
   }
 
   private static @Nullable String nullIfEmpty(String s) {
@@ -177,7 +190,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   @Nullable
   public RuntimeException getLastFailure() {
     return response.getInfo().hasLastFailure()
-        ? dataConverter.failureToException(response.getInfo().getLastFailure())
+        ? resultDataConverter.failureToException(response.getInfo().getLastFailure())
         : null;
   }
 
@@ -303,7 +316,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
       return Optional.empty();
     }
     return Optional.ofNullable(
-        dataConverter.fromPayloads(
+        resultDataConverter.fromPayloads(
             0,
             Optional.of(response.getOutcome().getResult()),
             valueType,
@@ -322,7 +335,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     if (!response.getOutcome().hasFailure()) {
       return null;
     }
-    return dataConverter.failureToException(response.getOutcome().getFailure());
+    return resultDataConverter.failureToException(response.getOutcome().getFailure());
   }
 
   /**

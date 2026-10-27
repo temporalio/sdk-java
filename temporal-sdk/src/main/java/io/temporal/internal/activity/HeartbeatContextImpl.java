@@ -20,7 +20,6 @@ import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
-import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
@@ -147,13 +146,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     this.externalStorage = externalStorage;
     this.dataConverterWithActivityContext =
         dataConverter.withContext(
-            new ActivitySerializationContext(
-                namespace,
-                info.getWorkflowId(),
-                info.getWorkflowType(),
-                info.getActivityType(),
-                info.getActivityTaskQueue(),
-                info.isLocal()));
+            ActivityInfoInternal.activitySerializationContext(namespace, info));
     this.namespace = namespace;
     this.info = info;
     this.identity = identity;

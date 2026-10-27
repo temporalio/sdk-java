@@ -104,6 +104,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
+  // Set when the workflow was started by a Nexus operation handler. Its result and the failure that
+  // closes it are returned to the Nexus caller, so they are serialized with the handler's Nexus
+  // context instead of the workflow context. Everything else keeps the workflow context.
+  @Nullable private DataConverter dataConverterWithPropagatedNexusContext;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -1300,6 +1304,30 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return dataConverterWithCurrentWorkflowContext;
   }
 
+  /**
+   * Records the serialization context of the Nexus operation handler that started this workflow, as
+   * propagated by the server in the WorkflowExecutionStarted event.
+   */
+  void setPropagatedNexusSerializationContext(
+      @Nullable NexusSerializationContext propagatedNexusSerializationContext) {
+    this.dataConverterWithPropagatedNexusContext =
+        propagatedNexusSerializationContext == null
+            ? null
+            : dataConverter.withContext(propagatedNexusSerializationContext);
+  }
+
+  /**
+   * The data converter for the workflow result and the failure that closes the workflow, which are
+   * returned to the Nexus caller: the propagated Nexus context if the workflow was started by a
+   * Nexus operation handler, otherwise the workflow context. Input, memo, signals, queries and
+   * updates always use the workflow context.
+   */
+  DataConverter getDataConverterForResult() {
+    return dataConverterWithPropagatedNexusContext != null
+        ? dataConverterWithPropagatedNexusContext
+        : dataConverterWithCurrentWorkflowContext;
+  }
+
   boolean isReplaying() {
     return replayContext.isReplaying();
   }
@@ -1625,6 +1653,15 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public Failure mapWorkflowExceptionToFailure(Throwable failure) {
+    return getDataConverterForResult().exceptionToFailure(failure);
+  }
+
+  /**
+   * Converts an exception thrown by an update validator or handler into the failure that rejects or
+   * fails the update. Unlike {@link #mapWorkflowExceptionToFailure}, this always uses the workflow
+   * context, because the failure belongs to the update rather than closing the workflow.
+   */
+  Failure mapUpdateExceptionToFailure(Throwable failure) {
     return dataConverterWithCurrentWorkflowContext.exceptionToFailure(failure);
   }
 

@@ -127,6 +127,7 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
           null,
           metricsScope,
           localActivity,
+          dataConverter,
           dataConverter);
     }
   }
@@ -179,7 +180,8 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
       @Nullable Object lastHeartbeatDetails,
       Scope metricsScope,
       boolean isLocalActivity,
-      DataConverter dataConverter) {
+      DataConverter failureDataConverter,
+      DataConverter heartbeatDataConverter) {
     if (exception instanceof ActivityCanceledException) {
       if (isLocalActivity) {
         metricsScope.counter(MetricsType.LOCAL_ACTIVITY_EXEC_CANCELLED_COUNTER).inc(1);
@@ -208,11 +210,13 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
         failureScope.counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER).inc(1);
       }
     }
-    Failure failure = dataConverter.exceptionToFailure(exception);
+    Failure failure = failureDataConverter.exceptionToFailure(exception);
     RespondActivityTaskFailedRequest.Builder result =
         RespondActivityTaskFailedRequest.newBuilder().setFailure(failure);
     if (lastHeartbeatDetails != null) {
-      dataConverter.toPayloads(lastHeartbeatDetails).ifPresent(result::setLastHeartbeatDetails);
+      heartbeatDataConverter
+          .toPayloads(lastHeartbeatDetails)
+          .ifPresent(result::setLastHeartbeatDetails);
     }
     return new ActivityTaskHandler.Result(
         activityId,

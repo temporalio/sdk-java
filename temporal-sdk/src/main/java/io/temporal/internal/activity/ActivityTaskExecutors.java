@@ -18,7 +18,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -59,16 +59,16 @@ final class ActivityTaskExecutors {
       InternalActivityExecutionContext context =
           executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
-      ActivitySerializationContext serializationContext =
-          new ActivitySerializationContext(
-              activityInfo.getNamespace(),
-              activityInfo.getWorkflowId(),
-              activityInfo.getWorkflowType(),
-              activityInfo.getActivityType(),
-              activityInfo.getActivityTaskQueue(),
-              activityInfo.isLocal());
       DataConverter dataConverterWithActivityContext =
-          dataConverter.withContext(serializationContext);
+          dataConverter.withContext(
+              ActivityInfoInternal.activitySerializationContext(
+                  activityInfo.getNamespace(), activityInfo));
+      // Only the result and failure are returned to the Nexus caller of a standalone activity
+      // started from a Nexus operation handler, so only they use the handler's Nexus context.
+      SerializationContext resultSerializationContext =
+          ActivityInfoInternal.resultSerializationContext(
+              activityInfo.getNamespace(), activityInfo);
+      DataConverter resultDataConverter = dataConverter.withContext(resultSerializationContext);
 
       try {
         info.getHeader()
@@ -92,7 +92,7 @@ final class ActivityTaskExecutors {
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
 
-        return this.constructSuccessfulResultValue(info, result, dataConverterWithActivityContext);
+        return this.constructSuccessfulResultValue(info, result, resultDataConverter);
       } catch (Throwable e) {
         Throwable ex = CheckedExceptionWrapper.unwrap(e);
         boolean local = info.isLocal();
@@ -127,6 +127,7 @@ final class ActivityTaskExecutors {
             context.getLastHeartbeatValue(),
             metricsScope,
             local,
+            resultDataConverter,
             dataConverterWithActivityContext);
       } finally {
         if (context.isDoNotCompleteOnReturn()) {
@@ -150,19 +151,16 @@ final class ActivityTaskExecutors {
         Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
 
     protected abstract ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info,
-        ActivityOutput result,
-        DataConverter dataConverterWithActivityContext);
+        ActivityInfoInternal info, ActivityOutput result, DataConverter resultDataConverter);
 
     ActivityTaskHandler.Result constructResultValue(
         ActivityInfoInternal info,
         @Nullable ActivityOutput result,
-        DataConverter dataConverterWithActivityContext) {
+        DataConverter resultDataConverter) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder();
       if (result != null) {
-        Optional<Payloads> serialized =
-            dataConverterWithActivityContext.toPayloads(result.getResult());
+        Optional<Payloads> serialized = resultDataConverter.toPayloads(result.getResult());
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
@@ -218,14 +216,12 @@ final class ActivityTaskExecutors {
 
     @Override
     protected ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info,
-        ActivityOutput result,
-        DataConverter dataConverterWithActivityContext) {
+        ActivityInfoInternal info, ActivityOutput result, DataConverter resultDataConverter) {
       return constructResultValue(
           info,
           // if the expected result of the method is null, we don't publish result at all
           method.getReturnType() != Void.TYPE ? result : null,
-          dataConverterWithActivityContext);
+          resultDataConverter);
     }
   }
 
@@ -261,10 +257,8 @@ final class ActivityTaskExecutors {
 
     @Override
     protected ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info,
-        ActivityOutput result,
-        DataConverter dataConverterWithActivityContext) {
-      return constructResultValue(info, result, dataConverterWithActivityContext);
+        ActivityInfoInternal info, ActivityOutput result, DataConverter resultDataConverter) {
+      return constructResultValue(info, result, resultDataConverter);
     }
   }
 }

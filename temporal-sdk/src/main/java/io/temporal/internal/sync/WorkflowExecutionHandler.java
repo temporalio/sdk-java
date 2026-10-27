@@ -105,7 +105,7 @@ class WorkflowExecutionHandler {
     try {
       context.handleValidateUpdate(updateName, updateId, input, eventId, new Header(header));
     } catch (Throwable e) {
-      applyWorkflowFailurePolicyAndRethrow(e);
+      applyWorkflowFailurePolicyAndRethrow(e, true);
     }
   }
 
@@ -121,12 +121,20 @@ class WorkflowExecutionHandler {
       // Re-throw to fail the workflow task
       throw e;
     } catch (Throwable e) {
-      applyWorkflowFailurePolicyAndRethrow(e);
+      applyWorkflowFailurePolicyAndRethrow(e, true);
     }
     return Optional.empty();
   }
 
   private void applyWorkflowFailurePolicyAndRethrow(Throwable e) {
+    applyWorkflowFailurePolicyAndRethrow(e, false);
+  }
+
+  /**
+   * @param forUpdate whether the exception was thrown by an update validator or handler, in which
+   *     case the resulting failure rejects or fails the update rather than closing the workflow
+   */
+  private void applyWorkflowFailurePolicyAndRethrow(Throwable e, boolean forUpdate) {
     if (e instanceof DestroyWorkflowThreadError) {
       throw (DestroyWorkflowThreadError) e;
     }
@@ -134,18 +142,18 @@ class WorkflowExecutionHandler {
 
     Class<? extends Throwable>[] failTypes = implementationOptions.getFailWorkflowExceptionTypes();
     if (exception instanceof TemporalFailure) {
-      throwAndFailWorkflowExecution(exception);
+      throwAndFailWorkflowExecution(exception, forUpdate);
     }
     for (Class<? extends Throwable> failType : failTypes) {
       if (failType.isAssignableFrom(exception.getClass())) {
-        throwAndFailWorkflowExecution(exception);
+        throwAndFailWorkflowExecution(exception, forUpdate);
       }
     }
 
     throw wrap(exception);
   }
 
-  private void throwAndFailWorkflowExecution(Throwable exception) {
+  private void throwAndFailWorkflowExecution(Throwable exception, boolean forUpdate) {
     ReplayWorkflowContext replayWorkflowContext = context.getReplayContext();
     @Nullable
     String fullReplayDirectQueryName = replayWorkflowContext.getFullReplayDirectQueryName();
@@ -174,7 +182,12 @@ class WorkflowExecutionHandler {
       }
     }
 
-    throw new WorkflowExecutionException(context.mapWorkflowExceptionToFailure(exception));
+    // An update failure belongs to the update, so it keeps the workflow context even for a workflow
+    // started by a Nexus operation handler, whose closing failure uses the handler's Nexus context.
+    throw new WorkflowExecutionException(
+        forUpdate
+            ? context.mapUpdateExceptionToFailure(exception)
+            : context.mapWorkflowExceptionToFailure(exception));
   }
 
   /**
