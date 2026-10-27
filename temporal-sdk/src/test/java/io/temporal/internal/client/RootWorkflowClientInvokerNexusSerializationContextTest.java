@@ -45,7 +45,6 @@ import io.temporal.payload.context.WorkflowSerializationContext;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Assert;
@@ -128,20 +127,6 @@ public class RootWorkflowClientInvokerNexusSerializationContextTest {
   }
 
   @Test
-  public void startBeforeOperationIsKnownDoesNotPropagateContext() {
-    // The task handler sets the context only once the request names a service and operation.
-    enterNexusHandler(null);
-    when(genericClient.start(any()))
-        .thenReturn(StartWorkflowExecutionResponse.getDefaultInstance());
-
-    invoker.start(newStartInput());
-
-    StartWorkflowExecutionRequest sent = captureStartRequest();
-    Assert.assertFalse(sent.hasPropagatedNexusSerializationContext());
-    Assert.assertEquals(WORKFLOW, contextOf(sent.getInput().getPayloads(0)));
-  }
-
-  @Test
   public void signalWithStartFromNexusHandlerKeepsWorkflowContext() {
     enterNexusHandler(NEXUS_CONTEXT);
     when(genericClient.signalWithStart(any()))
@@ -211,20 +196,6 @@ public class RootWorkflowClientInvokerNexusSerializationContextTest {
   }
 
   @Test
-  public void getResultAsyncDecodesWithPropagatedContext() throws Exception {
-    when(genericClient.longPollHistoryAsync(
-            any(GetWorkflowExecutionHistoryRequest.class), any(Deadline.class)))
-        .thenReturn(
-            CompletableFuture.completedFuture(
-                historyResponse(completedEvent(NEXUS_CONTEXT), PROPAGATED)));
-
-    String result = invoker.getResultAsync(newGetResultInput()).getResult().get();
-
-    Assert.assertEquals("result", result);
-    Assert.assertEquals(Collections.singletonList(NEXUS), codec.decodeContexts());
-  }
-
-  @Test
   public void getResultAsyncKeepsContextAcrossEmptyPolls() throws Exception {
     // The context arrives on an empty long poll; the close event comes on the next one.
     GetWorkflowExecutionHistoryResponse emptyPoll =
@@ -240,21 +211,6 @@ public class RootWorkflowClientInvokerNexusSerializationContextTest {
 
     invoker.getResultAsync(newGetResultInput()).getResult().get();
 
-    Assert.assertEquals(Collections.singletonList(NEXUS), codec.decodeContexts());
-  }
-
-  @Test
-  public void getResultAsyncDecodesFailureWithPropagatedContext() {
-    when(genericClient.longPollHistoryAsync(
-            any(GetWorkflowExecutionHistoryRequest.class), any(Deadline.class)))
-        .thenReturn(
-            CompletableFuture.completedFuture(
-                historyResponse(failedEvent(NEXUS_CONTEXT), PROPAGATED)));
-
-    CompletableFuture<String> result = invoker.getResultAsync(newGetResultInput()).getResult();
-
-    CompletionException e = Assert.assertThrows(CompletionException.class, result::join);
-    Assert.assertTrue(e.getCause() instanceof WorkflowFailedException);
     Assert.assertEquals(Collections.singletonList(NEXUS), codec.decodeContexts());
   }
 

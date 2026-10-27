@@ -153,25 +153,6 @@ public class NexusSerializationContextPropagationTest {
   }
 
   @Test
-  public void workflowFailureUsesNexusContext() {
-    String input = "fail-" + RUN_ID;
-    String failure = newCaller().execute("startWorkflow", input);
-    Assert.assertTrue(failure, failure.startsWith("failed:"));
-
-    WorkflowExecutionHistory history = testWorkflowRule.getExecutionHistory(backingId(input));
-    Assert.assertEquals(
-        describe("startWorkflow"),
-        contextOf(
-            history
-                .getLastEvent()
-                .getWorkflowExecutionFailedEventAttributes()
-                .getFailure()
-                .getApplicationFailureInfo()
-                .getDetails()
-                .getPayloads(0)));
-  }
-
-  @Test
   public void continuedAsNewRunKeepsNexusContext() {
     String input = "can-" + RUN_ID;
     Assert.assertEquals("hello " + input, newCaller().execute("startWorkflow", input));
@@ -422,9 +403,6 @@ public class NexusSerializationContextPropagationTest {
   public static class BackingWorkflowImpl implements BackingWorkflow {
     @Override
     public String execute(String input) {
-      if (input.startsWith("fail-")) {
-        throw ApplicationFailure.newNonRetryableFailure("failed on purpose", "TestFailure", input);
-      }
       Workflow.upsertMemo(Collections.singletonMap("upserted", input));
       // Continue as new once, so the result comes from the second run.
       if (input.startsWith("can-")

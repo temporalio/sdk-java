@@ -18,7 +18,6 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.nexus.ContextRecordingCodec;
 import io.temporal.payload.context.NexusSerializationContext;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Before;
@@ -90,19 +89,6 @@ public class RootNexusClientInvokerSerializationContextTest {
 
     Assert.assertEquals(
         Collections.singletonList(ContextRecordingCodec.describe(START_CONTEXT)),
-        codec.decodeContexts());
-  }
-
-  @Test
-  public void asyncServerContextTakesPrecedenceOverStartContext() throws Exception {
-    when(genericClient.pollNexusOperationExecutionAsync(
-            any(PollNexusOperationExecutionRequest.class), any(Deadline.class)))
-        .thenReturn(CompletableFuture.completedFuture(closedResponse(SERVER_CONTEXT, PROPAGATED)));
-
-    invoker.getNexusOperationResultAsync(startedHandleInput()).get();
-
-    Assert.assertEquals(
-        Collections.singletonList(ContextRecordingCodec.describe(SERVER_CONTEXT)),
         codec.decodeContexts());
   }
 

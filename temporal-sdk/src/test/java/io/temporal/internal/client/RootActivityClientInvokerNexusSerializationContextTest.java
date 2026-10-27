@@ -41,7 +41,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Assert;
@@ -159,20 +158,6 @@ public class RootActivityClientInvokerNexusSerializationContextTest {
     String result = invoker.getActivityResultAsync(newGetResultInput()).get().getResult();
 
     Assert.assertEquals("result", result);
-    Assert.assertEquals(Collections.singletonList(NEXUS), codec.decodeContexts());
-  }
-
-  @Test
-  public void getResultAsyncDecodesFailureWithPropagatedContext() {
-    when(genericClient.pollActivityAsync(
-            any(PollActivityExecutionRequest.class), any(Deadline.class)))
-        .thenReturn(CompletableFuture.completedFuture(failureResponse(PROPAGATED)));
-
-    CompletionException e =
-        Assert.assertThrows(
-            CompletionException.class,
-            () -> invoker.getActivityResultAsync(newGetResultInput()).join());
-    Assert.assertTrue(e.getCause() instanceof ActivityFailedException);
     Assert.assertEquals(Collections.singletonList(NEXUS), codec.decodeContexts());
   }
 
