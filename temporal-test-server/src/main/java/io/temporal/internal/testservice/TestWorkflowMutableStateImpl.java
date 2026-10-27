@@ -344,6 +344,10 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
         // we don't buffer the events and don't wait till the finish of the workflow task
         // in-progress even if there is one,
         // but instead we apply them to the history immediately.
+        State taskState = workflowTaskStateMachine.getState();
+        if (taskState == State.INITIATED || taskState == State.STARTED) {
+          ctx.unlockTimer("forcefullyCompleteWorkflowTask");
+        }
         nextEventId = ctx.commitChanges(store);
       } else if (concurrentWorkflowTask) {
         // if there is a concurrent workflow task in progress and the workflow wasn't terminated and
@@ -367,6 +371,15 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } finally {
       lockHandle.unlock();
       lock.unlock();
+    }
+  }
+
+  private void updateWithTimerUnlock(String caller, UpdateProcedure updater) {
+    try {
+      update(updater);
+    } finally {
+      // A child notification owns a lock even if the parent has already closed.
+      timerService.unlockTimeSkipping(caller);
     }
   }
 
@@ -1365,79 +1378,77 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
 
   @Override
   public void childWorkflowStarted(ChildWorkflowExecutionStartedEventAttributes a) {
-    update(
+    updateWithTimerUnlock(
+        "childWorkflowStarted",
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
           child.action(StateMachines.Action.START, ctx, a, 0);
           scheduleWorkflowTask(ctx);
-          // No need to lock until completion as child workflow might skip
-          // time as well
-          ctx.unlockTimer("childWorkflowStarted");
         });
   }
 
   @Override
   public void childWorkflowFailed(
       String activityId, ChildWorkflowExecutionFailedEventAttributes a) {
-    update(
+    updateWithTimerUnlock(
+        "childWorkflowFailed",
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowFailed");
         });
   }
 
   @Override
   public void childWorkflowTimedOut(
       String activityId, ChildWorkflowExecutionTimedOutEventAttributes a) {
-    update(
+    updateWithTimerUnlock(
+        "childWorkflowTimedOut",
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
           child.action(Action.TIME_OUT, ctx, a.getRetryState(), 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowTimedOut");
         });
   }
 
   @Override
   public void failStartChildWorkflow(
       String childId, StartChildWorkflowExecutionFailedEventAttributes a) {
-    update(
+    updateWithTimerUnlock(
+        "failStartChildWorkflow",
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
           child.action(StateMachines.Action.FAIL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("failStartChildWorkflow");
         });
   }
 
   @Override
   public void childWorkflowCompleted(
       String activityId, ChildWorkflowExecutionCompletedEventAttributes a) {
-    update(
+    updateWithTimerUnlock(
+        "childWorkflowCompleted",
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
           child.action(StateMachines.Action.COMPLETE, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowCompleted");
         });
   }
 
   @Override
   public void childWorkflowCanceled(
       String activityId, ChildWorkflowExecutionCanceledEventAttributes a) {
-    update(
+    updateWithTimerUnlock(
+        "childWorkflowCanceled",
         ctx -> {
           StateMachine<ChildWorkflowData> child = getChildWorkflow(a.getInitiatedEventId());
           child.action(StateMachines.Action.CANCEL, ctx, a, 0);
           childWorkflows.remove(a.getInitiatedEventId());
           scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("childWorkflowCanceled");
         });
   }
 

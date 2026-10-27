@@ -32,7 +32,7 @@ public class ChildLivesLongerThanParentTest {
 
   private static final Signal timerFired = new Signal();
 
-  @Test
+  @Test(timeout = 10000)
   public void testAbandonChild() throws InterruptedException {
     testWorkflowRule
         .getWorkflowClient()
@@ -44,6 +44,10 @@ public class ChildLivesLongerThanParentTest {
                 .build())
         .execute();
     assertTrue(timerFired.waitForSignal(SLEEPING_BY.plus(Duration.ofSeconds(2))));
+    if (!testWorkflowRule.isUseExternalService()) {
+      // A closed parent's notification must not prevent later time skips.
+      testWorkflowRule.getTestEnvironment().sleep(Duration.ofDays(1));
+    }
   }
 
   public static class TestWorkflowImpl implements TestWorkflows.PrimitiveWorkflow {
