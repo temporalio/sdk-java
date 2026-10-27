@@ -49,6 +49,8 @@ to docs, or any other relevant information.
 - Workflow tasks taking longer than 5 seconds now log a `[TMPRL1104]` warning reporting the task duration and the
   external storage downloads and uploads that contributed to it. The threshold is configurable with the
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
+- Nexus operation handlers now forward inbound callback links to the workflows and signals they start, instead of
+  dropping them.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
