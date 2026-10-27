@@ -10,10 +10,10 @@ import javax.annotation.Nonnull;
  * service, and resolved operation the payload belongs to.
  *
  * <p>This context is used for payloads exchanged between a Nexus caller and handler: operation
- * inputs, results, and failures. When a handler starts a workflow or standalone activity to back an
- * operation, whatever it returns to the caller, such as its result or failure, is serialized with
- * this context too, so the caller can decode it. Everything else keeps the workflow's or activity's
- * own context. This requires a server that propagates the context.
+ * inputs, results, and failures. When a handler starts a workflow or standalone activity, or sends
+ * a workflow update, to back an operation, whatever it returns to the caller, such as its result or
+ * failure, is serialized with this context too, so the caller can decode it. Everything else keeps
+ * the workflow's or activity's own context. This requires a server that propagates the context.
  *
  * <p>To complete such an activity asynchronously, store the context from {@link
  * io.temporal.activity.ActivityInfo#getNexusSerializationContext()} with the task token and pass it

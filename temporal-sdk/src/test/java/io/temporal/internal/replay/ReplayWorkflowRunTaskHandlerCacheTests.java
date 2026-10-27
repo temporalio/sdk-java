@@ -24,6 +24,7 @@ import io.temporal.internal.statemachines.UpdateProtocolCallback;
 import io.temporal.internal.worker.SingleWorkerOptions;
 import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.HistoryUtils;
 import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
@@ -290,6 +291,7 @@ public class ReplayWorkflowRunTaskHandlerCacheTests {
               Optional<Payloads> input,
               long eventId,
               Header header,
+              NexusSerializationContext nexusSerializationContext,
               UpdateProtocolCallback callbacks) {}
 
           @Override

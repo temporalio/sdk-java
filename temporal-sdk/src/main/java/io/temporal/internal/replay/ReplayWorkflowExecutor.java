@@ -17,6 +17,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.sync.SignalHandlerInfo;
 import io.temporal.internal.sync.UpdateHandlerInfo;
@@ -194,6 +195,10 @@ final class ReplayWorkflowExecutor {
           args,
           protocolMessage.getEventId(),
           input.getHeader(),
+          update.hasPropagatedNexusSerializationContext()
+              ? PropagatedNexusSerializationContext.fromProto(
+                  update.getPropagatedNexusSerializationContext())
+              : null,
           updateMessage.getCallbacks());
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException("Message is not an update.");

@@ -118,6 +118,27 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     return converterFactory.forWorkflow(workflowId, runId, workflowType);
   }
 
+  /**
+   * The data converter for a workflow's or an update's result and failure. A workflow or an update
+   * started by a Nexus operation handler encodes them with the handler's Nexus serialization
+   * context, which the server returns with them. Otherwise they use the workflow context.
+   *
+   * @param propagated the context returned by the server, or null if it returned none
+   * @param workflowConverter the converter to use when the server returned no context
+   */
+  private DataConverter outcomeConverter(
+      @Nullable PropagatedSerializationContext propagated,
+      WorkflowExecution execution,
+      DataConverter workflowConverter) {
+    return propagated != null
+        ? converterFactory.forWorkflow(
+            PropagatedNexusSerializationContext.fromProto(propagated),
+            execution.getWorkflowId(),
+            execution.getRunId(),
+            null)
+        : workflowConverter;
+  }
+
   private void storeHeader(
       Header.Builder header,
       String workflowId,
@@ -475,14 +496,12 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       GetResultInput<R> input, GetWorkflowExecutionHistoryResponse closed) {
     WorkflowExecution execution = input.getWorkflowExecution();
     DataConverter dataConverter =
-        closed.hasPropagatedNexusSerializationContext()
-            ? converterFactory.forWorkflow(
-                PropagatedNexusSerializationContext.fromProto(
-                    closed.getPropagatedNexusSerializationContext()),
-                execution.getWorkflowId(),
-                execution.getRunId(),
-                null)
-            : workflowConverter(execution);
+        outcomeConverter(
+            closed.hasPropagatedNexusSerializationContext()
+                ? closed.getPropagatedNexusSerializationContext()
+                : null,
+            execution,
+            workflowConverter(execution));
     // The long poll helpers return a response whose single event is the close event.
     HistoryEvent closeEvent = closed.getHistory().getEvents(0);
     Optional<Payloads> resultValue =
@@ -615,6 +634,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setMeta(Meta.newBuilder().setUpdateId(input.getUpdateId()).setIdentity(identity))
             .setInput(updateInput);
 
+    // An update sent by a Nexus operation handler returns its result and failure to the Nexus
+    // caller, so they are serialized with the handler's Nexus context. It is sent with the request
+    // so the server can propagate it to the worker and to clients reading the outcome. The update's
+    // arguments keep the workflow context.
+    @Nullable
+    PropagatedSerializationContext propagatedNexusSerializationContext =
+        PropagatedNexusSerializationContext.current();
+    if (propagatedNexusSerializationContext != null) {
+      requestBuilder.setPropagatedNexusSerializationContext(propagatedNexusSerializationContext);
+    }
+
     // If this update is being issued via TemporalNexusClientImpl.startWorkflowUpdate,
     // set the fields the server needs to deliver the Nexus completion callback
     if (CurrentNexusOperationContext.isNexusContext()) {
@@ -666,15 +696,19 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       UpdateWorkflowExecutionResponse result,
       DataConverter dataConverterWithWorkflowContext) {
     if (result.hasOutcome()) {
+      DataConverter dataConverter =
+          outcomeConverter(
+              result.hasPropagatedNexusSerializationContext()
+                  ? result.getPropagatedNexusSerializationContext()
+                  : null,
+              result.getUpdateRef().getWorkflowExecution(),
+              dataConverterWithWorkflowContext);
       switch (result.getOutcome().getValueCase()) {
         case SUCCESS:
           Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
           R resultValue =
               convertResultPayloads(
-                  updateResult,
-                  input.getResultClass(),
-                  input.getResultType(),
-                  dataConverterWithWorkflowContext);
+                  updateResult, input.getResultClass(), input.getResultType(), dataConverter);
           return new CompletedWorkflowUpdateHandleImpl<>(
               result.getUpdateRef().getUpdateId(),
               result.getUpdateRef().getWorkflowExecution(),
@@ -687,8 +721,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   result.getUpdateRef().getWorkflowExecution(),
                   result.getUpdateRef().getUpdateId(),
                   input.getUpdateName(),
-                  dataConverterWithWorkflowContext.failureToException(
-                      result.getOutcome().getFailure())));
+                  dataConverter.failureToException(result.getOutcome().getFailure())));
         default:
           throw new RuntimeException(
               "Received unexpected outcome from update request: "
@@ -748,21 +781,24 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         future.thenApply(
             (result) -> {
               if (result.hasOutcome()) {
+                DataConverter dataConverter =
+                    outcomeConverter(
+                        result.hasPropagatedNexusSerializationContext()
+                            ? result.getPropagatedNexusSerializationContext()
+                            : null,
+                        input.getWorkflowExecution(),
+                        dataConverterWithWorkflowContext);
                 switch (result.getOutcome().getValueCase()) {
                   case SUCCESS:
                     Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
                     return convertResultPayloads(
-                        updateResult,
-                        input.getResultClass(),
-                        input.getResultType(),
-                        dataConverterWithWorkflowContext);
+                        updateResult, input.getResultClass(), input.getResultType(), dataConverter);
                   case FAILURE:
                     throw new WorkflowUpdateException(
                         input.getWorkflowExecution(),
                         input.getUpdateId(),
                         input.getUpdateName(),
-                        dataConverterWithWorkflowContext.failureToException(
-                            result.getOutcome().getFailure()));
+                        dataConverter.failureToException(result.getOutcome().getFailure()));
                   default:
                     throw new RuntimeException(
                         "Received unexpected outcome from poll update request: "
