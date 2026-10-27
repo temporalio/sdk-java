@@ -102,6 +102,8 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final StartWorkflowExecutionRequest startRequest;
   private long nextEventId = 1;
   private final Map<Long, StateMachine<ActivityTaskData>> activities = new HashMap<>();
+  // Retry backoff does not hold an activity attempt lock.
+  private final Set<Long> activityLocks = new HashSet<>();
   private final Map<String, Long> activityById = new HashMap<>();
   private final Map<Long, StateMachine<ChildWorkflowData>> childWorkflows = new HashMap<>();
   private final Map<Long, StateMachine<NexusOperationData>> nexusOperations = new HashMap<>();
@@ -109,6 +111,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
   private final Map<Long, Long> nexusCancelRequestedEventIds = new HashMap<>();
   private final Map<String, StateMachine<TimerData>> timers = new HashMap<>();
   private final Map<String, StateMachine<SignalExternalData>> externalSignals = new HashMap<>();
+  private final Set<String> externalSignalLocks = new HashSet<>();
   private final Map<String, StateMachine<CancelExternalData>> externalCancellations =
       new HashMap<>();
   private final Map<String, StateMachine<UpdateWorkflowExecutionData>> updates = new HashMap<>();
@@ -365,8 +368,17 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
     } catch (Exception e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     } finally {
-      lockHandle.unlock();
-      lock.unlock();
+      try {
+        if (isTerminalState()) {
+          for (long scheduledEventId : activityLocks) {
+            timerService.unlockTimeSkipping("closed workflow activity: " + scheduledEventId);
+          }
+          activityLocks.clear();
+        }
+      } finally {
+        lockHandle.unlock();
+        lock.unlock();
+      }
     }
   }
 
@@ -1030,6 +1042,12 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       // command
       activity.action(StateMachines.Action.CANCEL, ctx, null, 0);
       activities.remove(scheduledEventId);
+      ctx.onCommit(
+          historySize -> {
+            if (activityLocks.remove(scheduledEventId)) {
+              timerService.unlockTimeSkipping("processRequestCancelActivityTask");
+            }
+          });
       ctx.setNeedWorkflowTask(true);
     }
   }
@@ -1071,6 +1089,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
                 activityScheduleId, TimeoutType.TIMEOUT_TYPE_SCHEDULE_TO_START, attempt),
         "Activity ScheduleToStartTimeout");
     ctx.lockTimer("processScheduleActivityTask");
+    ctx.onCommit(historySize -> activityLocks.add(activityScheduleId));
   }
 
   /**
@@ -1243,29 +1262,52 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               }
             });
     ctx.lockTimer("processSignalExternalWorkflowExecution");
+    ctx.onCommit(historySize -> externalSignalLocks.add(signalId));
   }
 
   @Override
   public void completeSignalExternalWorkflowExecution(String signalId, String runId) {
-    update(
-        ctx -> {
-          StateMachine<SignalExternalData> signal = getSignal(signalId);
-          signal.action(Action.COMPLETE, ctx, runId, 0);
-          scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("completeSignalExternalWorkflowExecution");
-        });
+    lock.lock();
+    try {
+      try {
+        update(
+            ctx -> {
+              StateMachine<SignalExternalData> signal = getSignal(signalId);
+              signal.action(Action.COMPLETE, ctx, runId, 0);
+              scheduleWorkflowTask(ctx);
+            });
+      } finally {
+        externalSignals.remove(signalId);
+        if (externalSignalLocks.remove(signalId)) {
+          timerService.unlockTimeSkipping("completeSignalExternalWorkflowExecution");
+        }
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 
   @Override
   public void failSignalExternalWorkflowExecution(
       String signalId, SignalExternalWorkflowExecutionFailedCause cause) {
-    update(
-        ctx -> {
-          StateMachine<SignalExternalData> signal = getSignal(signalId);
-          signal.action(Action.FAIL, ctx, cause, 0);
-          scheduleWorkflowTask(ctx);
-          ctx.unlockTimer("failSignalExternalWorkflowExecution");
-        });
+    lock.lock();
+    try {
+      try {
+        update(
+            ctx -> {
+              StateMachine<SignalExternalData> signal = getSignal(signalId);
+              signal.action(Action.FAIL, ctx, cause, 0);
+              scheduleWorkflowTask(ctx);
+            });
+      } finally {
+        externalSignals.remove(signalId);
+        if (externalSignalLocks.remove(signalId)) {
+          timerService.unlockTimeSkipping("failSignalExternalWorkflowExecution");
+        }
+      }
+    } finally {
+      lock.unlock();
+    }
   }
 
   private StateMachine<SignalExternalData> getSignal(String signalId) {
@@ -2137,6 +2179,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
+          ctx.onCommit(historySize -> activityLocks.remove(activity.getData().scheduledEventId));
           ctx.unlockTimer("completeActivityTask");
         });
   }
@@ -2150,6 +2193,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.COMPLETE, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
+          ctx.onCommit(historySize -> activityLocks.remove(activity.getData().scheduledEventId));
           ctx.unlockTimer("completeActivityTaskById");
         });
   }
@@ -2169,6 +2213,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             addActivityRetryTimer(ctx, activity);
           }
           // Allow time skipping when waiting for retry
+          ctx.onCommit(historySize -> activityLocks.remove(activity.getData().scheduledEventId));
           ctx.unlockTimer("failActivityTask");
         });
   }
@@ -2190,7 +2235,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           try {
             // TODO this lock is getting releases somewhere on the activity completion.
             // We should rework it on passing the lockHandle downstream and using it for the release
-            update(ctx1 -> ctx1.addActivityTask(data.activityTask));
+            update(
+                ctx1 -> {
+                  ctx1.addActivityTask(data.activityTask);
+                  ctx1.onCommit(historySize -> activityLocks.add(data.scheduledEventId));
+                });
           } catch (StatusRuntimeException e) {
             // NOT_FOUND is expected as timers are not removed
             if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {
@@ -2226,6 +2275,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           } else {
             addActivityRetryTimer(ctx, activity);
           }
+          ctx.onCommit(historySize -> activityLocks.remove(activity.getData().scheduledEventId));
           ctx.unlockTimer("failActivityTaskById");
         });
   }
@@ -2242,6 +2292,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(scheduledEventId);
           scheduleWorkflowTask(ctx);
+          ctx.onCommit(historySize -> activityLocks.remove(activity.getData().scheduledEventId));
           ctx.unlockTimer("cancelActivityTask");
         });
   }
@@ -2256,6 +2307,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           activity.action(StateMachines.Action.CANCEL, ctx, request, 0);
           removeActivity(activity.getData().scheduledEventId);
           scheduleWorkflowTask(ctx);
+          ctx.onCommit(historySize -> activityLocks.remove(activity.getData().scheduledEventId));
           ctx.unlockTimer("cancelActivityTaskById");
         });
   }
@@ -2317,6 +2369,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
               }
             }
             activity.action(StateMachines.Action.TIME_OUT, ctx, timeoutType, 0);
+            ctx.onCommit(historySize -> activityLocks.remove(scheduledEventId));
             if (isTerminalState(activity.getState())) {
               removeActivity(scheduledEventId);
               scheduleWorkflowTask(ctx);
