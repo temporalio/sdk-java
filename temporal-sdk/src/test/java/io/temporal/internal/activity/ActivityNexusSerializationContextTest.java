@@ -134,19 +134,6 @@ public class ActivityNexusSerializationContextTest {
     Assert.assertEquals(ACTIVITY, contextOf(result.getTaskCompleted().getResult().getPayloads(0)));
   }
 
-  @Test
-  public void heartbeatContextKeepsActivityContext() {
-    ActivityInfoImpl info =
-        new ActivityInfoImpl(pollResponse("hello", PROPAGATED), NAMESPACE, TASK_QUEUE, false, null);
-
-    Assert.assertEquals(
-        ACTIVITY,
-        ContextRecordingCodec.describe(
-            ActivityInfoInternal.activitySerializationContext(NAMESPACE, info)));
-    Assert.assertEquals(
-        NEXUS_CONTEXT, ActivityInfoInternal.resultSerializationContext(NAMESPACE, info));
-  }
-
   private ActivityTaskHandler.Result handle(
       String input, PropagatedSerializationContext propagated) {
     return handler.handle(

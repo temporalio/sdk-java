@@ -54,8 +54,7 @@ final class DynamicSyncWorkflowDefinition implements SyncWorkflowDefinition {
         workflowInvoker.execute(
             new WorkflowInboundCallsInterceptor.WorkflowInput(header, new Object[] {args}));
     // The result of a workflow started by a Nexus operation handler is returned to the Nexus
-    // caller,
-    // so it is encoded with the handler's Nexus context.
+    // caller, so it is encoded with the handler's Nexus context.
     return WorkflowInternal.getRootWorkflowContext()
         .getDataConverterForResult()
         .toPayloads(result.getResult());

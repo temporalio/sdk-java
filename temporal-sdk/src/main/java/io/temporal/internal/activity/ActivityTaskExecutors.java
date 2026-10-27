@@ -7,6 +7,7 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.context.ContextPropagator;
@@ -17,8 +18,9 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.worker.ActivityTaskHandler;
-import io.temporal.payload.context.SerializationContext;
+import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -59,16 +61,23 @@ final class ActivityTaskExecutors {
       InternalActivityExecutionContext context =
           executionContextFactory.createContext(info, getActivity(), metricsScope);
       ActivityInfo activityInfo = context.getInfo();
+      ActivitySerializationContext serializationContext =
+          new ActivitySerializationContext(
+              activityInfo.getNamespace(),
+              activityInfo.getWorkflowId(),
+              activityInfo.getWorkflowType(),
+              activityInfo.getActivityType(),
+              activityInfo.getActivityTaskQueue(),
+              activityInfo.isLocal());
       DataConverter dataConverterWithActivityContext =
-          dataConverter.withContext(
-              ActivityInfoInternal.activitySerializationContext(
-                  activityInfo.getNamespace(), activityInfo));
+          dataConverter.withContext(serializationContext);
       // Only the result and failure are returned to the Nexus caller of a standalone activity
       // started from a Nexus operation handler, so only they use the handler's Nexus context.
-      SerializationContext resultSerializationContext =
-          ActivityInfoInternal.resultSerializationContext(
-              activityInfo.getNamespace(), activityInfo);
-      DataConverter resultDataConverter = dataConverter.withContext(resultSerializationContext);
+      PropagatedSerializationContext propagated = info.getPropagatedNexusSerializationContext();
+      DataConverter resultDataConverter =
+          propagated != null
+              ? dataConverter.withContext(PropagatedNexusSerializationContext.fromProto(propagated))
+              : dataConverterWithActivityContext;
 
       try {
         info.getHeader()

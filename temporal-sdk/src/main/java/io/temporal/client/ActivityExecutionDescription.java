@@ -15,7 +15,6 @@ import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.payload.context.ActivitySerializationContext;
-import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.time.Duration;
 import java.time.Instant;
@@ -53,10 +52,10 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         response.getInfo().getTaskQueue(),
         SearchAttributesUtil.decodeTyped(response.getInfo().getSearchAttributes()));
     this.response = response;
-    SerializationContext activityContext =
-        new ActivitySerializationContext(
-            namespace, null, null, getActivityType(), getTaskQueue(), false);
-    this.dataConverter = dataConverter.withContext(activityContext);
+    this.dataConverter =
+        dataConverter.withContext(
+            new ActivitySerializationContext(
+                namespace, null, null, getActivityType(), getTaskQueue(), false));
     // An activity started from a Nexus operation handler returns its result and failure to the
     // Nexus caller, so they are serialized with the handler's Nexus context, which the server
     // returns with the activity info. Input, heartbeat details and user metadata keep the activity
