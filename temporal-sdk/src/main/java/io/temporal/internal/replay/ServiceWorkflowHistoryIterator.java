@@ -14,6 +14,7 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -35,6 +36,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   private final GrpcRetryer grpcRetryer;
   private final @Nullable ExternalStorageRunner externalStorageRunner;
   private final CancellationToken<CancellationException> storageCancellation;
+  private final @Nullable StorageOperationMetrics downloadMetrics;
   private Deadline deadline;
   private Iterator<HistoryEvent> current;
   ByteString nextPageToken;
@@ -44,7 +46,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope) {
-    this(service, namespace, task, metricsScope, null, CancellationToken.none());
+    this(service, namespace, task, metricsScope, null, CancellationToken.none(), null);
   }
 
   ServiceWorkflowHistoryIterator(
@@ -53,8 +55,10 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope,
       @Nullable ExternalStorageRunner externalStorageRunner,
-      CancellationToken<CancellationException> storageCancellation) {
+      CancellationToken<CancellationException> storageCancellation,
+      @Nullable StorageOperationMetrics downloadMetrics) {
     this.storageCancellation = storageCancellation;
+    this.downloadMetrics = downloadMetrics;
     this.service = service;
     this.namespace = namespace;
     this.task = task;
@@ -86,7 +90,7 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       if (externalStorageRunner == null) {
         ExternalStorageRunner.throwIfContainsReference(history);
       } else {
-        history = externalStorageRunner.retrieve(history, storageCancellation);
+        history = externalStorageRunner.retrieve(history, storageCancellation, downloadMetrics);
       }
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();

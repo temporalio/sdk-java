@@ -23,6 +23,7 @@ import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
 import io.temporal.common.CancellationToken;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -57,29 +58,46 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final QueryRejectCondition queryRejectCondition;
   private final EagerWorkflowTaskDispatcher eagerWorkflowTaskDispatcher;
   private final WorkflowClientRequestFactory requestsHelper;
-  private final WorkflowClientDataConverterFactory converterFactory;
+  private final ClientDataConverterFactory converterFactory;
   private final @Nullable ExternalStorageRunner externalStorage;
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
-      WorkflowClientOptions clientOptions,
+      String namespace,
+      String identity,
+      QueryRejectCondition queryRejectCondition,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter,
       WorkerFactoryRegistry workerFactoryRegistry) {
-    this(genericClient, clientOptions, workerFactoryRegistry, null);
+    this(
+        genericClient,
+        namespace,
+        identity,
+        queryRejectCondition,
+        contextPropagators,
+        dataConverter,
+        workerFactoryRegistry,
+        null);
   }
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
-      WorkflowClientOptions clientOptions,
+      String namespace,
+      String identity,
+      QueryRejectCondition queryRejectCondition,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter,
       WorkerFactoryRegistry workerFactoryRegistry,
       @Nullable ExternalStorageRunner externalStorage) {
-    this.converterFactory = new WorkflowClientDataConverterFactory(clientOptions, externalStorage);
+    this.converterFactory =
+        new ClientDataConverterFactory(namespace, dataConverter, externalStorage);
     this.externalStorage = externalStorage;
     this.genericClient = genericClient;
-    this.namespace = clientOptions.getNamespace();
-    this.identity = clientOptions.getIdentity();
-    this.queryRejectCondition = clientOptions.getQueryRejectCondition();
+    this.namespace = namespace;
+    this.identity = identity;
+    this.queryRejectCondition = queryRejectCondition;
     this.eagerWorkflowTaskDispatcher = new EagerWorkflowTaskDispatcher(workerFactoryRegistry);
-    this.requestsHelper = new WorkflowClientRequestFactory(clientOptions);
+    this.requestsHelper = new WorkflowClientRequestFactory(namespace, identity, contextPropagators);
   }
 
   private DataConverter workflowConverter(WorkflowExecution execution) {

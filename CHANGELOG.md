@@ -19,7 +19,21 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
+  `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
+  `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+
 ### Added
+- Applications can use the experimental `@TransferTypeConvertible` annotation and
+  `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
+  applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
+  details. `WorkflowClient.getOptions().getDataConverter()` returns the transfer-aware converter
+  that the client uses.
+- Worker heartbeats now report detected Graal native-image and Kotlin runtimes alongside the JVM
+  version. Detection is best effort and respects the worker environment information opt-out.
+  Factory registration overloads accept an implementation class for runtime detection, including
+  Spring Boot workflow registrations.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
@@ -29,8 +43,20 @@ to docs, or any other relevant information.
   set by Temporal SDK in worker context.
 - Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
   placeholders such as `${my.worker.name}`, as `taskQueues` already does.
+- `Workflow.sleep(Duration, TimerOptions)` and `Workflow.await(Duration, TimerOptions, Supplier)` let workflows set a
+  summary on the timer behind a sleep or a timed await, like `Workflow.newTimer(Duration, TimerOptions)` already does.
+- Add nonblocking `Async.await` overloads whose promises complete when a workflow condition becomes true or a timeout expires.
+- Workflow tasks taking longer than 5 seconds now log a `[TMPRL1104]` warning reporting the task duration and the
+  external storage downloads and uploads that contributed to it. The threshold is configurable with the
+  `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
 
 ### Changed
+- Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
+  `io.temporal:temporal-spring-ai` now publishes a one-time relocation POM to `io.temporal:spring-ai:0.1.0`;
+  the integration is versioned independently of the SDK. The standalone release requires Java 17+, Spring AI 2,
+  Spring Boot 4, and Temporal Java SDK 1.40.0+. Spring AI 1 / Spring Boot 3 applications should remain on
+  `io.temporal:temporal-spring-ai:1.40.x` until they migrate. Existing Spring AI 1 workflow histories are not
+  replay-compatible; complete those executions or use separate worker deployments.
 - Release notes for all future releases are now in a single CHANGELOG.md file. `releases` directory with old release
   notes is kept for historical reference.
 - Added versioned scheduling for asynchronous Temporal stub calls. When enabled, switching between a stub method
@@ -56,6 +82,8 @@ to docs, or any other relevant information.
   behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
+  `WorkflowClient` and the `WorkerFactory` was listed twice.
 
 ## Previous releases
 

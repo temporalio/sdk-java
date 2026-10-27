@@ -1,15 +1,21 @@
 package io.temporal.common.converter;
 
 import com.google.common.base.Preconditions;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter.TransferType;
+import io.temporal.payload.context.SerializationContext;
+import java.lang.reflect.Type;
 import java.util.*;
 import javax.annotation.Nonnull;
 
 /**
  * A {@link DataConverter} that delegates payload conversion to type specific {@link
  * PayloadConverter} instances, and delegates failure conversions to a {@link FailureConverter}.
+ * Top-level values annotated with {@link TransferTypeConvertible} are converted to their transfer
+ * types before payload conversion, including when this converter is used directly.
  */
 public class DefaultDataConverter extends PayloadAndFailureDataConverter {
-
   // Order is important as the first converter that can convert the payload is used. Needs to match
   // the other SDKs. Go SDK:
   // https://github.com/temporalio/sdk-go/blob/5e5645f0c550dcf717c095ae32c76a7087d2e985/converter/default_data_converter.go#L28
@@ -60,6 +66,36 @@ public class DefaultDataConverter extends PayloadAndFailureDataConverter {
    */
   public DefaultDataConverter(PayloadConverter... converters) {
     super(Arrays.asList(converters));
+  }
+
+  private DefaultDataConverter(
+      List<PayloadConverter> converters,
+      Map<String, PayloadConverter> convertersMap,
+      FailureConverter failureConverter,
+      SerializationContext context) {
+    super(converters, convertersMap, failureConverter, context);
+  }
+
+  @Override
+  public <T> Optional<Payload> toPayload(T value) throws DataConverterException {
+    return super.toPayload(TemporalTransferTypeDataConverter.toTransferValue(value));
+  }
+
+  @Override
+  public <T> T fromPayload(Payload payload, Class<T> valueClass, Type valueType)
+      throws DataConverterException {
+    TransferType transfer =
+        TemporalTransferTypeDataConverter.transferTypeFor(valueClass, valueType);
+    if (transfer == null) {
+      return super.fromPayload(payload, valueClass, valueType);
+    }
+    Object decoded = super.fromPayload(payload, transfer.getRawType(), transfer.getType());
+    return transfer.fromValue(decoded, valueClass);
+  }
+
+  @Override
+  public DataConverter withContext(@Nonnull SerializationContext context) {
+    return new DefaultDataConverter(converters, convertersMap, failureConverter, context);
   }
 
   /**

@@ -9,7 +9,7 @@
 - `temporal-spring-boot-autoconfigure`: Spring Boot auto configuration.
 - `temporal-kotlin`: Kotlin DSL for the SDK.
 - `contrib/temporal-opentracing`: OpenTracing interceptor integration.
-- `contrib/temporal-spring-ai`: Spring AI integration.
+- `contrib/temporal-spring-ai`: one-time relocation POM; Spring AI development lives in `temporalio/ai-integrations`.
 
 ## General Guidance
 - Avoid changing public API signatures. Anything under an `internal` directory
