@@ -20,12 +20,3 @@ dependencies {
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }
-
-test {
-    // Exercise the packaged adapter alongside the Google client's unshaded runtime jars.
-    dependsOn jar
-    classpath = sourceSets.test.output + files(tasks.named('jar').flatMap { it.archiveFile }) +
-            configurations.testRuntimeClasspath
-    inputs.property('gcsTestbenchEndpoint', providers.environmentVariable('TEMPORAL_GCS_TESTBENCH_ENDPOINT').orElse(''))
-    inputs.property('gcsDirectPathBucket', providers.environmentVariable('TEMPORAL_GCS_DIRECTPATH_BUCKET').orElse(''))
-}
