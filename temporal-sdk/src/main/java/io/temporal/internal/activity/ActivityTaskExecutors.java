@@ -71,8 +71,9 @@ final class ActivityTaskExecutors {
               activityInfo.isLocal());
       DataConverter dataConverterWithActivityContext =
           dataConverter.withContext(serializationContext);
-      // Only the result and failure are returned to the Nexus caller of a standalone activity
-      // started from a Nexus operation handler, so only they use the handler's Nexus context.
+      // The result and failure of a standalone activity started from a Nexus operation handler are
+      // returned to the Nexus caller, so they use the handler's Nexus context. Heartbeat details
+      // use it too, because the server puts them into the timeout failure.
       PropagatedSerializationContext propagated = info.getPropagatedNexusSerializationContext();
       DataConverter resultDataConverter =
           propagated != null
@@ -136,8 +137,7 @@ final class ActivityTaskExecutors {
             context.getLastHeartbeatValue(),
             metricsScope,
             local,
-            resultDataConverter,
-            dataConverterWithActivityContext);
+            resultDataConverter);
       } finally {
         if (context.isDoNotCompleteOnReturn()) {
           if (!context.isUseLocalManualCompletion()) {

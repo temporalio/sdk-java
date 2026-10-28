@@ -162,21 +162,21 @@ public class RootActivityClientInvokerNexusSerializationContextTest {
   }
 
   @Test
-  public void describeDecodesOnlyResultAndFailuresWithPropagatedContext() {
+  public void describeDecodesResultFailuresAndHeartbeatDetailsWithPropagatedContext() {
     ActivityExecutionDescription description =
         new ActivityExecutionDescription(
             describeResponse(PROPAGATED), codec.dataConverter(), NAMESPACE);
 
     Assert.assertEquals("result", description.getResult(String.class).get());
     Assert.assertNotNull(description.getLastFailure());
-    Assert.assertEquals(Arrays.asList(NEXUS, NEXUS), codec.decodeContexts());
+    Assert.assertEquals("heartbeat", description.getHeartbeatDetails().get(0, String.class));
+    Assert.assertEquals(Arrays.asList(NEXUS, NEXUS, NEXUS), codec.decodeContexts());
 
     codec.reset();
     Assert.assertEquals("input", description.getInput().get(0, String.class));
-    Assert.assertEquals("heartbeat", description.getHeartbeatDetails().get(0, String.class));
     Assert.assertEquals("summary", description.getSummary());
     String activity = "activity:" + ACTIVITY_TYPE;
-    Assert.assertEquals(Arrays.asList(activity, activity, activity), codec.decodeContexts());
+    Assert.assertEquals(Arrays.asList(activity, activity), codec.decodeContexts());
   }
 
   @Test
@@ -251,9 +251,9 @@ public class RootActivityClientInvokerNexusSerializationContextTest {
             .setActivityId("activity-id")
             .setActivityType(ActivityType.newBuilder().setName(ACTIVITY_TYPE))
             .setTaskQueue("tq");
-    // Only the result and failures are encoded with the propagated context; the input, heartbeat
-    // details and user metadata keep the activity context.
-    info.setHeartbeatDetails(payloads("heartbeat", null))
+    // The result, failures and heartbeat details are encoded with the propagated context; the
+    // input and user metadata keep the activity context.
+    info.setHeartbeatDetails(payloads("heartbeat", propagated))
         .setUserMetadata(
             UserMetadata.newBuilder().setSummary(payloads("summary", null).getPayloads(0)))
         .setLastFailure(

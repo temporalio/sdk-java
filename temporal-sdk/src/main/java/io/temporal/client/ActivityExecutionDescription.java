@@ -58,8 +58,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
                 namespace, null, null, getActivityType(), getTaskQueue(), false));
     // An activity started from a Nexus operation handler returns its result and failure to the
     // Nexus caller, so they are serialized with the handler's Nexus context, which the server
-    // returns with the activity info. Input, heartbeat details and user metadata keep the activity
-    // context.
+    // returns with the activity info. Heartbeat details use it too, because the server puts them
+    // into the timeout failure. Input and user metadata keep the activity context.
     this.resultDataConverter =
         response.getInfo().hasPropagatedNexusSerializationContext()
             ? dataConverter.withContext(
@@ -264,7 +264,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * requested without {@link DescribeActivityOptions.Builder#setIncludeHeartbeatDetails(boolean)}.
    */
   public EncodedValues getHeartbeatDetails() {
-    return new EncodedValues(Optional.of(response.getInfo().getHeartbeatDetails()), dataConverter);
+    return new EncodedValues(
+        Optional.of(response.getInfo().getHeartbeatDetails()), resultDataConverter);
   }
 
   /**

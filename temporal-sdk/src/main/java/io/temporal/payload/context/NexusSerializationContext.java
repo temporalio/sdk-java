@@ -15,8 +15,9 @@ import javax.annotation.Nonnull;
  *
  * <p>When a handler starts a workflow or a standalone activity, this context is propagated to it
  * through the server. Both use it only for their result and failures, which are returned to the
- * caller. A workflow's input, memo, static summary and details, signals, queries and updates keep
- * the {@link WorkflowSerializationContext}; a standalone activity's input, heartbeat details and
+ * caller, and a standalone activity also uses it for its heartbeat details, which the server puts
+ * into its timeout failure. A workflow's input, memo, static summary and details, signals, queries
+ * and updates keep the {@link WorkflowSerializationContext}; a standalone activity's input and
  * static summary and details keep the {@link ActivitySerializationContext}. Clients reading their
  * results, including handles obtained by ID, use the context the server returns. This requires a
  * server that propagates the context; older servers ignore it.

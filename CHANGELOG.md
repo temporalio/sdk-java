@@ -53,7 +53,8 @@ to docs, or any other relevant information.
   dropping them.
 - Nexus handlers now propagate `NexusSerializationContext` to the workflows and standalone
   activities they start. These use it only for their results and failures, which are returned to
-  the Nexus caller.
+  the Nexus caller. Standalone activities also use it for their heartbeat details, which the server
+  includes in their timeout failures.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).

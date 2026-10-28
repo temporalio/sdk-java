@@ -4,6 +4,7 @@ import static io.temporal.internal.nexus.ContextRecordingCodec.contextOf;
 import static io.temporal.internal.nexus.ContextRecordingCodec.stamp;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
@@ -14,6 +15,9 @@ import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
@@ -24,17 +28,23 @@ import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.SlotPermit;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Optional;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 /**
- * Unit tests that a standalone activity started by a Nexus operation handler encodes its result and
- * failure with the handler's Nexus context, as propagated by the server, while its input and
- * heartbeat details keep the activity context.
+ * Unit tests that a standalone activity started by a Nexus operation handler encodes its result,
+ * failure and heartbeat details with the handler's Nexus context, as propagated by the server,
+ * while its input keeps the activity context.
  */
 public class ActivityNexusSerializationContextTest {
 
@@ -103,7 +113,7 @@ public class ActivityNexusSerializationContextTest {
   }
 
   @Test
-  public void propagatedContextIsUsedForFailureButNotHeartbeatDetails() {
+  public void propagatedContextIsUsedForFailureAndHeartbeatDetails() {
     ActivityTaskHandler.Result result = handle("fail", PROPAGATED);
 
     Assert.assertEquals(
@@ -117,7 +127,7 @@ public class ActivityNexusSerializationContextTest {
                 .getDetails()
                 .getPayloads(0)));
     Assert.assertEquals(
-        ACTIVITY,
+        NEXUS,
         contextOf(
             result
                 .getTaskFailed()
@@ -132,6 +142,60 @@ public class ActivityNexusSerializationContextTest {
 
     Assert.assertEquals(Collections.singletonList(ACTIVITY), codec.decodeContexts());
     Assert.assertEquals(ACTIVITY, contextOf(result.getTaskCompleted().getResult().getPayloads(0)));
+  }
+
+  @Test
+  public void propagatedContextIsUsedForHeartbeats() {
+    WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(service.blockingStub()).thenReturn(blockingStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+    ActivityInfoInternal info = mock(ActivityInfoInternal.class);
+    when(info.getTaskToken()).thenReturn(new byte[] {1});
+    when(info.getActivityType()).thenReturn("Echo");
+    when(info.getHeartbeatTimeout()).thenReturn(Duration.ZERO);
+    when(info.getPropagatedNexusSerializationContext()).thenReturn(PROPAGATED);
+    when(info.getHeartbeatDetails())
+        .thenReturn(
+            Optional.of(
+                Payloads.newBuilder()
+                    .addPayloads(
+                        stamp(
+                            DefaultDataConverter.STANDARD_INSTANCE.toPayload("previous").get(),
+                            NEXUS_CONTEXT))
+                    .build()));
+    ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor();
+    try {
+      HeartbeatContextImpl heartbeatContext =
+          new HeartbeatContextImpl(
+              service,
+              NAMESPACE,
+              info,
+              codec.dataConverter(),
+              heartbeatExecutor,
+              new NoopScope(),
+              "test-identity",
+              Duration.ofSeconds(60),
+              Duration.ofSeconds(30),
+              null);
+
+      // The previous attempt's details are decoded, and new details encoded, with the Nexus
+      // context, because the server puts them into the timeout failure returned to the caller.
+      Assert.assertEquals(
+          Optional.of("previous"),
+          heartbeatContext.getHeartbeatDetails(String.class, String.class));
+      Assert.assertEquals(Collections.singletonList(NEXUS), codec.decodeContexts());
+      heartbeatContext.heartbeat("details");
+      ArgumentCaptor<RecordActivityTaskHeartbeatRequest> request =
+          ArgumentCaptor.forClass(RecordActivityTaskHeartbeatRequest.class);
+      verify(blockingStub).recordActivityTaskHeartbeat(request.capture());
+      Assert.assertEquals(NEXUS, contextOf(request.getValue().getDetails().getPayloads(0)));
+    } finally {
+      heartbeatExecutor.shutdownNow();
+    }
   }
 
   private ActivityTaskHandler.Result handle(
