@@ -55,6 +55,12 @@ cancellation uses best-effort interruption.
 Authenticate with
 [Application Default Credentials or workload identity](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc).
 Create a flat-namespace bucket first and grant `storage.objects.create` and `storage.objects.get`.
+
+Hierarchical namespace (HNS) buckets are not currently supported. Their
+[folder paths are limited to 512 UTF-8 bytes](https://docs.cloud.google.com/storage/docs/objects#naming),
+but this driver's name fallback checks the 1,024-byte total object name limit.
+Long workflow or activity identifiers can therefore produce names that HNS rejects.
+
 Retain objects for as long as workflow histories may need them, including replay; see
 [Temporal's lifecycle guidance](https://docs.temporal.io/external-storage#lifecycle-management-for-external-storage).
 
