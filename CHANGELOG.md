@@ -34,6 +34,11 @@ to docs, or any other relevant information.
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
 
+### Fixed
+- `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
+  includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
+  credentials set through `setHeaders` no longer appear in logs.
+
 ## [1.41.1] - 2026-11-16
 
 ### Fixed
