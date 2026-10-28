@@ -160,7 +160,7 @@ public class ActivityNexusSerializationContextTest {
     when(info.getTaskToken()).thenReturn(new byte[] {1});
     when(info.getActivityType()).thenReturn("Echo");
     when(info.getHeartbeatTimeout()).thenReturn(Duration.ZERO);
-    when(info.getPropagatedNexusSerializationContext()).thenReturn(PROPAGATED);
+    when(info.getNexusSerializationContext()).thenReturn(NEXUS_CONTEXT);
     when(info.getHeartbeatDetails())
         .thenReturn(
             Optional.of(
@@ -209,7 +209,7 @@ public class ActivityNexusSerializationContextTest {
     when(info.getNamespace()).thenReturn(NAMESPACE);
     when(info.getActivityType()).thenReturn("Echo");
     when(info.getTaskToken()).thenReturn(new byte[] {1});
-    when(info.getPropagatedNexusSerializationContext()).thenReturn(PROPAGATED);
+    when(info.getNexusSerializationContext()).thenReturn(NEXUS_CONTEXT);
     ManualActivityCompletionClientFactory completionClientFactory =
         mock(ManualActivityCompletionClientFactory.class);
     ActivityExecutionContextImpl context =

@@ -3,13 +3,14 @@ package io.temporal.internal.activity;
 import com.google.protobuf.util.Timestamps;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Base64;
@@ -209,9 +210,10 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
 
   @Nullable
   @Override
-  public PropagatedSerializationContext getPropagatedNexusSerializationContext() {
+  public NexusSerializationContext getNexusSerializationContext() {
     return response.hasPropagatedNexusSerializationContext()
-        ? response.getPropagatedNexusSerializationContext()
+        ? PropagatedNexusSerializationContext.fromProto(
+            response.getPropagatedNexusSerializationContext())
         : null;
   }
 

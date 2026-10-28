@@ -7,7 +7,6 @@ import io.temporal.activity.ActivityInfo;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
-import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.context.ContextPropagator;
@@ -18,9 +17,9 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityO
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.internal.common.FailureUtils;
-import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -74,10 +73,10 @@ final class ActivityTaskExecutors {
       // The result and failure of a standalone activity started from a Nexus operation handler are
       // returned to the Nexus caller, so they use the handler's Nexus context. Heartbeat details
       // use it too, because the server puts them into the timeout failure.
-      PropagatedSerializationContext propagated = info.getPropagatedNexusSerializationContext();
+      NexusSerializationContext nexusContext = info.getNexusSerializationContext();
       DataConverter resultDataConverter =
-          propagated != null
-              ? dataConverter.withContext(PropagatedNexusSerializationContext.fromProto(propagated))
+          nexusContext != null
+              ? dataConverter.withContext(nexusContext)
               : dataConverterWithActivityContext;
 
       try {

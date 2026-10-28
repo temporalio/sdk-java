@@ -55,6 +55,9 @@ to docs, or any other relevant information.
   activities they start. These use it only for their results and failures, which are returned to
   the Nexus caller. Standalone activities also use it for their heartbeat details, which the server
   includes in their timeout failures.
+  To complete such an activity asynchronously, read the context from
+  `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
+  `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).

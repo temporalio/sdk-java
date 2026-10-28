@@ -1,8 +1,10 @@
 package io.temporal.activity;
 
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.common.Experimental;
 import io.temporal.common.Priority;
 import io.temporal.common.RetryOptions;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.time.Duration;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -171,4 +173,19 @@ public interface ActivityInfo {
    * @return Retry options for the Activity Execution.
    */
   RetryOptions getRetryOptions();
+
+  /**
+   * Returns the context of the Nexus operation handler that started this standalone activity, or
+   * {@code null} if it wasn't started by one.
+   *
+   * <p>To complete the activity asynchronously, store this context together with the {@link
+   * #getTaskToken() task token} and pass it to {@link
+   * io.temporal.client.ActivityCompletionClient#withContext(NexusSerializationContext)}, so the
+   * result is encoded with the context the Nexus caller decodes it with.
+   */
+  @Experimental
+  @Nullable
+  default NexusSerializationContext getNexusSerializationContext() {
+    return null;
+  }
 }

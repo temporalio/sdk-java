@@ -22,6 +22,12 @@ import javax.annotation.Nonnull;
  * results, including handles obtained by ID, use the context the server returns. This requires a
  * server that propagates the context; older servers ignore it.
  *
+ * <p>A standalone activity completed asynchronously through {@link
+ * io.temporal.client.ActivityCompletionClient} gets this context only if it is passed in: read it
+ * from {@link io.temporal.activity.ActivityInfo#getNexusSerializationContext()}, store it with the
+ * task token, and pass it to {@link
+ * io.temporal.client.ActivityCompletionClient#withContext(NexusSerializationContext)}.
+ *
  * <p>A standalone operation handle uses the context the server returns when polling the result.
  * Older servers don't return it, so the handle falls back to the context of its start request,
  * including when the start request returns an already-running operation; a handle obtained by

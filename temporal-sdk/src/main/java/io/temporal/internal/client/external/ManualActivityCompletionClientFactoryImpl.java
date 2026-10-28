@@ -46,7 +46,12 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
   public ManualActivityCompletionClient getClient(
       @Nonnull byte[] taskToken,
       @Nonnull Scope metricsScope,
-      @Nullable ActivitySerializationContext activitySerializationContext) {
+      @Nullable SerializationContext serializationContext) {
+    // Only an activity context identifies the activity and its workflow for the storage target.
+    ActivitySerializationContext activitySerializationContext =
+        serializationContext instanceof ActivitySerializationContext
+            ? (ActivitySerializationContext) serializationContext
+            : null;
     StorageDriverTargetInfo storageTarget =
         activitySerializationContext == null
             ? null
@@ -58,7 +63,7 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
                     null,
                     Strings.emptyToNull(activitySerializationContext.getWorkflowType()))
                 .build();
-    return getClient(taskToken, metricsScope, activitySerializationContext, storageTarget);
+    return getClient(taskToken, metricsScope, serializationContext, storageTarget);
   }
 
   @Override
@@ -97,10 +102,14 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
       @Nonnull WorkflowExecution execution,
       @Nonnull String activityId,
       @Nonnull Scope metricsScope,
-      @Nullable ActivitySerializationContext activitySerializationContext) {
+      @Nullable SerializationContext serializationContext) {
     Preconditions.checkNotNull(metricsScope, "metricsScope");
     Preconditions.checkNotNull(execution, "execution");
     Preconditions.checkNotNull(activityId, "activityId");
+    ActivitySerializationContext activitySerializationContext =
+        serializationContext instanceof ActivitySerializationContext
+            ? (ActivitySerializationContext) serializationContext
+            : null;
     String activityRunId =
         execution.getWorkflowId().isEmpty() ? Strings.emptyToNull(execution.getRunId()) : null;
     String activityType =
@@ -120,7 +129,7 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
         null,
         execution,
         activityId,
-        activitySerializationContext,
+        serializationContext,
         ActivityStorageTargets.newBuilder(namespace)
             .setActivity(activityId, activityRunId, activityType)
             .setWorkflow(

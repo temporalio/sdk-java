@@ -11,8 +11,10 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
+import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.nexus.v1.PropagatedSerializationContext;
@@ -29,6 +31,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.nexus.ContextRecordingCodec;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalOperationHandler;
@@ -78,7 +81,8 @@ public class NexusSerializationContextPropagationTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(CallerWorkflowImpl.class, BackingWorkflowImpl.class)
-          .setActivityImplementations(new BackingActivityImpl())
+          .setActivityImplementations(
+              new BackingActivityImpl(), new AsyncActivityImpl(), new StallingActivityImpl())
           .setNexusServiceImplementation(new ContextServiceImpl())
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setDataConverter(CODEC.dataConverter()).build())
@@ -206,13 +210,7 @@ public class NexusSerializationContextPropagationTest {
                 "Process",
                 testWorkflowRule.getTaskQueue(),
                 false));
-    ActivityClient activityClient =
-        ActivityClient.newInstance(
-            testWorkflowRule.getWorkflowServiceStubs(),
-            ActivityClientOptions.newBuilder()
-                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
-                .setDataConverter(CODEC.dataConverter())
-                .build());
+    ActivityClient activityClient = newActivityClient();
 
     BackingActivityImpl.release = new CountDownLatch(1);
     CallerWorkflow caller = newCaller();
@@ -243,8 +241,9 @@ public class NexusSerializationContextPropagationTest {
     Assert.assertEquals(activityContext, contextOf(running.getInput().getPayloads(0)));
     Assert.assertEquals(
         activityContext, contextOf(running.getInfo().getUserMetadata().getSummary()));
+    // The server puts the heartbeat details into a timeout failure returned to the Nexus caller.
     Assert.assertEquals(
-        activityContext, contextOf(running.getInfo().getHeartbeatDetails().getPayloads(0)));
+        expected, contextOf(running.getInfo().getHeartbeatDetails().getPayloads(0)));
     // The attempt's failure, like the result, is returned to the Nexus caller.
     Assert.assertEquals(
         expected,
@@ -272,6 +271,60 @@ public class NexusSerializationContextPropagationTest {
         CODEC.decodeContexts().contains(expected));
   }
 
+  @Test
+  public void heartbeatTimeoutDetailsUseNexusContext() throws Exception {
+    String input = "stall-" + RUN_ID;
+    StallingActivityImpl.release = new CountDownLatch(1);
+    try {
+      CallerWorkflow caller = newCaller();
+      String callerResult = caller.execute("startStallingActivity", input);
+
+      // The caller gets the heartbeat timeout with the last heartbeat details.
+      Assert.assertEquals("heartbeat timeout: heartbeat-" + input, callerResult);
+      // The server copied the details, encoded with the Nexus context, into the timeout failure.
+      Failure failure = describeActivity(newActivityClient(), input).getOutcome().getFailure();
+      Assert.assertEquals(
+          describe("startStallingActivity"),
+          contextOf(failure.getTimeoutFailureInfo().getLastHeartbeatDetails().getPayloads(0)));
+    } finally {
+      StallingActivityImpl.release.countDown();
+    }
+  }
+
+  @Test
+  public void asyncCompletedActivityUsesForwardedNexusContext() throws Exception {
+    String input = "async-" + RUN_ID;
+    AsyncActivityImpl.pending = new CompletableFuture<>();
+    CallerWorkflow caller = newCaller();
+    CompletableFuture<String> callerResult =
+        WorkflowClient.execute(caller::execute, "startAsyncActivity", input);
+
+    // The activity hands its task token and Nexus context to the test, as it would to an
+    // external system, and the test completes it with that context.
+    PendingActivity pending = AsyncActivityImpl.pending.get(30, TimeUnit.SECONDS);
+    Assert.assertEquals(nexusContext("startAsyncActivity"), pending.nexusContext);
+    testWorkflowRule
+        .getWorkflowClient()
+        .newActivityCompletionClient()
+        .withContext(pending.nexusContext)
+        .complete(pending.taskToken, "hello " + input);
+
+    Assert.assertEquals("hello " + input, callerResult.get(30, TimeUnit.SECONDS));
+    Assert.assertEquals(
+        describe("startAsyncActivity"),
+        contextOf(
+            describeActivity(newActivityClient(), input).getOutcome().getResult().getPayloads(0)));
+  }
+
+  private ActivityClient newActivityClient() {
+    return ActivityClient.newInstance(
+        testWorkflowRule.getWorkflowServiceStubs(),
+        ActivityClientOptions.newBuilder()
+            .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .setDataConverter(CODEC.dataConverter())
+            .build());
+  }
+
   private static DescribeActivityExecutionResponse describeActivity(
       ActivityClient activityClient, String input) {
     return activityClient
@@ -297,11 +350,14 @@ public class NexusSerializationContextPropagationTest {
   }
 
   private String describe(String operation) {
-    return ContextRecordingCodec.describe(
-        new NexusSerializationContext(
-            testWorkflowRule.getNexusEndpoint().getSpec().getName(),
-            ContextService.class.getSimpleName(),
-            operation));
+    return ContextRecordingCodec.describe(nexusContext(operation));
+  }
+
+  private NexusSerializationContext nexusContext(String operation) {
+    return new NexusSerializationContext(
+        testWorkflowRule.getNexusEndpoint().getSpec().getName(),
+        ContextService.class.getSimpleName(),
+        operation);
   }
 
   private PropagatedSerializationContext propagated(String operation) {
@@ -324,6 +380,12 @@ public class NexusSerializationContextPropagationTest {
 
     @Operation
     String startActivity(String input);
+
+    @Operation
+    String startAsyncActivity(String input);
+
+    @Operation
+    String startStallingActivity(String input);
   }
 
   @ServiceImpl(service = ContextService.class)
@@ -364,6 +426,36 @@ public class NexusSerializationContextPropagationTest {
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .build()));
     }
+
+    @OperationImpl
+    public OperationHandler<String, String> startAsyncActivity() {
+      return TemporalOperationHandler.create(
+          (context, client, input) ->
+              client.startActivity(
+                  AsyncActivity.class,
+                  AsyncActivity::process,
+                  input,
+                  StartActivityOptions.newBuilder()
+                      .setId(backingId(input))
+                      .setStartToCloseTimeout(Duration.ofSeconds(30))
+                      .build()));
+    }
+
+    @OperationImpl
+    public OperationHandler<String, String> startStallingActivity() {
+      return TemporalOperationHandler.create(
+          (context, client, input) ->
+              client.startActivity(
+                  StallingActivity.class,
+                  StallingActivity::process,
+                  input,
+                  StartActivityOptions.newBuilder()
+                      .setId(backingId(input))
+                      .setHeartbeatTimeout(Duration.ofSeconds(1))
+                      .setStartToCloseTimeout(Duration.ofSeconds(30))
+                      .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
+                      .build()));
+    }
   }
 
   @WorkflowInterface
@@ -385,10 +477,23 @@ public class NexusSerializationContextPropagationTest {
                           .build())
                   .build());
       try {
-        return "startWorkflow".equals(operation)
-            ? service.startWorkflow(input)
-            : service.startActivity(input);
+        switch (operation) {
+          case "startWorkflow":
+            return service.startWorkflow(input);
+          case "startAsyncActivity":
+            return service.startAsyncActivity(input);
+          case "startStallingActivity":
+            return service.startStallingActivity(input);
+          default:
+            return service.startActivity(input);
+        }
       } catch (NexusOperationFailure e) {
+        for (Throwable cause = e; cause != null; cause = cause.getCause()) {
+          if (cause instanceof TimeoutFailure) {
+            return "heartbeat timeout: "
+                + ((TimeoutFailure) cause).getLastHeartbeatDetails().get(String.class);
+          }
+        }
         return "failed: " + e.getCause().getMessage();
       }
     }
@@ -431,6 +536,60 @@ public class NexusSerializationContextPropagationTest {
         Activity.getExecutionContext().heartbeat("heartbeat-" + input);
         throw ApplicationFailure.newFailure("first attempt fails", "Retry", "detail-" + input);
       }
+      try {
+        release.await(30, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      return "hello " + input;
+    }
+  }
+
+  @ActivityInterface
+  public interface AsyncActivity {
+    @ActivityMethod(name = "ProcessAsync")
+    String process(String input);
+  }
+
+  /** The task token and Nexus context an activity hands off to be completed asynchronously. */
+  static final class PendingActivity {
+    final byte[] taskToken;
+    final NexusSerializationContext nexusContext;
+
+    PendingActivity(byte[] taskToken, NexusSerializationContext nexusContext) {
+      this.taskToken = taskToken;
+      this.nexusContext = nexusContext;
+    }
+  }
+
+  public static class AsyncActivityImpl implements AsyncActivity {
+    static volatile CompletableFuture<PendingActivity> pending = new CompletableFuture<>();
+
+    @Override
+    public String process(String input) {
+      ActivityExecutionContext context = Activity.getExecutionContext();
+      pending.complete(
+          new PendingActivity(
+              context.getInfo().getTaskToken(), context.getInfo().getNexusSerializationContext()));
+      context.doNotCompleteOnReturn();
+      return null;
+    }
+  }
+
+  @ActivityInterface
+  public interface StallingActivity {
+    @ActivityMethod(name = "ProcessStalling")
+    String process(String input);
+  }
+
+  public static class StallingActivityImpl implements StallingActivity {
+    // Holds the activity, after its one heartbeat, until the test is done.
+    static volatile CountDownLatch release = new CountDownLatch(0);
+
+    @Override
+    public String process(String input) {
+      // Heartbeat once, then stop heartbeating, so the attempt times out with these details.
+      Activity.getExecutionContext().heartbeat("heartbeat-" + input);
       try {
         release.await(30, TimeUnit.SECONDS);
       } catch (InterruptedException e) {

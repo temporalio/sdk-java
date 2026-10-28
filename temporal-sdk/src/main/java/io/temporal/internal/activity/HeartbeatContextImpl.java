@@ -10,7 +10,6 @@ import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.TimeoutType;
-import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.client.*;
@@ -19,10 +18,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.concurrent.structured.CancelSource;
-import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -371,12 +370,9 @@ class HeartbeatContextImpl implements HeartbeatContext {
    * handler, and the activity context otherwise.
    */
   static SerializationContext heartbeatContext(String namespace, ActivityInfo info) {
-    if (info instanceof ActivityInfoInternal) {
-      PropagatedSerializationContext propagated =
-          ((ActivityInfoInternal) info).getPropagatedNexusSerializationContext();
-      if (propagated != null) {
-        return PropagatedNexusSerializationContext.fromProto(propagated);
-      }
+    NexusSerializationContext nexusContext = info.getNexusSerializationContext();
+    if (nexusContext != null) {
+      return nexusContext;
     }
     return new ActivitySerializationContext(
         namespace,
