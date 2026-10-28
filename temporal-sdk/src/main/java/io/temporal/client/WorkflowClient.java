@@ -750,9 +750,10 @@ public interface WorkflowClient {
   /**
    * Start a zero argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -767,9 +768,10 @@ public interface WorkflowClient {
   /**
    * Start a one argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -785,9 +787,10 @@ public interface WorkflowClient {
   /**
    * Start a two argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -807,9 +810,10 @@ public interface WorkflowClient {
   /**
    * Start a three argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -831,9 +835,10 @@ public interface WorkflowClient {
   /**
    * Start a four argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -857,9 +862,10 @@ public interface WorkflowClient {
   /**
    * Start a five argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -886,9 +892,10 @@ public interface WorkflowClient {
   /**
    * Start a six argument update workflow request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod method reference annotated with @UpdateMethod of a proxy created through
    *     {@link WorkflowClient#newWorkflowStub(Class, WorkflowOptions)}.
@@ -917,9 +924,10 @@ public interface WorkflowClient {
   /**
    * Start a zero argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -936,9 +944,10 @@ public interface WorkflowClient {
   /**
    * Start a one argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -958,9 +967,10 @@ public interface WorkflowClient {
   /**
    * Start a two argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -982,9 +992,10 @@ public interface WorkflowClient {
   /**
    * Start a three argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1008,9 +1019,10 @@ public interface WorkflowClient {
   /**
    * Start a four argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1036,9 +1048,10 @@ public interface WorkflowClient {
   /**
    * Start a five argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1066,9 +1079,10 @@ public interface WorkflowClient {
   /**
    * Start a six argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1098,9 +1112,10 @@ public interface WorkflowClient {
   /**
    * Start a zero argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1118,9 +1133,10 @@ public interface WorkflowClient {
   /**
    * Start a one argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1140,9 +1156,10 @@ public interface WorkflowClient {
   /**
    * Start a two argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1164,9 +1181,10 @@ public interface WorkflowClient {
   /**
    * Start a three argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1190,9 +1208,10 @@ public interface WorkflowClient {
   /**
    * Start a four argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1218,9 +1237,10 @@ public interface WorkflowClient {
   /**
    * Start a five argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
@@ -1248,9 +1268,10 @@ public interface WorkflowClient {
   /**
    * Start a six argument update workflow request, along with a workflow start request.
    *
-   * <p>This call returns once the update reaches the stage set with {@link
-   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}. It blocks until the update
-   * finishes if that stage is {@link WorkflowUpdateStage#COMPLETED}.
+   * <p>This call may block until the update reaches the stage set with {@link
+   * UpdateOptions.Builder#setWaitForStage(WorkflowUpdateStage)}, up to the server's wait limit. If
+   * the update has not reached that stage by then, the call returns early and the returned handle
+   * can be used to wait for the result.
    *
    * @param updateMethod The only supported value is method reference to a proxy created through
    *     {@link #newWorkflowStub(Class, WorkflowOptions)}.
