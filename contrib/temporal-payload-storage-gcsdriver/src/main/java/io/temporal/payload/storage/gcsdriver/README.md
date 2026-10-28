@@ -18,7 +18,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 Storage storage =
-  StorageOptions.newBuilder().setProjectId("my-project").build().getService();
+  StorageOptions.grpc().setProjectId("my-project").build().getService();
 
 ExecutorService storageExecutor = new ThreadPoolExecutor(
   4, 4, 0L, TimeUnit.MILLISECONDS,
@@ -62,6 +62,25 @@ Use `setName(...)` for multiple drivers (default: `gcp.gcsdriver`). Keep names r
 and workers while references exist. The upload threshold defaults to 256 KiB;
 `setMaxPayloadSize(...)` limits serialized payloads to 50 MiB by default.
 
+### gRPC and DirectPath
+
+The example above supplies a gRPC client to the adapter. The HTTP client created
+by `StorageOptions.newBuilder()` does not use DirectPath.
+Google's gRPC client automatically attempts DirectPath on Compute Engine, including
+GKE nodes. The VM must have an attached service account, the bucket must overlap
+the VM's region, and the network must allow the DirectPath endpoints and backend
+address ranges. See Google's [gRPC setup](https://docs.cloud.google.com/storage/docs/enable-grpc-api)
+and [direct connectivity requirements](https://docs.cloud.google.com/storage/docs/direct-connectivity).
+The adapter preserves the supplied client's transport configuration.
+
+The GCS artifacts are ordinary jars and leave the Google client and its dependencies
+unshaded. Applications that build a shaded jar must merge `META-INF/services` entries
+so the `google-c2p` and xDS resolvers and load balancers remain registered. Keep
+`org.conscrypt` unrelocated and retain its native libraries: Conscrypt's JNI code
+looks up classes by their original names. The Google client already supplies
+Conscrypt as a transitive dependency. For a shaded application, verify ALTS and
+DirectPath backend addresses against its final artifact as well.
+
 ## Object names and integrity
 
 Objects store the full Temporal payload, including metadata. Names include the namespace,
@@ -94,3 +113,28 @@ Downloads use the recorded bucket, so changing the upload bucket does not invali
 Gradle downloads and caches [fake-gcs-server](https://github.com/fsouza/fake-gcs-server)
 under `~/.gradle/caches/fake-gcs-server`. JUnit starts it on a free local port and
 cleans up the server and test buckets afterward.
+
+For gRPC coverage, start [storage-testbench](https://github.com/googleapis/storage-testbench#how-to-use-this-testbench)
+and its gRPC server, then run:
+
+```bash
+TEMPORAL_GCS_TESTBENCH_ENDPOINT=http://127.0.0.1:8888 \
+  ./gradlew :temporal-payload-storage-gcsdriver-gcssdk:test \
+  --tests '*GcsStorageClientAdapterGrpcIntegrationTest' --rerun-tasks
+```
+
+To verify DirectPath on a Compute Engine VM, use Application Default Credentials and
+an existing throwaway bucket in the VM's region instead:
+
+```bash
+TEMPORAL_GCS_DIRECTPATH_BUCKET=my-test-bucket \
+  ./gradlew :temporal-payload-storage-gcsdriver-gcssdk:test \
+  --tests '*GcsStorageClientAdapterGrpcIntegrationTest' --rerun-tasks
+```
+
+The live test requires object create, get, list, and delete permissions. It verifies
+successful upload and download streams use ALTS and DirectPath backend addresses,
+so a successful transfer over a fallback connection fails the test. Both modes
+check payload integrity, conditional creation, concurrent uploads, and missing objects.
+Each test deletes objects under its own unique prefix. Without either environment
+variable, these gRPC tests are skipped.
