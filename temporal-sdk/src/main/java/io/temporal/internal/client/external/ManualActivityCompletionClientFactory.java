@@ -6,6 +6,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import javax.annotation.Nonnull;
@@ -41,7 +42,7 @@ public interface ManualActivityCompletionClientFactory {
   ManualActivityCompletionClient getClient(
       @Nonnull byte[] taskToken,
       @Nonnull Scope metricsScope,
-      @Nullable ActivitySerializationContext activitySerializationContext,
+      @Nullable SerializationContext serializationContext,
       @Nullable StorageDriverTargetInfo storageTarget);
 
   ManualActivityCompletionClient getClient(

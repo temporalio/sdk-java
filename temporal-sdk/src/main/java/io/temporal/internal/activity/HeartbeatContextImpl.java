@@ -367,11 +367,10 @@ class HeartbeatContextImpl implements HeartbeatContext {
   }
 
   /**
-   * The server puts the last heartbeat details into the timeout failure it returns to the Nexus
-   * caller of a standalone activity started from a Nexus operation handler, so the details of such
-   * an activity use the handler's Nexus context, like its result and failure.
+   * Returns the handler's Nexus context for a standalone activity started from a Nexus operation
+   * handler, and the activity context otherwise.
    */
-  private static SerializationContext heartbeatContext(String namespace, ActivityInfo info) {
+  static SerializationContext heartbeatContext(String namespace, ActivityInfo info) {
     if (info instanceof ActivityInfoInternal) {
       PropagatedSerializationContext propagated =
           ((ActivityInfoInternal) info).getPropagatedNexusSerializationContext();

@@ -3,6 +3,7 @@ package io.temporal.internal.activity;
 import static io.temporal.internal.nexus.ContextRecordingCodec.contextOf;
 import static io.temporal.internal.nexus.ContextRecordingCodec.stamp;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -18,9 +19,11 @@ import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
+import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.nexus.ContextRecordingCodec;
 import io.temporal.internal.worker.ActivityTask;
@@ -196,6 +199,41 @@ public class ActivityNexusSerializationContextTest {
     } finally {
       heartbeatExecutor.shutdownNow();
     }
+  }
+
+  @Test
+  public void propagatedContextIsUsedForLocalManualCompletion() {
+    WorkflowClient client = mock(WorkflowClient.class);
+    when(client.getWorkflowServiceStubs()).thenReturn(mock(WorkflowServiceStubs.class));
+    ActivityInfoInternal info = mock(ActivityInfoInternal.class);
+    when(info.getNamespace()).thenReturn(NAMESPACE);
+    when(info.getActivityType()).thenReturn("Echo");
+    when(info.getTaskToken()).thenReturn(new byte[] {1});
+    when(info.getPropagatedNexusSerializationContext()).thenReturn(PROPAGATED);
+    ManualActivityCompletionClientFactory completionClientFactory =
+        mock(ManualActivityCompletionClientFactory.class);
+    ActivityExecutionContextImpl context =
+        new ActivityExecutionContextImpl(
+            client,
+            NAMESPACE,
+            new Object(),
+            info,
+            codec.dataConverter(),
+            mock(ScheduledExecutorService.class),
+            completionClientFactory,
+            () -> {},
+            new NoopScope(),
+            "test-identity",
+            Duration.ofSeconds(60),
+            Duration.ofSeconds(30),
+            () -> {},
+            null);
+
+    context.useLocalManualCompletion();
+
+    // The manual completion client reports the result, failure and heartbeats, so it uses the
+    // Nexus context too.
+    verify(completionClientFactory).getClient(any(), any(), eq(NEXUS_CONTEXT), any());
   }
 
   private ActivityTaskHandler.Result handle(

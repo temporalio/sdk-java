@@ -9,6 +9,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.util.Objects;
@@ -64,7 +65,7 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
   public ManualActivityCompletionClient getClient(
       @Nonnull byte[] taskToken,
       @Nonnull Scope metricsScope,
-      @Nullable ActivitySerializationContext activitySerializationContext,
+      @Nullable SerializationContext serializationContext,
       @Nullable StorageDriverTargetInfo storageTarget) {
     Preconditions.checkNotNull(metricsScope, "metricsScope");
     Preconditions.checkNotNull(taskToken, "taskToken");
@@ -78,7 +79,7 @@ class ManualActivityCompletionClientFactoryImpl implements ManualActivityComplet
         taskToken,
         null,
         null,
-        activitySerializationContext,
+        serializationContext,
         storageTarget,
         externalStorage);
   }
