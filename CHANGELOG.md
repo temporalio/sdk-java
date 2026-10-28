@@ -139,6 +139,9 @@ to docs, or any other relevant information.
 - Activity workers now report `activity_schedule_to_start_latency` once per activity task, measured up to the time the
   worker receives the task. Previously each task reported it twice, once with the activity type and workflow type tags,
   and measured it up to the server start time.
+- `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
+  includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
+  credentials set through `setHeaders` no longer appear in logs.
 
 ## Previous releases
 
