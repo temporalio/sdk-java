@@ -1393,17 +1393,22 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       if (unblockCondition.get()) {
         return true;
       }
-      // Create timer in a cancellation scope so we can cancel it when condition is satisfied
+      // Create timer in a detached cancellation scope so external cancellation does not
+      // cancel the await timer prematurely. We cancel it explicitly when the condition is resolved.
       CompletablePromise<Void> timer = Workflow.newPromise();
       CancellationScope timerScope =
-          Workflow.newCancellationScope(() -> timer.completeFrom(newTimer(timeout, options)));
+          Workflow.newDetachedCancellationScope(
+              () -> timer.completeFrom(newTimer(timeout, options)));
       timerScope.run();
 
-      WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
-
-      boolean conditionSatisfied = !timer.isCompleted();
-      if (conditionSatisfied) {
-        timerScope.cancel("await condition resolved");
+      boolean conditionSatisfied;
+      try {
+        WorkflowThread.await(reason, () -> (timer.isCompleted() || unblockCondition.get()));
+        conditionSatisfied = unblockCondition.get();
+      } finally {
+        if (!timer.isCompleted()) {
+          timerScope.cancel("await condition resolved");
+        }
       }
       return conditionSatisfied;
     } else {
