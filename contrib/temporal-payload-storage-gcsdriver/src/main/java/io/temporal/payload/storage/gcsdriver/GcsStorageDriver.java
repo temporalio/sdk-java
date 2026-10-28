@@ -17,6 +17,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 /**
@@ -31,6 +32,7 @@ public final class GcsStorageDriver implements StorageDriver {
   private static final String DRIVER_TYPE = "gcp.gcsdriver";
   private static final String HASH_ALGORITHM = "sha256";
   private static final int DEFAULT_MAX_PAYLOAD_SIZE = 50 * 1024 * 1024;
+  private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-f]{64}");
 
   private final GcsStorageDriverClient client;
   private final String bucket;
@@ -77,7 +79,7 @@ public final class GcsStorageDriver implements StorageDriver {
         byte[] data = payload.toByteArray();
         String hash = PayloadHasher.sha256Hex(data);
         String objectName = GcsStorageKey.forPayload(context.getTarget(), hash);
-        prepared.add(new PreparedPayload(data, claimFor(bucket, objectName, hash)));
+        prepared.add(new PreparedPayload(data, objectName, hash));
       }
     } catch (RuntimeException e) {
       return CompletableFutures.failedFuture(e);
@@ -85,14 +87,11 @@ public final class GcsStorageDriver implements StorageDriver {
     return CompletableFutures.mapAsync(
         prepared,
         context.getCancellationToken(),
-        payload -> {
-          Map<String, String> claim = payload.claim.getClaimData();
-          String objectName = claim.get("object_name");
-          return request(
-              () -> client.putObjectIfAbsent(bucket, objectName, payload.data),
-              "upload failed " + location(bucket, objectName),
-              ignored -> payload.claim);
-        });
+        payload ->
+            request(
+                () -> client.putObjectIfAbsent(bucket, payload.objectName, payload.data),
+                "upload failed " + location(bucket, payload.objectName),
+                ignored -> claimFor(bucket, payload.objectName, payload.hash)));
   }
 
   @Nonnull
@@ -110,7 +109,7 @@ public final class GcsStorageDriver implements StorageDriver {
           throw new GcsStorageException("unsupported hash algorithm \"" + algorithm + "\"");
         }
         String hash = requiredField(data, "hash_value");
-        if (!hash.matches("[0-9a-f]{64}")) {
+        if (!SHA256_HEX.matcher(hash).matches()) {
           throw new GcsStorageException(
               "invalid SHA-256 hash_value " + location(claimBucket, objectName));
         }
@@ -205,11 +204,13 @@ public final class GcsStorageDriver implements StorageDriver {
 
   private static final class PreparedPayload {
     final byte[] data;
-    final StorageDriverClaim claim;
+    final String objectName;
+    final String hash;
 
-    PreparedPayload(byte[] data, StorageDriverClaim claim) {
+    PreparedPayload(byte[] data, String objectName, String hash) {
       this.data = data;
-      this.claim = claim;
+      this.objectName = objectName;
+      this.hash = hash;
     }
   }
 
