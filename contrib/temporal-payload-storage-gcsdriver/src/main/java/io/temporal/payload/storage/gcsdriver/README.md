@@ -12,18 +12,13 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import io.temporal.payload.storage.gcsdriver.GcsStorageDriver;
 import io.temporal.payload.storage.gcsdriver.gcssdk.GcsStorageClientAdapter;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executors;
 
 Storage storage =
   StorageOptions.grpc().setProjectId("my-project").build().getService();
 
-ExecutorService storageExecutor = new ThreadPoolExecutor(
-  4, 4, 0L, TimeUnit.MILLISECONDS,
-  new ArrayBlockingQueue<Runnable>(64),
-  new ThreadPoolExecutor.AbortPolicy());
+ExecutorService storageExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
 GcsStorageDriver driver =
   GcsStorageDriver.newBuilder()
@@ -47,10 +42,10 @@ The application owns the Google client and executor; see [Configuration](#config
 
 ## Configuration
 
-Use a dedicated executor with bounded threads and queue capacity and an abort rejection policy.
-The pool sizes above are examples. Shut down the executor and close the Google client after
-Temporal's storage work finishes. Configure timeouts and retry limits on the client;
-cancellation uses best-effort interruption.
+Use a dedicated `Executors.newVirtualThreadPerTaskExecutor()` so each GCS call runs on its own
+virtual thread. Shut down the executor and close the Google client after Temporal's storage work
+finishes. Configure timeouts and retry limits on the client; cancellation uses best-effort
+interruption.
 
 Authenticate with
 [Application Default Credentials or workload identity](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc).
