@@ -338,8 +338,8 @@ final class ActivityWorker implements SuspendableWorker {
         workerMetricsScope
             .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
             .record(
-                ProtobufTimeUtils.toM3Duration(
-                    pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
+                ProtobufTimeUtils.toM3DurationSinceNow(
+                    pollResponse.getCurrentAttemptScheduledTime()));
         result = handleActivity(task, metricsScope);
         if (result.getTaskFailed() != null
             && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
