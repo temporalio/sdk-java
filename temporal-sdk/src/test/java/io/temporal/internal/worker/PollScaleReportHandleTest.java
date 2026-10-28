@@ -1,12 +1,49 @@
 package io.temporal.internal.worker;
 
+import static org.junit.Assert.assertEquals;
+
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.workflow.Functions;
+import java.util.concurrent.atomic.AtomicInteger;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+@RunWith(JUnitParamsRunner.class)
 public class PollScaleReportHandleTest {
+
+  @Test
+  @Parameters({
+    "5, 1, true, 6",
+    "5, 3, true, 8",
+    "5, -1, true, 4",
+    "6, -3, true, 3",
+    "5, 1, false, 5",
+    "5, 3, false, 5",
+    "5, -1, false, 4",
+    "6, -3, false, 3",
+    "5, 20, true, 10",
+    "5, -20, true, 2",
+    "10, 1, true, 10",
+    "2, -1, true, 2",
+    "5, 0, true, 5"
+  })
+  public void applyScalingDecision(int initial, int delta, boolean scaleUpAllowed, int expected) {
+    AtomicInteger target = new AtomicInteger(initial);
+    PollScaleReportHandle<ScalingTask> handle =
+        new PollScaleReportHandle<>(2, 10, initial, false, target::set);
+    if (scaleUpAllowed) {
+      handle.run();
+    }
+    ScalingTask task = () -> new ScalingTask.ScalingDecision(delta);
+
+    handle.report(task, null);
+
+    assertEquals(expected, target.get());
+  }
 
   @Test
   public void handleResourceExhaustedError() {
