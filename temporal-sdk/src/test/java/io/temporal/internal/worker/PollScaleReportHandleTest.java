@@ -36,6 +36,7 @@ public class PollScaleReportHandleTest {
     PollScaleReportHandle<ScalingTask> handle =
         new PollScaleReportHandle<>(2, 10, initial, false, target::set);
     if (scaleUpAllowed) {
+      // An initial reporting period allows scale-up because both task counts are zero.
       handle.run();
     }
     ScalingTask task = () -> new ScalingTask.ScalingDecision(delta);
