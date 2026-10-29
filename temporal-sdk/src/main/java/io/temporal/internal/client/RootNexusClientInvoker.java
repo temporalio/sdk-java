@@ -34,6 +34,7 @@ import io.temporal.common.interceptors.NexusClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.util.Iterator;
@@ -164,16 +165,26 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
   }
 
   /**
-   * The client's data converter scoped to the Nexus operation the result is being read for, or left
-   * as-is when the operation is unknown, which is the case for a handle obtained by operation ID.
+   * The client's data converter scoped to the Nexus operation the result is being read for.
+   *
+   * <p>Prefers the context the server returns with the poll response, which identifies the
+   * operation even for a handle obtained by operation ID. Older servers don't return it, so this
+   * falls back to the context of the handle's start request, or leaves the converter as-is when the
+   * operation is unknown, which is the case for a handle obtained by operation ID.
    *
    * <p>{@link GetNexusOperationResultInput} guarantees the endpoint, service and operation are set
    * together or not at all, so one null means all three are null. Absence is tested with {@code
    * null} rather than emptiness so an operation genuinely named with an empty string still gets a
    * context.
    */
-  private DataConverter dataConverterFor(GetNexusOperationResultInput<?> input) {
+  private DataConverter dataConverterFor(
+      GetNexusOperationResultInput<?> input, PollNexusOperationExecutionResponse response) {
     DataConverter dataConverter = clientOptions.getDataConverter();
+    if (response.hasPropagatedNexusSerializationContext()) {
+      return dataConverter.withContext(
+          PropagatedNexusSerializationContext.fromProto(
+              response.getPropagatedNexusSerializationContext()));
+    }
     if (input.getEndpoint() == null) {
       return dataConverter;
     }
@@ -283,7 +294,7 @@ public class RootNexusClientInvoker implements NexusClientCallsInterceptor {
       @Nullable String runId,
       PollNexusOperationExecutionResponse response,
       GetNexusOperationResultInput<R> input) {
-    DataConverter dataConverter = dataConverterFor(input);
+    DataConverter dataConverter = dataConverterFor(input, response);
     if (response.hasFailure()) {
       Failure failure = response.getFailure();
       throw new NexusOperationFailedException(

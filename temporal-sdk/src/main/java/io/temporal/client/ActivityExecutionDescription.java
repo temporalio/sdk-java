@@ -13,6 +13,7 @@ import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.payload.context.ActivitySerializationContext;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -29,6 +30,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
 
   private final DescribeActivityExecutionResponse response;
   private final DataConverter dataConverter;
+  private final DataConverter resultDataConverter;
 
   public ActivityExecutionDescription(
       DescribeActivityExecutionResponse response, DataConverter dataConverter, String namespace) {
@@ -54,6 +56,16 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
         dataConverter.withContext(
             new ActivitySerializationContext(
                 namespace, null, null, getActivityType(), getTaskQueue(), false));
+    // An activity started from a Nexus operation handler returns its result and failure to the
+    // Nexus caller, so they are serialized with the handler's Nexus context, which the server
+    // returns with the activity info. Heartbeat details use it too, because the server puts them
+    // into the timeout failure. Input and user metadata keep the activity context.
+    this.resultDataConverter =
+        response.getInfo().hasPropagatedNexusSerializationContext()
+            ? dataConverter.withContext(
+                PropagatedNexusSerializationContext.fromProto(
+                    response.getInfo().getPropagatedNexusSerializationContext()))
+            : this.dataConverter;
   }
 
   private static @Nullable String nullIfEmpty(String s) {
@@ -177,7 +189,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
   @Nullable
   public RuntimeException getLastFailure() {
     return response.getInfo().hasLastFailure()
-        ? dataConverter.failureToException(response.getInfo().getLastFailure())
+        ? resultDataConverter.failureToException(response.getInfo().getLastFailure())
         : null;
   }
 
@@ -252,7 +264,8 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
    * requested without {@link DescribeActivityOptions.Builder#setIncludeHeartbeatDetails(boolean)}.
    */
   public EncodedValues getHeartbeatDetails() {
-    return new EncodedValues(Optional.of(response.getInfo().getHeartbeatDetails()), dataConverter);
+    return new EncodedValues(
+        Optional.of(response.getInfo().getHeartbeatDetails()), resultDataConverter);
   }
 
   /**
@@ -303,7 +316,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
       return Optional.empty();
     }
     return Optional.ofNullable(
-        dataConverter.fromPayloads(
+        resultDataConverter.fromPayloads(
             0,
             Optional.of(response.getOutcome().getResult()),
             valueType,
@@ -322,7 +335,7 @@ public final class ActivityExecutionDescription extends ActivityExecutionMetadat
     if (!response.getOutcome().hasFailure()) {
       return null;
     }
-    return dataConverter.failureToException(response.getOutcome().getFailure());
+    return resultDataConverter.failureToException(response.getOutcome().getFailure());
   }
 
   /**

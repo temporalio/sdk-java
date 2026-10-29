@@ -9,12 +9,15 @@ import io.temporal.common.RetryOptions;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 final class ActivityInfoImpl implements ActivityInfoInternal {
   private final String namespace;
@@ -203,6 +206,15 @@ final class ActivityInfoImpl implements ActivityInfoInternal {
       return Optional.of(response.getHeader());
     }
     return Optional.empty();
+  }
+
+  @Nullable
+  @Override
+  public NexusSerializationContext getNexusSerializationContext() {
+    return response.hasPropagatedNexusSerializationContext()
+        ? PropagatedNexusSerializationContext.fromProto(
+            response.getPropagatedNexusSerializationContext())
+        : null;
   }
 
   @Override

@@ -9,22 +9,19 @@ import javax.annotation.Nonnull;
  * {@link SerializationContext} for Nexus operation payloads, identifying the Nexus endpoint,
  * service, and resolved operation the payload belongs to.
  *
- * <p>Callers receive this context when encoding operation inputs and when decoding operation
- * results and failures. Handlers receive it when decoding operation inputs, encoding synchronous
- * operation results, and encoding failures produced while handling a Nexus task.
+ * <p>This context is used for payloads exchanged between a Nexus caller and handler: operation
+ * inputs, results, and failures. When a handler starts a workflow or standalone activity to back an
+ * operation, whatever it returns to the caller, such as its result or failure, is serialized with
+ * this context too, so the caller can decode it. Everything else keeps the workflow's or activity's
+ * own context. This requires a server that propagates the context.
  *
- * <p>The context is not propagated to the eventual result of an asynchronous operation, because the
- * operation is completed out of band rather than by the task the handler was invoked for. A
- * standalone operation handle uses the context of its start request, including when the start
- * request returns an already-running operation; a handle obtained by operation ID without starting
- * an operation has no endpoint, service, or operation to build a context from and therefore
- * serializes without one.
+ * <p>To complete such an activity asynchronously, store the context from {@link
+ * io.temporal.activity.ActivityInfo#getNexusSerializationContext()} with the task token and pass it
+ * to {@link io.temporal.client.ActivityCompletionClient#withContext(NexusSerializationContext)}.
  *
- * <p>Failure conversion is not symmetric: a failure is encoded by the handler and decoded by the
- * caller, so an implementation sees this context on only one side of a given failure, and for some
- * operation paths it sees no context at all. Context-dependent encodings must therefore be
- * self-describing, and decoders must keep accepting payloads that were encoded without a context.
- * This applies to {@link FailureConverter} as much as to payload encoding.
+ * <p>Some payloads, such as failures and payloads from older servers, may be serialized without
+ * this context. Context-dependent encodings, including in a {@link FailureConverter}, should be
+ * self-describing, and decoders should accept payloads encoded without a context.
  */
 @Experimental
 public final class NexusSerializationContext implements SerializationContext {

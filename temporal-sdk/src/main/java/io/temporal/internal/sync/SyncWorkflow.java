@@ -12,6 +12,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
@@ -104,6 +105,11 @@ class SyncWorkflow implements ReplayWorkflow {
     }
 
     this.workflowContext.setReplayContext(context);
+    this.workflowContext.setPropagatedNexusSerializationContext(
+        startEvent.hasPropagatedNexusSerializationContext()
+            ? PropagatedNexusSerializationContext.fromProto(
+                startEvent.getPropagatedNexusSerializationContext())
+            : null);
 
     workflowProc =
         new WorkflowExecutionHandler(

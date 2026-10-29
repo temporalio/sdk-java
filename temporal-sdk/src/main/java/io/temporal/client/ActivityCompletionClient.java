@@ -1,11 +1,13 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.PayloadConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -188,4 +190,19 @@ public interface ActivityCompletionClient {
   @Experimental
   @Nonnull
   ActivityCompletionClient withContext(@Nonnull ActivitySerializationContext context);
+
+  /**
+   * Supply this context when completing a standalone activity started by a Nexus operation handler,
+   * so its result, failure and heartbeat details are encoded with the context the Nexus caller
+   * decodes them with. Get it from {@link ActivityInfo#getNexusSerializationContext()} and store it
+   * together with the task token.
+   *
+   * @param context the Nexus context of the operation handler that started the activity
+   * @return an instance of ActivityCompletionClient that uses the provided {@code context} for
+   *     serialization
+   * @see NexusSerializationContext
+   */
+  @Experimental
+  @Nonnull
+  ActivityCompletionClient withContext(@Nonnull NexusSerializationContext context);
 }

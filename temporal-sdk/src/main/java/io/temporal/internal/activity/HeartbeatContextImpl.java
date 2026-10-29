@@ -21,6 +21,8 @@ import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.lang.reflect.Type;
@@ -77,7 +79,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final ScheduledExecutorService heartbeatExecutor;
   private final long heartbeatIntervalMillis;
   private final DataConverter dataConverter;
-  private final DataConverter dataConverterWithActivityContext;
+  private final DataConverter heartbeatDataConverter;
   private final @Nullable ExternalStorageRunner externalStorage;
 
   private final Scope metricsScope;
@@ -145,15 +147,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     this.metricsScope = metricsScope;
     this.dataConverter = dataConverter;
     this.externalStorage = externalStorage;
-    this.dataConverterWithActivityContext =
-        dataConverter.withContext(
-            new ActivitySerializationContext(
-                namespace,
-                info.getWorkflowId(),
-                info.getWorkflowType(),
-                info.getActivityType(),
-                info.getActivityTaskQueue(),
-                info.isLocal()));
+    this.heartbeatDataConverter = dataConverter.withContext(heartbeatContext(namespace, info));
     this.namespace = namespace;
     this.info = info;
     this.identity = identity;
@@ -215,7 +209,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
         return Optional.ofNullable((V) this.lastDetails);
       } else {
         return Optional.ofNullable(
-            dataConverterWithActivityContext.fromPayloads(
+            heartbeatDataConverter.fromPayloads(
                 0, prevAttemptHeartbeatDetails, detailsClass, detailsGenericType));
       }
     } finally {
@@ -232,7 +226,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     lock.lock();
     try {
       return Optional.ofNullable(
-          dataConverterWithActivityContext.fromPayloads(
+          heartbeatDataConverter.fromPayloads(
               0, prevAttemptHeartbeatDetails, detailsClass, detailsGenericType));
     } finally {
       lock.unlock();
@@ -372,6 +366,24 @@ class HeartbeatContextImpl implements HeartbeatContext {
   }
 
   /**
+   * Returns the handler's Nexus context for a standalone activity started from a Nexus operation
+   * handler, and the activity context otherwise.
+   */
+  static SerializationContext heartbeatContext(String namespace, ActivityInfo info) {
+    NexusSerializationContext nexusContext = info.getNexusSerializationContext();
+    if (nexusContext != null) {
+      return nexusContext;
+    }
+    return new ActivitySerializationContext(
+        namespace,
+        info.getWorkflowId(),
+        info.getWorkflowType(),
+        info.getActivityType(),
+        info.getActivityTaskQueue(),
+        info.isLocal());
+  }
+
+  /**
    * Standalone activities target the activity; workflow activities target their workflow, matching
    * where {@link io.temporal.internal.worker.ActivityWorker} stores the activity task payloads. A
    * non-empty {@code activityRunId} marks a standalone activity.
@@ -451,7 +463,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
               .setTaskToken(ByteString.copyFrom(info.getTaskToken()))
               .setNamespace(namespace)
               .setIdentity(identity);
-      dataConverterWithActivityContext.toPayloads(details).ifPresent(builder::setDetails);
+      heartbeatDataConverter.toPayloads(details).ifPresent(builder::setDetails);
       if (externalStorage != null) {
         offloadHeartbeat(builder);
       }

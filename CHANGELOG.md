@@ -51,6 +51,13 @@ to docs, or any other relevant information.
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
 - Nexus operation handlers now forward inbound callback links to the workflows and signals they start, instead of
   dropping them.
+- Nexus handlers now propagate `NexusSerializationContext` to the workflows and standalone
+  activities they start. These use it only for their results and failures, which are returned to
+  the Nexus caller. Standalone activities also use it for their heartbeat details, which the server
+  includes in their timeout failures.
+  To complete such an activity asynchronously, read the context from
+  `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
+  `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
