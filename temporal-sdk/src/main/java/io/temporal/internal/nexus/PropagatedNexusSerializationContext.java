@@ -9,10 +9,11 @@ import javax.annotation.Nullable;
  * Converts between {@link NexusSerializationContext} and the {@link PropagatedSerializationContext}
  * the server stores on executions started by a Nexus operation handler.
  *
- * <p>When a Nexus handler starts a workflow or a standalone activity, the SDK sends the handler's
- * serialization context with the start request. The server stores it and returns it to workers and
- * to clients reading the execution's result, so the result and failure are encoded and decoded with
- * the same context. See {@link NexusSerializationContext} for which payloads use it.
+ * <p>When a Nexus handler starts a workflow, sends a workflow update or starts a standalone
+ * activity, the SDK sends the handler's serialization context with the request. The server stores
+ * it and returns it to workers and to clients reading the execution's result, so the result and
+ * failure are encoded and decoded with the same context. See {@link NexusSerializationContext} for
+ * which payloads use it.
  */
 public final class PropagatedNexusSerializationContext {
 

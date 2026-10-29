@@ -352,8 +352,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
-    return updateDispatcher.handleExecuteUpdate(updateName, updateId, input, eventId, header);
+      String updateName,
+      String updateId,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      DataConverter resultDataConverter) {
+    return updateDispatcher.handleExecuteUpdate(
+        updateName, updateId, input, eventId, header, resultDataConverter);
   }
 
   public void handleInterceptedValidateUpdate(WorkflowInboundCallsInterceptor.UpdateInput input) {
@@ -1319,8 +1325,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   /**
    * The data converter for the workflow result and the failure that closes the workflow, which are
    * returned to the Nexus caller: the propagated Nexus context if the workflow was started by a
-   * Nexus operation handler, otherwise the workflow context. Input, memo, signals, queries and
-   * updates always use the workflow context.
+   * Nexus operation handler, otherwise the workflow context. Input, memo, signals and queries
+   * always use the workflow context. Updates use {@link #getDataConverterForUpdateOutcome}.
    */
   DataConverter getDataConverterForResult() {
     return dataConverterWithPropagatedNexusContext != null
@@ -1657,12 +1663,17 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   /**
-   * Converts an exception thrown by an update validator or handler into the failure that rejects or
-   * fails the update. Unlike {@link #mapWorkflowExceptionToFailure}, this always uses the workflow
-   * context, because the failure belongs to the update rather than closing the workflow.
+   * The data converter for an update's result, failure and rejection, which are returned to the
+   * update's caller: the Nexus context of the Nexus operation handler that sent the update, if it
+   * was sent by one, otherwise the workflow context. Unlike {@link #getDataConverterForResult},
+   * this doesn't depend on how the workflow was started, because the outcome belongs to the update
+   * rather than closing the workflow. The update's arguments always use the workflow context.
    */
-  Failure mapUpdateExceptionToFailure(Throwable failure) {
-    return dataConverterWithCurrentWorkflowContext.exceptionToFailure(failure);
+  DataConverter getDataConverterForUpdateOutcome(
+      @Nullable NexusSerializationContext nexusSerializationContext) {
+    return nexusSerializationContext != null
+        ? dataConverter.withContext(nexusSerializationContext)
+        : dataConverterWithCurrentWorkflowContext;
   }
 
   @Nullable

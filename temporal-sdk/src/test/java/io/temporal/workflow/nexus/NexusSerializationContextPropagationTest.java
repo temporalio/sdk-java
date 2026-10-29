@@ -17,16 +17,21 @@ import io.temporal.activity.ActivityMethod;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.history.v1.WorkflowExecutionUpdateAcceptedEventAttributes;
+import io.temporal.api.history.v1.WorkflowExecutionUpdateCompletedEventAttributes;
 import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.DescribeActivityExecutionResponse;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.DescribeActivityOptions;
 import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowExecutionDescription;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.failure.ApplicationFailure;
@@ -44,6 +49,7 @@ import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.NexusOperationOptions;
 import io.temporal.workflow.NexusServiceOptions;
+import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
@@ -61,9 +67,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 /**
- * End-to-end coverage that workflows and standalone activities started by a Nexus operation handler
- * serialize their payloads with the handler's Nexus context, and that clients reading their results
- * use the context the server returns.
+ * End-to-end coverage that workflows, workflow updates and standalone activities started by a Nexus
+ * operation handler serialize their payloads with the handler's Nexus context, and that clients
+ * reading their results use the context the server returns.
  *
  * <p>Requires a server that propagates the context (temporalio/temporal#12400, #12401, #12403),
  * with {@code nexusoperation.enableStandalone} and {@code activity.enableCallbacks} enabled. The
@@ -80,7 +86,8 @@ public class NexusSerializationContextPropagationTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(CallerWorkflowImpl.class, BackingWorkflowImpl.class)
+          .setWorkflowTypes(
+              CallerWorkflowImpl.class, BackingWorkflowImpl.class, UpdateTargetWorkflowImpl.class)
           .setActivityImplementations(
               new BackingActivityImpl(), new AsyncActivityImpl(), new StallingActivityImpl())
           .setNexusServiceImplementation(new ContextServiceImpl())
@@ -195,6 +202,57 @@ public class NexusSerializationContextPropagationTest {
     Assert.assertTrue(
         "detached handle should decode with the Nexus context, saw " + CODEC.decodeContexts(),
         CODEC.decodeContexts().contains(expected));
+  }
+
+  @Test
+  public void updateSentByHandlerUsesNexusContextForResult() {
+    String input = "update-" + RUN_ID;
+    UpdateTargetWorkflow target =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                UpdateTargetWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setWorkflowId(backingId(input))
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .build());
+    WorkflowClient.start(target::execute);
+
+    Assert.assertEquals("hello " + input, newCaller().execute("startUpdate", input));
+
+    String expected = describe("startUpdate");
+    WorkflowStub targetStub = WorkflowStub.fromTyped(target);
+    WorkflowExecutionHistory history = testWorkflowRule.getExecutionHistory(backingId(input));
+    WorkflowExecutionUpdateAcceptedEventAttributes accepted = null;
+    WorkflowExecutionUpdateCompletedEventAttributes completed = null;
+    for (HistoryEvent event : history.getEvents()) {
+      if (event.hasWorkflowExecutionUpdateAcceptedEventAttributes()) {
+        accepted = event.getWorkflowExecutionUpdateAcceptedEventAttributes();
+      } else if (event.hasWorkflowExecutionUpdateCompletedEventAttributes()) {
+        completed = event.getWorkflowExecutionUpdateCompletedEventAttributes();
+      }
+    }
+    Assert.assertNotNull("expected an accepted update", accepted);
+    Assert.assertNotNull("expected a completed update", completed);
+    Assert.assertEquals(
+        propagated("startUpdate"),
+        accepted.getAcceptedRequest().getPropagatedNexusSerializationContext());
+    // Only the update's result, which is returned to the Nexus caller, uses the Nexus context.
+    Assert.assertEquals(
+        workflowContext(backingId(input)),
+        contextOf(accepted.getAcceptedRequest().getInput().getArgs().getPayloads(0)));
+    Assert.assertEquals(expected, contextOf(completed.getOutcome().getSuccess().getPayloads(0)));
+
+    // A handle obtained by ID gets the context from the server when polling the outcome.
+    CODEC.reset();
+    String result = targetStub.getUpdateHandle(backingId(input), String.class).getResult();
+    Assert.assertEquals("hello " + input, result);
+    Assert.assertTrue(
+        "update handle should decode with the Nexus context, saw " + CODEC.decodeContexts(),
+        CODEC.decodeContexts().contains(expected));
+
+    target.finish();
+    targetStub.getResult(Void.class);
   }
 
   @Test
@@ -382,6 +440,9 @@ public class NexusSerializationContextPropagationTest {
     String startActivity(String input);
 
     @Operation
+    String startUpdate(String input);
+
+    @Operation
     String startAsyncActivity(String input);
 
     @Operation
@@ -456,6 +517,22 @@ public class NexusSerializationContextPropagationTest {
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                       .build()));
     }
+
+    @OperationImpl
+    public OperationHandler<String, String> startUpdate() {
+      return TemporalOperationHandler.create(
+          (context, client, input) ->
+              client.startWorkflowUpdate(
+                  UpdateTargetWorkflow.class,
+                  backingId(input),
+                  UpdateTargetWorkflow::echo,
+                  input,
+                  UpdateOptions.newBuilder(String.class)
+                      .setUpdateName("echo")
+                      .setUpdateId(backingId(input))
+                      .setWaitForStage(WorkflowUpdateStage.ACCEPTED)
+                      .build()));
+    }
   }
 
   @WorkflowInterface
@@ -480,6 +557,8 @@ public class NexusSerializationContextPropagationTest {
         switch (operation) {
           case "startWorkflow":
             return service.startWorkflow(input);
+          case "startUpdate":
+            return service.startUpdate(input);
           case "startAsyncActivity":
             return service.startAsyncActivity(input);
           case "startStallingActivity":
@@ -515,6 +594,37 @@ public class NexusSerializationContextPropagationTest {
         Workflow.continueAsNew(input);
       }
       return "hello " + input;
+    }
+  }
+
+  @WorkflowInterface
+  public interface UpdateTargetWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @UpdateMethod
+    String echo(String input);
+
+    @UpdateMethod
+    void finish();
+  }
+
+  public static class UpdateTargetWorkflowImpl implements UpdateTargetWorkflow {
+    private boolean finished;
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> finished);
+    }
+
+    @Override
+    public String echo(String input) {
+      return "hello " + input;
+    }
+
+    @Override
+    public void finish() {
+      finished = true;
     }
   }
 
