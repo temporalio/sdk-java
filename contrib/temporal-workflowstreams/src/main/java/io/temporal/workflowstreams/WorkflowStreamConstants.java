@@ -17,6 +17,9 @@ public final class WorkflowStreamConstants {
   /** Update subscribers send to long-poll for new items. */
   public static final String POLL_UPDATE_NAME = "__temporal_workflow_stream_poll";
 
+  /** Query subscribers use to read retained items after the workflow closes. */
+  public static final String POLL_QUERY_NAME = "__temporal_workflow_stream_poll";
+
   /** Query that returns the current global offset. */
   public static final String OFFSET_QUERY_NAME = "__temporal_workflow_stream_offset";
 

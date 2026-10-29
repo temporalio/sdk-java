@@ -6,8 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The poll update response: items matching the poll request. When {@code more_ready} is true the
- * response was truncated to stay within size limits and the subscriber should poll again
+ * The poll update or query response: items matching the poll request. When {@code more_ready} is
+ * true the response was truncated to stay within size limits and the subscriber should poll again
  * immediately rather than applying a cooldown.
  *
  * <p>Field names are part of the cross-language wire protocol; this type must serialize to JSON

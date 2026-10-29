@@ -22,6 +22,9 @@ public interface WorkflowStreamHandlers {
   @UpdateMethod(name = WorkflowStreamConstants.POLL_UPDATE_NAME)
   PollResult poll(PollInput input);
 
+  @QueryMethod(name = WorkflowStreamConstants.POLL_QUERY_NAME)
+  PollResult pollQuery(PollInput input);
+
   @UpdateValidatorMethod(updateName = WorkflowStreamConstants.POLL_UPDATE_NAME)
   void validatePoll(PollInput input);
 

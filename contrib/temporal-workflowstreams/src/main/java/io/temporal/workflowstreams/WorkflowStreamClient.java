@@ -142,8 +142,9 @@ public final class WorkflowStreamClient implements AutoCloseable {
    *
    * <p>The consuming thread blocks waiting for items; polling itself runs on the client's poll
    * executor. Each item carries the raw {@link io.temporal.api.common.v1.Payload}; decode it with
-   * your data converter. The subscription ends cleanly when the workflow reaches a terminal state,
-   * automatically follows continue-as-new chains, and also ends when this client is closed.
+   * your data converter. The subscription delivers the retained tail before ending when the
+   * workflow reaches a terminal state, automatically follows continue-as-new chains, and also ends
+   * when this client is closed.
    */
   public WorkflowStreamSubscription subscribe(SubscribeOptions options) {
     return new WorkflowStreamSubscription(listener -> newSubscriptionDriver(options, listener));
@@ -155,9 +156,10 @@ public final class WorkflowStreamClient implements AutoCloseable {
    * which is never held while a poll is blocked on the server, so many subscriptions share a small
    * pool. Delivery starts immediately.
    *
-   * <p>The stream ends cleanly with {@link WorkflowStreamListener#onCompleted} when the workflow
-   * reaches a terminal state, automatically follows continue-as-new chains, and reports
-   * unrecoverable failures to {@link WorkflowStreamListener#onError}. Stop it early with {@link
+   * <p>After delivering retained items, the stream ends with {@link
+   * WorkflowStreamListener#onCompleted} when the workflow reaches a terminal state, automatically
+   * follows continue-as-new chains, and reports unrecoverable failures to {@link
+   * WorkflowStreamListener#onError}. Stop it early with {@link
    * WorkflowStreamSubscriptionHandle#close}; closing this client also stops it.
    */
   public WorkflowStreamSubscriptionHandle subscribe(
