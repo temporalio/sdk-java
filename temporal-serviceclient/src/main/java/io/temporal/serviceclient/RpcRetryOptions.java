@@ -95,7 +95,7 @@ public final class RpcRetryOptions {
       this.congestionInitialInterval = options.getCongestionInitialInterval();
       this.maximumInterval = options.getMaximumInterval();
       this.maximumJitterCoefficient = options.getMaximumJitterCoefficient();
-      this.doNotRetry = options.getDoNotRetry();
+      this.doNotRetry = new ArrayList<>(options.getDoNotRetry());
     }
 
     /**

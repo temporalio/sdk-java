@@ -2,7 +2,12 @@ package io.temporal.serviceclient;
 
 import static org.junit.Assert.assertEquals;
 
+import io.grpc.Status;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Test;
 
 public class RpcRetryOptionsTest {
@@ -26,5 +31,29 @@ public class RpcRetryOptionsTest {
 
     assertEquals(Duration.ofMillis(200), merged.getInitialInterval());
     assertEquals(Duration.ofSeconds(7), merged.getCongestionInitialInterval());
+  }
+
+  @Test
+  public void aBuilderCopiedFromOptionsCanAddDoNotRetryItems() {
+    RpcRetryOptions source =
+        RpcRetryOptions.newBuilder()
+            .addDoNotRetry(Status.Code.NOT_FOUND, null)
+            .validateBuildWithDefaults();
+
+    RpcRetryOptions copy =
+        RpcRetryOptions.newBuilder(source)
+            .addDoNotRetry(Status.Code.ABORTED, null)
+            .validateBuildWithDefaults();
+
+    assertEquals(Arrays.asList(Status.Code.NOT_FOUND, Status.Code.ABORTED), codes(copy));
+    assertEquals(Collections.singletonList(Status.Code.NOT_FOUND), codes(source));
+  }
+
+  private static List<Status.Code> codes(RpcRetryOptions options) {
+    List<Status.Code> codes = new ArrayList<>();
+    for (RpcRetryOptions.DoNotRetryItem item : options.getDoNotRetry()) {
+      codes.add(item.getCode());
+    }
+    return codes;
   }
 }

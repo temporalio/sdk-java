@@ -78,6 +78,10 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
+  sending the first page. A completion that needed pagination timed out on every attempt instead
+  of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend
+  existing options, which also threw `UnsupportedOperationException`.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).

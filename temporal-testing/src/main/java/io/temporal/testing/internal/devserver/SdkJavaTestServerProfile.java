@@ -150,7 +150,13 @@ public final class SdkJavaTestServerProfile {
         "--dynamic-config-value",
         "frontend.workerCommandsEnabled=true",
         "--dynamic-config-value",
-        "system.enableCancelActivityWorkerCommand=true");
+        "system.enableCancelActivityWorkerCommand=true",
+        "--dynamic-config-value",
+        "history.enableWorkflowTaskCompletionPagination=true",
+        // Pagination clears the gRPC request limit, but the recombined completion still persists as
+        // one transaction, so the persistence limit must be above it.
+        "--dynamic-config-value",
+        "system.transactionSizeLimit=33554432");
   }
 
   private static File workingDirectory() {
