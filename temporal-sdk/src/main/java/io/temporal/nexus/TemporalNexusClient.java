@@ -50,7 +50,18 @@ import java.lang.reflect.Type;
 @Experimental
 public interface TemporalNexusClient {
 
-  /** Returns the underlying {@link WorkflowClient} for advanced use cases. */
+  /**
+   * Returns the underlying {@link WorkflowClient} for advanced use cases.
+   *
+   * <p>Signals sent from the operation handler carry the operation's request ID so a retried Nexus
+   * task does not deliver them twice. Because they share that ID, only one signal may be sent per
+   * operation invocation; a second throws a {@link
+   * io.nexusrpc.handler.HandlerException.ErrorType#BAD_REQUEST} {@link
+   * io.nexusrpc.handler.HandlerException} rather than being silently dropped by the server. For the
+   * same reason {@code signalWithStart} requires an explicit workflow ID. This applies to every
+   * signal sent on the handler's thread, including through {@link
+   * NexusOperationContext#getWorkflowClient()}.
+   */
   WorkflowClient getWorkflowClient();
 
   /**
