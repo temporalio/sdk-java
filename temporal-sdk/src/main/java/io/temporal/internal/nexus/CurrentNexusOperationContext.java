@@ -1,5 +1,7 @@
 package io.temporal.internal.nexus;
 
+import javax.annotation.Nullable;
+
 /**
  * Thread local store of the context object passed to a nexus operation implementation. Not to be
  * used directly.
@@ -18,6 +20,11 @@ public final class CurrentNexusOperationContext {
           "NexusOperationContext can be used only inside of nexus operation handler "
               + "implementation methods and in the same thread that invoked the operation.");
     }
+    return CURRENT.get();
+  }
+
+  /** The current context, or {@code null} outside a Nexus operation handler. */
+  public static @Nullable InternalNexusOperationContext getOrNull() {
     return CURRENT.get();
   }
 

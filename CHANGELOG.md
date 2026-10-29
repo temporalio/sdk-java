@@ -23,6 +23,11 @@ to docs, or any other relevant information.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- **Experimental**: A `@TemporalOperation` handler can now send only one signal per operation invocation; `signal`
+  and `signalWithStart` count toward the same limit. While the first signal is in flight, or after it succeeds, a
+  second signal to any workflow throws a `BAD_REQUEST` `HandlerException`. If the first signal fails, the handler can
+  signal again. `signalWithStart` from such a handler also requires an explicit workflow ID, since a defaulted ID
+  differs on each retried Nexus task and would start another workflow.
 
 ### Added
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
@@ -60,6 +65,9 @@ to docs, or any other relevant information.
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 
 ### Changed
+- **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
+  operation's request ID, so a retried Nexus task no longer delivers the same signal twice. Signals sent from other
+  Nexus operation handlers keep an independent request ID per call and are not deduplicated.
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
   `io.temporal:temporal-spring-ai` now publishes a one-time relocation POM to `io.temporal:spring-ai:0.1.0`;
   the integration is versioned independently of the SDK. The standalone release requires Java 17+, Spring AI 2,
