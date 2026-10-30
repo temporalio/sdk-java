@@ -39,6 +39,8 @@ import io.temporal.internal.nexus.OperationTokenUtil;
 import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -64,6 +66,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final WorkflowClientRequestFactory requestsHelper;
   private final ClientDataConverterFactory converterFactory;
   private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable PayloadCodec headerCodec;
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
@@ -96,16 +99,27 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     this.converterFactory =
         new ClientDataConverterFactory(namespace, dataConverter, externalStorage);
     this.externalStorage = externalStorage;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.identity = identity;
     this.queryRejectCondition = queryRejectCondition;
     this.eagerWorkflowTaskDispatcher = new EagerWorkflowTaskDispatcher(workerFactoryRegistry);
-    this.requestsHelper = new WorkflowClientRequestFactory(namespace, identity, contextPropagators);
+    this.requestsHelper =
+        new WorkflowClientRequestFactory(namespace, identity, contextPropagators, headerCodec);
   }
 
   private DataConverter workflowConverter(WorkflowExecution execution) {
     return workflowConverter(execution, null);
+  }
+
+  private Header workflowHeader(
+      io.temporal.common.interceptors.Header header, WorkflowExecution execution) {
+    return HeaderUtils.toHeaderGrpc(
+        header,
+        null,
+        HeaderUtils.withContext(
+            headerCodec, new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
   }
 
   private DataConverter workflowConverter(
@@ -223,7 +237,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setIdentity(identity)
             .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
+            .setHeader(workflowHeader(input.getHeader(), input.getWorkflowExecution()));
 
     // If this signal is being issued from inside a Nexus operation handler, forward the inbound
     // Nexus task links so the SignalWorkflowExecution history event links back to the caller.
@@ -405,13 +419,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setRunId(startResponse.getRunId())
-            .setWorkflowId(
-                toStartRequest(
-                        dataConverterWithWorkflowContext,
-                        startInput,
-                        propagatedNexusSerializationContext)
-                    .build()
-                    .getWorkflowId())
+            .setWorkflowId(startInput.getWorkflowId())
             .build();
     return new WorkflowUpdateWithStartOutput<>(new WorkflowStartOutput(execution), updateHandle);
   }
@@ -516,7 +524,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     WorkflowQuery.Builder query =
         WorkflowQuery.newBuilder()
             .setQueryType(input.getQueryType())
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
+            .setHeader(workflowHeader(input.getHeader(), input.getWorkflowExecution()));
     DataConverter dataConverterWithWorkflowContext =
         workflowConverter(input.getWorkflowExecution());
 
@@ -620,7 +628,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
     Input.Builder updateInput =
         Input.newBuilder()
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null))
+            .setHeader(workflowHeader(input.getHeader(), input.getWorkflowExecution()))
             .setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
     storeHeader(

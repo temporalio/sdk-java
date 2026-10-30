@@ -24,10 +24,12 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import java.time.Instant;
 import java.util.*;
@@ -41,6 +43,7 @@ public class ScheduleProtoUtil {
   private final String namespace;
   private final List<ContextPropagator> contextPropagators;
   private final DataConverter dataConverter;
+  private final @Nullable PayloadCodec headerCodec;
 
   public ScheduleProtoUtil(
       GenericWorkflowClient genericClient,
@@ -51,23 +54,7 @@ public class ScheduleProtoUtil {
     this.namespace = namespace;
     this.contextPropagators = contextPropagators;
     this.dataConverter = dataConverter;
-  }
-
-  private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> scheduleOptionsContextPropagators) {
-    if ((contextPropagators.isEmpty() && scheduleOptionsContextPropagators == null)
-        || (scheduleOptionsContextPropagators != null
-            && scheduleOptionsContextPropagators.isEmpty())) {
-      return null;
-    }
-
-    List<ContextPropagator> listToUse =
-        MoreObjects.firstNonNull(scheduleOptionsContextPropagators, contextPropagators);
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : listToUse) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new io.temporal.common.interceptors.Header(result);
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
   }
 
   public ScheduleAction actionToProto(io.temporal.client.schedules.ScheduleAction action) {
@@ -157,7 +144,11 @@ public class ScheduleProtoUtil {
       Header grpcHeader =
           toHeaderGrpc(
               startWorkflowAction.getHeader(),
-              extractContextsAndConvertToBytes(wfOptions.getContextPropagators()));
+              HeaderUtils.fromContextPropagators(
+                  MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators)),
+              HeaderUtils.withContext(
+                  headerCodec,
+                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())));
       workflowRequest.setHeader(grpcHeader);
 
       if (wfOptions.getPriority() != null) {
@@ -417,6 +408,7 @@ public class ScheduleProtoUtil {
 
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());
+      builder.setHeader(new io.temporal.common.interceptors.Header(startWfAction.getHeader()));
 
       builder.setRawArguments(
           new EncodedValues(

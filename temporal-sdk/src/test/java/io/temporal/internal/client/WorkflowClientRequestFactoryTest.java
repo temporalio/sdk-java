@@ -25,7 +25,7 @@ public class WorkflowClientRequestFactoryTest {
   public void requestsUseExplicitNamespaceAndIdentity() {
     WorkflowClientRequestFactory factory =
         new WorkflowClientRequestFactory(
-            "test-namespace", "test-identity", Collections.emptyList());
+            "test-namespace", "test-identity", Collections.emptyList(), null);
     StartWorkflowExecutionRequest start = start(factory, null);
     assertEquals("test-namespace", start.getNamespace());
     assertEquals("test-identity", start.getIdentity());
@@ -45,7 +45,7 @@ public class WorkflowClientRequestFactoryTest {
   public void clientContextPropagatorListRetainsReferenceSemantics() {
     List<ContextPropagator> propagators = new ArrayList<>();
     WorkflowClientRequestFactory factory =
-        new WorkflowClientRequestFactory("test-namespace", "test-identity", propagators);
+        new WorkflowClientRequestFactory("test-namespace", "test-identity", propagators, null);
     assertFalse(start(factory, null).getHeader().containsFields("trace"));
 
     propagators.add(propagator("client"));
@@ -57,7 +57,10 @@ public class WorkflowClientRequestFactoryTest {
   public void workflowContextPropagatorsOverrideClientDefaultsIncludingEmptyList() {
     WorkflowClientRequestFactory factory =
         new WorkflowClientRequestFactory(
-            "test-namespace", "test-identity", Collections.singletonList(propagator("client")));
+            "test-namespace",
+            "test-identity",
+            Collections.singletonList(propagator("client")),
+            null);
     assertEquals(
         payload("workflow"),
         start(factory, Collections.singletonList(propagator("workflow")))

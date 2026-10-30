@@ -18,9 +18,12 @@ import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequestOrBuilder
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -29,12 +32,17 @@ final class WorkflowClientRequestFactory {
   private final String namespace;
   private final String identity;
   private final List<ContextPropagator> contextPropagators;
+  private final @Nullable PayloadCodec headerCodec;
 
   public WorkflowClientRequestFactory(
-      String namespace, String identity, List<ContextPropagator> contextPropagators) {
+      String namespace,
+      String identity,
+      List<ContextPropagator> contextPropagators,
+      @Nullable PayloadCodec headerCodec) {
     this.namespace = namespace;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
+    this.headerCodec = headerCodec;
   }
 
   // If you add anything new here, keep newSignalWithStartWorkflowExecutionRequest in sync
@@ -143,7 +151,12 @@ final class WorkflowClientRequestFactory {
     }
 
     Header grpcHeader =
-        toHeaderGrpc(header, extractContextsAndConvertToBytes(options.getContextPropagators()));
+        toHeaderGrpc(
+            header,
+            HeaderUtils.fromContextPropagators(
+                MoreObjects.firstNonNull(options.getContextPropagators(), contextPropagators)),
+            HeaderUtils.withContext(
+                headerCodec, new WorkflowSerializationContext(namespace, workflowId)));
     request.setHeader(grpcHeader);
 
     return request;
@@ -230,23 +243,6 @@ final class WorkflowClientRequestFactory {
         .setWaitNewEvent(true)
         .setNextPageToken(pageToken)
         .build();
-  }
-
-  private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> workflowOptionsContextPropagators) {
-    if ((contextPropagators.isEmpty() && workflowOptionsContextPropagators == null)
-        || (workflowOptionsContextPropagators != null
-            && workflowOptionsContextPropagators.isEmpty())) {
-      return null;
-    }
-
-    List<ContextPropagator> listToUse =
-        MoreObjects.firstNonNull(workflowOptionsContextPropagators, contextPropagators);
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : listToUse) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new io.temporal.common.interceptors.Header(result);
   }
 
   private static String generateUniqueId() {

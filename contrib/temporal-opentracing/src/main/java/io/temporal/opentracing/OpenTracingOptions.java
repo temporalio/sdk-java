@@ -17,6 +17,7 @@ public class OpenTracingOptions {
   private final SpanBuilderProvider spanBuilderProvider;
   private final OpenTracingSpanContextCodec spanContextCodec;
   private final Predicate<Throwable> isErrorPredicate;
+  private final boolean encodeHeaders;
 
   public static OpenTracingOptions getDefaultInstance() {
     return DEFAULT_INSTANCE;
@@ -26,12 +27,14 @@ public class OpenTracingOptions {
       Tracer tracer,
       SpanBuilderProvider spanBuilderProvider,
       OpenTracingSpanContextCodec spanContextCodec,
-      Predicate<Throwable> isErrorPredicate) {
+      Predicate<Throwable> isErrorPredicate,
+      boolean encodeHeaders) {
     if (tracer == null) throw new IllegalArgumentException("tracer shouldn't be null");
     this.tracer = tracer;
     this.spanBuilderProvider = spanBuilderProvider;
     this.spanContextCodec = spanContextCodec;
     this.isErrorPredicate = isErrorPredicate;
+    this.encodeHeaders = encodeHeaders;
   }
 
   @Nonnull
@@ -54,6 +57,10 @@ public class OpenTracingOptions {
     return isErrorPredicate;
   }
 
+  public boolean isEncodeHeaders() {
+    return encodeHeaders;
+  }
+
   public static Builder newBuilder() {
     return new Builder();
   }
@@ -64,8 +71,20 @@ public class OpenTracingOptions {
     private OpenTracingSpanContextCodec spanContextCodec =
         OpenTracingSpanContextCodec.TEXT_MAP_INJECT_EXTRACT_CODEC;
     private Predicate<Throwable> isErrorPredicate = t -> true;
+    private boolean encodeHeaders;
 
     private Builder() {}
+
+    /**
+     * Uses the configured client's payload codec for this integration's tracing headers. Defaults
+     * to false. Standard tracing serialization and other producers' headers are unchanged.
+     * Configure the same setting on receiving workers. Codecs must pass through unrecognized
+     * encodings.
+     */
+    public Builder setEncodeHeaders(boolean encodeHeaders) {
+      this.encodeHeaders = encodeHeaders;
+      return this;
+    }
 
     public Builder setTracer(@Nullable Tracer tracer) {
       this.tracer = tracer;
@@ -116,7 +135,8 @@ public class OpenTracingOptions {
           MoreObjects.firstNonNull(tracer, GlobalTracer.get()),
           spanBuilderProvider,
           spanContextCodec,
-          isErrorPredicate);
+          isErrorPredicate,
+          encodeHeaders);
     }
   }
 }
