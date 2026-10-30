@@ -18,6 +18,7 @@ import java.util.concurrent.Executors;
 Storage storage =
   StorageOptions.grpc().setProjectId("my-project").build().getService();
 
+// Java 21+. On Java 8-20, use Executors.newFixedThreadPool(n); see Configuration.
 ExecutorService storageExecutor = Executors.newVirtualThreadPerTaskExecutor();
 
 GcsStorageDriver driver =
@@ -42,10 +43,22 @@ The application owns the Google client and executor; see [Configuration](#config
 
 ## Configuration
 
-Use a dedicated `Executors.newVirtualThreadPerTaskExecutor()` so each GCS call runs on its own
-virtual thread. Shut down the executor and close the Google client after Temporal's storage work
-finishes. Configure timeouts and retry limits on the client; cancellation uses best-effort
-interruption.
+The adapter runs each blocking GCS call on the executor you supply. Use a dedicated executor:
+
+- Java 21+: `Executors.newVirtualThreadPerTaskExecutor()`.
+- Java 8-20: `Executors.newFixedThreadPool(n)`, with `n` at least the worker's activity slots
+  plus workflow task slots. A smaller pool queues storage calls and slows workflow tasks under load.
+
+Avoid a bounded queue that rejects tasks, because a rejection fails the store or retrieve. Avoid
+`CallerRunsPolicy`, because it runs the GCS call on the SDK's worker thread and cancellation then
+interrupts that thread.
+
+The SDK waits for each storage operation on the worker thread, so worker slots
+(`setMaxConcurrentActivityExecutionSize` and `setMaxConcurrentWorkflowTaskExecutionSize`) limit
+concurrent GCS calls and the payload memory they hold. Tune those rather than the executor.
+
+Shut down the executor and close the Google client after the worker factory terminates. Configure
+timeouts and retry limits on the client; cancellation uses best-effort interruption.
 
 Authenticate with
 [Application Default Credentials or workload identity](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc).
@@ -63,8 +76,14 @@ Use `setName(...)` for multiple drivers (default: `gcp.gcsdriver`). Keep names r
 and workers while references exist. The upload threshold defaults to 256 KiB;
 `setMaxPayloadSize(...)` limits serialized payloads to 50 MiB by default.
 
-`StorageOptions.grpc()` enables automatic [DirectPath](https://docs.cloud.google.com/storage/docs/direct-connectivity)
-selection in supported Google Cloud environments.
+Use `StorageOptions.grpc()` when workers run in Google Cloud in the bucket's region. It selects
+[DirectPath](https://docs.cloud.google.com/storage/docs/direct-connectivity) automatically, which
+gives lower latency and higher throughput than HTTP. Outside Google Cloud, use
+`StorageOptions.http()`; without DirectPath, gRPC uploads are much slower than HTTP under load.
+
+The gRPC client exports its own metrics to Cloud Monitoring by default. Grant the worker's service
+account `roles/monitoring.metricWriter`, or call `setEnableGrpcClientMetrics(false)` on
+`StorageOptions.grpc()`, to avoid permission warnings in the logs.
 
 For the simplest packaging, leave the Google client's dependency stack unshaded,
 including `grpc-xds`, `grpc-googleapis`, and `conscrypt-openjdk-uber`. Preserve their

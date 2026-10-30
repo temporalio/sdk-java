@@ -22,7 +22,9 @@ import javax.annotation.Nonnull;
  *
  * <p>The application configures credentials, transport, retries, and time limits on {@link
  * Storage}. It owns both resources and must shut them down after Temporal's storage work finishes.
- * Use a dedicated {@code Executors.newVirtualThreadPerTaskExecutor()}.
+ * Use a dedicated executor: {@code Executors.newVirtualThreadPerTaskExecutor()} on Java 21+, or a
+ * fixed thread pool sized to at least the worker's activity and workflow task slots on earlier
+ * versions.
  *
  * <p>Provider failures propagate unchanged. The storage driver adds operation and location context.
  *
