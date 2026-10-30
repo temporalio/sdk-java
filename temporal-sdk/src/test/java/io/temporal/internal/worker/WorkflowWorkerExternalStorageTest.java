@@ -32,6 +32,7 @@ public class WorkflowWorkerExternalStorageTest {
   private static final int THRESHOLD = 4096;
   private static final String CONTINUED_MARKER = "continued:";
   private static final String ACTIVITY_ARG_MARKER = "activity-arg:";
+  private static final String ACTIVITY_RESULT_MARKER = "activity-result:";
 
   private static final TestStorageDriver driver = TestStorageDriver.named("wf-happy");
 
@@ -45,7 +46,7 @@ public class WorkflowWorkerExternalStorageTest {
               ContinueAsNewWorkflowImpl.class,
               EchoWorkflowImpl.class,
               LargeActivityArgWorkflowImpl.class)
-          .setActivityImplementations(new LengthActivityImpl())
+          .setActivityImplementations(new TransformActivityImpl())
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setExternalStorage(storage).build())
           .build();
@@ -111,22 +112,29 @@ public class WorkflowWorkerExternalStorageTest {
                     .setWorkflowId("extstore-activity-arg-" + UUID.randomUUID())
                     .build());
 
-    int expectedLength = ACTIVITY_ARG_MARKER.length() + THRESHOLD * 2;
+    // The workflow returns the length of the large activity result, which it must download.
+    int expectedLength = ACTIVITY_RESULT_MARKER.length() + THRESHOLD * 2;
     Assert.assertEquals("len:" + expectedLength, workflow.execute());
     // A query on the closed workflow replays its full history.
     Assert.assertEquals("len:" + expectedLength, workflow.lastResult());
 
-    String argumentKey = null;
-    for (int i = 0; i < driver.storedData.size(); i++) {
-      if (driver.storedData.get(i).contains(ACTIVITY_ARG_MARKER)) {
-        argumentKey = "wf-happy-" + i;
-      }
-    }
-    Assert.assertNotNull("the activity argument must have been offloaded", argumentKey);
     Assert.assertEquals(
         "only the activity worker should download the activity argument",
         1,
-        Collections.frequency(driver.retrievedKeys, argumentKey));
+        downloads(ACTIVITY_ARG_MARKER));
+    Assert.assertTrue(
+        "the workflow worker must still download the activity result",
+        downloads(ACTIVITY_RESULT_MARKER) > 0);
+  }
+
+  /** How many times the stored payload containing {@code marker} was downloaded. */
+  private static int downloads(String marker) {
+    for (int i = 0; i < driver.storedData.size(); i++) {
+      if (driver.storedData.get(i).contains(marker)) {
+        return Collections.frequency(driver.retrievedKeys, "wf-happy-" + i);
+      }
+    }
+    throw new AssertionError("no payload containing " + marker + " was offloaded");
   }
 
   public static class ContinueAsNewWorkflowImpl implements TestWorkflows.TestWorkflow1 {
@@ -175,11 +183,13 @@ public class WorkflowWorkerExternalStorageTest {
       for (int i = 0; i < THRESHOLD * 2; i++) {
         large.append('x');
       }
-      LengthActivity activity =
+      TransformActivity activity =
           Workflow.newActivityStub(
-              LengthActivity.class,
+              TransformActivity.class,
               ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
-      lastResult = activity.length(large.toString());
+      String result = activity.transform(large.toString());
+      lastResult =
+          result.startsWith(ACTIVITY_RESULT_MARKER) ? "len:" + result.length() : "wrong result";
       return lastResult;
     }
 
@@ -190,14 +200,14 @@ public class WorkflowWorkerExternalStorageTest {
   }
 
   @ActivityInterface
-  public interface LengthActivity {
-    String length(String input);
+  public interface TransformActivity {
+    String transform(String input);
   }
 
-  public static class LengthActivityImpl implements LengthActivity {
+  public static class TransformActivityImpl implements TransformActivity {
     @Override
-    public String length(String input) {
-      return "len:" + input.length();
+    public String transform(String input) {
+      return input.replace(ACTIVITY_ARG_MARKER, ACTIVITY_RESULT_MARKER);
     }
   }
 }
