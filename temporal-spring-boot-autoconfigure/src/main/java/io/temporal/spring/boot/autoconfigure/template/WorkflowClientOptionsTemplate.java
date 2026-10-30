@@ -10,6 +10,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
+import io.temporal.opentracing.OpenTracingActivityClientInterceptor;
 import io.temporal.opentracing.OpenTracingClientInterceptor;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
@@ -118,9 +119,17 @@ public class WorkflowClientOptionsTemplate {
     ActivityClientOptions.Builder options =
         ActivityClientOptions.newBuilder().setNamespace(namespace);
     Optional.ofNullable(dataConverter).ifPresent(options::setDataConverter);
-    if (activityClientInterceptors != null && !activityClientInterceptors.isEmpty()) {
-      options.setInterceptors(activityClientInterceptors);
+
+    List<ActivityClientInterceptor> interceptors = new ArrayList<>();
+    if (tracer != null) {
+      interceptors.add(
+          new OpenTracingActivityClientInterceptor(
+              OpenTracingOptions.newBuilder().setTracer(tracer).build()));
     }
+    if (activityClientInterceptors != null) {
+      interceptors.addAll(activityClientInterceptors);
+    }
+    options.setInterceptors(interceptors);
 
     if (activityCustomizers != null) {
       for (TemporalOptionsCustomizer<ActivityClientOptions.Builder> customizer :

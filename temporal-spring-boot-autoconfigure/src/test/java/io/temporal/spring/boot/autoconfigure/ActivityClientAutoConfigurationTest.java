@@ -2,15 +2,18 @@ package io.temporal.spring.boot.autoconfigure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
+import io.opentracing.Tracer;
 import io.temporal.client.ActivityClient;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptorBase;
+import io.temporal.opentracing.OpenTracingActivityClientInterceptor;
 import io.temporal.spring.boot.TemporalOptionsCustomizer;
 import io.temporal.spring.boot.autoconfigure.template.ClientTemplate;
 import java.util.HashMap;
@@ -65,6 +68,27 @@ class ActivityClientAutoConfigurationTest {
               ActivityClientInterceptor interceptor =
                   context.getBean(ActivityClientInterceptor.class);
               assertThat(options.getInterceptors()).containsExactly(interceptor);
+              verify(interceptor).activityClientCallsInterceptor(any());
+            });
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void registersTracingBeforeExplicitInterceptors(boolean testServer) {
+    contextRunner
+        .withUserConfiguration(ClientConfiguration.class)
+        .withBean(Tracer.class, () -> mock(Tracer.class))
+        .withPropertyValues("spring.temporal.test-server.enabled=" + testServer)
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed().hasSingleBean(ActivityClient.class);
+              ActivityClientOptions options = context.getBean(CapturedOptions.class).get("root");
+              ActivityClientInterceptor interceptor =
+                  context.getBean(ActivityClientInterceptor.class);
+              assertThat(options.getInterceptors()).hasSize(2);
+              assertThat(options.getInterceptors().get(0))
+                  .isInstanceOf(OpenTracingActivityClientInterceptor.class);
+              assertThat(options.getInterceptors().get(1)).isSameAs(interceptor);
               verify(interceptor).activityClientCallsInterceptor(any());
             });
   }
