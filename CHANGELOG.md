@@ -69,6 +69,8 @@ to docs, or any other relevant information.
 - `TemporalDevServer`, `TemporalDevServerOptions`, `TestWorkflowEnvironment.startLocal`, and the `useDevServer` methods
   of `TestWorkflowRule` and `TestWorkflowExtension` are no longer marked experimental. `TemporalDevServerOptions` remain
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
+- With external storage, large activity arguments are no longer downloaded twice. Workflow workers now skip
+  downloading the inputs they sent to activities, child workflows, signals and Nexus operations.
 
 ### Fixed
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,

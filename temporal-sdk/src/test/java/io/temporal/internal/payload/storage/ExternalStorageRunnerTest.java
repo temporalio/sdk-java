@@ -1,6 +1,7 @@
 package io.temporal.internal.payload.storage;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -18,6 +19,15 @@ import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.SearchAttributes;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
+import io.temporal.api.history.v1.ActivityTaskScheduledEventAttributes;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.history.v1.NexusOperationScheduledEventAttributes;
+import io.temporal.api.history.v1.SignalExternalWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.api.history.v1.StartChildWorkflowExecutionInitiatedEventAttributes;
+import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.SignalWorkflowExecutionRequest;
@@ -115,6 +125,72 @@ public class ExternalStorageRunnerTest {
     Payload nested = stored.getScheduleActivityTaskCommandAttributes().getInput().getPayloads(0);
     assertNotNull(ExternalStorageReferences.tryParseReference(nested));
     assertEquals(command, transformer.retrieve(stored, CancellationToken.none()));
+  }
+
+  @Test
+  public void retrieveForReplayLeavesCommandInputEventsAsReferences() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.named("d1");
+    ExternalStorageRunner transformer = transformer(driver, 0);
+    Payloads input = Payloads.newBuilder().addPayloads(payload("x")).build();
+    History history =
+        History.newBuilder()
+            .addEvents(
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+                    .setWorkflowExecutionStartedEventAttributes(
+                        WorkflowExecutionStartedEventAttributes.newBuilder().setInput(input)))
+            .addEvents(
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED)
+                    .setActivityTaskScheduledEventAttributes(
+                        ActivityTaskScheduledEventAttributes.newBuilder().setInput(input)))
+            .addEvents(
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED)
+                    .setStartChildWorkflowExecutionInitiatedEventAttributes(
+                        StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder()
+                            .setInput(input)))
+            .addEvents(
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED)
+                    .setSignalExternalWorkflowExecutionInitiatedEventAttributes(
+                        SignalExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
+                            .setInput(input)))
+            .addEvents(
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED)
+                    .setNexusOperationScheduledEventAttributes(
+                        NexusOperationScheduledEventAttributes.newBuilder().setInput(payload("x"))))
+            .addEvents(
+                HistoryEvent.newBuilder()
+                    .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_COMPLETED)
+                    .setActivityTaskCompletedEventAttributes(
+                        ActivityTaskCompletedEventAttributes.newBuilder().setResult(input)))
+            .build();
+    History.Builder builder = history.toBuilder();
+    transformer.store(builder, null, null, CancellationToken.none());
+    History stored = builder.build();
+
+    History replayed = transformer.retrieveForReplay(stored, CancellationToken.none(), null);
+
+    assertEquals(
+        "the started event's input is needed by replay",
+        history.getEvents(0),
+        replayed.getEvents(0));
+    for (int i = 1; i <= 4; i++) {
+      assertEquals(
+          "a command's echoed input must be left as stored",
+          stored.getEvents(i),
+          replayed.getEvents(i));
+      assertTrue(containsReference(replayed.getEvents(i)));
+    }
+    assertEquals(
+        "the activity result is needed by replay", history.getEvents(5), replayed.getEvents(5));
+    assertFalse(containsReference(replayed.getEvents(5)));
+    assertEquals(
+        "plain retrieval still resolves everything",
+        history,
+        transformer.retrieve(stored, CancellationToken.none()));
   }
 
   @Test
@@ -282,6 +358,15 @@ public class ExternalStorageRunnerTest {
                 .setPayloadSizeThreshold(threshold)
                 .build());
     return new ExternalStorageRunner(payloadTransformer, 4);
+  }
+
+  private static boolean containsReference(HistoryEvent event) {
+    try {
+      ExternalStorageRunner.throwIfContainsReference(event);
+      return false;
+    } catch (ExternalStorageNotConfiguredException e) {
+      return true;
+    }
   }
 
   private static Payload payload(String data) {
