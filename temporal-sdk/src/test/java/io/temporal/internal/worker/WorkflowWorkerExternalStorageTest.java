@@ -1,5 +1,7 @@
 package io.temporal.internal.worker;
 
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.payload.storage.TestStorageDriver;
@@ -7,10 +9,13 @@ import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.QueryMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Before;
@@ -26,6 +31,7 @@ public class WorkflowWorkerExternalStorageTest {
 
   private static final int THRESHOLD = 4096;
   private static final String CONTINUED_MARKER = "continued:";
+  private static final String ACTIVITY_ARG_MARKER = "activity-arg:";
 
   private static final TestStorageDriver driver = TestStorageDriver.named("wf-happy");
 
@@ -35,7 +41,11 @@ public class WorkflowWorkerExternalStorageTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(ContinueAsNewWorkflowImpl.class, EchoWorkflowImpl.class)
+          .setWorkflowTypes(
+              ContinueAsNewWorkflowImpl.class,
+              EchoWorkflowImpl.class,
+              LargeActivityArgWorkflowImpl.class)
+          .setActivityImplementations(new LengthActivityImpl())
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setExternalStorage(storage).build())
           .build();
@@ -89,6 +99,36 @@ public class WorkflowWorkerExternalStorageTest {
     Assert.assertEquals("nothing under the threshold should be offloaded", 0, driver.stores.get());
   }
 
+  @Test
+  public void aLargeActivityArgumentIsDownloadedOnlyByTheActivityWorker() {
+    LargeActivityArgWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                LargeActivityArgWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setWorkflowId("extstore-activity-arg-" + UUID.randomUUID())
+                    .build());
+
+    int expectedLength = ACTIVITY_ARG_MARKER.length() + THRESHOLD * 2;
+    Assert.assertEquals("len:" + expectedLength, workflow.execute());
+    // A query on the closed workflow replays its full history.
+    Assert.assertEquals("len:" + expectedLength, workflow.lastResult());
+
+    String argumentKey = null;
+    for (int i = 0; i < driver.storedData.size(); i++) {
+      if (driver.storedData.get(i).contains(ACTIVITY_ARG_MARKER)) {
+        argumentKey = "wf-happy-" + i;
+      }
+    }
+    Assert.assertNotNull("the activity argument must have been offloaded", argumentKey);
+    Assert.assertEquals(
+        "only the activity worker should download the activity argument",
+        1,
+        Collections.frequency(driver.retrievedKeys, argumentKey));
+  }
+
   public static class ContinueAsNewWorkflowImpl implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String input) {
@@ -114,6 +154,50 @@ public class WorkflowWorkerExternalStorageTest {
     @Override
     public String echo(String input) {
       return "echo: " + input;
+    }
+  }
+
+  @WorkflowInterface
+  public interface LargeActivityArgWorkflow {
+    @WorkflowMethod
+    String execute();
+
+    @QueryMethod
+    String lastResult();
+  }
+
+  public static class LargeActivityArgWorkflowImpl implements LargeActivityArgWorkflow {
+    private String lastResult;
+
+    @Override
+    public String execute() {
+      StringBuilder large = new StringBuilder(ACTIVITY_ARG_MARKER);
+      for (int i = 0; i < THRESHOLD * 2; i++) {
+        large.append('x');
+      }
+      LengthActivity activity =
+          Workflow.newActivityStub(
+              LengthActivity.class,
+              ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
+      lastResult = activity.length(large.toString());
+      return lastResult;
+    }
+
+    @Override
+    public String lastResult() {
+      return lastResult;
+    }
+  }
+
+  @ActivityInterface
+  public interface LengthActivity {
+    String length(String input);
+  }
+
+  public static class LengthActivityImpl implements LengthActivity {
+    @Override
+    public String length(String input) {
+      return "len:" + input.length();
     }
   }
 }
