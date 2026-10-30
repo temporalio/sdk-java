@@ -6,6 +6,8 @@ import com.google.protobuf.Timestamp;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.Deadline;
 import io.grpc.Status;
+import io.temporal.api.common.v1.Memo;
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Priority;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
@@ -545,11 +547,28 @@ class TestWorkflowStoreImpl implements TestWorkflowStore {
             .setExecution(executionId.getExecution())
             .setHistoryLength(history.size())
             .setStartTime(history.get(0).getEventTime())
-            .setType(history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType());
+            .setType(history.get(0).getWorkflowExecutionStartedEventAttributes().getWorkflowType())
+            .setMemo(memoFromHistory(history));
     if (status != null) {
       info.setStatus(status);
     }
     return info.build();
+  }
+
+  private static Memo memoFromHistory(List<HistoryEvent> history) {
+    // Only the last upsert of each key matters, so collect them and merge once.
+    Map<String, Payload> upserts = new HashMap<>();
+    for (HistoryEvent event : history) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED) {
+        upserts.putAll(
+            event.getWorkflowPropertiesModifiedEventAttributes().getUpsertedMemo().getFieldsMap());
+      }
+    }
+    Map<String, Payload> memo =
+        StateUtils.mergeMemo(
+            history.get(0).getWorkflowExecutionStartedEventAttributes().getMemo().getFieldsMap(),
+            upserts);
+    return Memo.newBuilder().putAllFields(memo).build();
   }
 
   @Override

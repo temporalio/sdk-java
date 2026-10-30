@@ -93,6 +93,8 @@ to docs, or any other relevant information.
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 - Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
   `WorkflowClient` and the `WorkerFactory` was listed twice.
+- Test server now includes the memo in `ListOpenWorkflowExecutions` and `ListClosedWorkflowExecutions` results,
+  including values upserted with `Workflow.upsertMemo`. Previously the memo was always empty there.
 
 ## Previous releases
 
