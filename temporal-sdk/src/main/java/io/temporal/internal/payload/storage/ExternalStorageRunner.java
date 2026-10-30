@@ -30,7 +30,8 @@ import javax.annotation.Nullable;
 public final class ExternalStorageRunner {
   /**
    * Events that echo the inputs of a command the workflow issued. Replay matches these events by
-   * identifiers only, so their payloads never need to be downloaded by the workflow worker.
+   * identifiers only, so their payloads never need to be downloaded by the workflow worker. If the
+   * workflow worker ever needs to read one of these payloads, remove its event type from this set.
    */
   private static final Set<EventType> COMMAND_INPUT_EVENTS =
       EnumSet.of(
@@ -121,7 +122,8 @@ public final class ExternalStorageRunner {
   /**
    * Like {@link #retrieve}, for workflow history processed by the workflow worker. References in
    * events that echo the workflow's own command inputs are left in place, because replay does not
-   * read them. If anything does decode one later, the data converter retrieves it on demand.
+   * read them. The workflow's data converter does not download references, so code that reads these
+   * payloads would see the reference instead of the data.
    */
   public <T extends Message> T retrieveForReplay(
       T message,
