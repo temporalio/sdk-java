@@ -163,6 +163,7 @@ public final class WorkflowStateMachines {
   /** Key is mutable side effect id */
   private final Map<String, MutableSideEffectStateMachine> mutableSideEffects = new HashMap<>();
 
+  /** Replay invocations created while recovery is enabled, in invocation order. */
   private final Queue<MutableSideEffectStateMachine.InvocationStateMachine>
       replayingMutableSideEffects = new ArrayDeque<>();
 
@@ -382,16 +383,8 @@ public final class WorkflowStateMachines {
   private void completeMutableSideEffects() {
     // Only mutable-side-effect invocations participate. A callback can create another invocation;
     // process it in invocation order, at this task's time, before applying the next task.
-    while (!replayingMutableSideEffects.isEmpty()) {
-      MutableSideEffectStateMachine.InvocationStateMachine invocation =
-          replayingMutableSideEffects.peek();
-      if (!invocation.isFinalState()
-          && !flags.checkSdkFlag(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY)) {
-        // Preserve the timing of an unflagged invocation until normal command matching or a live
-        // task recovers it and records the recovery flag.
-        return;
-      }
-      replayingMutableSideEffects.poll();
+    MutableSideEffectStateMachine.InvocationStateMachine invocation;
+    while ((invocation = replayingMutableSideEffects.poll()) != null) {
       invocation.notifySkippedReplaying();
     }
   }
@@ -1259,12 +1252,7 @@ public final class WorkflowStateMachines {
             id,
             (idKey) ->
                 MutableSideEffectStateMachine.newInstance(
-                    idKey,
-                    userMetadata,
-                    this::isReplaying,
-                    () -> flags.checkSdkFlag(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY),
-                    commandSink,
-                    stateMachineSink));
+                    idKey, userMetadata, this::isReplaying, commandSink, stateMachineSink));
     MutableSideEffectStateMachine.InvocationStateMachine invocation =
         stateMachine.mutableSideEffect(
             func,
@@ -1275,7 +1263,9 @@ public final class WorkflowStateMachines {
               eventLoop();
             },
             stateMachineSink);
-    if (isReplaying()) {
+    // Capture eligibility for this invocation. A flag first recorded in a later task must not
+    // change when an earlier, unflagged invocation receives its cached result.
+    if (isReplaying() && flags.checkSdkFlag(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY)) {
       replayingMutableSideEffects.add(invocation);
     }
   }
@@ -1563,8 +1553,7 @@ public final class WorkflowStateMachines {
         List<SuggestContinueAsNewReason> suggestContinueAsNewReasons,
         boolean isTargetWorkerDeploymentVersionChanged) {
       setCurrentTimeMillis(currentTimeMillis);
-      // Notifying a skipped call can execute workflow code and append commands.
-      for (CancellableCommand cancellableCommand : new ArrayList<>(commands)) {
+      for (CancellableCommand cancellableCommand : commands) {
         cancellableCommand.handleWorkflowTaskStarted();
       }
       // Give local activities a chance to recreate their requests if they were lost due

@@ -84,14 +84,18 @@ public class MutableSideEffectReplayTest {
   }
 
   @Test
-  public void replayRepeatsRecordedRecoveryBoundary() throws Exception {
-    // Recovery was first recorded at +2000. Its live callback took the branch that omits the
-    // second timer, so persist that decision and verify replay makes the same choice.
-    History.Builder recovered = clockHistoryWithRecoveryFlag(16);
-    recovered.removeEvents(21);
-    recovered.setEvents(21, recovered.getEvents(21).toBuilder().setEventId(22));
+  public void laterFlagDoesNotRetimeEarlierSkippedCall() throws Exception {
+    // The second signal makes an unchanged call, but the earlier skipped continuation has already
+    // run on the cached writer. Recording the flag on that signal's task must not resume the
+    // earlier invocation at +2000 during replay; its legacy replay time is +3000.
+    WorkflowReplayer.replayWorkflowExecutionFromResource(
+        "mutableSideEffectCallbackTime.json", LateOptInWorkflowImpl.class);
+    LateOptInWorkflowImpl.lateCallTime = Long.MIN_VALUE;
     WorkflowReplayer.replayWorkflowExecution(
-        new WorkflowExecutionHistory(recovered.build()), ClockSensitiveWorkflowImpl.class);
+        new WorkflowExecutionHistory(clockHistoryWithRecoveryFlag(16).build()),
+        LateOptInWorkflowImpl.class);
+    assertEquals(
+        ClockSensitiveWorkflowImpl.INTERMEDIATE_TASK_TIME, LateOptInWorkflowImpl.lateCallTime);
   }
 
   @Test
@@ -282,6 +286,20 @@ public class MutableSideEffectReplayTest {
       String result = super.run();
       Workflow.newTimer(Duration.ofSeconds(10));
       return result;
+    }
+  }
+
+  public static class LateOptInWorkflowImpl extends ClockSensitiveWorkflowImpl {
+    private static volatile long lateCallTime;
+    private int pokes;
+
+    @Override
+    public void poke() {
+      super.poke();
+      if (++pokes == 2) {
+        Workflow.mutableSideEffect("key", Integer.class, (a, b) -> !a.equals(b), () -> 1);
+        lateCallTime = Workflow.currentTimeMillis();
+      }
     }
   }
 

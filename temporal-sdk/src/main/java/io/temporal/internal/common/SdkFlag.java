@@ -56,8 +56,8 @@ public enum SdkFlag {
    * cancels its replay placeholder and returns the cached value. This lets its callback run at
    * that task's workflow time, before the next task advances time or delivers signals.
    *
-   * Also resolves pending replay placeholders at a live-task boundary, preventing empty
-   * RecordMarker commands from being sent to the server when no command event triggered cleanup.
+   * Eligibility is determined when each invocation is created. Enabling the flag on a later
+   * task must not retime earlier invocations whose placeholders are still pending.
    *
    * Introduced: 1.41.0
    *
