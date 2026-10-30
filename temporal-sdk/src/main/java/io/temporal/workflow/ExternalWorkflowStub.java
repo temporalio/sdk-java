@@ -50,6 +50,16 @@ public interface ExternalWorkflowStub {
    */
   void signal(String signalName, Object... args);
 
+  /**
+   * Synchronously signals a workflow by invoking its signal handler, with options.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param options options of the signal command
+   * @param args signal method arguments
+   * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
+   */
+  void signal(String signalName, SignalExternalWorkflowOptions options, Object... args);
+
   /** Request cancellation of the workflow execution. */
   void cancel();
 
@@ -59,4 +69,12 @@ public interface ExternalWorkflowStub {
    * @param reason optional reason for cancellation.
    */
   void cancel(@Nullable String reason);
+
+  /**
+   * Request cancellation of the workflow execution, with options such as the reason for
+   * cancellation.
+   *
+   * @param options options of the cancellation request command
+   */
+  void cancel(CancelExternalWorkflowOptions options);
 }

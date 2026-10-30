@@ -20,8 +20,10 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### :boom: Breaking Changes
-- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
-  `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
+- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)`,
+  `await(Duration, TimerOptions, String, Supplier)`, `getVersion(..., GetVersionOptions)`,
+  `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
+  `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 - **Experimental**: A `@TemporalOperation` handler can now send only one signal per operation invocation; `signal`
   and `signalWithStart` count toward the same limit. While the first signal is in flight, or after it succeeds, a

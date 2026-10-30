@@ -897,6 +897,17 @@ public final class Workflow {
   }
 
   /**
+   * Must be called instead of {@link Thread#sleep(long)} to guarantee determinism.
+   *
+   * @param millis time to sleep, in milliseconds.
+   * @param options options for the underlying timer, such as its summary.
+   * @see #newTimer(Duration, TimerOptions)
+   */
+  public static void sleep(long millis, TimerOptions options) {
+    WorkflowInternal.sleep(Duration.ofMillis(millis), options);
+  }
+
+  /**
    * Block current thread until unblockCondition is evaluated to true.
    *
    * @param unblockCondition condition that should return true to indicate that thread should
@@ -1520,6 +1531,24 @@ public final class Workflow {
   }
 
   /**
+   * Same as {@link #getVersion(String, int, int)}, with options.
+   *
+   * @param changeId identifier of a particular change. All calls to getVersion that share a
+   *     changeId are guaranteed to return the same version number. Use this to perform multiple
+   *     coordinated changes that should be enabled together.
+   * @param minSupported min version supported for the change
+   * @param maxSupported max version supported for the change
+   * @param options options of the call
+   * @return {@code maxSupported} when is originally executed. Original version recorded in the
+   *     history on replays.
+   */
+  @Experimental
+  public static int getVersion(
+      String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
+    return WorkflowInternal.getVersion(changeId, minSupported, maxSupported, options);
+  }
+
+  /**
    * Get scope for reporting business metrics in workflow logic. This should be used instead of
    * creating new metrics scopes as it is able to dedupe metrics during replay.
    *
@@ -1717,6 +1746,18 @@ public final class Workflow {
   }
 
   /**
+   * Same as {@link #upsertTypedSearchAttributes(SearchAttributeUpdate[])}, with options.
+   *
+   * @param options options of the update.
+   * @param searchAttributeUpdates set of updates to apply to search attributes.
+   */
+  @Experimental
+  public static void upsertTypedSearchAttributes(
+      UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    WorkflowInternal.upsertTypedSearchAttributes(options, searchAttributeUpdates);
+  }
+
+  /**
    * Updates a Workflow Memos by applying {@code memoUpdates} to the existing Memos set attached to
    * the workflow. Memos are additional non-indexed information attributed to workflow and can
    * return by describing or listing a workflow. The type of value can be any object that are
@@ -1725,6 +1766,12 @@ public final class Workflow {
    */
   public static void upsertMemo(Map<String, Object> memo) {
     WorkflowInternal.upsertMemo(memo);
+  }
+
+  /** Same as {@link #upsertMemo(Map)}, with options. */
+  @Experimental
+  public static void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
+    WorkflowInternal.upsertMemo(memo, options);
   }
 
   /**
