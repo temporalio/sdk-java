@@ -93,6 +93,9 @@ to docs, or any other relevant information.
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 - Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
   `WorkflowClient` and the `WorkerFactory` was listed twice.
+- `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
+  includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
+  credentials set through `setHeaders` no longer appear in logs.
 
 ## Previous releases
 
