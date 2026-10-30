@@ -130,6 +130,12 @@ final class MutableSideEffectStateMachine {
       return replaying.apply() ? State.REPLAYING : State.EXECUTING;
     }
 
+    void notifySkippedReplaying() {
+      if (getState() == State.RESULT_NOTIFIED_REPLAYING) {
+        explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
+      }
+    }
+
     @Override
     public WorkflowStateMachines.HandleEventStatus handleEvent(
         HistoryEvent event, boolean hasNextEvent) {
@@ -267,12 +273,13 @@ final class MutableSideEffectStateMachine {
     this.commandSink = Objects.requireNonNull(commandSink);
   }
 
-  public void mutableSideEffect(
+  public InvocationStateMachine mutableSideEffect(
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
       Functions.Proc1<StateMachine> stateMachineSink) {
     InvocationStateMachine ism = new InvocationStateMachine(func, callback, stateMachineSink);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
+    return ism;
   }
 }

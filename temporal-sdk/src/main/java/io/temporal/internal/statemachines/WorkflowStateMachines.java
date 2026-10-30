@@ -163,6 +163,10 @@ public final class WorkflowStateMachines {
   /** Key is mutable side effect id */
   private final Map<String, MutableSideEffectStateMachine> mutableSideEffects = new HashMap<>();
 
+  /** Replay invocations created while recovery is enabled, in invocation order. */
+  private final Queue<MutableSideEffectStateMachine.InvocationStateMachine>
+      replayingMutableSideEffects = new ArrayDeque<>();
+
   /** Key is changeId */
   private final Map<String, VersionStateMachine> versions = new HashMap<>();
 
@@ -369,6 +373,19 @@ public final class WorkflowStateMachines {
       for (Message msg : this.takeLTE(event.getEventId())) {
         handleSingleMessage(msg);
       }
+    }
+
+    if (eventBatch.getWorkflowTaskCompletedEvent().isPresent()) {
+      completeMutableSideEffects();
+    }
+  }
+
+  private void completeMutableSideEffects() {
+    // Only mutable-side-effect invocations participate. A callback can create another invocation;
+    // process it in invocation order, at this task's time, before applying the next task.
+    MutableSideEffectStateMachine.InvocationStateMachine invocation;
+    while ((invocation = replayingMutableSideEffects.poll()) != null) {
+      invocation.notifySkippedReplaying();
     }
   }
 
@@ -1225,20 +1242,32 @@ public final class WorkflowStateMachines {
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
+    // Opt-in only for this flag's introductory release. Register its use at the API call, rather
+    // than waiting for a skipped invocation to need cleanup.
+    if (initialFlags.contains(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY)) {
+      flags.tryUseSdkFlag(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY);
+    }
     MutableSideEffectStateMachine stateMachine =
         mutableSideEffects.computeIfAbsent(
             id,
             (idKey) ->
                 MutableSideEffectStateMachine.newInstance(
                     idKey, userMetadata, this::isReplaying, commandSink, stateMachineSink));
-    stateMachine.mutableSideEffect(
-        func,
-        (r) -> {
-          callback.apply(r);
-          // callback unblocked mutableSideEffect call. Give workflow code chance to make progress.
-          eventLoop();
-        },
-        stateMachineSink);
+    MutableSideEffectStateMachine.InvocationStateMachine invocation =
+        stateMachine.mutableSideEffect(
+            func,
+            (r) -> {
+              callback.apply(r);
+              // callback unblocked mutableSideEffect call. Give workflow code chance to make
+              // progress.
+              eventLoop();
+            },
+            stateMachineSink);
+    // Capture eligibility for this invocation. A flag first recorded in a later task must not
+    // change when an earlier, unflagged invocation receives its cached result.
+    if (isReplaying() && flags.checkSdkFlag(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY)) {
+      replayingMutableSideEffects.add(invocation);
+    }
   }
 
   public Integer getVersion(
