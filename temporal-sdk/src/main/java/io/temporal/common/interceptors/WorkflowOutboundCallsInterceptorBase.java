@@ -16,9 +16,16 @@ import java.util.function.BiPredicate;
 import java.util.function.Supplier;
 
 /** Convenience base class for WorkflowOutboundCallsInterceptor implementations. */
-public class WorkflowOutboundCallsInterceptorBase implements WorkflowOutboundCallsInterceptor {
+public class WorkflowOutboundCallsInterceptorBase
+    extends io.temporal.workflow.SystemNexusWorkflowOutboundInterceptor.Base
+    implements WorkflowOutboundCallsInterceptor {
 
   private final WorkflowOutboundCallsInterceptor next;
+
+  @Override
+  protected WorkflowOutboundCallsInterceptor nextSystemNexusInterceptor() {
+    return next;
+  }
 
   public WorkflowOutboundCallsInterceptorBase(WorkflowOutboundCallsInterceptor next) {
     this.next = next;
