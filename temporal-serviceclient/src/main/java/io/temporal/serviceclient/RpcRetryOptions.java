@@ -413,7 +413,7 @@ public final class RpcRetryOptions {
     this.maximumAttempts = maximumAttempts;
     this.maximumInterval = maximumInterval;
     this.maximumJitterCoefficient = maximumJitterCoefficient;
-    this.doNotRetry = Collections.unmodifiableList(doNotRetry);
+    this.doNotRetry = Collections.unmodifiableList(new ArrayList<>(doNotRetry));
   }
 
   public Duration getInitialInterval() {

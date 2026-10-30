@@ -82,6 +82,9 @@ to docs, or any other relevant information.
   sending the first page. A completion that needed pagination timed out on every attempt instead
   of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend
   existing options, which also threw `UnsupportedOperationException`.
+- `RpcRetryOptions` no longer changes when the builder that created it is reused. Previously,
+  `addDoNotRetry` calls made after `build()` or `validateBuildWithDefaults()` also appeared in
+  the options already built.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).

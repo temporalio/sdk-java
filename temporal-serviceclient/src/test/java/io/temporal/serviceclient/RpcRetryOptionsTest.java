@@ -49,6 +49,20 @@ public class RpcRetryOptionsTest {
     assertEquals(Collections.singletonList(Status.Code.NOT_FOUND), codes(source));
   }
 
+  @Test
+  public void reusingABuilderDoesNotChangeOptionsItAlreadyBuilt() {
+    RpcRetryOptions.Builder builder =
+        RpcRetryOptions.newBuilder().addDoNotRetry(Status.Code.NOT_FOUND, null);
+    RpcRetryOptions validated = builder.validateBuildWithDefaults();
+    RpcRetryOptions built = builder.build();
+
+    builder.addDoNotRetry(Status.Code.ABORTED, null);
+
+    assertEquals(Collections.singletonList(Status.Code.NOT_FOUND), codes(validated));
+    assertEquals(Collections.singletonList(Status.Code.NOT_FOUND), codes(built));
+    assertEquals(Arrays.asList(Status.Code.NOT_FOUND, Status.Code.ABORTED), codes(builder.build()));
+  }
+
   private static List<Status.Code> codes(RpcRetryOptions options) {
     List<Status.Code> codes = new ArrayList<>();
     for (RpcRetryOptions.DoNotRetryItem item : options.getDoNotRetry()) {
