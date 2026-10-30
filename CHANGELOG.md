@@ -25,6 +25,9 @@ to docs, or any other relevant information.
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 
 ### Added
+- Added experimental Google Cloud Storage external payload storage through the optional
+  `temporal-payload-storage-gcsdriver` and `temporal-payload-storage-gcsdriver-gcssdk` modules,
+  with conditional creation, SHA-256 integrity verification, and cancellable executor-backed I/O.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
