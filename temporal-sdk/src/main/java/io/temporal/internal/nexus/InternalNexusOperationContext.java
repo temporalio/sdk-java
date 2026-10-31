@@ -1,6 +1,8 @@
 package io.temporal.internal.nexus;
 
+import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
+import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.common.v1.Link;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.interceptors.NexusOperationOutboundCallsInterceptor;
@@ -10,6 +12,7 @@ import io.temporal.payload.context.NexusSerializationContext;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -51,6 +54,12 @@ public class InternalNexusOperationContext {
   // service and operation names are known, which is only after the request variant has been
   // inspected, so it is null while the task is being dispatched.
   private NexusSerializationContext serializationContext;
+  // Set while a TemporalOperationHandler start runs. Signals and signalWithStarts issued then reuse
+  // requestId so a retried Nexus task dedupes against the first attempt. Because they share the ID,
+  // a second signal could be dropped by the server as a duplicate, so signalClaimed limits the
+  // invocation to one.
+  private boolean signalDeduplication;
+  private final AtomicBoolean signalClaimed = new AtomicBoolean();
 
   public InternalNexusOperationContext(
       String namespace,
@@ -142,6 +151,49 @@ public class InternalNexusOperationContext {
   /** The inbound Nexus task's request ID; {@code null} if not set. */
   public String getRequestId() {
     return requestId;
+  }
+
+  /** Makes signals reuse {@link #getRequestId} and limits them to one; see {@link #claimSignal}. */
+  public void enableSignalDeduplication() {
+    this.signalDeduplication = true;
+  }
+
+  /** The request ID signals must reuse; {@code null} outside a Temporal operation start. */
+  public @Nullable String getSignalRequestId() {
+    return signalDeduplication && !Strings.isNullOrEmpty(requestId) ? requestId : null;
+  }
+
+  /**
+   * Claims the invocation's single signal. No-op unless {@link #enableSignalDeduplication} was
+   * called. Callers must {@link #releaseSignal} if the signal fails, so the handler can send it
+   * again.
+   */
+  public void claimSignal() {
+    if (signalDeduplication && !signalClaimed.compareAndSet(false, true)) {
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST,
+          new IllegalStateException("Only one signal can be sent per Nexus operation invocation."));
+    }
+  }
+
+  /**
+   * Like {@link #claimSignal}, but also rejects an empty workflow ID: it would be defaulted to a
+   * fresh UUID on each retried Nexus task, so the server could not dedupe and would start another
+   * workflow.
+   */
+  public void claimSignalWithStart(@Nullable String workflowId) {
+    if (signalDeduplication && Strings.isNullOrEmpty(workflowId)) {
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST,
+          new IllegalArgumentException(
+              "signalWithStart from a Nexus operation handler requires a workflow ID."));
+    }
+    claimSignal();
+  }
+
+  /** Frees the signal claimed by {@link #claimSignal} after the signal failed. */
+  public void releaseSignal() {
+    signalClaimed.set(false);
   }
 
   public void setStartWorkflowResponseLink(Link link) {

@@ -88,6 +88,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
       OperationContext ctx, OperationStartDetails details, T input)
       throws OperationException, HandlerException {
     InternalNexusOperationContext nexusCtx = CurrentNexusOperationContext.get();
+    nexusCtx.enableSignalDeduplication();
     TemporalNexusClient client =
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
 
