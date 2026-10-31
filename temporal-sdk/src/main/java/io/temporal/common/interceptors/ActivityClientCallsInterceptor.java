@@ -4,8 +4,13 @@ import io.temporal.client.ActivityAlreadyStartedException;
 import io.temporal.client.ActivityExecutionCount;
 import io.temporal.client.ActivityExecutionDescription;
 import io.temporal.client.ActivityExecutionMetadata;
+import io.temporal.client.ActivityExecutionOptions;
 import io.temporal.client.ActivityFailedException;
+import io.temporal.client.ActivityOptionsUpdate;
+import io.temporal.client.DescribeActivityOptions;
+import io.temporal.client.PauseActivityOptions;
 import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UnpauseActivityOptions;
 import io.temporal.common.Experimental;
 import java.lang.reflect.Type;
 import java.util.List;
@@ -81,6 +86,36 @@ public interface ActivityClientCallsInterceptor {
   TerminateActivityOutput terminateActivity(TerminateActivityInput input);
 
   /**
+   * Pauses a running standalone activity. A paused activity stops being dispatched to workers until
+   * it is unpaused.
+   *
+   * @param input activity ID, optional run ID, and optional human-readable reason
+   * @return an empty output object (reserved for future use)
+   */
+  @Experimental
+  PauseActivityOutput pauseActivity(PauseActivityInput input);
+
+  /**
+   * Unpauses a previously paused standalone activity, allowing it to be dispatched again.
+   *
+   * @param input activity ID, optional run ID, and unpause options (reason, jitter)
+   * @return an empty output object (reserved for future use)
+   */
+  @Experimental
+  UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input);
+
+  /**
+   * Updates the options of a standalone activity. The {@code updateMask} controls which fields of
+   * {@code activityOptions} are applied; alternatively {@code restoreOriginal} reverts the options
+   * to the values the activity was created with.
+   *
+   * @param input activity ID, optional run ID, options, update mask, and restore flag
+   * @return output carrying the activity options as resolved by the server after the update
+   */
+  @Experimental
+  UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input);
+
+  /**
    * Returns a lazy {@link java.util.stream.Stream} of activity execution metadata matching the
    * Visibility query in {@code input}. Pages are fetched from the server on demand as the stream is
    * consumed.
@@ -116,7 +151,6 @@ public interface ActivityClientCallsInterceptor {
   <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input);
 
-  @Experimental
   final class StartActivityInput {
     private final String activityType;
     private final List<Object> args;
@@ -148,7 +182,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class StartActivityOutput {
     private final String activityId;
     private final @Nullable String activityRunId;
@@ -168,7 +201,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class GetActivityResultInput<R> {
     private final String activityId;
     private final @Nullable String runId;
@@ -233,7 +265,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class GetActivityResultOutput<R> {
     private final R result;
 
@@ -246,14 +277,16 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class DescribeActivityInput {
     private final String id;
     private final @Nullable String runId;
+    private final DescribeActivityOptions options;
 
-    public DescribeActivityInput(String id, @Nullable String runId) {
+    public DescribeActivityInput(
+        String id, @Nullable String runId, DescribeActivityOptions options) {
       this.id = id;
       this.runId = runId;
+      this.options = options;
     }
 
     public String getId() {
@@ -264,9 +297,12 @@ public interface ActivityClientCallsInterceptor {
     public String getRunId() {
       return runId;
     }
+
+    public DescribeActivityOptions getOptions() {
+      return options;
+    }
   }
 
-  @Experimental
   final class DescribeActivityOutput {
     private final ActivityExecutionDescription description;
 
@@ -279,7 +315,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CancelActivityInput {
     private final String id;
     private final @Nullable String runId;
@@ -306,10 +341,8 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CancelActivityOutput {}
 
-  @Experimental
   final class TerminateActivityInput {
     private final String id;
     private final @Nullable String runId;
@@ -336,10 +369,120 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class TerminateActivityOutput {}
 
   @Experimental
+  final class PauseActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final PauseActivityOptions options;
+
+    public PauseActivityInput(String id, @Nullable String runId, PauseActivityOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public PauseActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class PauseActivityOutput {}
+
+  @Experimental
+  final class UnpauseActivityInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final UnpauseActivityOptions options;
+
+    public UnpauseActivityInput(String id, @Nullable String runId, UnpauseActivityOptions options) {
+      this.id = id;
+      this.runId = runId;
+      this.options = options;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    public UnpauseActivityOptions getOptions() {
+      return options;
+    }
+  }
+
+  @Experimental
+  final class UnpauseActivityOutput {}
+
+  @Experimental
+  final class UpdateActivityOptionsInput {
+    private final String id;
+    private final @Nullable String runId;
+    private final List<ActivityOptionsUpdate<?>> updates;
+    private final boolean restoreOriginal;
+
+    public UpdateActivityOptionsInput(
+        String id,
+        @Nullable String runId,
+        List<ActivityOptionsUpdate<?>> updates,
+        boolean restoreOriginal) {
+      this.id = id;
+      this.runId = runId;
+      this.updates = updates;
+      this.restoreOriginal = restoreOriginal;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    @Nullable
+    public String getRunId() {
+      return runId;
+    }
+
+    /**
+     * The option updates to apply, in the order the caller supplied them. Empty when {@link
+     * #isRestoreOriginal()} is true. Each option is named at most once.
+     */
+    public List<ActivityOptionsUpdate<?>> getUpdates() {
+      return updates;
+    }
+
+    public boolean isRestoreOriginal() {
+      return restoreOriginal;
+    }
+  }
+
+  @Experimental
+  final class UpdateActivityOptionsOutput {
+    private final ActivityExecutionOptions options;
+
+    public UpdateActivityOptionsOutput(ActivityExecutionOptions options) {
+      this.options = options;
+    }
+
+    /** The activity options as resolved by the server after the update. */
+    public ActivityExecutionOptions getOptions() {
+      return options;
+    }
+  }
+
   final class ListActivitiesInput {
     private final String query;
 
@@ -352,7 +495,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class ListActivitiesOutput {
     private final Stream<ActivityExecutionMetadata> stream;
 
@@ -365,7 +507,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CountActivitiesInput {
     private final String query;
 
@@ -378,7 +519,6 @@ public interface ActivityClientCallsInterceptor {
     }
   }
 
-  @Experimental
   final class CountActivitiesOutput {
     private final ActivityExecutionCount count;
 

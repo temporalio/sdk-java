@@ -44,6 +44,12 @@ public class WorkflowSlotMaxConcurrentTests {
       SDKTestWorkflowRule.newBuilder()
           .setWorkerOptions(
               WorkerOptions.newBuilder()
+                  // Explicit poller counts opt out of poller autoscaling auto-enrollment, which
+                  // namespaces with the PollerAutoscalingAutoEnroll capability apply to pollers
+                  // left
+                  // at their defaults.
+                  .setMaxConcurrentWorkflowTaskPollers(5)
+                  .setMaxConcurrentActivityTaskPollers(5)
                   .setMaxConcurrentWorkflowTaskExecutionSize(
                       MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE)
                   .setMaxConcurrentActivityExecutionSize(MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE)

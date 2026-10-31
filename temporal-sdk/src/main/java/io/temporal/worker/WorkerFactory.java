@@ -4,6 +4,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceRequest;
 import io.temporal.api.workflowservice.v1.DescribeNamespaceResponse;
@@ -12,6 +13,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import io.temporal.internal.worker.HeartbeatManager;
@@ -275,6 +277,7 @@ public final class WorkerFactory {
                     .build());
     namespaceCapabilities.setFromCapabilities(
         describeNamespaceResponse.getNamespaceInfo().getCapabilities());
+    namespaceCapabilities.setFromLimits(describeNamespaceResponse.getNamespaceInfo().getLimits());
 
     // Build plugin execution chain (reverse order for proper nesting)
     Consumer<WorkerFactory> startChain = WorkerFactory::doStart;
@@ -304,7 +307,8 @@ public final class WorkerFactory {
               workerGroupingKey,
               this::requestCancelActivity,
               metricsScope,
-              namespaceCapabilities);
+              namespaceCapabilities,
+              new PrefixedMdc(factoryOptions.getLoggerTagPrefix()));
       workerCommandWorker.start();
     }
 
@@ -327,10 +331,15 @@ public final class WorkerFactory {
 
     // Register heartbeat callbacks after workers are started.
     if (hbManager != null && namespaceCapabilities.isWorkerHeartbeats()) {
+      EnvironmentInfo environmentInfo = clientInternal.getWorkerEnvironmentInfo();
       for (Worker worker : workers.values()) {
         Supplier<WorkerHeartbeat> heartbeatSupplier =
-            worker.buildHeartbeatCallback(workerGroupingKey);
-        hbManager.registerWorker(namespace, worker.getWorkerInstanceKey(), heartbeatSupplier);
+            worker.buildHeartbeatCallback(workerGroupingKey, environmentInfo);
+        hbManager.registerWorker(
+            namespace,
+            worker.getWorkerInstanceKey(),
+            heartbeatSupplier,
+            worker::onHeartbeatAccepted);
         worker.setHeartbeatSupplier(heartbeatSupplier);
       }
     }
@@ -486,7 +495,6 @@ public final class WorkerFactory {
               }
               cache.invalidateAll();
               workflowThreadPool.shutdownNow();
-              workerCommandWorker = null;
               return null;
             })
         .whenComplete(

@@ -22,11 +22,20 @@ public class WorkflowSlotInfo extends SlotInfo {
       @Nonnull PollWorkflowTaskQueueResponse response,
       @Nonnull PollWorkflowTaskQueueRequest request) {
     this.workflowType = response.getWorkflowType().getName();
-    this.taskQueue = request.getTaskQueue().getNormalName();
+    this.taskQueue =
+        request.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_STICKY
+            ? request.getTaskQueue().getNormalName()
+            : request.getTaskQueue().getName();
     this.workflowId = response.getWorkflowExecution().getWorkflowId();
     this.runId = response.getWorkflowExecution().getRunId();
     this.workerIdentity = request.getIdentity();
-    this.workerBuildId = request.getWorkerVersionCapabilities().getBuildId();
+    if (request.hasDeploymentOptions()) {
+      this.workerBuildId = request.getDeploymentOptions().getBuildId();
+    } else if (request.hasWorkerVersionCapabilities()) {
+      this.workerBuildId = request.getWorkerVersionCapabilities().getBuildId();
+    } else {
+      this.workerBuildId = request.getBinaryChecksum();
+    }
     this.fromStickyQueue = request.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_STICKY;
   }
 

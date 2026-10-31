@@ -19,10 +19,22 @@ public class StartActivityOptionsTest {
         .build();
   }
 
+  @Test
+  public void testMissingTaskQueueAllowed() {
+    StartActivityOptions options =
+        StartActivityOptions.newBuilder()
+            .setId("id")
+            .setStartToCloseTimeout(Duration.ofSeconds(10))
+            .build();
+
+    assertNull(options.getTaskQueue());
+  }
+
   @Test(expected = IllegalArgumentException.class)
-  public void testMissingTaskQueueFails() {
+  public void testEmptyTaskQueueFails() {
     StartActivityOptions.newBuilder()
         .setId("id")
+        .setTaskQueue("")
         .setStartToCloseTimeout(Duration.ofSeconds(10))
         .build();
   }
@@ -78,7 +90,7 @@ public class StartActivityOptionsTest {
             .setIdReusePolicy(ActivityIdReusePolicy.ACTIVITY_ID_REUSE_POLICY_REJECT_DUPLICATE)
             .setIdConflictPolicy(ActivityIdConflictPolicy.ACTIVITY_ID_CONFLICT_POLICY_FAIL)
             .setRetryOptions(retry)
-            .setStaticSummary("summary")
+            .setSummary("summary")
             .setStaticDetails("details")
             .setPriority(priority)
             .setStartDelay(Duration.ofSeconds(7))
@@ -95,7 +107,7 @@ public class StartActivityOptionsTest {
         ActivityIdReusePolicy.ACTIVITY_ID_REUSE_POLICY_REJECT_DUPLICATE, copy.getIdReusePolicy());
     assertEquals(
         ActivityIdConflictPolicy.ACTIVITY_ID_CONFLICT_POLICY_FAIL, copy.getIdConflictPolicy());
-    assertEquals("summary", copy.getStaticSummary());
+    assertEquals("summary", copy.getSummary());
     assertEquals("details", copy.getStaticDetails());
     assertEquals(priority, copy.getPriority());
     assertEquals(Duration.ofSeconds(7), copy.getStartDelay());

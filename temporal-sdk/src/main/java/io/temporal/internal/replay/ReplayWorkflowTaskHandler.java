@@ -23,6 +23,8 @@ import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.WorkflowExecutionUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.worker.*;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
@@ -34,8 +36,10 @@ import java.io.StringWriter;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,16 +76,20 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
   }
 
   @Override
-  public WorkflowTaskHandler.Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask)
+  public WorkflowTaskHandler.Result handleWorkflowTask(
+      PollWorkflowTaskQueueResponse workflowTask, @Nullable StorageOperationMetrics downloadMetrics)
       throws Exception {
     String workflowType = workflowTask.getWorkflowType().getName();
     Scope metricsScope =
         options.getMetricsScope().tagged(ImmutableMap.of(MetricsTag.WORKFLOW_TYPE, workflowType));
-    return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope);
+    return handleWorkflowTaskWithQuery(workflowTask.toBuilder(), metricsScope, downloadMetrics);
   }
 
   private Result handleWorkflowTaskWithQuery(
-      PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
+      PollWorkflowTaskQueueResponse.Builder workflowTask,
+      Scope metricsScope,
+      @Nullable StorageOperationMetrics downloadMetrics)
+      throws Exception {
     boolean directQuery = workflowTask.hasQuery();
     AtomicBoolean createdNew = new AtomicBoolean();
     WorkflowExecution execution = workflowTask.getWorkflowExecution();
@@ -89,12 +97,21 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
     boolean useCache = stickyTaskQueue != null;
 
     try {
+      workflowTask = retrieveStoredPayloads(workflowTask, downloadMetrics);
       workflowRunTaskHandler =
-          getOrCreateWorkflowExecutor(useCache, workflowTask, metricsScope, createdNew);
+          getOrCreateWorkflowExecutor(
+              useCache, workflowTask, metricsScope, createdNew, downloadMetrics);
       logWorkflowTaskToBeProcessed(workflowTask, createdNew);
 
       ServiceWorkflowHistoryIterator historyIterator =
-          new ServiceWorkflowHistoryIterator(service, namespace, workflowTask, metricsScope);
+          new ServiceWorkflowHistoryIterator(
+              service,
+              namespace,
+              workflowTask,
+              metricsScope,
+              options.getExternalStorageRunner(),
+              options.getStorageCancellation(),
+              downloadMetrics);
       boolean finalCommand;
       Result result;
 
@@ -132,7 +149,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       }
 
       return result;
-    } catch (InterruptedException e) {
+    } catch (InterruptedException | CancellationException e) {
       throw e;
     } catch (Throwable e) {
       // Note here that the executor might not be in the cache, even when the caching is on. In that
@@ -168,6 +185,19 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         workflowRunTaskHandler.close();
       }
     }
+  }
+
+  private PollWorkflowTaskQueueResponse.Builder retrieveStoredPayloads(
+      PollWorkflowTaskQueueResponse.Builder workflowTask,
+      @Nullable StorageOperationMetrics downloadMetrics) {
+    ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+    if (externalStorageRunner == null) {
+      ExternalStorageRunner.throwIfContainsReference(workflowTask.build());
+      return workflowTask;
+    }
+    return externalStorageRunner
+        .retrieve(workflowTask.build(), options.getStorageCancellation(), downloadMetrics)
+        .toBuilder();
   }
 
   private Result createCompletedWFTRequest(
@@ -253,7 +283,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         null,
         result.isFinalCommand(),
         eventIdSetHandle,
-        result.getApplyPostCompletionMetrics());
+        result.getApplyPostCompletionMetrics(),
+        result.isContinuedAsNew() ? null : result.getParentWorkflowExecution());
   }
 
   private Result failureToWFTResult(
@@ -361,7 +392,8 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       boolean useCache,
       PollWorkflowTaskQueueResponse.Builder workflowTask,
       Scope metricsScope,
-      AtomicBoolean createdNew)
+      AtomicBoolean createdNew,
+      @Nullable StorageOperationMetrics downloadMetrics)
       throws Exception {
     if (useCache) {
       return cache.getOrCreate(
@@ -369,17 +401,20 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
           metricsScope,
           () -> {
             createdNew.set(true);
-            return createStatefulHandler(workflowTask, metricsScope);
+            return createStatefulHandler(workflowTask, metricsScope, downloadMetrics);
           });
     } else {
       createdNew.set(true);
-      return createStatefulHandler(workflowTask, metricsScope);
+      return createStatefulHandler(workflowTask, metricsScope, downloadMetrics);
     }
   }
 
   // TODO(maxim): Consider refactoring that avoids mutating workflow task.
   private WorkflowRunTaskHandler createStatefulHandler(
-      PollWorkflowTaskQueueResponse.Builder workflowTask, Scope metricsScope) throws Exception {
+      PollWorkflowTaskQueueResponse.Builder workflowTask,
+      Scope metricsScope,
+      @Nullable StorageOperationMetrics downloadMetrics)
+      throws Exception {
     WorkflowType workflowType = workflowTask.getWorkflowType();
     WorkflowExecution workflowExecution = workflowTask.getWorkflowExecution();
     List<HistoryEvent> events = workflowTask.getHistory().getEventsList();
@@ -395,6 +430,14 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
               .blockingStub()
               .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
               .getWorkflowExecutionHistory(getHistoryRequest);
+      ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
+      if (externalStorageRunner == null) {
+        ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
+      } else {
+        getHistoryResponse =
+            externalStorageRunner.retrieve(
+                getHistoryResponse, options.getStorageCancellation(), downloadMetrics);
+      }
       workflowTask
           .setHistory(getHistoryResponse.getHistory())
           .setNextPageToken(getHistoryResponse.getNextPageToken());

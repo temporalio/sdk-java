@@ -9,8 +9,11 @@ import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.worker.QueryReplayHelper;
 import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.versionTests.GetVersionInterleavedUpdateReplayTest;
@@ -19,7 +22,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
   private static final String EXPECTED_FIRST_CHANGE_ID = "ChangeId1";
   private static final String EXPECTED_SECOND_CHANGE_ID = "ChangeId2";
@@ -93,10 +99,11 @@ public class GetVersionInterleavedUpdateReplayTaskHandlerTest {
         ReplayWorkflowTaskHandler.class.getDeclaredMethod(
             "createStatefulHandler",
             PollWorkflowTaskQueueResponse.Builder.class,
-            com.uber.m3.tally.Scope.class);
+            com.uber.m3.tally.Scope.class,
+            StorageOperationMetrics.class);
     method.setAccessible(true);
     return (ReplayWorkflowRunTaskHandler)
-        method.invoke(replayTaskHandler, replayTask, new NoopScope());
+        method.invoke(replayTaskHandler, replayTask, new NoopScope(), null);
   }
 
   private static <T> T getField(Object target, String fieldName, Class<T> expectedType)

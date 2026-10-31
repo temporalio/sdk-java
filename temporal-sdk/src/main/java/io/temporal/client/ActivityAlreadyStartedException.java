@@ -1,6 +1,5 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import javax.annotation.Nullable;
 
 /**
@@ -9,7 +8,6 @@ import javax.annotation.Nullable;
  * requested {@link StartActivityOptions#getIdReusePolicy()} / {@link
  * StartActivityOptions#getIdConflictPolicy()}).
  */
-@Experimental
 public final class ActivityAlreadyStartedException extends ActivityException {
 
   private final String activityType;

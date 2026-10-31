@@ -238,7 +238,6 @@ public final class ActivityOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setSummary(String summary) {
       this.summary = summary;
       return this;
@@ -250,7 +249,6 @@ public final class ActivityOptions {
      *
      * <p>Defaults to inheriting priority from the workflow that scheduled the activity.
      */
-    @Experimental
     public Builder setPriority(Priority priority) {
       this.priority = priority;
       return this;
@@ -452,12 +450,10 @@ public final class ActivityOptions {
     return versioningIntent;
   }
 
-  @Experimental
   public String getSummary() {
     return summary;
   }
 
-  @Experimental
   public Priority getPriority() {
     return priority;
   }

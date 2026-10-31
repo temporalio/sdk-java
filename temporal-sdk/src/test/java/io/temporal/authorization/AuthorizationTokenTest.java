@@ -3,9 +3,13 @@ package io.temporal.authorization;
 import static org.junit.Assert.*;
 
 import io.grpc.*;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
@@ -16,13 +20,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestWatcher;
 import org.junit.runner.Description;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class AuthorizationTokenTest {
   private static Metadata.Key<String> TEMPORAL_NAMESPACE_HEADER_KEY =
       Metadata.Key.of("temporal-namespace", Metadata.ASCII_STRING_MARSHALLER);
@@ -117,6 +125,40 @@ public class AuthorizationTokenTest {
             testEnvironment.getNamespace(),
             grpcRequest.namespace);
       }
+    }
+  }
+
+  @Test
+  public void activityClientRequestsShouldHaveANamespace() {
+    testEnvironment.start();
+    ActivityClient client = testEnvironment.getActivityClient();
+    StartActivityOptions options =
+        StartActivityOptions.newBuilder()
+            .setId("activity-id")
+            .setTaskQueue(TASK_QUEUE)
+            .setStartToCloseTimeout(Duration.ofMinutes(1))
+            .build();
+
+    // Only the outgoing request headers matter, not whether the server supports the call.
+    try {
+      client.start("SomeActivity", options);
+    } catch (StatusRuntimeException ignored) {
+    }
+
+    List<GrpcRequest> startRequests =
+        loggedRequests.stream()
+            .filter(request -> request.methodName.equals("StartActivityExecution"))
+            .collect(Collectors.toList());
+    assertFalse("StartActivityExecution should have been called", startRequests.isEmpty());
+    for (GrpcRequest grpcRequest : startRequests) {
+      assertEquals(
+          "StartActivityExecution should have an auth token",
+          AUTH_TOKEN,
+          grpcRequest.authTokenValue);
+      assertEquals(
+          "StartActivityExecution should have a namespace",
+          testEnvironment.getNamespace(),
+          grpcRequest.namespace);
     }
   }
 

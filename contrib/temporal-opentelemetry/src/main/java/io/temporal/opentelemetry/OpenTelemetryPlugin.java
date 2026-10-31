@@ -235,6 +235,10 @@ public final class OpenTelemetryPlugin extends SimplePlugin {
       return serviceName == null ? OpenTelemetryWorker.resolveServiceName(env) : serviceName;
     }
 
+    public Duration getMetricsReportInterval() {
+      return metricsReportInterval;
+    }
+
     Builder setTelemetryFactory(OpenTelemetryWorker.TelemetryFactory telemetryFactory) {
       this.telemetryFactory = Objects.requireNonNull(telemetryFactory, "telemetryFactory");
       return this;

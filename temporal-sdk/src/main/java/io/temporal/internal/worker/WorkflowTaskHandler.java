@@ -1,11 +1,14 @@
 package io.temporal.internal.worker;
 
+import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.workflow.Functions;
+import javax.annotation.Nullable;
 
 /**
  * Interface of workflow task handlers.
@@ -23,6 +26,7 @@ public interface WorkflowTaskHandler {
     private final boolean completionCommand;
     private final Functions.Proc1<Long> resetEventIdHandle;
     private final Runnable applyPostCompletionMetrics;
+    private final @Nullable WorkflowExecution completionParentExecution;
 
     public Result(
         String workflowType,
@@ -33,6 +37,29 @@ public interface WorkflowTaskHandler {
         boolean completionCommand,
         Functions.Proc1<Long> resetEventIdHandle,
         Runnable applyPostCompletionMetrics) {
+      this(
+          workflowType,
+          taskCompleted,
+          taskFailed,
+          queryCompleted,
+          requestRetryOptions,
+          completionCommand,
+          resetEventIdHandle,
+          applyPostCompletionMetrics,
+          null);
+    }
+
+    public Result(
+        String workflowType,
+        RespondWorkflowTaskCompletedRequest taskCompleted,
+        RespondWorkflowTaskFailedRequest taskFailed,
+        RespondQueryTaskCompletedRequest queryCompleted,
+        RpcRetryOptions requestRetryOptions,
+        boolean completionCommand,
+        Functions.Proc1<Long> resetEventIdHandle,
+        Runnable applyPostCompletionMetrics,
+        @Nullable WorkflowExecution completionParentExecution) {
+      this.completionParentExecution = completionParentExecution;
       this.workflowType = workflowType;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
@@ -41,6 +68,15 @@ public interface WorkflowTaskHandler {
       this.completionCommand = completionCommand;
       this.resetEventIdHandle = resetEventIdHandle;
       this.applyPostCompletionMetrics = applyPostCompletionMetrics;
+    }
+
+    /**
+     * The workflow to attribute this workflow's own result to, or {@code null} to attribute it to
+     * the workflow itself.
+     */
+    @Nullable
+    public WorkflowExecution getCompletionParentExecution() {
+      return completionParentExecution;
     }
 
     public RespondWorkflowTaskCompletedRequest getTaskCompleted() {
@@ -102,12 +138,16 @@ public interface WorkflowTaskHandler {
    * Handles a single workflow task
    *
    * @param workflowTask The workflow task to handle.
+   * @param downloadMetrics Accumulates external storage retrievals performed for this task, or null
+   *     to collect nothing.
    * @return One of the possible workflow task replies: RespondWorkflowTaskCompletedRequest,
    *     RespondQueryTaskCompletedRequest, RespondWorkflowTaskFailedRequest
    * @throws Exception an original exception or error if the processing should be just abandoned
    *     without replying to the server
    */
-  Result handleWorkflowTask(PollWorkflowTaskQueueResponse workflowTask) throws Exception;
+  Result handleWorkflowTask(
+      PollWorkflowTaskQueueResponse workflowTask, @Nullable StorageOperationMetrics downloadMetrics)
+      throws Exception;
 
   /** True if this handler handles at least one workflow type. */
   boolean isAnyTypeSupported();

@@ -13,6 +13,7 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow;
 import io.temporal.spring.boot.autoconfigure.workerversioning.TestWorkflow2;
+import io.temporal.testing.internal.ExternalServiceTestConfigurator;
 import io.temporal.worker.WorkerFactory;
 import java.time.Duration;
 import org.junit.jupiter.api.Assumptions;
@@ -32,15 +33,23 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles(profiles = {"worker-versioning", "disable-start-workers"})
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class WorkerVersioningTest {
+  private static final boolean useExternalService = initializeExternalService();
+
   @Autowired ConfigurableApplicationContext applicationContext;
   @Autowired WorkflowClient workflowClient;
 
   @BeforeAll
   static void checkExternalService() {
-    String useExternal = System.getenv("USE_EXTERNAL_SERVICE");
     Assumptions.assumeTrue(
-        useExternal != null && useExternal.equalsIgnoreCase("true"),
-        "Skipping tests because USE_EXTERNAL_SERVICE is not set");
+        useExternalService, "Skipping tests because USE_EXTERNAL_SERVICE is not set");
+  }
+
+  private static boolean initializeExternalService() {
+    boolean useExternalService = ExternalServiceTestConfigurator.isUseExternalService();
+    if (useExternalService) {
+      ExternalServiceTestConfigurator.getTemporalServiceAddress();
+    }
+    return useExternalService;
   }
 
   @BeforeEach

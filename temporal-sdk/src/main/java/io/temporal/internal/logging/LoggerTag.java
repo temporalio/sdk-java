@@ -22,4 +22,6 @@ public final class LoggerTag {
   public static final String UPDATE_NAME = "UpdateName";
   public static final String NEXUS_SERVICE = "NexusService";
   public static final String NEXUS_OPERATION = "NexusOperation";
+  public static final String SIGNALS_LIST = "Signals";
+  public static final String UPDATES_LIST = "Updates";
 }

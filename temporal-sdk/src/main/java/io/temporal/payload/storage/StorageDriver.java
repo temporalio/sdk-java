@@ -11,8 +11,8 @@ import javax.annotation.Nonnull;
 public interface StorageDriver {
   /**
    * Name of this driver instance, unique among the drivers registered in a single {@link
-   * ExternalStorageOptions}. Used as the routing key recorded in a stored payload's reference and
-   * resolved back to this driver on retrieval.
+   * ExternalStorage}. Used as the routing key recorded in a stored payload's reference and resolved
+   * back to this driver on retrieval.
    */
   @Nonnull
   String getName();
@@ -29,6 +29,9 @@ public interface StorageDriver {
   /**
    * Stores {@code payloads} and returns one {@link StorageDriverClaim} per payload, in the same
    * order. The returned list must be the same length as {@code payloads}.
+   *
+   * <p>Observe {@link StorageDriverStoreContext#getCancellationToken()} to learn when the SDK has
+   * abandoned this operation, and abandon in-flight requests accordingly.
    */
   @Nonnull
   CompletableFuture<List<StorageDriverClaim>> store(
@@ -37,6 +40,9 @@ public interface StorageDriver {
   /**
    * Retrieves the payloads identified by {@code claims} and returns one {@link Payload} per claim,
    * in the same order. The returned list must be the same length as {@code claims}.
+   *
+   * <p>Observe {@link StorageDriverRetrieveContext#getCancellationToken()} to learn when the SDK
+   * has abandoned this operation, and abandon in-flight requests accordingly.
    */
   @Nonnull
   CompletableFuture<List<Payload>> retrieve(

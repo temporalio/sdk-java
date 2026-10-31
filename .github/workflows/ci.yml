@@ -82,48 +82,8 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
-      - name: Start CLI server
-        env:
-          TEMPORAL_CLI_VERSION: 1.7.2-standalone-nexus-operations
-        run: |
-          wget -O temporal_cli.tar.gz https://github.com/temporalio/cli/releases/download/v${TEMPORAL_CLI_VERSION}/temporal_cli_${TEMPORAL_CLI_VERSION}_linux_amd64.tar.gz
-          tar -xzf temporal_cli.tar.gz
-          chmod +x temporal
-          ./temporal server start-dev \
-              --headless \
-              --port 7233 \
-              --http-port 7243 \
-              --namespace UnitTest \
-              --db-filename temporal.sqlite \
-              --sqlite-pragma journal_mode=WAL \
-              --sqlite-pragma synchronous=OFF \
-              --search-attribute CustomKeywordField=Keyword \
-              --search-attribute CustomStringField=Text \
-              --search-attribute CustomTextField=Text \
-              --search-attribute CustomIntField=Int \
-              --search-attribute CustomDatetimeField=Datetime \
-              --search-attribute CustomDoubleField=Double \
-              --search-attribute CustomBoolField=Bool \
-              --dynamic-config-value system.enableActivityEagerExecution=true \
-                --dynamic-config-value history.MaxBufferedQueryCount=10000 \
-              --dynamic-config-value frontend.workerVersioningDataAPIs=true \
-              --dynamic-config-value history.enableRequestIdRefLinks=true \
-              --dynamic-config-value frontend.WorkerHeartbeatsEnabled=true \
-              --dynamic-config-value frontend.ListWorkersEnabled=true \
-              --dynamic-config-value frontend.enableCancelWorkerPollsOnShutdown=true \
-              --dynamic-config-value 'component.callbacks.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
-              --dynamic-config-value 'callback.allowedAddresses=[{"Pattern":"localhost:7243","AllowInsecure":true}]' \
-              --dynamic-config-value frontend.activityAPIsEnabled=true \
-              --dynamic-config-value activity.enableStandalone=true \
-              --dynamic-config-value activity.startDelayEnabled=true \
-              --dynamic-config-value nexusoperation.enableStandalone=true \
-              --dynamic-config-value history.enableChasm=true \
-              --dynamic-config-value history.enableCHASMSignalBacklinks=true \
-              --dynamic-config-value history.enableTransitionHistory=true \
-              --dynamic-config-value frontend.enableCancelWorkerPollsOnShutdown=true \
-              --dynamic-config-value frontend.workerCommandsEnabled=true \
-              --dynamic-config-value system.enableCancelActivityWorkerCommand=true &
-          sleep 10s
+      - name: Prepare dev-server tests
+        run: ./gradlew --no-daemon prepareDevServerTests
 
       # Can't actually run tests against Java 8 because Mockito 5 requires Java 11+.
       # We therefore have to rely on the fact that the code has been compiled with
@@ -132,9 +92,7 @@ jobs:
       - name: Run unit tests (Java 11)
         env:
           USER: unittest
-          TEMPORAL_SERVICE_ADDRESS: localhost:7233
-          USE_EXTERNAL_SERVICE: true
-        run: ./gradlew --no-daemon test -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=11
+        run: ./gradlew --no-daemon --offline test -PtestJavaVersion=11 -PtestServer=dev-server
 
       - name: Run Jackson 3 converter tests (Java 17)
         env:
@@ -145,9 +103,7 @@ jobs:
       - name: Run virtual thread tests (Java 21)
         env:
           USER: unittest
-          TEMPORAL_SERVICE_ADDRESS: localhost:7233
-          USE_EXTERNAL_SERVICE: true
-        run: ./gradlew --no-daemon :temporal-sdk:virtualThreadTests -x spotlessCheck -x spotlessApply -x spotlessJava -PtestJavaVersion=21
+        run: ./gradlew --no-daemon --offline :temporal-sdk:virtualThreadTests -PtestJavaVersion=21 -PtestServer=dev-server
 
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
@@ -157,8 +113,9 @@ jobs:
 
   unit_test_cloud:
     name: Unit test with cloud
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Eight forks run about 1,428 eligible tests; the previous runner timed out before completion.
+    runs-on: ubuntu-latest-16-cores
+    timeout-minutes: 35
     steps:
       - name: Checkout repo
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -176,23 +133,73 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
+      - name: Check Cloud test eligibility
+        id: cloud-test-eligibility
+        # Secrets are unavailable to Dependabot and pull requests from forks.
+        if: ${{ github.actor != 'dependabot[bot]' && (github.event.pull_request.head.repo.full_name == '' || github.event.pull_request.head.repo.full_name == 'temporalio/sdk-java') }}
+        env:
+          TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
+        run: |
+          if [[ -n "$TEMPORAL_CLIENT_CLOUD_API_KEY" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=Cloud tests skipped::TEMPORAL_CLIENT_CLOUD_API_KEY is unavailable"
+          fi
+
+      - name: Generate Cloud test certificates
+        if: ${{ steps.cloud-test-eligibility.outputs.enabled == 'true' }}
+        run: |
+          cert_dir="$RUNNER_TEMP/cloud-test-certs"
+          mkdir "$cert_dir"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -keyout "$cert_dir/ca.key" -out "$cert_dir/ca.pem" \
+            -subj '/CN=Temporal Java SDK Cloud CI CA'
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout "$cert_dir/client.key" -out "$cert_dir/client.csr" \
+            -subj '/CN=Temporal Java SDK Cloud CI'
+          openssl x509 -req -days 1 -in "$cert_dir/client.csr" \
+            -CA "$cert_dir/ca.pem" -CAkey "$cert_dir/ca.key" -CAcreateserial \
+            -out "$cert_dir/client.pem" -extfile <(printf 'extendedKeyUsage=clientAuth')
+          {
+            echo "TEMPORAL_CLOUD_CLIENT_CA_PATH=$cert_dir/ca.pem"
+            echo "TEMPORAL_TLS_CLIENT_CERT_PATH=$cert_dir/client.pem"
+            echo "TEMPORAL_TLS_CLIENT_KEY_PATH=$cert_dir/client.key"
+          } >> "$GITHUB_ENV"
+
+      - name: Create Cloud namespace
+        id: create-cloud-namespace
+        if: ${{ steps.cloud-test-eligibility.outputs.enabled == 'true' }}
+        env:
+          TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
+          TEMPORAL_CLIENT_CLOUD_API_VERSION: v0.19.1
+        run: ./gradlew --no-daemon :temporal-sdk:createCloudTestNamespace
+
       - name: Run cloud test
-        # Only supported in non-fork runs, since secrets are not available in forks. We intentionally
-        # are only doing this check on the step instead of the job so we require job passing in CI
-        # even for those that can't run this step.
-        if: ${{ github.event.pull_request.head.repo.full_name == '' || github.event.pull_request.head.repo.full_name == 'temporalio/sdk-java' }}
+        if: ${{ steps.cloud-test-eligibility.outputs.enabled == 'true' }}
+        timeout-minutes: 25
         env:
           USER: unittest
-          TEMPORAL_CLIENT_CLOUD_NAMESPACE: sdk-ci.a2dd6
+          TEMPORAL_TEST_ENV_CONFIG_SERVER: "true"
+          TEMPORAL_ADDRESS: ${{ steps.create-cloud-namespace.outputs.namespace }}.tmprl.cloud:7233
+          TEMPORAL_NAMESPACE: ${{ steps.create-cloud-namespace.outputs.namespace }}
+          TEMPORAL_CLIENT_CLOUD_NAMESPACE: ${{ steps.create-cloud-namespace.outputs.namespace }}
           TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
-          TEMPORAL_CLIENT_CLOUD_API_VERSION: 2024-05-13-00
-        run: ./gradlew --no-daemon :temporal-sdk:test --tests '*CloudOperationsClientTest'
+          TEMPORAL_CLIENT_CLOUD_API_VERSION: v0.19.1
+        run: ./gradlew --no-daemon :temporal-sdk:testCloud
+
+      - name: Delete Cloud namespace
+        if: ${{ always() && steps.create-cloud-namespace.outputs.namespace != '' }}
+        env:
+          TEMPORAL_CLIENT_CLOUD_API_KEY: ${{ secrets.TEMPORAL_CLIENT_CLOUD_API_KEY }}
+          TEMPORAL_CLIENT_CLOUD_API_VERSION: v0.19.1
+          TEMPORAL_CLOUD_TEST_NAMESPACE: ${{ steps.create-cloud-namespace.outputs.namespace }}
+        run: ./gradlew --no-daemon :temporal-sdk:deleteCloudTestNamespace
 
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@bccf2e31636835cf0874589931c4116687171386 # v6
         if: success() || failure() # always run even if the previous step fails
         with:
-          report_paths: "**/build/test-results/test/TEST-*.xml"
+          report_paths: "**/build/test-results/testCloud/TEST-*.xml"
 
   code_format:
     name: Code format
@@ -247,3 +254,31 @@ jobs:
     uses: ./.github/workflows/build-native-image.yml
     with:
       ref: ${{ github.event.pull_request.head.sha }}
+
+  features-test:
+    permissions:
+      contents: read
+      actions: read
+    uses: temporalio/features/.github/workflows/java.yaml@main
+    with:
+      java-repo-path: ${{github.event.pull_request.head.repo.full_name}}
+      version: ${{github.event.pull_request.head.ref}}
+      version-is-repo-ref: true
+
+  # The single required status check for merging: a PR can merge only if every job in
+  # `needs` passed.
+  required_pr_checks:
+    name: Required PR Checks
+    # Without always(), this job would be skipped when a dependency fails, and GitHub
+    # treats a skipped required check as passing.
+    if: always()
+    needs:
+      - unit_test_edge
+      - unit_test_jdk8
+      - code_format
+      - features-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any check failed or was cancelled
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1

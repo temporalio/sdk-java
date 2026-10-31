@@ -8,6 +8,8 @@ import static org.junit.Assert.fail;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.HashMap;
@@ -17,6 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TestName;
 
 public class GetCronScheduleFromWorkflowInfoTest {
@@ -29,6 +32,8 @@ public class GetCronScheduleFromWorkflowInfoTest {
           .setWorkflowTypes(TestGetCronScheduleWorkflowsFuncImpl.class)
           .build();
 
+  @CloudTestExclusionNote("This cron test depends on local test-server time skipping.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testGetCronScheduleFromWorkflowInfo() throws InterruptedException {
     Assume.assumeFalse("skipping for docker tests", testWorkflowRule.isUseExternalService());

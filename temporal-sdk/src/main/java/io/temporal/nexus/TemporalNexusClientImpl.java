@@ -1,16 +1,48 @@
 package io.temporal.nexus;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Strings;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.HandlerException;
+import io.nexusrpc.handler.HandlerException.RetryBehavior;
 import io.nexusrpc.handler.OperationContext;
 import io.nexusrpc.handler.OperationStartDetails;
+import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
+import io.temporal.client.StartActivityOptions;
+import io.temporal.client.UpdateOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
+import io.temporal.client.WorkflowTargetOptions;
+import io.temporal.client.WorkflowUpdateException;
+import io.temporal.client.WorkflowUpdateHandle;
+import io.temporal.client.WorkflowUpdateStage;
 import io.temporal.common.Experimental;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
+import io.temporal.common.interceptors.Header;
+import io.temporal.internal.client.ActivityClientInternal;
+import io.temporal.internal.client.NexusStartActivityResponse;
 import io.temporal.internal.client.NexusStartWorkflowResponse;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.internal.nexus.NexusStartActivityHelper;
 import io.temporal.internal.nexus.NexusStartWorkflowHelper;
+import io.temporal.internal.nexus.OperationToken;
+import io.temporal.internal.nexus.OperationTokenUtil;
+import io.temporal.internal.util.MethodExtractor;
 import io.temporal.workflow.Functions;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -244,13 +276,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
   }
 
   private <R> TemporalOperationResult<R> invokeAndReturn(WorkflowHandle<R> handle) {
-    if (!asyncOperationStarted.compareAndSet(false, true)) {
-      throw new HandlerException(
-          HandlerException.ErrorType.BAD_REQUEST,
-          new IllegalStateException(
-              "Only one async operation can be started per operation handler invocation. "
-                  + "Use getWorkflowClient() for additional workflow interactions."));
-    }
+    markAsyncOperationStarted();
     try {
       NexusStartWorkflowResponse response =
           NexusStartWorkflowHelper.startWorkflowAndAttachLinks(
@@ -264,5 +290,893 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
       asyncOperationStarted.set(false);
       throw t;
     }
+  }
+
+  // ---------- Update Workflow overloads ----------
+
+  @Override
+  public <T, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func1<T, R> updateMethod,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub), effective));
+  }
+
+  @Override
+  public <T, A1, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func2<T, A1, R> updateMethod,
+      A1 arg1,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1), effective));
+  }
+
+  @Override
+  public <T, A1, A2, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func3<T, A1, A2, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1, arg2), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func4<T, A1, A2, A3, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func5<T, A1, A2, A3, A4, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func6<T, A1, A2, A3, A4, A5, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6), effective));
+  }
+
+  @Override
+  public <T> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc1<T> updateMethod,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub), effective));
+  }
+
+  @Override
+  public <T, A1> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc2<T, A1> updateMethod,
+      A1 arg1,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1), effective));
+  }
+
+  @Override
+  public <T, A1, A2> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc3<T, A1, A2> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1, arg2), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc4<T, A1, A2, A3> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc5<T, A1, A2, A3, A4> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc6<T, A1, A2, A3, A4, A5> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      String workflowId,
+      Functions.Proc7<T, A1, A2, A3, A4, A5, A6> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = client.newWorkflowStub(workflowClass, workflowId);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6), effective));
+  }
+
+  /** Function that will trigger {@code startUpdate} on overloads */
+  @FunctionalInterface
+  private interface UpdateCommand<R> {
+    WorkflowUpdateHandle<R> triggerUpdate(UpdateOptions<R> options);
+  }
+
+  /** Common code for all {@code startWorkflowUpdate} overloads. */
+  private <R> TemporalOperationResult<R> executeUpdate(
+      UpdateOptions<R> options, UpdateCommand<R> updateWrapper) throws OperationException {
+
+    UpdateOptions.Builder<R> effectiveOptsBuilder = UpdateOptions.newBuilder(options);
+    String requestId = operationStartDetails.getRequestId();
+    if (Strings.isNullOrEmpty(options.getUpdateId())) {
+      // if updateId is unset, use requestId - consistent with other SDKs
+      effectiveOptsBuilder.setUpdateId(requestId);
+    }
+    options = effectiveOptsBuilder.build();
+    checkNexusUpdateOptionsValid(options);
+    markAsyncOperationStarted();
+
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+    try {
+      String callbackUrl = operationStartDetails.getCallbackUrl();
+      if (Strings.isNullOrEmpty(callbackUrl)) {
+        throw new HandlerException(
+            HandlerException.ErrorType.BAD_REQUEST,
+            new IllegalArgumentException("callback URL is required for a Nexus operation"));
+      }
+      NexusOperationMetadata nexusOperationMetadata =
+          new NexusOperationMetadata(
+              requestId, callbackUrl, operationStartDetails.getCallbackHeaders());
+      // set the nexusOperationMetadata and capture operationCompleted
+      nexusContext.setNexusOperationMetadata(nexusOperationMetadata);
+      WorkflowUpdateHandle<R> handle = updateWrapper.triggerUpdate(options);
+      if (nexusOperationMetadata.operationCompleted) {
+        try {
+          R value = handle.getResult();
+          return TemporalOperationResult.sync(value);
+        } catch (WorkflowUpdateException e) {
+          // Only case where operation is completed but getResult fails is if the update
+          // fails non-retriably - validation failure - so fail the operation immediately
+          throw OperationException.failed(e);
+        }
+      }
+      // regenerate token so it has the actual run ID that update is running on
+      // previous generation is only to handle completion before handle is returned
+      String token = "";
+      try {
+        OperationToken ot =
+            OperationTokenUtil.loadWorkflowUpdateOperationToken(
+                nexusOperationMetadata.operationToken);
+        token =
+            OperationTokenUtil.generateWorkflowUpdateOperationToken(
+                ot.getNamespace(),
+                ot.getWorkflowId(),
+                handle.getExecution().getRunId(),
+                ot.getUpdateId());
+      } catch (IllegalArgumentException | JsonProcessingException e) {
+        // should not happen, this is all in SDK
+        throw new HandlerException(
+            HandlerException.ErrorType.INTERNAL, "unexpected error reconstructing token", e);
+      }
+      return TemporalOperationResult.async(token);
+    } catch (Throwable t) {
+      // Reset on failure so that if the update RPC throws, the handler can retry without being
+      // blocked by the guard.
+      asyncOperationStarted.set(false);
+      throw t;
+    } finally {
+      nexusContext.setNexusOperationMetadata(null);
+    }
+  }
+
+  /**
+   * @throws OperationException if the options provided are invalid like missing
+   *     UpdateName/WorkflowID/etc
+   */
+  private <R> void checkNexusUpdateOptionsValid(UpdateOptions<R> options)
+      throws OperationException {
+    if (options.getWaitForStage() != WorkflowUpdateStage.ACCEPTED) {
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          "invalid update request",
+          new IllegalArgumentException(
+              "nexus op workflow updates only support WorkflowUpdateStageAccepted for async updates"),
+          RetryBehavior.RETRYABLE);
+    }
+    try {
+      options.validate();
+    } catch (IllegalStateException e) {
+      throw new HandlerException(
+          HandlerException.ErrorType.INTERNAL,
+          "invalid update request",
+          e,
+          RetryBehavior.RETRYABLE);
+    }
+  }
+
+  private void markAsyncOperationStarted() {
+    if (!asyncOperationStarted.compareAndSet(false, true)) {
+      throw new HandlerException(
+          HandlerException.ErrorType.BAD_REQUEST,
+          new IllegalStateException(
+              "Only one async operation can be started per operation handler invocation. "
+                  + "Use getWorkflowClient() for additional workflow interactions."));
+    }
+  }
+
+  // ---------- Update Workflow overloads for WorkflowExecution ----------
+
+  @Override
+  public <T, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func1<T, R> updateMethod,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub), effective));
+  }
+
+  @Override
+  public <T, A1, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func2<T, A1, R> updateMethod,
+      A1 arg1,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1), effective));
+  }
+
+  @Override
+  public <T, A1, A2, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func3<T, A1, A2, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1, arg2), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func4<T, A1, A2, A3, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func5<T, A1, A2, A3, A4, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func6<T, A1, A2, A3, A4, A5, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Func7<T, A1, A2, A3, A4, A5, A6, R> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<R> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6), effective));
+  }
+
+  @Override
+  public <T> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc1<T> updateMethod,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub), effective));
+  }
+
+  @Override
+  public <T, A1> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc2<T, A1> updateMethod,
+      A1 arg1,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective -> WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1), effective));
+  }
+
+  @Override
+  public <T, A1, A2> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc3<T, A1, A2> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(() -> updateMethod.apply(stub, arg1, arg2), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc4<T, A1, A2, A3> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc5<T, A1, A2, A3, A4> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc6<T, A1, A2, A3, A4, A5> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5), effective));
+  }
+
+  @Override
+  public <T, A1, A2, A3, A4, A5, A6> TemporalOperationResult<Void> startWorkflowUpdate(
+      Class<T> workflowClass,
+      WorkflowExecution execution,
+      Functions.Proc7<T, A1, A2, A3, A4, A5, A6> updateMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      UpdateOptions<Void> options)
+      throws OperationException {
+    T stub = newWorkflowStub(workflowClass, execution);
+    return executeUpdate(
+        options,
+        effective ->
+            WorkflowClient.startUpdate(
+                () -> updateMethod.apply(stub, arg1, arg2, arg3, arg4, arg5, arg6), effective));
+  }
+
+  private <T> T newWorkflowStub(Class<T> workflowClass, WorkflowExecution execution) {
+    return client.newWorkflowStub(
+        workflowClass, WorkflowTargetOptions.newBuilder().setWorkflowExecution(execution).build());
+  }
+
+  // ---------- Activity overloads (Func returning) ----------
+
+  @Override
+  public <I, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func1<I, R> activityMethod,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Collections.emptyList(), options);
+  }
+
+  @Override
+  public <I, A1, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func2<I, A1, R> activityMethod,
+      A1 arg1,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Collections.singletonList(arg1), options);
+  }
+
+  @Override
+  public <I, A1, A2, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func3<I, A1, A2, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func4<I, A1, A2, A3, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func5<I, A1, A2, A3, A4, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func6<I, A1, A2, A3, A4, A5, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5, A6, R> TemporalOperationResult<R> startActivity(
+      Class<I> activityInterface,
+      Functions.Func7<I, A1, A2, A3, A4, A5, A6, R> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(
+        activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5, arg6), options);
+  }
+
+  // ---------- Activity overloads (Proc void) ----------
+
+  @Override
+  public <I> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface, Functions.Proc1<I> activityMethod, StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Collections.emptyList(), options);
+  }
+
+  @Override
+  public <I, A1> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc2<I, A1> activityMethod,
+      A1 arg1,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Collections.singletonList(arg1), options);
+  }
+
+  @Override
+  public <I, A1, A2> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc3<I, A1, A2> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc4<I, A1, A2, A3> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc5<I, A1, A2, A3, A4> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc6<I, A1, A2, A3, A4, A5> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5), options);
+  }
+
+  @Override
+  public <I, A1, A2, A3, A4, A5, A6> TemporalOperationResult<Void> startActivity(
+      Class<I> activityInterface,
+      Functions.Proc7<I, A1, A2, A3, A4, A5, A6> activityMethod,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6,
+      StartActivityOptions options) {
+    Method method = MethodExtractor.extract(activityInterface, activityMethod);
+    String activityType = MethodExtractor.activityTypeName(activityInterface, method);
+    return startActivityImpl(
+        activityType, Arrays.asList(arg1, arg2, arg3, arg4, arg5, arg6), options);
+  }
+
+  // ---------- Activity untyped ----------
+
+  @Override
+  public <R> TemporalOperationResult<R> startActivity(
+      String activityType, Class<R> resultClass, StartActivityOptions options, Object... args) {
+    List<Object> argList = args == null ? Collections.emptyList() : Arrays.asList(args);
+    return startActivityImpl(activityType, argList, options);
+  }
+
+  private <R> TemporalOperationResult<R> startActivityImpl(
+      String activityType, List<Object> args, StartActivityOptions options) {
+    markAsyncOperationStarted();
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
+    try {
+      NexusOperationMetadata nexusOperationMetadata =
+          new NexusOperationMetadata(
+              operationStartDetails.getRequestId(),
+              operationStartDetails.getCallbackUrl(),
+              operationStartDetails.getCallbackHeaders());
+      nexusContext.setNexusOperationMetadata(nexusOperationMetadata);
+      NexusStartActivityResponse response =
+          NexusStartActivityHelper.startActivityAndAttachLinks(
+              operationContext,
+              operationStartDetails,
+              activityType,
+              args,
+              options,
+              propagatedHeader(),
+              request -> {
+                ActivityClientCallsInterceptor.StartActivityInput input =
+                    new ActivityClientCallsInterceptor.StartActivityInput(
+                        request.getActivityType(),
+                        request.getArgs(),
+                        request.getOptions(),
+                        request.getHeader());
+                // Build an internal ActivityClient aligned with the surrounding WorkflowClient.
+                // User-configured standalone ActivityClient interceptors are not available in the
+                // Nexus operation-handler lifecycle.
+                ActivityClient activityClient =
+                    ActivityClient.newInstance(
+                        client.getWorkflowServiceStubs(),
+                        ActivityClientOptions.newBuilder()
+                            .setNamespace(client.getOptions().getNamespace())
+                            .setDataConverter(client.getOptions().getDataConverter())
+                            .setIdentity(client.getOptions().getIdentity())
+                            .build());
+                ActivityClientCallsInterceptor.StartActivityOutput out =
+                    ((ActivityClientInternal) activityClient).getInvoker().startActivity(input);
+                // The invoker generated the runId-free token before the start RPC and injected it
+                // into the callback headers when a callback URL was supplied. That token cannot
+                // include a run ID because the run ID isn't known until after the start RPC
+                // returns. The operation token returned to the Nexus caller can — and should —
+                // include it, so it's regenerated here from the same activity ID + the run ID the
+                // start RPC produced.
+                String headerToken = nexusOperationMetadata.operationToken;
+                if (headerToken == null) {
+                  throw new HandlerException(
+                      HandlerException.ErrorType.INTERNAL,
+                      "invoker did not generate a Nexus operation token for activity start",
+                      new IllegalStateException(
+                          "operationToken is null on NexusOperationMetadata after activity start"));
+                }
+                String returnToken;
+                try {
+                  returnToken =
+                      OperationTokenUtil.generateActivityExecutionOperationToken(
+                          out.getActivityId(),
+                          out.getActivityRunId(),
+                          client.getOptions().getNamespace());
+                } catch (JsonProcessingException e) {
+                  throw new HandlerException(
+                      HandlerException.ErrorType.INTERNAL,
+                      "failed to generate activity operation token",
+                      e);
+                }
+                return new NexusStartActivityResponse(
+                    out.getActivityId(), out.getActivityRunId(), returnToken);
+              });
+      return TemporalOperationResult.async(response.getOperationToken());
+    } catch (Throwable t) {
+      // Reset on failure so that if the activity start throws, the handler can retry without
+      // being blocked by the guard.
+      asyncOperationStarted.set(false);
+      throw t;
+    } finally {
+      nexusContext.setNexusOperationMetadata(null);
+    }
+  }
+
+  private Header propagatedHeader() {
+    List<ContextPropagator> propagators = client.getOptions().getContextPropagators();
+    if (propagators.isEmpty()) {
+      return Header.empty();
+    }
+    Map<String, Payload> result = new HashMap<>();
+    for (ContextPropagator propagator : propagators) {
+      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
+    }
+    return new Header(result);
   }
 }

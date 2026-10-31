@@ -4,7 +4,6 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import com.google.common.base.Preconditions;
 import io.nexusrpc.ServiceDefinition;
-import io.nexusrpc.handler.ServiceImplInstance;
 import io.opentracing.Tracer;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.Experimental;
@@ -14,6 +13,7 @@ import io.temporal.common.metadata.POJOActivityImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.internal.common.env.ReflectionUtils;
+import io.temporal.internal.nexus.TemporalOperationProcessor;
 import io.temporal.internal.sync.POJOWorkflowImplementationFactory;
 import io.temporal.spring.boot.ActivityImpl;
 import io.temporal.spring.boot.NexusServiceImpl;
@@ -224,7 +224,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
       Workers workers,
       Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
     for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
-      WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
+      WorkflowImpl annotation = AnnotationUtils.findAnnotation(clazz, WorkflowImpl.class);
       for (String taskQueue : annotation.taskQueues()) {
         taskQueue = environment.resolvePlaceholders(taskQueue);
         Worker worker = workerFactory.tryGetWorker(taskQueue);
@@ -303,9 +303,10 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
   private void configureWorkflowImplementationsByWorkerName(
       Workers workers, Collection<Class<?>> autoDiscoveredWorkflowImplementationClasses) {
     for (Class<?> clazz : autoDiscoveredWorkflowImplementationClasses) {
-      WorkflowImpl annotation = clazz.getAnnotation(WorkflowImpl.class);
+      WorkflowImpl annotation = AnnotationUtils.findAnnotation(clazz, WorkflowImpl.class);
 
       for (String workerName : annotation.workers()) {
+        workerName = environment.resolvePlaceholders(workerName);
         Worker worker = workers.getByName(workerName);
         if (worker == null) {
           throw new BeanDefinitionValidationException(
@@ -328,6 +329,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           ActivityImpl annotation = AnnotationUtils.findAnnotation(targetClass, ActivityImpl.class);
           if (annotation != null) {
             for (String workerName : annotation.workers()) {
+              workerName = environment.resolvePlaceholders(workerName);
               Worker worker = workers.getByName(workerName);
               if (worker == null) {
                 throw new BeanDefinitionValidationException(
@@ -353,6 +355,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               AnnotationUtils.findAnnotation(targetClass, NexusServiceImpl.class);
           if (annotation != null) {
             for (String workerName : annotation.workers()) {
+              workerName = environment.resolvePlaceholders(workerName);
               Worker worker = workers.getByName(workerName);
               if (worker == null) {
                 throw new BeanDefinitionValidationException(
@@ -453,7 +456,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 AopUtils.getTargetClass(bean),
                 taskQueue);
             worker.registerNexusServiceImplementation(bean);
-            ServiceDefinition definition = ServiceImplInstance.fromInstance(bean).getDefinition();
+            ServiceDefinition definition = TemporalOperationProcessor.process(bean).getDefinition();
             addRegisteredNexusServiceImpl(worker, beanName, bean.getClass().getName(), definition);
           });
     }
@@ -531,7 +534,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
           worker,
           beanName,
           bean.getClass().getName(),
-          ServiceImplInstance.fromInstance(bean).getDefinition());
+          TemporalOperationProcessor.process(bean).getDefinition());
       if (log.isInfoEnabled()) {
         log.info(
             "Registering auto-discovered nexus service bean '{}' of class {} on a worker {} with a task queue '{}'",
@@ -609,6 +612,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 .createWorkflowImplementationOptions(worker, clazz, null);
         worker.registerWorkflowImplementationFactory(
             DynamicWorkflow.class,
+            (Class<? extends DynamicWorkflow>) clazz,
             (encodedValues) -> {
               if (ctor.isPresent()) {
                 try {
@@ -676,6 +680,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
               .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
       worker.registerWorkflowImplementationFactory(
           (Class<T>) workflowMethod.getWorkflowInterface(),
+          (Class<? extends T>) clazz,
           (encodedValues) -> {
             try {
               Constructor<?> ctor = workflowMetadata.getWorkflowInit();
@@ -711,6 +716,7 @@ public class WorkersTemplate implements BeanFactoryAware, EnvironmentAware {
                 .createWorkflowImplementationOptions(worker, clazz, workflowMethod);
         worker.registerWorkflowImplementationFactory(
             (Class<T>) workflowMethod.getWorkflowInterface(),
+            (Class<? extends T>) clazz,
             () -> (T) beanFactory.createBean(clazz),
             workflowImplementationOptions);
         addRegisteredWorkflowImpl(

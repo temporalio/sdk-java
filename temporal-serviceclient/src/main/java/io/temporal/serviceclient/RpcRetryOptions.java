@@ -95,7 +95,7 @@ public final class RpcRetryOptions {
       this.congestionInitialInterval = options.getCongestionInitialInterval();
       this.maximumInterval = options.getMaximumInterval();
       this.maximumJitterCoefficient = options.getMaximumJitterCoefficient();
-      this.doNotRetry = options.getDoNotRetry();
+      this.doNotRetry = new ArrayList<>(options.getDoNotRetry());
     }
 
     /**
@@ -272,7 +272,8 @@ public final class RpcRetryOptions {
       setInitialInterval(
           OptionsUtils.merge(initialInterval, o.getInitialInterval(), Duration.class));
       setCongestionInitialInterval(
-          OptionsUtils.merge(congestionInitialInterval, o.getInitialInterval(), Duration.class));
+          OptionsUtils.merge(
+              congestionInitialInterval, o.getCongestionInitialInterval(), Duration.class));
       setExpiration(OptionsUtils.merge(expiration, o.getExpiration(), Duration.class));
       setMaximumInterval(
           OptionsUtils.merge(maximumInterval, o.getMaximumInterval(), Duration.class));
@@ -412,7 +413,7 @@ public final class RpcRetryOptions {
     this.maximumAttempts = maximumAttempts;
     this.maximumInterval = maximumInterval;
     this.maximumJitterCoefficient = maximumJitterCoefficient;
-    this.doNotRetry = Collections.unmodifiableList(doNotRetry);
+    this.doNotRetry = Collections.unmodifiableList(new ArrayList<>(doNotRetry));
   }
 
   public Duration getInitialInterval() {

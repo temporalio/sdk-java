@@ -16,6 +16,8 @@ import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.testUtils.CountingSlotSupplier;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.*;
 import io.temporal.worker.tuning.*;
@@ -26,7 +28,11 @@ import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Requires a test-specific gRPC interceptor in addition to envconfig connection options.")
+@Category(NeedsCloudAdaptation.class)
 public class EagerWorkflowTaskDispatchTest {
   private static final StartCallInterceptor START_CALL_INTERCEPTOR = new StartCallInterceptor();
   private final CountingSlotSupplier<WorkflowSlotInfo> workflowTaskSlotSupplier =

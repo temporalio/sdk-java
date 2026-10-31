@@ -8,6 +8,8 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.*;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.testing.internal.TracingWorkerInterceptor;
@@ -18,8 +20,12 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings("deprecation")
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the custom search attributes used by this suite.")
+@Category(RequiresCloudProvisioning.class)
 public class UpsertSearchAttributeTest {
 
   private static final String TEST_VALUE = "test";

@@ -66,7 +66,7 @@ public class MemoTest {
     GetWorkflowExecutionHistoryResponse historyResp =
         WorkflowClientHelper.getHistoryPage(
             testWorkflowRule.getWorkflowServiceStubs(),
-            SDKTestWorkflowRule.NAMESPACE,
+            testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
             executionF,
             ByteString.EMPTY,
             new NoopScope());

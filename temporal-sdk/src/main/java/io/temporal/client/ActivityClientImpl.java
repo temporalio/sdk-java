@@ -3,10 +3,14 @@ package io.temporal.client;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.Header;
+import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.ActivityHandleImpl;
+import io.temporal.internal.client.ClientDataConverterFactory;
+import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
@@ -27,7 +31,7 @@ import javax.annotation.Nullable;
  * Implementation of {@link ActivityClient} that delegates calls through the activity interceptor
  * chain and ultimately to the Temporal service.
  */
-class ActivityClientImpl implements ActivityClient {
+class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
 
   private final WorkflowServiceStubs stubs;
   private final ActivityClientOptions options;
@@ -36,23 +40,37 @@ class ActivityClientImpl implements ActivityClient {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
+    DataConverter internalDataConverter =
+        ClientDataConverterFactory.forClient(options.getDataConverter());
     this.stubs = stubs;
     this.options = options;
+    WorkflowServiceStubs namespacedStubs =
+        new NamespaceInjectWorkflowServiceStubs(stubs, options.getNamespace());
     this.metricsScope =
         stubs.getOptions().getMetricsScope().tagged(MetricsTag.defaultTags(options.getNamespace()));
-    GenericWorkflowClientImpl genericClient = new GenericWorkflowClientImpl(stubs, metricsScope);
-    this.invoker = initializeClientInvoker(genericClient, options);
+    GenericWorkflowClientImpl genericClient =
+        new GenericWorkflowClientImpl(namespacedStubs, metricsScope);
+    this.invoker = initializeClientInvoker(genericClient, options, internalDataConverter);
     this.manualActivityCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            stubs, options.getNamespace(), options.getIdentity(), options.getDataConverter());
+            namespacedStubs, options.getNamespace(), options.getIdentity(), internalDataConverter);
   }
 
   private static ActivityClientCallsInterceptor initializeClientInvoker(
-      GenericWorkflowClientImpl genericClient, ActivityClientOptions options) {
-    ActivityClientCallsInterceptor invoker = new RootActivityClientInvoker(genericClient, options);
+      GenericWorkflowClientImpl genericClient,
+      ActivityClientOptions options,
+      DataConverter dataConverter) {
+    ActivityClientCallsInterceptor invoker =
+        new RootActivityClientInvoker(
+            genericClient, options.getNamespace(), options.getIdentity(), dataConverter);
     for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
       invoker = interceptor.activityClientCallsInterceptor(invoker);
     }
+    return invoker;
+  }
+
+  @Override
+  public ActivityClientCallsInterceptor getInvoker() {
     return invoker;
   }
 

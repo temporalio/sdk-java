@@ -12,6 +12,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -59,6 +60,7 @@ public final class ChildWorkflowOptions {
     private String staticSummary;
     private String staticDetails;
     private Priority priority;
+    private VersioningOverride versioningOverride;
 
     private Builder() {}
 
@@ -86,6 +88,7 @@ public final class ChildWorkflowOptions {
       this.staticSummary = options.getStaticSummary();
       this.staticDetails = options.getStaticDetails();
       this.priority = options.getPriority();
+      this.versioningOverride = options.getVersioningOverride();
     }
 
     /**
@@ -309,7 +312,6 @@ public final class ChildWorkflowOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setStaticSummary(String staticSummary) {
       this.staticSummary = staticSummary;
       return this;
@@ -322,7 +324,6 @@ public final class ChildWorkflowOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setStaticDetails(String staticDetails) {
       this.staticDetails = staticDetails;
       return this;
@@ -332,9 +333,114 @@ public final class ChildWorkflowOptions {
      * Optional priority settings that control relative ordering of task processing when tasks are
      * backed up in a queue.
      */
-    @Experimental
     public Builder setPriority(Priority priority) {
       this.priority = priority;
+      return this;
+    }
+
+    /**
+     * Sets an explicit versioning override for this child, independently of the parent's
+     * versioning. If unset, the child normally inherits the parent's effective versioning behavior
+     * and deployment version, subject to task queue and deployment compatibility.
+     *
+     * <p>Supports {@link VersioningOverride.PinnedVersioningOverride}, {@link
+     * VersioningOverride.AutoUpgradeVersioningOverride}, and {@link
+     * VersioningOverride.OneTimeVersioningOverride}. If the server rejects the override, the child
+     * start fails with a {@link ChildWorkflowFailure} caused by {@link
+     * io.temporal.failure.InvalidVersioningOverrideFailure}.
+     *
+     * <p>Requires Temporal Server 1.32.0 or later.
+     */
+    @Experimental
+    public Builder setVersioningOverride(VersioningOverride versioningOverride) {
+      this.versioningOverride = versioningOverride;
+      return this;
+    }
+
+    /**
+     * Merges the provided override options into this builder. Any non-null fields in the override
+     * will take precedence over the fields in this builder, with the following exceptions:
+     *
+     * <ul>
+     *   <li>{@code contextPropagators} lists are concatenated instead of replaced, matching {@link
+     *       io.temporal.activity.ActivityOptions.Builder#mergeActivityOptions(
+     *       io.temporal.activity.ActivityOptions)}.
+     *   <li>The mutually exclusive {@code searchAttributes} and {@code typedSearchAttributes} are
+     *       merged as a single logical field: an override that specifies either flavor replaces
+     *       both, so the merged options never carry both flavors at once.
+     *   <li>A {@code versioningIntent} of {@link VersioningIntent#VERSIONING_INTENT_UNSPECIFIED} is
+     *       treated as unset.
+     * </ul>
+     *
+     * @param override ChildWorkflowOptions that overrides the current builder values.
+     * @return this builder.
+     */
+    @SuppressWarnings("deprecation")
+    public Builder mergeChildWorkflowOptions(ChildWorkflowOptions override) {
+      if (override == null) {
+        return this;
+      }
+      this.namespace = (override.getNamespace() == null) ? this.namespace : override.getNamespace();
+      this.workflowId =
+          (override.getWorkflowId() == null) ? this.workflowId : override.getWorkflowId();
+      this.workflowIdReusePolicy =
+          (override.getWorkflowIdReusePolicy() == null)
+              ? this.workflowIdReusePolicy
+              : override.getWorkflowIdReusePolicy();
+      this.workflowRunTimeout =
+          (override.getWorkflowRunTimeout() == null)
+              ? this.workflowRunTimeout
+              : override.getWorkflowRunTimeout();
+      this.workflowExecutionTimeout =
+          (override.getWorkflowExecutionTimeout() == null)
+              ? this.workflowExecutionTimeout
+              : override.getWorkflowExecutionTimeout();
+      this.workflowTaskTimeout =
+          (override.getWorkflowTaskTimeout() == null)
+              ? this.workflowTaskTimeout
+              : override.getWorkflowTaskTimeout();
+      this.taskQueue = (override.getTaskQueue() == null) ? this.taskQueue : override.getTaskQueue();
+      this.retryOptions =
+          (override.getRetryOptions() == null) ? this.retryOptions : override.getRetryOptions();
+      this.cronSchedule =
+          (override.getCronSchedule() == null) ? this.cronSchedule : override.getCronSchedule();
+      this.parentClosePolicy =
+          (override.getParentClosePolicy() == null)
+              ? this.parentClosePolicy
+              : override.getParentClosePolicy();
+      this.memo = (override.getMemo() == null) ? this.memo : override.getMemo();
+      // searchAttributes and typedSearchAttributes are mutually exclusive (the setters reject
+      // mixing them), so they are merged as one logical field: an override specifying either
+      // flavor replaces both, otherwise the merged options could carry both flavors and fail at
+      // child-scheduling time.
+      if (override.getSearchAttributes() != null || override.getTypedSearchAttributes() != null) {
+        this.searchAttributes = override.getSearchAttributes();
+        this.typedSearchAttributes = override.getTypedSearchAttributes();
+      }
+      if (this.contextPropagators == null) {
+        this.contextPropagators = override.getContextPropagators();
+      } else if (override.getContextPropagators() != null) {
+        List<ContextPropagator> mergedPropagators = new ArrayList<>(this.contextPropagators);
+        mergedPropagators.addAll(override.getContextPropagators());
+        this.contextPropagators = mergedPropagators;
+      }
+      this.cancellationType =
+          (override.getCancellationType() == null)
+              ? this.cancellationType
+              : override.getCancellationType();
+      if (override.getVersioningIntent() != null
+          && override.getVersioningIntent() != VersioningIntent.VERSIONING_INTENT_UNSPECIFIED) {
+        this.versioningIntent = override.getVersioningIntent();
+      }
+      this.staticSummary =
+          (override.getStaticSummary() == null) ? this.staticSummary : override.getStaticSummary();
+      this.staticDetails =
+          (override.getStaticDetails() == null) ? this.staticDetails : override.getStaticDetails();
+      this.priority = (override.getPriority() == null) ? this.priority : override.getPriority();
+      this.versioningOverride =
+          (override.getVersioningOverride() == null)
+              ? this.versioningOverride
+              : override.getVersioningOverride();
       return this;
     }
 
@@ -358,7 +464,8 @@ public final class ChildWorkflowOptions {
           versioningIntent,
           staticSummary,
           staticDetails,
-          priority);
+          priority,
+          versioningOverride);
     }
 
     @SuppressWarnings("deprecation")
@@ -386,7 +493,8 @@ public final class ChildWorkflowOptions {
               : versioningIntent,
           staticSummary,
           staticDetails,
-          priority);
+          priority,
+          versioningOverride);
     }
   }
 
@@ -412,6 +520,7 @@ public final class ChildWorkflowOptions {
   private final String staticSummary;
   private final String staticDetails;
   private final Priority priority;
+  private final VersioningOverride versioningOverride;
 
   private ChildWorkflowOptions(
       String namespace,
@@ -432,7 +541,8 @@ public final class ChildWorkflowOptions {
       @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
       String staticSummary,
       String staticDetails,
-      Priority priority) {
+      Priority priority,
+      VersioningOverride versioningOverride) {
     this.namespace = namespace;
     this.workflowId = workflowId;
     this.workflowIdReusePolicy = workflowIdReusePolicy;
@@ -452,6 +562,7 @@ public final class ChildWorkflowOptions {
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
     this.priority = priority;
+    this.versioningOverride = versioningOverride;
   }
 
   /**
@@ -534,19 +645,26 @@ public final class ChildWorkflowOptions {
     return versioningIntent;
   }
 
-  @Experimental
   public String getStaticSummary() {
     return staticSummary;
   }
 
-  @Experimental
   public String getStaticDetails() {
     return staticDetails;
   }
 
-  @Experimental
   public Priority getPriority() {
     return priority;
+  }
+
+  /**
+   * Returns the explicit child workflow versioning override, or null if unset.
+   *
+   * @see Builder#setVersioningOverride(VersioningOverride)
+   */
+  @Experimental
+  public VersioningOverride getVersioningOverride() {
+    return versioningOverride;
   }
 
   public Builder toBuilder() {
@@ -576,7 +694,8 @@ public final class ChildWorkflowOptions {
         && versioningIntent == that.versioningIntent
         && Objects.equal(staticSummary, that.staticSummary)
         && Objects.equal(staticDetails, that.staticDetails)
-        && Objects.equal(priority, that.priority);
+        && Objects.equal(priority, that.priority)
+        && Objects.equal(versioningOverride, that.versioningOverride);
   }
 
   @Override
@@ -600,7 +719,8 @@ public final class ChildWorkflowOptions {
         versioningIntent,
         staticSummary,
         staticDetails,
-        priority);
+        priority,
+        versioningOverride);
   }
 
   @Override
@@ -648,6 +768,8 @@ public final class ChildWorkflowOptions {
         + staticDetails
         + ", priority="
         + priority
+        + ", versioningOverride="
+        + versioningOverride
         + '}';
   }
 }

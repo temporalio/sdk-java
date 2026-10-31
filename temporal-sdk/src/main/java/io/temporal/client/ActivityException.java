@@ -1,11 +1,9 @@
 package io.temporal.client;
 
-import io.temporal.common.Experimental;
 import io.temporal.failure.TemporalException;
 import javax.annotation.Nullable;
 
 /** Base exception for standalone activity execution failures. */
-@Experimental
 public abstract class ActivityException extends TemporalException {
 
   private final String activityId;

@@ -2,6 +2,7 @@ package io.temporal.internal.worker;
 
 import com.google.common.base.Preconditions;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.task.VirtualThreadDelegate;
 import java.util.Objects;
 import java.util.concurrent.*;
@@ -22,6 +23,7 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
   private final String identity;
   private final TaskHandler<T> handler;
   private final PollerOptions pollerOptions;
+  private final PrefixedMdc mdc;
 
   private final ExecutorService taskExecutor;
   private final String pollThreadNamePrefix;
@@ -33,12 +35,14 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
       @Nonnull TaskHandler<T> handler,
       @Nonnull PollerOptions pollerOptions,
       int threadPoolMax,
-      boolean useVirtualThreads) {
+      boolean useVirtualThreads,
+      @Nonnull PrefixedMdc mdc) {
     this.namespace = Objects.requireNonNull(namespace);
     this.taskQueue = Objects.requireNonNull(taskQueue);
     this.identity = Objects.requireNonNull(identity);
     this.handler = Objects.requireNonNull(handler);
     this.pollerOptions = Objects.requireNonNull(pollerOptions);
+    this.mdc = Objects.requireNonNull(mdc);
 
     this.pollThreadNamePrefix =
         pollerOptions.getPollThreadNamePrefix().replaceFirst("Poller", "Executor");
@@ -75,8 +79,8 @@ final class PollTaskExecutor<T> implements ShutdownableTaskExecutor<T> {
     taskExecutor.execute(
         () -> {
           try {
-            MDC.put(LoggerTag.NAMESPACE, namespace);
-            MDC.put(LoggerTag.TASK_QUEUE, taskQueue);
+            mdc.put(LoggerTag.NAMESPACE, namespace);
+            mdc.put(LoggerTag.TASK_QUEUE, taskQueue);
             handler.handle(task);
           } catch (Throwable e) {
             if (!isShutdown()) {

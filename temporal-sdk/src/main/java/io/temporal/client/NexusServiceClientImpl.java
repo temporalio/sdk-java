@@ -4,6 +4,7 @@ import io.nexusrpc.OperationDefinition;
 import io.nexusrpc.ServiceDefinition;
 import io.temporal.common.Experimental;
 import io.temporal.common.interceptors.NexusClientCallsInterceptor;
+import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
@@ -26,7 +27,7 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       NexusClientCallsInterceptor invoker,
       Class<T> serviceInterface,
       String endpoint,
-      NexusClientOptions options) {
+      NexusClientResolvedOptions options) {
     this(
         invoker,
         serviceInterface,
@@ -40,7 +41,7 @@ class NexusServiceClientImpl<T> extends UntypedNexusServiceClientImpl
       Class<T> serviceInterface,
       ServiceDefinition serviceDef,
       String endpoint,
-      NexusClientOptions options) {
+      NexusClientResolvedOptions options) {
     super(invoker, endpoint, serviceDef.getName(), options);
     this.serviceInterface = serviceInterface;
     this.serviceDef = serviceDef;

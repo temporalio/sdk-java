@@ -30,6 +30,8 @@ import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestEnvironmentOptions;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.testing.WorkflowHistoryLoader;
@@ -51,6 +53,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
 
 /**
@@ -58,6 +61,8 @@ import org.slf4j.Logger;
  * gauravthadani/samples-kotlin and captures histories that exercise interleaved updates around
  * getVersion.
  */
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class GetVersionInterleavedUpdateReplayTest {
   private static final String HISTORY_RESOURCE =
       "testGetVersionInterleavedUpdateReplayHistory.json";
@@ -103,6 +108,9 @@ public class GetVersionInterleavedUpdateReplayTest {
     assertTrue(
         "The reproduced history must advertise SKIP_YIELD_ON_VERSION.",
         hasSdkFlag(history, SdkFlag.SKIP_YIELD_ON_VERSION));
+    assertTrue(
+        "The reproduced history must advertise VERSION_WAIT_FOR_MARKER.",
+        hasSdkFlag(history, SdkFlag.VERSION_WAIT_FOR_MARKER));
     assertTrue(
         "The reproduced history must include at least one completed update.",
         hasEvent(history.getEvents(), EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_COMPLETED));

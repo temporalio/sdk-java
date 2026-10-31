@@ -10,6 +10,8 @@ import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.*;
 import io.temporal.common.WorkflowExecutionHistory;
 import io.temporal.internal.Signal;
+import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
@@ -17,6 +19,7 @@ import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.TimeUnit;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -54,6 +57,9 @@ public class WorkflowClosedRunningActivityTest {
   }
 
   @Test
+  @CloudTestExclusionNote(
+      "Cloud cancellation timing can surface a shutdown exception before activity-not-found.")
+  @Category(NeedsCloudAdaptation.class)
   public void activitySeesActivityNotExistException() throws InterruptedException {
     TestWorkflow1 workflow =
         eventType == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_TIMED_OUT
@@ -105,9 +111,13 @@ public class WorkflowClosedRunningActivityTest {
       while (true) {
         try {
           Activity.getExecutionContext().heartbeat(System.currentTimeMillis() - start);
-        } catch (ActivityNotExistsException e) {
-          // in case of the whole workflow gets cancelled, we are getting
-          // ActivityNotExistsException
+        } catch (ActivityCompletionException e) {
+          // The parent type covers both ways the server reports that the workflow has closed. Older
+          // servers fail the next heartbeat with NOT_FOUND, surfacing as
+          // ActivityNotExistsException.
+          // With system.enableCancelActivityWorkerCommand and frontend.workerCommandsEnabled (both
+          // set by this repository's dev server profile) the server instead pushes a CancelActivity
+          // worker command, which surfaces as ActivityCanceledException.
           activityCancelled.signal();
         }
 

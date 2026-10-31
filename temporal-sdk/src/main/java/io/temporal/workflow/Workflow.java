@@ -100,6 +100,298 @@ public final class Workflow {
     return WorkflowInternal.newUntypedActivityStub(options);
   }
 
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <R> R executeActivity(
+      Functions.Func<R> activity, ActivityInvocationOptions options) {
+    return WorkflowInternal.executeActivity(options, activity::apply);
+  }
+
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, R> R executeActivity(
+      Functions.Func1<A1, R> activity, ActivityInvocationOptions options, A1 arg1) {
+    return WorkflowInternal.executeActivity(options, () -> activity.apply(arg1));
+  }
+
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, R> R executeActivity(
+      Functions.Func2<A1, A2, R> activity, ActivityInvocationOptions options, A1 arg1, A2 arg2) {
+    return WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2));
+  }
+
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, R> R executeActivity(
+      Functions.Func3<A1, A2, A3, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3) {
+    return WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2, arg3));
+  }
+
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, R> R executeActivity(
+      Functions.Func4<A1, A2, A3, A4, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4) {
+    return WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2, arg3, arg4));
+  }
+
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5, R> R executeActivity(
+      Functions.Func5<A1, A2, A3, A4, A5, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5) {
+    return WorkflowInternal.executeActivity(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5));
+  }
+
+  /** Executes an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5, A6, R> R executeActivity(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return WorkflowInternal.executeActivity(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static void executeActivity(Functions.Proc activity, ActivityInvocationOptions options) {
+    WorkflowInternal.executeActivity(options, activity);
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1> void executeActivity(
+      Functions.Proc1<A1> activity, ActivityInvocationOptions options, A1 arg1) {
+    WorkflowInternal.executeActivity(options, () -> activity.apply(arg1));
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2> void executeActivity(
+      Functions.Proc2<A1, A2> activity, ActivityInvocationOptions options, A1 arg1, A2 arg2) {
+    WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2));
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3> void executeActivity(
+      Functions.Proc3<A1, A2, A3> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3) {
+    WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2, arg3));
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4> void executeActivity(
+      Functions.Proc4<A1, A2, A3, A4> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4) {
+    WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2, arg3, arg4));
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5> void executeActivity(
+      Functions.Proc5<A1, A2, A3, A4, A5> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5) {
+    WorkflowInternal.executeActivity(options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5));
+  }
+
+  /** Executes a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5, A6> void executeActivity(
+      Functions.Proc6<A1, A2, A3, A4, A5, A6> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    WorkflowInternal.executeActivity(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <R> Promise<R> executeActivityAsync(
+      Functions.Func<R> activity, ActivityInvocationOptions options) {
+    return WorkflowInternal.executeActivityAsync(options, activity::apply);
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, R> Promise<R> executeActivityAsync(
+      Functions.Func1<A1, R> activity, ActivityInvocationOptions options, A1 arg1) {
+    return WorkflowInternal.executeActivityAsync(options, () -> activity.apply(arg1));
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, R> Promise<R> executeActivityAsync(
+      Functions.Func2<A1, A2, R> activity, ActivityInvocationOptions options, A1 arg1, A2 arg2) {
+    return WorkflowInternal.executeActivityAsync(options, () -> activity.apply(arg1, arg2));
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, R> Promise<R> executeActivityAsync(
+      Functions.Func3<A1, A2, A3, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3) {
+    return WorkflowInternal.executeActivityAsync(options, () -> activity.apply(arg1, arg2, arg3));
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, R> Promise<R> executeActivityAsync(
+      Functions.Func4<A1, A2, A3, A4, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4) {
+    return WorkflowInternal.executeActivityAsync(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4));
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5, R> Promise<R> executeActivityAsync(
+      Functions.Func5<A1, A2, A3, A4, A5, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5) {
+    return WorkflowInternal.executeActivityAsync(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5));
+  }
+
+  /** Starts an Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5, A6, R> Promise<R> executeActivityAsync(
+      Functions.Func6<A1, A2, A3, A4, A5, A6, R> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return WorkflowInternal.executeActivityAsync(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static Promise<Void> executeActivityAsync(
+      Functions.Proc activity, ActivityInvocationOptions options) {
+    return WorkflowInternal.executeActivityAsync(options, activity);
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1> Promise<Void> executeActivityAsync(
+      Functions.Proc1<A1> activity, ActivityInvocationOptions options, A1 arg1) {
+    return WorkflowInternal.executeActivityAsync(options, () -> activity.apply(arg1));
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2> Promise<Void> executeActivityAsync(
+      Functions.Proc2<A1, A2> activity, ActivityInvocationOptions options, A1 arg1, A2 arg2) {
+    return WorkflowInternal.executeActivityAsync(options, () -> activity.apply(arg1, arg2));
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3> Promise<Void> executeActivityAsync(
+      Functions.Proc3<A1, A2, A3> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3) {
+    return WorkflowInternal.executeActivityAsync(options, () -> activity.apply(arg1, arg2, arg3));
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4> Promise<Void> executeActivityAsync(
+      Functions.Proc4<A1, A2, A3, A4> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4) {
+    return WorkflowInternal.executeActivityAsync(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4));
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5> Promise<Void> executeActivityAsync(
+      Functions.Proc5<A1, A2, A3, A4, A5> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5) {
+    return WorkflowInternal.executeActivityAsync(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5));
+  }
+
+  /** Starts a void Activity with options that apply only to this invocation. */
+  @Experimental
+  public static <A1, A2, A3, A4, A5, A6> Promise<Void> executeActivityAsync(
+      Functions.Proc6<A1, A2, A3, A4, A5, A6> activity,
+      ActivityInvocationOptions options,
+      A1 arg1,
+      A2 arg2,
+      A3 arg3,
+      A4 arg4,
+      A5 arg5,
+      A6 arg6) {
+    return WorkflowInternal.executeActivityAsync(
+        options, () -> activity.apply(arg1, arg2, arg3, arg4, arg5, arg6));
+  }
+
   /**
    * Creates client stub to local activities that implement given interface.
    *
@@ -152,8 +444,11 @@ public final class Workflow {
 
   /**
    * Creates client stub that can be used to start a child workflow that implements the given
-   * interface using parent options. Use {@link #newExternalWorkflowStub(Class, String)} to get a
-   * stub to signal a workflow without starting it.
+   * interface using parent options. Child workflow options predefined through {@link
+   * io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   * {@link io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   * ChildWorkflowOptions)} are applied. Use {@link #newExternalWorkflowStub(Class, String)} to get
+   * a stub to signal a workflow without starting it.
    *
    * @param workflowInterface interface type implemented by activities
    */
@@ -167,7 +462,12 @@ public final class Workflow {
    * starting it.
    *
    * @param workflowInterface interface type implemented by activities
-   * @param options options passed to the child workflow.
+   * @param options options passed to the child workflow. Each non-null field overrides the
+   *     corresponding field of the child workflow options predefined through {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   *     {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   *     ChildWorkflowOptions)}.
    */
   public static <T> T newChildWorkflowStub(
       Class<T> workflowInterface, ChildWorkflowOptions options) {
@@ -211,7 +511,12 @@ public final class Workflow {
    * Creates untyped client stub that can be used to start and signal a child workflow.
    *
    * @param workflowType name of the workflow type to start.
-   * @param options options passed to the child workflow.
+   * @param options options passed to the child workflow. Each non-null field overrides the
+   *     corresponding field of the child workflow options predefined through {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   *     {@link
+   *     io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   *     ChildWorkflowOptions)}.
    */
   public static ChildWorkflowStub newUntypedChildWorkflowStub(
       String workflowType, ChildWorkflowOptions options) {
@@ -220,7 +525,10 @@ public final class Workflow {
 
   /**
    * Creates untyped client stub that can be used to start and signal a child workflow. All options
-   * are inherited from the parent.
+   * are inherited from the parent, except for the child workflow options predefined through {@link
+   * io.temporal.worker.WorkflowImplementationOptions.Builder#setChildWorkflowOptions(Map)} and
+   * {@link io.temporal.worker.WorkflowImplementationOptions.Builder#setDefaultChildWorkflowOptions(
+   * ChildWorkflowOptions)}, which are applied.
    *
    * @param workflowType name of the workflow type to start.
    */
@@ -578,6 +886,17 @@ public final class Workflow {
   }
 
   /**
+   * Must be called instead of {@link Thread#sleep(long)} to guarantee determinism.
+   *
+   * @param duration time to sleep.
+   * @param options options for the underlying timer, such as its summary.
+   * @see #newTimer(Duration, TimerOptions)
+   */
+  public static void sleep(Duration duration, TimerOptions options) {
+    WorkflowInternal.sleep(duration, options);
+  }
+
+  /**
    * Block current thread until unblockCondition is evaluated to true.
    *
    * @param unblockCondition condition that should return true to indicate that thread should
@@ -611,6 +930,31 @@ public final class Workflow {
   public static boolean await(Duration timeout, Supplier<Boolean> unblockCondition) {
     return WorkflowInternal.await(
         timeout,
+        "await",
+        () -> {
+          CancellationScope.throwCanceled();
+          return unblockCondition.get();
+        });
+  }
+
+  /**
+   * Block current workflow thread until unblockCondition is evaluated to true or timeout passes.
+   *
+   * @param timeout time to unblock even if unblockCondition is not satisfied.
+   * @param options options for the timer that implements the timeout, such as its summary.
+   * @param unblockCondition condition that should return true to indicate that thread should
+   *     unblock. The condition is called on every state transition, so it should not contain any
+   *     code that mutates any workflow state. It should also not contain any time based conditions.
+   *     Use timeout parameter for those.
+   * @return false if timed out.
+   * @throws CanceledFailure if thread (or current {@link CancellationScope} was canceled).
+   * @see #newTimer(Duration, TimerOptions)
+   */
+  public static boolean await(
+      Duration timeout, TimerOptions options, Supplier<Boolean> unblockCondition) {
+    return WorkflowInternal.await(
+        timeout,
+        options,
         "await",
         () -> {
           CancellationScope.throwCanceled();
@@ -1538,7 +1882,6 @@ public final class Workflow {
    *
    * @param details details to set
    */
-  @Experimental
   public static void setCurrentDetails(String details) {
     WorkflowInternal.setCurrentDetails(details);
   }
@@ -1548,7 +1891,6 @@ public final class Workflow {
    *
    * @return details of the current workflow
    */
-  @Experimental
   @Nullable
   public static String getCurrentDetails() {
     return WorkflowInternal.getCurrentDetails();

@@ -1264,7 +1264,7 @@ public final class WorkflowStateMachines {
     return stateMachine.getVersion(
         minSupported,
         maxSupported,
-        checkSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER),
+        tryUseSdkFlag(SdkFlag.VERSION_WAIT_FOR_MARKER),
         (version) -> {
           if (!workflowImplOptions.isEnableUpsertVersionSearchAttributes()) {
             return null;

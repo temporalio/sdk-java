@@ -7,6 +7,8 @@ import static org.junit.Assume.assumeFalse;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.client.WorkflowStub;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
@@ -15,6 +17,7 @@ import io.temporal.workflow.unsafe.WorkflowUnsafe;
 import java.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class GetVersionSameIdOnReplayTest extends BaseVersionTest {
 
@@ -36,6 +39,8 @@ public class GetVersionSameIdOnReplayTest extends BaseVersionTest {
     super(setVersioningFlag, upsertVersioningSA);
   }
 
+  @CloudTestExclusionNote("This replay test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testGetVersionSameIdOnReplay() {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);

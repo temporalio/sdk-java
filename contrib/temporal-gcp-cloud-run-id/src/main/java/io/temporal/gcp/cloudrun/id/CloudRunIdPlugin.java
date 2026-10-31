@@ -1,0 +1,120 @@
+package io.temporal.gcp.cloudrun.id;
+
+import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.Experimental;
+import io.temporal.common.SimplePlugin;
+import java.util.Objects;
+import java.util.function.Supplier;
+
+/**
+ * Plugin that configures a Temporal worker for Google Cloud Run from instance metadata, for both
+ * Cloud Run <b>worker pools</b> and Cloud Run <b>services</b>.
+ *
+ * <p>Register the plugin once on the workflow client and it propagates to every worker created from
+ * that client. It reads {@link GoogleCloudRunMetadata Cloud Run instance metadata} once while the
+ * client is configured, caches it, and sets the workflow client <b>identity</b> to the {@linkplain
+ * GoogleCloudRunMetadata#identity() derived worker identity}, but only when the caller has not
+ * already set an identity (a user-provided identity always wins). The workers created from that
+ * client inherit the client identity.
+ *
+ * <p>The metadata is fetched lazily when the client is configured. The metadata server is only
+ * reachable from a Cloud Run instance, so the fetch throws {@link IllegalStateException} when this
+ * process is not running on Cloud Run.
+ *
+ * <p>Register the plugin with {@link WorkflowClientOptions.Builder#setPlugins}:
+ *
+ * <pre>{@code
+ * WorkflowClient client =
+ *     WorkflowClient.newInstance(
+ *         service,
+ *         WorkflowClientOptions.newBuilder()
+ *             .setNamespace(namespace)
+ *             .setPlugins(new CloudRunIdPlugin())
+ *             .build());
+ *
+ * WorkerFactory factory = WorkerFactory.newInstance(client);
+ * Worker worker = factory.newWorker("my-task-queue");
+ * }</pre>
+ *
+ * <p><b>Experimental:</b> Google Cloud Run support is experimental and may change without notice.
+ */
+@Experimental
+public final class CloudRunIdPlugin extends SimplePlugin {
+  /** Unique plugin name, used for logging and duplicate detection. */
+  public static final String NAME = "io.temporal.gcp.cloudrun.id.CloudRunIdPlugin";
+
+  private final Supplier<GoogleCloudRunMetadata> metadataSupplier;
+  private volatile GoogleCloudRunMetadata metadata;
+
+  /**
+   * Creates a plugin that fetches Cloud Run instance metadata from the {@linkplain
+   * GoogleCloudRunMetadata#DEFAULT_METADATA_URL default metadata server} while the workflow client
+   * is configured.
+   */
+  public CloudRunIdPlugin() {
+    this(GoogleCloudRunMetadata::fetch);
+  }
+
+  /**
+   * Package-private seam that builds a plugin from already-resolved {@link GoogleCloudRunMetadata},
+   * skipping the fetch. Used by tests.
+   *
+   * @param metadata previously fetched Cloud Run instance metadata.
+   */
+  CloudRunIdPlugin(GoogleCloudRunMetadata metadata) {
+    this(fixedSupplier(metadata));
+  }
+
+  /**
+   * Package-private test seam that supplies the {@link GoogleCloudRunMetadata} lazily. It lets unit
+   * tests point the fetch at an in-process metadata server and injected environment through the
+   * {@link GoogleCloudRunMetadata#fetch(String, java.time.Duration, java.util.function.Function)}
+   * seam, and to exercise the off-platform fail-fast path. It is not part of the public API.
+   *
+   * @param metadataSupplier supplier invoked once, at client-configure time, to resolve the
+   *     metadata.
+   */
+  CloudRunIdPlugin(Supplier<GoogleCloudRunMetadata> metadataSupplier) {
+    super(NAME);
+    this.metadataSupplier = Objects.requireNonNull(metadataSupplier, "metadataSupplier");
+  }
+
+  /**
+   * Fetches (once) and caches the Cloud Run instance metadata, then sets the derived worker
+   * identity on the client options when the caller has not already set an identity.
+   *
+   * @param builder the workflow client options builder to configure.
+   * @throws IllegalStateException if the Cloud Run metadata server cannot be reached, which usually
+   *     means this process is not running on Google Cloud Run.
+   */
+  @Override
+  public void configureWorkflowClient(WorkflowClientOptions.Builder builder) {
+    GoogleCloudRunMetadata resolved = metadata();
+    if (isBlank(builder.build().getIdentity())) {
+      builder.setIdentity(resolved.identity());
+    }
+  }
+
+  private GoogleCloudRunMetadata metadata() {
+    GoogleCloudRunMetadata local = metadata;
+    if (local == null) {
+      synchronized (this) {
+        local = metadata;
+        if (local == null) {
+          local = Objects.requireNonNull(metadataSupplier.get(), "Cloud Run metadata");
+          metadata = local;
+        }
+      }
+    }
+    return local;
+  }
+
+  private static Supplier<GoogleCloudRunMetadata> fixedSupplier(GoogleCloudRunMetadata metadata) {
+    Objects.requireNonNull(metadata, "metadata");
+    return () -> metadata;
+  }
+
+  private static boolean isBlank(String value) {
+    return value == null || value.trim().isEmpty();
+  }
+}

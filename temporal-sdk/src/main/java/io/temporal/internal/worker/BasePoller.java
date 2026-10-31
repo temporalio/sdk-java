@@ -9,6 +9,7 @@ import io.temporal.worker.tuning.SlotSupplierFuture;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.*;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,6 +177,8 @@ abstract class BasePoller<T> implements SuspendableWorker {
     ex instanceof RejectedExecutionException
         // if the worker thread gets InterruptedException - it's normal during shutdown
         || ex instanceof InterruptedException
+        || ex instanceof CancellationException
+        || ex.getCause() instanceof CancellationException
         // if we get wrapped InterruptedException like what PollTask or GRPC clients do with
         // setting Thread.interrupted() on - it's normal during shutdown too. See PollTask
         // javadoc.

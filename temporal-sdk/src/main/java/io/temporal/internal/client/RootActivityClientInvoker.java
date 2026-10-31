@@ -3,25 +3,39 @@ package io.temporal.internal.client;
 import static io.temporal.internal.common.RetryOptionsUtils.toRetryPolicy;
 import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaData;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+import com.google.protobuf.FieldMask;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.api.activity.v1.ActivityExecutionOutcome;
+import io.temporal.api.activity.v1.ActivityOptions;
 import io.temporal.api.common.v1.ActivityType;
+import io.temporal.api.common.v1.Callback;
+import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.errordetails.v1.ActivityExecutionAlreadyStartedFailure;
+import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
+import io.temporal.client.ActivityOptionsUpdate;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
+import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
+import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -29,6 +43,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 
 /**
  * Terminus of the activity interceptor chain. Implements all activity RPCs against the Temporal
@@ -37,29 +52,62 @@ import java.util.stream.StreamSupport;
 public class RootActivityClientInvoker implements ActivityClientCallsInterceptor {
 
   private final GenericWorkflowClient genericClient;
-  private final ActivityClientOptions clientOptions;
+  private final String namespace;
+  private final String identity;
+  private final DataConverter dataConverter;
 
   public RootActivityClientInvoker(
-      GenericWorkflowClient genericClient, ActivityClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      String namespace,
+      String identity,
+      DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.clientOptions = clientOptions;
+    this.namespace = namespace;
+    this.identity = identity;
+    this.dataConverter = dataConverter;
   }
 
   @Override
   public StartActivityOutput startActivity(StartActivityInput input) {
     StartActivityOptions options = input.getOptions();
-    DataConverter dc = clientOptions.getDataConverter();
+    if (Strings.isNullOrEmpty(options.getTaskQueue())) {
+      throw new IllegalArgumentException("taskQueue must not be null or empty");
+    }
+    // An activity started from a Nexus operation handler returns its result and failure to the
+    // Nexus caller, so they are serialized with the handler's Nexus context. It is sent with the
+    // request so the server can propagate it to the activity worker and to clients reading the
+    // result. The input and user metadata keep the activity context.
+    @Nullable
+    PropagatedSerializationContext propagatedNexusSerializationContext =
+        PropagatedNexusSerializationContext.current();
+    DataConverter dc =
+        dataConverter.withContext(
+            new ActivitySerializationContext(
+                namespace, null, null, input.getActivityType(), options.getTaskQueue(), false));
+
+    InternalNexusOperationContext nexusContext =
+        CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
+    NexusOperationMetadata nexusOperationMetadata =
+        nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
+
+    String requestId =
+        nexusContext != null && !Strings.isNullOrEmpty(nexusContext.getRequestId())
+            ? nexusContext.getRequestId()
+            : UUID.randomUUID().toString();
 
     StartActivityExecutionRequest.Builder request =
         StartActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
-            .setRequestId(UUID.randomUUID().toString())
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setRequestId(requestId)
             .setActivityId(options.getId())
             .setActivityType(ActivityType.newBuilder().setName(input.getActivityType()).build())
             .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
             .setIdReusePolicy(options.getIdReusePolicy())
             .setIdConflictPolicy(options.getIdConflictPolicy());
+    if (propagatedNexusSerializationContext != null) {
+      request.setPropagatedNexusSerializationContext(propagatedNexusSerializationContext);
+    }
 
     Optional<Payloads> activityInput = dc.toPayloads(input.getArgs().toArray());
     activityInput.ifPresent(request::setInput);
@@ -87,9 +135,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setSearchAttributes(
           SearchAttributesUtil.encodeTyped(options.getTypedSearchAttributes()));
     }
-    if (options.getStaticSummary() != null || options.getStaticDetails() != null) {
+    if (options.getSummary() != null || options.getStaticDetails() != null) {
       UserMetadata userMetadata =
-          makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
+          makeUserMetaData(options.getSummary(), options.getStaticDetails(), dc);
       if (userMetadata != null) {
         request.setUserMetadata(userMetadata);
       }
@@ -103,6 +151,53 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
 
     io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
     request.setHeader(grpcHeader);
+
+    List<Link> protoLinks = Collections.emptyList();
+    if (nexusContext != null) {
+      // Propagate the inbound Nexus request ID and links to every activity start on the
+      // operation-handler thread, including starts through a raw ActivityClient.
+      // Completion callbacks remain limited to the metadata-backed start because only it
+      // completes the Nexus operation.
+      protoLinks = nexusContext.getRequestLinks();
+      request.addAllLinks(protoLinks);
+    }
+
+    boolean willAttachCompletionCallback =
+        nexusOperationMetadata != null
+            && !Strings.isNullOrEmpty(nexusOperationMetadata.callbackUrl);
+    if (!protoLinks.isEmpty() || willAttachCompletionCallback) {
+      // The server rejects attach_request_id unless the request also carries at least one link
+      // or completion callback to attach on conflict.
+      request.setOnConflictOptions(
+          io.temporal.api.common.v1.OnConflictOptions.newBuilder()
+              .setAttachRequestId(true)
+              .setAttachLinks(!protoLinks.isEmpty())
+              .setAttachCompletionCallbacks(willAttachCompletionCallback));
+    }
+
+    if (nexusOperationMetadata != null) {
+      // Generate the operation token from the user-supplied activity ID and namespace so the
+      // dual OPERATION_ID + OPERATION_TOKEN headers can be injected before the start RPC fires.
+      try {
+        nexusOperationMetadata.operationToken =
+            io.temporal.internal.nexus.OperationTokenUtil.generateActivityExecutionOperationToken(
+                options.getId(), namespace);
+      } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+        throw new io.nexusrpc.handler.HandlerException(
+            io.nexusrpc.handler.HandlerException.ErrorType.BAD_REQUEST,
+            "failed to generate activity operation token",
+            e);
+      }
+      if (willAttachCompletionCallback) {
+        Callback cb =
+            InternalUtils.buildNexusCallback(
+                nexusOperationMetadata.callbackUrl,
+                nexusOperationMetadata.callbackHeaders,
+                nexusOperationMetadata.operationToken,
+                protoLinks);
+        request.addCompletionCallbacks(cb);
+      }
+    }
 
     StartActivityExecutionResponse response;
     try {
@@ -120,6 +215,10 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       throw e;
     }
 
+    if (nexusContext != null && response.hasLink()) {
+      nexusContext.addResponseLink(response.getLink());
+    }
+
     String runId = response.getRunId().isEmpty() ? null : response.getRunId();
     return new StartActivityOutput(options.getId(), runId);
   }
@@ -127,8 +226,6 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws TimeoutException {
-    String namespace = clientOptions.getNamespace();
-    DataConverter dc = clientOptions.getDataConverter();
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
@@ -166,6 +263,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         continue;
       }
 
+      DataConverter dc = resultDataConverter(pollResponse);
       ActivityExecutionOutcome outcome = pollResponse.getOutcome();
       switch (outcome.getValueCase()) {
         case RESULT:
@@ -203,23 +301,22 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
-    DataConverter dc = clientOptions.getDataConverter();
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     return pollActivityUntilOutcome(input, deadline)
         .handle(
-            (outcome, e) -> {
+            (response, e) -> {
               if (e == null) {
-                return decodeOutcome(outcome, input, dc);
+                return decodeOutcome(response.getOutcome(), input, resultDataConverter(response));
               }
               throw handleAsyncException(e, deadline, input.getActivityId());
             });
   }
 
-  private CompletableFuture<ActivityExecutionOutcome> pollActivityUntilOutcome(
+  private CompletableFuture<PollActivityExecutionResponse> pollActivityUntilOutcome(
       GetActivityResultInput<?> input, Deadline deadline) {
     PollActivityExecutionRequest.Builder pollRequest =
         PollActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setActivityId(input.getActivityId());
     if (input.getRunId() != null) {
       pollRequest.setRunId(input.getRunId());
@@ -231,7 +328,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
               if (!response.hasOutcome()) {
                 return pollActivityUntilOutcome(input, deadline);
               }
-              return CompletableFuture.completedFuture(response.getOutcome());
+              return CompletableFuture.completedFuture(response);
             });
   }
 
@@ -285,27 +382,46 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
   }
 
+  /**
+   * The data converter for the result or failure in a poll response. An activity started from a
+   * Nexus operation handler uses the handler's Nexus context, which the server returns with the
+   * response; other activities use an activity context.
+   */
+  private DataConverter resultDataConverter(PollActivityExecutionResponse response) {
+    SerializationContext context =
+        response.hasPropagatedNexusSerializationContext()
+            ? PropagatedNexusSerializationContext.fromProto(
+                response.getPropagatedNexusSerializationContext())
+            // Currently, result doesn't have access to activity type and serialization context
+            // doesn't hold activity ID.
+            : new ActivitySerializationContext(namespace, null, null, null, null, false);
+    return dataConverter.withContext(context);
+  }
+
   @Override
   public DescribeActivityOutput describeActivity(DescribeActivityInput input) {
     DescribeActivityExecutionRequest.Builder req =
         DescribeActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setActivityId(input.getId());
+            .setNamespace(namespace)
+            .setActivityId(input.getId())
+            .setIncludeInput(input.getOptions().isIncludeInput())
+            .setIncludeOutcome(input.getOptions().isIncludeOutcome())
+            .setIncludeHeartbeatDetails(input.getOptions().isIncludeHeartbeatDetails())
+            .setIncludeLastFailure(input.getOptions().isIncludeLastFailure());
     if (input.getRunId() != null) {
       req.setRunId(input.getRunId());
     }
     DescribeActivityExecutionResponse response = genericClient.describeActivity(req.build());
     return new DescribeActivityOutput(
-        new ActivityExecutionDescription(
-            response.getInfo(), clientOptions.getDataConverter(), clientOptions.getNamespace()));
+        new ActivityExecutionDescription(response, dataConverter, namespace));
   }
 
   @Override
   public CancelActivityOutput cancelActivity(CancelActivityInput input) {
     RequestCancelActivityExecutionRequest.Builder req =
         RequestCancelActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setRequestId(UUID.randomUUID().toString())
             .setActivityId(input.getId());
     if (input.getRunId() != null) {
@@ -322,8 +438,8 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   public TerminateActivityOutput terminateActivity(TerminateActivityInput input) {
     TerminateActivityExecutionRequest.Builder req =
         TerminateActivityExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setRequestId(UUID.randomUUID().toString())
             .setActivityId(input.getId());
     if (input.getRunId() != null) {
@@ -337,10 +453,83 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   }
 
   @Override
+  public PauseActivityOutput pauseActivity(PauseActivityInput input) {
+    PauseActivityExecutionRequest.Builder req =
+        PauseActivityExecutionRequest.newBuilder()
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setRequestId(UUID.randomUUID().toString())
+            .setActivityId(input.getId());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getOptions().getReason() != null) {
+      req.setReason(input.getOptions().getReason());
+    }
+    genericClient.pauseActivity(req.build());
+    return new PauseActivityOutput();
+  }
+
+  @Override
+  public UnpauseActivityOutput unpauseActivity(UnpauseActivityInput input) {
+    UnpauseActivityExecutionRequest.Builder req =
+        UnpauseActivityExecutionRequest.newBuilder()
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setActivityId(input.getId())
+            .setRequestId(UUID.randomUUID().toString());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.getOptions().getReason() != null) {
+      req.setReason(input.getOptions().getReason());
+    }
+    if (input.getOptions().getJitter() != null) {
+      req.setJitter(ProtobufTimeUtils.toProtoDuration(input.getOptions().getJitter()));
+    }
+    genericClient.unpauseActivity(req.build());
+    return new UnpauseActivityOutput();
+  }
+
+  @Override
+  public UpdateActivityOptionsOutput updateActivityOptions(UpdateActivityOptionsInput input) {
+    UpdateActivityExecutionOptionsRequest.Builder req =
+        UpdateActivityExecutionOptionsRequest.newBuilder()
+            .setNamespace(namespace)
+            .setIdentity(identity)
+            .setActivityId(input.getId())
+            .setRequestId(UUID.randomUUID().toString());
+    if (input.getRunId() != null) {
+      req.setRunId(input.getRunId());
+    }
+    if (input.isRestoreOriginal()) {
+      req.setRestoreOriginal(true);
+    } else {
+      // The handle rejects a repeated option, but an interceptor could still add one.
+      ActivityOptions.Builder activityOptions = ActivityOptions.newBuilder();
+      FieldMask.Builder updateMask = FieldMask.newBuilder();
+      Set<String> seen = new HashSet<>();
+      for (ActivityOptionsUpdate<?> update : input.getUpdates()) {
+        String path = update.getKey().getPath();
+        if (!seen.add(path)) {
+          throw new IllegalArgumentException(
+              "updateActivityOptions received more than one update for " + path);
+        }
+        updateMask.addPaths(path);
+        update.applyTo(activityOptions);
+      }
+      req.setActivityOptions(activityOptions.build()).setUpdateMask(updateMask.build());
+    }
+    UpdateActivityExecutionOptionsResponse response =
+        genericClient.updateActivityOptions(req.build());
+    return new UpdateActivityOptionsOutput(
+        new ActivityExecutionOptions(response.getActivityOptions()));
+  }
+
+  @Override
   public ListActivitiesOutput listActivities(ListActivitiesInput input) {
     ListActivityExecutionIterator iterator =
-        new ListActivityExecutionIterator(
-            input.getQuery(), clientOptions.getNamespace(), genericClient);
+        new ListActivityExecutionIterator(input.getQuery(), namespace, genericClient);
     iterator.init();
     Iterator<ActivityExecutionMetadata> wrappedIterator =
         Iterators.transform(iterator, ActivityExecutionMetadata::fromListInfo);
@@ -354,7 +543,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public CountActivitiesOutput countActivities(CountActivitiesInput input) {
     CountActivityExecutionsRequest.Builder req =
-        CountActivityExecutionsRequest.newBuilder().setNamespace(clientOptions.getNamespace());
+        CountActivityExecutionsRequest.newBuilder().setNamespace(namespace);
     if (input.getQuery() != null) {
       req.setQuery(input.getQuery());
     }

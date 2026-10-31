@@ -57,6 +57,14 @@ public class ProtoConverters {
           .setPinnedVersion(pv.getVersion().toCanonicalString())
           .setPinned(pinnedBuilder.build())
           .build();
+    } else if (v instanceof VersioningOverride.OneTimeVersioningOverride) {
+      VersioningOverride.OneTimeVersioningOverride oneTime =
+          (VersioningOverride.OneTimeVersioningOverride) v;
+      return io.temporal.api.workflow.v1.VersioningOverride.newBuilder()
+          .setOneTime(
+              io.temporal.api.workflow.v1.VersioningOverride.OneTimeOverride.newBuilder()
+                  .setTargetDeploymentVersion(toProto(oneTime.getTargetVersion())))
+          .build();
     } else {
       return io.temporal.api.workflow.v1.VersioningOverride.newBuilder()
           .setBehavior(VersioningBehavior.VERSIONING_BEHAVIOR_AUTO_UPGRADE)

@@ -24,7 +24,7 @@ ext {
     grpcVersion = '1.76.0' // [1.38.0,) Needed for io.grpc.protobuf.services.HealthStatusManager
     jacksonVersion = '2.15.4' // [2.9.0,)
     jackson3Version = '3.0.4'
-    nexusVersion = '0.5.0-alpha'
+    nexusVersion = '0.6.0-alpha'
     // we don't upgrade to 1.10.x because it requires kotlin 1.6. Users may use 1.10.x in their environments though.
     micrometerVersion = project.hasProperty("edgeDepsTest") ? '1.13.6' : '1.9.9' // [1.0.0,)
 
@@ -77,6 +77,7 @@ apply from: "$rootDir/gradle/errorprone.gradle"
 apply from: "$rootDir/gradle/publishing.gradle"
 apply from: "$rootDir/gradle/dependencyManagement.gradle"
 apply from: "$rootDir/gradle/gatherDependencies.gradle"
+apply from: "$rootDir/gradle/temporalCli.gradle"
 if (project.hasProperty("jacoco")) {
     apply from: "$rootDir/gradle/jacoco.gradle"
 }

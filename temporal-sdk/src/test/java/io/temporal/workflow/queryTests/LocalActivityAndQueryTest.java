@@ -12,6 +12,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.testing.internal.SDKTestOptions;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestActivities.TestActivitiesImpl;
 import io.temporal.workflow.shared.TestActivities.VariousTestActivities;
@@ -33,6 +34,15 @@ public class LocalActivityAndQueryTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setTestTimeoutSeconds(30)
+          // Explicit poller counts opt out of poller autoscaling auto-enrollment, which namespaces
+          // with the PollerAutoscalingAutoEnroll capability apply to pollers left at their
+          // defaults. Queries sent during the long workflow task then don't expire.
+          .setWorkerOptions(
+              WorkerOptions.newBuilder()
+                  .setMaxConcurrentWorkflowTaskPollers(5)
+                  .setMaxConcurrentActivityTaskPollers(5)
+                  .build())
           .setWorkflowTypes(TestLocalActivityAndQueryWorkflow.class)
           .setActivityImplementations(activitiesImpl)
           .build();

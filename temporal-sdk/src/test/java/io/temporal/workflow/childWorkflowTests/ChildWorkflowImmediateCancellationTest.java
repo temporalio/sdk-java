@@ -5,10 +5,15 @@ import static org.junit.Assert.*;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.internal.Signal;
+import io.temporal.internal.common.SdkFlag;
+import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows.NoArgsWorkflow;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Rule;
@@ -31,6 +36,7 @@ public class ChildWorkflowImmediateCancellationTest {
               ParentWorkflowUsingCancellationRequestPromiseImpl.class,
               ParentWorkflowUsingResultPromiseImpl.class,
               ParentWorkflowUsingStartPromiseImpl.class,
+              ParentWorkflowUsingCanceledAsyncCallsImpl.class,
               TestChildWorkflowImpl.class)
           .build();
 
@@ -58,6 +64,21 @@ public class ChildWorkflowImmediateCancellationTest {
     assertFalse(CHILD_EXECUTED.waitForSignal(1, TimeUnit.SECONDS));
   }
 
+  @Test
+  public void testQueuedMethodReferenceAndLambdaHaveSameCancellationFailure() {
+    List<SdkFlag> savedInitialFlags = WorkflowStateMachines.initialFlags;
+    List<SdkFlag> flags = new ArrayList<>(savedInitialFlags);
+    flags.add(SdkFlag.SCHEDULE_ASYNC_STUB_OPERATIONS);
+    WorkflowStateMachines.initialFlags = Collections.unmodifiableList(flags);
+    try {
+      ParentWorkflowUsingCanceledAsyncCalls workflow =
+          testWorkflowRule.newWorkflowStub(ParentWorkflowUsingCanceledAsyncCalls.class);
+      assertEquals("ok", workflow.execute());
+    } finally {
+      WorkflowStateMachines.initialFlags = savedInitialFlags;
+    }
+  }
+
   @WorkflowInterface
   public interface ParentWorkflowUsingCancellationRequestPromise {
     @WorkflowMethod
@@ -72,6 +93,12 @@ public class ChildWorkflowImmediateCancellationTest {
 
   @WorkflowInterface
   public interface ParentWorkflowUsingStartPromise {
+    @WorkflowMethod
+    String execute();
+  }
+
+  @WorkflowInterface
+  public interface ParentWorkflowUsingCanceledAsyncCalls {
     @WorkflowMethod
     String execute();
   }
@@ -128,6 +155,29 @@ public class ChildWorkflowImmediateCancellationTest {
       Throwable cause = childWorkflowFailure.getCause();
       assertTrue(cause instanceof CanceledFailure);
 
+      return "ok";
+    }
+  }
+
+  public static class ParentWorkflowUsingCanceledAsyncCallsImpl
+      implements ParentWorkflowUsingCanceledAsyncCalls {
+    @Override
+    public String execute() {
+      NoArgsWorkflow methodReferenceChild = Workflow.newChildWorkflowStub(NoArgsWorkflow.class);
+      NoArgsWorkflow lambdaChild = Workflow.newChildWorkflowStub(NoArgsWorkflow.class);
+      AtomicReference<Promise<Void>> methodReference = new AtomicReference<>();
+      AtomicReference<Promise<Void>> lambda = new AtomicReference<>();
+      CancellationScope scope =
+          Workflow.newCancellationScope(
+              () -> {
+                methodReference.set(Async.procedure(methodReferenceChild::execute));
+                lambda.set(Async.procedure(() -> lambdaChild.execute()));
+              });
+      scope.run();
+      scope.cancel();
+
+      assertThrows(CanceledFailure.class, () -> methodReference.get().get());
+      assertThrows(CanceledFailure.class, () -> lambda.get().get());
       return "ok";
     }
   }

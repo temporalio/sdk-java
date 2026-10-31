@@ -19,6 +19,8 @@ import io.temporal.failure.NexusOperationFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerMetricsTag;
@@ -29,7 +31,10 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class OperationFailMetricTest {
   private static final Map<String, Integer> invocationCount = new ConcurrentHashMap<>();
 
@@ -167,6 +172,10 @@ public class OperationFailMetricTest {
           applicationFailure.getOriginalMessage());
       Assert.assertEquals("OperationError", applicationFailure.getType());
       Assert.assertNotNull(applicationFailure.getCause());
+    }
+    // Newer servers convert an operation error in the old format to the new format, wrapping the
+    // handler's failure in an OperationError.
+    if ("OperationError".equals(applicationFailure.getType())) {
       applicationFailure = (ApplicationFailure) applicationFailure.getCause();
     }
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
@@ -247,6 +256,10 @@ public class OperationFailMetricTest {
     if (isUsingNewFormat()) {
       Assert.assertEquals("failure message", applicationFailure.getOriginalMessage());
       Assert.assertEquals("OperationError", applicationFailure.getType());
+    }
+    // Newer servers convert an operation error in the old format to the new format, wrapping the
+    // handler's failure in an OperationError.
+    if ("OperationError".equals(applicationFailure.getType())) {
       applicationFailure = (ApplicationFailure) applicationFailure.getCause();
     }
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());

@@ -106,6 +106,33 @@ public class NexusTaskHandlerImplTest {
   }
 
   @Test
+  public void nexusOperationContextExposesWorkerWorkflowClient() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
+    ClientContextNexusService service = new ClientContextNexusService(client);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(new Object[] {service});
+    nexusTaskHandlerImpl.start();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService1")
+                            .setPayload(dataConverter.toPayload("world").get())
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+    Assert.assertNull(result.getHandlerException());
+    Assert.assertTrue(service.usesWorkerWorkflowClient);
+  }
+
+  @Test
   public void syncTimeoutTask() {
     WorkflowClient client = mock(WorkflowClient.class);
     NexusTaskHandlerImpl nexusTaskHandlerImpl =
@@ -130,6 +157,36 @@ public class NexusTaskHandlerImplTest {
     Assert.assertThrows(
         TimeoutException.class,
         () -> nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope));
+  }
+
+  @Test
+  public void startTaskWithUndeserializableInput() throws TimeoutException {
+    WorkflowClient client = mock(WorkflowClient.class);
+    NexusTaskHandlerImpl nexusTaskHandlerImpl =
+        new NexusTaskHandlerImpl(
+            client, NAMESPACE, TASK_QUEUE, dataConverter, new WorkerInterceptor[] {});
+    nexusTaskHandlerImpl.registerNexusServiceImplementations(
+        new Object[] {new TestNexusServiceImpl2Echo()});
+    nexusTaskHandlerImpl.start();
+
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setOperation("operation")
+                            .setService("TestNexusService2")
+                            // The operation takes an Integer, so this input never deserializes
+                            .setPayload(dataConverter.toPayload("not an integer").get())
+                            .build()));
+
+    NexusTaskHandler.Result result =
+        nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope);
+    HandlerException e = result.getHandlerException();
+    Assert.assertNotNull(e);
+    Assert.assertEquals(HandlerException.ErrorType.BAD_REQUEST, e.getErrorType());
+    Assert.assertFalse(e.isRetryable());
   }
 
   @Test
@@ -384,6 +441,26 @@ public class NexusTaskHandlerImplTest {
     }
   }
 
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public class ClientContextNexusService {
+    private final WorkflowClient expectedClient;
+    private boolean usesWorkerWorkflowClient;
+
+    ClientContextNexusService(WorkflowClient expectedClient) {
+      this.expectedClient = expectedClient;
+    }
+
+    @OperationImpl
+    public OperationHandler<String, String> operation() {
+      return OperationHandler.sync(
+          (ctx, details, name) -> {
+            usesWorkerWorkflowClient =
+                io.temporal.nexus.Nexus.getOperationContext().getWorkflowClient() == expectedClient;
+            return name;
+          });
+    }
+  }
+
   @ServiceImpl(service = TestNexusServices.TestNexusService2.class)
   public class TestNexusServiceImpl2 {
     @OperationImpl
@@ -400,6 +477,14 @@ public class NexusTaskHandlerImplTest {
             }
             return i;
           });
+    }
+  }
+
+  @ServiceImpl(service = TestNexusServices.TestNexusService2.class)
+  public class TestNexusServiceImpl2Echo {
+    @OperationImpl
+    public OperationHandler<Integer, Integer> operation() {
+      return OperationHandler.sync((ctx, details, i) -> i);
     }
   }
 

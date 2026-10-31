@@ -11,12 +11,15 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.UpdateProtocolCallback;
 import io.temporal.internal.worker.WorkflowExecutionException;
 import io.temporal.internal.worker.WorkflowExecutorCache;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.UpdateInfo;
@@ -27,7 +30,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 /**
  * SyncWorkflow supports workflows that use synchronous blocking code. An instance is created per
@@ -104,6 +106,11 @@ class SyncWorkflow implements ReplayWorkflow {
     }
 
     this.workflowContext.setReplayContext(context);
+    this.workflowContext.setPropagatedNexusSerializationContext(
+        startEvent.hasPropagatedNexusSerializationContext()
+            ? PropagatedNexusSerializationContext.fromProto(
+                startEvent.getPropagatedNexusSerializationContext())
+            : null);
 
     workflowProc =
         new WorkflowExecutionHandler(
@@ -145,28 +152,33 @@ class SyncWorkflow implements ReplayWorkflow {
       Optional<Payloads> input,
       long eventId,
       Header header,
+      @Nullable NexusSerializationContext nexusSerializationContext,
       UpdateProtocolCallback callbacks) {
     final UpdateInfo updateInfo = new UpdateInfoImpl(updateName, updateId);
+    DataConverter outcomeDataConverter =
+        workflowContext.getDataConverterForUpdateOutcome(nexusSerializationContext);
     runner.executeInWorkflowThread(
         "update " + updateName,
         () -> {
           try {
             workflowContext.setCurrentUpdateInfo(updateInfo);
-            MDC.put(LoggerTag.UPDATE_ID, updateInfo.getUpdateId());
-            MDC.put(LoggerTag.UPDATE_NAME, updateInfo.getUpdateName());
+            PrefixedMdc mdc = workflowContext.getReplayContext().getLoggerMdc();
+            mdc.put(LoggerTag.UPDATE_ID, updateInfo.getUpdateId());
+            mdc.put(LoggerTag.UPDATE_NAME, updateInfo.getUpdateName());
             // Skip validator on replay
             if (!callbacks.isReplaying()) {
               try {
                 workflowContext.setReadOnly(true);
-                workflowProc.handleValidateUpdate(updateName, updateId, input, eventId, header);
+                workflowProc.handleValidateUpdate(
+                    updateName, updateId, input, eventId, header, outcomeDataConverter);
               } catch (ReadOnlyException r) {
                 // Rethrow instead on rejecting the update to fail the WFT
                 throw r;
+              } catch (WorkflowExecutionException e) {
+                callbacks.reject(e.getFailure());
+                return;
               } catch (Exception e) {
-                callbacks.reject(
-                    workflowContext
-                        .getDataConverterWithCurrentWorkflowContext()
-                        .exceptionToFailure(e));
+                callbacks.reject(outcomeDataConverter.exceptionToFailure(e));
                 return;
               } finally {
                 workflowContext.setReadOnly(false);
@@ -175,7 +187,8 @@ class SyncWorkflow implements ReplayWorkflow {
             callbacks.accept();
             try {
               Optional<Payloads> result =
-                  workflowProc.handleExecuteUpdate(updateName, updateId, input, eventId, header);
+                  workflowProc.handleExecuteUpdate(
+                      updateName, updateId, input, eventId, header, outcomeDataConverter);
               callbacks.complete(result, null);
             } catch (WorkflowExecutionException e) {
               callbacks.complete(Optional.empty(), e.getFailure());

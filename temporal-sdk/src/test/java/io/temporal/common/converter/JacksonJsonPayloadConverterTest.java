@@ -5,7 +5,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.temporal.api.common.v1.Payloads;
-import java.lang.reflect.InvocationTargetException;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.Optional;
@@ -25,27 +24,11 @@ public class JacksonJsonPayloadConverterTest {
       JacksonJsonPayloadConverter.setDefaultAsJackson3(true, true);
       fail("Expected IllegalStateException");
     } catch (IllegalStateException e) {
-      // On Java 8: Class.forName finds the stub, whose constructor throws
-      //   UnsupportedOperationException → wrapped in InvocationTargetException by reflection.
-      // On Java 17+: Class.forName finds the real impl (java17 classes are on the classpath)
-      //   but Jackson 3 types are absent, so class loading throws NoClassDefFoundError directly.
+      // Both the Java 8 stub and the Java 17 class reference Jackson 3 types, so reflective
+      // constructor lookup fails while linking when Jackson 3 is absent.
       Throwable cause = e.getCause();
-      String specVersion = System.getProperty("java.specification.version");
-      int majorVersion =
-          specVersion.startsWith("1.")
-              ? Integer.parseInt(specVersion.substring(2))
-              : Integer.parseInt(specVersion);
-      if (majorVersion >= 17) {
-        assertTrue(
-            "Expected NoClassDefFoundError, got: " + cause, cause instanceof NoClassDefFoundError);
-      } else {
-        assertTrue(
-            "Expected InvocationTargetException, got: " + cause,
-            cause instanceof InvocationTargetException);
-        assertTrue(
-            "Expected UnsupportedOperationException, got: " + cause.getCause(),
-            cause.getCause() instanceof UnsupportedOperationException);
-      }
+      assertTrue(
+          "Expected NoClassDefFoundError, got: " + cause, cause instanceof NoClassDefFoundError);
     }
   }
 

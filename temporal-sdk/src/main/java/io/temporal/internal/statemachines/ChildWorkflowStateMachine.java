@@ -7,6 +7,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.enums.v1.RetryState;
+import io.temporal.api.enums.v1.StartChildWorkflowExecutionFailedCause;
 import io.temporal.api.enums.v1.TimeoutType;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCanceledEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionCompletedEventAttributes;
@@ -15,7 +16,6 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttribute
 import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.sdk.v1.UserMetadata;
-import io.temporal.client.WorkflowException;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.*;
@@ -219,13 +219,16 @@ final class ChildWorkflowStateMachine
   private void notifyStartFailed() {
     StartChildWorkflowExecutionFailedEventAttributes attributes =
         currentEvent.getStartChildWorkflowExecutionFailedEventAttributes();
-    // TODO should use attributes.startChildWorkflowExecutionFailedCause here and add a handling for
-    // NAMESPACE_NOT_FOUND
-    WorkflowException cause =
-        new WorkflowExecutionAlreadyStarted(
-            WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
-            attributes.getWorkflowType().getName(),
-            null);
+    // TODO: Add handling for NAMESPACE_NOT_FOUND.
+    RuntimeException cause =
+        attributes.getCause()
+                == StartChildWorkflowExecutionFailedCause
+                    .START_CHILD_WORKFLOW_EXECUTION_FAILED_CAUSE_INVALID_VERSIONING_OVERRIDE
+            ? new InvalidVersioningOverrideFailure()
+            : new WorkflowExecutionAlreadyStarted(
+                WorkflowExecution.newBuilder().setWorkflowId(attributes.getWorkflowId()).build(),
+                attributes.getWorkflowType().getName(),
+                null);
     RuntimeException failure =
         new ChildWorkflowFailure(
             attributes.getInitiatedEventId(),

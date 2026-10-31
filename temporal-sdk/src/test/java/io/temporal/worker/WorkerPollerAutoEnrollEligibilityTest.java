@@ -12,6 +12,7 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.NamespaceCapabilities;
 import io.temporal.internal.worker.WorkflowExecutorCache;
@@ -42,14 +43,17 @@ public class WorkerPollerAutoEnrollEligibilityTest {
     when(service.blockingStub()).thenReturn(blockingStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
 
+    WorkflowClientOptions clientOptions =
+        WorkflowClientOptions.newBuilder()
+            .setNamespace("test-ns")
+            .setIdentity("test-worker")
+            .validateAndBuildWithDefaults();
+    WorkflowClientInternal clientInternal = mock(WorkflowClientInternal.class);
+    when(clientInternal.getInternalDataConverter()).thenReturn(clientOptions.getDataConverter());
     WorkflowClient client = mock(WorkflowClient.class);
+    when(client.getInternal()).thenReturn(clientInternal);
     when(client.getWorkflowServiceStubs()).thenReturn(service);
-    when(client.getOptions())
-        .thenReturn(
-            WorkflowClientOptions.newBuilder()
-                .setNamespace("test-ns")
-                .setIdentity("test-worker")
-                .validateAndBuildWithDefaults());
+    when(client.getOptions()).thenReturn(clientOptions);
 
     Scope metricsScope = new NoopScope();
     WorkflowRunLockManager runLocks = new WorkflowRunLockManager();

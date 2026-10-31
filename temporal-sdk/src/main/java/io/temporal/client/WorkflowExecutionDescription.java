@@ -1,7 +1,7 @@
 package io.temporal.client;
 
+import io.temporal.api.common.v1.Payload;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
-import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import javax.annotation.Nonnull;
@@ -25,21 +25,18 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
    * <p>Note: Will be decoded on each invocation, so it is recommended to cache the result if it is
    * used multiple times.
    */
-  @Experimental
   @Nullable
   public String getStaticSummary() {
     if (!response.getExecutionConfig().getUserMetadata().hasSummary()) {
       return null;
     }
+    Payload summary = response.getExecutionConfig().getUserMetadata().getSummary();
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
                 response.getWorkflowExecutionInfo().getParentNamespaceId(),
                 response.getWorkflowExecutionInfo().getExecution().getWorkflowId()))
-        .fromPayload(
-            response.getExecutionConfig().getUserMetadata().getSummary(),
-            String.class,
-            String.class);
+        .fromPayload(summary, String.class, String.class);
   }
 
   /**
@@ -48,21 +45,18 @@ public class WorkflowExecutionDescription extends WorkflowExecutionMetadata {
    * <p>Note: Will be decoded on each invocation, so it is recommended to cache the result if it is
    * used multiple times.
    */
-  @Experimental
   @Nullable
   public String getStaticDetails() {
     if (!response.getExecutionConfig().getUserMetadata().hasDetails()) {
       return null;
     }
+    Payload details = response.getExecutionConfig().getUserMetadata().getDetails();
     return dataConverter
         .withContext(
             new WorkflowSerializationContext(
                 response.getWorkflowExecutionInfo().getParentNamespaceId(),
                 response.getWorkflowExecutionInfo().getExecution().getWorkflowId()))
-        .fromPayload(
-            response.getExecutionConfig().getUserMetadata().getDetails(),
-            String.class,
-            String.class);
+        .fromPayload(details, String.class, String.class);
   }
 
   /** Returns the raw response from the Temporal service. */

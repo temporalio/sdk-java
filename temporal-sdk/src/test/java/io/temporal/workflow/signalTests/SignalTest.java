@@ -177,8 +177,7 @@ public class SignalTest {
     WorkflowClient client =
         WorkflowClient.newInstance(
             testWorkflowRule.getWorkflowServiceStubs(),
-            WorkflowClientOptions.newBuilder()
-                .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+            WorkflowClientOptions.newBuilder(testWorkflowRule.getWorkflowClient().getOptions())
                 .setQueryRejectCondition(QueryRejectCondition.QUERY_REJECT_CONDITION_NOT_OPEN)
                 .build());
     WorkflowStub workflowStubNotOptionRejectCondition =

@@ -6,13 +6,18 @@ import io.temporal.activity.*;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.WorkflowExecutionHistory;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.TestWorkflowEnvironment;
 import io.temporal.worker.Worker;
 import io.temporal.workflow.*;
 import java.time.Duration;
 import org.junit.*;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 
+@CloudTestExclusionNote("This test directly creates and controls a local test service.")
+@Category(RequiresLocalServer.class)
 public class UnknownHistoryEventReplayerTest {
 
   public static final String TASK_QUEUE = "unknown-history-event";

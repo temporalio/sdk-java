@@ -276,7 +276,7 @@ public class UpdateTest {
             .blockingStub()
             .resetWorkflowExecution(
                 ResetWorkflowExecutionRequest.newBuilder()
-                    .setNamespace(SDKTestWorkflowRule.NAMESPACE)
+                    .setNamespace(workflowClient.getOptions().getNamespace())
                     .setReason("Integration test")
                     .setWorkflowExecution(execution)
                     .setWorkflowTaskFinishEventId(4)

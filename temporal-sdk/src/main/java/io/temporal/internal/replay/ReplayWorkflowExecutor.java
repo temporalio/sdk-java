@@ -15,6 +15,9 @@ import io.temporal.api.update.v1.Request;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.UpdateMessage;
+import io.temporal.internal.logging.LoggerTag;
+import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.sync.SignalHandlerInfo;
 import io.temporal.internal.sync.UpdateHandlerInfo;
@@ -28,7 +31,6 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
 final class ReplayWorkflowExecutor {
   @VisibleForTesting
@@ -98,6 +100,8 @@ final class ReplayWorkflowExecutor {
   private void completeWorkflow(@Nullable WorkflowExecutionException failure) {
     // If the workflow is failed we do not log any warnings about unfinished handlers.
     if (log.isWarnEnabled() && (failure == null || context.isCancelRequested())) {
+      PrefixedMdc mdc = context.getLoggerMdc();
+
       Map<Long, SignalHandlerInfo> runningSignalHandlers =
           workflow.getWorkflowContext().getRunningSignalHandlers();
       List<SignalHandlerInfo> unfinishedSignalHandlers =
@@ -105,9 +109,9 @@ final class ReplayWorkflowExecutor {
               .filter(a -> a.getPolicy() == HandlerUnfinishedPolicy.WARN_AND_ABANDON)
               .collect(Collectors.toList());
       if (!unfinishedSignalHandlers.isEmpty()) {
-        MDC.put("Signals", unfinishedSignalHandlers.toString());
+        mdc.put(LoggerTag.SIGNALS_LIST, unfinishedSignalHandlers.toString());
         log.warn(unfinishedSignalHandlesWarnMessage);
-        MDC.remove("Signals");
+        mdc.remove(LoggerTag.SIGNALS_LIST);
       }
 
       Map<String, UpdateHandlerInfo> runningUpdateHandlers =
@@ -117,9 +121,9 @@ final class ReplayWorkflowExecutor {
               .filter(a -> a.getPolicy() == HandlerUnfinishedPolicy.WARN_AND_ABANDON)
               .collect(Collectors.toList());
       if (!unfinishedUpdateHandlers.isEmpty()) {
-        MDC.put("Updates", unfinishedUpdateHandlers.toString());
+        mdc.put(LoggerTag.UPDATES_LIST, unfinishedUpdateHandlers.toString());
         log.warn(unfinishedUpdateHandlesWarnMessage);
-        MDC.remove("Updates");
+        mdc.remove(LoggerTag.UPDATES_LIST);
       }
     }
 
@@ -191,6 +195,10 @@ final class ReplayWorkflowExecutor {
           args,
           protocolMessage.getEventId(),
           input.getHeader(),
+          update.hasPropagatedNexusSerializationContext()
+              ? PropagatedNexusSerializationContext.fromProto(
+                  update.getPropagatedNexusSerializationContext())
+              : null,
           updateMessage.getCallbacks());
     } catch (InvalidProtocolBufferException e) {
       throw new IllegalStateException("Message is not an update.");

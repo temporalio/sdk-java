@@ -68,6 +68,76 @@ Good pull requests are focused and easy to review:
 Run the relevant local checks when practical. CI must pass before a pull request can
 be merged.
 
+## SDK Java Development
+
+Java 21 or later is required to run Gradle, compile the project, and run all tests
+locally.
+
+By default, integration tests run against the built-in time-skipping test server.
+Some tests require features that the built-in server does not support and are
+skipped. Gradle can download the pinned Temporal CLI, start a correctly configured
+dev server, wait for it to become ready, configure the tests to use it, and stop it
+when the test invocation finishes.
+
+Run the suite against a managed local Temporal dev server with:
+
+```bash
+./gradlew test -PtestJavaVersion=11 -PtestServer=dev-server
+```
+
+Normal Gradle test filtering works, so a single dev-server-backed test can be run with:
+
+```bash
+./gradlew :temporal-sdk:test -PtestJavaVersion=11 -PtestServer=dev-server \
+  --tests "io.temporal.activity.ActivityPauseTest.activityPause"
+```
+
+Java 11 must be available to Gradle for these commands.
+
+To run an SDK test against an externally managed server using the standard Temporal client
+environment configuration, set `TEMPORAL_TEST_ENV_CONFIG_SERVER`. For example, the following runs
+one Cloud-safe workflow test:
+
+```bash
+TEMPORAL_TEST_ENV_CONFIG_SERVER=true \
+TEMPORAL_ADDRESS=your-namespace.tmprl.cloud:7233 \
+TEMPORAL_NAMESPACE=your-namespace \
+TEMPORAL_API_KEY=your-api-key \
+./gradlew :temporal-sdk:test \
+  --tests 'io.temporal.client.functional.SignalTest.signalCompletedWorkflow'
+```
+
+The harness also supports the standard `TEMPORAL_CONFIG_FILE` and `TEMPORAL_PROFILE` variables.
+Values from `TEMPORAL_ADDRESS`, `TEMPORAL_NAMESPACE`, `TEMPORAL_API_KEY`, `TEMPORAL_TLS_*`, and
+`TEMPORAL_GRPC_META_*` override the selected profile. Envconfig mode connects to an existing server
+and namespace; it does not create or register either one.
+
+The `:temporal-sdk:testCloud` task runs tests that are eligible for Temporal Cloud. It uses the same
+envconfig variables and excludes tests annotated with a `CloudTestExclusion` JUnit category. Tests
+are Cloud-eligible by default; use the narrowest applicable exclusion reason when a test requires a
+local server, requires Cloud resources that CI does not provision, or still needs Cloud-specific
+adaptation. Run `./gradlew :temporal-sdk:listCloudExcludedTests` to inventory the tests excluded
+from Cloud without executing them. The normal `test` task continues to run Cloud-excluded tests
+locally.
+
+Filter the inventory to one exclusion reason with, for example:
+
+```bash
+./gradlew :temporal-sdk:listCloudExcludedTests \
+  -PcloudTestExclusionReason=RequiresLocalServer
+```
+
+The accepted reasons are `RequiresLocalServer`, `RequiresCloudProvisioning`, and
+`NeedsCloudAdaptation`.
+
+JUnit category marker interfaces are the Java equivalent of test-runner traits. Every Cloud
+exclusion must pair its reason category with a complete explanatory note:
+
+```java
+@CloudTestExclusionNote("Starts an in-process time-skipping server.")
+@Category(RequiresLocalServer.class)
+```
+
 ## Things to Avoid
 
 Avoid changes that make review harder without improving the contribution:

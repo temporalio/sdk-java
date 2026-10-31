@@ -1,11 +1,13 @@
 package io.temporal.client;
 
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.common.Experimental;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.PayloadConverter;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -19,7 +21,9 @@ import javax.annotation.Nonnull;
 public interface ActivityCompletionClient {
 
   /**
-   * Completes the activity execution successfully.
+   * Completes an activity execution successfully using a task token.
+   *
+   * <p>This overload works with both workflow activities and standalone activities.
    *
    * @param taskToken token of the activity attempt to complete
    * @param result of the activity execution
@@ -27,9 +31,10 @@ public interface ActivityCompletionClient {
   <R> void complete(byte[] taskToken, R result) throws ActivityCompletionException;
 
   /**
-   * Completes the activity execution successfully.
+   * Completes a workflow activity execution successfully using workflow and activity IDs.
    *
-   * <p>This method is only for activities run within a workflow.
+   * <p>This overload is only for workflow activities. To complete a standalone activity by ID, use
+   * {@link #completeStandalone(String, Optional, Object)}.
    *
    * @param workflowId id of the workflow that started the activity
    * @param runId optional run id of the workflow that started the activity
@@ -40,22 +45,22 @@ public interface ActivityCompletionClient {
       throws ActivityCompletionException;
 
   /**
-   * Completes a standalone activity execution successfully.
+   * Completes a standalone activity execution successfully using activity ID.
    *
-   * <p>Use this overload for standalone activities (not started from a workflow). For
-   * workflow-scheduled activities, use {@link #complete(String, Optional, String, Object)}. To
-   * complete a standalone activity using a task token, use {@link #complete(byte[], Object)}.
+   * <p>This method is only for standalone activities. To complete a workflow activity by ID, use
+   * {@link #complete(String, Optional, String, Object)}.
    *
    * @param activityId id of the standalone activity
    * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
    * @param result of the activity execution
    */
-  @Experimental
   <R> void completeStandalone(String activityId, Optional<String> activityRunId, R result)
       throws ActivityCompletionException;
 
   /**
-   * Completes the activity execution with failure.
+   * Completes an activity execution with failure using a task token.
+   *
+   * <p>This overload works with both workflow activities and standalone activities.
    *
    * @param taskToken token of the activity attempt to complete
    * @param result the exception to be used as a failure details object
@@ -63,9 +68,10 @@ public interface ActivityCompletionClient {
   void completeExceptionally(byte[] taskToken, Exception result) throws ActivityCompletionException;
 
   /**
-   * Completes the activity execution with failure.
+   * Completes a workflow activity execution with failure using workflow and activity IDs.
    *
-   * <p>This method is only for activities run within a workflow.
+   * <p>This overload is only for workflow activities. To complete a standalone activity by ID, use
+   * {@link #completeExceptionallyStandalone(String, Optional, Exception)}.
    *
    * @param workflowId id of the workflow that started the activity
    * @param runId optional run id of the workflow that started the activity
@@ -77,24 +83,23 @@ public interface ActivityCompletionClient {
       throws ActivityCompletionException;
 
   /**
-   * Completes a standalone activity execution with failure.
+   * Completes a standalone activity execution with failure using activity ID.
    *
-   * <p>Use this overload for standalone activities (not started from a workflow). For
-   * workflow-scheduled activities, use {@link #completeExceptionally(String, Optional, String,
-   * Exception)}. To complete a standalone activity with failure using a task token, use {@link
-   * #completeExceptionally(byte[], Exception)}.
+   * <p>This method is only for standalone activities. To complete a workflow activity by ID, use
+   * {@link #completeExceptionally(String, Optional, String, Exception)}.
    *
    * @param activityId id of the standalone activity
    * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
    * @param result the exception to be used as a failure details object
    */
-  @Experimental
   void completeExceptionallyStandalone(
       String activityId, Optional<String> activityRunId, Exception result)
       throws ActivityCompletionException;
 
   /**
-   * Confirms successful cancellation to the server.
+   * Confirms successful cancellation to the server using a task token.
+   *
+   * <p>This overload works with both workflow activities and standalone activities.
    *
    * @param taskToken token of the activity attempt
    * @param details details to record with the cancellation
@@ -102,9 +107,11 @@ public interface ActivityCompletionClient {
   <V> void reportCancellation(byte[] taskToken, V details) throws ActivityCompletionException;
 
   /**
-   * Confirms successful cancellation to the server.
+   * Confirms successful cancellation of a workflow activity to the server using workflow and
+   * activity IDs.
    *
-   * <p>This method is only for activities run within a workflow.
+   * <p>This overload is only for workflow activities. To cancel a standalone activity by ID, use
+   * {@link #reportCancellationStandalone(String, Optional, Object)}.
    *
    * @param workflowId id of the workflow that started the activity
    * @param runId optional run id of the workflow that started the activity
@@ -116,24 +123,23 @@ public interface ActivityCompletionClient {
       throws ActivityCompletionException;
 
   /**
-   * Confirms successful cancellation of a standalone activity to the server.
+   * Confirms successful cancellation of a standalone activity to the server using activity ID.
    *
-   * <p>Use this overload for standalone activities (not started from a workflow). For
-   * workflow-scheduled activities, use {@link #reportCancellation(String, Optional, String,
-   * Object)}. To confirm a successful cancellation of a standalone activity using a task token, use
-   * {@link #reportCancellation(byte[], Object)}.
+   * <p>This method is only for standalone activities. To cancel a workflow activity by ID, use
+   * {@link #reportCancellation(String, Optional, String, Object)}.
    *
    * @param activityId id of the standalone activity
    * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
    * @param details details to record with the cancellation
    */
-  @Experimental
   <V> void reportCancellationStandalone(
       String activityId, Optional<String> activityRunId, V details)
       throws ActivityCompletionException;
 
   /**
-   * Records a heartbeat for an activity.
+   * Records a heartbeat for an activity using a task token.
+   *
+   * <p>This overload works with both workflow activities and standalone activities.
    *
    * @param taskToken token of the activity attempt
    * @param details details to record with the heartbeat
@@ -142,9 +148,10 @@ public interface ActivityCompletionClient {
   <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException;
 
   /**
-   * Records a heartbeat for an activity.
+   * Records a heartbeat for a workflow activity using workflow and activity IDs.
    *
-   * <p>This method is only for activities run within a workflow.
+   * <p>This overload is only for workflow activities. To heartbeat a standalone activity by ID, use
+   * {@link #heartbeatStandalone(String, Optional, Object)}.
    *
    * @param workflowId id of the workflow that started the activity
    * @param runId optional run id of the workflow that started the activity
@@ -156,19 +163,16 @@ public interface ActivityCompletionClient {
       throws ActivityCompletionException;
 
   /**
-   * Records a heartbeat for a standalone activity.
+   * Records a heartbeat for a standalone activity using activity ID.
    *
-   * <p>Use this overload for standalone activities (not started from a workflow). For
-   * workflow-scheduled activities, use {@link #heartbeat(String, Optional, String, Object)}. To
-   * record a heartbeeat for a standalone activity using a task token, use {@link #heartbeat(byte[],
-   * Object)}.
+   * <p>This method is only for standalone activities. To heartbeat a workflow activity by ID, use
+   * {@link #heartbeat(String, Optional, String, Object)}.
    *
    * @param activityId id of the standalone activity
    * @param activityRunId optional run id of the standalone activity, or {@code Optional.empty()}
    * @param details details to record with the heartbeat
    * @throws ActivityCompletionException if activity should stop executing
    */
-  @Experimental
   <V> void heartbeatStandalone(String activityId, Optional<String> activityRunId, V details)
       throws ActivityCompletionException;
 
@@ -186,4 +190,19 @@ public interface ActivityCompletionClient {
   @Experimental
   @Nonnull
   ActivityCompletionClient withContext(@Nonnull ActivitySerializationContext context);
+
+  /**
+   * Supply this context when completing a standalone activity started by a Nexus operation handler,
+   * so its result, failure and heartbeat details are encoded with the context the Nexus caller
+   * decodes them with. Get it from {@link ActivityInfo#getNexusSerializationContext()} and store it
+   * together with the task token.
+   *
+   * @param context the Nexus context of the operation handler that started the activity
+   * @return an instance of ActivityCompletionClient that uses the provided {@code context} for
+   *     serialization
+   * @see NexusSerializationContext
+   */
+  @Experimental
+  @Nonnull
+  ActivityCompletionClient withContext(@Nonnull NexusSerializationContext context);
 }

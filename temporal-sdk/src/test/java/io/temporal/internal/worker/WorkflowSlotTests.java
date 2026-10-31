@@ -14,6 +14,8 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.testUtils.CountingSlotSupplier;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.MetricsType;
 import io.temporal.worker.WorkerOptions;
@@ -27,7 +29,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote(
+    "Cloud CI does not provision the standalone Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class WorkflowSlotTests {
   private final int MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = 100;
   private final int MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = 1000;

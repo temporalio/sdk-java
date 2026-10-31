@@ -7,9 +7,13 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.SearchAttributes;
+import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.common.converter.TransferTypeTestModel;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.testUtils.Eventually;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -24,6 +28,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class ScheduleTest {
   static final SearchAttributeKey<String> CUSTOM_KEYWORD_SA =
@@ -90,6 +95,8 @@ public class ScheduleTest {
     ScheduleHandle handle = client.createSchedule(scheduleId, schedule, options);
     ScheduleDescription description = handle.describe();
     Assert.assertEquals(scheduleId, description.getId());
+    Assert.assertEquals(
+        Duration.ofDays(365), description.getSchedule().getPolicy().getCatchupWindow());
     // Verify the schedule description has the correct (i.e. no) memo
     Assert.assertNull(description.getMemo("memokey1", String.class));
     // Try to create a schedule that already exists
@@ -111,6 +118,49 @@ public class ScheduleTest {
       badHandle.delete();
       Assert.fail();
     } catch (ScheduleException e) {
+    }
+  }
+
+  @Test
+  public void scheduleArgumentsRoundTripTransferTypes() {
+    ScheduleClient client =
+        ScheduleClient.newInstance(
+            testWorkflowRule.getWorkflowServiceStubs(),
+            ScheduleClientOptions.newBuilder()
+                .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                .setIdentity(testWorkflowRule.getWorkflowClient().getOptions().getIdentity())
+                .setDataConverter(DefaultDataConverter.newDefaultInstance())
+                .build());
+    String scheduleId = UUID.randomUUID().toString();
+    Schedule schedule =
+        Schedule.newBuilder()
+            .setAction(
+                ScheduleActionStartWorkflow.newBuilder()
+                    .setWorkflowType("TestWorkflow1")
+                    .setArguments(new TransferTypeTestModel("scheduled"))
+                    .setOptions(
+                        WorkflowOptions.newBuilder()
+                            .setWorkflowId("workflow-" + scheduleId)
+                            .setTaskQueue(testWorkflowRule.getTaskQueue())
+                            .build())
+                    .build())
+            .setSpec(
+                ScheduleSpec.newBuilder()
+                    .setIntervals(Arrays.asList(new ScheduleIntervalSpec(Duration.ofMinutes(1))))
+                    .build())
+            .setState(ScheduleState.newBuilder().setPaused(true).build())
+            .build();
+    ScheduleHandle handle =
+        client.createSchedule(scheduleId, schedule, ScheduleOptions.newBuilder().build());
+    try {
+      ScheduleActionStartWorkflow action =
+          (ScheduleActionStartWorkflow) handle.describe().getSchedule().getAction();
+
+      TransferTypeTestModel argument = action.getArguments().get(0, TransferTypeTestModel.class);
+      Assert.assertEquals(new TransferTypeTestModel("scheduled"), argument);
+      Assert.assertTrue(argument.wasTransferred());
+    } finally {
+      handle.delete();
     }
   }
 
@@ -392,6 +442,9 @@ public class ScheduleTest {
   }
 
   @Test
+  @CloudTestExclusionNote(
+      "Cloud CI does not provision the custom search attribute used by this test.")
+  @Category(RequiresCloudProvisioning.class)
   public void updateSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule
@@ -495,6 +548,9 @@ public class ScheduleTest {
   }
 
   @Test
+  @CloudTestExclusionNote(
+      "Cloud CI does not provision the custom search attribute used by this test.")
+  @Category(RequiresCloudProvisioning.class)
   public void listSchedules() {
     ScheduleClient client = createScheduleClient();
     // Create the schedule

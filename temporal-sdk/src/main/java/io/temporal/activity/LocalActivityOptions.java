@@ -1,7 +1,6 @@
 package io.temporal.activity;
 
 import com.google.common.base.Objects;
-import io.temporal.common.Experimental;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import java.time.Duration;
@@ -167,7 +166,6 @@ public final class LocalActivityOptions {
      *
      * <p>Default is none/empty.
      */
-    @Experimental
     public Builder setSummary(String summary) {
       this.summary = summary;
       return this;
@@ -279,7 +277,6 @@ public final class LocalActivityOptions {
     return doNotIncludeArgumentsIntoMarker != null && doNotIncludeArgumentsIntoMarker;
   }
 
-  @Experimental
   public String getSummary() {
     return summary;
   }

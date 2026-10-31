@@ -33,7 +33,6 @@ public class GracefulPollShutdownIntegrationTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setUseExternalService(true)
           .setDoNotStart(true)
           .setTestTimeoutSeconds(30)
           .setWorkflowTypes(LoopWorkflowImpl.class)

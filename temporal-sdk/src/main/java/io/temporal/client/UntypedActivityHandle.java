@@ -17,7 +17,6 @@ import javax.annotation.Nullable;
  * @see ActivityHandle
  * @see ActivityClient
  */
-@Experimental
 public interface UntypedActivityHandle {
 
   /** The user-assigned activity ID. */
@@ -118,11 +117,21 @@ public interface UntypedActivityHandle {
       long timeout, TimeUnit unit, Class<R> resultClass, @Nullable Type resultType);
 
   /**
-   * Describes the current state of the activity execution.
+   * Describes the current state of the activity execution, without any of the payload-bearing
+   * fields. Equivalent to {@code describe(DescribeActivityOptions.getDefaultInstance())}.
    *
    * @return detailed information about the activity
    */
   ActivityExecutionDescription describe();
+
+  /**
+   * Describes the current state of the activity execution.
+   *
+   * @param options which payload-bearing fields to include in the description. These are opt-in
+   *     because they can be arbitrarily large.
+   * @return detailed information about the activity
+   */
+  ActivityExecutionDescription describe(DescribeActivityOptions options);
 
   /**
    * Requests cancellation of the activity. The activity will receive a cancellation via {@link
@@ -146,4 +155,58 @@ public interface UntypedActivityHandle {
    * @param reason human-readable reason for termination, may be {@code null}
    */
   void terminate(@Nullable String reason);
+
+  /**
+   * Pauses the activity. A paused activity stops being dispatched to workers until it is unpaused.
+   */
+  @Experimental
+  void pause();
+
+  /**
+   * Pauses the activity with the given options.
+   *
+   * @param options pause options (reason)
+   */
+  @Experimental
+  void pause(PauseActivityOptions options);
+
+  /** Unpauses the activity with default options, allowing it to be dispatched again. */
+  @Experimental
+  void unpause();
+
+  /**
+   * Unpauses the activity with the given options.
+   *
+   * @param options unpause options (reason, jitter)
+   */
+  @Experimental
+  void unpause(UnpauseActivityOptions options);
+
+  /**
+   * Updates the activity's options. Only the options named by {@code updates} are changed; a
+   * derived field mask leaves the rest untouched. To revert to the options the activity was created
+   * with, use {@link #restoreOriginalOptions()}.
+   *
+   * <p>Updates are created from the keys on {@link ActivityOptionsUpdate}, via {@link
+   * ActivityOptionsUpdate.ActivityOptionsKey#set} to set an option or {@link
+   * ActivityOptionsUpdate.ActivityOptionsKey#unset} to clear it.
+   *
+   * <p>Each option may be named at most once; naming the same option twice throws {@link
+   * IllegalArgumentException}.
+   *
+   * @param updates the option updates to apply; at least one is required, and no option may be
+   *     named more than once
+   * @return the activity options as resolved by the server after the update
+   * @throws IllegalArgumentException if {@code updates} is empty or names an option twice
+   */
+  @Experimental
+  ActivityExecutionOptions updateOptions(ActivityOptionsUpdate<?>... updates);
+
+  /**
+   * Restores the activity's options to the ones it was created with.
+   *
+   * @return the activity options as resolved by the server after the restore
+   */
+  @Experimental
+  ActivityExecutionOptions restoreOriginalOptions();
 }

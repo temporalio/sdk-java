@@ -94,16 +94,18 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
 
     pollRequest.setWorkerInstanceKey(workerInstanceKey);
 
-    if (versioningOptions.getWorkerDeploymentOptions() != null) {
-      pollRequest.setDeploymentOptions(
-          WorkerVersioningProtoUtils.deploymentOptionsToProto(
-              versioningOptions.getWorkerDeploymentOptions()));
-    } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
-      pollRequest.setWorkerVersionCapabilities(
-          WorkerVersionCapabilities.newBuilder()
-              .setBuildId(versioningOptions.getBuildId())
-              .setUseVersioning(versioningOptions.isUsingVersioning())
-              .build());
+    if (!workerCommandsTaskQueue) {
+      if (versioningOptions.getWorkerDeploymentOptions() != null) {
+        pollRequest.setDeploymentOptions(
+            WorkerVersioningProtoUtils.deploymentOptionsToProto(
+                versioningOptions.getWorkerDeploymentOptions()));
+      } else if (serverCapabilities.get().getBuildIdBasedVersioning()) {
+        pollRequest.setWorkerVersionCapabilities(
+            WorkerVersionCapabilities.newBuilder()
+                .setBuildId(versioningOptions.getBuildId())
+                .setUseVersioning(versioningOptions.isUsingVersioning())
+                .build());
+      }
     }
     this.pollRequest = pollRequest.build();
   }

@@ -110,6 +110,22 @@
  * }
  * </code></pre>
  *
+ * Options that identify a single Activity or Local Activity invocation are not stored on the
+ * reusable stub. Use {@link io.temporal.workflow.ActivityInvocationOptions} with {@link
+ * io.temporal.workflow.Workflow#executeActivity(Functions.Func1, ActivityInvocationOptions,
+ * Object)} or its asynchronous variant to supply an optional Activity ID for one invocation.
+ *
+ * <pre><code>
+ * ActivityInvocationOptions invocationOptions = ActivityInvocationOptions.newBuilder()
+ *     .setActivityId("charge-" + order.getId())
+ *     .build();
+ *
+ * Receipt receipt = Workflow.executeActivity(
+ *     activities::charge,
+ *     invocationOptions,
+ *     order);
+ * </code></pre>
+ *
  * <h3>Calling Activities Asynchronously</h3>
  *
  * Sometimes workflows need to perform certain operations in parallel. The {@link

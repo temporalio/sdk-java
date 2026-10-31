@@ -3,14 +3,17 @@ package io.temporal.workflow.nexus;
 import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
 import io.nexusrpc.handler.HandlerException;
-import io.nexusrpc.handler.OperationHandler;
-import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
-import io.temporal.nexus.TemporalOperationHandler;
+import io.temporal.nexus.TemporalNexusClient;
+import io.temporal.nexus.TemporalOperation;
+import io.temporal.nexus.TemporalOperationResult;
+import io.temporal.nexus.TemporalOperationStartContext;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
@@ -18,7 +21,10 @@ import java.time.Duration;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
+@CloudTestExclusionNote("Cloud CI does not provision the Nexus endpoint required by this test.")
+@Category(RequiresCloudProvisioning.class)
 public class GenericHandlerDoubleStartTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -94,27 +100,25 @@ public class GenericHandlerDoubleStartTest {
 
   @ServiceImpl(service = TestNexusServiceDoubleStart.class)
   public class TestNexusServiceImpl {
-    @OperationImpl
-    public OperationHandler<String, String> operation() {
-      return TemporalOperationHandler.create(
-          (context, client, input) -> {
-            // First start should succeed but the workflow blocks indefinitely
-            client.startWorkflow(
-                BlockingWorkflow.class,
-                BlockingWorkflow::execute,
-                input,
-                WorkflowOptions.newBuilder()
-                    .setWorkflowId("double-start-first-" + context.getService())
-                    .build());
-            // Second start should throw
-            return client.startWorkflow(
-                BlockingWorkflow.class,
-                BlockingWorkflow::execute,
-                input,
-                WorkflowOptions.newBuilder()
-                    .setWorkflowId("double-start-second-" + context.getService())
-                    .build());
-          });
+    @TemporalOperation
+    public TemporalOperationResult<String> operation(
+        TemporalOperationStartContext context, TemporalNexusClient client, String input) {
+      // First start should succeed but the workflow blocks indefinitely
+      client.startWorkflow(
+          BlockingWorkflow.class,
+          BlockingWorkflow::execute,
+          input,
+          WorkflowOptions.newBuilder()
+              .setWorkflowId("double-start-first-" + context.getService())
+              .build());
+      // Second start should throw
+      return client.startWorkflow(
+          BlockingWorkflow.class,
+          BlockingWorkflow::execute,
+          input,
+          WorkflowOptions.newBuilder()
+              .setWorkflowId("double-start-second-" + context.getService())
+              .build());
     }
   }
 }

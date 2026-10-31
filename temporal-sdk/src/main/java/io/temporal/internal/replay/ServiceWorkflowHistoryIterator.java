@@ -12,12 +12,17 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponseOrBuilder;
+import io.temporal.common.CancellationToken;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
+import java.util.concurrent.CancellationException;
+import javax.annotation.Nullable;
 
 /** Supports iteration over history while loading new pages through calls to the service. */
 class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
@@ -29,6 +34,9 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
   private final Scope metricsScope;
   private final PollWorkflowTaskQueueResponseOrBuilder task;
   private final GrpcRetryer grpcRetryer;
+  private final @Nullable ExternalStorageRunner externalStorageRunner;
+  private final CancellationToken<CancellationException> storageCancellation;
+  private final @Nullable StorageOperationMetrics downloadMetrics;
   private Deadline deadline;
   private Iterator<HistoryEvent> current;
   ByteString nextPageToken;
@@ -38,10 +46,24 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       String namespace,
       PollWorkflowTaskQueueResponseOrBuilder task,
       Scope metricsScope) {
+    this(service, namespace, task, metricsScope, null, CancellationToken.none(), null);
+  }
+
+  ServiceWorkflowHistoryIterator(
+      WorkflowServiceStubs service,
+      String namespace,
+      PollWorkflowTaskQueueResponseOrBuilder task,
+      Scope metricsScope,
+      @Nullable ExternalStorageRunner externalStorageRunner,
+      CancellationToken<CancellationException> storageCancellation,
+      @Nullable StorageOperationMetrics downloadMetrics) {
+    this.storageCancellation = storageCancellation;
+    this.downloadMetrics = downloadMetrics;
     this.service = service;
     this.namespace = namespace;
     this.task = task;
     this.metricsScope = metricsScope;
+    this.externalStorageRunner = externalStorageRunner;
     // TODO Refactor WorkflowHistoryIteratorTest or WorkflowHistoryIterator to remove this check.
     //  `service == null` shouldn't be allowed as it's needed for a normal functioning of this
     // class.
@@ -64,7 +86,13 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       // true.
       GetWorkflowExecutionHistoryResponse response = queryWorkflowExecutionHistory();
 
-      current = response.getHistory().getEventsList().iterator();
+      History history = response.getHistory();
+      if (externalStorageRunner == null) {
+        ExternalStorageRunner.throwIfContainsReference(history);
+      } else {
+        history = externalStorageRunner.retrieve(history, storageCancellation, downloadMetrics);
+      }
+      current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();
       // Server can return an empty page, but a valid nextPageToken that contains
       // more events.

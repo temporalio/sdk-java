@@ -8,6 +8,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.deployment.v1.WorkerDeploymentVersion;
 import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.enums.v1.WorkerStatus;
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.PluginInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.worker.v1.WorkerHostInfo;
@@ -22,6 +23,9 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.TemporalFailure;
+import io.temporal.internal.client.WorkflowClientInternal;
+import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -77,6 +81,10 @@ public final class Worker {
   private final @Nonnull WorkflowExecutorCache cache;
   private final Map<String, TaskSnapshot> previousHeartbeatSnapshots = new ConcurrentHashMap<>();
   private volatile Supplier<WorkerHeartbeat> heartbeatSupplier;
+  // Reported in every heartbeat (including the one embedded in ShutdownWorkerRequest) until the
+  // server accepts one, then cleared so it is sent only once per worker.
+  private final AtomicReference<EnvironmentInfo> pendingEnvironmentInfo = new AtomicReference<>();
+  private final AtomicReference<Class<?>> kotlinImplementationClass = new AtomicReference<>();
 
   private static final class TaskSnapshot {
     final int processed;
@@ -121,10 +129,14 @@ public final class Worker {
     this.taskQueue = taskQueue;
     this.service = client.getWorkflowServiceStubs();
     this.options = WorkerOptions.newBuilder(options).validateAndBuildWithDefaults();
-    this.clientOptions = client.getOptions();
+    WorkflowClientInternal clientInternal = (WorkflowClientInternal) client.getInternal();
+    this.clientOptions =
+        WorkflowClientOptions.newBuilder(client.getOptions())
+            .setDataConverter(clientInternal.getInternalDataConverter())
+            .build();
     this.cache = cache;
+    ExternalStorageRunner externalStorageRunner = clientInternal.getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
-    WorkflowClientOptions clientOptions = client.getOptions();
     String namespace = clientOptions.getNamespace();
     this.namespace = namespace;
     String workerControlTaskQueue =
@@ -150,6 +162,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorageRunner,
             activityTaskAutoEnrollEligible);
     if (this.options.isLocalActivityWorkerOnly()) {
       activityWorker = null;
@@ -185,6 +198,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorageRunner,
             nexusTaskAutoEnrollEligible);
     SlotSupplier<NexusSlotInfo> nexusSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -206,6 +220,7 @@ public final class Worker {
             taggedScope,
             workerInstanceKey,
             workerControlTaskQueue,
+            externalStorageRunner,
             workflowTaskAutoEnrollEligible);
     SingleWorkerOptions localActivityOptions =
         toLocalActivityOptions(
@@ -215,7 +230,8 @@ public final class Worker {
             contextPropagators,
             taggedScope,
             workerInstanceKey,
-            workerControlTaskQueue);
+            workerControlTaskQueue,
+            externalStorageRunner);
 
     SlotSupplier<WorkflowSlotInfo> workflowSlotSupplier =
         this.options.getWorkerTuner() == null
@@ -272,6 +288,7 @@ public final class Worker {
 
     workflowWorker.registerWorkflowImplementationTypes(
         WorkflowImplementationOptions.newBuilder().build(), workflowImplementationClasses);
+    recordKotlinImplementations(workflowImplementationClasses);
   }
 
   /**
@@ -296,6 +313,7 @@ public final class Worker {
         "registerWorkflowImplementationTypes is not allowed after worker has started");
 
     workflowWorker.registerWorkflowImplementationTypes(options, workflowImplementationClasses);
+    recordKotlinImplementations(workflowImplementationClasses);
   }
 
   /**
@@ -404,6 +422,53 @@ public final class Worker {
   }
 
   /**
+   * Registers a workflow factory with its implementation class for worker environment reporting.
+   *
+   * <p>The implementation class is used only for metadata detection. The factory remains
+   * responsible for creating workflow instances and is not invoked during registration.
+   *
+   * @param workflowInterface workflow interface implemented by the factory's instances
+   * @param implementationClass implementation class created by the factory
+   * @param factory factory that creates a new workflow instance each time it is called
+   * @param options custom workflow implementation options for a worker
+   * @see #registerWorkflowImplementationFactory(Class, Func, WorkflowImplementationOptions)
+   */
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Class<? extends R> implementationClass,
+      Func<R> factory,
+      WorkflowImplementationOptions options) {
+    Objects.requireNonNull(implementationClass, "implementationClass");
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
+    recordKotlinImplementations(implementationClass);
+  }
+
+  /**
+   * Registers a workflow factory accepting workflow arguments with its implementation class for
+   * worker environment reporting.
+   *
+   * <p>The implementation class is used only for metadata detection. The factory remains
+   * responsible for creating workflow instances and is not invoked during registration.
+   *
+   * @param workflowInterface workflow interface implemented by the factory's instances
+   * @param implementationClass implementation class created by the factory
+   * @param factory factory that creates a new workflow instance from workflow arguments each time
+   *     it is called
+   * @param options custom workflow implementation options for a worker
+   * @see #registerWorkflowImplementationFactory(Class, Functions.Func1,
+   *     WorkflowImplementationOptions)
+   */
+  public <R> void registerWorkflowImplementationFactory(
+      Class<R> workflowInterface,
+      Class<? extends R> implementationClass,
+      Functions.Func1<EncodedValues, R> factory,
+      WorkflowImplementationOptions options) {
+    Objects.requireNonNull(implementationClass, "implementationClass");
+    registerWorkflowImplementationFactory(workflowInterface, factory, options);
+    recordKotlinImplementations(implementationClass);
+  }
+
+  /**
    * Configures a factory to use when an instance of a workflow implementation is created.
    *
    * <p>The only valid use for this method is unit testing and mocking. <br>
@@ -472,6 +537,22 @@ public final class Worker {
       activityWorker.registerActivityImplementations(activityImplementations);
     }
     workflowWorker.registerLocalActivityImplementations(activityImplementations);
+    for (Object implementation : activityImplementations) {
+      recordKotlinImplementations(implementation.getClass());
+    }
+  }
+
+  private void recordKotlinImplementations(Class<?>... implementationClasses) {
+    if (clientOptions.isWorkerEnvironmentInfoDisabled()
+        || kotlinImplementationClass.get() != null) {
+      return;
+    }
+    for (Class<?> implementationClass : implementationClasses) {
+      if (WorkerEnvironmentInfo.isKotlinImplementation(implementationClass)) {
+        kotlinImplementationClass.compareAndSet(null, implementationClass);
+        return;
+      }
+    }
   }
 
   /**
@@ -587,7 +668,15 @@ public final class Worker {
     return types;
   }
 
-  Supplier<WorkerHeartbeat> buildHeartbeatCallback(String workerGroupingKey) {
+  /** Called by the heartbeat manager once a heartbeat produced by this worker was accepted. */
+  void onHeartbeatAccepted() {
+    pendingEnvironmentInfo.set(null);
+  }
+
+  Supplier<WorkerHeartbeat> buildHeartbeatCallback(
+      String workerGroupingKey, @Nullable EnvironmentInfo environmentInfo) {
+    pendingEnvironmentInfo.set(
+        WorkerEnvironmentInfo.withKotlinRuntime(environmentInfo, kotlinImplementationClass.get()));
     // The callback can be invoked concurrently from the heartbeat scheduler and the shutdown path
     final Object callbackLock = new Object();
     final AtomicReference<Instant> lastHeartbeatTime = new AtomicReference<>(null);
@@ -621,6 +710,11 @@ public final class Worker {
                   .build());
         }
         lastHeartbeatTime.set(now);
+
+        EnvironmentInfo pendingEnvironment = pendingEnvironmentInfo.get();
+        if (pendingEnvironment != null) {
+          hb.setEnvironment(pendingEnvironment);
+        }
 
         // Deployment version
         if (options.getDeploymentOptions() != null
@@ -681,10 +775,12 @@ public final class Worker {
         hb.setTotalStickyCacheMiss(cache.getCacheMisses());
         hb.setCurrentStickyCacheSize(cache.getCurrentCacheSize());
 
-        // Plugins
-        for (WorkerPlugin plugin : plugins) {
-          hb.addPlugins(PluginInfo.newBuilder().setName(plugin.getName()).build());
-        }
+        // A plugin can be registered on both the client and the worker factory, so report each
+        // name once.
+        plugins.stream()
+            .map(WorkerPlugin::getName)
+            .distinct()
+            .forEach(name -> hb.addPlugins(PluginInfo.newBuilder().setName(name).build()));
 
         return hb.build();
       }
@@ -915,6 +1011,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -922,7 +1019,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setUsingVirtualThreads(options.isUsingVirtualThreadsOnActivityWorker())
         .setAllowActivityHeartbeatDuringShutdown(options.getAllowActivityHeartbeatDuringShutdown())
         .setPollerOptions(
@@ -948,6 +1046,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       boolean autoEnrollEligible) {
     return toSingleWorkerOptions(
             factoryOptions,
@@ -955,7 +1054,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -980,6 +1080,7 @@ public final class Worker {
       Scope metricsScope,
       String workerInstanceKey,
       String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner,
       boolean autoEnrollEligible) {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
@@ -1015,7 +1116,8 @@ public final class Worker {
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(
@@ -1040,14 +1142,16 @@ public final class Worker {
       List<ContextPropagator> contextPropagators,
       Scope metricsScope,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner) {
     return toSingleWorkerOptions(
             factoryOptions,
             options,
             clientOptions,
             contextPropagators,
             workerInstanceKey,
-            workerControlTaskQueue)
+            workerControlTaskQueue,
+            externalStorageRunner)
         .setPollerOptions(
             PollerOptions.newBuilder()
                 .setPollerBehavior(new PollerBehaviorSimpleMaximum(1))
@@ -1066,7 +1170,8 @@ public final class Worker {
       WorkflowClientOptions clientOptions,
       List<ContextPropagator> contextPropagators,
       String workerInstanceKey,
-      String workerControlTaskQueue) {
+      String workerControlTaskQueue,
+      @Nullable ExternalStorageRunner externalStorageRunner) {
     String buildId = null;
     if (options.getBuildId() != null) {
       buildId = options.getBuildId();
@@ -1081,6 +1186,7 @@ public final class Worker {
 
     return SingleWorkerOptions.newBuilder()
         .setDataConverter(clientOptions.getDataConverter())
+        .setExternalStorageRunner(externalStorageRunner)
         .setIdentity(identity)
         .setBuildId(buildId)
         .setUseBuildIdForVersioning(options.isUsingBuildIdForVersioning())
@@ -1092,7 +1198,8 @@ public final class Worker {
         .setDeploymentOptions(options.getDeploymentOptions())
         .setWorkerInstanceKey(workerInstanceKey)
         .setWorkerControlTaskQueue(workerControlTaskQueue)
-        .setPreferredVersionProvider(options.getPreferredVersionProvider());
+        .setPreferredVersionProvider(options.getPreferredVersionProvider())
+        .setLoggerMdc(new PrefixedMdc(factoryOptions.getLoggerTagPrefix()));
   }
 
   /**

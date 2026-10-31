@@ -65,6 +65,7 @@ public class TestWorkflowRule implements TestRule {
 
   private final String namespace;
   private final boolean useExternalService;
+  private final boolean useDevServer;
   private final boolean doNotStart;
   private final boolean doNotSetupNexusEndpoint;
   @Nullable private final Timeout globalTimeout;
@@ -93,7 +94,10 @@ public class TestWorkflowRule implements TestRule {
       new TestWatcher() {
         @Override
         protected void failed(Throwable e, Description description) {
-          System.err.println("WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          if (!useExternalService && !useDevServer) {
+            System.err.println(
+                "WORKFLOW EXECUTION HISTORIES:\n" + testEnvironment.getDiagnostics());
+          }
         }
       };
 
@@ -101,6 +105,7 @@ public class TestWorkflowRule implements TestRule {
     this.doNotStart = builder.doNotStart;
     this.doNotSetupNexusEndpoint = builder.doNotSetupNexusEndpoint;
     this.useExternalService = builder.useExternalService;
+    this.useDevServer = builder.useDevServer;
     this.namespace =
         (builder.namespace == null) ? RegisterTestNamespace.NAMESPACE : builder.namespace;
     this.workflowTypes = (builder.workflowTypes == null) ? new Class[0] : builder.workflowTypes;
@@ -141,8 +146,11 @@ public class TestWorkflowRule implements TestRule {
     this.metricsScope = builder.metricsScope;
     this.searchAttributes = builder.searchAttributes;
 
+    TestEnvironmentOptions testEnvironmentOptions = createTestEnvOptions(builder.initialTimeMillis);
     this.testEnvironment =
-        TestWorkflowEnvironment.newInstance(createTestEnvOptions(builder.initialTimeMillis));
+        useDevServer
+            ? TestWorkflowEnvironment.startLocal(testEnvironmentOptions, builder.devServerOptions)
+            : TestWorkflowEnvironment.newInstance(testEnvironmentOptions);
   }
 
   protected TestEnvironmentOptions createTestEnvOptions(long initialTimeMillis) {
@@ -169,6 +177,9 @@ public class TestWorkflowRule implements TestRule {
     private String namespace;
     private String target;
     private boolean useExternalService;
+    private boolean useDevServer;
+    private TemporalDevServerOptions devServerOptions =
+        TemporalDevServerOptions.getDefaultInstance();
     private boolean doNotStart;
     private boolean doNotSetupNexusEndpoint;
     private long initialTimeMillis;
@@ -261,11 +272,57 @@ public class TestWorkflowRule implements TestRule {
     /**
      * Switches between in-memory and external temporal service implementations.
      *
+     * <p>External-service and dev-server modes are mutually exclusive. Calling this method clears
+     * any selection made by {@link #useDevServer()} or {@link
+     * #useDevServer(TemporalDevServerOptions)}; whichever method is called last determines the
+     * service used by the rule.
+     *
      * @param useExternalService use external service if true.
      *     <p>Default is false.
      */
     public Builder setUseExternalService(boolean useExternalService) {
       this.useExternalService = useExternalService;
+      this.useDevServer = false;
+      return this;
+    }
+
+    /**
+     * Uses an owned local Temporal dev server instead of the in-memory or external service.
+     *
+     * <p>The rule closes the server during normal teardown. Dev-server tests do not support time
+     * skipping.
+     *
+     * <p>Dev-server and external-service modes are mutually exclusive. Calling this method clears
+     * any selection made by {@link #setUseExternalService(boolean)}; whichever method is called
+     * last determines the service used by the rule.
+     */
+    public Builder useDevServer() {
+      return useDevServer(TemporalDevServerOptions.getDefaultInstance());
+    }
+
+    /**
+     * Uses an owned local Temporal dev server with the supplied options.
+     *
+     * <p>Dev-server and external-service modes are mutually exclusive. Calling this method clears
+     * any selection made by {@link #setUseExternalService(boolean)}; whichever method is called
+     * last determines the service used by the rule.
+     *
+     * <pre>{@code
+     * TestWorkflowRule.newBuilder()
+     *     .useDevServer(
+     *         TemporalDevServerOptions.newBuilder().setDownloadVersion("v1.7.2").build())
+     *     .setWorkflowTypes(MyWorkflowImpl.class)
+     *     .build();
+     * }</pre>
+     */
+    public Builder useDevServer(@Nonnull TemporalDevServerOptions options) {
+      if (options == null) {
+        throw new NullPointerException("options");
+      }
+      this.useDevServer = true;
+      this.useExternalService = false;
+      this.target = null;
+      this.devServerOptions = options;
       return this;
     }
 
@@ -403,9 +460,23 @@ public class TestWorkflowRule implements TestRule {
         new Statement() {
           @Override
           public void evaluate() throws Throwable {
-            start();
-            base.evaluate();
-            shutdown();
+            Throwable testFailure = null;
+            try {
+              start();
+              base.evaluate();
+            } catch (Throwable failure) {
+              testFailure = failure;
+              throw failure;
+            } finally {
+              try {
+                shutdown();
+              } catch (Throwable cleanupFailure) {
+                if (testFailure == null) {
+                  throw cleanupFailure;
+                }
+                testFailure.addSuppressed(cleanupFailure);
+              }
+            }
           }
         };
 

@@ -4,6 +4,8 @@ import static org.junit.Assert.assertEquals;
 
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.LocalActivityOptions;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.shared.TestWorkflows.TestWorkflow1;
@@ -11,6 +13,7 @@ import java.time.Duration;
 import org.junit.Assume;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class LocalActivityManyWorkflowsTest {
 
@@ -21,6 +24,8 @@ public class LocalActivityManyWorkflowsTest {
           .setWorkflowTypes(ActivityWorkflow.class)
           .build();
 
+  @CloudTestExclusionNote("This stress test depends on local test-server execution behavior.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void manyWorkflowsTest() {
     Assume.assumeFalse("skipping for docker tests", testWorkflowRule.isUseExternalService());

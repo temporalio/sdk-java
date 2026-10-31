@@ -1,5 +1,6 @@
 package io.temporal.client;
 
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -8,11 +9,20 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ManualActivityCompletionClient;
 import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.nexus.ContextRecordingCodec;
+import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 
 public class ActivityCompletionClientImplTest {
 
@@ -67,6 +77,20 @@ public class ActivityCompletionClientImplTest {
     }
 
     verify(completionHandle).apply();
+  }
+
+  @Test
+  public void taskTokenHeartbeatUsesSerializationContext() {
+    byte[] taskToken = new byte[] {1, 2, 3};
+    ActivitySerializationContext context =
+        new ActivitySerializationContext(
+            "test-namespace", "workflow-id", "workflow-type", "activity-type", "queue", false);
+    when(factory.getClient(taskToken, scope, context)).thenReturn(manualClient);
+
+    client.withContext(context).heartbeat(taskToken, "details");
+
+    verify(factory).getClient(taskToken, scope, context);
+    verify(manualClient).recordHeartbeat("details");
   }
 
   // completeExceptionally(String activityId, Optional<String> activityRunId, Exception result)
@@ -170,5 +194,37 @@ public class ActivityCompletionClientImplTest {
       throws ActivityCompletionException {
     client.heartbeatStandalone("my-act", Optional.empty(), null);
     verify(completionHandle, never()).apply();
+  }
+
+  @Test
+  public void taskTokenCompletionUsesNexusContext() {
+    WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
+    WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub =
+        mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
+    when(service.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.getDefaultInstance());
+    when(service.getOptions()).thenReturn(WorkflowServiceStubsOptions.getDefaultInstance());
+    when(service.blockingStub()).thenReturn(blockingStub);
+    when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    ContextRecordingCodec codec = new ContextRecordingCodec();
+    NexusSerializationContext nexusContext =
+        new NexusSerializationContext("endpoint", "service", "operation");
+    ActivityCompletionClient completionClient =
+        new ActivityCompletionClientImpl(
+            ManualActivityCompletionClientFactory.newFactory(
+                service, "test-namespace", "test-identity", codec.dataConverter()),
+            completionHandle,
+            scope,
+            null);
+
+    completionClient.withContext(nexusContext).complete(new byte[] {1, 2, 3}, "result");
+
+    // The result goes back to the Nexus caller, so it's encoded with the Nexus context.
+    ArgumentCaptor<RespondActivityTaskCompletedRequest> request =
+        ArgumentCaptor.forClass(RespondActivityTaskCompletedRequest.class);
+    verify(blockingStub).respondActivityTaskCompleted(request.capture());
+    assertEquals(
+        ContextRecordingCodec.describe(nexusContext),
+        ContextRecordingCodec.contextOf(request.getValue().getResult().getPayloads(0)));
   }
 }

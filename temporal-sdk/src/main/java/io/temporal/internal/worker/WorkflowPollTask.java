@@ -163,7 +163,7 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
       isSuccessful = true;
       tracker.pollSucceeded();
       stickyQueueBalancer.finishPoll(taskQueueKind, response.getBacklogCountHint());
-      slotSupplier.markSlotUsed(new WorkflowSlotInfo(response, pollRequest), permit);
+      slotSupplier.markSlotUsed(new WorkflowSlotInfo(response, request), permit);
       return new WorkflowTask(response, (rr) -> slotSupplier.releaseSlot(rr, permit));
     } finally {
       if (isSticky) {

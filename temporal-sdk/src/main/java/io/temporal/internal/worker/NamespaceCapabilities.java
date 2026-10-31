@@ -1,7 +1,9 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.namespace.v1.NamespaceInfo.Capabilities;
+import io.temporal.api.namespace.v1.NamespaceInfo.Limits;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Holds namespace-level capabilities discovered from the server's DescribeNamespace response. A
@@ -14,6 +16,8 @@ public final class NamespaceCapabilities {
   private final AtomicBoolean gracefulPollShutdown = new AtomicBoolean(false);
   private final AtomicBoolean workerHeartbeats = new AtomicBoolean(false);
   private final AtomicBoolean workerCommands = new AtomicBoolean(false);
+  private final AtomicBoolean workflowTaskCompletionPagination = new AtomicBoolean(false);
+  private final AtomicLong workflowTaskCompletionSizeLimit = new AtomicLong(0);
 
   public void setFromCapabilities(Capabilities capabilities) {
     if (capabilities.getPollerAutoscalingAutoEnroll()) {
@@ -31,6 +35,13 @@ public final class NamespaceCapabilities {
     if (capabilities.getWorkerCommands()) {
       workerCommands.set(true);
     }
+    if (capabilities.getWorkflowTaskCompletionPagination()) {
+      workflowTaskCompletionPagination.set(true);
+    }
+  }
+
+  public void setFromLimits(Limits limits) {
+    workflowTaskCompletionSizeLimit.set(limits.getWorkflowTaskCompletionSizeLimitError());
   }
 
   public boolean isPollerAutoscaling() {
@@ -63,5 +74,25 @@ public final class NamespaceCapabilities {
 
   public void setWorkerCommands(boolean value) {
     workerCommands.set(value);
+  }
+
+  public boolean isWorkflowTaskCompletionPagination() {
+    return workflowTaskCompletionPagination.get();
+  }
+
+  public void setWorkflowTaskCompletionPagination(boolean value) {
+    workflowTaskCompletionPagination.set(value);
+  }
+
+  /**
+   * The namespace's limit on the recombined size in bytes of a single workflow task completion, or
+   * 0 when the namespace advertises no explicit limit.
+   */
+  public long getWorkflowTaskCompletionSizeLimit() {
+    return workflowTaskCompletionSizeLimit.get();
+  }
+
+  public void setWorkflowTaskCompletionSizeLimit(long value) {
+    workflowTaskCompletionSizeLimit.set(value);
   }
 }

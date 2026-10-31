@@ -87,7 +87,7 @@ public class NonDeterministicWorkflowPolicyBlockWorkflowTest {
             "task_queue",
             testWorkflowRule.getTaskQueue(),
             "namespace",
-            "UnitTest",
+            testWorkflowRule.getWorkflowClient().getOptions().getNamespace(),
             "workflow_type",
             "TestWorkflowStringArg",
             "worker_type",

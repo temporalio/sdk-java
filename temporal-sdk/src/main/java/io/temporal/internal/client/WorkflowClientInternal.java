@@ -1,6 +1,9 @@
 package io.temporal.internal.client;
 
+import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.converter.DataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.HeartbeatManager;
 import io.temporal.worker.WorkerFactory;
 import io.temporal.workflow.Functions;
@@ -25,4 +28,17 @@ public interface WorkflowClientInternal {
 
   @Nullable
   HeartbeatManager getHeartbeatManager();
+
+  /**
+   * Environment information workers report in their heartbeats until the server accepts one, or
+   * null if disabled.
+   */
+  @Nullable
+  EnvironmentInfo getWorkerEnvironmentInfo();
+
+  @Nullable
+  ExternalStorageRunner getExternalStorageRunner();
+
+  /** Returns the SDK's converter, including internal transfer-type conversion. */
+  DataConverter getInternalDataConverter();
 }

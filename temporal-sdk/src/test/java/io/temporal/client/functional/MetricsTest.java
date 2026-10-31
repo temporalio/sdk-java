@@ -1,7 +1,6 @@
 package io.temporal.client.functional;
 
 import static io.temporal.testUtils.Eventually.assertEventually;
-import static io.temporal.testing.internal.SDKTestWorkflowRule.NAMESPACE;
 import static junit.framework.TestCase.*;
 import static org.junit.Assume.assumeTrue;
 
@@ -54,22 +53,26 @@ public class MetricsTest {
   private final ActivityClient activityClient =
       ActivityClient.newInstance(
           testWorkflowRule.getWorkflowServiceStubs(),
-          ActivityClientOptions.newBuilder().setNamespace(SDKTestWorkflowRule.NAMESPACE).build());
+          ActivityClientOptions.newBuilder()
+              .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+              .build());
 
-  private static final List<Tag> TAGS_NAMESPACE =
-      MetricsTag.defaultTags(NAMESPACE).entrySet().stream()
-          .map(
-              nameValueEntry ->
-                  new ImmutableTag(nameValueEntry.getKey(), nameValueEntry.getValue()))
-          .collect(Collectors.toList());
-
+  private List<Tag> tagsNamespace;
   private List<Tag> tagsNamespaceQueue;
 
   @Before
   public void setUp() {
     registry.clear();
+    tagsNamespace =
+        MetricsTag.defaultTags(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+            .entrySet()
+            .stream()
+            .map(
+                nameValueEntry ->
+                    new ImmutableTag(nameValueEntry.getKey(), nameValueEntry.getValue()))
+            .collect(Collectors.toList());
     tagsNamespaceQueue =
-        replaceTags(TAGS_NAMESPACE, MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue());
+        replaceTags(tagsNamespace, MetricsTag.TASK_QUEUE, testWorkflowRule.getTaskQueue());
   }
 
   @After
@@ -97,7 +100,7 @@ public class MetricsTest {
             MetricsTag.WORKFLOW_TYPE,
             "QuicklyCompletingWorkflow");
     List<Tag> longPollRequestTags =
-        replaceTag(TAGS_NAMESPACE, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
+        replaceTag(tagsNamespace, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
 
     assertEventually(
         Duration.ofSeconds(2),
@@ -130,7 +133,7 @@ public class MetricsTest {
             MetricsTag.WORKFLOW_TYPE,
             "QuicklyCompletingWorkflow");
     List<Tag> longPollRequestTags =
-        replaceTag(TAGS_NAMESPACE, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
+        replaceTag(tagsNamespace, MetricsTag.OPERATION_NAME, "GetWorkflowExecutionHistory");
 
     assertEventually(
         Duration.ofSeconds(2),

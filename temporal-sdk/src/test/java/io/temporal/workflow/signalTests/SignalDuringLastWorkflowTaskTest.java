@@ -6,6 +6,8 @@ import static org.junit.Assume.assumeFalse;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowTargetOptions;
+import io.temporal.testing.CloudTestExclusion.RequiresLocalServer;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkerOptions;
 import io.temporal.workflow.shared.TestWorkflows.TestSignaledWorkflow;
@@ -18,6 +20,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 public class SignalDuringLastWorkflowTaskTest {
 
@@ -33,6 +36,8 @@ public class SignalDuringLastWorkflowTaskTest {
               WorkerOptions.newBuilder().setDefaultDeadlockDetectionTimeout(5000).build())
           .build();
 
+  @CloudTestExclusionNote("This signal timing test depends on local test-server time skipping.")
+  @Category(RequiresLocalServer.class)
   @Test
   public void testSignalDuringLastWorkflowTask() throws ExecutionException, InterruptedException {
     assumeFalse("skipping for docker tests", SDKTestWorkflowRule.useExternalService);
