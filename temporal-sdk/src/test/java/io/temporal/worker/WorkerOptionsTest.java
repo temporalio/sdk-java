@@ -28,6 +28,20 @@ public class WorkerOptionsTest {
   }
 
   @Test
+  public void payloadErrorLimitIsEnforcedByDefaultAndCanBeDisabled() {
+    assertFalse(WorkerOptions.newBuilder().build().isPayloadErrorLimitDisabled());
+
+    WorkerOptions disabled = WorkerOptions.newBuilder().setDisablePayloadErrorLimit(true).build();
+    assertTrue(disabled.isPayloadErrorLimitDisabled());
+    assertTrue(WorkerOptions.newBuilder(disabled).build().isPayloadErrorLimitDisabled());
+    assertTrue(
+        WorkerOptions.newBuilder(disabled)
+            .validateAndBuildWithDefaults()
+            .isPayloadErrorLimitDisabled());
+    assertNotEquals(WorkerOptions.newBuilder().build(), disabled);
+  }
+
+  @Test
   public void verifyWorkerOptionsEquality() {
     WorkerOptions w1 = WorkerOptions.newBuilder().build();
     WorkerOptions w2 = WorkerOptions.newBuilder().build();

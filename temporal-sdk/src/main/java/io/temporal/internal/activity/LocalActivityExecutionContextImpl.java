@@ -7,8 +7,10 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import java.lang.reflect.Type;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 class LocalActivityExecutionContextImpl implements InternalActivityExecutionContext {
   private final WorkflowClient client;
@@ -114,5 +116,16 @@ class LocalActivityExecutionContextImpl implements InternalActivityExecutionCont
   @Override
   public Object getInstance() {
     return activity;
+  }
+
+  @Override
+  public boolean awaitTaskReported() {
+    return false;
+  }
+
+  @Override
+  @Nullable
+  public PayloadLimitViolation getPayloadLimitViolation() {
+    return null;
   }
 }

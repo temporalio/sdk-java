@@ -9,6 +9,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.StatusRuntimeException;
 import io.nexusrpc.OperationState;
 import io.nexusrpc.handler.HandlerException;
 import io.temporal.api.failure.v1.Failure;
@@ -16,10 +17,14 @@ import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.NexusUtil;
+import io.temporal.internal.common.PayloadsTooLargeFailure;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -33,6 +38,7 @@ import io.temporal.worker.tuning.*;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
 import java.util.Collections;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -467,6 +473,22 @@ final class NexusWorker implements SuspendableWorker {
       } catch (CancellationException e) {
         // Absorbed by handle() when this worker is shutting down.
         throw e;
+      } catch (StatusRuntimeException e) {
+        // No Nexus reply field has an error limit today (see PayloadLimitValidatorGenerator), so
+        // this never runs yet. It is here so that a field classified later fails the task cleanly
+        // instead of surfacing as a reporting failure.
+        Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
+        if (!violation.isPresent()) {
+          logExceptionDuringResultReporting(e, pollResponse, result);
+          throw e;
+        }
+        // The validator already logged the violation.
+        if (!failed) {
+          PayloadsTooLargeFailure.count(metricsScope, MetricsType.NEXUS_EXEC_FAILED_COUNTER);
+        }
+        sendPayloadsTooLargeFailure(
+            taskToken, supportsTemporalFailure(pollResponse), metricsScope, violation.get());
+        return true;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
         throw e;
@@ -544,6 +566,9 @@ final class NexusWorker implements SuspendableWorker {
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(
+                        PayloadErrorLimits.CALL_OPTIONS_KEY,
+                        options.payloadErrorLimits(namespaceCapabilities))
                     .respondNexusTaskCompleted(request),
             replyGrpcRetryerOptions);
       } else {
@@ -577,6 +602,9 @@ final class NexusWorker implements SuspendableWorker {
                   service
                       .blockingStub()
                       .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                      .withOption(
+                          PayloadErrorLimits.CALL_OPTIONS_KEY,
+                          options.payloadErrorLimits(namespaceCapabilities))
                       .respondNexusTaskFailed(failedRequest),
               replyGrpcRetryerOptions);
         } else {
@@ -616,6 +644,28 @@ final class NexusWorker implements SuspendableWorker {
           supportTemporalFailure,
           new NexusTaskHandler.Result(
               new HandlerException(HandlerException.ErrorType.INTERNAL, message, e)),
+          metricsScope,
+          false);
+    }
+
+    /**
+     * Reports a completion over the payload error limits as a retryable internal handler error. The
+     * failure carries no payloads, so it bypasses external storage.
+     */
+    private void sendPayloadsTooLargeFailure(
+        ByteString taskToken,
+        boolean supportTemporalFailure,
+        Scope metricsScope,
+        PayloadLimitViolation violation) {
+      sendReply(
+          taskToken,
+          supportTemporalFailure,
+          new NexusTaskHandler.Result(
+              new HandlerException(
+                  HandlerException.ErrorType.INTERNAL,
+                  violation.getMessage(),
+                  PayloadsTooLargeFailure.of(violation),
+                  HandlerException.RetryBehavior.RETRYABLE)),
           metricsScope,
           false);
     }
