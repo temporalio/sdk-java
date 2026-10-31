@@ -210,7 +210,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatResponse status =
-            ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
+            grpcRetryer.retryWithResult(
+                () -> ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope),
+                replyGrpcRetryerOptions);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -229,7 +231,11 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatByIdRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatByIdResponse status =
-            ActivityClientHelper.recordActivityTaskHeartbeatById(service, request, metricsScope);
+            grpcRetryer.retryWithResult(
+                () ->
+                    ActivityClientHelper.recordActivityTaskHeartbeatById(
+                        service, request, metricsScope),
+                replyGrpcRetryerOptions);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {
@@ -238,6 +244,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
           throw new ActivityPausedException();
         }
       }
+    } catch (ActivityCompletionException e) {
+      throw e;
     } catch (Exception e) {
       processException(e);
     }
