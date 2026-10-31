@@ -100,6 +100,9 @@ to docs, or any other relevant information.
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 - Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
   `WorkflowClient` and the `WorkerFactory` was listed twice.
+- Activity workers now report `activity_schedule_to_start_latency` once per activity task, measured up to the time the
+  worker receives the task. Previously each task reported it twice, once with the activity type and workflow type tags,
+  and measured it up to the server start time.
 
 ## Previous releases
 
