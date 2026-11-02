@@ -39,6 +39,12 @@ to docs, or any other relevant information.
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
   under `ChildWorkflowFailure`.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
+- Added experimental client config extensions to `temporal-envconfig`. Extensions implement
+  `ClientConfigExtension`, read their own config from `profile.<profile>.ext.<name>` TOML tables
+  (exposed as `ClientConfigProfile.getExt()`) and env vars, and are passed via
+  `LoadClientConfigProfileOptions.Builder.setExtensions` to contribute service stubs plugins to
+  `ClientConfigProfile.toWorkflowServiceStubsOptions()`. Strict mode does not reject keys under
+  `ext`.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
 - Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property

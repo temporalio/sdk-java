@@ -44,6 +44,10 @@ class ClientConfigToml {
     @JsonProperty("grpc_meta")
     public Map<String, String> grpcMeta;
 
+    // Untyped table contents are accepted even when failing on unknown properties
+    @JsonProperty("ext")
+    public Map<String, Map<String, Object>> ext;
+
     protected TomlClientConfigProfile() {}
 
     TomlClientConfigProfile(
@@ -173,6 +177,7 @@ class ClientConfigToml {
               .setApiKey(tomlProfile.apiKey)
               .setMetadata(metadata)
               .setTls(tls)
+              .setExt(tomlProfile.ext)
               .build();
       profiles.put(profileName, profile);
     }

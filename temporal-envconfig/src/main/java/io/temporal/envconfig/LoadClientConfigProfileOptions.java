@@ -1,5 +1,9 @@
 package io.temporal.envconfig;
 
+import io.temporal.common.Experimental;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,6 +33,7 @@ public class LoadClientConfigProfileOptions {
   private final boolean disableFile;
   private final boolean disableEnv;
   private final Map<String, String> envOverrides;
+  private final List<ClientConfigExtension> extensions;
 
   private LoadClientConfigProfileOptions(
       String configFileProfile,
@@ -37,7 +42,8 @@ public class LoadClientConfigProfileOptions {
       boolean configFileStrict,
       boolean disableFile,
       boolean disableEnv,
-      Map<String, String> envOverrides) {
+      Map<String, String> envOverrides,
+      List<ClientConfigExtension> extensions) {
     this.configFileProfile = configFileProfile;
     this.configFilePath = configFilePath;
     this.configFileData = configFileData;
@@ -45,6 +51,7 @@ public class LoadClientConfigProfileOptions {
     this.disableFile = disableFile;
     this.disableEnv = disableEnv;
     this.envOverrides = envOverrides;
+    this.extensions = extensions;
   }
 
   public String getConfigFileProfile() {
@@ -75,6 +82,12 @@ public class LoadClientConfigProfileOptions {
     return configFilePath;
   }
 
+  /** Extensions to apply to the loaded profile, never null. Unmodifiable. */
+  @Experimental
+  public List<ClientConfigExtension> getExtensions() {
+    return extensions;
+  }
+
   public static class Builder {
     private String configFileProfile;
     private String configFilePath;
@@ -83,6 +96,7 @@ public class LoadClientConfigProfileOptions {
     private boolean disableFile;
     private boolean disableEnv;
     private Map<String, String> envOverrides;
+    private List<ClientConfigExtension> extensions;
 
     private Builder() {}
 
@@ -94,6 +108,7 @@ public class LoadClientConfigProfileOptions {
       this.disableFile = options.disableFile;
       this.disableEnv = options.disableEnv;
       this.envOverrides = options.envOverrides;
+      this.extensions = options.extensions;
     }
 
     /** If true, will error if there are unrecognized keys. Defaults to false. */
@@ -161,6 +176,19 @@ public class LoadClientConfigProfileOptions {
       return this;
     }
 
+    /**
+     * Set extensions to apply to the loaded profile. After the profile is loaded and env vars are
+     * applied, each extension is called in order and any plugin it returns is added to the
+     * profile's {@link ClientConfigProfile#getPlugins() plugins}, which are included in {@link
+     * ClientConfigProfile#toWorkflowServiceStubsOptions()}. Extension names must be non-empty and
+     * unique.
+     */
+    @Experimental
+    public Builder setExtensions(List<ClientConfigExtension> extensions) {
+      this.extensions = extensions;
+      return this;
+    }
+
     public LoadClientConfigProfileOptions build() {
       return new LoadClientConfigProfileOptions(
           configFileProfile,
@@ -169,7 +197,10 @@ public class LoadClientConfigProfileOptions {
           configFileStrict,
           disableFile,
           disableEnv,
-          envOverrides);
+          envOverrides,
+          extensions == null
+              ? Collections.emptyList()
+              : Collections.unmodifiableList(new ArrayList<>(extensions)));
     }
   }
 }
