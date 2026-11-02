@@ -148,17 +148,15 @@ ReplaySafeOpenTelemetry openTelemetry =
 OpenTelemetryAppender.install(openTelemetry);
 ```
 
-Then log with SLF4J:
+Then log with SLF4J. In workflow code, get the logger from `Workflow.getLogger()`,
+which skips logging during replay:
 
 ```java
+import io.temporal.workflow.Workflow;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-Logger logger = LoggerFactory.getLogger(MyWorkflowImpl.class);
+Logger logger = Workflow.getLogger(MyWorkflowImpl.class);
 logger.info("workflow step completed");
 ```
 
-Configure the appender as its setup guide describes. Replay is checked on the
-thread that emits the record, so behind an asynchronous appender, such as
-Logback's `AsyncAppender`, log from workflow code with `Workflow.getLogger()`,
-which skips logging during replay.
+Configure the appender as its setup guide describes.
