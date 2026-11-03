@@ -97,12 +97,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
   private final long localHeartbeatTimeoutBufferMillis;
   private final PayloadErrorLimits payloadErrorLimits;
   private final GrpcRetryer grpcRetryer;
-  private volatile @Nullable PayloadLimitViolation payloadLimitViolation;
-  private final AtomicReference<RespondActivityTaskFailedRequest> pendingPayloadLimitReport =
-      new AtomicReference<>();
-  // Completes once that failure has been sent or given up on.
-  private volatile @Nullable CompletableFuture<Void> payloadLimitReport;
-  private volatile boolean taskReported;
+  private volatile @Nullable PayloadLimitFailure payloadLimitFailure;
 
   // turned into true on a reception of the first heartbeat
   private boolean receivedAHeartbeat = false;
@@ -327,10 +322,10 @@ class HeartbeatContextImpl implements HeartbeatContext {
       // An activity failed for an oversized heartbeat sends no more heartbeats: each would fail
       // the activity again. The violation is checked again after the send, because the send is
       // what finds the first one.
-      if (payloadLimitViolation == null) {
+      if (payloadLimitFailure == null) {
         sendHeartbeatRequest(details);
       }
-      if (payloadLimitViolation != null) {
+      if (payloadLimitFailure != null) {
         hasOutstandingHeartbeat = false;
         scheduledHeartbeat = null;
         return;
@@ -507,7 +502,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
     } catch (StatusRuntimeException e) {
       Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
       if (violation.isPresent()) {
-        failActivityWithPayloadsTooLarge(violation.get());
+        failWithPayloadsTooLargeLocked(violation.get());
         // Cancellation is how the running activity learns that it was failed.
         requestCancelLocked();
       } else if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
@@ -526,29 +521,34 @@ class HeartbeatContextImpl implements HeartbeatContext {
    * #reportPendingPayloadLimitFailure} sends it once the lock is released, so that retrying the
    * call does not hold the lock.
    */
-  private void failActivityWithPayloadsTooLarge(PayloadLimitViolation violation) {
+  private void failWithPayloadsTooLargeLocked(PayloadLimitViolation violation) {
     PayloadsTooLargeFailure.count(metricsScope, MetricsType.ACTIVITY_EXEC_FAILED_COUNTER);
-    // These are set before cancellation is requested, so an activity that sees the cancellation
-    // also sees how its outcome must be reported.
-    payloadLimitReport = new CompletableFuture<>();
-    pendingPayloadLimitReport.set(
-        RespondActivityTaskFailedRequest.newBuilder()
-            .setTaskToken(ByteString.copyFrom(info.getTaskToken()))
-            .setNamespace(namespace)
-            .setIdentity(identity)
-            .setFailure(
-                dataConverterWithActivityContext.exceptionToFailure(
-                    PayloadsTooLargeFailure.of(violation)))
-            .build());
-    payloadLimitViolation = violation;
+    // Set before cancellation is requested, so an activity that sees the cancellation also sees how
+    // its outcome must be reported.
+    payloadLimitFailure =
+        new PayloadLimitFailure(
+            violation,
+            RespondActivityTaskFailedRequest.newBuilder()
+                .setTaskToken(ByteString.copyFrom(info.getTaskToken()))
+                .setNamespace(namespace)
+                .setIdentity(identity)
+                .setFailure(
+                    dataConverterWithActivityContext.exceptionToFailure(
+                        PayloadsTooLargeFailure.of(violation)))
+                .build());
   }
 
   /** Sends the failure queued by an oversized heartbeat, if any. Called without the lock held. */
   private void reportPendingPayloadLimitFailure() {
-    RespondActivityTaskFailedRequest request = pendingPayloadLimitReport.getAndSet(null);
+    PayloadLimitFailure failure = payloadLimitFailure;
+    if (failure == null) {
+      return;
+    }
+    RespondActivityTaskFailedRequest request = failure.claim();
     if (request == null) {
       return;
     }
+    boolean sent = false;
     try {
       grpcRetryer.retry(
           () ->
@@ -558,28 +558,27 @@ class HeartbeatContextImpl implements HeartbeatContext {
                   .respondActivityTaskFailed(request),
           new GrpcRetryer.GrpcRetryerOptions(
               DefaultStubServiceOperationRpcRetryOptions.INSTANCE, null));
-      taskReported = true;
+      sent = true;
     } catch (Exception e) {
-      // The activity reports this failure itself when it finishes, instead of its own outcome.
+      // Giving up here is OK because the activity will still report the failure itself when it
+      // finishes.
       log.warn("Failed to fail activity after an oversized heartbeat", e);
     } finally {
-      payloadLimitReport.complete(null);
+      failure.reported.complete(sent);
     }
   }
 
   @Override
   public boolean awaitTaskReported() {
-    CompletableFuture<Void> report = payloadLimitReport;
-    if (report != null) {
-      report.join();
-    }
-    return taskReported;
+    PayloadLimitFailure failure = payloadLimitFailure;
+    return failure != null && failure.reported.join();
   }
 
   @Override
   @Nullable
   public PayloadLimitViolation getPayloadLimitViolation() {
-    return payloadLimitViolation;
+    PayloadLimitFailure failure = payloadLimitFailure;
+    return failure == null ? null : failure.violation;
   }
 
   private void requestCancelLocked() {
@@ -597,5 +596,27 @@ class HeartbeatContextImpl implements HeartbeatContext {
             ? defaultHeartbeatThrottleInterval.toMillis()
             : (long) (0.8 * activityHeartbeatTimeout.toMillis());
     return Math.min(interval, maxHeartbeatThrottleInterval.toMillis());
+  }
+
+  /**
+   * The failure of an activity whose heartbeat exceeded the payload error limits. Its request is
+   * claimed by the one thread that sends it, and {@link #reported} completes with whether that send
+   * succeeded.
+   */
+  private static final class PayloadLimitFailure {
+    final PayloadLimitViolation violation;
+    final CompletableFuture<Boolean> reported = new CompletableFuture<>();
+    private final AtomicReference<RespondActivityTaskFailedRequest> request;
+
+    PayloadLimitFailure(PayloadLimitViolation violation, RespondActivityTaskFailedRequest request) {
+      this.violation = violation;
+      this.request = new AtomicReference<>(request);
+    }
+
+    /** Returns the request to send, or null if another thread has already claimed it. */
+    @Nullable
+    RespondActivityTaskFailedRequest claim() {
+      return request.getAndSet(null);
+    }
   }
 }
