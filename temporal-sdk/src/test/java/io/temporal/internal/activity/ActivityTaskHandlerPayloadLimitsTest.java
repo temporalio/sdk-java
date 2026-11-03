@@ -7,6 +7,7 @@ import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,7 @@ import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.grpc.Status;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityInterface;
@@ -31,7 +33,6 @@ import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
-import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.payload.limits.LimitClass;
 import io.temporal.internal.payload.limits.LimitSeverity;
 import io.temporal.internal.payload.limits.PayloadErrorLimits;
@@ -46,7 +47,11 @@ import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.UnaryOperator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -87,34 +92,51 @@ public class ActivityTaskHandlerPayloadLimitsTest {
    * that one is still being sent.
    */
   public static class ReturnsDuringHeartbeatActivityImpl implements HeartbeatingActivity {
+    private final CountDownLatch sendQueuedHeartbeat;
     private final CountDownLatch heartbeatSending;
-    private final CountDownLatch rejectHeartbeat;
 
     ReturnsDuringHeartbeatActivityImpl(
-        CountDownLatch heartbeatSending, CountDownLatch rejectHeartbeat) {
+        CountDownLatch sendQueuedHeartbeat, CountDownLatch heartbeatSending) {
+      this.sendQueuedHeartbeat = sendQueuedHeartbeat;
       this.heartbeatSending = heartbeatSending;
-      this.rejectHeartbeat = rejectHeartbeat;
     }
 
     @Override
     public void run() {
       Activity.getExecutionContext().heartbeat("sent");
-      Activity.getExecutionContext().heartbeat("throttled");
+      Activity.getExecutionContext().heartbeat("queued");
+      sendQueuedHeartbeat.countDown();
       try {
         heartbeatSending.await();
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
-      // Rejected only after the activity has returned, while its outcome is being decided.
-      new Thread(
-              () -> {
-                try {
-                  Thread.sleep(200);
-                } catch (InterruptedException ignored) {
-                }
-                rejectHeartbeat.countDown();
-              })
-          .start();
+    }
+  }
+
+  /** Runs each scheduled heartbeat as soon as the gate opens, regardless of its delay. */
+  private static class GatedHeartbeatExecutor extends ScheduledThreadPoolExecutor {
+    private final CountDownLatch gate;
+
+    GatedHeartbeatExecutor(CountDownLatch gate) {
+      super(1);
+      this.gate = gate;
+    }
+
+    @Override
+    public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+      return super.schedule(
+          () -> {
+            try {
+              gate.await();
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            command.run();
+          },
+          0,
+          unit);
     }
   }
 
@@ -205,6 +227,7 @@ public class ActivityTaskHandlerPayloadLimitsTest {
 
   @Test
   public void aHeartbeatRejectedAfterTheActivityReturnsDecidesItsOutcome() {
+    CountDownLatch sendQueuedHeartbeat = new CountDownLatch(1);
     CountDownLatch heartbeatSending = new CountDownLatch(1);
     CountDownLatch rejectHeartbeat = new CountDownLatch(1);
     PayloadLimitViolation violation =
@@ -227,10 +250,25 @@ public class ActivityTaskHandlerPayloadLimitsTest {
     when(blockingStub.respondActivityTaskFailed(any()))
         .thenReturn(RespondActivityTaskFailedResponse.getDefaultInstance());
 
+    heartbeatExecutor.shutdownNow();
+    heartbeatExecutor = new GatedHeartbeatExecutor(sendQueuedHeartbeat);
+
+    // The heartbeat is rejected once the executor starts deciding the activity's outcome, which
+    // begins by stopping heartbeats.
     ActivityTaskHandler.Result result =
         runActivity(
-            new ReturnsDuringHeartbeatActivityImpl(heartbeatSending, rejectHeartbeat),
-            Duration.ofMillis(100));
+            new ReturnsDuringHeartbeatActivityImpl(sendQueuedHeartbeat, heartbeatSending),
+            context -> {
+              InternalActivityExecutionContext spy = spy(context);
+              doAnswer(
+                      invocation -> {
+                        rejectHeartbeat.countDown();
+                        return invocation.callRealMethod();
+                      })
+                  .when(spy)
+                  .cancelOutstandingHeartbeat();
+              return spy;
+            });
 
     verify(blockingStub).respondActivityTaskFailed(any());
     assertSendsNothing(result);
@@ -255,11 +293,12 @@ public class ActivityTaskHandlerPayloadLimitsTest {
   }
 
   private ActivityTaskHandler.Result runActivity(HeartbeatingActivity activity) {
-    return runActivity(activity, Duration.ZERO);
+    return runActivity(activity, UnaryOperator.identity());
   }
 
   private ActivityTaskHandler.Result runActivity(
-      HeartbeatingActivity activity, Duration heartbeatTimeout) {
+      HeartbeatingActivity activity,
+      UnaryOperator<InternalActivityExecutionContext> wrapContext) {
     ActivityExecutionContextFactoryImpl factory =
         new ActivityExecutionContextFactoryImpl(
             client,
@@ -270,7 +309,13 @@ public class ActivityTaskHandlerPayloadLimitsTest {
             GlobalDataConverter.get(),
             heartbeatExecutor,
             null,
-            () -> new PayloadErrorLimits(100, 100));
+            () -> new PayloadErrorLimits(100, 100)) {
+          @Override
+          public InternalActivityExecutionContext createContext(
+              ActivityInfoInternal info, Object activity, Scope metricsScope) {
+            return wrapContext.apply(super.createContext(info, activity, metricsScope));
+          }
+        };
     ActivityTaskHandlerImpl handler =
         new ActivityTaskHandlerImpl(
             "test-namespace",
@@ -285,7 +330,6 @@ public class ActivityTaskHandlerPayloadLimitsTest {
             .setTaskToken(ByteString.copyFrom("token", StandardCharsets.UTF_8))
             .setActivityId("activity-id")
             .setActivityType(ActivityType.newBuilder().setName("Run"))
-            .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(heartbeatTimeout))
             .setWorkflowType(WorkflowType.newBuilder().setName("Workflow"))
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder().setWorkflowId("workflow-id").setRunId("run-id"))
