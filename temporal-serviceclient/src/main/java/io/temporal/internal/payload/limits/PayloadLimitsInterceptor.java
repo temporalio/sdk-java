@@ -63,6 +63,8 @@ public final class PayloadLimitsInterceptor implements ClientInterceptor {
     private final CallOptions callOptions;
     private final PayloadLimits limits;
 
+    // request(int) may be called from any thread, so it and startDelegate, which hands its pending
+    // count to the delegate, synchronize on this call.
     private ClientCall<ReqT, RespT> delegate;
 
     private Listener<RespT> listener;
@@ -90,7 +92,7 @@ public final class PayloadLimitsInterceptor implements ClientInterceptor {
     }
 
     @Override
-    public void request(int numMessages) {
+    public synchronized void request(int numMessages) {
       if (started) {
         delegate.request(numMessages);
       } else {
@@ -165,7 +167,7 @@ public final class PayloadLimitsInterceptor implements ClientInterceptor {
       return started ? delegate.getAttributes() : Attributes.EMPTY;
     }
 
-    private void startDelegate() {
+    private synchronized void startDelegate() {
       if (started) {
         return;
       }
