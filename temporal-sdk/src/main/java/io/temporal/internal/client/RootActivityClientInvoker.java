@@ -85,8 +85,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             new ActivitySerializationContext(
                 namespace, null, null, input.getActivityType(), options.getTaskQueue(), false));
 
-    InternalNexusOperationContext nexusContext =
-        CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
     NexusOperationMetadata nexusOperationMetadata =
         nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
