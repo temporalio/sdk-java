@@ -168,6 +168,8 @@ final class ActivityTaskExecutors {
         InternalActivityExecutionContext context,
         ActivityInfoInternal info,
         DataConverter dataConverterWithActivityContext) {
+      // Waits out a heartbeat being sent, so that a violation it finds decides the outcome.
+      context.cancelOutstandingHeartbeat();
       if (context.awaitTaskReported()) {
         return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, false);
       }

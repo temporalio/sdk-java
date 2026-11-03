@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -23,12 +24,14 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.WorkflowClient;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.payload.limits.LimitClass;
 import io.temporal.internal.payload.limits.LimitSeverity;
 import io.temporal.internal.payload.limits.PayloadErrorLimits;
@@ -40,8 +43,10 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.tuning.SlotPermit;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -74,6 +79,42 @@ public class ActivityTaskHandlerPayloadLimitsTest {
           throw e;
         }
       }
+    }
+  }
+
+  /**
+   * Sends a heartbeat, then queues one that goes out on the heartbeat thread, and returns while
+   * that one is still being sent.
+   */
+  public static class ReturnsDuringHeartbeatActivityImpl implements HeartbeatingActivity {
+    private final CountDownLatch heartbeatSending;
+    private final CountDownLatch rejectHeartbeat;
+
+    ReturnsDuringHeartbeatActivityImpl(
+        CountDownLatch heartbeatSending, CountDownLatch rejectHeartbeat) {
+      this.heartbeatSending = heartbeatSending;
+      this.rejectHeartbeat = rejectHeartbeat;
+    }
+
+    @Override
+    public void run() {
+      Activity.getExecutionContext().heartbeat("sent");
+      Activity.getExecutionContext().heartbeat("throttled");
+      try {
+        heartbeatSending.await();
+      } catch (InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+      // Rejected only after the activity has returned, while its outcome is being decided.
+      new Thread(
+              () -> {
+                try {
+                  Thread.sleep(200);
+                } catch (InterruptedException ignored) {
+                }
+                rejectHeartbeat.countDown();
+              })
+          .start();
     }
   }
 
@@ -162,6 +203,39 @@ public class ActivityTaskHandlerPayloadLimitsTest {
     assertReportsPayloadsTooLarge(result);
   }
 
+  @Test
+  public void aHeartbeatRejectedAfterTheActivityReturnsDecidesItsOutcome() {
+    CountDownLatch heartbeatSending = new CountDownLatch(1);
+    CountDownLatch rejectHeartbeat = new CountDownLatch(1);
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation("details", LimitClass.BLOB, LimitSeverity.ERROR, 1000, 100);
+    AtomicInteger heartbeats = new AtomicInteger();
+    doAnswer(
+            invocation -> {
+              if (heartbeats.incrementAndGet() == 1) {
+                return RecordActivityTaskHeartbeatResponse.getDefaultInstance();
+              }
+              heartbeatSending.countDown();
+              rejectHeartbeat.await();
+              throw Status.INVALID_ARGUMENT
+                  .withDescription(violation.getMessage())
+                  .withCause(new PayloadLimitViolationException(violation))
+                  .asRuntimeException();
+            })
+        .when(blockingStub)
+        .recordActivityTaskHeartbeat(any());
+    when(blockingStub.respondActivityTaskFailed(any()))
+        .thenReturn(RespondActivityTaskFailedResponse.getDefaultInstance());
+
+    ActivityTaskHandler.Result result =
+        runActivity(
+            new ReturnsDuringHeartbeatActivityImpl(heartbeatSending, rejectHeartbeat),
+            Duration.ofMillis(100));
+
+    verify(blockingStub).respondActivityTaskFailed(any());
+    assertSendsNothing(result);
+  }
+
   /** Asserts that the activity reports the PayloadsTooLarge failure rather than its own outcome. */
   private static void assertReportsPayloadsTooLarge(ActivityTaskHandler.Result result) {
     assertNull(result.getTaskCompleted());
@@ -181,6 +255,11 @@ public class ActivityTaskHandlerPayloadLimitsTest {
   }
 
   private ActivityTaskHandler.Result runActivity(HeartbeatingActivity activity) {
+    return runActivity(activity, Duration.ZERO);
+  }
+
+  private ActivityTaskHandler.Result runActivity(
+      HeartbeatingActivity activity, Duration heartbeatTimeout) {
     ActivityExecutionContextFactoryImpl factory =
         new ActivityExecutionContextFactoryImpl(
             client,
@@ -206,6 +285,7 @@ public class ActivityTaskHandlerPayloadLimitsTest {
             .setTaskToken(ByteString.copyFrom("token", StandardCharsets.UTF_8))
             .setActivityId("activity-id")
             .setActivityType(ActivityType.newBuilder().setName("Run"))
+            .setHeartbeatTimeout(ProtobufTimeUtils.toProtoDuration(heartbeatTimeout))
             .setWorkflowType(WorkflowType.newBuilder().setName("Workflow"))
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder().setWorkflowId("workflow-id").setRunId("run-id"))
