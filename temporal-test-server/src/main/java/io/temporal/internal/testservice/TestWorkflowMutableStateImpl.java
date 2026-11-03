@@ -536,10 +536,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
             }
             WorkflowTaskData data = this.workflowTaskStateMachine.getData();
 
-            boolean completed =
-                workflow.getState() == StateMachines.State.COMPLETED
-                    || workflow.getState() == StateMachines.State.FAILED
-                    || workflow.getState() == StateMachines.State.CANCELED;
+            boolean completed = isTerminalState();
             if (!completed
                 && ((ctx.isNeedWorkflowTask()
                         || !workflowTaskStateMachine.getData().bufferedEvents.isEmpty())

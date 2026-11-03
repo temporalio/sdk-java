@@ -98,6 +98,9 @@ to docs, or any other relevant information.
   behavior during replay.
 - Test server now honors retry expiration deadlines that fall exactly on a whole second. Previously such deadlines were
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
+- Test server now answers a query that arrives while the workflow task that continues the workflow as new is running.
+  Previously the server rejected that task completion with `NOT_FOUND`, the query was never answered, the old run's
+  history stopped at `WorkflowTaskStarted`, and time skipping stayed locked.
 - Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
   `WorkflowClient` and the `WorkerFactory` was listed twice.
 
