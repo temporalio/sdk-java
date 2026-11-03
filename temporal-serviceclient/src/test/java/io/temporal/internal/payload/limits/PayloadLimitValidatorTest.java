@@ -14,6 +14,7 @@ import io.temporal.api.command.v1.ModifyWorkflowPropertiesCommandAttributes;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributes;
 import io.temporal.api.command.v1.ScheduleNexusOperationCommandAttributes;
+import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
@@ -315,6 +316,11 @@ public class PayloadLimitValidatorTest {
                 UserMetadata.newBuilder()
                     .setSummary(payload(1))
                     .setDetails(payload(1))) // dedicated non-fetchable limits
+            .addCompletionCallbacks(
+                Callback.newBuilder()
+                    .setNexusHandler(
+                        Callback.NexusHandler.newBuilder()
+                            .setSourceContext(payload(1)))) // dedicated callback limits
             .build();
     RecordingSink sink = new RecordingSink();
     GeneratedPayloadLimitValidator.dispatch(sink, req);

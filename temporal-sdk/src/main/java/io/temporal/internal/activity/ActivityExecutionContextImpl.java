@@ -13,7 +13,6 @@ import io.temporal.internal.client.external.ManualActivityCompletionClientFactor
 import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
-import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -170,13 +169,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
     try {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
-      ActivitySerializationContext activitySerializationContext =
-          new ActivitySerializationContext(info);
       return new CompletionAwareManualCompletionClient(
           manualCompletionClientFactory.getClient(
               info.getTaskToken(),
               metricsScope,
-              activitySerializationContext,
+              HeartbeatContextImpl.heartbeatContext(info.getNamespace(), info),
               HeartbeatContextImpl.storageTargetForActivity(info.getNamespace(), info)),
           completionHandle);
     } finally {

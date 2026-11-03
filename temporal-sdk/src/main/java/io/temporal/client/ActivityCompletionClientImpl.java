@@ -4,6 +4,8 @@ import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.workflow.Functions;
 import java.util.Optional;
 import javax.annotation.Nonnull;
@@ -14,13 +16,13 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   private final ManualActivityCompletionClientFactory factory;
   private final Functions.Proc completionHandle;
   private final Scope metricsScope;
-  private final @Nullable ActivitySerializationContext serializationContext;
+  private final @Nullable SerializationContext serializationContext;
 
   ActivityCompletionClientImpl(
       ManualActivityCompletionClientFactory manualActivityCompletionClientFactory,
       Functions.Proc completionHandle,
       Scope metricsScope,
-      @Nullable ActivitySerializationContext serializationContext) {
+      @Nullable SerializationContext serializationContext) {
     this.factory = manualActivityCompletionClientFactory;
     this.completionHandle = completionHandle;
     this.metricsScope = metricsScope;
@@ -129,7 +131,7 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
 
   @Override
   public <V> void heartbeat(byte[] taskToken, V details) throws ActivityCompletionException {
-    factory.getClient(taskToken, metricsScope).recordHeartbeat(details);
+    factory.getClient(taskToken, metricsScope, serializationContext).recordHeartbeat(details);
   }
 
   @Override
@@ -143,6 +145,12 @@ class ActivityCompletionClientImpl implements ActivityCompletionClient {
   @Nonnull
   @Override
   public ActivityCompletionClient withContext(@Nonnull ActivitySerializationContext context) {
+    return new ActivityCompletionClientImpl(factory, completionHandle, metricsScope, context);
+  }
+
+  @Nonnull
+  @Override
+  public ActivityCompletionClient withContext(@Nonnull NexusSerializationContext context) {
     return new ActivityCompletionClientImpl(factory, completionHandle, metricsScope, context);
   }
 

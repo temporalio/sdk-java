@@ -20,7 +20,7 @@ import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
-import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -57,7 +57,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       @Nullable byte[] taskToken,
       @Nullable WorkflowExecution execution,
       @Nullable String activityId,
-      @Nullable ActivitySerializationContext context,
+      @Nullable SerializationContext context,
       @Nullable StorageDriverTargetInfo storageTarget,
       @Nullable ExternalStorageRunner externalStorage) {
     this.service = service;

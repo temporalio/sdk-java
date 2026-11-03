@@ -5,7 +5,9 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.internal.statemachines.UpdateProtocolCallback;
+import io.temporal.payload.context.NexusSerializationContext;
 import java.util.Optional;
+import javax.annotation.Nullable;
 
 /**
  * Manages event loop, workflow method, an abstraction level over Deterministic Runner to provide a
@@ -18,13 +20,20 @@ public interface ReplayWorkflow {
   /** Handle an external signal event. */
   void handleSignal(String signalName, Optional<Payloads> input, long eventId, Header header);
 
-  /** Handle an update workflow execution event */
+  /**
+   * Handle an update workflow execution event.
+   *
+   * @param nexusSerializationContext the serialization context of the Nexus operation handler that
+   *     sent the update, or null if it was not sent by one. When set, the update's result, failure
+   *     and rejection, which are returned to the Nexus caller, are serialized with it.
+   */
   void handleUpdate(
       String updateName,
       String updateId,
       Optional<Payloads> input,
       long eventId,
       Header header,
+      @Nullable NexusSerializationContext nexusSerializationContext,
       UpdateProtocolCallback callbacks);
 
   /**
