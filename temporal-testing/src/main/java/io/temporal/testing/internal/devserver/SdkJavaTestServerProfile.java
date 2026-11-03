@@ -13,7 +13,7 @@ public final class SdkJavaTestServerProfile {
   public static final String ACTIVE_PROPERTY = "io.temporal.testing.internal.devServerProfile";
 
   // This is intentionally the sole Temporal CLI version used by sdk-java repository tests.
-  private static final String TEST_CLI_VERSION = "1.8.3-server-1.32.0-162.0";
+  private static final String TEST_CLI_VERSION = "1.9.3-nexus-serialization-context";
   private static final String TEST_NAMESPACE = "UnitTest";
   private static final String DATABASE_FILENAME = "temporal.sqlite";
 
@@ -117,6 +117,10 @@ public final class SdkJavaTestServerProfile {
         "frontend.ListWorkersEnabled=true",
         "--dynamic-config-value",
         "frontend.enableCancelWorkerPollsOnShutdown=true",
+        // Matching fan-out poll cancellation can drop a query dispatched while a stopped worker's
+        // polls are canceled.
+        "--dynamic-config-value",
+        "frontend.enableMatchingFanOutForPollCancellation=false",
         "--dynamic-config-value",
         "component.callbacks.allowedAddresses=[{\"Pattern\":\"localhost:7243\",\"AllowInsecure\":true}]",
         "--dynamic-config-value",
@@ -146,7 +150,13 @@ public final class SdkJavaTestServerProfile {
         "--dynamic-config-value",
         "frontend.workerCommandsEnabled=true",
         "--dynamic-config-value",
-        "system.enableCancelActivityWorkerCommand=true");
+        "system.enableCancelActivityWorkerCommand=true",
+        "--dynamic-config-value",
+        "history.enableWorkflowTaskCompletionPagination=true",
+        // Pagination clears the gRPC request limit, but the recombined completion still persists as
+        // one transaction, so the persistence limit must be above it.
+        "--dynamic-config-value",
+        "system.transactionSizeLimit=33554432");
   }
 
   private static File workingDirectory() {

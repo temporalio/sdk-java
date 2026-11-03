@@ -51,6 +51,13 @@ to docs, or any other relevant information.
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
 - Nexus operation handlers now forward inbound callback links to the workflows and signals they start, instead of
   dropping them.
+- Nexus handlers now propagate `NexusSerializationContext` to the workflows, workflow updates, and
+  standalone activities they start. These use it only for their results and failures, which are
+  returned to the Nexus caller. Standalone activities also use it for their heartbeat details, which
+  the server includes in their timeout failures.
+  To complete such an activity asynchronously, read the context from
+  `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
+  `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 
 ### Changed
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
@@ -71,6 +78,13 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
+  sending the first page. A completion that needed pagination timed out on every attempt instead
+  of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend
+  existing options, which also threw `UnsupportedOperationException`.
+- `RpcRetryOptions` no longer changes when the builder that created it is reused. Previously,
+  `addDoNotRetry` calls made after `build()` or `validateBuildWithDefaults()` also appeared in
+  the options already built.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).
