@@ -95,10 +95,10 @@ final class ActivityTaskExecutors {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
-        ActivityTaskHandler.Result heartbeatOutcome =
-            heartbeatOutcome(context, info, dataConverterWithActivityContext);
-        if (heartbeatOutcome != null) {
-          return heartbeatOutcome;
+        ActivityTaskHandler.Result payloadsTooLargeResult =
+            resolvePayloadsTooLargeResult(context, info, dataConverterWithActivityContext);
+        if (payloadsTooLargeResult != null) {
+          return payloadsTooLargeResult;
         }
 
         return this.constructSuccessfulResultValue(info, result, dataConverterWithActivityContext);
@@ -134,10 +134,10 @@ final class ActivityTaskExecutors {
               ex);
         }
 
-        ActivityTaskHandler.Result heartbeatOutcome =
-            heartbeatOutcome(context, info, dataConverterWithActivityContext);
-        if (heartbeatOutcome != null) {
-          return heartbeatOutcome;
+        ActivityTaskHandler.Result payloadsTooLargeResult =
+            resolvePayloadsTooLargeResult(context, info, dataConverterWithActivityContext);
+        if (payloadsTooLargeResult != null) {
+          return payloadsTooLargeResult;
         }
         return mapToActivityFailure(
             ex,
@@ -164,7 +164,7 @@ final class ActivityTaskExecutors {
      * Returns the result to report when an oversized heartbeat decided the task's outcome, or null.
      */
     @Nullable
-    private static ActivityTaskHandler.Result heartbeatOutcome(
+    private static ActivityTaskHandler.Result resolvePayloadsTooLargeResult(
         InternalActivityExecutionContext context,
         ActivityInfoInternal info,
         DataConverter dataConverterWithActivityContext) {

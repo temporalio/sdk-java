@@ -613,8 +613,8 @@ public final class WorkerOptions {
     }
 
     /**
-     * Disables the worker's enforcement of the namespace's payload and memo error limits. Defaults
-     * to false.
+     * When true, disables the worker's enforcement of the namespace's payload and memo error
+     * limits. Defaults to false.
      *
      * <p>By default, a workflow or activity task whose completion contains a payload or memo larger
      * than the namespace's error limit is failed by the worker, retryably and with a {@code
