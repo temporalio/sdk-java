@@ -105,7 +105,7 @@ final class ActivityTaskExecutors {
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
         ActivityTaskHandler.Result payloadsTooLargeResult =
-            resolvePayloadsTooLargeResult(context, info, dataConverterWithActivityContext);
+            resolvePayloadsTooLargeResult(context, info, resultDataConverter);
         if (payloadsTooLargeResult != null) {
           return payloadsTooLargeResult;
         }
@@ -144,7 +144,7 @@ final class ActivityTaskExecutors {
         }
 
         ActivityTaskHandler.Result payloadsTooLargeResult =
-            resolvePayloadsTooLargeResult(context, info, dataConverterWithActivityContext);
+            resolvePayloadsTooLargeResult(context, info, resultDataConverter);
         if (payloadsTooLargeResult != null) {
           return payloadsTooLargeResult;
         }
@@ -176,7 +176,7 @@ final class ActivityTaskExecutors {
     private static ActivityTaskHandler.Result resolvePayloadsTooLargeResult(
         InternalActivityExecutionContext context,
         ActivityInfoInternal info,
-        DataConverter dataConverterWithActivityContext) {
+        DataConverter resultDataConverter) {
       // Waits out a heartbeat being sent, so that a violation it finds decides the outcome.
       context.cancelOutstandingHeartbeat();
       if (context.awaitTaskReported()) {
@@ -189,7 +189,7 @@ final class ActivityTaskExecutors {
       ApplicationFailure failure = PayloadsTooLargeFailure.of(violation);
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
-              .setFailure(dataConverterWithActivityContext.exceptionToFailure(failure))
+              .setFailure(resultDataConverter.exceptionToFailure(failure))
               .build();
       return new ActivityTaskHandler.Result(
           info.getActivityId(),

@@ -545,7 +545,7 @@ class HeartbeatContextImpl implements HeartbeatContext {
                 .setNamespace(namespace)
                 .setIdentity(identity)
                 .setFailure(
-                    dataConverterWithActivityContext.exceptionToFailure(
+                    heartbeatDataConverter.exceptionToFailure(
                         PayloadsTooLargeFailure.of(violation)))
                 .build());
   }
