@@ -97,6 +97,22 @@ public class ClientConfigExtensionTest {
   }
 
   @Test
+  public void extRoundTripsThroughToml() throws IOException {
+    ClientConfig config = ClientConfig.fromToml(EXT_TOML.getBytes());
+    ClientConfig roundTripped = ClientConfig.fromToml(ClientConfig.toTomlAsBytes(config));
+    Assert.assertEquals(config, roundTripped);
+    Assert.assertEquals(
+        "nested-value",
+        ((Map<String, Object>)
+                roundTripped.getProfiles().get("default").getExt().get("foo").get("nested"))
+            .get("some_key"));
+
+    // Empty ext is omitted
+    ClientConfig noExt = ClientConfig.fromToml("[profile.default]\naddress = \"a\"\n".getBytes());
+    Assert.assertFalse(new String(ClientConfig.toTomlAsBytes(noExt)).contains("ext"));
+  }
+
+  @Test
   public void extensionsCalledInOrder() throws IOException {
     List<String> calls = new ArrayList<>();
     WorkflowServiceStubsPlugin pluginA = SimplePlugin.newBuilder("plugin-a").build();

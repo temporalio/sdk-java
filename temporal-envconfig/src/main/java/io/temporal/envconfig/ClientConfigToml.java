@@ -55,12 +55,14 @@ class ClientConfigToml {
         String namespace,
         String apiKey,
         TomlClientConfigTLS tls,
-        Map<String, String> grpcMeta) {
+        Map<String, String> grpcMeta,
+        Map<String, Map<String, Object>> ext) {
       this.address = address;
       this.namespace = namespace;
       this.apiKey = apiKey;
       this.tls = tls;
       this.grpcMeta = grpcMeta;
+      this.ext = ext;
     }
   }
 
@@ -225,7 +227,12 @@ class ClientConfigToml {
       }
       TomlClientConfigProfile tomlProfile =
           new TomlClientConfigProfile(
-              profile.getAddress(), profile.getNamespace(), profile.getApiKey(), tls, grpcMeta);
+              profile.getAddress(),
+              profile.getNamespace(),
+              profile.getApiKey(),
+              tls,
+              grpcMeta,
+              profile.getExt());
       tomlProfiles.put(profileName, tomlProfile);
     }
     return tomlProfiles;
