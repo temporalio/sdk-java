@@ -21,7 +21,7 @@ import io.temporal.api.errordetails.v1.WorkflowTaskCompletionBufferLostFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
-import io.temporal.internal.common.PayloadsTooLargeFailure;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
@@ -1279,7 +1279,7 @@ final class WorkflowWorker implements SuspendableWorker {
       return options
           .getDataConverter()
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
-          .exceptionToFailure(PayloadsTooLargeFailure.of(violation));
+          .exceptionToFailure(FailureUtils.newPayloadsTooLargeFailure(violation));
     }
 
     private Failure grpcMessageTooLargeFailure(

@@ -19,7 +19,6 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.FailureUtils;
-import io.temporal.internal.common.PayloadsTooLargeFailure;
 import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
@@ -186,7 +185,7 @@ final class ActivityTaskExecutors {
       if (violation == null) {
         return null;
       }
-      ApplicationFailure failure = PayloadsTooLargeFailure.of(violation);
+      ApplicationFailure failure = FailureUtils.newPayloadsTooLargeFailure(violation);
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setFailure(resultDataConverter.exceptionToFailure(failure))

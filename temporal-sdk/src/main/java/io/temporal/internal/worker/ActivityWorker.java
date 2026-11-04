@@ -14,7 +14,7 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
-import io.temporal.internal.common.PayloadsTooLargeFailure;
+import io.temporal.internal.common.FailureUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
@@ -570,8 +570,13 @@ final class ActivityWorker implements SuspendableWorker {
 
     private void sendPayloadsTooLargeFailure(
         ByteString taskToken, Scope metricsScope, PayloadLimitViolation violation) {
-      PayloadsTooLargeFailure.count(metricsScope, MetricsType.ACTIVITY_EXEC_FAILED_COUNTER);
-      sendFailure(taskToken, metricsScope, PayloadsTooLargeFailure.of(violation));
+      MetricsTag.tagged(
+              metricsScope,
+              MetricsTag.TASK_FAILURE_TYPE,
+              MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE)
+          .counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER)
+          .inc(1);
+      sendFailure(taskToken, metricsScope, FailureUtils.newPayloadsTooLargeFailure(violation));
     }
 
     @SuppressWarnings("deprecation")

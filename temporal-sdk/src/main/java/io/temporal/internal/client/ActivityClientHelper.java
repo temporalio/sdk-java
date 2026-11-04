@@ -22,13 +22,6 @@ public final class ActivityClientHelper {
   public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
       WorkflowServiceStubs service,
       RecordActivityTaskHeartbeatRequest request,
-      Scope metricsScope) {
-    return sendHeartbeatRequest(service, request, metricsScope, PayloadErrorLimits.NONE);
-  }
-
-  public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
-      WorkflowServiceStubs service,
-      RecordActivityTaskHeartbeatRequest request,
       Scope metricsScope,
       PayloadErrorLimits payloadErrorLimits) {
     return service
