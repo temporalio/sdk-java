@@ -17,6 +17,7 @@ import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.MetricsUtils;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
@@ -484,10 +485,8 @@ final class NexusWorker implements SuspendableWorker {
         }
         // The validator already logged the violation.
         if (!failed) {
-          MetricsTag.tagged(
-                  metricsScope, TASK_FAILURE_TYPE, MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE)
-              .counter(MetricsType.NEXUS_EXEC_FAILED_COUNTER)
-              .inc(1);
+          MetricsUtils.countPayloadsTooLargeFailure(
+              metricsScope, MetricsType.NEXUS_EXEC_FAILED_COUNTER);
         }
         sendPayloadsTooLargeFailure(
             taskToken, supportsTemporalFailure(pollResponse), metricsScope, violation.get());

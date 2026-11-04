@@ -21,6 +21,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.MetricsUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.limits.PayloadLimitViolation;
@@ -32,7 +33,6 @@ import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
-import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.rpcretry.DefaultStubServiceOperationRpcRetryOptions;
 import io.temporal.worker.MetricsType;
@@ -534,12 +534,8 @@ class HeartbeatContextImpl implements HeartbeatContext {
    * call does not hold the lock.
    */
   private void failWithPayloadsTooLargeLocked(PayloadLimitViolation violation) {
-    MetricsTag.tagged(
-            metricsScope,
-            MetricsTag.TASK_FAILURE_TYPE,
-            MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE)
-        .counter(MetricsType.ACTIVITY_EXEC_FAILED_COUNTER)
-        .inc(1);
+    MetricsUtils.countPayloadsTooLargeFailure(
+        metricsScope, MetricsType.ACTIVITY_EXEC_FAILED_COUNTER);
     // Set before cancellation is requested, so an activity that sees the cancellation also sees how
     // its outcome must be reported.
     payloadLimitFailure =
