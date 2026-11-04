@@ -2,6 +2,7 @@ package io.temporal.internal.client;
 
 import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.HeartbeatManager;
 import io.temporal.worker.WorkerFactory;
@@ -37,4 +38,7 @@ public interface WorkflowClientInternal {
 
   @Nullable
   ExternalStorageRunner getExternalStorageRunner();
+
+  /** Returns the SDK's converter, including internal transfer-type conversion. */
+  DataConverter getInternalDataConverter();
 }

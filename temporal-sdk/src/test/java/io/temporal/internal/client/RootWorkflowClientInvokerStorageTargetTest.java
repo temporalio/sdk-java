@@ -221,9 +221,15 @@ public class RootWorkflowClientInvokerStorageTargetTest {
 
   private static RootWorkflowClientInvoker invoker(
       GenericWorkflowClient rpc, StorageDriver driver) {
+    WorkflowClientOptions options =
+        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).validateAndBuildWithDefaults();
     return new RootWorkflowClientInvoker(
         rpc,
-        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).validateAndBuildWithDefaults(),
+        options.getNamespace(),
+        options.getIdentity(),
+        options.getQueryRejectCondition(),
+        options.getContextPropagators(),
+        options.getDataConverter(),
         new WorkerFactoryRegistry(),
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build()));

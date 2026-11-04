@@ -15,7 +15,7 @@ public @interface NexusServiceImpl {
   /**
    * @return names of Workers to register this nexus service bean with. Workers with these names
    *     must be present in the application config. Worker is named by its task queue if its name is
-   *     not specified.
+   *     not specified. Can be specified as a property key, e.g.: ${propertyKey}.
    */
   String[] workers() default {};
 

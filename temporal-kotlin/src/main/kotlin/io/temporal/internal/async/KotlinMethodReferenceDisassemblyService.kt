@@ -2,20 +2,25 @@
 package io.temporal.internal.async
 
 import io.temporal.internal.async.spi.MethodReferenceDisassemblyService
+import io.temporal.internal.common.JavaLambdaUtils
+import io.temporal.internal.common.kotlin.KotlinDetector
 import io.temporal.workflow.Functions
 import kotlin.jvm.internal.CallableReference
 import kotlin.jvm.internal.Lambda
 
 class KotlinMethodReferenceDisassemblyService : MethodReferenceDisassemblyService {
   override fun getMethodReferenceTarget(methodReference: Any): Any? {
-    return when (methodReference) {
-      is Functions.TemporalFunctionalInterfaceMarker -> {
-        unwrapTemporalFunctionalInterfaceInKotlin(methodReference)
-      }
-      else -> {
-        unwrapIfCallableReference(methodReference)
+    val callableTarget = unwrapIfCallableReference(methodReference)
+    if (callableTarget != null) {
+      return callableTarget
+    }
+    if (methodReference is Functions.TemporalFunctionalInterfaceMarker) {
+      val wrappedTarget = unwrapTemporalFunctionalInterfaceInKotlin(methodReference)
+      if (wrappedTarget != null) {
+        return wrappedTarget
       }
     }
+    return unwrapKotlinStaticAdapter(methodReference)
   }
 
   private fun unwrapIfCallableReference(callableReference: Any): Any? {
@@ -61,7 +66,7 @@ class KotlinMethodReferenceDisassemblyService : MethodReferenceDisassemblyServic
        * We also end up here in any version of Kotlin if wrapped lambda is passed and this case is handled in unwrapCallableReference
        */
       return unwrapIfCallableReference(proxiedValue)
-    } else {
+    } else if (KotlinDetector.isKotlinType(temporalFunction.javaClass)) {
       /**
        * Strategy 2.2
        * Kotlin 1.5 generates one of [io.temporal.workflow.Functions] directly over the target
@@ -70,6 +75,23 @@ class KotlinMethodReferenceDisassemblyService : MethodReferenceDisassemblyServic
        */
       return proxiedValue
     }
+    return null
+  }
+
+  /**
+   * Strategy 3
+   * Kotlin 2.4 uses a serialized lambda with a static adapter for a method reference.
+   * A lambda that captures the same target also has one field, so verify the adapter's method.
+   */
+  private fun unwrapKotlinStaticAdapter(methodReference: Any): Any? {
+    if (System.getProperty("temporal.kotlin.disableStaticAdapterUnwrapping") != null) {
+      return null
+    }
+    if (methodReference !is Functions.TemporalFunctionalInterfaceMarker) {
+      return null
+    }
+    val serializedLambda = JavaLambdaUtils.toSerializedLambda(methodReference) ?: return null
+    return KotlinDetector.getKotlinStaticAdapterTarget(serializedLambda, methodReference.javaClass.classLoader)
   }
 
   override fun getLanguageName(): String {

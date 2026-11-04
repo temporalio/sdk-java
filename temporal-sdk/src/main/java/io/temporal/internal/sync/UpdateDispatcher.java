@@ -71,8 +71,17 @@ class UpdateDispatcher {
     }
   }
 
+  /**
+   * @param resultDataConverter the converter for the update's result, which may differ from the
+   *     workflow converter used for its arguments
+   */
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
+      String updateName,
+      String updateId,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      DataConverter resultDataConverter) {
     WorkflowOutboundCallsInterceptor.UpdateRegistrationRequest handler =
         updateCallbacks.get(updateName);
     Object[] args;
@@ -99,7 +108,7 @@ class UpdateDispatcher {
               .executeUpdate(
                   new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
               .getResult();
-      return dataConverterWithWorkflowContext.toPayloads(result);
+      return resultDataConverter.toPayloads(result);
     } catch (DestroyWorkflowThreadError e) {
       threadDestroyed = true;
       throw e;

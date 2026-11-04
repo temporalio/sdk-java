@@ -11,6 +11,8 @@ import io.temporal.api.worker.v1.EnvironmentInfo.Runtime;
 import io.temporal.api.worker.v1.EnvironmentInfo.Runtime.RuntimeType;
 import io.temporal.api.worker.v1.EnvironmentInfo.WindowsPlatform;
 import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.annotation.AnnotationFormatError;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,26 +35,108 @@ public final class WorkerEnvironmentInfo {
   private WorkerEnvironmentInfo() {}
 
   /**
-   * Never throws: this runs during client creation, and telemetry must not break it. System
-   * property, environment, and filesystem access can all fail under a security manager, in which
-   * case whatever was collected before the failure is returned.
+   * Best effort: this runs during client creation, and telemetry must not break it. Each probe is
+   * isolated so unavailable runtime information does not prevent platform or hosting detection.
    */
   public static EnvironmentInfo detect() {
+    return detect(System::getProperty);
+  }
+
+  static EnvironmentInfo detect(Function<String, String> properties) {
     EnvironmentInfo.Builder builder = EnvironmentInfo.newBuilder();
+    builder.addRuntimes(
+        Runtime.newBuilder()
+            .setType(RuntimeType.RUNTIME_TYPE_JVM)
+            .setVersion(propertyValue(properties, "java.version")));
     try {
-      builder.addRuntimes(
-          Runtime.newBuilder()
-              .setType(RuntimeType.RUNTIME_TYPE_JVM)
-              .setVersion(nullToEmpty(System.getProperty("java.version"))));
+      if ("runtime".equals(properties.apply("org.graalvm.nativeimage.imagecode"))) {
+        builder.addRuntimes(
+            Runtime.newBuilder()
+                .setType(RuntimeType.RUNTIME_TYPE_GRAAL_AOT)
+                .setVersion(propertyValue(properties, "org.graalvm.version")));
+      }
+    } catch (RuntimeException | LinkageError e) {
+      log.info("Failed to detect Graal native-image runtime", e);
+    }
+    try {
       builder.addAllHostingEnvironments(detectHostingEnvironments(System::getenv));
+    } catch (RuntimeException | LinkageError e) {
+      log.info("Failed to detect worker hosting environments", e);
+    }
+    try {
       Platform platform = detectPlatform();
       if (platform != null) {
         builder.setPlatform(platform);
       }
-    } catch (RuntimeException e) {
-      log.info("Failed to detect worker environment information, reporting partial results", e);
+    } catch (RuntimeException | LinkageError e) {
+      log.info("Failed to detect worker platform", e);
     }
     return builder.build();
+  }
+
+  private static String propertyValue(Function<String, String> properties, String name) {
+    try {
+      return nullToEmpty(properties.apply(name));
+    } catch (RuntimeException | LinkageError e) {
+      return "";
+    }
+  }
+
+  /**
+   * Detects Kotlin implementation classes without a Kotlin dependency or assuming a shared
+   * annotation class loader.
+   */
+  public static boolean isKotlinImplementation(@Nullable Class<?> implementationClass) {
+    if (implementationClass == null) {
+      return false;
+    }
+    try {
+      for (Annotation annotation : implementationClass.getDeclaredAnnotations()) {
+        if ("kotlin.Metadata".equals(annotation.annotationType().getName())) {
+          return true;
+        }
+      }
+    } catch (RuntimeException | LinkageError | AnnotationFormatError e) {
+      log.info("Failed to detect Kotlin implementation metadata", e);
+    }
+    return false;
+  }
+
+  /**
+   * Returns immutable environment information augmented with Kotlin when the implementation has
+   * Kotlin metadata. A null environment (telemetry opt-out) is preserved, as are existing runtimes.
+   */
+  @Nullable
+  public static EnvironmentInfo withKotlinRuntime(
+      @Nullable EnvironmentInfo info, @Nullable Class<?> implementationClass) {
+    if (info == null) {
+      return null;
+    }
+    for (Runtime runtime : info.getRuntimesList()) {
+      if (runtime.getType() == RuntimeType.RUNTIME_TYPE_KOTLIN) {
+        return info;
+      }
+    }
+    if (!isKotlinImplementation(implementationClass)) {
+      return info;
+    }
+    return info.toBuilder()
+        .addRuntimes(
+            Runtime.newBuilder()
+                .setType(RuntimeType.RUNTIME_TYPE_KOTLIN)
+                .setVersion(kotlinVersion(implementationClass)))
+        .build();
+  }
+
+  private static String kotlinVersion(Class<?> implementationClass) {
+    try {
+      Class<?> version =
+          Class.forName("kotlin.KotlinVersion", true, implementationClass.getClassLoader());
+      Object current = version.getField("CURRENT").get(null);
+      return current == null ? "" : current.toString();
+    } catch (ReflectiveOperationException | RuntimeException | LinkageError e) {
+      return "";
+    }
   }
 
   /**

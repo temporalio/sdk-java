@@ -8,6 +8,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.failure.DefaultFailureConverter;
+import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.payload.context.SerializationContext;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -130,7 +131,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
     return (serializationContext != null
             ? failureConverter.withContext(serializationContext)
             : failureConverter)
-        .failureToException(failure, this);
+        .failureToException(failure, TemporalTransferTypeDataConverter.wrap(this));
   }
 
   @Override
@@ -140,7 +141,7 @@ class PayloadAndFailureDataConverter implements DataConverter {
     return (serializationContext != null
             ? failureConverter.withContext(serializationContext)
             : failureConverter)
-        .exceptionToFailure(throwable, this);
+        .exceptionToFailure(throwable, TemporalTransferTypeDataConverter.wrap(this));
   }
 
   @Override

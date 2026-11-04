@@ -1,48 +1,49 @@
 package io.temporal.internal.client;
 
-import static io.temporal.internal.common.WorkflowExecutionUtils.getResultFromCloseEvent;
-
 import com.google.protobuf.ByteString;
 import io.grpc.Deadline;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.History;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryResponse;
-import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.WorkflowExecutionUtils;
-import java.util.Optional;
 import java.util.concurrent.*;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** This class encapsulates async long poll logic of {@link RootWorkflowClientInvoker} */
 final class WorkflowClientLongPollAsyncHelper {
 
-  static CompletableFuture<Optional<Payloads>> getWorkflowExecutionResultAsync(
+  /**
+   * Returns the history response whose single event closed the workflow, potentially waiting for
+   * workflow or continue-as-new executions to complete. It carries the Nexus serialization context
+   * of the closed run, if the server returned one on any page of that run. Completes exceptionally
+   * with a {@link TimeoutException} if the workflow didn't complete within the specified timeout.
+   */
+  static CompletableFuture<GetWorkflowExecutionHistoryResponse> getInstanceCloseEventAsync(
       GenericWorkflowClient genericClient,
       WorkflowClientRequestFactory workflowClientHelper,
       @Nonnull WorkflowExecution workflowExecution,
-      Optional<String> workflowType,
       long timeout,
-      TimeUnit unit,
-      DataConverter converter) {
+      TimeUnit unit) {
     Deadline longPollTimeoutDeadline = Deadline.after(timeout, unit);
     return getInstanceCloseEventAsync(
             genericClient,
             workflowClientHelper,
             workflowExecution,
             ByteString.EMPTY,
+            null,
             longPollTimeoutDeadline)
         .handle(
-            (closeEvent, e) -> {
+            (closed, e) -> {
               if (e == null) {
-                return getResultFromCloseEvent(
-                    workflowExecution, workflowType, closeEvent, converter);
+                return closed;
               } else {
                 throw handleException(e, longPollTimeoutDeadline, workflowExecution, timeout, unit);
               }
@@ -74,12 +75,18 @@ final class WorkflowClientLongPollAsyncHelper {
     }
   }
 
-  /** Returns an instance closing event, potentially waiting for workflow to complete. */
-  private static CompletableFuture<HistoryEvent> getInstanceCloseEventAsync(
+  /**
+   * Returns an instance closing event, potentially waiting for workflow to complete.
+   *
+   * @param propagated the Nexus serialization context returned so far for the current run, carried
+   *     across empty long polls of the same run.
+   */
+  private static CompletableFuture<GetWorkflowExecutionHistoryResponse> getInstanceCloseEventAsync(
       GenericWorkflowClient genericClient,
       WorkflowClientRequestFactory workflowClientHelper,
       final WorkflowExecution workflowExecution,
       ByteString pageToken,
+      @Nullable PropagatedSerializationContext propagated,
       Deadline longPollTimeoutDeadline) {
     GetWorkflowExecutionHistoryRequest request =
         workflowClientHelper.newHistoryLongPollRequest(workflowExecution, pageToken);
@@ -87,6 +94,10 @@ final class WorkflowClientLongPollAsyncHelper {
         genericClient.longPollHistoryAsync(request, longPollTimeoutDeadline);
     return response.thenComposeAsync(
         (r) -> {
+          PropagatedSerializationContext runPropagated =
+              r.hasPropagatedNexusSerializationContext()
+                  ? r.getPropagatedNexusSerializationContext()
+                  : propagated;
           History history = r.getHistory();
           if (history.getEventsCount() == 0) {
             // Empty poll returned
@@ -97,6 +108,7 @@ final class WorkflowClientLongPollAsyncHelper {
                 workflowClientHelper,
                 workflowExecution,
                 nextPageToken,
+                runPropagated,
                 longPollTimeoutDeadline);
           }
           HistoryEvent event = history.getEvents(0); // should be only one event
@@ -118,9 +130,12 @@ final class WorkflowClientLongPollAsyncHelper {
                 workflowClientHelper,
                 nextWorkflowExecution,
                 ByteString.EMPTY,
+                null,
                 longPollTimeoutDeadline);
           }
-          return CompletableFuture.completedFuture(event);
+          return CompletableFuture.completedFuture(
+              WorkflowClientLongPollHelper.withPropagatedNexusSerializationContext(
+                  r, runPropagated));
         });
   }
 }

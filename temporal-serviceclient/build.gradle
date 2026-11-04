@@ -75,8 +75,8 @@ sourceSets {
   }
 }
 
-// Descriptor set emitted by generateProto and read by the payload visitor generator; see the
-// payload visitor section below.
+// Descriptor set emitted by generateProto and read by the payload code generators; see the
+// payload code generation section below.
 def apiDescriptorSet = layout.buildDirectory.file('generated/descriptors/temporal-api.desc')
 
 protobuf {
@@ -97,8 +97,8 @@ protobuf {
     generateProtoTasks {
         all().each { task ->
             task.dependsOn updateSubmodules
-            // The payload visitor generator reads the API descriptors from this file rather than
-            // from compiled proto classes; see the payload visitor section below.
+            // The payload code generators read the API descriptors from this file rather than
+            // from compiled proto classes; see the payload code generation section below.
             if (task.sourceSet.name == 'main') {
                 task.generateDescriptorSet = true
                 task.descriptorSetOptions.includeImports = true
@@ -126,41 +126,59 @@ protobuf {
     generatedFilesBaseDir = "$buildDir/generated"
 }
 
-// --- Payload visitor code generation ---
-// A build-time generator emits GeneratedPayloadVisitor.java, which knows how to walk every
-// payload-bearing Temporal API message. The generated source is added to the main source set.
+// --- Payload code generation ---
+// Build-time generators, sharing one source set, emit into the main source set:
+// - GeneratedPayloadVisitor.java, which knows how to walk every payload-bearing Temporal API
+//   message.
+// - GeneratedPayloadLimitValidator.java, which checks the payload and memo fields of outbound
+//   requests against the size limits the server enforces. It classifies every payload-bearing field
+//   against hand-authored tables and fails the build if a field is unclassified or a table entry is
+//   stale, so a proto change cannot land without an explicit decision.
 //
-// The generator reads the API descriptors from the descriptor set emitted by generateProto, not from
-// compiled proto classes. The protos are generated into this module's own main source set, so a
+// The generators read the API descriptors from the descriptor set emitted by generateProto, not
+// from compiled proto classes. The protos are generated into this module's own main source set, so a
 // generator that needed them compiled would form a cycle with the compilation that consumes its
-// output. Its source set therefore depends only on protobuf-java.
+// output. Their source set therefore depends only on protobuf-java.
 sourceSets {
-    payloadVisitorGenerator {
+    payloadGenerators {
         java {
-            srcDirs = ['src/payloadVisitorGenerator/java']
+            srcDirs = ['src/payloadGenerators/java']
         }
     }
 }
 
 dependencies {
-    payloadVisitorGeneratorImplementation "com.google.protobuf:protobuf-java:$protoVersion"
+    payloadGeneratorsImplementation "com.google.protobuf:protobuf-java:$protoVersion"
 }
 
 def generatedPayloadVisitorDir = layout.buildDirectory.dir('generated/payloadvisitor/java')
 
 def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) {
-    dependsOn 'compilePayloadVisitorGeneratorJava', 'generateProto'
-    classpath = sourceSets.payloadVisitorGenerator.runtimeClasspath
+    dependsOn 'compilePayloadGeneratorsJava', 'generateProto'
+    classpath = sourceSets.payloadGenerators.runtimeClasspath
     mainClass = 'io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator'
     args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath
     inputs.file(apiDescriptorSet)
-    inputs.files(sourceSets.payloadVisitorGenerator.runtimeClasspath)
+    inputs.files(sourceSets.payloadGenerators.runtimeClasspath)
     outputs.dir(generatedPayloadVisitorDir)
 }
 
-sourceSets.main.java.srcDir(generatePayloadVisitor)
+def generatedPayloadLimitsDir = layout.buildDirectory.dir('generated/payloadlimits/java')
 
-tasks.named('compilePayloadVisitorGeneratorJava') {
+def generatePayloadLimitValidator = tasks.register('generatePayloadLimitValidator', JavaExec) {
+    dependsOn 'compilePayloadGeneratorsJava', 'generateProto'
+    classpath = sourceSets.payloadGenerators.runtimeClasspath
+    mainClass = 'io.temporal.internal.payload.limits.gen.PayloadLimitValidatorGenerator'
+    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadLimitsDir.get().asFile.absolutePath
+    inputs.file(apiDescriptorSet)
+    inputs.files(sourceSets.payloadGenerators.runtimeClasspath)
+    outputs.dir(generatedPayloadLimitsDir)
+}
+
+sourceSets.main.java.srcDir(generatePayloadVisitor)
+sourceSets.main.java.srcDir(generatePayloadLimitValidator)
+
+tasks.named('compilePayloadGeneratorsJava') {
     options.encoding = 'UTF-8'
     options.compilerArgs << '-Xlint:none' << '-Xlint:deprecation' << '-Werror'
     options.errorprone.error('MissingCasesInEnumSwitch')

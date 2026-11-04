@@ -6,7 +6,6 @@ import static org.mockito.Mockito.mock;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.NexusClientInterceptor;
-import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -71,8 +70,9 @@ public class NexusClientOptionsTest {
   }
 
   @Test
-  public void resolveOptionsWrapsDataConverterWithoutChangingConfiguredOptions() {
+  public void resolveOptionsUsesInternalConverterWithoutChangingConfiguredOptions() {
     DataConverter dataConverter = mock(DataConverter.class);
+    DataConverter internalDataConverter = mock(DataConverter.class);
     NexusClientOptions options =
         NexusClientOptions.newBuilder()
             .setDataConverter(dataConverter)
@@ -80,8 +80,8 @@ public class NexusClientOptionsTest {
             .build();
 
     assertSame(dataConverter, options.getDataConverter());
-    assertTrue(
-        options.toResolvedOptions().getDataConverter() instanceof ExternalStorageDataConverter);
+    assertSame(
+        internalDataConverter, options.toResolvedOptions(internalDataConverter).getDataConverter());
   }
 
   private static ExternalStorage storage() {

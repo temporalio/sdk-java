@@ -73,7 +73,7 @@ public class QueryReplayHelper {
     WorkflowType workflowType = started.getWorkflowType();
     task.setWorkflowType(workflowType);
     task.setHistory(History.newBuilder().addAllEvents(events));
-    WorkflowTaskHandler.Result result = handler.handleWorkflowTask(task.build());
+    WorkflowTaskHandler.Result result = handler.handleWorkflowTask(task.build(), null);
     if (result.getQueryCompleted() != null) {
       RespondQueryTaskCompletedRequest r = result.getQueryCompleted();
       if (!r.getErrorMessage().isEmpty()) {
