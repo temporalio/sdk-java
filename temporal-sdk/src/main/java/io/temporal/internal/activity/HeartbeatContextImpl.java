@@ -512,9 +512,10 @@ class HeartbeatContextImpl implements HeartbeatContext {
         lastException = null;
       }
     } catch (StatusRuntimeException e) {
-      Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
-      if (violation.isPresent()) {
-        failWithPayloadsTooLargeLocked(violation.get());
+      Optional<PayloadLimitViolationException> violationException =
+          PayloadLimitViolationException.find(e);
+      if (violationException.isPresent()) {
+        failWithPayloadsTooLargeLocked(violationException.get().getViolation());
         // Cancellation is how the running activity learns that it was failed.
         requestCancelLocked();
       } else if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {

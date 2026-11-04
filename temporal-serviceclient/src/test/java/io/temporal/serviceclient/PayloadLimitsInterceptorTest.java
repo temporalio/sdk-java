@@ -195,7 +195,7 @@ public class PayloadLimitsInterceptorTest {
     assertEquals(
         "[TMPRL1103] Attempted to upload payloads with size that exceeded the error limit.",
         e.getStatus().getDescription());
-    PayloadLimitViolation violation = PayloadLimitViolationException.find(e).get();
+    PayloadLimitViolation violation = PayloadLimitViolationException.find(e).get().getViolation();
     assertEquals("input", violation.getPath());
     assertEquals(100, violation.getLimit());
     assertEquals(0, startCount.get());

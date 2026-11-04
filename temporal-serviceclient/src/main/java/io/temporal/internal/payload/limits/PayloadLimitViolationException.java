@@ -26,12 +26,12 @@ public final class PayloadLimitViolationException extends RuntimeException {
     return violation;
   }
 
-  /** Returns the violation that caused {@code throwable}, searching its cause chain. */
-  public static Optional<PayloadLimitViolation> find(@Nullable Throwable throwable) {
+  /** Returns the violation exception that caused {@code throwable}, searching its cause chain. */
+  public static Optional<PayloadLimitViolationException> find(@Nullable Throwable throwable) {
     Throwable t = throwable;
     for (int depth = 0; t != null && depth < MAX_CAUSE_DEPTH; depth++) {
       if (t instanceof PayloadLimitViolationException) {
-        return Optional.of(((PayloadLimitViolationException) t).violation);
+        return Optional.of((PayloadLimitViolationException) t);
       }
       t = t.getCause();
     }

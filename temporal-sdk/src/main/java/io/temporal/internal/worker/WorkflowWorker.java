@@ -821,9 +821,9 @@ final class WorkflowWorker implements SuspendableWorker {
                       workflowStorageTarget(workflowExecution, workflowType),
                       uploadMetrics);
                 } catch (StatusRuntimeException e) {
-                  Optional<PayloadLimitViolation> violation =
+                  Optional<PayloadLimitViolationException> violationException =
                       PayloadLimitViolationException.find(e);
-                  if (!violation.isPresent()) {
+                  if (!violationException.isPresent()) {
                     throw e;
                   }
                   releaseReason = SlotReleaseReason.error(e);
@@ -847,7 +847,8 @@ final class WorkflowWorker implements SuspendableWorker {
                         RespondWorkflowTaskFailedRequest.newBuilder()
                             .setFailure(
                                 payloadsTooLargeFailure(
-                                    workflowExecution.getWorkflowId(), violation.get()))
+                                    workflowExecution.getWorkflowId(),
+                                    violationException.get().getViolation()))
                             .setCause(
                                 WorkflowTaskFailedCause
                                     .WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE);

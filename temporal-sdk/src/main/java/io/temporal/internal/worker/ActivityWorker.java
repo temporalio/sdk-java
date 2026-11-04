@@ -413,9 +413,11 @@ final class ActivityWorker implements SuspendableWorker {
         sendStorageFailure(taskToken, metricsScope, e.getCause());
         return result;
       } catch (Exception e) {
-        Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
-        if (violation.isPresent()) {
-          sendPayloadsTooLargeFailure(taskToken, metricsScope, violation.get());
+        Optional<PayloadLimitViolationException> violationException =
+            PayloadLimitViolationException.find(e);
+        if (violationException.isPresent()) {
+          sendPayloadsTooLargeFailure(
+              taskToken, metricsScope, violationException.get().getViolation());
           return result;
         }
         logExceptionDuringResultReporting(e, pollResponse, result);

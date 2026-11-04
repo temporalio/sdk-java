@@ -478,8 +478,9 @@ final class NexusWorker implements SuspendableWorker {
         // No Nexus reply field has an error limit today (see PayloadLimitValidatorGenerator), so
         // this never runs yet. It is here so that a field classified later fails the task cleanly
         // instead of surfacing as a reporting failure.
-        Optional<PayloadLimitViolation> violation = PayloadLimitViolationException.find(e);
-        if (!violation.isPresent()) {
+        Optional<PayloadLimitViolationException> violationException =
+            PayloadLimitViolationException.find(e);
+        if (!violationException.isPresent()) {
           logExceptionDuringResultReporting(e, pollResponse, result);
           throw e;
         }
@@ -489,7 +490,10 @@ final class NexusWorker implements SuspendableWorker {
               metricsScope, MetricsType.NEXUS_EXEC_FAILED_COUNTER);
         }
         sendPayloadsTooLargeFailure(
-            taskToken, supportsTemporalFailure(pollResponse), metricsScope, violation.get());
+            taskToken,
+            supportsTemporalFailure(pollResponse),
+            metricsScope,
+            violationException.get().getViolation());
         return true;
       } catch (Exception e) {
         logExceptionDuringResultReporting(e, pollResponse, result);
