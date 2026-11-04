@@ -46,6 +46,10 @@ import java.lang.reflect.Type;
  *   return TemporalOperationResult.sync(null);
  * }
  * }</pre>
+ *
+ * <p>Signals sent from the handler reuse the operation's request ID, so a retried Nexus task does
+ * not deliver them twice. As a result, each invocation may send only one signal or {@code
+ * signalWithStart}.
  */
 @Experimental
 public interface TemporalNexusClient {

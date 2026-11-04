@@ -23,6 +23,11 @@ to docs, or any other relevant information.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- **Experimental**: A `@TemporalOperation` handler can now send only one signal per operation invocation; `signal`
+  and `signalWithStart` count toward the same limit. While the first signal is in flight, or after it succeeds, a
+  second signal to any workflow throws a `BAD_REQUEST` `HandlerException`. If the first signal fails, the handler can
+  signal again. `signalWithStart` from such a handler also requires an explicit workflow ID, since a defaulted ID
+  differs on each retried Nexus task and would start another workflow.
 
 ### Added
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
@@ -51,8 +56,18 @@ to docs, or any other relevant information.
   `TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS` environment variable.
 - Nexus operation handlers now forward inbound callback links to the workflows and signals they start, instead of
   dropping them.
+- Nexus handlers now propagate `NexusSerializationContext` to the workflows, workflow updates, and
+  standalone activities they start. These use it only for their results and failures, which are
+  returned to the Nexus caller. Standalone activities also use it for their heartbeat details, which
+  the server includes in their timeout failures.
+  To complete such an activity asynchronously, read the context from
+  `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
+  `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 
 ### Changed
+- **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
+  operation's request ID, so a retried Nexus task no longer delivers the same signal twice. Signals sent from other
+  Nexus operation handlers keep an independent request ID per call and are not deduplicated.
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
   `io.temporal:temporal-spring-ai` now publishes a one-time relocation POM to `io.temporal:spring-ai:0.1.0`;
   the integration is versioned independently of the SDK. The standalone release requires Java 17+, Spring AI 2,
@@ -71,6 +86,13 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
+  sending the first page. A completion that needed pagination timed out on every attempt instead
+  of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend
+  existing options, which also threw `UnsupportedOperationException`.
+- `RpcRetryOptions` no longer changes when the builder that created it is reused. Previously,
+  `addDoNotRetry` calls made after `build()` or `validateBuildWithDefaults()` also appeared in
+  the options already built.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).
