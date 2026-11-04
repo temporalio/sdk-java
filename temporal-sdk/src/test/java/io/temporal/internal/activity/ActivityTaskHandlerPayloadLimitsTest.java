@@ -297,8 +297,7 @@ public class ActivityTaskHandlerPayloadLimitsTest {
   }
 
   private ActivityTaskHandler.Result runActivity(
-      HeartbeatingActivity activity,
-      UnaryOperator<InternalActivityExecutionContext> wrapContext) {
+      HeartbeatingActivity activity, UnaryOperator<InternalActivityExecutionContext> wrapContext) {
     ActivityExecutionContextFactoryImpl factory =
         new ActivityExecutionContextFactoryImpl(
             client,
