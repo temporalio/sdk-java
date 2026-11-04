@@ -443,6 +443,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             ROOT_THREAD_PRIORITY,
             false,
             runnerCancellationScope,
+            EventGroupScope.EMPTY,
             runnable,
             cache,
             getContextPropagators(),
@@ -472,6 +473,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
             WORKFLOW_THREAD_PRIORITY + (addedThreads++),
             detached,
             CancellationScopeImpl.current(),
+            EventGroupScope.current(),
             runnable,
             cache,
             getContextPropagators(),
@@ -496,6 +498,7 @@ class DeterministicRunnerImpl implements DeterministicRunner {
                 + (addedThreads++), // maintain the order in toExecuteInWorkflowThread
             false,
             runnerCancellationScope,
+            EventGroupScope.EMPTY,
             runnable,
             cache,
             getContextPropagators(),

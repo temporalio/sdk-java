@@ -121,6 +121,14 @@ public final class WorkflowInternal {
     return result;
   }
 
+  public static EventGroup newEventGroup(String id, EventGroupOptions options) {
+    if (id == null || id.isEmpty()) {
+      throw new IllegalArgumentException("Event group ID must not be empty");
+    }
+    String label = options == null ? null : options.getLabel();
+    return new EventGroupImpl(id, label);
+  }
+
   /**
    * Register query or queries implementation object. There is no need to register top level
    * workflow implementation object as it is done implicitly. Only methods annotated with @{@link

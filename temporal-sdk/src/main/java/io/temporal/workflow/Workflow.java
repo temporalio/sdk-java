@@ -831,6 +831,34 @@ public final class Workflow {
   }
 
   /**
+   * Creates an {@link EventGroup}, which can be used to associate related workflow commands so that
+   * their resulting history events can be presented together in UI/CLI.
+   *
+   * @param id ID of the group. Must not be empty. Commands associated with groups that have the
+   *     same ID are presented together, even if they were associated with distinct {@link
+   *     EventGroup} instances.
+   * @see EventGroup
+   */
+  @Experimental
+  public static EventGroup newEventGroup(String id) {
+    return WorkflowInternal.newEventGroup(id, null);
+  }
+
+  /**
+   * Creates an {@link EventGroup} with options, such as a display label.
+   *
+   * @param id ID of the group. Must not be empty. Commands associated with groups that have the
+   *     same ID are presented together, even if they were associated with distinct {@link
+   *     EventGroup} instances, or have different labels.
+   * @param options options of the group.
+   * @see #newEventGroup(String)
+   */
+  @Experimental
+  public static EventGroup newEventGroup(String id, EventGroupOptions options) {
+    return WorkflowInternal.newEventGroup(id, options);
+  }
+
+  /**
    * Creates a {@link WorkflowLock} implementation that can be used from workflow code.
    *
    * <p>Note: The lock returned is not reentrant. If a workflow thread tries to acquire a lock that
