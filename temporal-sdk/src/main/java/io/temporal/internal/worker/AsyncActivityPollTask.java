@@ -6,7 +6,7 @@ import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
-import io.temporal.api.taskqueue.v1.PollerScalingInfo;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
@@ -112,8 +112,8 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
       return pollRequest;
     }
     return pollRequest.toBuilder()
-        .setPollerScalingInfo(
-            PollerScalingInfo.newBuilder().setTargetPollers(supplier.getAsInt()).build())
+        .setPollerPoolInfo(
+            PollerPoolInfo.newBuilder().setTargetPollers(supplier.getAsInt()).build())
         .build();
   }
 

@@ -7,7 +7,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.enums.v1.TaskQueueKind;
-import io.temporal.api.taskqueue.v1.PollerScalingInfo;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.GrpcUtils;
@@ -145,8 +145,8 @@ public class AsyncWorkflowPollTask
       return pollRequest;
     }
     return pollRequest.toBuilder()
-        .setPollerScalingInfo(
-            PollerScalingInfo.newBuilder().setTargetPollers(supplier.getAsInt()).build())
+        .setPollerPoolInfo(
+            PollerPoolInfo.newBuilder().setTargetPollers(supplier.getAsInt()).build())
         .build();
   }
 
