@@ -50,6 +50,16 @@ public enum SdkFlag {
    * Bug: https://github.com/temporalio/sdk-java/issues/2989
    */
   SCHEDULE_ASYNC_STUB_OPERATIONS(6),
+  /*
+   * Removes buffered signals before delivering them to a registered handler.
+   *
+   * Introduced: 1.41.0
+   *
+   * Enabled: (pending)
+   *
+   * Bug: https://github.com/temporalio/sdk-java/issues/3189
+   */
+  CONSUME_BUFFERED_SIGNALS(7),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;

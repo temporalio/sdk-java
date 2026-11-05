@@ -110,13 +110,18 @@ class SignalDispatcher {
   }
 
   public void registerSignalHandlers(
-      WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput input) {
+      WorkflowOutboundCallsInterceptor.RegisterSignalHandlersInput input,
+      boolean consumeBufferedSignals) {
     for (WorkflowOutboundCallsInterceptor.SignalRegistrationRequest request : input.getRequests()) {
       String signalType = request.getSignalType();
       if (signalCallbacks.containsKey(signalType)) {
         throw new IllegalStateException("Signal \"" + signalType + "\" is already registered");
       }
       signalCallbacks.put(signalType, request);
+    }
+    if (consumeBufferedSignals) {
+      dispatchBufferedSignals();
+      return;
     }
     for (SignalData signalData : signalBuffer) {
       handleSignal(
@@ -128,13 +133,43 @@ class SignalDispatcher {
   }
 
   public void registerDynamicSignalHandler(
-      WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput input) {
+      WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput input,
+      boolean consumeBufferedSignals) {
     dynamicSignalHandler = input.getHandler();
+    if (consumeBufferedSignals) {
+      dispatchBufferedSignals();
+      return;
+    }
     for (SignalData signalData : signalBuffer) {
       dynamicSignalHandler.handle(
           signalData.getSignalName(),
           new EncodedValues(signalData.getPayload(), dataConverterWithWorkflowContext));
     }
+  }
+
+  private void dispatchBufferedSignals() {
+    SignalData signalData;
+    while ((signalData = removeNextDeliverableSignal()) != null) {
+      handleSignal(
+          signalData.getSignalName(),
+          signalData.getPayload(),
+          signalData.getEventId(),
+          signalData.getHeader());
+    }
+  }
+
+  private SignalData removeNextDeliverableSignal() {
+    Iterator<SignalData> iterator = signalBuffer.iterator();
+    while (iterator.hasNext()) {
+      SignalData signalData = iterator.next();
+      if (signalCallbacks.containsKey(signalData.getSignalName()) || dynamicSignalHandler != null) {
+        // Remove only this signal before invoking its handler. Handlers may yield or register
+        // listeners that need to consume other buffered signals before this handler can finish.
+        iterator.remove();
+        return signalData;
+      }
+    }
+    return null;
   }
 
   private void logSerializationException(
