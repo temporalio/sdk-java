@@ -96,6 +96,8 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
+  and backoff coefficients until validation or annotation merging supplies them.
 - Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
   sending the first page. A completion that needed pagination timed out on every attempt instead
   of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend
