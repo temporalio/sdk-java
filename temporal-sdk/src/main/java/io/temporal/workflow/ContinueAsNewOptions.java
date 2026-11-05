@@ -3,8 +3,7 @@ package io.temporal.workflow;
 import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import java.time.Duration;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import javax.annotation.Nullable;
 
 /**
@@ -41,6 +40,7 @@ public final class ContinueAsNewOptions {
     private Map<String, Object> memo;
     private Map<String, Object> searchAttributes;
     private SearchAttributes typedSearchAttributes;
+    private List<EventGroup> eventGroups;
     private List<ContextPropagator> contextPropagators;
 
     @SuppressWarnings("deprecation")
@@ -62,6 +62,9 @@ public final class ContinueAsNewOptions {
       this.memo = options.getMemo();
       this.searchAttributes = options.getSearchAttributes();
       this.typedSearchAttributes = options.getTypedSearchAttributes();
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
       this.contextPropagators = options.getContextPropagators();
       this.versioningIntent = options.versioningIntent;
       this.initialVersioningBehavior = options.initialVersioningBehavior;
@@ -124,6 +127,25 @@ public final class ContinueAsNewOptions {
       return this;
     }
 
+    /**
+     * Event Groups to associate with the continue-as-new command, in addition to those in scope.
+     * Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0)
+        return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
     public Builder setContextPropagators(List<ContextPropagator> contextPropagators) {
       this.contextPropagators = contextPropagators;
       return this;
@@ -164,6 +186,7 @@ public final class ContinueAsNewOptions {
           memo,
           searchAttributes,
           typedSearchAttributes,
+          eventGroups,
           contextPropagators,
           versioningIntent,
           initialVersioningBehavior);
@@ -178,6 +201,7 @@ public final class ContinueAsNewOptions {
   private final @Nullable Map<String, Object> memo;
   private final @Nullable Map<String, Object> searchAttributes;
   private final @Nullable SearchAttributes typedSearchAttributes;
+  private final List<EventGroup> eventGroups;
   private final @Nullable List<ContextPropagator> contextPropagators;
 
   @SuppressWarnings("deprecation")
@@ -209,6 +233,7 @@ public final class ContinueAsNewOptions {
         memo,
         searchAttributes,
         typedSearchAttributes,
+        Collections.emptyList(),
         contextPropagators,
         versioningIntent,
         initialVersioningBehavior);
@@ -223,6 +248,7 @@ public final class ContinueAsNewOptions {
       @Nullable Map<String, Object> memo,
       @Nullable Map<String, Object> searchAttributes,
       @Nullable SearchAttributes typedSearchAttributes,
+      List<EventGroup> eventGroups,
       @Nullable List<ContextPropagator> contextPropagators,
       @SuppressWarnings("deprecation") @Nullable VersioningIntent versioningIntent,
       @Nullable InitialVersioningBehavior initialVersioningBehavior) {
@@ -234,6 +260,10 @@ public final class ContinueAsNewOptions {
     this.memo = memo;
     this.searchAttributes = searchAttributes;
     this.typedSearchAttributes = typedSearchAttributes;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
     this.contextPropagators = contextPropagators;
     this.versioningIntent = versioningIntent;
     this.initialVersioningBehavior = initialVersioningBehavior;
@@ -278,6 +308,14 @@ public final class ContinueAsNewOptions {
 
   public @Nullable SearchAttributes getTypedSearchAttributes() {
     return typedSearchAttributes;
+  }
+
+  /**
+   * @see Builder#addEventGroups(EventGroup...)
+   */
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
   }
 
   public @Nullable List<ContextPropagator> getContextPropagators() {

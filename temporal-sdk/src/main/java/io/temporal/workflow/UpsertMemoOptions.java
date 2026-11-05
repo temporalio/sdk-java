@@ -1,5 +1,8 @@
 package io.temporal.workflow;
 
+import io.temporal.common.Experimental;
+import java.util.*;
+
 /** Options for {@link Workflow#upsertMemo(Map, UpsertMemoOptions)}. */
 public final class UpsertMemoOptions {
 
@@ -22,20 +25,55 @@ public final class UpsertMemoOptions {
   }
 
   public static final class Builder {
+    private List<EventGroup> eventGroups;
+
     private Builder() {}
 
     private Builder(UpsertMemoOptions options) {
       if (options == null) {
         return;
       }
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
+    }
+
+    /**
+     * Event Groups to associate with the memo update, in addition to those in scope. Calls
+     * accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
     }
 
     public UpsertMemoOptions build() {
-      return new UpsertMemoOptions();
+      return new UpsertMemoOptions(eventGroups);
     }
   }
 
-  private UpsertMemoOptions() {}
+  private final List<EventGroup> eventGroups;
+
+  private UpsertMemoOptions(List<EventGroup> eventGroups) {
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
+  }
+
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
 
   public Builder toBuilder() {
     return new Builder(this);
@@ -43,18 +81,19 @@ public final class UpsertMemoOptions {
 
   @Override
   public String toString() {
-    return "UpsertMemoOptions{}";
+    return "UpsertMemoOptions{" + "eventGroups=" + eventGroups + '}';
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    return true;
+    UpsertMemoOptions that = (UpsertMemoOptions) o;
+    return Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
   public int hashCode() {
-    return 0;
+    return Objects.hashCode(eventGroups);
   }
 }

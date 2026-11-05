@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
  * <p>Event Groups are created with {@link Workflow#newEventGroup(String)} or {@link
  * Workflow#newEventGroup(String, EventGroupOptions)}. A group can then be attached to commands
  * either directly, through the {@code addEventGroups} method of the corresponding options builder
- * (e.g. {@code ActivityOptions.Builder.addEventGroups}), or
+ * (e.g. {@link io.temporal.activity.ActivityOptions.Builder#addEventGroups}), or
  * through scope propagation, by issuing commands from within {@link #run(Functions.Proc)}.
  *
  * <p>Groups are identified by their ID. When several groups with the same ID apply to a single

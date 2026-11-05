@@ -1,5 +1,8 @@
 package io.temporal.workflow;
 
+import io.temporal.common.Experimental;
+import java.util.*;
+
 /** Options for {@link Workflow#getVersion(String, int, int, GetVersionOptions)}. */
 public final class GetVersionOptions {
 
@@ -22,20 +25,55 @@ public final class GetVersionOptions {
   }
 
   public static final class Builder {
+    private List<EventGroup> eventGroups;
+
     private Builder() {}
 
     private Builder(GetVersionOptions options) {
       if (options == null) {
         return;
       }
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
+    }
+
+    /**
+     * Event Groups to associate with the version marker, in addition to those in scope. Calls
+     * accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
     }
 
     public GetVersionOptions build() {
-      return new GetVersionOptions();
+      return new GetVersionOptions(eventGroups);
     }
   }
 
-  private GetVersionOptions() {}
+  private final List<EventGroup> eventGroups;
+
+  private GetVersionOptions(List<EventGroup> eventGroups) {
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
+  }
+
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
 
   public Builder toBuilder() {
     return new Builder(this);
@@ -43,18 +81,19 @@ public final class GetVersionOptions {
 
   @Override
   public String toString() {
-    return "GetVersionOptions{}";
+    return "GetVersionOptions{" + "eventGroups=" + eventGroups + '}';
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    return true;
+    GetVersionOptions that = (GetVersionOptions) o;
+    return Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
   public int hashCode() {
-    return 0;
+    return Objects.hashCode(eventGroups);
   }
 }

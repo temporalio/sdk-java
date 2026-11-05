@@ -1,5 +1,6 @@
 package io.temporal.workflow;
 
+import io.temporal.common.Experimental;
 import java.util.*;
 
 /**
@@ -23,7 +24,10 @@ public final class SignalExternalWorkflowOptions {
    */
   public static SignalExternalWorkflowOptions from(SignalChildWorkflowOptions options) {
     Objects.requireNonNull(options, "options");
-    return SignalExternalWorkflowOptions.newBuilder().build();
+    List<EventGroup> eventGroups = options.getEventGroups();
+    return SignalExternalWorkflowOptions.newBuilder()
+        .addEventGroups(eventGroups.toArray(new EventGroup[eventGroups.size()]))
+        .build();
   }
 
   public static SignalExternalWorkflowOptions getDefaultInstance() {
@@ -37,20 +41,55 @@ public final class SignalExternalWorkflowOptions {
   }
 
   public static final class Builder {
+    private List<EventGroup> eventGroups;
+
     private Builder() {}
 
     private Builder(SignalExternalWorkflowOptions options) {
       if (options == null) {
         return;
       }
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
+    }
+
+    /**
+     * Event Groups to associate with the signal command, in addition to those in scope. Calls
+     * accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
     }
 
     public SignalExternalWorkflowOptions build() {
-      return new SignalExternalWorkflowOptions();
+      return new SignalExternalWorkflowOptions(eventGroups);
     }
   }
 
-  private SignalExternalWorkflowOptions() {}
+  private final List<EventGroup> eventGroups;
+
+  private SignalExternalWorkflowOptions(List<EventGroup> eventGroups) {
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
+  }
+
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
 
   public Builder toBuilder() {
     return new Builder(this);
@@ -58,18 +97,19 @@ public final class SignalExternalWorkflowOptions {
 
   @Override
   public String toString() {
-    return "SignalExternalWorkflowOptions{}";
+    return "SignalExternalWorkflowOptions{" + "eventGroups=" + eventGroups + '}';
   }
 
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
-    return true;
+    SignalExternalWorkflowOptions that = (SignalExternalWorkflowOptions) o;
+    return Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
   public int hashCode() {
-    return 0;
+    return Objects.hashCode(eventGroups);
   }
 }

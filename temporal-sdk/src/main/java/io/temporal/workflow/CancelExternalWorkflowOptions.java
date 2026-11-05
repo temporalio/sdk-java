@@ -1,5 +1,6 @@
 package io.temporal.workflow;
 
+import io.temporal.common.Experimental;
 import java.util.*;
 import javax.annotation.Nullable;
 
@@ -27,6 +28,7 @@ public final class CancelExternalWorkflowOptions {
 
   public static final class Builder {
     private @Nullable String reason;
+    private List<EventGroup> eventGroups;
 
     private Builder() {}
 
@@ -35,6 +37,9 @@ public final class CancelExternalWorkflowOptions {
         return;
       }
       this.reason = options.reason;
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
     }
 
     /**
@@ -47,20 +52,48 @@ public final class CancelExternalWorkflowOptions {
       return this;
     }
 
+    /**
+     * Event Groups to associate with the cancellation request command, in addition to those in
+     * scope. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
     public CancelExternalWorkflowOptions build() {
-      return new CancelExternalWorkflowOptions(reason);
+      return new CancelExternalWorkflowOptions(reason, eventGroups);
     }
   }
 
   private final @Nullable String reason;
+  private final List<EventGroup> eventGroups;
 
-  private CancelExternalWorkflowOptions(@Nullable String reason) {
+  private CancelExternalWorkflowOptions(@Nullable String reason, List<EventGroup> eventGroups) {
     this.reason = reason;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
   }
 
   @Nullable
   public String getReason() {
     return reason;
+  }
+
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
   }
 
   public Builder toBuilder() {
@@ -69,7 +102,13 @@ public final class CancelExternalWorkflowOptions {
 
   @Override
   public String toString() {
-    return "CancelExternalWorkflowOptions{" + "reason='" + reason + '}';
+    return "CancelExternalWorkflowOptions{"
+        + "reason='"
+        + reason
+        + '\''
+        + ", eventGroups="
+        + eventGroups
+        + '}';
   }
 
   @Override
@@ -77,11 +116,11 @@ public final class CancelExternalWorkflowOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     CancelExternalWorkflowOptions that = (CancelExternalWorkflowOptions) o;
-    return Objects.equals(reason, that.reason);
+    return Objects.equals(reason, that.reason) && Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(reason);
+    return Objects.hash(reason, eventGroups);
   }
 }

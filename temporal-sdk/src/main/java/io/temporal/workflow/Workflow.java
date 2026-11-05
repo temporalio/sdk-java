@@ -1559,7 +1559,8 @@ public final class Workflow {
   }
 
   /**
-   * Same as {@link #getVersion(String, int, int)}, with options.
+   * Same as {@link #getVersion(String, int, int)}, with options such as Event Groups to associate
+   * with the version marker and with the associated search attribute update.
    *
    * @param changeId identifier of a particular change. All calls to getVersion that share a
    *     changeId are guaranteed to return the same version number. Use this to perform multiple
@@ -1774,7 +1775,8 @@ public final class Workflow {
   }
 
   /**
-   * Same as {@link #upsertTypedSearchAttributes(SearchAttributeUpdate[])}, with options.
+   * Same as {@link #upsertTypedSearchAttributes(SearchAttributeUpdate[])}, with options such as
+   * Event Groups to associate with the update.
    *
    * @param options options of the update.
    * @param searchAttributeUpdates set of updates to apply to search attributes.
@@ -1796,7 +1798,10 @@ public final class Workflow {
     WorkflowInternal.upsertMemo(memo);
   }
 
-  /** Same as {@link #upsertMemo(Map)}, with options. */
+  /**
+   * Same as {@link #upsertMemo(Map)}, with options such as Event Groups to associate with the
+   * update.
+   */
   @Experimental
   public static void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
     WorkflowInternal.upsertMemo(memo, options);
