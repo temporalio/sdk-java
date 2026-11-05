@@ -18,6 +18,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.SerializationContext;
@@ -210,7 +211,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatResponse status =
-            ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
+            ActivityClientHelper.sendHeartbeatRequest(
+                service, request, metricsScope, PayloadErrorLimits.NONE);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {

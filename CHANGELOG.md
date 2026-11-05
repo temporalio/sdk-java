@@ -28,6 +28,10 @@ to docs, or any other relevant information.
   second signal to any workflow throws a `BAD_REQUEST` `HandlerException`. If the first signal fails, the handler can
   signal again. `signalWithStart` from such a handler also requires an explicit workflow ID, since a defaulted ID
   differs on each retried Nexus task and would start another workflow.
+- Workers now retryably fail a workflow or activity task whose payloads exceed the namespace's size
+  limit, instead of sending it to the server. Disable with
+  `WorkerOptions.Builder.setDisablePayloadErrorLimit`; tune warnings with the experimental
+  `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
 - Applications can use the experimental `@TransferTypeConvertible` annotation and

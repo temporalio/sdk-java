@@ -26,6 +26,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.nexus.ContextRecordingCodec;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.worker.ActivityTask;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
@@ -183,7 +184,8 @@ public class ActivityNexusSerializationContextTest {
               "test-identity",
               Duration.ofSeconds(60),
               Duration.ofSeconds(30),
-              null);
+              null,
+              PayloadErrorLimits.NONE);
 
       // The previous attempt's details are decoded, and new details encoded, with the Nexus
       // context, because the server puts them into the timeout failure returned to the caller.
@@ -227,7 +229,8 @@ public class ActivityNexusSerializationContextTest {
             Duration.ofSeconds(60),
             Duration.ofSeconds(30),
             () -> {},
-            null);
+            null,
+            PayloadErrorLimits.NONE);
 
     context.useLocalManualCompletion();
 

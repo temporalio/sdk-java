@@ -8,6 +8,7 @@ import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -16,7 +17,9 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityOutput;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
@@ -100,18 +103,27 @@ final class ActivityTaskExecutors {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
+        ActivityTaskHandler.Result payloadsTooLargeResult =
+            resolvePayloadsTooLargeResult(context, info, resultDataConverter);
+        if (payloadsTooLargeResult != null) {
+          return payloadsTooLargeResult;
+        }
 
         return this.constructSuccessfulResultValue(info, result, resultDataConverter);
       } catch (Throwable e) {
         Throwable ex = CheckedExceptionWrapper.unwrap(e);
         boolean local = info.isLocal();
         if (ex instanceof ActivityCanceledException) {
-          log.info(
-              "{} canceled. ActivityId={}, activityType={}, attempt={}",
-              local ? "Local activity" : "Activity",
-              info.getActivityId(),
-              info.getActivityType(),
-              info.getAttempt());
+          // An oversized heartbeat cancels the activity only to fail it, and the payload limit
+          // validator already logged why.
+          if (context.getPayloadLimitViolation() == null) {
+            log.info(
+                "{} canceled. ActivityId={}, activityType={}, attempt={}",
+                local ? "Local activity" : "Activity",
+                info.getActivityId(),
+                info.getActivityType(),
+                info.getAttempt());
+          }
         } else if (FailureUtils.isBenignApplicationFailure(ex)) {
           log.debug(
               "{} failure. ActivityId={}, activityType={}, attempt={}",
@@ -130,6 +142,11 @@ final class ActivityTaskExecutors {
               ex);
         }
 
+        ActivityTaskHandler.Result payloadsTooLargeResult =
+            resolvePayloadsTooLargeResult(context, info, resultDataConverter);
+        if (payloadsTooLargeResult != null) {
+          return payloadsTooLargeResult;
+        }
         return mapToActivityFailure(
             ex,
             info.getActivityId(),
@@ -149,6 +166,36 @@ final class ActivityTaskExecutors {
           context.cancelOutstandingHeartbeat();
         }
       }
+    }
+
+    /**
+     * Returns the result to report when an oversized heartbeat decided the task's outcome, or null.
+     */
+    @Nullable
+    private static ActivityTaskHandler.Result resolvePayloadsTooLargeResult(
+        InternalActivityExecutionContext context,
+        ActivityInfoInternal info,
+        DataConverter resultDataConverter) {
+      // Waits out a heartbeat being sent, so that a violation it finds decides the outcome.
+      context.cancelOutstandingHeartbeat();
+      if (context.awaitTaskReported()) {
+        return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, false);
+      }
+      PayloadLimitViolation violation = context.getPayloadLimitViolation();
+      if (violation == null) {
+        return null;
+      }
+      ApplicationFailure failure = FailureUtils.newPayloadsTooLargeFailure(violation);
+      RespondActivityTaskFailedRequest request =
+          RespondActivityTaskFailedRequest.newBuilder()
+              .setFailure(resultDataConverter.exceptionToFailure(failure))
+              .build();
+      return new ActivityTaskHandler.Result(
+          info.getActivityId(),
+          null,
+          new ActivityTaskHandler.Result.TaskFailedResult(request, failure),
+          null,
+          false);
     }
 
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();

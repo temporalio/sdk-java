@@ -8,6 +8,7 @@ import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdRequest
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatByIdResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
 /**
@@ -21,10 +22,12 @@ public final class ActivityClientHelper {
   public static RecordActivityTaskHeartbeatResponse sendHeartbeatRequest(
       WorkflowServiceStubs service,
       RecordActivityTaskHeartbeatRequest request,
-      Scope metricsScope) {
+      Scope metricsScope,
+      PayloadErrorLimits payloadErrorLimits) {
     return service
         .blockingStub()
         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+        .withOption(PayloadErrorLimits.CALL_OPTIONS_KEY, payloadErrorLimits)
         .recordActivityTaskHeartbeat(request);
   }
 
