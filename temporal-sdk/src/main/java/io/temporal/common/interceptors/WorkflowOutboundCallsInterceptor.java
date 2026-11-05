@@ -37,7 +37,8 @@ import javax.annotation.Nullable;
  *     WorkflowInboundCallsInterceptor.
  */
 @Experimental
-public interface WorkflowOutboundCallsInterceptor {
+public interface WorkflowOutboundCallsInterceptor
+    extends io.temporal.workflow.SystemNexusWorkflowOutboundInterceptor {
 
   final class ActivityInput<R> {
     private final String activityName;

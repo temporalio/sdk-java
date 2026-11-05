@@ -61,7 +61,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
             .mergeNexusOperationOptions(options.getOperationMethodOptions().get(operationName))
             .build();
     WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<R> result =
-        outboundCallsInterceptor.executeNexusOperation(
+        executeNexusOperation(
             new WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<>(
                 options.getEndpoint(),
                 name,
@@ -88,7 +88,7 @@ public class NexusServiceStubImpl implements NexusServiceStub {
             .mergeNexusOperationOptions(options.getOperationMethodOptions().get(operationName))
             .build();
     WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<R> result =
-        outboundCallsInterceptor.executeNexusOperation(
+        executeNexusOperation(
             new WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<>(
                 options.getEndpoint(),
                 name,
@@ -99,6 +99,15 @@ public class NexusServiceStubImpl implements NexusServiceStub {
                 mergedOptions,
                 Collections.emptyMap()));
     return new NexusOperationHandleImpl<>(result.getOperationExecution(), result.getResult());
+  }
+
+  private <R> WorkflowOutboundCallsInterceptor.ExecuteNexusOperationOutput<R> executeNexusOperation(
+      WorkflowOutboundCallsInterceptor.ExecuteNexusOperationInput<R> input) {
+    if (io.temporal.internal.nexus.system.SystemNexusDataConverter.ENDPOINT.equals(
+        input.getEndpoint())) {
+      return io.temporal.workflow.SystemNexusOperations.execute(outboundCallsInterceptor, input);
+    }
+    return outboundCallsInterceptor.executeNexusOperation(input);
   }
 
   @Override

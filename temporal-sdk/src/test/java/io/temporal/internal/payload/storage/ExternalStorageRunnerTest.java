@@ -37,6 +37,34 @@ import org.junit.Test;
 public class ExternalStorageRunnerTest {
 
   @Test
+  public void systemEnvelopeOffloadsOnlyNestedPayloads() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.named("system");
+    ExternalStorageRunner transformer = transformer(driver, 0);
+    io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest request =
+        io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest.newBuilder()
+            .setInput(Payloads.newBuilder().addPayloads(payload("workflow")))
+            .setSignalInput(Payloads.newBuilder().addPayloads(payload("signal")))
+            .setSearchAttributes(
+                SearchAttributes.newBuilder().putIndexedFields("key", payload("search")))
+            .build();
+    Payload envelope = io.temporal.internal.payload.visitor.SystemNexusPayloads.pack(request);
+    Payloads original = Payloads.newBuilder().addPayloads(envelope).build();
+    Payloads.Builder builder = original.toBuilder();
+    transformer.store(builder, null, null, CancellationToken.none());
+    Payload stored = builder.getPayloads(0);
+    assertTrue(io.temporal.internal.payload.visitor.SystemNexusPayloads.isSystemPayload(stored));
+    assertNull(ExternalStorageReferences.tryParseReference(stored));
+    io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest nested =
+        io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest.parseFrom(
+            stored.getData());
+    assertNotNull(ExternalStorageReferences.tryParseReference(nested.getInput().getPayloads(0)));
+    assertNotNull(
+        ExternalStorageReferences.tryParseReference(nested.getSignalInput().getPayloads(0)));
+    assertEquals(request.getSearchAttributes(), nested.getSearchAttributes());
+    assertEquals(original, transformer.retrieve(builder.build(), CancellationToken.none()));
+  }
+
+  @Test
   public void storeAndRetrieveRoundTripsOverAMessage() throws Exception {
     TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStorageRunner transformer = transformer(driver, 0);

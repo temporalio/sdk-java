@@ -82,7 +82,27 @@ final class Traversal {
 
   /** Record a visit of a payload sequence (a {@code Payloads} or {@code repeated Payload}). */
   void payloads(List<Payload> batch, Consumer<List<Payload>> writeBack) {
+    if (batch.stream().anyMatch(SystemNexusPayloads::isSystemPayload)) {
+      List<Payload> result = new ArrayList<>();
+      // Keep ordinary sequences batched: codecs may change their cardinality.
+      int start = 0;
+      for (int i = 0; i < batch.size(); i++) {
+        if (SystemNexusPayloads.isSystemPayload(batch.get(i))) {
+          if (start < i) {
+            payloads(batch.subList(start, i), result::addAll);
+          }
+          systemPayload(batch.get(i), result::add);
+          start = i + 1;
+        }
+      }
+      if (start < batch.size()) {
+        payloads(batch.subList(start, batch.size()), result::addAll);
+      }
+      deferWriteBack(() -> writeBack.accept(result));
+      return;
+    }
     if (payloadVisitor == null) {
+      deferWriteBack(() -> writeBack.accept(batch));
       return;
     }
     LeafJob job = new LeafJob(batch, currentContext, false);
@@ -92,12 +112,23 @@ final class Traversal {
 
   /** The visitor must return exactly one payload (checked in {@link #record}). */
   void singlePayload(Payload value, Consumer<Payload> writeBack) {
+    if (SystemNexusPayloads.isSystemPayload(value)) {
+      systemPayload(value, writeBack);
+      return;
+    }
     if (payloadVisitor == null) {
       return;
     }
     LeafJob job = new LeafJob(Collections.singletonList(value), currentContext, true);
     jobs.add(job);
     writeBacks.add(() -> writeBack.accept(job.result.get(0)));
+  }
+
+  private void systemPayload(Payload value, Consumer<Payload> writeBack) {
+    Message.Builder inner = SystemNexusPayloads.unpack(value);
+    dispatch(inner);
+    deferWriteBack(
+        () -> writeBack.accept(value.toBuilder().setData(inner.build().toByteString()).build()));
   }
 
   /** Applied after all visits, single-threaded, in walk order. */
