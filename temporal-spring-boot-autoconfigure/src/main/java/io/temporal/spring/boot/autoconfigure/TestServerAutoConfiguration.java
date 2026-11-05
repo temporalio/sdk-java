@@ -149,7 +149,9 @@ public class TestServerAutoConfiguration {
                         clientCustomizer,
                         scheduleCustomizer,
                         filteredClientPlugins,
-                        filteredSchedulePlugins)
+                        filteredSchedulePlugins,
+                        null,
+                        null)
                     .createWorkflowClientOptions());
 
     if (metricsScope != null) {

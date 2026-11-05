@@ -2,6 +2,8 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
+import io.temporal.client.ActivityClient;
+import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
@@ -9,6 +11,7 @@ import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -25,6 +28,7 @@ public class ClientTemplate {
 
   private WorkflowClient workflowClient;
   private ScheduleClient scheduleClient;
+  private ActivityClient activityClient;
 
   public ClientTemplate(
       @Nonnull String namespace,
@@ -37,7 +41,10 @@ public class ClientTemplate {
       @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
       @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
       @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
-      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins) {
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Nullable List<ActivityClientInterceptor> activityClientInterceptors,
+      @Nullable
+          List<TemporalOptionsCustomizer<ActivityClientOptions.Builder>> activityCustomizers) {
     this.optionsTemplate =
         new WorkflowClientOptionsTemplate(
             namespace,
@@ -48,38 +55,11 @@ public class ClientTemplate {
             clientCustomizers,
             scheduleCustomizers,
             workflowClientPlugins,
-            scheduleClientPlugins);
+            scheduleClientPlugins,
+            activityClientInterceptors,
+            activityCustomizers);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
-  }
-
-  /**
-   * @deprecated Use constructor with plugins parameters
-   */
-  @Deprecated
-  public ClientTemplate(
-      @Nonnull String namespace,
-      @Nullable DataConverter dataConverter,
-      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
-      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
-      @Nullable Tracer tracer,
-      @Nullable WorkflowServiceStubs workflowServiceStubs,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
-      @Nullable
-          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
-    this(
-        namespace,
-        dataConverter,
-        workflowClientInterceptors,
-        scheduleClientInterceptors,
-        tracer,
-        workflowServiceStubs,
-        testWorkflowEnvironment,
-        clientCustomizers,
-        scheduleCustomizers,
-        null,
-        null);
   }
 
   public WorkflowClient getWorkflowClient() {
@@ -94,6 +74,13 @@ public class ClientTemplate {
       this.scheduleClient = createScheduleClient();
     }
     return scheduleClient;
+  }
+
+  public ActivityClient getActivityClient() {
+    if (activityClient == null) {
+      this.activityClient = createActivityClient();
+    }
+    return activityClient;
   }
 
   private WorkflowClient createWorkflowClient() {
@@ -117,5 +104,15 @@ public class ClientTemplate {
       return ScheduleClient.newInstance(
           workflowServiceStubs, optionsTemplate.createScheduleClientOptions());
     }
+  }
+
+  private ActivityClient createActivityClient() {
+    WorkflowServiceStubs stubs = workflowServiceStubs;
+    if (testWorkflowEnvironment != null) {
+      stubs = testWorkflowEnvironment.getWorkflowClient().getWorkflowServiceStubs();
+    }
+    Preconditions.checkState(
+        stubs != null, "ClientTemplate was created without workflowServiceStubs");
+    return ActivityClient.newInstance(stubs, optionsTemplate.createActivityClientOptions());
   }
 }

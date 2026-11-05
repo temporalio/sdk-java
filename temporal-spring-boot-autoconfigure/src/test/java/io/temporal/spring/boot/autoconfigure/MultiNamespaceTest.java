@@ -45,6 +45,8 @@ public class MultiNamespaceTest {
     Assertions.assertTrue(applicationContext.containsBean("namespace2WorkflowClient"));
     Assertions.assertTrue(applicationContext.containsBean("ns1ScheduleClient"));
     Assertions.assertTrue(applicationContext.containsBean("namespace2ScheduleClient"));
+    Assertions.assertTrue(applicationContext.containsBean("ns1ActivityClient"));
+    Assertions.assertTrue(applicationContext.containsBean("namespace2ActivityClient"));
     Assertions.assertTrue(applicationContext.containsBean("ns1WorkerFactory"));
     Assertions.assertTrue(applicationContext.containsBean("namespace2WorkerFactory"));
 
