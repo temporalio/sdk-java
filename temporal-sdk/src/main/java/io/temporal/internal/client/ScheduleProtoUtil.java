@@ -38,27 +38,31 @@ import javax.annotation.Nullable;
 public class ScheduleProtoUtil {
 
   private final GenericWorkflowClient genericClient;
-  private final ScheduleClientOptions clientOptions;
+  private final String namespace;
+  private final List<ContextPropagator> contextPropagators;
+  private final DataConverter dataConverter;
 
   public ScheduleProtoUtil(
-      GenericWorkflowClient genericClient, ScheduleClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      String namespace,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter) {
     this.genericClient = genericClient;
-    this.clientOptions = clientOptions;
+    this.namespace = namespace;
+    this.contextPropagators = contextPropagators;
+    this.dataConverter = dataConverter;
   }
 
   private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
       List<ContextPropagator> scheduleOptionsContextPropagators) {
-    List<ContextPropagator> scheduleClientContextPropagators =
-        clientOptions.getContextPropagators();
-    if ((scheduleClientContextPropagators.isEmpty() && scheduleOptionsContextPropagators == null)
+    if ((contextPropagators.isEmpty() && scheduleOptionsContextPropagators == null)
         || (scheduleOptionsContextPropagators != null
             && scheduleOptionsContextPropagators.isEmpty())) {
       return null;
     }
 
     List<ContextPropagator> listToUse =
-        MoreObjects.firstNonNull(
-            scheduleOptionsContextPropagators, scheduleClientContextPropagators);
+        MoreObjects.firstNonNull(scheduleOptionsContextPropagators, contextPropagators);
     Map<String, Payload> result = new HashMap<>();
     for (ContextPropagator propagator : listToUse) {
       result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
@@ -70,12 +74,9 @@ public class ScheduleProtoUtil {
     if (action instanceof ScheduleActionStartWorkflow) {
       ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
       DataConverter dataConverterWithWorkflowContext =
-          clientOptions
-              .getDataConverter()
-              .withContext(
-                  new WorkflowSerializationContext(
-                      clientOptions.getNamespace(),
-                      startWorkflowAction.getOptions().getWorkflowId()));
+          dataConverter.withContext(
+              new WorkflowSerializationContext(
+                  namespace, startWorkflowAction.getOptions().getWorkflowId()));
 
       WorkflowOptions wfOptions = startWorkflowAction.getOptions();
       // Disallow some options
@@ -401,7 +402,7 @@ public class ScheduleProtoUtil {
         new ScheduleListSchedule(action, spec, state),
         info,
         entry.getMemo().getFieldsMap(),
-        this.clientOptions.getDataConverter(),
+        dataConverter,
         Collections.unmodifiableMap(SearchAttributesUtil.decode(entry.getSearchAttributes())));
   }
 
@@ -411,11 +412,8 @@ public class ScheduleProtoUtil {
     if (action.hasStartWorkflow()) {
       NewWorkflowExecutionInfo startWfAction = action.getStartWorkflow();
       DataConverter dataConverterWithWorkflowContext =
-          clientOptions
-              .getDataConverter()
-              .withContext(
-                  new WorkflowSerializationContext(
-                      clientOptions.getNamespace(), startWfAction.getWorkflowId()));
+          dataConverter.withContext(
+              new WorkflowSerializationContext(namespace, startWfAction.getWorkflowId()));
 
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());

@@ -13,7 +13,6 @@ import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.GrpcUtils;
-import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.MetricsType;
@@ -154,11 +153,6 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
                 return null;
               }
               pollerTracker.pollSucceeded();
-              metricsScope
-                  .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-                  .record(
-                      ProtobufTimeUtils.toM3Duration(
-                          r.getStartedTime(), r.getCurrentAttemptScheduledTime()));
               return new ActivityTask(
                   r,
                   permit,

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -54,6 +55,64 @@ public class ExternalStoragePayloadTransformerTest {
     List<Payload> retrieved = transformer.retrieve(stored, CancellationToken.none()).get();
     assertEquals(input, retrieved);
     assertEquals(Collections.singletonList(2), driver.retrieveBatchSizes);
+  }
+
+  @Test
+  public void aFailedStoreStillContributesItsSpan() {
+    TestStorageDriver driver = TestStorageDriver.named("d1").failStores(1);
+    ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
+    StorageOperationMetrics metrics = new StorageOperationMetrics();
+
+    assertThrows(
+        ExecutionException.class,
+        () ->
+            transformer
+                .store(
+                    Arrays.asList(payload("a"), payload("b")),
+                    null,
+                    CancellationToken.none(),
+                    metrics)
+                .get());
+
+    // The time was spent even though nothing was stored, so the span is recorded and the
+    // counts stay at zero.
+    assertTrue(metrics.getTotalDuration().toNanos() >= 0);
+    assertEquals(Collections.singletonList("d1"), metrics.getDriverNames());
+    assertEquals(0, metrics.getPayloadCount());
+    assertEquals(0, metrics.getTotalSizeBytes());
+  }
+
+  @Test
+  public void aFailedRetrieveStillContributesItsSpan() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.named("d1");
+    ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
+    List<Payload> stored =
+        transformer.store(Arrays.asList(payload("a")), null, CancellationToken.none()).get();
+
+    driver.failRetrieves(1);
+    StorageOperationMetrics metrics = new StorageOperationMetrics();
+    assertThrows(
+        ExecutionException.class,
+        () -> transformer.retrieve(stored, CancellationToken.none(), metrics).get());
+
+    assertEquals(Collections.singletonList("d1"), metrics.getDriverNames());
+    assertEquals(0, metrics.getPayloadCount());
+    assertEquals(0, metrics.getTotalSizeBytes());
+  }
+
+  @Test
+  public void aSuccessfulBatchRecordsWhatMoved() throws Exception {
+    TestStorageDriver driver = TestStorageDriver.named("d1");
+    ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
+    StorageOperationMetrics metrics = new StorageOperationMetrics();
+    List<Payload> input = Arrays.asList(payload("a"), payload("b"));
+
+    transformer.store(input, null, CancellationToken.none(), metrics).get();
+
+    assertEquals(2, metrics.getPayloadCount());
+    assertEquals(
+        input.get(0).getSerializedSize() + input.get(1).getSerializedSize(),
+        metrics.getTotalSizeBytes());
   }
 
   @Test

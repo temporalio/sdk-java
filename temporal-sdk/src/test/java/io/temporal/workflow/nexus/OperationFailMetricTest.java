@@ -172,6 +172,10 @@ public class OperationFailMetricTest {
           applicationFailure.getOriginalMessage());
       Assert.assertEquals("OperationError", applicationFailure.getType());
       Assert.assertNotNull(applicationFailure.getCause());
+    }
+    // Newer servers convert an operation error in the old format to the new format, wrapping the
+    // handler's failure in an OperationError.
+    if ("OperationError".equals(applicationFailure.getType())) {
       applicationFailure = (ApplicationFailure) applicationFailure.getCause();
     }
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());
@@ -252,6 +256,10 @@ public class OperationFailMetricTest {
     if (isUsingNewFormat()) {
       Assert.assertEquals("failure message", applicationFailure.getOriginalMessage());
       Assert.assertEquals("OperationError", applicationFailure.getType());
+    }
+    // Newer servers convert an operation error in the old format to the new format, wrapping the
+    // handler's failure in an OperationError.
+    if ("OperationError".equals(applicationFailure.getType())) {
       applicationFailure = (ApplicationFailure) applicationFailure.getCause();
     }
     Assert.assertEquals("intentional failure", applicationFailure.getOriginalMessage());

@@ -53,6 +53,14 @@ final class ExternalStoragePayloadTransformer {
       List<Payload> payloads,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken) {
+    return store(payloads, target, cancellationToken, null);
+  }
+
+  CompletableFuture<List<Payload>> store(
+      List<Payload> payloads,
+      @Nullable StorageDriverTargetInfo target,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     StorageDriverSelectContext selectContext =
         new StorageDriverSelectContextImpl(target, cancellationToken);
     Map<String, Batch<Payload>> batches;
@@ -64,7 +72,7 @@ final class ExternalStoragePayloadTransformer {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runStoreDrivers(batches, target, cancellationToken)
+    return runStoreDrivers(batches, target, cancellationToken, metrics)
         .thenApply(referencePayloads -> applyPayloadReplacements(payloads, referencePayloads));
   }
 
@@ -94,16 +102,28 @@ final class ExternalStoragePayloadTransformer {
   private CompletableFuture<List<IndexedValue<Payload>>> runStoreDrivers(
       Map<String, Batch<Payload>> batches,
       @Nullable StorageDriverTargetInfo target,
-      CancellationToken<CancellationException> cancellationToken) {
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     return withDriverScope(
         cancellationToken,
         scope -> {
           StorageDriverStoreContext context =
               new StorageDriverStoreContextImpl(target, scope.token());
           for (Batch<Payload> batch : batches.values()) {
-            scope
-                .attach(batch.driver.store(context, batch.values()))
-                .map(claims -> createReferencePayloads(batch, claims));
+            long startNanos = System.nanoTime();
+            CompletableFuture<List<StorageDriverClaim>> call =
+                batch.driver.store(context, batch.values());
+            // Observes the call rather than wrapping it: the scope must keep the driver's own
+            // future so cancellation still reaches the driver.
+            call.whenComplete(
+                (claims, error) ->
+                    recordBatch(
+                        metrics,
+                        batch.driver,
+                        startNanos,
+                        error == null ? batch.size() : 0,
+                        error == null ? serializedSizeOf(batch.values()) : 0));
+            scope.attach(call).map(claims -> createReferencePayloads(batch, claims));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
@@ -164,6 +184,13 @@ final class ExternalStoragePayloadTransformer {
 
   CompletableFuture<List<Payload>> retrieve(
       List<Payload> payloads, CancellationToken<CancellationException> cancellationToken) {
+    return retrieve(payloads, cancellationToken, null);
+  }
+
+  CompletableFuture<List<Payload>> retrieve(
+      List<Payload> payloads,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     Map<String, Batch<StorageDriverClaim>> batches;
     try {
       batches = buildRetrieveBatches(payloads);
@@ -173,7 +200,7 @@ final class ExternalStoragePayloadTransformer {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runRetrieveDrivers(batches, cancellationToken)
+    return runRetrieveDrivers(batches, cancellationToken, metrics)
         .thenApply(retrievedPayloads -> applyPayloadReplacements(payloads, retrievedPayloads));
   }
 
@@ -200,16 +227,29 @@ final class ExternalStoragePayloadTransformer {
 
   private CompletableFuture<List<IndexedValue<Payload>>> runRetrieveDrivers(
       Map<String, Batch<StorageDriverClaim>> batches,
-      CancellationToken<CancellationException> cancellationToken) {
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
     return withDriverScope(
         cancellationToken,
         scope -> {
           StorageDriverRetrieveContext context =
               new StorageDriverRetrieveContextImpl(scope.token());
           for (Batch<StorageDriverClaim> batch : batches.values()) {
-            scope
-                .attach(batch.driver.retrieve(context, batch.values()))
-                .map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
+            long startNanos = System.nanoTime();
+            CompletableFuture<List<Payload>> call = batch.driver.retrieve(context, batch.values());
+            // Observes the call rather than wrapping it: the scope must keep the driver's own
+            // future so cancellation still reaches the driver.
+            call.whenComplete(
+                (payloads, error) ->
+                    recordBatch(
+                        metrics,
+                        batch.driver,
+                        startNanos,
+                        // The reference's recorded size is not part of the exchange contract, so
+                        // measure what the driver actually returned.
+                        error == null && payloads != null ? payloads.size() : 0,
+                        error == null && payloads != null ? serializedSizeOf(payloads) : 0));
+            scope.attach(call).map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
@@ -235,6 +275,31 @@ final class ExternalStoragePayloadTransformer {
       replacements.add(new IndexedValue<>(batch.get(batchIndex).originalIndex, payload));
     }
     return replacements;
+  }
+
+  private static long serializedSizeOf(List<Payload> payloads) {
+    long total = 0;
+    for (Payload payload : payloads) {
+      total += payload.getSerializedSize();
+    }
+    return total;
+  }
+
+  /**
+   * Records a batch once the driver settles, whether or not it succeeded: the time was spent either
+   * way, and a driver that runs slowly and then fails is exactly when that attribution matters. The
+   * count and size describe what actually moved, so a failed batch contributes zero of both while
+   * still contributing its span.
+   */
+  private static void recordBatch(
+      @Nullable StorageOperationMetrics metrics,
+      StorageDriver driver,
+      long startNanos,
+      int payloadCount,
+      long sizeBytes) {
+    if (metrics != null) {
+      metrics.recordBatch(payloadCount, sizeBytes, startNanos, System.nanoTime(), driver.getName());
+    }
   }
 
   private static <T> CompletableFuture<T> failedFuture(Throwable t) {

@@ -67,12 +67,16 @@ public class RootWorkflowClientInvokerLinkPropagationTest {
   @Before
   public void setUp() {
     genericClient = mock(GenericWorkflowClient.class);
+    WorkflowClientOptions options =
+        WorkflowClientOptions.newBuilder().setNamespace(NAMESPACE).validateAndBuildWithDefaults();
     invoker =
         new RootWorkflowClientInvoker(
             genericClient,
-            WorkflowClientOptions.newBuilder()
-                .setNamespace(NAMESPACE)
-                .validateAndBuildWithDefaults(),
+            options.getNamespace(),
+            options.getIdentity(),
+            options.getQueryRejectCondition(),
+            options.getContextPropagators(),
+            options.getDataConverter(),
             new WorkerFactoryRegistry());
     Scope metricsScope = new RootScopeBuilder().reportEvery(com.uber.m3.util.Duration.ofMillis(10));
     nexusCtx =

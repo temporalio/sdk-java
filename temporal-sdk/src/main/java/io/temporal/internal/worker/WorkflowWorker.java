@@ -21,9 +21,15 @@ import io.temporal.api.errordetails.v1.WorkflowTaskCompletionBufferLostFailure;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.retryer.GrpcMessageTooLargeException;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -36,6 +42,7 @@ import io.temporal.serviceclient.StatusUtils;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.worker.*;
 import io.temporal.worker.tuning.*;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -399,21 +406,100 @@ final class WorkflowWorker implements SuspendableWorker {
         options.getIdentity(), namespace, taskQueue);
   }
 
+  /**
+   * Warns when a workflow task took longer than the configured threshold, reporting the external
+   * storage work that contributed to it. The workflow ID, type and run ID are already on the MDC.
+   *
+   * <p>Storage fields are always present, zero when nothing was offloaded, so the message template
+   * stays constant for log aggregation.
+   *
+   * <p>The duration spans one task, from the start of handling through the
+   * RespondWorkflowTaskCompleted call, and so matches neither existing timer: {@link
+   * MetricsType#WORKFLOW_TASK_EXECUTION_LATENCY} stops before that call, and {@link
+   * MetricsType#WORKFLOW_TASK_EXECUTION_TOTAL_LATENCY} covers every task the server hands back in
+   * one dispatch. Including the call is intended: it is time the server spends waiting.
+   */
+  static void logWorkflowTaskDuration(
+      PollWorkflowTaskQueueResponse task,
+      String workflowType,
+      Duration taskDuration,
+      Duration warnThreshold,
+      StorageOperationMetrics downloadMetrics,
+      StorageOperationMetrics uploadMetrics) {
+    // A direct query is answered on this path but is not a workflow task, so reporting a slow one
+    // as a slow workflow task would mislead. A query carried inside a real workflow task arrives
+    // in a different field and still counts toward that task.
+    if (task.hasQuery()) {
+      return;
+    }
+    if (taskDuration.compareTo(warnThreshold) <= 0) {
+      return;
+    }
+    log.warn(
+        "[TMPRL1104] {}:{}:{} Workflow task duration exceeded {} seconds."
+            + " WorkflowType={}, WorkflowTaskDuration={}ms,"
+            + " PayloadDownloadCount={}, PayloadDownloadSize={},"
+            + " PayloadDownloadDuration={}ms, PayloadDownloadDrivers={},"
+            + " PayloadUploadCount={}, PayloadUploadSize={},"
+            + " PayloadUploadDuration={}ms, PayloadUploadDrivers={}",
+        task.getWorkflowExecution().getRunId(),
+        task.getStartedEventId() + 1,
+        task.getAttempt(),
+        warnThreshold.getSeconds(),
+        workflowType,
+        taskDuration.toMillis(),
+        downloadMetrics.getPayloadCount(),
+        downloadMetrics.getTotalSizeBytes(),
+        downloadMetrics.getTotalDuration().toMillis(),
+        downloadMetrics.getDriverNames(),
+        uploadMetrics.getPayloadCount(),
+        uploadMetrics.getTotalSizeBytes(),
+        uploadMetrics.getTotalDuration().toMillis(),
+        uploadMetrics.getDriverNames());
+  }
+
+  private static final Duration DEFAULT_WFT_DURATION_WARN_THRESHOLD = Duration.ofSeconds(5);
+
+  private static final Duration WFT_DURATION_WARN_THRESHOLD =
+      parseWftDurationWarnThreshold(
+          EnvironmentVariableUtils.readString("TEMPORAL_WORKFLOW_TASK_DURATION_WARN_SECONDS"));
+
+  /**
+   * Separated from the environment read so it can be unit-tested without mutating the process
+   * environment. An unparsable value, including a negative one, falls back to the default rather
+   * than disabling the warning.
+   */
+  static Duration parseWftDurationWarnThreshold(@Nullable String value) {
+    if (value != null) {
+      try {
+        long seconds = Long.parseLong(value.trim());
+        if (seconds >= 0) {
+          return Duration.ofSeconds(seconds);
+        }
+      } catch (NumberFormatException e) {
+        // Fall through to the default.
+      }
+    }
+    return DEFAULT_WFT_DURATION_WARN_THRESHOLD;
+  }
+
   private void storeOutboundPayloads(
       com.google.protobuf.Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
-    storeOutboundPayloads(builder, target, null);
+    storeOutboundPayloads(builder, target, null, null);
   }
 
   private void storeOutboundPayloads(
       com.google.protobuf.Message.Builder builder,
       @Nullable StorageDriverTargetInfo target,
-      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor) {
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
+      @Nullable StorageOperationMetrics uploadMetrics) {
     ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
     if (externalStorageRunner == null) {
       return;
     }
     try {
-      externalStorageRunner.store(builder, target, targetVisitor, options.getStorageCancellation());
+      externalStorageRunner.store(
+          builder, target, targetVisitor, options.getStorageCancellation(), uploadMetrics);
     } catch (CancellationException e) {
       // if the worker is shutting down, extstore will throw a CancellationException and we need to
       // rethrow it here so the handle() method can decide what to do.
@@ -573,8 +659,12 @@ final class WorkflowWorker implements SuspendableWorker {
           PollWorkflowTaskQueueResponse currentTask = nextWFTResponse.get();
           nextWFTResponse = Optional.empty();
           boolean iterationFailed = false;
+          StorageOperationMetrics downloadMetrics = new StorageOperationMetrics();
+          StorageOperationMetrics uploadMetrics = new StorageOperationMetrics();
+          long iterationStartNanos = System.nanoTime();
           try {
-            WorkflowTaskHandler.Result result = handleTask(currentTask, workflowTypeScope);
+            WorkflowTaskHandler.Result result =
+                handleTask(currentTask, workflowTypeScope, downloadMetrics);
             WorkflowTaskFailedCause taskFailedCause = null;
             try {
               RespondWorkflowTaskCompletedRequest taskCompleted = result.getTaskCompleted();
@@ -640,6 +730,7 @@ final class WorkflowWorker implements SuspendableWorker {
                       RespondWorkflowTaskCompletedRequest request =
                           prepareTaskCompleted(
                               currentTask.getTaskToken(),
+                              uploadMetrics,
                               requestBuilder,
                               workflowStorageTarget(workflowExecution, workflowType),
                               parentStorageTarget(result.getCompletionParentExecution()));
@@ -661,7 +752,8 @@ final class WorkflowWorker implements SuspendableWorker {
                             taskFailedBuilder,
                             result.getRequestRetryOptions(),
                             workflowTypeScope,
-                            workflowStorageTarget(workflowExecution, workflowType));
+                            workflowStorageTarget(workflowExecution, workflowType),
+                            uploadMetrics);
                       } else {
                         RespondWorkflowTaskCompletedResponse response =
                             sendTaskCompleted(
@@ -687,7 +779,8 @@ final class WorkflowWorker implements SuspendableWorker {
                         taskFailed.toBuilder(),
                         result.getRequestRetryOptions(),
                         workflowTypeScope,
-                        workflowStorageTarget(workflowExecution, workflowType));
+                        workflowStorageTarget(workflowExecution, workflowType),
+                        uploadMetrics);
                   }
 
                   // Apply post-completion metrics only if runnable present and the above succeeded
@@ -725,7 +818,48 @@ final class WorkflowWorker implements SuspendableWorker {
                       taskFailedBuilder,
                       result.getRequestRetryOptions(),
                       workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                      workflowStorageTarget(workflowExecution, workflowType),
+                      uploadMetrics);
+                } catch (StatusRuntimeException e) {
+                  Optional<PayloadLimitViolationException> violationException =
+                      PayloadLimitViolationException.find(e);
+                  if (!violationException.isPresent()) {
+                    throw e;
+                  }
+                  releaseReason = SlotReleaseReason.error(e);
+                  // The validator already logged the violation, so the generic reporting failure
+                  // warning is not logged as well.
+                  cache.invalidate(
+                      workflowExecution,
+                      workflowTypeScope,
+                      "Workflow task completion exceeded the payload size limit",
+                      e);
+                  taskFailedCause =
+                      WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE;
+                  if (currentTask.getAttempt() > 1) {
+                    log.debug(
+                        "Not failing workflow task on non-first attempt. WorkflowId={}, RunId={}, attempt={}",
+                        workflowExecution.getWorkflowId(),
+                        workflowExecution.getRunId(),
+                        currentTask.getAttempt());
+                  } else {
+                    RespondWorkflowTaskFailedRequest.Builder taskFailedBuilder =
+                        RespondWorkflowTaskFailedRequest.newBuilder()
+                            .setFailure(
+                                payloadsTooLargeFailure(
+                                    workflowExecution.getWorkflowId(),
+                                    violationException.get().getViolation()))
+                            .setCause(
+                                WorkflowTaskFailedCause
+                                    .WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE);
+                    sendTaskFailed(
+                        currentTask.getTaskToken(),
+                        taskFailedBuilder,
+                        result.getRequestRetryOptions(),
+                        workflowTypeScope,
+                        workflowStorageTarget(workflowExecution, workflowType),
+                        uploadMetrics);
+                  }
                 } catch (ExternalStorageTaskFailure e) {
                   releaseReason = SlotReleaseReason.error(e);
                   handleReportingFailure(
@@ -750,7 +884,8 @@ final class WorkflowWorker implements SuspendableWorker {
                       storageFailedBuilder,
                       result.getRequestRetryOptions(),
                       workflowTypeScope,
-                      workflowStorageTarget(workflowExecution, workflowType));
+                      workflowStorageTarget(workflowExecution, workflowType),
+                      uploadMetrics);
                 }
               }
             } catch (CancellationException e) {
@@ -779,6 +914,9 @@ final class WorkflowWorker implements SuspendableWorker {
                 case WORKFLOW_TASK_FAILED_CAUSE_REQUEST_TOO_LARGE:
                   taskFailureType = MetricsTag.TASK_FAILURE_VALUE_REQUEST_TOO_LARGE;
                   break;
+                case WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE:
+                  taskFailureType = MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE;
+                  break;
                 default:
                   taskFailureType = MetricsTag.TASK_FAILURE_VALUE_WORKFLOW_ERROR;
               }
@@ -805,6 +943,15 @@ final class WorkflowWorker implements SuspendableWorker {
             taskCounter.recordProcessed();
             if (iterationFailed) {
               taskCounter.recordFailed();
+            }
+            if (!options.getStorageCancellation().isCancellationRequested()) {
+              logWorkflowTaskDuration(
+                  currentTask,
+                  workflowType,
+                  Duration.ofNanos(System.nanoTime() - iterationStartNanos),
+                  WFT_DURATION_WARN_THRESHOLD,
+                  downloadMetrics,
+                  uploadMetrics);
             }
           }
         } while (nextWFTResponse.isPresent());
@@ -837,11 +984,14 @@ final class WorkflowWorker implements SuspendableWorker {
     }
 
     private WorkflowTaskHandler.Result handleTask(
-        PollWorkflowTaskQueueResponse task, Scope workflowTypeMetricsScope) throws Exception {
+        PollWorkflowTaskQueueResponse task,
+        Scope workflowTypeMetricsScope,
+        StorageOperationMetrics downloadMetrics)
+        throws Exception {
       Stopwatch sw =
           workflowTypeMetricsScope.timer(MetricsType.WORKFLOW_TASK_EXECUTION_LATENCY).start();
       try {
-        return handler.handleWorkflowTask(task);
+        return handler.handleWorkflowTask(task, downloadMetrics);
       } catch (Throwable e) {
         workflowTypeMetricsScope.counter(MetricsType.WORKFLOW_TASK_NO_COMPLETION_COUNTER).inc(1);
         // Make sure that the task failure metric has the correct type
@@ -869,6 +1019,7 @@ final class WorkflowWorker implements SuspendableWorker {
     @SuppressWarnings("deprecation")
     private RespondWorkflowTaskCompletedRequest prepareTaskCompleted(
         ByteString taskToken,
+        StorageOperationMetrics uploadMetrics,
         RespondWorkflowTaskCompletedRequest.Builder taskCompleted,
         @Nullable StorageDriverTargetInfo storageTarget,
         @Nullable StorageDriverTargetInfo completionTarget) {
@@ -892,7 +1043,7 @@ final class WorkflowWorker implements SuspendableWorker {
 
       MessageVisitor<StorageDriverTargetInfo> storageTargetVisitor =
           (current, message) -> deriveStorageTarget(namespace, current, message, completionTarget);
-      storeOutboundPayloads(taskCompleted, storageTarget, storageTargetVisitor);
+      storeOutboundPayloads(taskCompleted, storageTarget, storageTargetVisitor, uploadMetrics);
       return taskCompleted.build();
     }
 
@@ -973,6 +1124,9 @@ final class WorkflowWorker implements SuspendableWorker {
       return service
           .blockingStub()
           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, workflowTypeMetricsScope)
+          .withOption(
+              PayloadErrorLimits.CALL_OPTIONS_KEY,
+              options.payloadErrorLimits(namespaceCapabilities))
           .respondWorkflowTaskCompleted(request);
     }
 
@@ -982,7 +1136,8 @@ final class WorkflowWorker implements SuspendableWorker {
         RespondWorkflowTaskFailedRequest.Builder taskFailed,
         RpcRetryOptions retryOptions,
         Scope workflowTypeMetricsScope,
-        @Nullable StorageDriverTargetInfo storageTarget) {
+        @Nullable StorageDriverTargetInfo storageTarget,
+        @Nullable StorageOperationMetrics uploadMetrics) {
       GrpcRetryer.GrpcRetryerOptions grpcRetryOptions =
           new GrpcRetryer.GrpcRetryerOptions(
               RpcRetryOptions.newBuilder().buildWithDefaultsFrom(retryOptions), null);
@@ -996,7 +1151,7 @@ final class WorkflowWorker implements SuspendableWorker {
         taskFailed.setWorkerVersion(options.workerVersionStamp());
       }
 
-      storeOutboundPayloads(taskFailed, storageTarget);
+      storeOutboundPayloads(taskFailed, storageTarget, null, uploadMetrics);
       RespondWorkflowTaskFailedRequest request = taskFailed.build();
       grpcRetryer.retry(
           () ->
@@ -1119,6 +1274,13 @@ final class WorkflowWorker implements SuspendableWorker {
           .getDataConverter()
           .withContext(new WorkflowSerializationContext(namespace, workflowId))
           .exceptionToFailure(applicationFailure);
+    }
+
+    private Failure payloadsTooLargeFailure(String workflowId, PayloadLimitViolation violation) {
+      return options
+          .getDataConverter()
+          .withContext(new WorkflowSerializationContext(namespace, workflowId))
+          .exceptionToFailure(FailureUtils.newPayloadsTooLargeFailure(violation));
     }
 
     private Failure grpcMessageTooLargeFailure(
