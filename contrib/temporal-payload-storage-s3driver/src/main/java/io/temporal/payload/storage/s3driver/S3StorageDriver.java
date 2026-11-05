@@ -1,8 +1,12 @@
 package io.temporal.payload.storage.s3driver;
 
+import static io.temporal.internal.payload.storage.CompletableFutures.failedFuture;
+
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.Experimental;
+import io.temporal.internal.payload.storage.CompletableFutures;
+import io.temporal.internal.payload.storage.PayloadHasher;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -238,12 +242,6 @@ public final class S3StorageDriver implements StorageDriver {
           String causeMessage = cause.getMessage() != null ? cause.getMessage() : cause.toString();
           throw new S3StorageException(failureMessage + ": " + causeMessage, cause);
         });
-  }
-
-  private static <T> CompletableFuture<T> failedFuture(Throwable t) {
-    CompletableFuture<T> future = new CompletableFuture<>();
-    future.completeExceptionally(t);
-    return future;
   }
 
   public static final class Builder {

@@ -1,15 +1,16 @@
-package io.temporal.payload.storage.s3driver;
+package io.temporal.internal.payload.storage;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-final class PayloadHasher {
+/** Hashing shared by external storage drivers. */
+public final class PayloadHasher {
   private static final char[] HEX = "0123456789abcdef".toCharArray();
 
   private PayloadHasher() {}
 
   /** Returns the lower-case SHA-256 hex digest of {@code data}. */
-  static String sha256Hex(byte[] data) {
+  public static String sha256Hex(byte[] data) {
     byte[] digest;
     try {
       digest = MessageDigest.getInstance("SHA-256").digest(data);
