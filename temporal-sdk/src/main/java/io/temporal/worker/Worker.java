@@ -749,7 +749,7 @@ public final class Worker {
       builder.setIsAutoscaling(true);
     }
     builder.setCurrentPollers(tracker.getInFlightPolls());
-    builder.setPollerTarget(tracker.getPollerTarget());
+    builder.setTargetPollers(tracker.getTargetPollers());
     Instant lastPoll = tracker.getLastSuccessfulPollTime();
     if (lastPoll != null) {
       builder.setLastSuccessfulPollTime(toProtoTimestamp(lastPoll));

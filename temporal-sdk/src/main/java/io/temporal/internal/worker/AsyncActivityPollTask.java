@@ -114,7 +114,7 @@ public class AsyncActivityPollTask implements AsyncPoller.PollTaskAsync<Activity
     }
     return pollRequest.toBuilder()
         .setPollerScalingInfo(
-            PollerScalingInfo.newBuilder().setPollerTarget(supplier.getAsInt()).build())
+            PollerScalingInfo.newBuilder().setTargetPollers(supplier.getAsInt()).build())
         .build();
   }
 
