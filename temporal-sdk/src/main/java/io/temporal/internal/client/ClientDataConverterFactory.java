@@ -5,6 +5,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.Objects;
@@ -47,8 +48,21 @@ public final class ClientDataConverterFactory {
 
   DataConverter forWorkflow(
       String workflowId, @Nullable String runId, @Nullable String workflowType) {
-    DataConverter converter =
-        workflowConverter.withContext(new WorkflowSerializationContext(namespace, workflowId));
+    return forWorkflow(
+        new WorkflowSerializationContext(namespace, workflowId), workflowId, runId, workflowType);
+  }
+
+  /**
+   * Same as {@link #forWorkflow(String, String, String)}, but with an explicit serialization
+   * context. Used for payloads of a workflow started by a Nexus operation handler, which are
+   * serialized with the handler's Nexus context rather than the workflow's own.
+   */
+  DataConverter forWorkflow(
+      SerializationContext context,
+      String workflowId,
+      @Nullable String runId,
+      @Nullable String workflowType) {
+    DataConverter converter = workflowConverter.withContext(context);
     return ((ExternalStorageDataConverter) converter)
         .withStorageTarget(
             new StorageDriverWorkflowInfo(

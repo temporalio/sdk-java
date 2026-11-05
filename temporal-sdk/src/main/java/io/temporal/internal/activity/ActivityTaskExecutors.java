@@ -8,6 +8,7 @@ import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -16,9 +17,12 @@ import io.temporal.common.interceptors.ActivityInboundCallsInterceptor;
 import io.temporal.common.interceptors.ActivityInboundCallsInterceptor.ActivityOutput;
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.worker.ActivityTaskHandler;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import java.lang.reflect.Method;
 import java.util.HashMap;
@@ -69,6 +73,14 @@ final class ActivityTaskExecutors {
               activityInfo.isLocal());
       DataConverter dataConverterWithActivityContext =
           dataConverter.withContext(serializationContext);
+      // The result and failure of a standalone activity started from a Nexus operation handler are
+      // returned to the Nexus caller, so they use the handler's Nexus context. Heartbeat details
+      // use it too, because the server puts them into the timeout failure.
+      NexusSerializationContext nexusContext = info.getNexusSerializationContext();
+      DataConverter resultDataConverter =
+          nexusContext != null
+              ? dataConverter.withContext(nexusContext)
+              : dataConverterWithActivityContext;
 
       try {
         info.getHeader()
@@ -91,18 +103,27 @@ final class ActivityTaskExecutors {
           return new ActivityTaskHandler.Result(
               info.getActivityId(), null, null, null, context.isUseLocalManualCompletion());
         }
+        ActivityTaskHandler.Result payloadsTooLargeResult =
+            resolvePayloadsTooLargeResult(context, info, resultDataConverter);
+        if (payloadsTooLargeResult != null) {
+          return payloadsTooLargeResult;
+        }
 
-        return this.constructSuccessfulResultValue(info, result, dataConverterWithActivityContext);
+        return this.constructSuccessfulResultValue(info, result, resultDataConverter);
       } catch (Throwable e) {
         Throwable ex = CheckedExceptionWrapper.unwrap(e);
         boolean local = info.isLocal();
         if (ex instanceof ActivityCanceledException) {
-          log.info(
-              "{} canceled. ActivityId={}, activityType={}, attempt={}",
-              local ? "Local activity" : "Activity",
-              info.getActivityId(),
-              info.getActivityType(),
-              info.getAttempt());
+          // An oversized heartbeat cancels the activity only to fail it, and the payload limit
+          // validator already logged why.
+          if (context.getPayloadLimitViolation() == null) {
+            log.info(
+                "{} canceled. ActivityId={}, activityType={}, attempt={}",
+                local ? "Local activity" : "Activity",
+                info.getActivityId(),
+                info.getActivityType(),
+                info.getAttempt());
+          }
         } else if (FailureUtils.isBenignApplicationFailure(ex)) {
           log.debug(
               "{} failure. ActivityId={}, activityType={}, attempt={}",
@@ -121,13 +142,18 @@ final class ActivityTaskExecutors {
               ex);
         }
 
+        ActivityTaskHandler.Result payloadsTooLargeResult =
+            resolvePayloadsTooLargeResult(context, info, resultDataConverter);
+        if (payloadsTooLargeResult != null) {
+          return payloadsTooLargeResult;
+        }
         return mapToActivityFailure(
             ex,
             info.getActivityId(),
             context.getLastHeartbeatValue(),
             metricsScope,
             local,
-            dataConverterWithActivityContext);
+            resultDataConverter);
       } finally {
         if (context.isDoNotCompleteOnReturn()) {
           if (!context.isUseLocalManualCompletion()) {
@@ -142,6 +168,36 @@ final class ActivityTaskExecutors {
       }
     }
 
+    /**
+     * Returns the result to report when an oversized heartbeat decided the task's outcome, or null.
+     */
+    @Nullable
+    private static ActivityTaskHandler.Result resolvePayloadsTooLargeResult(
+        InternalActivityExecutionContext context,
+        ActivityInfoInternal info,
+        DataConverter resultDataConverter) {
+      // Waits out a heartbeat being sent, so that a violation it finds decides the outcome.
+      context.cancelOutstandingHeartbeat();
+      if (context.awaitTaskReported()) {
+        return new ActivityTaskHandler.Result(info.getActivityId(), null, null, null, false);
+      }
+      PayloadLimitViolation violation = context.getPayloadLimitViolation();
+      if (violation == null) {
+        return null;
+      }
+      ApplicationFailure failure = FailureUtils.newPayloadsTooLargeFailure(violation);
+      RespondActivityTaskFailedRequest request =
+          RespondActivityTaskFailedRequest.newBuilder()
+              .setFailure(resultDataConverter.exceptionToFailure(failure))
+              .build();
+      return new ActivityTaskHandler.Result(
+          info.getActivityId(),
+          null,
+          new ActivityTaskHandler.Result.TaskFailedResult(request, failure),
+          null,
+          false);
+    }
+
     abstract ActivityInboundCallsInterceptor createRootInboundInterceptor();
 
     abstract Object getActivity();
@@ -150,19 +206,16 @@ final class ActivityTaskExecutors {
         Optional<Payloads> input, DataConverter dataConverterWithActivityContext);
 
     protected abstract ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info,
-        ActivityOutput result,
-        DataConverter dataConverterWithActivityContext);
+        ActivityInfoInternal info, ActivityOutput result, DataConverter resultDataConverter);
 
     ActivityTaskHandler.Result constructResultValue(
         ActivityInfoInternal info,
         @Nullable ActivityOutput result,
-        DataConverter dataConverterWithActivityContext) {
+        DataConverter resultDataConverter) {
       RespondActivityTaskCompletedRequest.Builder request =
           RespondActivityTaskCompletedRequest.newBuilder();
       if (result != null) {
-        Optional<Payloads> serialized =
-            dataConverterWithActivityContext.toPayloads(result.getResult());
+        Optional<Payloads> serialized = resultDataConverter.toPayloads(result.getResult());
         serialized.ifPresent(request::setResult);
       }
       return new ActivityTaskHandler.Result(
@@ -218,14 +271,12 @@ final class ActivityTaskExecutors {
 
     @Override
     protected ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info,
-        ActivityOutput result,
-        DataConverter dataConverterWithActivityContext) {
+        ActivityInfoInternal info, ActivityOutput result, DataConverter resultDataConverter) {
       return constructResultValue(
           info,
           // if the expected result of the method is null, we don't publish result at all
           method.getReturnType() != Void.TYPE ? result : null,
-          dataConverterWithActivityContext);
+          resultDataConverter);
     }
   }
 
@@ -261,10 +312,8 @@ final class ActivityTaskExecutors {
 
     @Override
     protected ActivityTaskHandler.Result constructSuccessfulResultValue(
-        ActivityInfoInternal info,
-        ActivityOutput result,
-        DataConverter dataConverterWithActivityContext) {
-      return constructResultValue(info, result, dataConverterWithActivityContext);
+        ActivityInfoInternal info, ActivityOutput result, DataConverter resultDataConverter) {
+      return constructResultValue(info, result, resultDataConverter);
     }
   }
 }

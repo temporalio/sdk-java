@@ -4,8 +4,11 @@ import static io.temporal.internal.common.ProtoEnumNameUtils.EVENT_TYPE_PREFIX;
 import static io.temporal.internal.common.ProtoEnumNameUtils.simplifiedToUniqueName;
 import static io.temporal.internal.common.ProtoEnumNameUtils.uniqueToSimplifiedName;
 
+import com.google.common.collect.ImmutableBiMap;
+import io.temporal.api.common.v1.Execution;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.enums.v1.ExecutionType;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -24,13 +27,14 @@ import org.slf4j.LoggerFactory;
  * Converts between {@link Link} (used on history events and RPCs) and {@link
  * io.temporal.api.nexus.v1.Link} (the Nexus wire form: a URL plus a type string).
  *
- * <p>Four link types are supported, each with a fixed URL shape:
+ * <p>The following link types are supported, each with a fixed URL shape:
  *
  * <pre>
  *   WorkflowEvent    temporal:///namespaces/{ns}/workflows/{workflowId}/{runId}/history
  *   Workflow         temporal:///namespaces/{ns}/workflows/{workflowId}/{runId}
  *   NexusOperation   temporal:///namespaces/{ns}/nexus-operations/{operationId}/{runId}/details
  *   Activity         temporal:///namespaces/{ns}/activities/{activityId}/{runId}/details
+ *   Callback         temporal:///namespaces/{ns}/{executionType}/{businessId}/{runId}/callbacks/{requestId}
  * </pre>
  *
  * <p>Whoever decodes one of these URLs — the receiving server, or this class when a link arrives
@@ -54,6 +58,18 @@ public class LinkConverter {
   private static final String EVENT_TYPE_KEY = "eventType";
   private static final String REQUEST_ID_KEY = "requestID";
   private static final String REASON_KEY = "reason";
+  private static final String COMPONENT_PATH_KEY = "componentPath";
+
+  /**
+   * The path keyword for each execution type a callback can be attached to, in both directions:
+   * encoding looks up the keyword, decoding validates it and maps it back. Matches the keywords of
+   * the other link types, so every link addresses an execution the same way.
+   */
+  private static final ImmutableBiMap<ExecutionType, String> EXECUTION_TYPE_SEGMENTS =
+      ImmutableBiMap.of(
+          ExecutionType.EXECUTION_TYPE_WORKFLOW, "workflows",
+          ExecutionType.EXECUTION_TYPE_ACTIVITY, "activities",
+          ExecutionType.EXECUTION_TYPE_NEXUS_OPERATION, "nexus-operations");
 
   private static final String EVENT_REFERENCE_TYPE =
       Link.WorkflowEvent.EventReference.getDescriptor().getName();
@@ -61,35 +77,44 @@ public class LinkConverter {
       Link.WorkflowEvent.RequestIdReference.getDescriptor().getName();
 
   /**
-   * The four link types, as a table of (path keyword, path tail, proto type name).
+   * The link types, as a table of (path keyword, path tail, tail ID, proto type name).
    *
-   * <p>The path is always {@code /namespaces/{ns}/{keyword}/{id}/{runId}[/{tail}]}, so a link has 5
-   * segments when {@link #tail} is null and 6 otherwise. Matching the count exactly is what keeps a
-   * Workflow link distinguishable from a WorkflowEvent link, since they share a keyword.
+   * <p>The path is always {@code /namespaces/{ns}/{keyword}/{id}/{runId}[/{tail}[/{tailId}]]}, so a
+   * link has 5 segments with no tail, 6 with a tail, and 7 with a tail ID. Matching the count
+   * exactly is what keeps a Workflow link distinguishable from a WorkflowEvent link, since they
+   * share a keyword.
    */
   private enum LinkType {
-    WORKFLOW_EVENT("workflows", "history", Link.WorkflowEvent.getDescriptor().getFullName()),
+    WORKFLOW_EVENT("workflows", "history", false, Link.WorkflowEvent.getDescriptor().getFullName()),
 
     /** A workflow execution as a whole, for when there is no history event to point at. */
-    WORKFLOW("workflows", null, Link.Workflow.getDescriptor().getFullName()),
+    WORKFLOW("workflows", null, false, Link.Workflow.getDescriptor().getFullName()),
 
     NEXUS_OPERATION(
-        "nexus-operations", "details", Link.NexusOperation.getDescriptor().getFullName()),
+        "nexus-operations", "details", false, Link.NexusOperation.getDescriptor().getFullName()),
 
-    ACTIVITY("activities", "details", Link.Activity.getDescriptor().getFullName());
+    ACTIVITY("activities", "details", false, Link.Activity.getDescriptor().getFullName()),
 
-    private final String keyword;
+    /**
+     * A callback attached to an execution. The keyword names the execution's type, so it varies and
+     * is any value of {@link #EXECUTION_TYPE_SEGMENTS}. The tail ID is the callback's request ID.
+     */
+    CALLBACK(null, "callbacks", true, Link.Callback.getDescriptor().getFullName());
+
+    @Nullable private final String keyword;
     @Nullable private final String tail;
+    private final boolean hasTailId;
     private final String type;
 
-    LinkType(String keyword, @Nullable String tail, String type) {
+    LinkType(@Nullable String keyword, @Nullable String tail, boolean hasTailId, String type) {
       this.keyword = keyword;
       this.tail = tail;
+      this.hasTailId = hasTailId;
       this.type = type;
     }
 
     int segmentCount() {
-      return tail == null ? 5 : 6;
+      return 5 + (tail == null ? 0 : 1) + (hasTailId ? 1 : 0);
     }
   }
 
@@ -111,6 +136,9 @@ public class LinkConverter {
     }
     if (commonLink.hasActivity()) {
       return activityToNexusLink(commonLink.getActivity());
+    }
+    if (commonLink.hasCallback()) {
+      return callbackToNexusLink(commonLink.getCallback());
     }
     return null;
   }
@@ -156,6 +184,30 @@ public class LinkConverter {
         Collections.emptyList());
   }
 
+  @Nullable
+  public static io.temporal.api.nexus.v1.Link callbackToNexusLink(Link.Callback cb) {
+    Execution execution = cb.getExecution();
+    String executionType = EXECUTION_TYPE_SEGMENTS.get(execution.getType());
+    if (executionType == null) {
+      log.error(
+          "Failed to convert Callback link to Nexus link: unsupported execution type: {}",
+          execution.getType());
+      return null;
+    }
+    List<Map.Entry<String, String>> query = new ArrayList<>();
+    for (String segment : cb.getComponentPathList()) {
+      query.add(param(COMPONENT_PATH_KEY, segment));
+    }
+    return encode(
+        LinkType.CALLBACK,
+        executionType,
+        cb.getNamespace(),
+        execution.getBusinessId(),
+        execution.getRunId(),
+        cb.getRequestId(),
+        query);
+  }
+
   // ===============================================================================================
   // Decode: nexus.v1.Link -> Link.
   // ===============================================================================================
@@ -175,6 +227,9 @@ public class LinkConverter {
     }
     if (LinkType.ACTIVITY.type.equals(type)) {
       return nexusLinkToActivity(nexusLink);
+    }
+    if (LinkType.CALLBACK.type.equals(type)) {
+      return nexusLinkToCallback(nexusLink);
     }
     log.warn("ignoring unsupported nexus link type: {}", type);
     return null;
@@ -245,12 +300,46 @@ public class LinkConverter {
         .build();
   }
 
+  /** Inverse of {@link #callbackToNexusLink}. A missing component path decodes to an empty one. */
+  @Nullable
+  public static Link nexusLinkToCallback(io.temporal.api.nexus.v1.Link nexusLink) {
+    Decoded decoded = decode(LinkType.CALLBACK, nexusLink);
+    if (decoded == null) {
+      return null;
+    }
+    ExecutionType executionType = EXECUTION_TYPE_SEGMENTS.inverse().get(decoded.keyword);
+    return Link.newBuilder()
+        .setCallback(
+            Link.Callback.newBuilder()
+                .setNamespace(decoded.namespace)
+                .setExecution(
+                    Execution.newBuilder()
+                        .setType(executionType)
+                        .setBusinessId(decoded.id)
+                        .setRunId(decoded.runId))
+                .setRequestId(decoded.tailId)
+                .addAllComponentPath(decoded.componentPath))
+        .build();
+  }
+
   // ===============================================================================================
   // Shared encode/decode.
   // ===============================================================================================
 
+  /** Builds a Nexus link URL for {@code linkType}, which must have a fixed keyword. */
+  @Nullable
+  private static io.temporal.api.nexus.v1.Link encode(
+      LinkType linkType,
+      String namespace,
+      String id,
+      String runId,
+      List<Map.Entry<String, String>> queryParams) {
+    return encode(linkType, linkType.keyword, namespace, id, runId, null, queryParams);
+  }
+
   /**
-   * Builds a Nexus link URL for {@code linkType}.
+   * Builds a Nexus link URL for {@code linkType}, with {@code keyword} in place of the type's own
+   * for a type whose keyword varies, and {@code tailId} after the tail for a type that has one.
    *
    * <p>Concatenated rather than built with {@link URI}, because the segments are already
    * percent-encoded and {@link URI} would escape the escapes.
@@ -258,9 +347,11 @@ public class LinkConverter {
   @Nullable
   private static io.temporal.api.nexus.v1.Link encode(
       LinkType linkType,
+      String keyword,
       String namespace,
       String id,
       String runId,
+      @Nullable String tailId,
       List<Map.Entry<String, String>> queryParams) {
     try {
       StringBuilder url =
@@ -270,13 +361,16 @@ public class LinkConverter {
               .append('/')
               .append(encodePathSegment(namespace))
               .append('/')
-              .append(linkType.keyword)
+              .append(keyword)
               .append('/')
               .append(encodePathSegment(id))
               .append('/')
               .append(encodePathSegment(runId));
       if (linkType.tail != null) {
         url.append('/').append(linkType.tail);
+      }
+      if (tailId != null) {
+        url.append('/').append(encodePathSegment(tailId));
       }
       if (!queryParams.isEmpty()) {
         url.append('?').append(encodeQuery(queryParams));
@@ -291,18 +385,31 @@ public class LinkConverter {
     }
   }
 
-  /** The three path IDs plus the decoded query. */
+  /** The path IDs, the execution keyword and the tail ID if any, plus the query. */
   private static final class Decoded {
     final String namespace;
+    final String keyword;
     final String id;
     final String runId;
+    @Nullable final String tailId;
     final Map<String, String> query;
+    final List<String> componentPath;
 
-    Decoded(String namespace, String id, String runId, Map<String, String> query) {
+    Decoded(
+        String namespace,
+        String keyword,
+        String id,
+        String runId,
+        @Nullable String tailId,
+        @Nullable String rawQuery)
+        throws UnsupportedEncodingException {
       this.namespace = namespace;
+      this.keyword = keyword;
       this.id = id;
       this.runId = runId;
-      this.query = query;
+      this.tailId = tailId;
+      this.query = decodeQuery(rawQuery);
+      this.componentPath = decodeQueryValues(rawQuery);
     }
   }
 
@@ -339,21 +446,29 @@ public class LinkConverter {
 
       if (segments.length != linkType.segmentCount()
           || !NAMESPACES_SEGMENT.equals(segments[0])
-          || !linkType.keyword.equals(segments[2])
+          || (linkType.keyword != null && !linkType.keyword.equals(segments[2]))
           || (linkType.tail != null && !linkType.tail.equals(segments[5]))) {
         log.error("Failed to parse Nexus link URL: invalid path: {}", rawPath);
         return null;
       }
-      if (segments[1].isEmpty() || segments[3].isEmpty() || segments[4].isEmpty()) {
-        log.error("Failed to parse Nexus link URL: empty path segment: {}", rawPath);
+      for (String segment : segments) {
+        if (segment.isEmpty()) {
+          log.error("Failed to parse Nexus link URL: empty path segment: {}", rawPath);
+          return null;
+        }
+      }
+      if (linkType.keyword == null && !EXECUTION_TYPE_SEGMENTS.containsValue(segments[2])) {
+        log.error("Failed to parse Nexus link URL: unsupported execution type: {}", segments[2]);
         return null;
       }
 
       return new Decoded(
           decodePathSegment(segments[1]),
+          segments[2],
           decodePathSegment(segments[3]),
           decodePathSegment(segments[4]),
-          decodeQuery(uri.getRawQuery()));
+          linkType.hasTailId ? decodePathSegment(segments[6]) : null,
+          uri.getRawQuery());
     } catch (Exception e) {
       // Swallow un-parsable links since they are not critical to processing.
       log.error("Failed to parse Nexus link URL", e);
@@ -433,6 +548,26 @@ public class LinkConverter {
       params.put(key, value);
     }
     return params;
+  }
+
+  /**
+   * Form-decodes every {@code componentPath} value in a raw query, in order. {@link #decodeQuery}
+   * keeps only the first value of a repeated key, so this repeated param needs its own pass. A key
+   * with no value yields an empty string, matching api-go's {@code Query()}.
+   */
+  private static List<String> decodeQueryValues(@Nullable String rawQuery)
+      throws UnsupportedEncodingException {
+    List<String> values = new ArrayList<>();
+    if (rawQuery == null || rawQuery.isEmpty()) {
+      return values;
+    }
+    for (String pair : rawQuery.split("&")) {
+      String[] kv = pair.split("=", 2);
+      if (!pair.isEmpty() && COMPONENT_PATH_KEY.equals(URLDecoder.decode(kv[0], UTF_8))) {
+        values.add(kv.length == 2 ? URLDecoder.decode(kv[1], UTF_8) : "");
+      }
+    }
+    return values;
   }
 
   // ===============================================================================================

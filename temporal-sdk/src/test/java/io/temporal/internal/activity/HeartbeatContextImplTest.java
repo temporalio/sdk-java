@@ -1,8 +1,11 @@
 package io.temporal.internal.activity;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.times;
 
 import com.uber.m3.tally.NoopScope;
 import io.grpc.Status;
@@ -10,8 +13,11 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.activity.ActivityInfo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.TimeoutType;
+import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatRequest;
 import io.temporal.api.workflowservice.v1.RecordActivityTaskHeartbeatResponse;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedRequest;
+import io.temporal.api.workflowservice.v1.RespondActivityTaskFailedResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.ActivityCanceledException;
 import io.temporal.client.ActivityCompletionException;
@@ -19,6 +25,11 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.failure.TimeoutFailure;
+import io.temporal.internal.payload.limits.LimitClass;
+import io.temporal.internal.payload.limits.LimitSeverity;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
@@ -63,6 +74,8 @@ public class HeartbeatContextImplTest {
     blockingStub = mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
     when(service.blockingStub()).thenReturn(blockingStub);
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
+    when(service.getServerCapabilities())
+        .thenReturn(() -> GetSystemInfoResponse.Capabilities.getDefaultInstance());
   }
 
   @After
@@ -346,7 +359,8 @@ public class HeartbeatContextImplTest {
             Duration.ofSeconds(30),
             GlobalDataConverter.get(),
             heartbeatExecutor,
-            null);
+            null,
+            () -> PayloadErrorLimits.NONE);
 
     ActivityInfoInternal info = activityInfoWithHeartbeatTimeout(Duration.ofSeconds(10));
     InternalActivityExecutionContext context =
@@ -360,6 +374,198 @@ public class HeartbeatContextImplTest {
 
     context.cancelOutstandingHeartbeat();
     assertFalse(factory.cleanupContext(new byte[] {1, 2, 3}, true));
+  }
+
+  @Test
+  public void aHeartbeatOverThePayloadErrorLimitFailsTheActivityAndCancelsIt() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation("details", LimitClass.BLOB, LimitSeverity.ERROR, 1000, 100);
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(
+            Status.INVALID_ARGUMENT
+                .withDescription(violation.getMessage())
+                .withCause(new PayloadLimitViolationException(violation))
+                .asRuntimeException());
+    when(blockingStub.respondActivityTaskFailed(any()))
+        .thenReturn(RespondActivityTaskFailedResponse.getDefaultInstance());
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(
+            activityInfoWithHeartbeatTimeout(Duration.ZERO), new PayloadErrorLimits(100, 100));
+
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
+
+    ArgumentCaptor<RespondActivityTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondActivityTaskFailedRequest.class);
+    verify(blockingStub).respondActivityTaskFailed(sent.capture());
+    assertEquals(violation.getMessage(), sent.getValue().getFailure().getMessage());
+    assertEquals(
+        "PayloadsTooLarge", sent.getValue().getFailure().getApplicationFailureInfo().getType());
+    assertFalse(sent.getValue().getFailure().getApplicationFailureInfo().getNonRetryable());
+    assertTrue(ctx.getCancellationToken().isCancellationRequested());
+    assertTrue(ctx.awaitTaskReported());
+  }
+
+  @Test
+  public void aFailedReportAfterAnOversizedHeartbeatLeavesTheViolationForTheActivity() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation("details", LimitClass.BLOB, LimitSeverity.ERROR, 1000, 100);
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(
+            Status.INVALID_ARGUMENT
+                .withDescription(violation.getMessage())
+                .withCause(new PayloadLimitViolationException(violation))
+                .asRuntimeException());
+    // FAILED_PRECONDITION is not retried, so the report fails at once.
+    when(blockingStub.respondActivityTaskFailed(any()))
+        .thenThrow(Status.FAILED_PRECONDITION.asRuntimeException());
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(
+            activityInfoWithHeartbeatTimeout(Duration.ZERO), new PayloadErrorLimits(100, 100));
+
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
+
+    assertFalse(ctx.awaitTaskReported());
+    assertSame(violation, ctx.getPayloadLimitViolation());
+  }
+
+  @Test
+  public void aTransientFailureToReportAnOversizedHeartbeatIsRetried() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation("details", LimitClass.BLOB, LimitSeverity.ERROR, 1000, 100);
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(
+            Status.INVALID_ARGUMENT
+                .withDescription(violation.getMessage())
+                .withCause(new PayloadLimitViolationException(violation))
+                .asRuntimeException());
+    when(blockingStub.respondActivityTaskFailed(any()))
+        .thenThrow(Status.UNAVAILABLE.asRuntimeException())
+        .thenReturn(RespondActivityTaskFailedResponse.getDefaultInstance());
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(
+            activityInfoWithHeartbeatTimeout(Duration.ZERO), new PayloadErrorLimits(100, 100));
+
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
+
+    verify(blockingStub, times(2)).respondActivityTaskFailed(any());
+    assertTrue(ctx.awaitTaskReported());
+    assertSame(violation, ctx.getPayloadLimitViolation());
+  }
+
+  @Test
+  public void heartbeatsAfterAnOversizedOneAreNotSent() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation("details", LimitClass.BLOB, LimitSeverity.ERROR, 1000, 100);
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(
+            Status.INVALID_ARGUMENT
+                .withDescription(violation.getMessage())
+                .withCause(new PayloadLimitViolationException(violation))
+                .asRuntimeException());
+    when(blockingStub.respondActivityTaskFailed(any()))
+        .thenReturn(RespondActivityTaskFailedResponse.getDefaultInstance());
+    // A short throttle interval, so that a throttled heartbeat would be sent during the test.
+    HeartbeatContextImpl ctx =
+        new HeartbeatContextImpl(
+            service,
+            "test-namespace",
+            activityInfoWithHeartbeatTimeout(Duration.ZERO),
+            GlobalDataConverter.get(),
+            heartbeatExecutor,
+            new NoopScope(),
+            "test-identity",
+            Duration.ofMillis(50),
+            Duration.ofMillis(50),
+            null,
+            new PayloadErrorLimits(100, 100),
+            TEST_BUFFER_MILLIS);
+
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
+    // An activity that swallows the cancellation and keeps heartbeating must not fail the task
+    // a second time.
+    assertThrows(ActivityCanceledException.class, () -> ctx.heartbeat("details"));
+
+    verify(blockingStub, after(500).times(1)).recordActivityTaskHeartbeat(any());
+    verify(blockingStub, times(1)).respondActivityTaskFailed(any());
+  }
+
+  @Test
+  public void anOversizedHeartbeatIsReportedWithoutHoldingTheHeartbeatLock() throws Exception {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation("details", LimitClass.BLOB, LimitSeverity.ERROR, 1000, 100);
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenThrow(
+            Status.INVALID_ARGUMENT
+                .withDescription(violation.getMessage())
+                .withCause(new PayloadLimitViolationException(violation))
+                .asRuntimeException());
+    CountDownLatch reportStarted = new CountDownLatch(1);
+    CountDownLatch releaseReport = new CountDownLatch(1);
+    when(blockingStub.respondActivityTaskFailed(any()))
+        .thenAnswer(
+            invocation -> {
+              reportStarted.countDown();
+              releaseReport.await();
+              return RespondActivityTaskFailedResponse.getDefaultInstance();
+            });
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(
+            activityInfoWithHeartbeatTimeout(Duration.ZERO), new PayloadErrorLimits(100, 100));
+
+    CompletableFuture<Throwable> heartbeat =
+        CompletableFuture.supplyAsync(
+            () -> {
+              try {
+                ctx.heartbeat("details");
+                return null;
+              } catch (Throwable e) {
+                return e;
+              }
+            });
+    try {
+      assertTrue(reportStarted.await(10, TimeUnit.SECONDS));
+      // While the failure is still being sent, the cancellation is already visible and the lock
+      // is free for other callers.
+      assertTrue(ctx.getCancellationToken().isCancellationRequested());
+      CompletableFuture<Object> lockedCall =
+          CompletableFuture.supplyAsync(ctx::getLatestHeartbeatDetails);
+      assertEquals("details", lockedCall.get(10, TimeUnit.SECONDS));
+    } finally {
+      releaseReport.countDown();
+    }
+
+    assertTrue(heartbeat.get(10, TimeUnit.SECONDS) instanceof ActivityCanceledException);
+    assertTrue(ctx.awaitTaskReported());
+  }
+
+  @Test
+  public void heartbeatsCarryThePayloadErrorLimits() {
+    when(blockingStub.recordActivityTaskHeartbeat(any()))
+        .thenReturn(RecordActivityTaskHeartbeatResponse.getDefaultInstance());
+    PayloadErrorLimits limits = new PayloadErrorLimits(100, 100);
+    HeartbeatContextImpl ctx =
+        createHeartbeatContext(activityInfoWithHeartbeatTimeout(Duration.ZERO), limits);
+
+    ctx.heartbeat("details");
+
+    verify(blockingStub).withOption(PayloadErrorLimits.CALL_OPTIONS_KEY, limits);
+  }
+
+  private HeartbeatContextImpl createHeartbeatContext(
+      ActivityInfo info, PayloadErrorLimits payloadErrorLimits) {
+    return new HeartbeatContextImpl(
+        service,
+        "test-namespace",
+        info,
+        GlobalDataConverter.get(),
+        heartbeatExecutor,
+        new NoopScope(),
+        "test-identity",
+        Duration.ofSeconds(60),
+        Duration.ofSeconds(30),
+        null,
+        payloadErrorLimits,
+        TEST_BUFFER_MILLIS);
   }
 
   private HeartbeatContextImpl createHeartbeatContext(ActivityInfo info) {
@@ -381,6 +587,7 @@ public class HeartbeatContextImplTest {
         maxHeartbeatThrottleInterval,
         defaultHeartbeatThrottleInterval,
         null,
+        PayloadErrorLimits.NONE,
         TEST_BUFFER_MILLIS);
   }
 
@@ -515,6 +722,7 @@ public class HeartbeatContextImplTest {
         Duration.ofSeconds(60),
         OFFLOAD_INTERVAL,
         runner,
+        PayloadErrorLimits.NONE,
         TEST_BUFFER_MILLIS);
   }
 

@@ -12,6 +12,8 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.LazyWorkflowUpdateHandleImpl;
+import io.temporal.internal.nexus.CurrentNexusOperationContext;
+import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.serviceclient.CheckedExceptionWrapper;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
@@ -77,13 +79,23 @@ class WorkflowStubImpl implements WorkflowStub {
   public void signal(String signalName, Object... args) {
     checkStarted();
     WorkflowExecution targetExecution = currentExecutionCheckLegacy();
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
+    if (nexusContext != null) {
+      nexusContext.claimSignal();
+    }
+    boolean sent = false;
     try {
       workflowClientInvoker.signal(
           new WorkflowClientCallsInterceptor.WorkflowSignalInput(
               targetExecution, signalName, Header.empty(), args));
+      sent = true;
     } catch (Exception e) {
       Throwable throwable = throwAsWorkflowFailureException(e, targetExecution);
       throw new WorkflowServiceException(targetExecution, workflowType.orElse(null), throwable);
+    } finally {
+      if (!sent && nexusContext != null) {
+        nexusContext.releaseSignal();
+      }
     }
   }
 
@@ -182,8 +194,13 @@ class WorkflowStubImpl implements WorkflowStub {
   private WorkflowExecution signalWithStartWithOptions(
       WorkflowOptions options, String signalName, Object[] signalArgs, Object[] startArgs) {
     checkExecutionIsNotStarted();
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
+    if (nexusContext != null) {
+      nexusContext.claimSignalWithStart(options.getWorkflowId());
+    }
     String workflowId = getWorkflowIdForStart(options);
     WorkflowExecution workflowExecution = null;
+    boolean sent = false;
     try {
       WorkflowClientCallsInterceptor.WorkflowSignalWithStartOutput workflowStartOutput =
           workflowClientInvoker.signalWithStart(
@@ -194,6 +211,7 @@ class WorkflowStubImpl implements WorkflowStub {
                   signalArgs));
       workflowExecution = workflowStartOutput.getWorkflowStartOutput().getWorkflowExecution();
       populateExecutionAfterStart(workflowExecution);
+      sent = true;
       return workflowExecution;
     } catch (StatusRuntimeException e) {
       throw wrapStartException(workflowId, workflowType.orElse(null), e);
@@ -206,6 +224,10 @@ class WorkflowStubImpl implements WorkflowStub {
         workflowExecution = WorkflowExecution.newBuilder().setWorkflowId(workflowId).build();
       }
       throw new WorkflowServiceException(workflowExecution, workflowType.orElse(null), e);
+    } finally {
+      if (!sent && nexusContext != null) {
+        nexusContext.releaseSignal();
+      }
     }
   }
 
