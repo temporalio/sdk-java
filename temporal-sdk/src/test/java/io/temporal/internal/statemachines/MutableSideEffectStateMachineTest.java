@@ -21,6 +21,7 @@ import io.temporal.api.history.v1.TimerFiredEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.AfterClass;
@@ -215,6 +216,7 @@ public class MutableSideEffectStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .<HistoryEvent>add1(
                 (v, c) ->
@@ -223,6 +225,7 @@ public class MutableSideEffectStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .<Optional<Payloads>>add1(
                 (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))

@@ -19,6 +19,7 @@ import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.AfterClass;
@@ -68,6 +69,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add((firedEvent) -> stateMachines.completeWorkflow(Optional.empty()));
       }
@@ -140,6 +142,7 @@ public class TimerStateMachineTest {
                                     ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                                 .build(),
                             null,
+                            Collections.emptyList(),
                             c))
             .add(
                 (firedEvent) ->
@@ -154,6 +157,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add((firedEvent) -> stateMachines.completeWorkflow(converter.toPayloads("result1")));
 
@@ -216,6 +220,7 @@ public class TimerStateMachineTest {
                                     ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                                 .build(),
                             null,
+                            Collections.emptyList(),
                             c))
             .add(
                 (firedEvent) -> {
@@ -232,6 +237,7 @@ public class TimerStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add(
                 (firedEvent) -> {

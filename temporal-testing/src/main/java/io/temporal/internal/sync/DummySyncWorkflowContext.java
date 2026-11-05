@@ -6,6 +6,7 @@ import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttribute
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SuggestContinueAsNewReason;
@@ -240,7 +241,10 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Functions.Proc1<RuntimeException> newTimer(
-        Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback) {
+        Duration delay,
+        UserMetadata metadata,
+        List<EventGroupMarker> eventGroupMarkers,
+        Functions.Proc1<RuntimeException> callback) {
       timer.schedule(
           new TimerTask() {
             @Override
