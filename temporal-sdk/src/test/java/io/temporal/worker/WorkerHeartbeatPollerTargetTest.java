@@ -1,6 +1,7 @@
 package io.temporal.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
@@ -19,7 +20,7 @@ import io.temporal.workflow.shared.TestNexusServices;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-/** Each poller pool reports its own autoscaling target on the worker heartbeat. */
+/** Each poller pool reports its own target on the worker heartbeat. */
 @CloudTestExclusionNote("This test directly creates and controls a local test service.")
 @Category(RequiresLocalServer.class)
 public class WorkerHeartbeatPollerTargetTest {
@@ -40,17 +41,22 @@ public class WorkerHeartbeatPollerTargetTest {
   }
 
   @Test
-  public void fixedSizePoolsReportNoTarget() {
+  public void fixedSizePoolsReportTheirConfiguredSize() {
     WorkerHeartbeat heartbeat =
         heartbeat(
             new PollerBehaviorSimpleMaximum(3),
             new PollerBehaviorSimpleMaximum(7),
             new PollerBehaviorSimpleMaximum(5));
 
-    assertEquals(0, heartbeat.getWorkflowPollerInfo().getTargetPollers());
-    assertEquals(0, heartbeat.getWorkflowStickyPollerInfo().getTargetPollers());
-    assertEquals(0, heartbeat.getActivityPollerInfo().getTargetPollers());
-    assertEquals(0, heartbeat.getNexusPollerInfo().getTargetPollers());
+    assertEquals(3, heartbeat.getWorkflowPollerInfo().getTargetPollers());
+    // The sticky polls come out of the same fixed pool as the normal ones.
+    assertEquals(3, heartbeat.getWorkflowStickyPollerInfo().getTargetPollers());
+    assertEquals(7, heartbeat.getActivityPollerInfo().getTargetPollers());
+    assertEquals(5, heartbeat.getNexusPollerInfo().getTargetPollers());
+
+    assertFalse(heartbeat.getWorkflowPollerInfo().getIsAutoscaling());
+    assertFalse(heartbeat.getActivityPollerInfo().getIsAutoscaling());
+    assertFalse(heartbeat.getNexusPollerInfo().getIsAutoscaling());
   }
 
   private static WorkerHeartbeat heartbeat(

@@ -6,6 +6,7 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueRequest;
@@ -55,6 +56,7 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
       @Nonnull PollerTracker pollerTracker,
       @Nonnull PollerTracker stickyPollerTracker,
+      int targetPollers,
       String workerControlTaskQueue) {
     this.slotSupplier = Objects.requireNonNull(slotSupplier);
     this.stickyQueueBalancer = Objects.requireNonNull(stickyQueueBalancer);
@@ -92,6 +94,12 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
               .build());
     } else {
       pollRequestBuilder.setBinaryChecksum(versioningOptions.getBuildId());
+    }
+
+    if (targetPollers > 0) {
+      // One fixed-size pool issues both the normal and the sticky polls, so both carry its size.
+      pollRequestBuilder.setPollerPoolInfo(
+          PollerPoolInfo.newBuilder().setTargetPollers(targetPollers));
     }
 
     this.pollRequest =

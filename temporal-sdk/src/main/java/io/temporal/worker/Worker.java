@@ -818,9 +818,11 @@ public final class Worker {
     PollerBehavior behavior = pollerOptions.getPollerBehavior();
     if (behavior instanceof PollerBehaviorAutoscaling) {
       builder.setIsAutoscaling(true);
+      builder.setTargetPollers(tracker.getTargetPollers());
+    } else {
+      builder.setTargetPollers(pollerOptions.getFixedPollerCount());
     }
     builder.setCurrentPollers(tracker.getInFlightPolls());
-    builder.setTargetPollers(tracker.getTargetPollers());
     Instant lastPoll = tracker.getLastSuccessfulPollTime();
     if (lastPoll != null) {
       builder.setLastSuccessfulPollTime(toProtoTimestamp(lastPoll));

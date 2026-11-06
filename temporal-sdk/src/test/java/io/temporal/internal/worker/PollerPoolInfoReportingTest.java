@@ -15,7 +15,9 @@ import com.google.common.util.concurrent.SettableFuture;
 import com.uber.m3.tally.NoopScope;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.temporal.api.enums.v1.TaskQueueKind;
 import io.temporal.api.namespace.v1.NamespaceInfo;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueRequest;
@@ -35,13 +37,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.function.Function;
 import org.junit.After;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 
 /**
  * An autoscaling poller pool reports its current target on every poll request; a fixed-size pool
- * reports nothing at all.
+ * reports its configured size.
  */
 public class PollerPoolInfoReportingTest {
 
@@ -164,59 +167,78 @@ public class PollerPoolInfoReportingTest {
   }
 
   @Test
-  public void fixedSizeActivityPoolReportsNothing() throws Exception {
+  public void fixedSizeActivityPoolReportsItsConfiguredSize() throws Exception {
     Service service = new Service();
     List<PollActivityTaskQueueRequest> requests = recorded();
-    CountDownLatch polled = new CountDownLatch(1);
+    CountDownLatch polled = new CountDownLatch(7);
     when(service.blockingStub.pollActivityTaskQueue(any()))
         .thenAnswer(i -> block(i, requests, polled));
 
     ActivityWorker worker =
-        activityWorker(service, new PollerBehaviorSimpleMaximum(1), new NamespaceCapabilities());
+        activityWorker(service, new PollerBehaviorSimpleMaximum(7), new NamespaceCapabilities());
     try {
       assertTrue(worker.start());
       assertTrue(polled.await(10, SECONDS));
-      assertFalse(requests.get(0).hasPollerPoolInfo());
+      assertTargetPollers(7, requests, PollActivityTaskQueueRequest::getPollerPoolInfo);
     } finally {
       shutdown(worker);
     }
   }
 
   @Test
-  public void fixedSizeWorkflowPoolReportsNothing() throws Exception {
+  public void fixedSizeWorkflowPoolReportsItsConfiguredSize() throws Exception {
     Service service = new Service();
     List<PollWorkflowTaskQueueRequest> requests = recorded();
-    CountDownLatch polled = new CountDownLatch(1);
+    // Three pollers, so both the sticky and the normal poll the balancer alternates between are
+    // in the recorded batch.
+    CountDownLatch polled = new CountDownLatch(3);
     when(service.blockingStub.pollWorkflowTaskQueue(any()))
         .thenAnswer(i -> block(i, requests, polled));
 
     WorkflowWorker worker =
-        workflowWorker(service, new PollerBehaviorSimpleMaximum(1), new NamespaceCapabilities());
+        workflowWorker(service, new PollerBehaviorSimpleMaximum(3), new NamespaceCapabilities());
     try {
       assertTrue(worker.start());
       assertTrue(polled.await(10, SECONDS));
-      assertFalse(requests.get(0).hasPollerPoolInfo());
+      assertTargetPollers(3, requests, PollWorkflowTaskQueueRequest::getPollerPoolInfo);
+      assertTrue(
+          requests.stream()
+              .anyMatch(r -> r.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_STICKY));
+      assertTrue(
+          requests.stream()
+              .anyMatch(r -> r.getTaskQueue().getKind() == TaskQueueKind.TASK_QUEUE_KIND_NORMAL));
     } finally {
       shutdown(worker);
     }
   }
 
   @Test
-  public void fixedSizeNexusPoolReportsNothing() throws Exception {
+  public void fixedSizeNexusPoolReportsItsConfiguredSize() throws Exception {
     Service service = new Service();
     List<PollNexusTaskQueueRequest> requests = recorded();
-    CountDownLatch polled = new CountDownLatch(1);
+    CountDownLatch polled = new CountDownLatch(5);
     when(service.blockingStub.pollNexusTaskQueue(any()))
         .thenAnswer(i -> block(i, requests, polled));
 
     NexusWorker worker =
-        nexusWorker(service, new PollerBehaviorSimpleMaximum(1), new NamespaceCapabilities());
+        nexusWorker(service, new PollerBehaviorSimpleMaximum(5), new NamespaceCapabilities());
     try {
       assertTrue(worker.start());
       assertTrue(polled.await(10, SECONDS));
-      assertFalse(requests.get(0).hasPollerPoolInfo());
+      assertTargetPollers(5, requests, PollNexusTaskQueueRequest::getPollerPoolInfo);
     } finally {
       shutdown(worker);
+    }
+  }
+
+  /** Every recorded request reports the same target, whichever poller thread issued it. */
+  private static <T> void assertTargetPollers(
+      int expected, List<T> requests, Function<T, PollerPoolInfo> poolInfo) {
+    synchronized (requests) {
+      assertFalse(requests.isEmpty());
+      for (T request : requests) {
+        assertEquals(expected, poolInfo.apply(request).getTargetPollers());
+      }
     }
   }
 
