@@ -50,6 +50,14 @@ public class ScheduleProtoUtil {
   private final @Nullable ExternalStorageRunner externalStorage;
   private final @Nullable PayloadCodec headerCodec;
 
+  /**
+   * User metadata of each action this instance has described, so an update can send unchanged
+   * values back without storing them again. Actions do not override {@code equals}, so they are
+   * keyed by identity, and an entry goes away with its action.
+   */
+  private final Map<io.temporal.client.schedules.ScheduleAction, DescribedUserMetadata>
+      describedUserMetadata = Collections.synchronizedMap(new WeakHashMap<>());
+
   public ScheduleProtoUtil(
       GenericWorkflowClient genericClient,
       String namespace,
@@ -86,7 +94,14 @@ public class ScheduleProtoUtil {
         Strings.emptyToNull(startWorkflowAction.getWorkflowType()));
   }
 
-  public ScheduleAction actionToProto(io.temporal.client.schedules.ScheduleAction action) {
+  /**
+   * @param describedAction when updating a schedule, the action from the description the update
+   *     started from, or null when creating one. Values left unchanged from it are sent back as
+   *     they were described rather than stored again.
+   */
+  public ScheduleAction actionToProto(
+      io.temporal.client.schedules.ScheduleAction action,
+      @Nullable io.temporal.client.schedules.ScheduleAction describedAction) {
     if (action instanceof ScheduleActionStartWorkflow) {
       ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
       StorageDriverWorkflowInfo storageTarget = storageTarget(action);
@@ -164,25 +179,24 @@ public class ScheduleProtoUtil {
 
       @Nullable
       UserMetadata userMetadata =
-          makeUserMetaData(
-              wfOptions.getStaticSummary(),
-              wfOptions.getStaticDetails(),
+          userMetadataToProto(
+              wfOptions,
+              describedAction == null ? null : describedUserMetadata.get(describedAction),
               dataConverterWithWorkflowContext);
       if (userMetadata != null) {
         workflowRequest.setUserMetadata(userMetadata);
       }
 
-      Header.Builder grpcHeader =
+      Header grpcHeader =
           toHeaderGrpc(
               startWorkflowAction.getHeader(),
               HeaderUtils.fromContextPropagators(
                   MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators)),
               HeaderUtils.withContext(
                   headerCodec,
-                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())))
-              .toBuilder();
-      if (externalStorage != null && grpcHeader.getFieldsCount() > 0) {
-        externalStorage.store(grpcHeader, storageTarget, null, CancellationToken.none());
+                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())));
+      if (externalStorage != null) {
+        grpcHeader = storeHeader(externalStorage, grpcHeader, describedAction, storageTarget);
       }
       workflowRequest.setHeader(grpcHeader);
 
@@ -290,13 +304,19 @@ public class ScheduleProtoUtil {
     return builder.build();
   }
 
+  /**
+   * @param describedAction when updating a schedule, the action from the description the update
+   *     started from, or null when creating one. Values left unchanged from it are sent back as
+   *     they were described rather than stored again.
+   */
   public @Nonnull Schedule scheduleToProto(
-      @Nonnull io.temporal.client.schedules.Schedule schedule) {
+      @Nonnull io.temporal.client.schedules.Schedule schedule,
+      @Nullable io.temporal.client.schedules.ScheduleAction describedAction) {
     Preconditions.checkNotNull(schedule);
 
     Schedule.Builder scheduleBuilder =
         Schedule.newBuilder()
-            .setAction(this.actionToProto(schedule.getAction()))
+            .setAction(this.actionToProto(schedule.getAction(), describedAction))
             .setSpec(this.specToProto(schedule.getSpec()));
 
     if (schedule.getPolicy() != null) {
@@ -485,13 +505,17 @@ public class ScheduleProtoUtil {
             SearchAttributesUtil.decodeTyped(startWfAction.getSearchAttributes()));
       }
 
+      DescribedUserMetadata userMetadata = null;
       if (startWfAction.hasUserMetadata()) {
-        wfOptionsBuilder.setStaticSummary(
-            dataConverterWithWorkflowContext.fromPayload(
-                startWfAction.getUserMetadata().getSummary(), String.class, String.class));
-        wfOptionsBuilder.setStaticDetails(
-            dataConverterWithWorkflowContext.fromPayload(
-                startWfAction.getUserMetadata().getDetails(), String.class, String.class));
+        userMetadata =
+            new DescribedUserMetadata(
+                startWfAction.getUserMetadata(),
+                dataConverterWithWorkflowContext.fromPayload(
+                    startWfAction.getUserMetadata().getSummary(), String.class, String.class),
+                dataConverterWithWorkflowContext.fromPayload(
+                    startWfAction.getUserMetadata().getDetails(), String.class, String.class));
+        wfOptionsBuilder.setStaticSummary(userMetadata.summary);
+        wfOptionsBuilder.setStaticDetails(userMetadata.details);
       }
 
       if (startWfAction.hasPriority()) {
@@ -499,9 +523,88 @@ public class ScheduleProtoUtil {
       }
 
       builder.setOptions(wfOptionsBuilder.build());
-      return builder.build();
+      ScheduleActionStartWorkflow result = builder.build();
+      if (userMetadata != null && externalStorage != null) {
+        describedUserMetadata.put(result, userMetadata);
+      }
+      return result;
     }
     throw new IllegalArgumentException("Unsupported action " + action.getActionCase());
+  }
+
+  // An entry sent back as it was described is not stored again, since storing a stored entry
+  // would wrap it in another reference on every update.
+  private static Header storeHeader(
+      ExternalStorageRunner externalStorage,
+      Header header,
+      @Nullable io.temporal.client.schedules.ScheduleAction describedAction,
+      @Nullable StorageDriverWorkflowInfo storageTarget) {
+    Map<String, Payload> described =
+        describedAction instanceof ScheduleActionStartWorkflow
+            ? ((ScheduleActionStartWorkflow) describedAction).getHeader().getValues()
+            : Collections.emptyMap();
+    Header.Builder unchanged = Header.newBuilder();
+    Header.Builder toStore = Header.newBuilder();
+    header
+        .getFieldsMap()
+        .forEach(
+            (key, value) ->
+                (value.equals(described.get(key)) ? unchanged : toStore).putFields(key, value));
+    if (toStore.getFieldsCount() > 0) {
+      externalStorage.store(toStore, storageTarget, null, CancellationToken.none());
+    }
+    return toStore.putAllFields(unchanged.getFieldsMap()).build();
+  }
+
+  @Nullable
+  private static UserMetadata userMetadataToProto(
+      WorkflowOptions options, @Nullable DescribedUserMetadata described, DataConverter dc) {
+    if (described == null) {
+      return makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
+    }
+    Payload summary =
+        unchangedOrEncode(
+            options.getStaticSummary(), described.summary, described.proto.getSummary(), dc);
+    Payload details =
+        unchangedOrEncode(
+            options.getStaticDetails(), described.details, described.proto.getDetails(), dc);
+    if (summary == null && details == null) {
+      return null;
+    }
+    UserMetadata.Builder builder = UserMetadata.newBuilder();
+    if (summary != null) {
+      builder.setSummary(summary);
+    }
+    if (details != null) {
+      builder.setDetails(details);
+    }
+    return builder.build();
+  }
+
+  // An unchanged value goes back as the payload it was described from, since encoding it again
+  // would store another copy on every update.
+  @Nullable
+  private static Payload unchangedOrEncode(
+      @Nullable String value,
+      @Nullable String described,
+      Payload describedPayload,
+      DataConverter dc) {
+    if (value == null) {
+      return null;
+    }
+    return value.equals(described) ? describedPayload : dc.toPayload(value).get();
+  }
+
+  private static final class DescribedUserMetadata {
+    final UserMetadata proto;
+    final @Nullable String summary;
+    final @Nullable String details;
+
+    DescribedUserMetadata(UserMetadata proto, @Nullable String summary, @Nullable String details) {
+      this.proto = proto;
+      this.summary = summary;
+      this.details = details;
+    }
   }
 
   @Nullable

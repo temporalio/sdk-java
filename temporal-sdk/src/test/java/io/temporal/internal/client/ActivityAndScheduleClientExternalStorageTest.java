@@ -20,6 +20,7 @@ import io.temporal.api.workflowservice.v1.CreateScheduleResponse;
 import io.temporal.api.workflowservice.v1.DescribeScheduleResponse;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartActivityExecutionResponse;
+import io.temporal.api.workflowservice.v1.UpdateScheduleRequest;
 import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.StartActivityOptions;
 import io.temporal.client.WorkflowOptions;
@@ -29,6 +30,7 @@ import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleDescription;
 import io.temporal.client.schedules.ScheduleOptions;
 import io.temporal.client.schedules.ScheduleSpec;
+import io.temporal.client.schedules.ScheduleUpdate;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DataConverterException;
@@ -37,6 +39,7 @@ import io.temporal.common.interceptors.ActivityClientCallsInterceptor.StartActiv
 import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor.CreateScheduleInput;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor.DescribeScheduleInput;
+import io.temporal.common.interceptors.ScheduleClientCallsInterceptor.UpdateScheduleInput;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
@@ -48,9 +51,12 @@ import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
+import io.temporal.workflow.Functions;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -193,6 +199,125 @@ public class ActivityAndScheduleClientExternalStorageTest {
         () -> action.getArguments().get(0, String.class));
     assertThrows(
         ExternalStorageNotConfiguredException.class, () -> description.getMemo("k", String.class));
+  }
+
+  @Test
+  public void scheduleUpdateSendsUnchangedPayloadsBackWithoutStoringThemAgain() {
+    InMemoryDriver driver = new InMemoryDriver();
+    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver));
+    Payloads stored = storedActionPayloads(runner);
+
+    NewWorkflowExecutionInfo sent =
+        updateScheduleWithStoredPayloads(
+            runner, stored, described -> described, () -> driver.stored.clear());
+
+    assertEquals(stored.getPayloads(0), sent.getUserMetadata().getSummary());
+    assertEquals(stored.getPayloads(1), sent.getUserMetadata().getDetails());
+    assertEquals(stored.getPayloads(2), sent.getHeader().getFieldsOrThrow("a"));
+    assertEquals(stored.getPayloads(3), sent.getHeader().getFieldsOrThrow("b"));
+    assertTrue("nothing should be stored again", driver.stored.isEmpty());
+  }
+
+  @Test
+  public void scheduleUpdateStoresOnlyThePayloadsThatChanged() {
+    InMemoryDriver driver = new InMemoryDriver();
+    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver));
+    Payloads stored = storedActionPayloads(runner);
+
+    NewWorkflowExecutionInfo sent =
+        updateScheduleWithStoredPayloads(
+            runner,
+            stored,
+            described -> {
+              Map<String, Payload> header = new HashMap<>(described.getHeader().getValues());
+              header.put("b", payload("new b"));
+              return ScheduleActionStartWorkflow.newBuilder(described)
+                  .setOptions(
+                      WorkflowOptions.newBuilder(described.getOptions())
+                          .setStaticSummary("new summary")
+                          .build())
+                  .setHeader(new Header(header))
+                  .build();
+            },
+            () -> driver.stored.clear());
+
+    assertEquals(
+        new HashSet<>(Arrays.asList(payload("new summary"), payload("new b"))),
+        new HashSet<>(driver.stored));
+    assertNotEquals(stored.getPayloads(0), sent.getUserMetadata().getSummary());
+    assertEquals(stored.getPayloads(1), sent.getUserMetadata().getDetails());
+    assertEquals(stored.getPayloads(2), sent.getHeader().getFieldsOrThrow("a"));
+    assertNotEquals(stored.getPayloads(3), sent.getHeader().getFieldsOrThrow("b"));
+  }
+
+  /** Returns the stored summary, details, and values of header entries "a" and "b", in order. */
+  private static Payloads storedActionPayloads(ExternalStorageRunner runner) {
+    Payloads.Builder stored =
+        Payloads.newBuilder()
+            .addPayloads(payload("summary"))
+            .addPayloads(payload("details"))
+            .addPayloads(payload("a"))
+            .addPayloads(payload("b"));
+    runner.store(stored, null, null, CancellationToken.none());
+    return stored.build();
+  }
+
+  /**
+   * Describes a schedule whose action carries the {@code stored} payloads, then updates its action
+   * and returns the action that was sent.
+   */
+  private static NewWorkflowExecutionInfo updateScheduleWithStoredPayloads(
+      ExternalStorageRunner runner,
+      Payloads stored,
+      Functions.Func1<ScheduleActionStartWorkflow, ScheduleActionStartWorkflow> updateAction,
+      Runnable afterDescribe) {
+    GenericWorkflowClient rpc = mock(GenericWorkflowClient.class);
+    when(rpc.describeSchedule(any()))
+        .thenReturn(
+            DescribeScheduleResponse.newBuilder()
+                .setSchedule(
+                    io.temporal.api.schedule.v1.Schedule.newBuilder()
+                        .setSpec(io.temporal.api.schedule.v1.ScheduleSpec.getDefaultInstance())
+                        .setAction(
+                            io.temporal.api.schedule.v1.ScheduleAction.newBuilder()
+                                .setStartWorkflow(
+                                    NewWorkflowExecutionInfo.newBuilder()
+                                        .setWorkflowId("wf-1")
+                                        .setWorkflowType(
+                                            WorkflowType.newBuilder().setName("MyWorkflowType"))
+                                        .setTaskQueue(
+                                            io.temporal.api.taskqueue.v1.TaskQueue.newBuilder()
+                                                .setName("tq"))
+                                        .setUserMetadata(
+                                            io.temporal.api.sdk.v1.UserMetadata.newBuilder()
+                                                .setSummary(stored.getPayloads(0))
+                                                .setDetails(stored.getPayloads(1)))
+                                        .setHeader(
+                                            io.temporal.api.common.v1.Header.newBuilder()
+                                                .putFields("a", stored.getPayloads(2))
+                                                .putFields("b", stored.getPayloads(3))))))
+                .build());
+    RootScheduleClientInvoker invoker = scheduleInvoker(rpc, runner);
+    ScheduleDescription description =
+        invoker.describeSchedule(new DescribeScheduleInput("sched-1")).getDescription();
+    afterDescribe.run();
+
+    invoker.updateSchedule(
+        new UpdateScheduleInput(
+            description,
+            input -> {
+              Schedule schedule = input.getDescription().getSchedule();
+              return new ScheduleUpdate(
+                  Schedule.newBuilder(schedule)
+                      .setAction(
+                          updateAction.apply((ScheduleActionStartWorkflow) schedule.getAction()))
+                      .build());
+            }));
+
+    ArgumentCaptor<UpdateScheduleRequest> sent =
+        ArgumentCaptor.forClass(UpdateScheduleRequest.class);
+    verify(rpc).updateSchedule(sent.capture());
+    return sent.getValue().getSchedule().getAction().getStartWorkflow();
   }
 
   private static DescribeScheduleResponse describeResponseWithReferences(
