@@ -95,12 +95,11 @@ public class TemporalOperationProcessorTest {
     // read constructor-injected dependencies (workflow client, config, etc.) off `this`.
     StatefulHandler instance = new StatefulHandler("injected");
     java.lang.reflect.Method m =
-        StatefulHandler.class.getMethod(
-            "op", TemporalOperationStartContext.class, TemporalNexusClient.class, String.class);
+        StatefulHandler.class.getMethod("op", TemporalNexusClient.class, String.class);
     java.lang.invoke.MethodHandle handle =
         java.lang.invoke.MethodHandles.lookup().unreflect(m).bindTo(instance);
     TemporalOperationResult<Object> result =
-        TemporalOperationProcessor.invokeStartHandler(handle, null, null, "input");
+        TemporalOperationProcessor.invokeStartHandler(handle, null, "input");
     Assert.assertEquals("injected:input", result.getSyncResult());
   }
 
@@ -111,14 +110,13 @@ public class TemporalOperationProcessorTest {
     // dispatch path.
     ThrowingHandler instance = new ThrowingHandler();
     java.lang.reflect.Method m =
-        ThrowingHandler.class.getMethod(
-            "op", TemporalOperationStartContext.class, TemporalNexusClient.class, String.class);
+        ThrowingHandler.class.getMethod("op", TemporalNexusClient.class, String.class);
     java.lang.invoke.MethodHandle handle =
         java.lang.invoke.MethodHandles.lookup().unreflect(m).bindTo(instance);
     IllegalStateException thrown =
         Assert.assertThrows(
             IllegalStateException.class,
-            () -> TemporalOperationProcessor.invokeStartHandler(handle, null, null, "in"));
+            () -> TemporalOperationProcessor.invokeStartHandler(handle, null, "in"));
     Assert.assertEquals("user-thrown", thrown.getMessage());
     // First user frame is at the top — no reflective wrapper class in between.
     Assert.assertEquals(ThrowingHandler.class.getName(), thrown.getStackTrace()[0].getClassName());
@@ -277,8 +275,7 @@ public class TemporalOperationProcessorTest {
     }
 
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(prefix + ":" + input);
     }
   }
@@ -286,8 +283,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class ThrowingHandler {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       throw new IllegalStateException("user-thrown");
     }
   }
@@ -337,7 +333,7 @@ public class TemporalOperationProcessorTest {
     @OperationImpl
     public OperationHandler<String, String> op() {
       return new TemporalOperationHandler<String, String>(
-          (ctx, client, input) -> TemporalOperationResult.sync(input)) {};
+          (client, input) -> TemporalOperationResult.sync(input)) {};
     }
   }
 }

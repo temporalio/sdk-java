@@ -1,5 +1,10 @@
 package io.temporal.nexus;
 
+import io.temporal.common.CancellationToken;
+import java.time.Instant;
+import java.util.concurrent.CancellationException;
+import javax.annotation.Nullable;
+
 /**
  * Temporal information about the Nexus Operation. Use {@link NexusOperationContext#getInfo()} from
  * a Nexus Operation implementation to access.
@@ -20,4 +25,16 @@ public interface NexusOperationInfo {
    *     Supported from server v1.30.0.
    */
   String getEndpoint();
+
+  // :>) add comment
+  String getService();
+
+  // :>) add comment
+  String getOperation();
+
+  // :>) add comment
+  @Nullable
+  Instant getDeadline();
+
+  CancellationToken<CancellationException> getCancellationToken();
 }

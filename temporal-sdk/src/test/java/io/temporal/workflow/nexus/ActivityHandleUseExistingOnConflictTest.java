@@ -157,7 +157,7 @@ public class ActivityHandleUseExistingOnConflictTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
-          (context, client, activityId) ->
+          (client, activityId) ->
               client.startActivity(
                   BlockingActivity.class,
                   BlockingActivity::execute,

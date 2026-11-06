@@ -29,7 +29,7 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  * @OperationImpl
  * public OperationHandler<TransferInput, TransferResult> startTransfer() {
  *   return new TemporalOperationHandler<TransferInput, TransferResult>(
- *       (context, client, input) ->
+ *       (client, input) ->
  *           client.startWorkflow(
  *               TransferWorkflow.class,
  *               TransferWorkflow::transfer,
@@ -60,8 +60,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
    */
   @FunctionalInterface
   public interface StartHandler<T, R> {
-    TemporalOperationResult<R> apply(
-        TemporalOperationStartContext context, TemporalNexusClient client, T input)
+    TemporalOperationResult<R> apply(TemporalNexusClient client, T input)
         throws OperationException, HandlerException;
   }
 
@@ -92,8 +91,9 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
     TemporalNexusClient client =
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
 
-    TemporalOperationStartContext startContext = new TemporalOperationStartContext(ctx, details);
-    TemporalOperationResult<R> result = startHandler.apply(startContext, client, input);
+    // :<) remove
+    // TemporalOperationStartContext startContext = new TemporalOperationStartContext(ctx, details);
+    TemporalOperationResult<R> result = startHandler.apply(client, input);
 
     if (result.isSync()) {
       return OperationStartResult.newSyncBuilder(result.getSyncResult()).build();
