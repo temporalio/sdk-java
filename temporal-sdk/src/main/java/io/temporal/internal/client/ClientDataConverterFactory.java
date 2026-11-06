@@ -7,6 +7,7 @@ import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -37,9 +38,16 @@ public final class ClientDataConverterFactory {
     return withStorage(configured, Objects.requireNonNull(externalStorage, "externalStorage"));
   }
 
-  private static ExternalStorageDataConverter withStorage(
+  static ExternalStorageDataConverter withStorage(
       DataConverter configured, @Nullable ExternalStorageRunner externalStorage) {
     return new ExternalStorageDataConverter(transferAware(configured), externalStorage);
+  }
+
+  static DataConverter withStorageTarget(
+      DataConverter converter, @Nullable StorageDriverTargetInfo storageTarget) {
+    return converter instanceof ExternalStorageDataConverter
+        ? ((ExternalStorageDataConverter) converter).withStorageTarget(storageTarget)
+        : converter;
   }
 
   private static DataConverter transferAware(DataConverter configured) {

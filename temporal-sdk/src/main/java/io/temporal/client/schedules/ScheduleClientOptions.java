@@ -5,10 +5,12 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
+import io.temporal.payload.storage.ExternalStorage;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /** Options for ScheduleClient configuration. */
 public final class ScheduleClientOptions {
@@ -49,6 +51,7 @@ public final class ScheduleClientOptions {
     private List<ContextPropagator> contextPropagators;
     private List<ScheduleClientInterceptor> interceptors;
     private ScheduleClientPlugin[] plugins;
+    private ExternalStorage externalStorage;
 
     private Builder() {}
 
@@ -62,6 +65,7 @@ public final class ScheduleClientOptions {
       contextPropagators = options.contextPropagators;
       interceptors = options.interceptors;
       plugins = options.plugins;
+      externalStorage = options.externalStorage;
     }
 
     /** Set the namespace this client will operate on. */
@@ -117,6 +121,17 @@ public final class ScheduleClientOptions {
       return this;
     }
 
+    /**
+     * External storage configuration used to store/retrieve large payloads.
+     *
+     * <p>Defaults to null.
+     */
+    @Experimental
+    public Builder setExternalStorage(@Nullable ExternalStorage externalStorage) {
+      this.externalStorage = externalStorage;
+      return this;
+    }
+
     public ScheduleClientOptions build() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new ScheduleClientOptions(
@@ -125,7 +140,8 @@ public final class ScheduleClientOptions {
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
           interceptors == null ? EMPTY_INTERCEPTORS : interceptors,
-          plugins == null ? EMPTY_PLUGINS : plugins);
+          plugins == null ? EMPTY_PLUGINS : plugins,
+          externalStorage);
     }
   }
 
@@ -135,6 +151,7 @@ public final class ScheduleClientOptions {
   private final List<ContextPropagator> contextPropagators;
   private final List<ScheduleClientInterceptor> interceptors;
   private final ScheduleClientPlugin[] plugins;
+  private final @Nullable ExternalStorage externalStorage;
 
   private ScheduleClientOptions(
       String namespace,
@@ -142,13 +159,15 @@ public final class ScheduleClientOptions {
       String identity,
       List<ContextPropagator> contextPropagators,
       List<ScheduleClientInterceptor> interceptors,
-      ScheduleClientPlugin[] plugins) {
+      ScheduleClientPlugin[] plugins,
+      @Nullable ExternalStorage externalStorage) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.interceptors = interceptors;
     this.plugins = plugins;
+    this.externalStorage = externalStorage;
   }
 
   /**
@@ -204,5 +223,12 @@ public final class ScheduleClientOptions {
   @Experimental
   public ScheduleClientPlugin[] getPlugins() {
     return plugins == null ? new ScheduleClientPlugin[0] : Arrays.copyOf(plugins, plugins.length);
+  }
+
+  /** External storage used to offload large payloads or null when disabled. */
+  @Experimental
+  @Nullable
+  public ExternalStorage getExternalStorage() {
+    return externalStorage;
   }
 }

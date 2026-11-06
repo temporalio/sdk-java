@@ -14,6 +14,7 @@ import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -40,6 +41,10 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
+    ExternalStorageRunner externalStorage =
+        options.getExternalStorage() == null
+            ? null
+            : ExternalStorageRunner.create(options.getExternalStorage());
     DataConverter internalDataConverter =
         ClientDataConverterFactory.forClient(options.getDataConverter());
     this.stubs = stubs;
@@ -50,19 +55,29 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
         stubs.getOptions().getMetricsScope().tagged(MetricsTag.defaultTags(options.getNamespace()));
     GenericWorkflowClientImpl genericClient =
         new GenericWorkflowClientImpl(namespacedStubs, metricsScope);
-    this.invoker = initializeClientInvoker(genericClient, options, internalDataConverter);
+    this.invoker =
+        initializeClientInvoker(genericClient, options, internalDataConverter, externalStorage);
     this.manualActivityCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            namespacedStubs, options.getNamespace(), options.getIdentity(), internalDataConverter);
+            namespacedStubs,
+            options.getNamespace(),
+            options.getIdentity(),
+            internalDataConverter,
+            externalStorage);
   }
 
   private static ActivityClientCallsInterceptor initializeClientInvoker(
       GenericWorkflowClientImpl genericClient,
       ActivityClientOptions options,
-      DataConverter dataConverter) {
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
     ActivityClientCallsInterceptor invoker =
         new RootActivityClientInvoker(
-            genericClient, options.getNamespace(), options.getIdentity(), dataConverter);
+            genericClient,
+            options.getNamespace(),
+            options.getIdentity(),
+            dataConverter,
+            externalStorage);
     for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
       invoker = interceptor.activityClientCallsInterceptor(invoker);
     }
