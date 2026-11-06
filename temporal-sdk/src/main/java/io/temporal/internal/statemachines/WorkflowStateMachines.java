@@ -1034,6 +1034,7 @@ public final class WorkflowStateMachines {
         NexusOperationStateMachine.newInstance(
             parameters.getAttributes().build(),
             parameters.getMetadata(),
+            parameters.getEventGroupMarkers(),
             startedCallback,
             completionCallback,
             commandSink,
@@ -1053,6 +1054,7 @@ public final class WorkflowStateMachines {
             RequestCancelNexusOperationCommandAttributes.newBuilder()
                 .setScheduledEventId(operation.getInitialCommandEventId())
                 .build(),
+            parameters.getEventGroupMarkers(),
             (r, f) -> {
               if (cancellationType == NexusOperationCancellationType.WAIT_REQUESTED) {
                 notifyNexusOperationCanceled(f, operation, startedCallback, completionCallback);
@@ -1130,10 +1132,11 @@ public final class WorkflowStateMachines {
    */
   public void requestCancelNexusOperation(
       RequestCancelNexusOperationCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback) {
     checkEventLoopExecuting();
     CancelNexusOperationStateMachine.newInstance(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   public void upsertSearchAttributes(SearchAttributes attributes) {

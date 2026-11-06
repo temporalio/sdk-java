@@ -880,7 +880,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     StartNexusOperationParameters parameters =
         new StartNexusOperationParameters(
-            attributes, input.getOptions().getCancellationType(), userMetadata);
+            attributes,
+            input.getOptions().getCancellationType(),
+            userMetadata,
+            eventGroupMarkers(input.getOptions().getEventGroups()));
 
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.startNexusOperation(
