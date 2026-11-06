@@ -9,8 +9,10 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.failure.v1.NexusOperationFailureInfo;
 import io.temporal.api.history.v1.*;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nullable;
 
@@ -29,6 +31,7 @@ final class NexusOperationStateMachine
 
   private ScheduleNexusOperationCommandAttributes scheduleAttributes;
   private UserMetadata metadata;
+  private final List<EventGroupMarker> eventGroupMarkers;
   private final Functions.Proc2<Optional<String>, Failure> startedCallback;
   private boolean async = false;
 
@@ -216,17 +219,25 @@ final class NexusOperationStateMachine
   public static NexusOperationStateMachine newInstance(
       ScheduleNexusOperationCommandAttributes attributes,
       @Nullable UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     return new NexusOperationStateMachine(
-        attributes, metadata, startedCallback, completionCallback, commandSink, stateMachineSink);
+        attributes,
+        metadata,
+        eventGroupMarkers,
+        startedCallback,
+        completionCallback,
+        commandSink,
+        stateMachineSink);
   }
 
   private NexusOperationStateMachine(
       ScheduleNexusOperationCommandAttributes attributes,
       @Nullable UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Optional<String>, Failure> startedCallback,
       Functions.Proc2<Optional<Payload>, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
@@ -234,6 +245,7 @@ final class NexusOperationStateMachine
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.scheduleAttributes = attributes;
     this.metadata = metadata;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.operation = attributes.getOperation();
     this.service = attributes.getService();
     this.endpoint = attributes.getEndpoint();
@@ -246,7 +258,8 @@ final class NexusOperationStateMachine
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_NEXUS_OPERATION)
-            .setScheduleNexusOperationCommandAttributes(scheduleAttributes);
+            .setScheduleNexusOperationCommandAttributes(scheduleAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers);
     if (metadata != null) {
       command.setUserMetadata(metadata);
     }
