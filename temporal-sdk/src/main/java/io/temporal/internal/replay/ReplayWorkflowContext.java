@@ -195,6 +195,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void requestCancelExternalWorkflowExecution(
       WorkflowExecution execution,
       @Nullable String reason,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> callback);
 
   /**

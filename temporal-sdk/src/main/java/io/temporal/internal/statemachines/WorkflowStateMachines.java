@@ -988,6 +988,7 @@ public final class WorkflowStateMachines {
         ChildWorkflowStateMachine.newInstance(
             attributes,
             parameters.getMetadata(),
+            parameters.getEventGroupMarkers(),
             startedCallback,
             completionCallback,
             commandSink,
@@ -1010,6 +1011,7 @@ public final class WorkflowStateMachines {
                 .setNamespace(attributes.getNamespace())
                 .setChildWorkflowOnly(true)
                 .build(),
+            parameters.getEventGroupMarkers(),
             (r, e) -> { // TODO(maxim): Decide what to do if an error is passed to the callback.
               if (cancellationType == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
                 notifyChildCanceled(completionCallback);
@@ -1113,10 +1115,11 @@ public final class WorkflowStateMachines {
    */
   public void requestCancelExternalWorkflowExecution(
       RequestCancelExternalWorkflowExecutionCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> completionCallback) {
     checkEventLoopExecuting();
     CancelExternalStateMachine.newInstance(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   /**

@@ -239,6 +239,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   public void requestCancelExternalWorkflowExecution(
       WorkflowExecution execution,
       @Nullable String reason,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> callback) {
     RequestCancelExternalWorkflowExecutionCommandAttributes.Builder attributes =
         RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
@@ -247,7 +248,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     if (reason != null) {
       attributes.setReason(reason);
     }
-    workflowStateMachines.requestCancelExternalWorkflowExecution(attributes.build(), callback);
+    workflowStateMachines.requestCancelExternalWorkflowExecution(
+        attributes.build(), eventGroupMarkers, callback);
   }
 
   @Override

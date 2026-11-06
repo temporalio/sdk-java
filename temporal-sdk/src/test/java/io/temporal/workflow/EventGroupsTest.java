@@ -20,6 +20,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -54,7 +55,11 @@ public class EventGroupsTest {
               AwaitWorkflowImpl.class,
               ActivityCommandWorkflowImpl.class,
               LocalActivityCommandWorkflowImpl.class,
-              LocalActivityBackoffCommandWorkflowImpl.class)
+              LocalActivityBackoffCommandWorkflowImpl.class,
+              ChildCommandWorkflowImpl.class,
+              ChildWorkflowImpl.class,
+              ChildWorkflowSleep5sImpl.class,
+              CancelExternalCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
 
@@ -406,7 +411,8 @@ public class EventGroupsTest {
 
     // EG-COMMANDS-03-CANCEL is skipped: LocalActivityStateMachine.cancel is a no-op,
     // so a cancellation request produces no cancellation marker.
-    // assertLabelGroups(require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null), "direct");
+    // assertLabelGroups(require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null),
+    // "direct");
   }
 
   private List<HistoryEvent> localActivityCommandHistory() {
@@ -488,6 +494,136 @@ public class EventGroupsTest {
               .addEventGroups(direct)
               .build();
       Workflow.newLocalActivityStub(EventGroupActivities.class, options).failFirstAttempt();
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void childWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = childCommandHistory();
+
+    // EG-COMMANDS-04: Child Workflow commands carry markers
+    assertLabelGroups(requireChild(events, "child-workflow"), "direct");
+  }
+
+  @Test
+  public void childWorkflowCancellationCommandsCarryTheChildWorkflowsMarkers() {
+    List<HistoryEvent> events = childCommandHistory();
+
+    // EG-COMMANDS-04-CANCEL: Child Workflow Cancellation commands carry the Child Workflow's
+    // markers
+    assertLabelGroups(requireChild(events, "child-workflow-sleep-5s"), "direct");
+    assertLabelGroups(
+        require(
+            events,
+            EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+            null),
+        "direct");
+  }
+
+  private List<HistoryEvent> childCommandHistory() {
+    ChildCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ChildCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ChildCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ChildCommandWorkflowImpl implements ChildCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.newChildWorkflowStub(ChildWorkflow.class, child(direct, "child-workflow")).execute();
+
+      // The plan uses WAIT_CANCELLATION_REQUESTED, but the test server delivers the cancel request
+      // without holding the time-skipping lock, so time can skip to the parent's run timeout while
+      // the parent waits for the request to be acknowledged.
+      ChildWorkflowSleep5s sleeping =
+          Workflow.newChildWorkflowStub(
+              ChildWorkflowSleep5s.class,
+              child(direct, "child-workflow-sleep-5s").toBuilder()
+                  .setCancellationType(ChildWorkflowCancellationType.TRY_CANCEL)
+                  .build());
+      CancellationScope cancellation = Workflow.newCancellationScope(sleeping::execute);
+      Promise<Void> running = Async.procedure(cancellation::run);
+      // Cancelling while the child's start is still in flight makes the test server reject the
+      // workflow task with UnhandledCommand, and the workflow then times out.
+      Workflow.getWorkflowExecution(sleeping).get();
+      cancellation.cancel();
+      swallowCancellation(running);
+    }
+  }
+
+  @WorkflowInterface
+  public interface ChildWorkflow {
+    @WorkflowMethod(name = "child-workflow")
+    void execute();
+  }
+
+  public static class ChildWorkflowImpl implements ChildWorkflow {
+    @Override
+    public void execute() {}
+  }
+
+  @WorkflowInterface
+  public interface ChildWorkflowSleep5s {
+    @WorkflowMethod(name = "child-workflow-sleep-5s")
+    void execute();
+  }
+
+  public static class ChildWorkflowSleep5sImpl implements ChildWorkflowSleep5s {
+    @Override
+    public void execute() {
+      // Stays open so the parent can cancel it before a normal completion.
+      Workflow.await(() -> false);
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void cancelExternalWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = cancelExternalCommandHistory();
+
+    // EG-COMMANDS-07: Cancel External Workflow commands carry markers
+    assertLabelGroups(
+        require(
+            events,
+            EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+            null),
+        "direct");
+  }
+
+  private List<HistoryEvent> cancelExternalCommandHistory() {
+    CancelExternalCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(CancelExternalCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface CancelExternalCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class CancelExternalCommandWorkflowImpl implements CancelExternalCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      // The test server never resolves a cancel of a missing workflow, so waiting on it runs the
+      // workflow out to its start-to-close timeout. The initiated event is recorded either way.
+      Async.procedure(
+          () ->
+              Workflow.newUntypedExternalWorkflowStub("other-workflow")
+                  .cancel(
+                      CancelExternalWorkflowOptions.newBuilder().addEventGroups(direct).build()));
     }
   }
 
@@ -628,6 +764,29 @@ public class EventGroupsTest {
     }
   }
 
+  private static HistoryEvent requireChild(List<HistoryEvent> events, String workflowType) {
+    for (HistoryEvent event : events) {
+      if (event.getEventType() == EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED
+          && workflowType.equals(
+              event
+                  .getStartChildWorkflowExecutionInitiatedEventAttributes()
+                  .getWorkflowType()
+                  .getName())) {
+        return event;
+      }
+    }
+    fail("no child start for " + workflowType);
+    return null;
+  }
+
+  private static ChildWorkflowOptions child(EventGroup direct, String workflowType) {
+    return ChildWorkflowOptions.newBuilder()
+        .setTaskQueue(Workflow.getInfo().getTaskQueue())
+        .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-" + workflowType)
+        .addEventGroups(direct)
+        .build();
+  }
+
   private static LocalActivityOptions localActivity(EventGroup direct, String summary) {
     return LocalActivityOptions.newBuilder()
         .setStartToCloseTimeout(Duration.ofSeconds(20))
@@ -656,7 +815,7 @@ public class EventGroupsTest {
   private static void swallowCancellation(Promise<Void> promise) {
     try {
       promise.get();
-    } catch (CanceledFailure | ActivityFailure expected) {
+    } catch (CanceledFailure | ActivityFailure | ChildWorkflowFailure expected) {
       // The cancelled command's failure is the point of the test.
     }
   }

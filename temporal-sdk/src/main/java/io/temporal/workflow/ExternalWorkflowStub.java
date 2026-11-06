@@ -72,7 +72,7 @@ public interface ExternalWorkflowStub {
 
   /**
    * Request cancellation of the workflow execution, with options such as the reason for
-   * cancellation.
+   * cancellation and Event Groups to associate with the cancellation request command.
    *
    * @param options options of the cancellation request command
    */

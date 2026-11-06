@@ -214,6 +214,7 @@ public class DummySyncWorkflowContext {
     public void requestCancelExternalWorkflowExecution(
         WorkflowExecution execution,
         @Nullable String reason,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Void, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
