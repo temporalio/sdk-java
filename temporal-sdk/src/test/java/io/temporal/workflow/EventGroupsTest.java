@@ -16,6 +16,7 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
@@ -23,6 +24,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,6 +57,8 @@ public class EventGroupsTest {
               SignalExternalWorkflowImpl.class,
               ChildSignalWorkflowImpl.class,
               CancelExternalWorkflowImpl.class,
+              UpsertMemoWorkflowImpl.class,
+              UpsertSearchAttributesWorkflowImpl.class,
               ScopeWorkflowImpl.class,
               ImplicitWorkflowImpl.class,
               RuntimeSignalWorkflowImpl.class,
@@ -455,6 +459,28 @@ public class EventGroupsTest {
         "scope");
   }
 
+  @Test
+  public void modifyWorkflowPropertiesCommandsCarryMarkers() {
+    List<HistoryEvent> events = upsertMemoHistory();
+
+    // EG-COMMANDS-20: Modify Workflow Properties commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED, null),
+        "direct",
+        "scope");
+  }
+
+  @Test
+  public void upsertSearchAttributeCommandsCarryMarkers() {
+    List<HistoryEvent> events = upsertSearchAttributesHistory();
+
+    // EG-COMMANDS-21: Upsert search attribute commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null),
+        "direct",
+        "scope");
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////////////
   // SUPPORT WORKFLOWS AND ACTIVITIES
   ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -824,6 +850,58 @@ public class EventGroupsTest {
     CancelExternalWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(CancelExternalWorkflow.class);
     workflow.execute(WorkflowStub.fromTyped(target).getExecution().getWorkflowId());
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface UpsertMemoWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class UpsertMemoWorkflowImpl implements UpsertMemoWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.upsertMemo(
+                  Collections.singletonMap("some-key", "some-value"),
+                  UpsertMemoOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  private List<HistoryEvent> upsertMemoHistory() {
+    UpsertMemoWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(UpsertMemoWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface UpsertSearchAttributesWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class UpsertSearchAttributesWorkflowImpl implements UpsertSearchAttributesWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.upsertTypedSearchAttributes(
+                  UpsertSearchAttributesOptions.newBuilder().addEventGroups(direct).build(),
+                  SearchAttributeKey.forKeyword("CustomKeywordField").valueSet("some-value")));
+    }
+  }
+
+  private List<HistoryEvent> upsertSearchAttributesHistory() {
+    UpsertSearchAttributesWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(UpsertSearchAttributesWorkflow.class);
+    workflow.execute();
     return history(workflow);
   }
 

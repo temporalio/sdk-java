@@ -16,6 +16,7 @@ import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.VersionPreference;
 import io.temporal.workflow.Functions;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
@@ -258,7 +259,8 @@ final class VersionStateMachine {
         addCommand(markerCommand);
         if (writeVersionChangeSA) {
           hasWrittenVersionChangeSA = true;
-          UpsertSearchAttributesStateMachine.newInstance(sa, commandSink, stateMachineSink);
+          UpsertSearchAttributesStateMachine.newInstance(
+              sa, Collections.emptyList(), commandSink, stateMachineSink);
         }
         return State.MARKER_COMMAND_CREATED;
       }
@@ -322,7 +324,10 @@ final class VersionStateMachine {
           hasWrittenVersionChangeSA = true;
           if (writeVersionChangeSA) {
             UpsertSearchAttributesStateMachine.newInstance(
-                SearchAttributes.newBuilder().build(), commandSink, stateMachineSink);
+                SearchAttributes.newBuilder().build(),
+                Collections.emptyList(),
+                commandSink,
+                stateMachineSink);
           }
         }
         return State.MARKER_COMMAND_CREATED_REPLAYING;

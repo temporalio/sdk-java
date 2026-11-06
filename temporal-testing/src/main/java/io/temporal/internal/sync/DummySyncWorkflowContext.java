@@ -312,12 +312,13 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+    public void upsertSearchAttributes(
+        @Nonnull SearchAttributes searchAttributes, List<EventGroupMarker> eventGroupMarkers) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void upsertMemo(Memo memo) {
+    public void upsertMemo(@Nonnull Memo memo, List<EventGroupMarker> eventGroupMarkers) {
       throw new UnsupportedOperationException("not implemented");
     }
 

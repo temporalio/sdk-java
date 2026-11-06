@@ -374,7 +374,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+  public void upsertSearchAttributes(
+      @Nonnull SearchAttributes searchAttributes, List<EventGroupMarker> eventGroupMarkers) {
     /*
      * Temporal Change Version is a reserved field and should ideally not be set by the user.
      * It is set by the SDK when getVersion is called. We know that users have been setting
@@ -387,13 +388,13 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
           "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on your `WorkflowImplementationOptions`",
           TEMPORAL_CHANGE_VERSION.getName());
     }
-    workflowStateMachines.upsertSearchAttributes(searchAttributes);
+    workflowStateMachines.upsertSearchAttributes(searchAttributes, eventGroupMarkers);
     mutableState.upsertSearchAttributes(searchAttributes);
   }
 
   @Override
-  public void upsertMemo(@Nonnull Memo memo) {
-    workflowStateMachines.upsertMemo(memo);
+  public void upsertMemo(@Nonnull Memo memo, List<EventGroupMarker> eventGroupMarkers) {
+    workflowStateMachines.upsertMemo(memo, eventGroupMarkers);
     mutableState.upsertMemo(memo);
   }
 

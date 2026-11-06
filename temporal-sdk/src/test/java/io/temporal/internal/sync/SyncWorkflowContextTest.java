@@ -115,9 +115,9 @@ public class SyncWorkflowContextTest {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
     SearchAttributes serializedAttr = SearchAttributesUtil.encode(attr);
-
     context.upsertSearchAttributes(attr);
-    verify(mockReplayWorkflowContext, times(1)).upsertSearchAttributes(serializedAttr);
+    verify(mockReplayWorkflowContext, times(1))
+        .upsertSearchAttributes(serializedAttr, Collections.emptyList());
   }
 
   @Test(expected = IllegalArgumentException.class)
