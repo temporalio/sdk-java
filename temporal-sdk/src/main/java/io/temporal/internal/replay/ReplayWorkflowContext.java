@@ -183,6 +183,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   Functions.Proc1<Exception> signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> callback);
 
   /**

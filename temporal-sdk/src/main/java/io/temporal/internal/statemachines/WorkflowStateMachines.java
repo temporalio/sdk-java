@@ -1105,10 +1105,11 @@ public final class WorkflowStateMachines {
    */
   public Functions.Proc signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback) {
     checkEventLoopExecuting();
     return SignalExternalStateMachine.newInstance(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   /**

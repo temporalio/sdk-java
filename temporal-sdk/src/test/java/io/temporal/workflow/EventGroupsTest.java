@@ -59,6 +59,8 @@ public class EventGroupsTest {
               ChildCommandWorkflowImpl.class,
               ChildWorkflowImpl.class,
               ChildWorkflowSleep5sImpl.class,
+              SignalCommandWorkflowImpl.class,
+              ChildWorkflowWaitForSignalsImpl.class,
               CancelExternalCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
@@ -590,6 +592,84 @@ public class EventGroupsTest {
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
   @Test
+  public void signalExternalWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = signalCommandHistory();
+
+    // EG-COMMANDS-06: Signal External Workflow commands carry markers
+    assertLabelGroups(requireSignal(events, "other-workflow"), "direct");
+  }
+
+  @Test
+  public void signalChildWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = signalCommandHistory();
+
+    // EG-COMMANDS-06-CHILD: Signal Child Workflow commands carry markers
+    assertLabelGroups(requireSignal(events, "child-workflow-wait-for-signals"), "direct");
+  }
+
+  private List<HistoryEvent> signalCommandHistory() {
+    SignalCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(SignalCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface SignalCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class SignalCommandWorkflowImpl implements SignalCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      try {
+        Workflow.newUntypedExternalWorkflowStub("other-workflow")
+            .signal(
+                "signal",
+                SignalExternalWorkflowOptions.newBuilder().addEventGroups(direct).build());
+      } catch (ApplicationFailure expected) {
+        // A missing workflow still records the initiated event before the request fails.
+      }
+
+      ChildWorkflowWaitForSignals child =
+          Workflow.newChildWorkflowStub(
+              ChildWorkflowWaitForSignals.class, child(null, "child-workflow-wait-for-signals"));
+      Promise<Void> done = Async.procedure(child::execute);
+      Workflow.getWorkflowExecution(child).get();
+      ChildWorkflowStub.fromTyped(child)
+          .signal("signal", SignalChildWorkflowOptions.newBuilder().addEventGroups(direct).build());
+      done.get();
+    }
+  }
+
+  @WorkflowInterface
+  public interface ChildWorkflowWaitForSignals {
+    @WorkflowMethod(name = "child-workflow-wait-for-signals")
+    void execute();
+
+    @SignalMethod(name = "signal")
+    void signal();
+  }
+
+  public static class ChildWorkflowWaitForSignalsImpl implements ChildWorkflowWaitForSignals {
+    private boolean signaled;
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> signaled);
+    }
+
+    @Override
+    public void signal() {
+      signaled = true;
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
   public void cancelExternalWorkflowCommandsCarryMarkers() {
     List<HistoryEvent> events = cancelExternalCommandHistory();
 
@@ -781,12 +861,30 @@ public class EventGroupsTest {
     return null;
   }
 
+  private static HistoryEvent requireSignal(List<HistoryEvent> events, String workflowIdSuffix) {
+    for (HistoryEvent event : events) {
+      if (event.getEventType() == EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED
+          && event
+              .getSignalExternalWorkflowExecutionInitiatedEventAttributes()
+              .getWorkflowExecution()
+              .getWorkflowId()
+              .endsWith(workflowIdSuffix)) {
+        return event;
+      }
+    }
+    fail("no signal to " + workflowIdSuffix);
+    return null;
+  }
+
   private static ChildWorkflowOptions child(EventGroup direct, String workflowType) {
-    return ChildWorkflowOptions.newBuilder()
-        .setTaskQueue(Workflow.getInfo().getTaskQueue())
-        .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-" + workflowType)
-        .addEventGroups(direct)
-        .build();
+    ChildWorkflowOptions.Builder builder =
+        ChildWorkflowOptions.newBuilder()
+            .setTaskQueue(Workflow.getInfo().getTaskQueue())
+            .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-" + workflowType);
+    if (direct != null) {
+      builder.addEventGroups(direct);
+    }
+    return builder.build();
   }
 
   private static LocalActivityOptions localActivity(EventGroup direct, String summary) {
