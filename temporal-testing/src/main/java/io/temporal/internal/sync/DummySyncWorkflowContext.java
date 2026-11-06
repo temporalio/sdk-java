@@ -206,6 +206,7 @@ public class DummySyncWorkflowContext {
     @Override
     public Functions.Proc1<Exception> signalExternalWorkflowExecution(
         SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Void, Failure> callback) {
       throw new UnsupportedOperationException("not implemented");
     }

@@ -1407,6 +1407,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.signalExternalWorkflowExecution(
             attributes,
+            eventGroupMarkers(input.getOptions().getEventGroups()),
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(

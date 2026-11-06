@@ -51,6 +51,9 @@ public class EventGroupsTest {
               QuickChildImpl.class,
               ChildCancelWorkflowImpl.class,
               WaitingChildImpl.class,
+              SignalTargetImpl.class,
+              SignalExternalWorkflowImpl.class,
+              ChildSignalWorkflowImpl.class,
               CancelExternalWorkflowImpl.class,
               ScopeWorkflowImpl.class,
               ImplicitWorkflowImpl.class,
@@ -415,6 +418,28 @@ public class EventGroupsTest {
   }
 
   @Test
+  public void signalExternalWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = signalExternalHistory();
+
+    // EG-COMMANDS-06: Signal External Workflow commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED, null),
+        "direct",
+        "scope");
+  }
+
+  @Test
+  public void childWorkflowSignalCommandsCarryMarkers() {
+    List<HistoryEvent> events = childSignalHistory();
+
+    // EG-COMMANDS-06-CHILD: Child Workflow signal commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED, null),
+        "direct",
+        "scope");
+  }
+
+  @Test
   public void cancelExternalWorkflowCommandsCarryMarkers() {
     List<HistoryEvent> events = cancelExternalHistory();
 
@@ -682,6 +707,91 @@ public class EventGroupsTest {
   private List<HistoryEvent> childCancelHistory() {
     ChildCancelWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(ChildCancelWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface SignalTarget {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod
+    void go();
+  }
+
+  public static class SignalTargetImpl implements SignalTarget {
+    private boolean go;
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> go);
+    }
+
+    @Override
+    public void go() {
+      go = true;
+    }
+  }
+
+  @WorkflowInterface
+  public interface SignalExternalWorkflow {
+    @WorkflowMethod
+    void execute(String workflowId);
+  }
+
+  public static class SignalExternalWorkflowImpl implements SignalExternalWorkflow {
+    @Override
+    public void execute(String workflowId) {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.newUntypedExternalWorkflowStub(workflowId)
+                  .signal(
+                      "go",
+                      SignalExternalWorkflowOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  private List<HistoryEvent> signalExternalHistory() {
+    SignalTarget target = testWorkflowRule.newWorkflowStubTimeoutOptions(SignalTarget.class);
+    WorkflowClient.start(target::execute);
+
+    SignalExternalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(SignalExternalWorkflow.class);
+    workflow.execute(WorkflowStub.fromTyped(target).getExecution().getWorkflowId());
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ChildSignalWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ChildSignalWorkflowImpl implements ChildSignalWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      // The child starts outside the scope, so only the signal can supply the markers under test.
+      SignalTarget child = Workflow.newChildWorkflowStub(SignalTarget.class);
+      Promise<Void> done = Async.procedure(child::execute);
+      Workflow.getWorkflowExecution(child).get();
+      scope.run(
+          () ->
+              ChildWorkflowStub.fromTyped(child)
+                  .signal(
+                      "go",
+                      SignalChildWorkflowOptions.newBuilder().addEventGroups(direct).build()));
+      done.get();
+    }
+  }
+
+  private List<HistoryEvent> childSignalHistory() {
+    ChildSignalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ChildSignalWorkflow.class);
     workflow.execute();
     return history(workflow);
   }

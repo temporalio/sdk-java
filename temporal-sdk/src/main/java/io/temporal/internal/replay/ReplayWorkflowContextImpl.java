@@ -229,9 +229,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Functions.Proc1<Exception> signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> callback) {
     Functions.Proc cancellationHandler =
-        workflowStateMachines.signalExternalWorkflowExecution(attributes.build(), callback);
+        workflowStateMachines.signalExternalWorkflowExecution(
+            attributes.build(), eventGroupMarkers, callback);
     return (e) -> cancellationHandler.apply();
   }
 

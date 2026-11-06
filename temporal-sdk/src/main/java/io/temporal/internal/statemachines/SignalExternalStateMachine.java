@@ -9,7 +9,9 @@ import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.SignalExternalWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.workflow.Functions;
+import java.util.List;
 
 final class SignalExternalStateMachine
     extends EntityStateMachineInitialCommand<
@@ -18,6 +20,7 @@ final class SignalExternalStateMachine
         SignalExternalStateMachine> {
 
   private SignalExternalWorkflowExecutionCommandAttributes signalAttributes;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   private final Functions.Proc2<Void, Failure> completionCallback;
   private WorkflowExecution execution;
@@ -34,22 +37,25 @@ final class SignalExternalStateMachine
    */
   public static Functions.Proc newInstance(
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     SignalExternalStateMachine commands =
         new SignalExternalStateMachine(
-            signalAttributes, completionCallback, commandSink, stateMachineSink);
+            signalAttributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
     return commands::cancel;
   }
 
   private SignalExternalStateMachine(
       SignalExternalWorkflowExecutionCommandAttributes signalAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.signalAttributes = signalAttributes;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.execution = signalAttributes.getExecution();
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
@@ -112,6 +118,7 @@ final class SignalExternalStateMachine
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION)
             .setSignalExternalWorkflowExecutionCommandAttributes(signalAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
     signalAttributes = null; // do not retain
   }
