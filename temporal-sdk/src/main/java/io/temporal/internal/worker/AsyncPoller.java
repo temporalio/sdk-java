@@ -168,11 +168,7 @@ final class AsyncPoller<T extends ScalingTask> extends BasePoller<T> {
       return "PollTaskAsync";
     }
 
-    /**
-     * Supplies the poller pool's current scaling target, reported to the server on each poll.
-     * Default no-op for pollers with no pool to report, such as Nexus, whose poll request carries
-     * no such field.
-     */
+    /** Supplies the poller pool's current scaling target, reported to the server on each poll. */
     default void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
       // no-op
     }

@@ -55,10 +55,7 @@ public class PollerTracker {
     pollerTargetSupplier.set(supplier);
   }
 
-  /**
-   * The autoscaler's current target, or 0 when this pool has a fixed size and so has no target. The
-   * heartbeat proto defines 0 as unknown.
-   */
+  /** The autoscaler's target (if autoscaling), or 0 if using fixed pollers. */
   public int getTargetPollers() {
     IntSupplier supplier = pollerTargetSupplier.get();
     return supplier == null ? 0 : supplier.getAsInt();

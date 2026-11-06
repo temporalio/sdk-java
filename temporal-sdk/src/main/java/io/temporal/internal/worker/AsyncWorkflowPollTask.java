@@ -133,12 +133,7 @@ public class AsyncWorkflowPollTask
     pollerTracker.setPollerTargetSupplier(pollerTargetSupplier);
   }
 
-  /**
-   * The poll request with the pool's current scaling target attached, so the server can spread
-   * scaling suggestions across a fleet by share rather than by whoever receives the most tasks.
-   * Rebuilt per poll because the target moves; falls back to the prebuilt request when nothing is
-   * reporting, which the server reads as "no report".
-   */
+  /** The poll request with the pool's target poller count attached. */
   private PollWorkflowTaskQueueRequest pollRequestWithScalingInfo() {
     IntSupplier supplier = pollerTargetSupplier;
     if (supplier == null) {

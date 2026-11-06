@@ -122,7 +122,7 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
 
   /**
    * The poll request with the pool's current scaling target attached. Rebuilt per poll because the
-   * target moves; falls back to the prebuilt request when nothing is reporting.
+   * target moves.
    */
   private PollNexusTaskQueueRequest pollRequestWithScalingInfo() {
     IntSupplier supplier = pollerTargetSupplier;
