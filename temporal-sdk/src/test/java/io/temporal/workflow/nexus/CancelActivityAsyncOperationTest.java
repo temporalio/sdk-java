@@ -189,13 +189,13 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   HeartbeatingActivity.class,
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + context.getRequestId())
+                      .setId("act-" + input)
                       .setStartToCloseTimeout(Duration.ofSeconds(60))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -243,13 +243,13 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return new TemporalOperationHandler<String, String>(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   HeartbeatingActivity.class,
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-override-" + context.getRequestId())
+                      .setId("act-override-" + input)
                       .setStartToCloseTimeout(Duration.ofSeconds(5))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())

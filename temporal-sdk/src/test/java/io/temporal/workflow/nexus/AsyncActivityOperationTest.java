@@ -93,13 +93,13 @@ public class AsyncActivityOperationTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   TestActivity.class,
                   TestActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + context.getRequestId())
+                      .setId("act-" + input)
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .build()));
     }

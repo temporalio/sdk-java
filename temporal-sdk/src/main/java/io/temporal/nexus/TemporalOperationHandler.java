@@ -29,7 +29,7 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  * @OperationImpl
  * public OperationHandler<TransferInput, TransferResult> startTransfer() {
  *   return new TemporalOperationHandler<TransferInput, TransferResult>(
- *       (context, client, input) ->
+ *       (client, input) ->
  *           client.startWorkflow(
  *               TransferWorkflow.class,
  *               TransferWorkflow::transfer,
