@@ -22,6 +22,7 @@ import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
@@ -45,6 +46,9 @@ public class EventGroupsTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
+              WorkflowImplementationOptions.newBuilder()
+                  .setEnableUpsertVersionSearchAttributes(true)
+                  .build(),
               CancelWorkflowImpl.class,
               AwaitWorkflowImpl.class,
               ActivityWorkflowImpl.class,
@@ -59,6 +63,7 @@ public class EventGroupsTest {
               CancelExternalWorkflowImpl.class,
               UpsertMemoWorkflowImpl.class,
               UpsertSearchAttributesWorkflowImpl.class,
+              VersionWorkflowImpl.class,
               ScopeWorkflowImpl.class,
               ImplicitWorkflowImpl.class,
               RuntimeSignalWorkflowImpl.class,
@@ -466,6 +471,20 @@ public class EventGroupsTest {
     // EG-COMMANDS-20: Modify Workflow Properties commands carry markers
     assertLabelGroups(
         require(events, EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED, null),
+        "direct",
+        "scope");
+  }
+
+  @Test
+  public void versionCommandsCarryTheAmbientScope() {
+    List<HistoryEvent> events = versionHistory();
+
+    // EG-COMMANDS-23: Version commands carry the ambient scope
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
+    // The TemporalChangeVersion upsert synthesized beside the marker inherits its annotations.
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null),
         "direct",
         "scope");
   }
@@ -896,6 +915,34 @@ public class EventGroupsTest {
                   UpsertSearchAttributesOptions.newBuilder().addEventGroups(direct).build(),
                   SearchAttributeKey.forKeyword("CustomKeywordField").valueSet("some-value")));
     }
+  }
+
+  @WorkflowInterface
+  public interface VersionWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class VersionWorkflowImpl implements VersionWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.getVersion(
+                  "my-change",
+                  Workflow.DEFAULT_VERSION,
+                  1,
+                  GetVersionOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  private List<HistoryEvent> versionHistory() {
+    VersionWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(VersionWorkflow.class);
+    workflow.execute();
+    return history(workflow);
   }
 
   private List<HistoryEvent> upsertSearchAttributesHistory() {

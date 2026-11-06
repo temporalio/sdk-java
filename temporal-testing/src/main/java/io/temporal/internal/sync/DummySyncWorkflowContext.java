@@ -287,6 +287,7 @@ public class DummySyncWorkflowContext {
         String changeId,
         int minSupported,
         int maxSupported,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Integer, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }

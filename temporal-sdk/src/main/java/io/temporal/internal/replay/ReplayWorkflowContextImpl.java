@@ -351,6 +351,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       String changeId,
       int minSupported,
       int maxSupported,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback) {
     PreferredVersionProvider preferredVersionProvider = workerOptions.getPreferredVersionProvider();
     return workflowStateMachines.getVersion(
@@ -365,6 +366,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
                         preferredVersionProvider.getPreferredVersion(
                             new PreferredVersionProviderInput(
                                 WorkflowInternal.getWorkflowInfo(), changeId, min, max))),
+        eventGroupMarkers,
         callback);
   }
 
