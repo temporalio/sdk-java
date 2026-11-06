@@ -47,9 +47,7 @@ public class PollerTracker {
   }
 
   /**
-   * Supplies the autoscaler's current target for this pool. Set by the poll task once {@link
-   * AsyncPoller} has installed it, which is why this is a supplier rather than a value -- the scale
-   * report handle does not exist until the poller starts.
+   * A supplier rather than a value: the scale report handle does not exist until the poller starts.
    */
   public void setPollerTargetSupplier(IntSupplier supplier) {
     pollerTargetSupplier.set(supplier);
