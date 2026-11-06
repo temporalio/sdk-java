@@ -6,6 +6,7 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaDat
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.schedule.v1.*;
 import io.temporal.api.schedule.v1.Schedule;
@@ -19,6 +20,7 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflow.v1.NewWorkflowExecutionInfo;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
@@ -29,8 +31,10 @@ import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -43,6 +47,7 @@ public class ScheduleProtoUtil {
   private final String namespace;
   private final List<ContextPropagator> contextPropagators;
   private final DataConverter dataConverter;
+  private final @Nullable ExternalStorageRunner externalStorage;
   private final @Nullable PayloadCodec headerCodec;
 
   public ScheduleProtoUtil(
@@ -50,20 +55,46 @@ public class ScheduleProtoUtil {
       String namespace,
       List<ContextPropagator> contextPropagators,
       DataConverter dataConverter) {
+    this(genericClient, namespace, contextPropagators, dataConverter, null);
+  }
+
+  public ScheduleProtoUtil(
+      GenericWorkflowClient genericClient,
+      String namespace,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.contextPropagators = contextPropagators;
     this.dataConverter = dataConverter;
+    this.externalStorage = externalStorage;
     this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
+  }
+
+  /** The payloads a schedule carries are inputs to the workflows it starts. */
+  @Nullable
+  StorageDriverWorkflowInfo storageTarget(io.temporal.client.schedules.ScheduleAction action) {
+    if (!(action instanceof ScheduleActionStartWorkflow)) {
+      return null;
+    }
+    ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
+    return new StorageDriverWorkflowInfo(
+        namespace,
+        Strings.emptyToNull(startWorkflowAction.getOptions().getWorkflowId()),
+        null,
+        Strings.emptyToNull(startWorkflowAction.getWorkflowType()));
   }
 
   public ScheduleAction actionToProto(io.temporal.client.schedules.ScheduleAction action) {
     if (action instanceof ScheduleActionStartWorkflow) {
       ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
+      StorageDriverWorkflowInfo storageTarget = storageTarget(action);
       DataConverter dataConverterWithWorkflowContext =
-          dataConverter.withContext(
-              new WorkflowSerializationContext(
-                  namespace, startWorkflowAction.getOptions().getWorkflowId()));
+          ClientDataConverterFactory.withStorageTarget(dataConverter, storageTarget)
+              .withContext(
+                  new WorkflowSerializationContext(
+                      namespace, startWorkflowAction.getOptions().getWorkflowId()));
 
       WorkflowOptions wfOptions = startWorkflowAction.getOptions();
       // Disallow some options
@@ -141,14 +172,18 @@ public class ScheduleProtoUtil {
         workflowRequest.setUserMetadata(userMetadata);
       }
 
-      Header grpcHeader =
+      Header.Builder grpcHeader =
           toHeaderGrpc(
               startWorkflowAction.getHeader(),
               HeaderUtils.fromContextPropagators(
                   MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators)),
               HeaderUtils.withContext(
                   headerCodec,
-                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())));
+                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())))
+              .toBuilder();
+      if (externalStorage != null && grpcHeader.getFieldsCount() > 0) {
+        externalStorage.store(grpcHeader, storageTarget, null, CancellationToken.none());
+      }
       workflowRequest.setHeader(grpcHeader);
 
       if (wfOptions.getPriority() != null) {

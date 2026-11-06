@@ -78,6 +78,8 @@ to docs, or any other relevant information.
   To complete such an activity asynchronously, read the context from
   `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
+- **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
+  `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
 
 ### Changed
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
