@@ -472,7 +472,7 @@ public class NexusSerializationContextPropagationTest {
     @OperationImpl
     public OperationHandler<String, String> startActivity() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   BackingActivity.class,
                   BackingActivity::process,
@@ -491,7 +491,7 @@ public class NexusSerializationContextPropagationTest {
     @OperationImpl
     public OperationHandler<String, String> startAsyncActivity() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   AsyncActivity.class,
                   AsyncActivity::process,
@@ -505,7 +505,7 @@ public class NexusSerializationContextPropagationTest {
     @OperationImpl
     public OperationHandler<String, String> startStallingActivity() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   StallingActivity.class,
                   StallingActivity::process,
@@ -521,7 +521,7 @@ public class NexusSerializationContextPropagationTest {
     @OperationImpl
     public OperationHandler<String, String> startUpdate() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startWorkflowUpdate(
                   UpdateTargetWorkflow.class,
                   backingId(input),

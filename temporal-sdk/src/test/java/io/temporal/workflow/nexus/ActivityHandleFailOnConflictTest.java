@@ -130,7 +130,7 @@ public class ActivityHandleFailOnConflictTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
-          (context, client, activityId) -> {
+          (client, activityId) -> {
             nexusInvocationCount.incrementAndGet();
             return client.startActivity(
                 BlockingActivity.class,
