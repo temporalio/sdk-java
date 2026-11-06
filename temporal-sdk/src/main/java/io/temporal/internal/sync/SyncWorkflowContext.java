@@ -1237,6 +1237,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               changeId,
               minSupported,
               maxSupported,
+              eventGroupMarkers(options.getEventGroups()),
               (v, e) ->
                   runner.executeInWorkflowThread(
                       "version-callback",

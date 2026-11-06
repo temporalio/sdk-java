@@ -25,6 +25,7 @@ import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -53,6 +54,11 @@ public class EventGroupsTest {
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(
+              // Emits the TemporalChangeVersion upsert that EG-COMMANDS-23 expects to inherit the
+              // version marker's Event Groups.
+              WorkflowImplementationOptions.newBuilder()
+                  .setEnableUpsertVersionSearchAttributes(true)
+                  .build(),
               LabelIdWorkflowImpl.class,
               LabelPayloadWorkflowImpl.class,
               AggregationWorkflowImpl.class,
@@ -68,7 +74,8 @@ public class EventGroupsTest {
               ChildWorkflowWaitForSignalsImpl.class,
               CancelExternalCommandWorkflowImpl.class,
               UpsertMemoCommandWorkflowImpl.class,
-              UpsertSearchAttributesCommandWorkflowImpl.class)
+              UpsertSearchAttributesCommandWorkflowImpl.class,
+              VersionCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
 
@@ -785,6 +792,43 @@ public class EventGroupsTest {
       Workflow.upsertTypedSearchAttributes(
           UpsertSearchAttributesOptions.newBuilder().addEventGroups(direct).build(),
           SearchAttributeKey.forKeyword("CustomKeywordField").valueSet("some-value"));
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void versionCommandsCarryMarkers() {
+    List<HistoryEvent> events = versionCommandHistory();
+
+    // EG-COMMANDS-23: Version commands carry markers
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null), "direct");
+  }
+
+  private List<HistoryEvent> versionCommandHistory() {
+    VersionCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(VersionCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface VersionCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class VersionCommandWorkflowImpl implements VersionCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.getVersion(
+          "my-change",
+          Workflow.DEFAULT_VERSION,
+          1,
+          GetVersionOptions.newBuilder().addEventGroups(direct).build());
     }
   }
 

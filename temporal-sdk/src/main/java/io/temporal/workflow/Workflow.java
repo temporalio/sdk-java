@@ -1559,7 +1559,8 @@ public final class Workflow {
   }
 
   /**
-   * Same as {@link #getVersion(String, int, int)}, with options.
+   * Same as {@link #getVersion(String, int, int)}, with options such as Event Groups to associate
+   * with the version marker and with the associated search attribute update.
    *
    * @param changeId identifier of a particular change. All calls to getVersion that share a
    *     changeId are guaranteed to return the same version number. Use this to perform multiple

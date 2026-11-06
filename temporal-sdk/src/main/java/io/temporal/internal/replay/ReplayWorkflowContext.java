@@ -294,6 +294,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
       String changeId,
       int minSupported,
       int maxSupported,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback);
 
   /** Replay safe random. */

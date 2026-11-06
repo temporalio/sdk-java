@@ -1259,7 +1259,8 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
-    return getVersion(changeId, minSupported, maxSupported, null, callback);
+    return getVersion(
+        changeId, minSupported, maxSupported, null, Collections.emptyList(), callback);
   }
 
   public Integer getVersion(
@@ -1267,6 +1268,7 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
@@ -1300,6 +1302,7 @@ public final class WorkflowStateMachines {
           return sa;
         },
         preferredVersionProvider,
+        eventGroupMarkers,
         (v, e) -> {
           callback.apply(v, e);
           // without this getVersion call will trigger the end of WFT,
