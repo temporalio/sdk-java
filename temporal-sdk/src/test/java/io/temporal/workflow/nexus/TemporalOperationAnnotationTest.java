@@ -174,7 +174,7 @@ public class TemporalOperationAnnotationTest {
     @OperationImpl
     public OperationHandler<String, String> legacyOp() {
       return new TemporalOperationHandler<String, String>(
-          (ctx, client, input) -> TemporalOperationResult.sync("legacy:" + input)) {};
+          (client, input) -> TemporalOperationResult.sync("legacy:" + input)) {};
     }
   }
 }
