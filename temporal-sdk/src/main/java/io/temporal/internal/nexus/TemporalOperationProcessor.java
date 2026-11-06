@@ -13,7 +13,6 @@ import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
@@ -62,7 +61,7 @@ public final class TemporalOperationProcessor {
       }
 
       TemporalOperationHandler.StartHandler<Object, Object> startHandler =
-          (ctx, client, input) -> invokeStartHandler(handle, ctx, client, input);
+          (client, input) -> invokeStartHandler(handle, client, input);
 
       return new TemporalOperationHandler<Object, Object>(startHandler) {};
     }
@@ -78,13 +77,11 @@ public final class TemporalOperationProcessor {
           "@TemporalOperation method " + method.getName() + " must not be static");
     }
     Class<?>[] paramTypes = method.getParameterTypes();
-    if (paramTypes.length != 3
-        || !TemporalOperationStartContext.class.equals(paramTypes[0])
-        || !TemporalNexusClient.class.equals(paramTypes[1])) {
+    if (paramTypes.length != 2 || !TemporalNexusClient.class.equals(paramTypes[0])) {
       throw new IllegalArgumentException(
           "@TemporalOperation method "
               + method.getName()
-              + " must accept (TemporalOperationStartContext, TemporalNexusClient, I); got "
+              + " must accept (TemporalNexusClient, I); got "
               + describeSignature(method));
     }
     if (!TemporalOperationResult.class.equals(method.getReturnType())) {
@@ -112,7 +109,7 @@ public final class TemporalOperationProcessor {
 
   private static void validateTypes(Method method, OperationDefinition operationDefinition) {
     Type expectedInputType = operationDefinition.getInputType();
-    Type declaredInputType = method.getGenericParameterTypes()[2];
+    Type declaredInputType = method.getGenericParameterTypes()[1];
     if (!typesMatch(declaredInputType, expectedInputType)) {
       throw new IllegalArgumentException(
           "@TemporalOperation method "
@@ -144,13 +141,9 @@ public final class TemporalOperationProcessor {
   // Package-private for testing.
   @SuppressWarnings("unchecked")
   static TemporalOperationResult<Object> invokeStartHandler(
-      MethodHandle handle,
-      TemporalOperationStartContext ctx,
-      TemporalNexusClient client,
-      Object input)
-      throws OperationException {
+      MethodHandle handle, TemporalNexusClient client, Object input) throws OperationException {
     try {
-      return (TemporalOperationResult<Object>) handle.invoke(ctx, client, input);
+      return (TemporalOperationResult<Object>) handle.invoke(client, input);
     } catch (RuntimeException | Error | OperationException e) {
       // HandlerException is a RuntimeException and falls into the RuntimeException arm.
       throw e;
