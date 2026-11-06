@@ -100,6 +100,8 @@ final class WorkflowPollTask implements MultiThreadedPoller.PollTask<WorkflowTas
       // One fixed-size pool issues both the normal and the sticky polls, so both carry its size.
       pollRequestBuilder.setPollerPoolInfo(
           PollerPoolInfo.newBuilder().setTargetPollers(targetPollers));
+      pollerTracker.setPollerTargetSupplier(() -> targetPollers);
+      stickyPollerTracker.setPollerTargetSupplier(() -> targetPollers);
     }
 
     this.pollRequest =

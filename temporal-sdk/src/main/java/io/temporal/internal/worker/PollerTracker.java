@@ -53,7 +53,7 @@ public class PollerTracker {
     pollerTargetSupplier.set(supplier);
   }
 
-  /** The autoscaler's target (if autoscaling), or 0 if using fixed pollers. */
+  /** The pool's poller target, or 0 if its poller never started. */
   public int getTargetPollers() {
     IntSupplier supplier = pollerTargetSupplier.get();
     return supplier == null ? 0 : supplier.getAsInt();

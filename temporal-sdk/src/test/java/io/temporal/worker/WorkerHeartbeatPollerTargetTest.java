@@ -59,10 +59,34 @@ public class WorkerHeartbeatPollerTargetTest {
     assertFalse(heartbeat.getNexusPollerInfo().getIsAutoscaling());
   }
 
+  @Test
+  public void poolsWithNothingRegisteredReportNoTarget() {
+    // Only workflows are registered, so the activity and Nexus pollers never start. They must not
+    // report a target they will never poll with.
+    WorkerHeartbeat heartbeat =
+        heartbeat(
+            new PollerBehaviorSimpleMaximum(3),
+            new PollerBehaviorSimpleMaximum(7),
+            new PollerBehaviorSimpleMaximum(5),
+            false);
+
+    assertEquals(3, heartbeat.getWorkflowPollerInfo().getTargetPollers());
+    assertEquals(0, heartbeat.getActivityPollerInfo().getTargetPollers());
+    assertEquals(0, heartbeat.getNexusPollerInfo().getTargetPollers());
+  }
+
   private static WorkerHeartbeat heartbeat(
       PollerBehavior workflowBehavior,
       PollerBehavior activityBehavior,
       PollerBehavior nexusBehavior) {
+    return heartbeat(workflowBehavior, activityBehavior, nexusBehavior, true);
+  }
+
+  private static WorkerHeartbeat heartbeat(
+      PollerBehavior workflowBehavior,
+      PollerBehavior activityBehavior,
+      PollerBehavior nexusBehavior,
+      boolean registerAllTypes) {
     try (TestWorkflowEnvironment env = TestWorkflowEnvironment.newInstance()) {
       Worker worker =
           env.newWorker(
@@ -74,8 +98,10 @@ public class WorkerHeartbeatPollerTargetTest {
                   .build());
       // Every pool needs a registered implementation, otherwise its worker never starts polling.
       worker.registerWorkflowImplementationTypes(TestWorkflowImpl.class);
-      worker.registerActivitiesImplementations(new TestActivityImpl());
-      worker.registerNexusServiceImplementation(new TestNexusServiceImpl());
+      if (registerAllTypes) {
+        worker.registerActivitiesImplementations(new TestActivityImpl());
+        worker.registerNexusServiceImplementation(new TestNexusServiceImpl());
+      }
       env.start();
 
       return worker.buildHeartbeatCallback("test-worker-group", null).get();

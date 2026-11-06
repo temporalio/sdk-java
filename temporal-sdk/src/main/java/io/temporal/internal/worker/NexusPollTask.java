@@ -105,6 +105,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
     }
     if (targetPollers > 0) {
       pollRequest.setPollerPoolInfo(PollerPoolInfo.newBuilder().setTargetPollers(targetPollers));
+      pollerTracker.setPollerTargetSupplier(() -> targetPollers);
     }
 
     this.pollRequest = pollRequest.build();
