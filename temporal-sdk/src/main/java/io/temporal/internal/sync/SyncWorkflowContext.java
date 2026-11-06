@@ -1023,7 +1023,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       attributes.setVersioningOverride(ProtoConverters.toProto(options.getVersioningOverride()));
     }
     return new StartChildWorkflowExecutionParameters(
-        attributes, options.getCancellationType(), metadata);
+        attributes,
+        options.getCancellationType(),
+        metadata,
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   private static RuntimeException mapChildWorkflowException(
@@ -1596,6 +1599,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     replayContext.requestCancelExternalWorkflowExecution(
         input.getExecution(),
         input.getOptions().getReason(),
+        eventGroupMarkers(input.getOptions().getEventGroups()),
         (r, exception) -> {
           if (exception == null) {
             result.complete(null);

@@ -19,6 +19,7 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.Arrays;
@@ -46,6 +47,11 @@ public class EventGroupsTest {
               AwaitWorkflowImpl.class,
               ActivityWorkflowImpl.class,
               ActivityCancelWorkflowImpl.class,
+              ChildWorkflowImpl.class,
+              QuickChildImpl.class,
+              ChildCancelWorkflowImpl.class,
+              WaitingChildImpl.class,
+              CancelExternalWorkflowImpl.class,
               ScopeWorkflowImpl.class,
               ImplicitWorkflowImpl.class,
               RuntimeSignalWorkflowImpl.class,
@@ -384,6 +390,44 @@ public class EventGroupsTest {
         "scope");
   }
 
+  @Test
+  public void childWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = childHistory();
+
+    // EG-COMMANDS-04: Child Workflow commands carry markers
+    assertLabelGroups(requireChild(events, "child"), "direct", "scope");
+  }
+
+  @Test
+  public void childWorkflowCancellationCommandsCarryTheChildWorkflowsMarkers() {
+    List<HistoryEvent> events = childCancelHistory();
+
+    // EG-COMMANDS-04-CANCEL: Child Workflow Cancellation commands carry the Child Workflow's
+    // markers
+    assertLabelGroups(requireChild(events, "child"), "direct", "scope");
+    assertLabelGroups(
+        require(
+            events,
+            EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+            null),
+        "direct",
+        "scope");
+  }
+
+  @Test
+  public void cancelExternalWorkflowCommandsCarryMarkers() {
+    List<HistoryEvent> events = cancelExternalHistory();
+
+    // EG-COMMANDS-07: Cancel External Workflow commands carry markers
+    assertLabelGroups(
+        require(
+            events,
+            EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+            null),
+        "direct",
+        "scope");
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////////////
   // SUPPORT WORKFLOWS AND ACTIVITIES
   ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -555,6 +599,119 @@ public class EventGroupsTest {
     } finally {
       activities.hold.countDown();
     }
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ChildWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ChildWorkflowImpl implements ChildWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.newChildWorkflowStub(QuickChild.class, childOptions(direct, "child"))
+                  .execute());
+    }
+  }
+
+  @WorkflowInterface
+  public interface QuickChild {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class QuickChildImpl implements QuickChild {
+    @Override
+    public void execute() {}
+  }
+
+  private List<HistoryEvent> childHistory() {
+    ChildWorkflow workflow = testWorkflowRule.newWorkflowStubTimeoutOptions(ChildWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ChildCancelWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ChildCancelWorkflowImpl implements ChildCancelWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () -> {
+            CancellationScope childScope =
+                Workflow.newCancellationScope(
+                    () ->
+                        Workflow.newChildWorkflowStub(
+                                WaitingChild.class, childOptions(direct, "child"))
+                            .execute());
+            Promise<Void> running = Async.procedure(childScope::run);
+            // Forces a Workflow Task boundary so the start command reaches the server before the
+            // cancellation does.
+            Workflow.sleep(Duration.ofMillis(1));
+            childScope.cancel();
+            swallowCancellation(running);
+          });
+    }
+  }
+
+  @WorkflowInterface
+  public interface WaitingChild {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class WaitingChildImpl implements WaitingChild {
+    @Override
+    public void execute() {
+      Workflow.await(() -> false);
+    }
+  }
+
+  private List<HistoryEvent> childCancelHistory() {
+    ChildCancelWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ChildCancelWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface CancelExternalWorkflow {
+    @WorkflowMethod
+    void execute(String workflowId);
+  }
+
+  public static class CancelExternalWorkflowImpl implements CancelExternalWorkflow {
+    @Override
+    public void execute(String workflowId) {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.newUntypedExternalWorkflowStub(workflowId)
+                  .cancel(
+                      CancelExternalWorkflowOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  private List<HistoryEvent> cancelExternalHistory() {
+    WaitingChild target = testWorkflowRule.newWorkflowStubTimeoutOptions(WaitingChild.class);
+    WorkflowClient.start(target::execute);
+
+    CancelExternalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(CancelExternalWorkflow.class);
+    workflow.execute(WorkflowStub.fromTyped(target).getExecution().getWorkflowId());
     return history(workflow);
   }
 
@@ -972,6 +1129,29 @@ public class EventGroupsTest {
     }
   }
 
+  private static HistoryEvent requireChild(List<HistoryEvent> events, String workflowIdSuffix) {
+    for (HistoryEvent event : events) {
+      if (event.getEventType() == EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED
+          && event
+              .getStartChildWorkflowExecutionInitiatedEventAttributes()
+              .getWorkflowId()
+              .endsWith(workflowIdSuffix)) {
+        return event;
+      }
+    }
+    fail("no child start for " + workflowIdSuffix);
+    return null;
+  }
+
+  private static ChildWorkflowOptions childOptions(EventGroup direct, String suffix) {
+    return ChildWorkflowOptions.newBuilder()
+        .setTaskQueue(Workflow.getInfo().getTaskQueue())
+        .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-" + suffix)
+        .setCancellationType(ChildWorkflowCancellationType.TRY_CANCEL)
+        .addEventGroups(direct)
+        .build();
+  }
+
   private static ActivityOptions activity(EventGroup direct, String summary) {
     return ActivityOptions.newBuilder()
         .setStartToCloseTimeout(Duration.ofSeconds(20))
@@ -991,7 +1171,7 @@ public class EventGroupsTest {
   private static void swallowCancellation(Promise<Void> promise) {
     try {
       promise.get();
-    } catch (CanceledFailure | ActivityFailure expected) {
+    } catch (CanceledFailure | ActivityFailure | ChildWorkflowFailure expected) {
       // The cancelled command's failure is the point of the test.
     }
   }

@@ -23,6 +23,7 @@ import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -342,7 +343,8 @@ public class LocalActivityStateMachineTest {
             new StartChildWorkflowExecutionParameters(
                 StartChildWorkflowExecutionCommandAttributes.newBuilder(),
                 ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED,
-                null);
+                null,
+                Collections.emptyList());
         ExecuteLocalActivityParameters parameters1 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()

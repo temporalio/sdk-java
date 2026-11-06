@@ -15,12 +15,14 @@ import io.temporal.api.history.v1.ChildWorkflowExecutionFailedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionTerminatedEventAttributes;
 import io.temporal.api.history.v1.ChildWorkflowExecutionTimedOutEventAttributes;
 import io.temporal.api.history.v1.StartChildWorkflowExecutionFailedEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.client.WorkflowExecutionAlreadyStarted;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.failure.*;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.workflow.Functions;
+import java.util.List;
 import java.util.Optional;
 
 final class ChildWorkflowStateMachine
@@ -121,6 +123,8 @@ final class ChildWorkflowStateMachine
 
   private UserMetadata metadata;
 
+  private final List<EventGroupMarker> eventGroupMarkers;
+
   private final Functions.Proc2<WorkflowExecution, Exception> startedCallback;
 
   private final Functions.Proc2<Optional<Payloads>, Exception> completionCallback;
@@ -130,6 +134,7 @@ final class ChildWorkflowStateMachine
    *
    * @param attributes child workflow start command attributes
    * @param metadata user metadata to be associated with the child workflow
+   * @param eventGroupMarkers markers of the start command
    * @param startedCallback callback that is notified about child start
    * @param completionCallback invoked when child reports completion or failure
    * @return cancellation callback that should be invoked to cancel the child
@@ -137,18 +142,26 @@ final class ChildWorkflowStateMachine
   public static ChildWorkflowStateMachine newInstance(
       StartChildWorkflowExecutionCommandAttributes attributes,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     return new ChildWorkflowStateMachine(
-        attributes, metadata, startedCallback, completionCallback, commandSink, stateMachineSink);
+        attributes,
+        metadata,
+        eventGroupMarkers,
+        startedCallback,
+        completionCallback,
+        commandSink,
+        stateMachineSink);
   }
 
   @SuppressWarnings("deprecation")
   private ChildWorkflowStateMachine(
       StartChildWorkflowExecutionCommandAttributes startAttributes,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<WorkflowExecution, Exception> startedCallback,
       Functions.Proc2<Optional<Payloads>, Exception> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
@@ -156,6 +169,7 @@ final class ChildWorkflowStateMachine
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.startAttributes = startAttributes;
     this.metadata = metadata;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.workflowType = startAttributes.getWorkflowType().getName();
     this.namespace = startAttributes.getNamespace();
     this.workflowId = startAttributes.getWorkflowId();
@@ -168,7 +182,8 @@ final class ChildWorkflowStateMachine
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_START_CHILD_WORKFLOW_EXECUTION)
-            .setStartChildWorkflowExecutionCommandAttributes(startAttributes);
+            .setStartChildWorkflowExecutionCommandAttributes(startAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers);
 
     if (metadata != null) {
       command.setUserMetadata(metadata);
