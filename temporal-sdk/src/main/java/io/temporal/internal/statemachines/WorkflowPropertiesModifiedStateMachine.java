@@ -4,7 +4,9 @@ import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.ModifyWorkflowPropertiesCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.workflow.Functions;
+import java.util.List;
 
 final class WorkflowPropertiesModifiedStateMachine
     extends EntityStateMachineInitialCommand<
@@ -13,21 +15,25 @@ final class WorkflowPropertiesModifiedStateMachine
         WorkflowPropertiesModifiedStateMachine> {
 
   private ModifyWorkflowPropertiesCommandAttributes modifiedPropertiesAttributes;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   public static void newInstance(
       ModifyWorkflowPropertiesCommandAttributes modifiedPropertiesAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     new WorkflowPropertiesModifiedStateMachine(
-        modifiedPropertiesAttributes, commandSink, stateMachineSink);
+        modifiedPropertiesAttributes, eventGroupMarkers, commandSink, stateMachineSink);
   }
 
   private WorkflowPropertiesModifiedStateMachine(
       ModifyWorkflowPropertiesCommandAttributes modifiedPropertiesAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.modifiedPropertiesAttributes = modifiedPropertiesAttributes;
+    this.eventGroupMarkers = eventGroupMarkers;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
@@ -66,6 +72,7 @@ final class WorkflowPropertiesModifiedStateMachine
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_MODIFY_WORKFLOW_PROPERTIES)
             .setModifyWorkflowPropertiesCommandAttributes(modifiedPropertiesAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
     modifiedPropertiesAttributes = null;
   }

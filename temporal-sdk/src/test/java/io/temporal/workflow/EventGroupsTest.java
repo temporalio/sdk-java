@@ -16,15 +16,19 @@ import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
+import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
+import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
+import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -33,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Tests for Event Groups.
@@ -61,7 +66,9 @@ public class EventGroupsTest {
               ChildWorkflowSleep5sImpl.class,
               SignalCommandWorkflowImpl.class,
               ChildWorkflowWaitForSignalsImpl.class,
-              CancelExternalCommandWorkflowImpl.class)
+              CancelExternalCommandWorkflowImpl.class,
+              UpsertMemoCommandWorkflowImpl.class,
+              UpsertSearchAttributesCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
 
@@ -706,6 +713,78 @@ public class EventGroupsTest {
               Workflow.newUntypedExternalWorkflowStub("other-workflow")
                   .cancel(
                       CancelExternalWorkflowOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void modifyWorkflowPropertiesCommandsCarryMarkers() {
+    List<HistoryEvent> events = upsertMemoCommandHistory();
+
+    // EG-COMMANDS-20: Modify Workflow Properties commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED, null), "direct");
+  }
+
+  private List<HistoryEvent> upsertMemoCommandHistory() {
+    UpsertMemoCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(UpsertMemoCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface UpsertMemoCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class UpsertMemoCommandWorkflowImpl implements UpsertMemoCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.upsertMemo(
+          Collections.singletonMap("some-key", "some-value"),
+          UpsertMemoOptions.newBuilder().addEventGroups(direct).build());
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @CloudTestExclusionNote(
+      "Cloud CI does not provision the custom search attributes required by this test.")
+  @Category(RequiresCloudProvisioning.class)
+  @Test
+  public void upsertSearchAttributeCommandsCarryMarkers() {
+    List<HistoryEvent> events = upsertSearchAttributesCommandHistory();
+
+    // EG-COMMANDS-21: Upsert Search Attribute commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null), "direct");
+  }
+
+  private List<HistoryEvent> upsertSearchAttributesCommandHistory() {
+    UpsertSearchAttributesCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(UpsertSearchAttributesCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface UpsertSearchAttributesCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class UpsertSearchAttributesCommandWorkflowImpl
+      implements UpsertSearchAttributesCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.upsertTypedSearchAttributes(
+          UpsertSearchAttributesOptions.newBuilder().addEventGroups(direct).build(),
+          SearchAttributeKey.forKeyword("CustomKeywordField").valueSet("some-value"));
     }
   }
 

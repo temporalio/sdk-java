@@ -1633,7 +1633,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Preconditions.checkArgument(searchAttributes != null, "null search attributes");
     Preconditions.checkArgument(!searchAttributes.isEmpty(), "empty search attributes");
     SearchAttributes attr = SearchAttributesUtil.encode(searchAttributes);
-    replayContext.upsertSearchAttributes(attr);
+    replayContext.upsertSearchAttributes(attr, eventGroupMarkers(Collections.emptyList()));
   }
 
   @Override
@@ -1646,7 +1646,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   public void upsertTypedSearchAttributes(
       UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
     SearchAttributes attr = SearchAttributesUtil.encodeTypedUpdates(searchAttributeUpdates);
-    replayContext.upsertSearchAttributes(attr);
+    replayContext.upsertSearchAttributes(attr, eventGroupMarkers(options.getEventGroups()));
   }
 
   @Override
@@ -1661,7 +1661,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     replayContext.upsertMemo(
         Memo.newBuilder()
             .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo))
-            .build());
+            .build(),
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   @Nonnull

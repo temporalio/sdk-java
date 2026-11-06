@@ -1773,7 +1773,8 @@ public final class Workflow {
   }
 
   /**
-   * Same as {@link #upsertTypedSearchAttributes(SearchAttributeUpdate[])}, with options.
+   * Same as {@link #upsertTypedSearchAttributes(SearchAttributeUpdate[])}, with options such as
+   * Event Groups to associate with the update.
    *
    * @param options options of the update.
    * @param searchAttributeUpdates set of updates to apply to search attributes.
@@ -1794,7 +1795,10 @@ public final class Workflow {
     WorkflowInternal.upsertMemo(memo);
   }
 
-  /** Same as {@link #upsertMemo(Map)}, with options. */
+  /**
+   * Same as {@link #upsertMemo(Map)}, with options such as Event Groups to associate with the
+   * update.
+   */
   public static void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
     WorkflowInternal.upsertMemo(memo, options);
   }

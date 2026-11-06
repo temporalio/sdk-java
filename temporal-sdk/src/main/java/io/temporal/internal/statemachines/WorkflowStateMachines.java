@@ -1139,15 +1139,18 @@ public final class WorkflowStateMachines {
         attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
-  public void upsertSearchAttributes(SearchAttributes attributes) {
+  public void upsertSearchAttributes(
+      SearchAttributes attributes, List<EventGroupMarker> eventGroupMarkers) {
     checkEventLoopExecuting();
-    UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    UpsertSearchAttributesStateMachine.newInstance(
+        attributes, eventGroupMarkers, commandSink, stateMachineSink);
   }
 
-  public void upsertMemo(Memo memo) {
+  public void upsertMemo(Memo memo, List<EventGroupMarker> eventGroupMarkers) {
     checkEventLoopExecuting();
     WorkflowPropertiesModifiedStateMachine.newInstance(
         ModifyWorkflowPropertiesCommandAttributes.newBuilder().setUpsertedMemo(memo).build(),
+        eventGroupMarkers,
         commandSink,
         stateMachineSink);
   }

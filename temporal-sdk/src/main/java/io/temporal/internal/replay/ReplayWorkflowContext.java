@@ -424,10 +424,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
   SearchAttributes getSearchAttributes();
 
   /** Updates or inserts search attributes used to index workflows. */
-  void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes);
+  void upsertSearchAttributes(
+      @Nonnull SearchAttributes searchAttributes, List<EventGroupMarker> eventGroupMarkers);
 
   /** Updates or inserts memos. */
-  void upsertMemo(@Nonnull Memo memo);
+  void upsertMemo(@Nonnull Memo memo, List<EventGroupMarker> eventGroupMarkers);
 
   /**
    * @return true if this flag may currently be used.
