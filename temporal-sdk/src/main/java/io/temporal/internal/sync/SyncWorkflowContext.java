@@ -661,7 +661,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
 
-    return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
+    return new ExecuteActivityParameters(
+        attributes,
+        options.getCancellationType(),
+        userMetadata,
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
