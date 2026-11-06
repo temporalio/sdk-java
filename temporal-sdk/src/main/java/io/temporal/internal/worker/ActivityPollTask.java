@@ -5,6 +5,7 @@ import static io.temporal.serviceclient.MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY
 import com.google.protobuf.DoubleValue;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.taskqueue.v1.TaskQueueMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
@@ -43,6 +44,7 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
       @Nonnull PollerTracker pollerTracker,
+      int targetPollers,
       String workerControlTaskQueue) {
     this.service = Objects.requireNonNull(service);
     this.slotSupplier = slotSupplier;
@@ -75,6 +77,11 @@ final class ActivityPollTask implements MultiThreadedPoller.PollTask<ActivityTas
               .setBuildId(versioningOptions.getBuildId())
               .setUseVersioning(versioningOptions.isUsingVersioning())
               .build());
+    }
+
+    if (targetPollers > 0) {
+      pollRequest.setPollerPoolInfo(PollerPoolInfo.newBuilder().setTargetPollers(targetPollers));
+      pollerTracker.setPollerTargetSupplier(() -> targetPollers);
     }
 
     this.pollRequest = pollRequest.build();

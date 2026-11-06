@@ -34,6 +34,11 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Poller pools now report their poller target to the server on each poll and in the worker
+  heartbeat, covering workflow, sticky workflow, activity, and Nexus pools. An autoscaling pool
+  reports its current target, a fixed-size pool its configured size. (We'll use this count on the
+  server side for now for load balancing pollers between workers, and for creating a per-worker
+  poller count metric.)
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure

@@ -88,6 +88,7 @@ public class SlotSupplierTest {
             () -> GetSystemInfoResponse.Capabilities.newBuilder().build(),
             new PollerTracker(),
             new PollerTracker(),
+            0,
             null);
 
     PollWorkflowTaskQueueResponse pollResponse =
