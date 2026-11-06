@@ -26,11 +26,13 @@ import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.time.Instant;
@@ -46,6 +48,7 @@ public class ScheduleProtoUtil {
   private final List<ContextPropagator> contextPropagators;
   private final DataConverter dataConverter;
   private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable PayloadCodec headerCodec;
 
   public ScheduleProtoUtil(
       GenericWorkflowClient genericClient,
@@ -66,23 +69,7 @@ public class ScheduleProtoUtil {
     this.contextPropagators = contextPropagators;
     this.dataConverter = dataConverter;
     this.externalStorage = externalStorage;
-  }
-
-  private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> scheduleOptionsContextPropagators) {
-    if ((contextPropagators.isEmpty() && scheduleOptionsContextPropagators == null)
-        || (scheduleOptionsContextPropagators != null
-            && scheduleOptionsContextPropagators.isEmpty())) {
-      return null;
-    }
-
-    List<ContextPropagator> listToUse =
-        MoreObjects.firstNonNull(scheduleOptionsContextPropagators, contextPropagators);
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : listToUse) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new io.temporal.common.interceptors.Header(result);
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
   }
 
   /** The payloads a schedule carries are inputs to the workflows it starts. */
@@ -188,7 +175,11 @@ public class ScheduleProtoUtil {
       Header.Builder grpcHeader =
           toHeaderGrpc(
               startWorkflowAction.getHeader(),
-              extractContextsAndConvertToBytes(wfOptions.getContextPropagators()))
+              HeaderUtils.fromContextPropagators(
+                  MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators)),
+              HeaderUtils.withContext(
+                  headerCodec,
+                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())))
               .toBuilder();
       if (externalStorage != null && grpcHeader.getFieldsCount() > 0) {
         externalStorage.store(grpcHeader, storageTarget, null, CancellationToken.none());
@@ -452,6 +443,7 @@ public class ScheduleProtoUtil {
 
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());
+      builder.setHeader(new io.temporal.common.interceptors.Header(startWfAction.getHeader()));
 
       builder.setRawArguments(
           new EncodedValues(

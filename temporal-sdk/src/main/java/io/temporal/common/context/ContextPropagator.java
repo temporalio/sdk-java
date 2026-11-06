@@ -98,6 +98,19 @@ import java.util.Map;
 public interface ContextPropagator {
 
   /**
+   * Whether to apply the configured client's payload codec to this propagator's headers.
+   *
+   * <p>Defaults to false. When enabled, {@link #serializeContext} must return serialized, not
+   * codec-encoded, payloads. The SDK encodes only this propagator's output and supplies a privately
+   * decoded header map to {@link #deserializeContext}. Other producers' headers are unchanged.
+   * Configure the same setting on receiving workers. Codecs must pass through encodings they do not
+   * recognize.
+   */
+  default boolean encodeHeaders() {
+    return false;
+  }
+
+  /**
    * Returns the unique name of the context propagator. This name is used to store and address
    * context objects to pass them between threads. This name is not used for serialization,
    * serialization is fully controlled by {@link #serializeContext(Object)}
@@ -112,6 +125,9 @@ public interface ContextPropagator {
    * <p>Note: keys of the result map should have unique values across all propagators and
    * interceptors, because they all share the same single keyspace of a single instance of {@code
    * temporal.api.common.v1.Header}
+   *
+   * <p>When {@link #encodeHeaders()} returns true, return serialized but not codec-encoded
+   * payloads.
    *
    * @return serialized representation to be sent in request {@code temporal.api.common.v1.Header}
    */

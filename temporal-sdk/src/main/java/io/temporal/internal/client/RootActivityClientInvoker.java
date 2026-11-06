@@ -37,6 +37,7 @@ import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
@@ -60,6 +61,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   private final String identity;
   private final ExternalStorageDataConverter dataConverter;
   private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable PayloadCodec headerCodec;
 
   public RootActivityClientInvoker(
       GenericWorkflowClient genericClient,
@@ -81,6 +83,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     // Activity reads must reject storage references even when no driver is configured.
     this.dataConverter = ClientDataConverterFactory.withStorage(dataConverter, externalStorage);
     this.externalStorage = externalStorage;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
   }
 
   @Override
@@ -102,12 +105,11 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             Strings.emptyToNull(options.getId()),
             null,
             Strings.emptyToNull(input.getActivityType()));
+    ActivitySerializationContext serializationContext =
+        new ActivitySerializationContext(
+            namespace, null, null, input.getActivityType(), options.getTaskQueue(), false);
     DataConverter dc =
-        dataConverter
-            .withStorageTarget(storageTarget)
-            .withContext(
-                new ActivitySerializationContext(
-                    namespace, null, null, input.getActivityType(), options.getTaskQueue(), false));
+        dataConverter.withStorageTarget(storageTarget).withContext(serializationContext);
 
     InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
     NexusOperationMetadata nexusOperationMetadata =
@@ -173,7 +175,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
 
     io.temporal.api.common.v1.Header.Builder grpcHeader =
-        HeaderUtils.toHeaderGrpc(input.getHeader(), null).toBuilder();
+        HeaderUtils.toHeaderGrpc(
+            input.getHeader(), null, HeaderUtils.withContext(headerCodec, serializationContext))
+            .toBuilder();
     if (externalStorage != null && grpcHeader.getFieldsCount() > 0) {
       externalStorage.store(grpcHeader, storageTarget, null, CancellationToken.none());
     }
