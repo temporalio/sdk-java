@@ -58,7 +58,7 @@ public class ScheduleProtoUtilTest {
                   WorkflowOptions.newBuilder().setWorkflowId("id").setTaskQueue("q").build())
               .setHeader(header)
               .build();
-      ScheduleAction proto = util.actionToProto(action);
+      ScheduleAction proto = util.actionToProto(action, null);
       Assert.assertEquals(
           enabled,
           proto
@@ -73,7 +73,7 @@ public class ScheduleProtoUtilTest {
           proto.getStartWorkflow().getHeader().getFieldsMap(), restored.getHeader().getValues());
       Assert.assertEquals(
           proto.getStartWorkflow().getHeader(),
-          util.actionToProto(restored).getStartWorkflow().getHeader());
+          util.actionToProto(restored, null).getStartWorkflow().getHeader());
     }
   }
 
@@ -96,7 +96,7 @@ public class ScheduleProtoUtilTest {
                 WorkflowOptions.newBuilder().setWorkflowId("id").setTaskQueue("queue").build())
             .build();
 
-    ScheduleAction proto = util.actionToProto(action);
+    ScheduleAction proto = util.actionToProto(action, null);
 
     Assert.assertSame(configured, options.getDataConverter());
     Assert.assertEquals(

@@ -71,7 +71,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setScheduleId(input.getId())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule()));
+            .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule(), null));
 
     if (input.getOptions().getMemo() != null) {
       // TODO we don't have a workflow context here, maybe we need a schedule context?
@@ -291,7 +291,9 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setIdentity(identity)
             .setScheduleId(input.getDescription().getId())
             .setRequestId(UUID.randomUUID().toString())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()));
+            .setSchedule(
+                scheduleRequestHeader.scheduleToProto(
+                    schedule.getSchedule(), input.getDescription().getSchedule().getAction()));
     if (schedule.getTypedSearchAttributes() != null) {
       SearchAttributes encodedSa =
           SearchAttributesUtil.encodeTyped(schedule.getTypedSearchAttributes());
