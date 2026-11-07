@@ -1178,9 +1178,9 @@ public final class WorkflowStateMachines {
     postCompletionMetricCounter = MetricsType.WORKFLOW_CANCELED_COUNTER;
   }
 
-  public void continueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+  public void continueAsNewWorkflow(ContinueAsNewWorkflowParameters parameters) {
     checkEventLoopExecuting();
-    ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    ContinueAsNewWorkflowStateMachine.newInstance(parameters, commandSink, stateMachineSink);
     postCompletionMetricCounter = MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER;
   }
 

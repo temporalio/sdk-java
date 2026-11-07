@@ -32,6 +32,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -77,7 +78,8 @@ public class EventGroupsTest {
               UpsertSearchAttributesCommandWorkflowImpl.class,
               VersionCommandWorkflowImpl.class,
               SideEffectCommandWorkflowImpl.class,
-              MutableSideEffectCommandWorkflowImpl.class)
+              MutableSideEffectCommandWorkflowImpl.class,
+              ContinueAsNewCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
 
@@ -900,6 +902,44 @@ public class EventGroupsTest {
           (previous, next) -> !previous.equals(next),
           () -> 42,
           MutableSideEffectOptions.newBuilder().addEventGroups(direct).build());
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void continueAsNewCommandsCarryMarkers() {
+    List<HistoryEvent> events = continueAsNewCommandHistory();
+
+    // EG-COMMANDS-40: Continue-As-New carries directly attached markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW, null), "direct");
+  }
+
+  private List<HistoryEvent> continueAsNewCommandHistory() {
+    ContinueAsNewCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ContinueAsNewCommandWorkflow.class);
+    return history(workflow, workflow.execute());
+  }
+
+  @WorkflowInterface
+  public interface ContinueAsNewCommandWorkflow {
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class ContinueAsNewCommandWorkflowImpl implements ContinueAsNewCommandWorkflow {
+    @Override
+    public String execute() {
+      // The markers stay on the first run, which the client stub no longer points at once the
+      // workflow has continued as new.
+      Optional<String> firstRunId = Workflow.getInfo().getContinuedExecutionRunId();
+      if (firstRunId.isPresent()) {
+        return firstRunId.get();
+      }
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.continueAsNew(ContinueAsNewOptions.newBuilder().addEventGroups(direct).build());
+      return "unreachable";
     }
   }
 

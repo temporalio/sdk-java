@@ -2,7 +2,6 @@ package io.temporal.internal.sync;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -94,7 +93,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
+    public ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion() {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -221,8 +220,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public void continueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+    public void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters) {
       throw new UnsupportedOperationException("not implemented");
     }
 
