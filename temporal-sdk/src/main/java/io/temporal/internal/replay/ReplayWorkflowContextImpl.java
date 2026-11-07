@@ -484,14 +484,14 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
+  @Nullable
+  public ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion() {
     return mutableState.getContinueAsNewOnCompletion();
   }
 
   @Override
-  public void continueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-    mutableState.continueAsNewOnCompletion(attributes);
+  public void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters) {
+    mutableState.continueAsNewOnCompletion(parameters);
   }
 
   @Override

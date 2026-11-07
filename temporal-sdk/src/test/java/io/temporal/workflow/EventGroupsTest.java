@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -66,6 +67,8 @@ public class EventGroupsTest {
               VersionWorkflowImpl.class,
               SideEffectWorkflowImpl.class,
               MutableSideEffectWorkflowImpl.class,
+              ContinueAsNewWorkflowImpl.class,
+              ContinueAsNewShortWorkflowImpl.class,
               ScopeWorkflowImpl.class,
               ImplicitWorkflowImpl.class,
               RuntimeSignalWorkflowImpl.class,
@@ -507,6 +510,28 @@ public class EventGroupsTest {
     // EG-COMMANDS-25: Mutable Side Effect commands carry the ambient scope
     assertLabelGroups(
         require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
+  }
+
+  @Test
+  public void continueAsNewCarriesBothDirectlyAttachedAndAmbientMarkers() {
+    List<HistoryEvent> events = continueAsNewHistory();
+
+    // EG-COMMANDS-40: Continue-As-New carries directly attached and ambient markers
+    // Long form: options include directly attached groups.
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW, null),
+        "direct",
+        "scope");
+  }
+
+  @Test
+  public void shortFormContinueAsNewCarriesAmbientMarkersOnly() {
+    List<HistoryEvent> events = continueAsNewShortHistory();
+
+    // EG-COMMANDS-40: Continue-As-New carries directly attached and ambient markers
+    // Short form: no options argument.
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW, null), "scope");
   }
 
   @Test
@@ -1021,6 +1046,60 @@ public class EventGroupsTest {
     return history(workflow);
   }
 
+  @WorkflowInterface
+  public interface ContinueAsNewWorkflow {
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class ContinueAsNewWorkflowImpl implements ContinueAsNewWorkflow {
+    @Override
+    public String execute() {
+      // The continued run reports the run that carried the markers.
+      Optional<String> previous = Workflow.getInfo().getContinuedExecutionRunId();
+      if (previous.isPresent()) {
+        return previous.get();
+      }
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.continueAsNew(
+                  ContinueAsNewOptions.newBuilder().addEventGroups(direct).build()));
+      return "unexpected";
+    }
+  }
+
+  private List<HistoryEvent> continueAsNewHistory() {
+    ContinueAsNewWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ContinueAsNewWorkflow.class);
+    return history(workflow, workflow.execute());
+  }
+
+  @WorkflowInterface
+  public interface ContinueAsNewShortWorkflow {
+    @WorkflowMethod
+    String execute(boolean done);
+  }
+
+  public static class ContinueAsNewShortWorkflowImpl implements ContinueAsNewShortWorkflow {
+    @Override
+    public String execute(boolean done) {
+      if (done) {
+        return Workflow.getInfo().getContinuedExecutionRunId().get();
+      }
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(() -> Workflow.continueAsNew(true));
+      return "unexpected";
+    }
+  }
+
+  private List<HistoryEvent> continueAsNewShortHistory() {
+    ContinueAsNewShortWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ContinueAsNewShortWorkflow.class);
+    return history(workflow, workflow.execute(false));
+  }
+
   private List<HistoryEvent> upsertSearchAttributesHistory() {
     UpsertSearchAttributesWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(UpsertSearchAttributesWorkflow.class);
@@ -1311,9 +1390,14 @@ public class EventGroupsTest {
 
   private List<HistoryEvent> history(Object workflow) {
     WorkflowExecutionId execution = executionOf(workflow);
+    return history(workflow, execution.runId);
+  }
+
+  /** Continue-as-new leaves the markers on the first run, which the stub no longer points at. */
+  private List<HistoryEvent> history(Object workflow, String runId) {
     return testWorkflowRule
         .getWorkflowClient()
-        .fetchHistory(execution.workflowId, execution.runId)
+        .fetchHistory(executionOf(workflow).workflowId, runId)
         .getEvents();
   }
 

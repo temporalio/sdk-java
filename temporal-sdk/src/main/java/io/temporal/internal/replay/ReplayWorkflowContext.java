@@ -1,7 +1,6 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
@@ -395,12 +394,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void setWorkflowMethodCompleted();
 
   /**
-   * When these attributes are present upon completion of the workflow code the ContinueAsNew
-   * command is emitted instead of the workflow completion.
+   * When present upon completion of the workflow code the ContinueAsNew command is emitted instead
+   * of the workflow completion. The markers are captured here, with the attributes, because the
+   * command is created later, after the workflow thread has exited.
    */
-  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
+  @Nullable
+  ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion();
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters);
 
   Throwable getWorkflowTaskFailure();
 

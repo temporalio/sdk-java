@@ -1600,7 +1600,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         dataConverterWithCurrentWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
 
-    replayContext.continueAsNewOnCompletion(attributes.build());
+    replayContext.continueAsNewOnCompletion(
+        new ContinueAsNewWorkflowParameters(
+            attributes.build(),
+            eventGroupMarkers(
+                options != null ? options.getEventGroups() : Collections.emptyList())));
     WorkflowThread.exit();
   }
 

@@ -135,8 +135,7 @@ public final class ContinueAsNewOptions {
      */
     @Experimental
     public Builder addEventGroups(EventGroup... eventGroups) {
-      if (eventGroups.length == 0)
-        return this;
+      if (eventGroups.length == 0) return this;
       if (this.eventGroups == null) {
         this.eventGroups = new ArrayList<>(eventGroups.length);
       }
