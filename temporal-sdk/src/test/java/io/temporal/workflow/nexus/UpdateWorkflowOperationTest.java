@@ -43,6 +43,7 @@ public class UpdateWorkflowOperationTest extends BaseNexusTest {
   @ClassRule
   public static SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
+          .setTestTimeoutSeconds(30)
           .setWorkflowTypes(CallerWorkflow.class, HandlerWorkflowImpl.class)
           .setNexusServiceImplementation(new TestNexusServiceImpl())
           .setUseTimeskipping(false)
