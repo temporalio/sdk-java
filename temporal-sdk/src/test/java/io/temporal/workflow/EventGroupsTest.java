@@ -64,6 +64,8 @@ public class EventGroupsTest {
               UpsertMemoWorkflowImpl.class,
               UpsertSearchAttributesWorkflowImpl.class,
               VersionWorkflowImpl.class,
+              SideEffectWorkflowImpl.class,
+              MutableSideEffectWorkflowImpl.class,
               ScopeWorkflowImpl.class,
               ImplicitWorkflowImpl.class,
               RuntimeSignalWorkflowImpl.class,
@@ -487,6 +489,24 @@ public class EventGroupsTest {
         require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null),
         "direct",
         "scope");
+  }
+
+  @Test
+  public void sideEffectCommandsCarryTheAmbientScope() {
+    List<HistoryEvent> events = sideEffectHistory();
+
+    // EG-COMMANDS-24: Side Effect commands carry the ambient scope
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
+  }
+
+  @Test
+  public void mutableSideEffectCommandsCarryTheAmbientScope() {
+    List<HistoryEvent> events = mutableSideEffectHistory();
+
+    // EG-COMMANDS-25: Mutable Side Effect commands carry the ambient scope
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
   }
 
   @Test
@@ -941,6 +961,62 @@ public class EventGroupsTest {
   private List<HistoryEvent> versionHistory() {
     VersionWorkflow workflow =
         testWorkflowRule.newWorkflowStubTimeoutOptions(VersionWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface SideEffectWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class SideEffectWorkflowImpl implements SideEffectWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.sideEffect(
+                  Integer.class,
+                  () -> 42,
+                  SideEffectOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  private List<HistoryEvent> sideEffectHistory() {
+    SideEffectWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(SideEffectWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface MutableSideEffectWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class MutableSideEffectWorkflowImpl implements MutableSideEffectWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.mutableSideEffect(
+                  "my-id",
+                  Integer.class,
+                  (previous, next) -> !previous.equals(next),
+                  () -> 42,
+                  MutableSideEffectOptions.newBuilder().addEventGroups(direct).build()));
+    }
+  }
+
+  private List<HistoryEvent> mutableSideEffectHistory() {
+    MutableSideEffectWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(MutableSideEffectWorkflow.class);
     workflow.execute();
     return history(workflow);
   }

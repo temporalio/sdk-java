@@ -239,6 +239,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void sideEffect(
       Func<Optional<Payloads>> func,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<Optional<Payloads>> callback);
 
   /**
@@ -271,6 +272,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void mutableSideEffect(
       String id,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback);
 

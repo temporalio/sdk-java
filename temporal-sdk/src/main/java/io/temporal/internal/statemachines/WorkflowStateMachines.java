@@ -1211,10 +1211,12 @@ public final class WorkflowStateMachines {
   public void sideEffect(
       Functions.Func<Optional<Payloads>> func,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
     SideEffectStateMachine.newInstance(
         userMetadata,
+        eventGroupMarkers,
         this::isReplaying,
         func,
         (payloads) -> {
@@ -1235,6 +1237,7 @@ public final class WorkflowStateMachines {
   public void mutableSideEffect(
       String id,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
@@ -1246,6 +1249,7 @@ public final class WorkflowStateMachines {
                     idKey, userMetadata, this::isReplaying, commandSink, stateMachineSink));
     stateMachine.mutableSideEffect(
         func,
+        eventGroupMarkers,
         (r) -> {
           callback.apply(r);
           // callback unblocked mutableSideEffect call. Give workflow code chance to make progress.

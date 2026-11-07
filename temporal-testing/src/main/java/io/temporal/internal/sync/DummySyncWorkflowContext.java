@@ -264,6 +264,7 @@ public class DummySyncWorkflowContext {
     public void sideEffect(
         Functions.Func<Optional<Payloads>> func,
         UserMetadata userMetadata,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply());
     }
@@ -272,6 +273,7 @@ public class DummySyncWorkflowContext {
     public void mutableSideEffect(
         String id,
         UserMetadata userMetadata,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
         Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply(Optional.empty()));

@@ -73,7 +73,11 @@ public class MutableSideEffectStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", null, (p) -> converter.toPayloads("result1"), c))
+                        "id1",
+                        null,
+                        Collections.emptyList(),
+                        (p) -> converter.toPayloads("result1"),
+                        c))
             .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
@@ -130,13 +134,21 @@ public class MutableSideEffectStateMachineTest {
       protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
         builder
             .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
-            .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
+                (v, c) ->
+                    stateMachines.mutableSideEffect(
+                        "id1", null, Collections.emptyList(), (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", null, (p) -> converter.toPayloads("result1"), c))
+                        "id1", null, Collections.emptyList(), (p) -> Optional.empty(), c))
+            .<Optional<Payloads>>add1(
+                (v, c) ->
+                    stateMachines.mutableSideEffect(
+                        "id1",
+                        null,
+                        Collections.emptyList(),
+                        (p) -> converter.toPayloads("result1"),
+                        c))
             .add((r) -> stateMachines.completeWorkflow(r));
       }
     }
@@ -206,33 +218,45 @@ public class MutableSideEffectStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", null, (p) -> converter.toPayloads("result1"), c))
-            .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
-            .<HistoryEvent>add1(
-                (v, c) ->
-                    stateMachines.newTimer(
-                        StartTimerCommandAttributes.newBuilder()
-                            .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
-                            .build(),
+                        "id1",
                         null,
                         Collections.emptyList(),
+                        (p) -> converter.toPayloads("result1"),
                         c))
-            .<HistoryEvent>add1(
-                (v, c) ->
-                    stateMachines.newTimer(
-                        StartTimerCommandAttributes.newBuilder()
-                            .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
-                            .build(),
-                        null,
-                        Collections.emptyList(),
-                        c))
-            .<Optional<Payloads>>add1(
-                (v, c) -> stateMachines.mutableSideEffect("id1", null, (p) -> Optional.empty(), c))
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.mutableSideEffect(
-                        "id1", null, (p) -> converter.toPayloads("result2"), c))
+                        "id1", null, Collections.emptyList(), (p) -> Optional.empty(), c))
+            .<HistoryEvent>add1(
+                (v, c) ->
+                    stateMachines.newTimer(
+                        StartTimerCommandAttributes.newBuilder()
+                            .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                            .build(),
+                        null,
+                        Collections.emptyList(),
+                        c))
+            .<HistoryEvent>add1(
+                (v, c) ->
+                    stateMachines.newTimer(
+                        StartTimerCommandAttributes.newBuilder()
+                            .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
+                            .build(),
+                        null,
+                        Collections.emptyList(),
+                        c))
+            .<Optional<Payloads>>add1(
+                (v, c) ->
+                    stateMachines.mutableSideEffect(
+                        "id1", null, Collections.emptyList(), (p) -> Optional.empty(), c))
+            .<Optional<Payloads>>add1(
+                (v, c) ->
+                    stateMachines.mutableSideEffect(
+                        "id1",
+                        null,
+                        Collections.emptyList(),
+                        (p) -> converter.toPayloads("result2"),
+                        c))
             .add((r) -> stateMachines.completeWorkflow(r));
       }
     }

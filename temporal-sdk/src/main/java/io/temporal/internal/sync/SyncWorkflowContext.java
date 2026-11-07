@@ -1116,6 +1116,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     @Nullable
     UserMetadata userMetadata =
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+    List<EventGroupMarker> eventGroupMarkers = eventGroupMarkers(options.getEventGroups());
     try {
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
@@ -1129,6 +1130,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             }
           },
           userMetadata,
+          eventGroupMarkers,
           (p) ->
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
@@ -1159,8 +1161,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     @Nullable
     UserMetadata userMetadata =
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+    List<EventGroupMarker> eventGroupMarkers = eventGroupMarkers(options.getEventGroups());
     try {
-      return mutableSideEffectImpl(id, userMetadata, resultClass, resultType, updated, func);
+      return mutableSideEffectImpl(
+          id, userMetadata, eventGroupMarkers, resultClass, resultType, updated, func);
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
       // behavior. So fail the workflow task by throwing an Error.
@@ -1171,6 +1175,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private <R> R mutableSideEffectImpl(
       String id,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Class<R> resultClass,
       Type resultType,
       BiPredicate<R, R> updated,
@@ -1180,6 +1185,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     replayContext.mutableSideEffect(
         id,
         metadata,
+        eventGroupMarkers,
         (storedBinary) -> {
           Optional<R> stored =
               storedBinary.map(
