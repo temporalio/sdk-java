@@ -121,7 +121,7 @@ public class LocalActivitySlotThreadPoolTests {
     }
   }
 
-  @Test
+  @Test(timeout = 30_000)
   public void TestLAExecutorServiceThrowsOOM() throws InterruptedException {
     testWorkflowRule.getTestEnvironment().start();
     WorkflowClient client = testWorkflowRule.getWorkflowClient();
