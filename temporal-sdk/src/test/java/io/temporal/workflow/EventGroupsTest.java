@@ -75,7 +75,9 @@ public class EventGroupsTest {
               CancelExternalCommandWorkflowImpl.class,
               UpsertMemoCommandWorkflowImpl.class,
               UpsertSearchAttributesCommandWorkflowImpl.class,
-              VersionCommandWorkflowImpl.class)
+              VersionCommandWorkflowImpl.class,
+              SideEffectCommandWorkflowImpl.class,
+              MutableSideEffectCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
 
@@ -829,6 +831,75 @@ public class EventGroupsTest {
           Workflow.DEFAULT_VERSION,
           1,
           GetVersionOptions.newBuilder().addEventGroups(direct).build());
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void sideEffectCommandsCarryMarkers() {
+    List<HistoryEvent> events = sideEffectCommandHistory();
+
+    // EG-COMMANDS-24: Side Effect commands carry markers
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct");
+  }
+
+  private List<HistoryEvent> sideEffectCommandHistory() {
+    SideEffectCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(SideEffectCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface SideEffectCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class SideEffectCommandWorkflowImpl implements SideEffectCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.sideEffect(
+          Integer.class, () -> 42, SideEffectOptions.newBuilder().addEventGroups(direct).build());
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void mutableSideEffectCommandsCarryMarkers() {
+    List<HistoryEvent> events = mutableSideEffectCommandHistory();
+
+    // EG-COMMANDS-25: Mutable Side Effect commands carry markers
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct");
+  }
+
+  private List<HistoryEvent> mutableSideEffectCommandHistory() {
+    MutableSideEffectCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(MutableSideEffectCommandWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface MutableSideEffectCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class MutableSideEffectCommandWorkflowImpl
+      implements MutableSideEffectCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.mutableSideEffect(
+          "my-id",
+          Integer.class,
+          (previous, next) -> !previous.equals(next),
+          () -> 42,
+          MutableSideEffectOptions.newBuilder().addEventGroups(direct).build());
     }
   }
 

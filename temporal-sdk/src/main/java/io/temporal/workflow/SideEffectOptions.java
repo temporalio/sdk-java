@@ -1,6 +1,7 @@
 package io.temporal.workflow;
 
-import java.util.Objects;
+import io.temporal.common.Experimental;
+import java.util.*;
 
 /** SideEffectOptions is used to specify options for a side effect. */
 public class SideEffectOptions {
@@ -25,6 +26,7 @@ public class SideEffectOptions {
 
   public static final class Builder {
     private String summary;
+    private List<EventGroup> eventGroups;
 
     private Builder() {}
 
@@ -33,6 +35,9 @@ public class SideEffectOptions {
         return;
       }
       this.summary = options.summary;
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
     }
 
     /**
@@ -46,19 +51,46 @@ public class SideEffectOptions {
       return this;
     }
 
+    /**
+     * Event Groups to associate with this side effect. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public SideEffectOptions.Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
     public SideEffectOptions build() {
-      return new SideEffectOptions(summary);
+      return new SideEffectOptions(summary, eventGroups);
     }
   }
 
   private final String summary;
+  private final List<EventGroup> eventGroups;
 
-  private SideEffectOptions(String summary) {
+  private SideEffectOptions(String summary, List<EventGroup> eventGroups) {
     this.summary = summary;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
   }
 
   public String getSummary() {
     return summary;
+  }
+
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
   }
 
   public SideEffectOptions.Builder toBuilder() {
@@ -67,7 +99,13 @@ public class SideEffectOptions {
 
   @Override
   public String toString() {
-    return "SideEffectOptions{" + "summary='" + summary + '\'' + '}';
+    return "SideEffectOptions{"
+        + "summary='"
+        + summary
+        + '\''
+        + ", eventGroups="
+        + eventGroups
+        + '}';
   }
 
   @Override
@@ -75,11 +113,11 @@ public class SideEffectOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     SideEffectOptions that = (SideEffectOptions) o;
-    return Objects.equals(summary, that.summary);
+    return Objects.equals(summary, that.summary) && Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(summary);
+    return Objects.hash(summary, eventGroups);
   }
 }
