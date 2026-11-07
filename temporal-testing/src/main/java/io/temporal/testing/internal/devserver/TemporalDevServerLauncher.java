@@ -22,13 +22,16 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.IntSupplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Internal ProcessBuilder-based Temporal dev-server launcher. */
 public final class TemporalDevServerLauncher {
+  private static final int AUTOMATIC_PORT_ATTEMPTS = 3;
   private static final int LOG_TAIL_LINES = 200;
   private static final long GRACEFUL_SHUTDOWN_SECONDS = 10;
 
@@ -36,8 +39,33 @@ public final class TemporalDevServerLauncher {
 
   public static RunningServer start(
       @Nonnull String namespace, @Nonnull TemporalDevServerOptions options) {
+    return start(namespace, options, () -> reservePort(options.getIp()));
+  }
+
+  static RunningServer start(
+      @Nonnull String namespace,
+      @Nonnull TemporalDevServerOptions options,
+      @Nonnull IntSupplier automaticPortSupplier) {
     Path executable = TemporalDevServerDownloader.prepare(options);
-    int port = options.getPort() == null ? reservePort(options.getIp()) : options.getPort();
+    if (options.getPort() != null) {
+      return start(executable, namespace, options, options.getPort());
+    }
+    for (int attempt = 1; ; attempt++) {
+      try {
+        return start(executable, namespace, options, automaticPortSupplier.getAsInt());
+      } catch (IllegalStateException failure) {
+        if (attempt == AUTOMATIC_PORT_ATTEMPTS || !isAddressAlreadyInUse(failure)) {
+          throw failure;
+        }
+      }
+    }
+  }
+
+  private static RunningServer start(
+      @Nonnull Path executable,
+      @Nonnull String namespace,
+      @Nonnull TemporalDevServerOptions options,
+      int port) {
     String target = targetHost(options.getIp()) + ":" + port;
     List<String> command = buildCommand(executable, namespace, options, port);
 
@@ -245,6 +273,16 @@ public final class TemporalDevServerLauncher {
       }
     }
     return rendered.toString();
+  }
+
+  private static boolean isAddressAlreadyInUse(@Nonnull IllegalStateException failure) {
+    String message = failure.getMessage();
+    if (message == null) {
+      return false;
+    }
+    String normalizedMessage = message.toLowerCase(Locale.ROOT);
+    return normalizedMessage.contains("address already in use")
+        || normalizedMessage.contains("only one usage of each socket address");
   }
 
   private static int reservePort(@Nonnull String ip) {
