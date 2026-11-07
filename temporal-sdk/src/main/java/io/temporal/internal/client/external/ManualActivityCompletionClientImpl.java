@@ -18,6 +18,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.payload.context.SerializationContext;
@@ -211,7 +212,9 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         RecordActivityTaskHeartbeatRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatResponse status =
             grpcRetryer.retryWithResult(
-                () -> ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope),
+                () ->
+                    ActivityClientHelper.sendHeartbeatRequest(
+                        service, request, metricsScope, PayloadErrorLimits.NONE),
                 replyGrpcRetryerOptions);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();

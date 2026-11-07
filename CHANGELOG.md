@@ -23,8 +23,22 @@ to docs, or any other relevant information.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- **Experimental**: A `@TemporalOperation` handler can now send only one signal per operation invocation; `signal`
+  and `signalWithStart` count toward the same limit. While the first signal is in flight, or after it succeeds, a
+  second signal to any workflow throws a `BAD_REQUEST` `HandlerException`. If the first signal fails, the handler can
+  signal again. `signalWithStart` from such a handler also requires an explicit workflow ID, since a defaulted ID
+  differs on each retried Nexus task and would start another workflow.
+- Workers now retryably fail a workflow or activity task whose payloads exceed the namespace's size
+  limit, instead of sending it to the server. Disable with
+  `WorkerOptions.Builder.setDisablePayloadErrorLimit`; tune warnings with the experimental
+  `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
+  the configured client's payload codec. Only opted-in producers' output is encoded, while
+  application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
+  views. Existing propagators default to false; custom converter wrappers can expose their codec
+  through `PayloadCodecProvider`.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
@@ -39,6 +53,12 @@ to docs, or any other relevant information.
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
   under `ChildWorkflowFailure`.
   Child workflow overrides and one-time routing require Temporal Server 1.32.0 or later.
+- Added experimental client config extensions to `temporal-envconfig`. Extensions implement
+  `ClientConfigExtension`, read their own config from `profile.<profile>.ext.<name>` TOML tables
+  (exposed as `ClientConfigProfile.getExt()`) and env vars, and are passed via
+  `LoadClientConfigProfileOptions.Builder.setExtensions` to contribute service stubs plugins to
+  `ClientConfigProfile.toWorkflowServiceStubsOptions()`. Strict mode does not reject keys under
+  `ext`.
 - `WorkerFactoryOptions.Builder.setLoggerTagPrefix` that can be used to customized structured logging tags (MDC keys)
   set by Temporal SDK in worker context.
 - Spring Boot: the `workers` attribute of `@WorkflowImpl`, `@ActivityImpl` and `@NexusServiceImpl` now resolves property
@@ -58,8 +78,13 @@ to docs, or any other relevant information.
   To complete such an activity asynchronously, read the context from
   `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
+- **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
+  `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
 
 ### Changed
+- **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
+  operation's request ID, so a retried Nexus task no longer delivers the same signal twice. Signals sent from other
+  Nexus operation handlers keep an independent request ID per call and are not deduplicated.
 - Moved the Spring AI integration to [temporalio/ai-integrations](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
   `io.temporal:temporal-spring-ai` now publishes a one-time relocation POM to `io.temporal:spring-ai:0.1.0`;
   the integration is versioned independently of the SDK. The standalone release requires Java 17+, Spring AI 2,
@@ -78,6 +103,8 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
+  and backoff coefficients until validation or annotation merging supplies them.
 - Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
   sending the first page. A completion that needed pagination timed out on every attempt instead
   of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend
@@ -85,6 +112,7 @@ to docs, or any other relevant information.
 - `RpcRetryOptions` no longer changes when the builder that created it is reused. Previously,
   `addDoNotRetry` calls made after `build()` or `validateBuildWithDefaults()` also appeared in
   the options already built.
+- Schedule action headers are now preserved when describing and updating a schedule.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).
@@ -100,6 +128,9 @@ to docs, or any other relevant information.
   ignored and retries were scheduled past them instead of failing with `RETRY_STATE_TIMEOUT`.
 - Worker heartbeats now list each plugin name once. Previously a plugin registered on both the
   `WorkflowClient` and the `WorkerFactory` was listed twice.
+- Activity workers now report `activity_schedule_to_start_latency` once per activity task, measured up to the time the
+  worker receives the task. Previously each task reported it twice, once with the activity type and workflow type tags,
+  and measured it up to the server start time.
 
 ## Previous releases
 

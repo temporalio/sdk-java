@@ -6,6 +6,7 @@ import static io.temporal.internal.common.WorkflowExecutionUtils.makeUserMetaDat
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.schedule.v1.*;
 import io.temporal.api.schedule.v1.Schedule;
@@ -19,16 +20,21 @@ import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflow.v1.NewWorkflowExecutionInfo;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.client.schedules.*;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.EncodedValues;
 import io.temporal.internal.client.external.GenericWorkflowClient;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.RetryOptionsUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -41,42 +47,69 @@ public class ScheduleProtoUtil {
   private final String namespace;
   private final List<ContextPropagator> contextPropagators;
   private final DataConverter dataConverter;
+  private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable PayloadCodec headerCodec;
+
+  /**
+   * User metadata of each action this instance has described, so an update can send unchanged
+   * values back without storing them again. Actions do not override {@code equals}, so they are
+   * keyed by identity, and an entry goes away with its action.
+   */
+  private final Map<io.temporal.client.schedules.ScheduleAction, DescribedUserMetadata>
+      describedUserMetadata = Collections.synchronizedMap(new WeakHashMap<>());
 
   public ScheduleProtoUtil(
       GenericWorkflowClient genericClient,
       String namespace,
       List<ContextPropagator> contextPropagators,
       DataConverter dataConverter) {
+    this(genericClient, namespace, contextPropagators, dataConverter, null);
+  }
+
+  public ScheduleProtoUtil(
+      GenericWorkflowClient genericClient,
+      String namespace,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.contextPropagators = contextPropagators;
     this.dataConverter = dataConverter;
+    this.externalStorage = externalStorage;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
   }
 
-  private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> scheduleOptionsContextPropagators) {
-    if ((contextPropagators.isEmpty() && scheduleOptionsContextPropagators == null)
-        || (scheduleOptionsContextPropagators != null
-            && scheduleOptionsContextPropagators.isEmpty())) {
+  /** The payloads a schedule carries are inputs to the workflows it starts. */
+  @Nullable
+  StorageDriverWorkflowInfo storageTarget(io.temporal.client.schedules.ScheduleAction action) {
+    if (!(action instanceof ScheduleActionStartWorkflow)) {
       return null;
     }
-
-    List<ContextPropagator> listToUse =
-        MoreObjects.firstNonNull(scheduleOptionsContextPropagators, contextPropagators);
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : listToUse) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new io.temporal.common.interceptors.Header(result);
+    ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
+    return new StorageDriverWorkflowInfo(
+        namespace,
+        Strings.emptyToNull(startWorkflowAction.getOptions().getWorkflowId()),
+        null,
+        Strings.emptyToNull(startWorkflowAction.getWorkflowType()));
   }
 
-  public ScheduleAction actionToProto(io.temporal.client.schedules.ScheduleAction action) {
+  /**
+   * @param describedAction when updating a schedule, the action from the description the update
+   *     started from, or null when creating one. Values left unchanged from it are sent back as
+   *     they were described rather than stored again.
+   */
+  public ScheduleAction actionToProto(
+      io.temporal.client.schedules.ScheduleAction action,
+      @Nullable io.temporal.client.schedules.ScheduleAction describedAction) {
     if (action instanceof ScheduleActionStartWorkflow) {
       ScheduleActionStartWorkflow startWorkflowAction = (ScheduleActionStartWorkflow) action;
+      StorageDriverWorkflowInfo storageTarget = storageTarget(action);
       DataConverter dataConverterWithWorkflowContext =
-          dataConverter.withContext(
-              new WorkflowSerializationContext(
-                  namespace, startWorkflowAction.getOptions().getWorkflowId()));
+          ClientDataConverterFactory.withStorageTarget(dataConverter, storageTarget)
+              .withContext(
+                  new WorkflowSerializationContext(
+                      namespace, startWorkflowAction.getOptions().getWorkflowId()));
 
       WorkflowOptions wfOptions = startWorkflowAction.getOptions();
       // Disallow some options
@@ -146,9 +179,9 @@ public class ScheduleProtoUtil {
 
       @Nullable
       UserMetadata userMetadata =
-          makeUserMetaData(
-              wfOptions.getStaticSummary(),
-              wfOptions.getStaticDetails(),
+          userMetadataToProto(
+              wfOptions,
+              describedAction == null ? null : describedUserMetadata.get(describedAction),
               dataConverterWithWorkflowContext);
       if (userMetadata != null) {
         workflowRequest.setUserMetadata(userMetadata);
@@ -157,7 +190,14 @@ public class ScheduleProtoUtil {
       Header grpcHeader =
           toHeaderGrpc(
               startWorkflowAction.getHeader(),
-              extractContextsAndConvertToBytes(wfOptions.getContextPropagators()));
+              HeaderUtils.fromContextPropagators(
+                  MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators)),
+              HeaderUtils.withContext(
+                  headerCodec,
+                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())));
+      if (externalStorage != null) {
+        grpcHeader = storeHeader(externalStorage, grpcHeader, describedAction, storageTarget);
+      }
       workflowRequest.setHeader(grpcHeader);
 
       if (wfOptions.getPriority() != null) {
@@ -264,13 +304,19 @@ public class ScheduleProtoUtil {
     return builder.build();
   }
 
+  /**
+   * @param describedAction when updating a schedule, the action from the description the update
+   *     started from, or null when creating one. Values left unchanged from it are sent back as
+   *     they were described rather than stored again.
+   */
   public @Nonnull Schedule scheduleToProto(
-      @Nonnull io.temporal.client.schedules.Schedule schedule) {
+      @Nonnull io.temporal.client.schedules.Schedule schedule,
+      @Nullable io.temporal.client.schedules.ScheduleAction describedAction) {
     Preconditions.checkNotNull(schedule);
 
     Schedule.Builder scheduleBuilder =
         Schedule.newBuilder()
-            .setAction(this.actionToProto(schedule.getAction()))
+            .setAction(this.actionToProto(schedule.getAction(), describedAction))
             .setSpec(this.specToProto(schedule.getSpec()));
 
     if (schedule.getPolicy() != null) {
@@ -417,6 +463,7 @@ public class ScheduleProtoUtil {
 
       ScheduleActionStartWorkflow.Builder builder = ScheduleActionStartWorkflow.newBuilder();
       builder.setWorkflowType(startWfAction.getWorkflowType().getName());
+      builder.setHeader(new io.temporal.common.interceptors.Header(startWfAction.getHeader()));
 
       builder.setRawArguments(
           new EncodedValues(
@@ -458,13 +505,17 @@ public class ScheduleProtoUtil {
             SearchAttributesUtil.decodeTyped(startWfAction.getSearchAttributes()));
       }
 
+      DescribedUserMetadata userMetadata = null;
       if (startWfAction.hasUserMetadata()) {
-        wfOptionsBuilder.setStaticSummary(
-            dataConverterWithWorkflowContext.fromPayload(
-                startWfAction.getUserMetadata().getSummary(), String.class, String.class));
-        wfOptionsBuilder.setStaticDetails(
-            dataConverterWithWorkflowContext.fromPayload(
-                startWfAction.getUserMetadata().getDetails(), String.class, String.class));
+        userMetadata =
+            new DescribedUserMetadata(
+                startWfAction.getUserMetadata(),
+                dataConverterWithWorkflowContext.fromPayload(
+                    startWfAction.getUserMetadata().getSummary(), String.class, String.class),
+                dataConverterWithWorkflowContext.fromPayload(
+                    startWfAction.getUserMetadata().getDetails(), String.class, String.class));
+        wfOptionsBuilder.setStaticSummary(userMetadata.summary);
+        wfOptionsBuilder.setStaticDetails(userMetadata.details);
       }
 
       if (startWfAction.hasPriority()) {
@@ -472,9 +523,88 @@ public class ScheduleProtoUtil {
       }
 
       builder.setOptions(wfOptionsBuilder.build());
-      return builder.build();
+      ScheduleActionStartWorkflow result = builder.build();
+      if (userMetadata != null && externalStorage != null) {
+        describedUserMetadata.put(result, userMetadata);
+      }
+      return result;
     }
     throw new IllegalArgumentException("Unsupported action " + action.getActionCase());
+  }
+
+  // An entry sent back as it was described is not stored again, since storing a stored entry
+  // would wrap it in another reference on every update.
+  private static Header storeHeader(
+      ExternalStorageRunner externalStorage,
+      Header header,
+      @Nullable io.temporal.client.schedules.ScheduleAction describedAction,
+      @Nullable StorageDriverWorkflowInfo storageTarget) {
+    Map<String, Payload> described =
+        describedAction instanceof ScheduleActionStartWorkflow
+            ? ((ScheduleActionStartWorkflow) describedAction).getHeader().getValues()
+            : Collections.emptyMap();
+    Header.Builder unchanged = Header.newBuilder();
+    Header.Builder toStore = Header.newBuilder();
+    header
+        .getFieldsMap()
+        .forEach(
+            (key, value) ->
+                (value.equals(described.get(key)) ? unchanged : toStore).putFields(key, value));
+    if (toStore.getFieldsCount() > 0) {
+      externalStorage.store(toStore, storageTarget, null, CancellationToken.none());
+    }
+    return toStore.putAllFields(unchanged.getFieldsMap()).build();
+  }
+
+  @Nullable
+  private static UserMetadata userMetadataToProto(
+      WorkflowOptions options, @Nullable DescribedUserMetadata described, DataConverter dc) {
+    if (described == null) {
+      return makeUserMetaData(options.getStaticSummary(), options.getStaticDetails(), dc);
+    }
+    Payload summary =
+        unchangedOrEncode(
+            options.getStaticSummary(), described.summary, described.proto.getSummary(), dc);
+    Payload details =
+        unchangedOrEncode(
+            options.getStaticDetails(), described.details, described.proto.getDetails(), dc);
+    if (summary == null && details == null) {
+      return null;
+    }
+    UserMetadata.Builder builder = UserMetadata.newBuilder();
+    if (summary != null) {
+      builder.setSummary(summary);
+    }
+    if (details != null) {
+      builder.setDetails(details);
+    }
+    return builder.build();
+  }
+
+  // An unchanged value goes back as the payload it was described from, since encoding it again
+  // would store another copy on every update.
+  @Nullable
+  private static Payload unchangedOrEncode(
+      @Nullable String value,
+      @Nullable String described,
+      Payload describedPayload,
+      DataConverter dc) {
+    if (value == null) {
+      return null;
+    }
+    return value.equals(described) ? describedPayload : dc.toPayload(value).get();
+  }
+
+  private static final class DescribedUserMetadata {
+    final UserMetadata proto;
+    final @Nullable String summary;
+    final @Nullable String details;
+
+    DescribedUserMetadata(UserMetadata proto, @Nullable String summary, @Nullable String details) {
+      this.proto = proto;
+      this.summary = summary;
+      this.details = details;
+    }
   }
 
   @Nullable

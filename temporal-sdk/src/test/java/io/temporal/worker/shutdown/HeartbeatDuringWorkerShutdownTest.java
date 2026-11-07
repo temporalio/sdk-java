@@ -81,8 +81,9 @@ public class HeartbeatDuringWorkerShutdownTest {
 
     assertTrue(
         "Activity did not start within 30s", activityStarted.tryAcquire(30, TimeUnit.SECONDS));
+    // The activity is left to be woken by shutdownNow's interrupt. Releasing it here would race
+    // that interrupt, which could then land during the failure report and cancel it.
     testWorkflowRule.getTestEnvironment().shutdownNow();
-    shutdownTriggered.release();
 
     // if heartbeating was incorrectly allowed, the activity would complete successfully and this
     // assertion would fail
