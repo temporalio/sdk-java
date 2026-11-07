@@ -103,6 +103,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
+  leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
+  by default in this release to preserve replay compatibility during SDK rollout.
 - `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
   and backoff coefficients until validation or annotation merging supplies them.
 - Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
