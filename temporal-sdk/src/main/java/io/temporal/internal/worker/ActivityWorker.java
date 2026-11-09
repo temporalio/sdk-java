@@ -14,10 +14,15 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
+import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.MetricsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
@@ -333,6 +338,13 @@ final class ActivityWorker implements SuspendableWorker {
       ActivityTaskHandler.Result result = null;
       boolean taskFailed = false;
       try {
+        // Schedule to start latency does not depend on the activity type, so it is reported with
+        // the worker scope.
+        workerMetricsScope
+            .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
+            .record(
+                ProtobufTimeUtils.toM3DurationSinceNow(
+                    pollResponse.getCurrentAttemptScheduledTime()));
         result = handleActivity(task, metricsScope);
         if (result.getTaskFailed() != null
             && !io.temporal.internal.common.FailureUtils.isBenignApplicationFailure(
@@ -382,12 +394,6 @@ final class ActivityWorker implements SuspendableWorker {
             false);
       }
       PollActivityTaskQueueResponseOrBuilder pollResponse = task.getResponse();
-      metricsScope
-          .timer(MetricsType.ACTIVITY_SCHEDULE_TO_START_LATENCY)
-          .record(
-              ProtobufTimeUtils.toM3Duration(
-                  pollResponse.getStartedTime(), pollResponse.getCurrentAttemptScheduledTime()));
-
       ActivityTaskHandler.Result result;
 
       Stopwatch sw = metricsScope.timer(MetricsType.ACTIVITY_EXEC_LATENCY).start();
@@ -408,6 +414,13 @@ final class ActivityWorker implements SuspendableWorker {
         sendStorageFailure(taskToken, metricsScope, e.getCause());
         return result;
       } catch (Exception e) {
+        Optional<PayloadLimitViolationException> violationException =
+            PayloadLimitViolationException.find(e);
+        if (violationException.isPresent()) {
+          sendPayloadsTooLargeFailure(
+              taskToken, metricsScope, violationException.get().getViolation());
+          return result;
+        }
         logExceptionDuringResultReporting(e, pollResponse, result);
         // TODO this class doesn't report activity success and failure metrics now, instead it's
         //  located inside an activity handler. We should lift it up to this level,
@@ -464,6 +477,9 @@ final class ActivityWorker implements SuspendableWorker {
                 service
                     .blockingStub()
                     .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                    .withOption(
+                        PayloadErrorLimits.CALL_OPTIONS_KEY,
+                        options.payloadErrorLimits(namespaceCapabilities))
                     .respondActivityTaskCompleted(request),
             replyGrpcRetryerOptions);
       } else {
@@ -502,6 +518,9 @@ final class ActivityWorker implements SuspendableWorker {
                     service
                         .blockingStub()
                         .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
+                        .withOption(
+                            PayloadErrorLimits.CALL_OPTIONS_KEY,
+                            options.payloadErrorLimits(namespaceCapabilities))
                         .respondActivityTaskCanceled(request),
                 replyGrpcRetryerOptions);
           }
@@ -550,6 +569,19 @@ final class ActivityWorker implements SuspendableWorker {
               .setType(ExternalStorageTaskFailure.class.getSimpleName())
               .build();
       applicationFailure.setStackTrace(new StackTraceElement[0]);
+      return sendFailure(taskToken, metricsScope, applicationFailure);
+    }
+
+    private void sendPayloadsTooLargeFailure(
+        ByteString taskToken, Scope metricsScope, PayloadLimitViolation violation) {
+      MetricsUtils.countPayloadsTooLargeFailure(
+          metricsScope, MetricsType.ACTIVITY_EXEC_FAILED_COUNTER);
+      sendFailure(taskToken, metricsScope, FailureUtils.newPayloadsTooLargeFailure(violation));
+    }
+
+    @SuppressWarnings("deprecation")
+    private RespondActivityTaskFailedRequest sendFailure(
+        ByteString taskToken, Scope metricsScope, ApplicationFailure applicationFailure) {
       RespondActivityTaskFailedRequest request =
           RespondActivityTaskFailedRequest.newBuilder()
               .setTaskToken(taskToken)

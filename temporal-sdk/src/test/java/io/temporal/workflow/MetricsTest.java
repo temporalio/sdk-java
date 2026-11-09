@@ -307,6 +307,18 @@ public class MetricsTest {
     reporter.assertCounter(TEMPORAL_REQUEST, workflowTags, 1);
     reporter.assertTimer(TEMPORAL_REQUEST_LATENCY, workflowTags);
 
+    // The workflow ran a single activity task. Schedule to start latency is independent of the
+    // activity type, so it must be reported exactly once and without the activity type tags.
+    reporter.assertTimer(
+        ACTIVITY_SCHEDULE_TO_START_LATENCY, TAGS_ACTIVITY_WORKER, stats -> stats.count() == 1);
+    reporter.assertNoMetric(
+        ACTIVITY_SCHEDULE_TO_START_LATENCY,
+        new ImmutableMap.Builder<String, String>()
+            .putAll(TAGS_ACTIVITY_WORKER)
+            .put(MetricsTag.ACTIVITY_TYPE, "Execute")
+            .put(MetricsTag.WORKFLOW_TYPE, "NoArgsWorkflow")
+            .build());
+
     Map<String, String> workflowTaskCompletionTags =
         new ImmutableMap.Builder<String, String>()
             .putAll(TAGS_WORKFLOW_WORKER)

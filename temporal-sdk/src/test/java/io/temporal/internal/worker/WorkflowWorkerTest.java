@@ -20,6 +20,8 @@ import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
 import com.uber.m3.util.ImmutableMap;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.CompleteWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
@@ -35,6 +37,7 @@ import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.namespace.v1.NamespaceInfo;
+import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.api.workflowservice.v1.RespondQueryTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondWorkflowTaskFailedRequest;
@@ -42,7 +45,13 @@ import io.temporal.common.CancellationToken;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.common.InternalUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
+import io.temporal.internal.payload.limits.LimitClass;
+import io.temporal.internal.payload.limits.LimitSeverity;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.StorageOperationMetrics;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
@@ -50,6 +59,7 @@ import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
+import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.Eventually;
 import io.temporal.testUtils.HistoryUtils;
@@ -65,12 +75,16 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@RunWith(JUnitParamsRunner.class)
 public class WorkflowWorkerTest {
   private static final Logger log = LoggerFactory.getLogger(WorkflowWorkerTest.class);
   private final TestStatsReporter reporter = new TestStatsReporter();
@@ -168,7 +182,7 @@ public class WorkflowWorkerTest {
                 });
 
     CountDownLatch handleTaskLatch = new CountDownLatch(1);
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -247,7 +261,7 @@ public class WorkflowWorkerTest {
     // Cleanup
     worker.shutdown(new ShutdownManager(), false).get();
     // Verify we only handled two tasks
-    verify(taskHandler, times(2)).handleWorkflowTask(any());
+    verify(taskHandler, times(2)).handleWorkflowTask(any(), any());
   }
 
   @Test
@@ -330,7 +344,7 @@ public class WorkflowWorkerTest {
 
     CountDownLatch handleTaskLatch = new CountDownLatch(1);
 
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -392,9 +406,10 @@ public class WorkflowWorkerTest {
     WorkflowTaskHandler taskHandler =
         new WorkflowTaskHandler() {
           @Override
-          public WorkflowTaskHandler.Result handleWorkflowTask(PollWorkflowTaskQueueResponse task)
+          public WorkflowTaskHandler.Result handleWorkflowTask(
+              PollWorkflowTaskQueueResponse task, StorageOperationMetrics downloadMetrics)
               throws Exception {
-            WorkflowTaskHandler.Result result = rootTaskHandler.handleWorkflowTask(task);
+            WorkflowTaskHandler.Result result = rootTaskHandler.handleWorkflowTask(task, null);
             return new WorkflowTaskHandler.Result(
                 result.getWorkflowType(),
                 result.getTaskCompleted(),
@@ -558,7 +573,7 @@ public class WorkflowWorkerTest {
                 });
 
     // The task is abandoned part way through, which is what stopping storage looks like.
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -710,6 +725,173 @@ public class WorkflowWorkerTest {
         sent.getValue().getCause());
   }
 
+  @Test
+  public void aCompletionOverThePayloadErrorLimitFailsTheTaskRetryably() throws Exception {
+    NamespaceCapabilities capabilities = payloadErrorLimits();
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      runOneTask(
+          null,
+          capabilities,
+          smallCompletion(),
+          CancellationToken.none(),
+          1,
+          blockingStub ->
+              when(blockingStub.respondWorkflowTaskCompleted(
+                      any(RespondWorkflowTaskCompletedRequest.class)))
+                  .thenThrow(payloadLimitViolation()),
+          blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+    assertNoWarnings(logs);
+
+    assertEquals(
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_PAYLOADS_TOO_LARGE,
+        sent.getValue().getCause());
+    Failure failure = sent.getValue().getFailure();
+    assertEquals(PAYLOAD_LIMIT_ERROR_MESSAGE, failure.getMessage());
+    assertEquals("PayloadsTooLarge", failure.getApplicationFailureInfo().getType());
+    assertFalse(failure.getApplicationFailureInfo().getNonRetryable());
+    reporter.assertCounter(
+        MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER,
+        ImmutableMap.of(
+            "worker_type",
+            "WorkflowWorker",
+            "workflow_type",
+            WORKFLOW_TYPE,
+            MetricsTag.TASK_FAILURE_TYPE,
+            MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE),
+        1);
+  }
+
+  @Test
+  public void aLaterAttemptOverThePayloadErrorLimitIsLeftToTimeOut() throws Exception {
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      runOneTask(
+          null,
+          payloadErrorLimits(),
+          smallCompletion(),
+          CancellationToken.none(),
+          2,
+          blockingStub ->
+              when(blockingStub.respondWorkflowTaskCompleted(
+                      any(RespondWorkflowTaskCompletedRequest.class)))
+                  .thenThrow(payloadLimitViolation()),
+          blockingStub ->
+              verify(blockingStub, never())
+                  .respondWorkflowTaskFailed(any(RespondWorkflowTaskFailedRequest.class)));
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+    assertNoWarnings(logs);
+    reporter.assertCounter(
+        MetricsType.WORKFLOW_TASK_EXECUTION_FAILURE_COUNTER,
+        ImmutableMap.of(
+            "worker_type",
+            "WorkflowWorker",
+            "workflow_type",
+            WORKFLOW_TYPE,
+            MetricsTag.TASK_FAILURE_TYPE,
+            MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE),
+        1);
+  }
+
+  @Test
+  public void completionsCarryTheNamespacePayloadErrorLimits() throws Exception {
+    NamespaceCapabilities capabilities = payloadErrorLimits();
+    runOneTask(
+        null,
+        capabilities,
+        smallCompletion(),
+        CancellationToken.none(),
+        1,
+        blockingStub -> {},
+        blockingStub ->
+            verify(blockingStub)
+                .withOption(
+                    PayloadErrorLimits.CALL_OPTIONS_KEY, capabilities.getPayloadErrorLimits()));
+  }
+
+  @Test
+  public void aViolationWhileReportingAFailureIsNotConverted() throws Exception {
+    // Only completions are rejected for payload limits; a workflow's own failure report must not
+    // be turned into a PAYLOADS_TOO_LARGE failure.
+    RespondWorkflowTaskFailedRequest taskFailed =
+        RespondWorkflowTaskFailedRequest.newBuilder()
+            .setCause(
+                WorkflowTaskFailedCause
+                    .WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE)
+            .build();
+    ArgumentCaptor<RespondWorkflowTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondWorkflowTaskFailedRequest.class);
+    runOneTask(
+        null,
+        payloadErrorLimits(),
+        new WorkflowTaskHandler.Result(
+            WORKFLOW_TYPE, null, taskFailed, null, null, false, null, null),
+        CancellationToken.none(),
+        1,
+        blockingStub -> {},
+        blockingStub -> verify(blockingStub).respondWorkflowTaskFailed(sent.capture()));
+    assertEquals(
+        WorkflowTaskFailedCause.WORKFLOW_TASK_FAILED_CAUSE_WORKFLOW_WORKER_UNHANDLED_FAILURE,
+        sent.getValue().getCause());
+  }
+
+  // The payload limit validator logs the violation, so the worker must not log it again.
+  private static void assertNoWarnings(ListAppender<ILoggingEvent> logs) {
+    for (ILoggingEvent event : logs.list) {
+      assertFalse(
+          event.getLevel() + ": " + event.getFormattedMessage(),
+          event.getLevel().isGreaterOrEqual(Level.WARN));
+    }
+  }
+
+  private static final String PAYLOAD_LIMIT_ERROR_MESSAGE =
+      "[TMPRL1103] Attempted to upload payloads with size that exceeded the error limit.";
+
+  private static NamespaceCapabilities payloadErrorLimits() {
+    NamespaceCapabilities capabilities = new NamespaceCapabilities();
+    capabilities.setFromLimits(
+        NamespaceInfo.Limits.newBuilder()
+            .setBlobSizeLimitError(100)
+            .setMemoSizeLimitError(100)
+            .build());
+    return capabilities;
+  }
+
+  /** Returns what the payload limits interceptor throws for a completion over an error limit. */
+  private static StatusRuntimeException payloadLimitViolation() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation(
+            "commands[0].complete_workflow_execution_command_attributes.result",
+            LimitClass.BLOB,
+            LimitSeverity.ERROR,
+            1000,
+            100);
+    return Status.INVALID_ARGUMENT
+        .withDescription(violation.getMessage())
+        .withCause(new PayloadLimitViolationException(violation))
+        .asRuntimeException();
+  }
+
+  private static WorkflowTaskHandler.Result smallCompletion() {
+    RespondWorkflowTaskCompletedRequest taskCompleted =
+        RespondWorkflowTaskCompletedRequest.newBuilder()
+            .addCommands(
+                Command.newBuilder()
+                    .setCompleteWorkflowExecutionCommandAttributes(
+                        CompleteWorkflowExecutionCommandAttributes.getDefaultInstance()))
+            .build();
+    return new WorkflowTaskHandler.Result(
+        WORKFLOW_TYPE, taskCompleted, null, null, null, false, null, null);
+  }
+
   private static final int ONE_MEGABYTE = 1024 * 1024;
 
   private static NamespaceCapabilities completionSizeLimit(long limitBytes) {
@@ -776,6 +958,28 @@ public class WorkflowWorkerTest {
       CancellationToken<CancellationException> storageCancellation,
       java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
       throws Exception {
+    runOneTask(
+        driver,
+        namespaceCapabilities,
+        handlerResult,
+        storageCancellation,
+        1,
+        blockingStub -> {},
+        verification);
+  }
+
+  /**
+   * @param stubSetup runs after the default stubbing, so it can override it.
+   */
+  private void runOneTask(
+      @Nullable TestStorageDriver driver,
+      NamespaceCapabilities namespaceCapabilities,
+      WorkflowTaskHandler.Result handlerResult,
+      CancellationToken<CancellationException> storageCancellation,
+      int attempt,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> stubSetup,
+      java.util.function.Consumer<WorkflowServiceGrpc.WorkflowServiceBlockingStub> verification)
+      throws Exception {
     WorkflowServiceStubs client = mock(WorkflowServiceStubs.class);
     when(client.getServerCapabilities())
         .thenReturn(() -> GetSystemInfoResponse.Capabilities.newBuilder().build());
@@ -832,10 +1036,12 @@ public class WorkflowWorkerTest {
     when(blockingStub.withOption(any(), any())).thenReturn(blockingStub);
     when(blockingStub.respondWorkflowTaskCompleted(any(RespondWorkflowTaskCompletedRequest.class)))
         .thenReturn(RespondWorkflowTaskCompletedResponse.getDefaultInstance());
+    stubSetup.accept(blockingStub);
 
     PollWorkflowTaskQueueResponse pollResponse =
         PollWorkflowTaskQueueResponse.newBuilder()
             .setTaskToken(ByteString.copyFrom("token", UTF_8))
+            .setAttempt(attempt)
             .setWorkflowExecution(
                 WorkflowExecution.newBuilder().setWorkflowId(WORKFLOW_ID).setRunId(RUN_ID).build())
             .setWorkflowType(WorkflowType.newBuilder().setName(WORKFLOW_TYPE).build())
@@ -851,7 +1057,7 @@ public class WorkflowWorkerTest {
                 });
 
     CountDownLatch handled = new CountDownLatch(1);
-    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+    when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
         .thenAnswer(
             (Answer<WorkflowTaskHandler.Result>)
                 invocation -> {
@@ -962,7 +1168,7 @@ public class WorkflowWorkerTest {
                     return null;
                   });
 
-      when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class)))
+      when(taskHandler.handleWorkflowTask(any(PollWorkflowTaskQueueResponse.class), any()))
           .thenAnswer(
               (Answer<WorkflowTaskHandler.Result>)
                   invocation ->
@@ -1136,5 +1342,128 @@ public class WorkflowWorkerTest {
             .build();
 
     assertSame(current, WorkflowWorker.deriveStorageTarget("ns", current, command));
+  }
+
+  private static ListAppender<ILoggingEvent> captureWorkerLogs() {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    ListAppender<ILoggingEvent> logs = new ListAppender<>();
+    logs.setContext(loggerContext);
+    logs.start();
+    loggerContext.getLogger(WorkflowWorker.class.getName()).addAppender(logs);
+    return logs;
+  }
+
+  private static void stopCapturingWorkerLogs(ListAppender<ILoggingEvent> logs) {
+    LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+    loggerContext.getLogger(WorkflowWorker.class.getName()).detachAppender(logs);
+    logs.stop();
+  }
+
+  private static PollWorkflowTaskQueueResponse durationLogTask() {
+    return PollWorkflowTaskQueueResponse.newBuilder()
+        .setWorkflowExecution(WorkflowExecution.newBuilder().setRunId("run-1").build())
+        .setStartedEventId(11)
+        .setAttempt(3)
+        .build();
+  }
+
+  @Test
+  public void aTaskWithinTheDurationThresholdIsNotWarnedAbout() {
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      WorkflowWorker.logWorkflowTaskDuration(
+          durationLogTask(),
+          "MyWorkflow",
+          Duration.ofSeconds(5),
+          Duration.ofSeconds(5),
+          new StorageOperationMetrics(),
+          new StorageOperationMetrics());
+      assertTrue(logs.list.isEmpty());
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+  }
+
+  @Test
+  public void aSlowDirectQueryIsNotReportedAsASlowWorkflowTask() {
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      PollWorkflowTaskQueueResponse query =
+          durationLogTask().toBuilder()
+              .setQuery(WorkflowQuery.newBuilder().setQueryType("getState"))
+              .build();
+
+      WorkflowWorker.logWorkflowTaskDuration(
+          query,
+          "MyWorkflow",
+          Duration.ofSeconds(30),
+          Duration.ofSeconds(5),
+          new StorageOperationMetrics(),
+          new StorageOperationMetrics());
+
+      assertTrue(logs.list.isEmpty());
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+  }
+
+  @Test
+  public void aTaskOverTheDurationThresholdWarnsWithItsStorageMetrics() {
+    StorageOperationMetrics download = new StorageOperationMetrics();
+    download.recordBatch(2, 1024, 0, TimeUnit.MILLISECONDS.toNanos(40), "s3");
+    download.recordBatch(1, 512, 0, TimeUnit.MILLISECONDS.toNanos(40), "gcs");
+    StorageOperationMetrics upload = new StorageOperationMetrics();
+    upload.recordBatch(3, 2048, 0, TimeUnit.MILLISECONDS.toNanos(70), "s3");
+
+    ListAppender<ILoggingEvent> logs = captureWorkerLogs();
+    try {
+      WorkflowWorker.logWorkflowTaskDuration(
+          durationLogTask(),
+          "MyWorkflow",
+          Duration.ofMillis(6500),
+          Duration.ofSeconds(5),
+          download,
+          upload);
+
+      assertEquals(1, logs.list.size());
+      ILoggingEvent event = logs.list.get(0);
+      assertEquals(Level.WARN, event.getLevel());
+      String message = event.getFormattedMessage();
+      // run id, the completion event id (startedEventId + 1) and the attempt.
+      assertTrue(message, message.contains("[TMPRL1104] run-1:12:3"));
+      assertTrue(message, message.contains("exceeded 5 seconds"));
+      assertTrue(message, message.contains("WorkflowType=MyWorkflow"));
+      assertTrue(message, message.contains("WorkflowTaskDuration=6500ms"));
+      assertTrue(message, message.contains("PayloadDownloadCount=3"));
+      assertTrue(message, message.contains("PayloadDownloadSize=1536"));
+      // Both download batches ran over the same 40ms, so the union is 40ms rather than 80ms.
+      assertTrue(message, message.contains("PayloadDownloadDuration=40ms"));
+      assertTrue(message, message.contains("PayloadDownloadDrivers=[gcs, s3]"));
+      assertTrue(message, message.contains("PayloadUploadCount=3"));
+      assertTrue(message, message.contains("PayloadUploadDuration=70ms"));
+      assertTrue(message, message.contains("PayloadUploadDrivers=[s3]"));
+    } finally {
+      stopCapturingWorkerLogs(logs);
+    }
+  }
+
+  /** Cases are supplied as objects rather than CSV so null, blank and padded values survive. */
+  private Object[] thresholdCases() {
+    return new Object[][] {
+      {null, Duration.ofSeconds(5)},
+      {"10", Duration.ofSeconds(10)},
+      {" 30 ", Duration.ofSeconds(30)},
+      {"0", Duration.ZERO},
+      {"-5", Duration.ofSeconds(5)},
+      {"abc", Duration.ofSeconds(5)},
+      {"1.5", Duration.ofSeconds(5)},
+      {"", Duration.ofSeconds(5)},
+    };
+  }
+
+  @Test
+  @Parameters(method = "thresholdCases")
+  public void parsesThresholdOrFallsBackToTheDefault(String value, Duration expected) {
+    assertEquals(expected, WorkflowWorker.parseWftDurationWarnThreshold(value));
   }
 }

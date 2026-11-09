@@ -12,6 +12,7 @@ Java SDK:
 - [Java SDK documentation](https://docs.temporal.io/docs/java/introduction)
 - [Javadoc API reference](https://www.javadoc.io/doc/io.temporal/temporal-sdk/latest/index.html)
 - [Sample applications](https://github.com/temporalio/samples-java#samples-directory)
+- [Spring AI integration](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai)
 
 Temporal:
 

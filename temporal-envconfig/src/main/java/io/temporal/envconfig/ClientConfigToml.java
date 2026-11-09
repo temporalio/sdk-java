@@ -44,6 +44,10 @@ class ClientConfigToml {
     @JsonProperty("grpc_meta")
     public Map<String, String> grpcMeta;
 
+    // Untyped table contents are accepted even when failing on unknown properties
+    @JsonProperty("ext")
+    public Map<String, Map<String, Object>> ext;
+
     protected TomlClientConfigProfile() {}
 
     TomlClientConfigProfile(
@@ -51,12 +55,14 @@ class ClientConfigToml {
         String namespace,
         String apiKey,
         TomlClientConfigTLS tls,
-        Map<String, String> grpcMeta) {
+        Map<String, String> grpcMeta,
+        Map<String, Map<String, Object>> ext) {
       this.address = address;
       this.namespace = namespace;
       this.apiKey = apiKey;
       this.tls = tls;
       this.grpcMeta = grpcMeta;
+      this.ext = ext;
     }
   }
 
@@ -173,6 +179,7 @@ class ClientConfigToml {
               .setApiKey(tomlProfile.apiKey)
               .setMetadata(metadata)
               .setTls(tls)
+              .setExt(tomlProfile.ext)
               .build();
       profiles.put(profileName, profile);
     }
@@ -220,7 +227,12 @@ class ClientConfigToml {
       }
       TomlClientConfigProfile tomlProfile =
           new TomlClientConfigProfile(
-              profile.getAddress(), profile.getNamespace(), profile.getApiKey(), tls, grpcMeta);
+              profile.getAddress(),
+              profile.getNamespace(),
+              profile.getApiKey(),
+              tls,
+              grpcMeta,
+              profile.getExt());
       tomlProfiles.put(profileName, tomlProfile);
     }
     return tomlProfiles;

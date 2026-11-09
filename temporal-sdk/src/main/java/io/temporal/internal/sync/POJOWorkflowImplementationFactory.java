@@ -362,7 +362,11 @@ public final class POJOWorkflowImplementationFactory implements ReplayWorkflowFa
       if (workflowMethod.getReturnType() == Void.TYPE) {
         return Optional.empty();
       }
-      return dataConverterWithWorkflowContext.toPayloads(result.getResult());
+      // The result of a workflow started by a Nexus operation handler is returned to the Nexus
+      // caller, so it is encoded with the handler's Nexus context.
+      return WorkflowInternal.getRootWorkflowContext()
+          .getDataConverterForResult()
+          .toPayloads(result.getResult());
     }
 
     @Nullable

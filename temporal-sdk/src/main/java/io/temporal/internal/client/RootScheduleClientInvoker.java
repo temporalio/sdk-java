@@ -11,12 +11,16 @@ import io.temporal.api.schedule.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.ListScheduleListDescriptionIterator;
 import io.temporal.client.schedules.*;
+import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import java.util.*;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,15 +29,36 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
   private final GenericWorkflowClient genericClient;
 
-  private final ScheduleClientOptions clientOptions;
+  private final String namespace;
+  private final String identity;
+  private final DataConverter dataConverter;
 
   private final ScheduleProtoUtil scheduleRequestHeader;
 
   public RootScheduleClientInvoker(
-      GenericWorkflowClient genericClient, ScheduleClientOptions clientOptions) {
+      GenericWorkflowClient genericClient,
+      String namespace,
+      String identity,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter) {
+    this(genericClient, namespace, identity, contextPropagators, dataConverter, null);
+  }
+
+  public RootScheduleClientInvoker(
+      GenericWorkflowClient genericClient,
+      String namespace,
+      String identity,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.genericClient = genericClient;
-    this.clientOptions = clientOptions;
-    this.scheduleRequestHeader = new ScheduleProtoUtil(genericClient, clientOptions);
+    this.namespace = namespace;
+    this.identity = identity;
+    // Schedule reads must reject storage references even when no driver is configured.
+    this.dataConverter = ClientDataConverterFactory.withStorage(dataConverter, externalStorage);
+    this.scheduleRequestHeader =
+        new ScheduleProtoUtil(
+            genericClient, namespace, contextPropagators, this.dataConverter, externalStorage);
   }
 
   @Override
@@ -42,18 +67,20 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     CreateScheduleRequest.Builder request =
         CreateScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setScheduleId(input.getId())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule()));
+            .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule(), null));
 
     if (input.getOptions().getMemo() != null) {
       // TODO we don't have a workflow context here, maybe we need a schedule context?
+      DataConverter memoConverter =
+          ClientDataConverterFactory.withStorageTarget(
+              dataConverter, scheduleRequestHeader.storageTarget(input.getSchedule().getAction()));
       request.setMemo(
           Memo.newBuilder()
-              .putAllFields(
-                  intoPayloadMap(clientOptions.getDataConverter(), input.getOptions().getMemo())));
+              .putAllFields(intoPayloadMap(memoConverter, input.getOptions().getMemo())));
     }
 
     if (input.getOptions().getSearchAttributes() != null
@@ -107,7 +134,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   public ListScheduleOutput listSchedules(ListSchedulesInput input) {
     ListScheduleListDescriptionIterator iterator =
         new ListScheduleListDescriptionIterator(
-            clientOptions.getNamespace(), input.getQuery(), input.getPageSize(), genericClient);
+            namespace, input.getQuery(), input.getPageSize(), genericClient);
     iterator.init();
     Iterator<ScheduleListDescription> wrappedIterator =
         Iterators.transform(
@@ -141,8 +168,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -157,8 +184,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   public void deleteSchedule(DeleteScheduleInput input) {
     DeleteScheduleRequest request =
         DeleteScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .build();
     try {
@@ -172,7 +199,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
   public DescribeScheduleOutput describeSchedule(DescribeScheduleInput input) {
     DescribeScheduleRequest request =
         DescribeScheduleRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .build();
 
@@ -187,7 +214,7 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
                   SearchAttributesUtil.decode(response.getSearchAttributes())),
               SearchAttributesUtil.decodeTyped(response.getSearchAttributes()),
               response.getMemo().getFieldsMap(),
-              clientOptions.getDataConverter()));
+              dataConverter));
     } catch (Exception e) {
       throw new ScheduleException(e);
     }
@@ -199,8 +226,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -220,8 +247,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -238,8 +265,8 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     PatchScheduleRequest request =
         PatchScheduleRequest.newBuilder()
-            .setIdentity(clientOptions.getIdentity())
-            .setNamespace(clientOptions.getNamespace())
+            .setIdentity(identity)
+            .setNamespace(namespace)
             .setScheduleId(input.getScheduleId())
             .setPatch(patch)
             .build();
@@ -260,11 +287,13 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
 
     UpdateScheduleRequest.Builder request =
         UpdateScheduleRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
-            .setIdentity(clientOptions.getIdentity())
+            .setNamespace(namespace)
+            .setIdentity(identity)
             .setScheduleId(input.getDescription().getId())
             .setRequestId(UUID.randomUUID().toString())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()));
+            .setSchedule(
+                scheduleRequestHeader.scheduleToProto(
+                    schedule.getSchedule(), input.getDescription().getSchedule().getAction()));
     if (schedule.getTypedSearchAttributes() != null) {
       SearchAttributes encodedSa =
           SearchAttributesUtil.encodeTyped(schedule.getTypedSearchAttributes());

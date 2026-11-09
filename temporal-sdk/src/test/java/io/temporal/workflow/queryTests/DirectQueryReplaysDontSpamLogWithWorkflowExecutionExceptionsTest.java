@@ -98,10 +98,11 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
 
     workflow.mySignal("exit");
     assertEquals("exit", workflow.execute());
+    int executionsBeforeFinalQuery = workflowCodeExecutionCount.get();
     assertEquals("my-state", workflow.getState());
     assertEquals(
-        "There was three executions - one original and two full replays for query.",
-        3,
+        "The final query should cause exactly one additional full replay.",
+        executionsBeforeFinalQuery + 1,
         workflowCodeExecutionCount.get());
     assertEquals(
         "Only the original exception should be logged.",

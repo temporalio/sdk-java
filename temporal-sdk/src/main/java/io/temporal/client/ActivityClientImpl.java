@@ -1,16 +1,18 @@
 package io.temporal.client;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.common.v1.Payload;
-import io.temporal.common.context.ContextPropagator;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
-import io.temporal.common.interceptors.Header;
 import io.temporal.internal.client.ActivityClientInternal;
 import io.temporal.internal.client.ActivityHandleImpl;
+import io.temporal.internal.client.ClientDataConverterFactory;
+import io.temporal.internal.client.NamespaceInjectWorkflowServiceStubs;
 import io.temporal.internal.client.RootActivityClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.common.HeaderUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.util.MethodExtractor;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -18,9 +20,6 @@ import io.temporal.workflow.Functions;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -37,20 +36,43 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
   private final Scope metricsScope;
 
   ActivityClientImpl(WorkflowServiceStubs stubs, ActivityClientOptions options) {
+    ExternalStorageRunner externalStorage =
+        options.getExternalStorage() == null
+            ? null
+            : ExternalStorageRunner.create(options.getExternalStorage());
+    DataConverter internalDataConverter =
+        ClientDataConverterFactory.forClient(options.getDataConverter());
     this.stubs = stubs;
     this.options = options;
+    WorkflowServiceStubs namespacedStubs =
+        new NamespaceInjectWorkflowServiceStubs(stubs, options.getNamespace());
     this.metricsScope =
         stubs.getOptions().getMetricsScope().tagged(MetricsTag.defaultTags(options.getNamespace()));
-    GenericWorkflowClientImpl genericClient = new GenericWorkflowClientImpl(stubs, metricsScope);
-    this.invoker = initializeClientInvoker(genericClient, options);
+    GenericWorkflowClientImpl genericClient =
+        new GenericWorkflowClientImpl(namespacedStubs, metricsScope);
+    this.invoker =
+        initializeClientInvoker(genericClient, options, internalDataConverter, externalStorage);
     this.manualActivityCompletionClientFactory =
         ManualActivityCompletionClientFactory.newFactory(
-            stubs, options.getNamespace(), options.getIdentity(), options.getDataConverter());
+            namespacedStubs,
+            options.getNamespace(),
+            options.getIdentity(),
+            internalDataConverter,
+            externalStorage);
   }
 
   private static ActivityClientCallsInterceptor initializeClientInvoker(
-      GenericWorkflowClientImpl genericClient, ActivityClientOptions options) {
-    ActivityClientCallsInterceptor invoker = new RootActivityClientInvoker(genericClient, options);
+      GenericWorkflowClientImpl genericClient,
+      ActivityClientOptions options,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
+    ActivityClientCallsInterceptor invoker =
+        new RootActivityClientInvoker(
+            genericClient,
+            options.getNamespace(),
+            options.getIdentity(),
+            dataConverter,
+            externalStorage);
     for (ActivityClientInterceptor interceptor : options.getInterceptors()) {
       invoker = interceptor.activityClientCallsInterceptor(invoker);
     }
@@ -299,7 +321,7 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
                 activityType,
                 Arrays.asList(args != null ? args : new Object[0]),
                 options,
-                propagatedHeader()));
+                HeaderUtils.fromContextPropagators(this.options.getContextPropagators())));
     return new ActivityHandleImpl(output.getActivityId(), output.getActivityRunId(), invoker);
   }
 
@@ -344,18 +366,6 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
       @Nullable Type resultType) {
     UntypedActivityHandle untyped = getHandle(activityId, activityRunId);
     return ActivityHandle.fromUntyped(untyped, resultClass, resultType);
-  }
-
-  private Header propagatedHeader() {
-    List<ContextPropagator> propagators = options.getContextPropagators();
-    if (propagators.isEmpty()) {
-      return Header.empty();
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : propagators) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new Header(result);
   }
 
   // ---- List / count ----

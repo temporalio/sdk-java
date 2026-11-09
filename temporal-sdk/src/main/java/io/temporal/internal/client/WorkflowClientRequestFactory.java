@@ -15,22 +15,34 @@ import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryRequest;
 import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.StartWorkflowExecutionRequestOrBuilder;
-import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.context.ContextPropagator;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.ProtoConverters;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import java.util.*;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 final class WorkflowClientRequestFactory {
-  private final WorkflowClientOptions clientOptions;
+  private final String namespace;
+  private final String identity;
+  private final List<ContextPropagator> contextPropagators;
+  private final @Nullable PayloadCodec headerCodec;
 
-  public WorkflowClientRequestFactory(WorkflowClientOptions clientOptions) {
-    this.clientOptions = clientOptions;
+  public WorkflowClientRequestFactory(
+      String namespace,
+      String identity,
+      List<ContextPropagator> contextPropagators,
+      @Nullable PayloadCodec headerCodec) {
+    this.namespace = namespace;
+    this.identity = identity;
+    this.contextPropagators = contextPropagators;
+    this.headerCodec = headerCodec;
   }
 
   // If you add anything new here, keep newSignalWithStartWorkflowExecutionRequest in sync
@@ -46,9 +58,9 @@ final class WorkflowClientRequestFactory {
       @Nullable UserMetadata userMetadata) {
     StartWorkflowExecutionRequest.Builder request =
         StartWorkflowExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setRequestId(generateUniqueId())
-            .setIdentity(clientOptions.getIdentity())
+            .setIdentity(identity)
             .setWorkflowId(workflowId)
             .setWorkflowType(WorkflowType.newBuilder().setName(workflowTypeName))
             .setWorkflowRunTimeout(
@@ -139,7 +151,12 @@ final class WorkflowClientRequestFactory {
     }
 
     Header grpcHeader =
-        toHeaderGrpc(header, extractContextsAndConvertToBytes(options.getContextPropagators()));
+        toHeaderGrpc(
+            header,
+            HeaderUtils.fromContextPropagators(
+                MoreObjects.firstNonNull(options.getContextPropagators(), contextPropagators)),
+            HeaderUtils.withContext(
+                headerCodec, new WorkflowSerializationContext(namespace, workflowId)));
     request.setHeader(grpcHeader);
 
     return request;
@@ -152,9 +169,9 @@ final class WorkflowClientRequestFactory {
       @Nullable Payloads signalInput) {
     SignalWithStartWorkflowExecutionRequest.Builder request =
         SignalWithStartWorkflowExecutionRequest.newBuilder()
-            .setNamespace(clientOptions.getNamespace())
+            .setNamespace(namespace)
             .setRequestId(generateUniqueId())
-            .setIdentity(clientOptions.getIdentity())
+            .setIdentity(identity)
             .setSignalName(signalName)
             .setWorkflowRunTimeout(startParameters.getWorkflowRunTimeout())
             .setWorkflowExecutionTimeout(startParameters.getWorkflowExecutionTimeout())
@@ -220,32 +237,12 @@ final class WorkflowClientRequestFactory {
   GetWorkflowExecutionHistoryRequest newHistoryLongPollRequest(
       WorkflowExecution workflowExecution, ByteString pageToken) {
     return GetWorkflowExecutionHistoryRequest.newBuilder()
-        .setNamespace(clientOptions.getNamespace())
+        .setNamespace(namespace)
         .setExecution(workflowExecution)
         .setHistoryEventFilterType(HistoryEventFilterType.HISTORY_EVENT_FILTER_TYPE_CLOSE_EVENT)
         .setWaitNewEvent(true)
         .setNextPageToken(pageToken)
         .build();
-  }
-
-  private io.temporal.common.interceptors.Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> workflowOptionsContextPropagators) {
-    List<ContextPropagator> workflowClientContextPropagators =
-        clientOptions.getContextPropagators();
-    if ((workflowClientContextPropagators.isEmpty() && workflowOptionsContextPropagators == null)
-        || (workflowOptionsContextPropagators != null
-            && workflowOptionsContextPropagators.isEmpty())) {
-      return null;
-    }
-
-    List<ContextPropagator> listToUse =
-        MoreObjects.firstNonNull(
-            workflowOptionsContextPropagators, workflowClientContextPropagators);
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : listToUse) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new io.temporal.common.interceptors.Header(result);
   }
 
   private static String generateUniqueId() {

@@ -10,8 +10,9 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.client.external.ManualActivityCompletionClientFactory;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
-import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.Type;
 import java.time.Duration;
@@ -58,7 +59,8 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
       Duration maxHeartbeatThrottleInterval,
       Duration defaultHeartbeatThrottleInterval,
       Functions.Proc closeCallback,
-      @Nullable ExternalStorageRunner externalStorage) {
+      @Nullable ExternalStorageRunner externalStorage,
+      PayloadErrorLimits payloadErrorLimits) {
     this.client = client;
     this.activity = activity;
     this.metricsScope = metricsScope;
@@ -77,7 +79,8 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
             identity,
             maxHeartbeatThrottleInterval,
             defaultHeartbeatThrottleInterval,
-            externalStorage);
+            externalStorage,
+            payloadErrorLimits);
   }
 
   /**
@@ -86,6 +89,17 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
   @Override
   public <V> void heartbeat(V details) throws ActivityCompletionException {
     heartbeatContext.heartbeat(details);
+  }
+
+  @Override
+  public boolean awaitTaskReported() {
+    return heartbeatContext.awaitTaskReported();
+  }
+
+  @Override
+  @Nullable
+  public PayloadLimitViolation getPayloadLimitViolation() {
+    return heartbeatContext.getPayloadLimitViolation();
   }
 
   @Override
@@ -155,13 +169,11 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
     try {
       doNotCompleteOnReturn();
       useLocalManualCompletion = true;
-      ActivitySerializationContext activitySerializationContext =
-          new ActivitySerializationContext(info);
       return new CompletionAwareManualCompletionClient(
           manualCompletionClientFactory.getClient(
               info.getTaskToken(),
               metricsScope,
-              activitySerializationContext,
+              HeartbeatContextImpl.heartbeatContext(info.getNamespace(), info),
               HeartbeatContextImpl.storageTargetForActivity(info.getNamespace(), info)),
           completionHandle);
     } finally {

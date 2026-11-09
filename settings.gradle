@@ -1,3 +1,15 @@
+pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            // Exercise Kotlin 2.4 static adapters in the edge test job.
+            if (requested.id.id == 'org.jetbrains.kotlin.jvm' &&
+                    providers.gradleProperty('edgeDepsTest').isPresent()) {
+                useVersion('2.4.20')
+            }
+        }
+    }
+}
+
 rootProject.name='temporal-java-sdk'
 include 'temporal-bom'
 include 'temporal-serviceclient'
@@ -9,6 +21,7 @@ project(':temporal-opentracing').projectDir = file('contrib/temporal-opentracing
 include 'temporal-opentelemetry'
 project(':temporal-opentelemetry').projectDir = file('contrib/temporal-opentelemetry')
 include 'temporal-kotlin'
+// Retained for the one-time relocation POM; implementation lives in ai-integrations.
 include 'temporal-spring-ai'
 project(':temporal-spring-ai').projectDir = file('contrib/temporal-spring-ai')
 include 'temporal-workflowstreams'
