@@ -77,18 +77,25 @@ public final class RetryOptions {
         .build();
   }
 
-  /** The parameter options takes precedence. */
+  /** The parameter options takes precedence. Unset fields remain unset until validation. */
   public RetryOptions merge(RetryOptions o) {
     if (o == null) {
       return this;
     }
-    return RetryOptions.newBuilder()
-        .setInitialInterval(
-            OptionsUtils.merge(getInitialInterval(), o.getInitialInterval(), Duration.class))
+    RetryOptions.Builder builder = RetryOptions.newBuilder();
+    Duration initial =
+        OptionsUtils.merge(getInitialInterval(), o.getInitialInterval(), Duration.class);
+    if (initial != null) {
+      builder.setInitialInterval(initial);
+    }
+    double coefficient =
+        OptionsUtils.merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class);
+    if (coefficient != 0d) {
+      builder.setBackoffCoefficient(coefficient);
+    }
+    return builder
         .setMaximumInterval(
             OptionsUtils.merge(getMaximumInterval(), o.getMaximumInterval(), Duration.class))
-        .setBackoffCoefficient(
-            OptionsUtils.merge(getBackoffCoefficient(), o.getBackoffCoefficient(), double.class))
         .setMaximumAttempts(
             OptionsUtils.merge(getMaximumAttempts(), o.getMaximumAttempts(), int.class))
         .setDoNotRetry(OptionsUtils.merge(getDoNotRetry(), o.getDoNotRetry()))

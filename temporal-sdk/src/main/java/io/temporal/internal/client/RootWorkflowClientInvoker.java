@@ -17,6 +17,8 @@ import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.errordetails.v1.MultiOperationExecutionFailure;
 import io.temporal.api.failure.v1.MultiOperationExecutionAborted;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.query.v1.WorkflowQuery;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.update.v1.*;
@@ -29,12 +31,16 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.InternalUtils;
+import io.temporal.internal.common.WorkflowExecutionUtils;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
 import io.temporal.internal.nexus.OperationTokenUtil;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.worker.WorkerVersioningProtoUtils;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.StatusUtils;
 import io.temporal.worker.WorkflowTaskDispatchHandle;
@@ -60,6 +66,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private final WorkflowClientRequestFactory requestsHelper;
   private final ClientDataConverterFactory converterFactory;
   private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable PayloadCodec headerCodec;
 
   public RootWorkflowClientInvoker(
       GenericWorkflowClient genericClient,
@@ -92,16 +99,27 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     this.converterFactory =
         new ClientDataConverterFactory(namespace, dataConverter, externalStorage);
     this.externalStorage = externalStorage;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.identity = identity;
     this.queryRejectCondition = queryRejectCondition;
     this.eagerWorkflowTaskDispatcher = new EagerWorkflowTaskDispatcher(workerFactoryRegistry);
-    this.requestsHelper = new WorkflowClientRequestFactory(namespace, identity, contextPropagators);
+    this.requestsHelper =
+        new WorkflowClientRequestFactory(namespace, identity, contextPropagators, headerCodec);
   }
 
   private DataConverter workflowConverter(WorkflowExecution execution) {
     return workflowConverter(execution, null);
+  }
+
+  private Header workflowHeader(
+      io.temporal.common.interceptors.Header header, WorkflowExecution execution) {
+    return HeaderUtils.toHeaderGrpc(
+        header,
+        null,
+        HeaderUtils.withContext(
+            headerCodec, new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
   }
 
   private DataConverter workflowConverter(
@@ -112,6 +130,27 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
   private DataConverter workflowConverter(
       String workflowId, @Nullable String runId, @Nullable String workflowType) {
     return converterFactory.forWorkflow(workflowId, runId, workflowType);
+  }
+
+  /**
+   * The data converter for a workflow's or an update's result and failure. A workflow or an update
+   * started by a Nexus operation handler encodes them with the handler's Nexus serialization
+   * context, which the server returns with them. Otherwise they use the workflow context.
+   *
+   * @param propagated the context returned by the server, or null if it returned none
+   * @param workflowConverter the converter to use when the server returned no context
+   */
+  private DataConverter outcomeConverter(
+      @Nullable PropagatedSerializationContext propagated,
+      WorkflowExecution execution,
+      DataConverter workflowConverter) {
+    return propagated != null
+        ? converterFactory.forWorkflow(
+            PropagatedNexusSerializationContext.fromProto(propagated),
+            execution.getWorkflowId(),
+            execution.getRunId(),
+            null)
+        : workflowConverter;
   }
 
   private void storeHeader(
@@ -139,7 +178,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         workflowConverter(input.getWorkflowId(), null, input.getWorkflowType());
 
     StartWorkflowExecutionRequest.Builder startRequest =
-        toStartRequest(dataConverterWithWorkflowContext, input);
+        toStartRequest(
+            dataConverterWithWorkflowContext, input, PropagatedNexusSerializationContext.current());
 
     try (@Nullable WorkflowTaskDispatchHandle eagerDispatchHandle = obtainDispatchHandle(input)) {
       boolean requestEagerExecution = eagerDispatchHandle != null;
@@ -197,13 +237,20 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .setIdentity(identity)
             .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
+            .setHeader(workflowHeader(input.getHeader(), input.getWorkflowExecution()));
 
     // If this signal is being issued from inside a Nexus operation handler, forward the inbound
     // Nexus task links so the SignalWorkflowExecution history event links back to the caller.
-    boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
-    if (inNexusContext) {
-      request.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
+    if (nexusContext != null) {
+      request.addAllLinks(nexusContext.getRequestLinks());
+      // From a Temporal operation handler, reuse the operation's request ID so a retried Nexus task
+      // dedupes against the first attempt. WorkflowStubImpl limits such signals to one per
+      // invocation, since the server would drop a second one as a duplicate.
+      String requestId = nexusContext.getSignalRequestId();
+      if (requestId != null) {
+        request.setRequestId(requestId);
+      }
     }
 
     DataConverter dataConverterWitSignalContext = workflowConverter(input.getWorkflowExecution());
@@ -218,8 +265,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     SignalWorkflowExecutionResponse response = genericClient.signal(request.build());
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
     // event; older servers leave it unset. Propagate when present.
-    if (inNexusContext && response.hasLink()) {
-      CurrentNexusOperationContext.get().addResponseLink(response.getLink());
+    if (nexusContext != null && response.hasLink()) {
+      nexusContext.addResponseLink(response.getLink());
     }
     return new WorkflowSignalOutput();
   }
@@ -232,7 +279,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         workflowConverter(
             workflowStartInput.getWorkflowId(), null, workflowStartInput.getWorkflowType());
     StartWorkflowExecutionRequestOrBuilder startRequest =
-        toStartRequest(dataConverterWithWorkflowContext, workflowStartInput);
+        toStartRequest(dataConverterWithWorkflowContext, workflowStartInput, null);
 
     Optional<Payloads> signalInput =
         dataConverterWithWorkflowContext.toPayloads(input.getSignalArguments());
@@ -242,9 +289,14 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     // If this signalWithStart is being issued from inside a Nexus operation handler, forward
     // the inbound Nexus task links so both the WorkflowExecutionStarted and
     // WorkflowExecutionSignaled events on the callee link back to the caller.
-    boolean inNexusContext = CurrentNexusOperationContext.isNexusContext();
-    if (inNexusContext) {
-      requestBuilder.addAllLinks(CurrentNexusOperationContext.get().getRequestLinks());
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
+    if (nexusContext != null) {
+      requestBuilder.addAllLinks(nexusContext.getRequestLinks());
+      // Reuse the operation's request ID, as in signal().
+      String requestId = nexusContext.getSignalRequestId();
+      if (requestId != null) {
+        requestBuilder.setRequestId(requestId);
+      }
     }
     SignalWithStartWorkflowExecutionRequest request = requestBuilder.build();
     SignalWithStartWorkflowExecutionResponse response = genericClient.signalWithStart(request);
@@ -255,8 +307,8 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .build();
     // Server >=1.31 with EnableCHASMSignalBacklinks returns a response link pointing at the signal
     // event; older servers leave it unset. Propagate when present.
-    if (inNexusContext && response.hasSignalLink()) {
-      CurrentNexusOperationContext.get().addResponseLink(response.getSignalLink());
+    if (nexusContext != null && response.hasSignalLink()) {
+      nexusContext.addResponseLink(response.getSignalLink());
     }
     // TODO currently SignalWithStartWorkflowExecutionResponse doesn't have eagerWorkflowTask.
     //  We should wire it when it's implemented server-side.
@@ -270,6 +322,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     WorkflowStartInput startInput = input.getWorkflowStartInput();
     DataConverter dataConverterWithWorkflowContext =
         workflowConverter(startInput.getWorkflowId(), null, startInput.getWorkflowType());
+    @Nullable
+    PropagatedSerializationContext propagatedNexusSerializationContext =
+        PropagatedNexusSerializationContext.current();
 
     ExecuteMultiOperationRequest request =
         ExecuteMultiOperationRequest.newBuilder()
@@ -277,7 +332,11 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             .addOperations(
                 0,
                 ExecuteMultiOperationRequest.Operation.newBuilder()
-                    .setStartWorkflow(toStartRequest(dataConverterWithWorkflowContext, startInput))
+                    .setStartWorkflow(
+                        toStartRequest(
+                            dataConverterWithWorkflowContext,
+                            startInput,
+                            propagatedNexusSerializationContext))
                     .build())
             .addOperations(
                 1,
@@ -372,16 +431,15 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     WorkflowExecution execution =
         WorkflowExecution.newBuilder()
             .setRunId(startResponse.getRunId())
-            .setWorkflowId(
-                toStartRequest(dataConverterWithWorkflowContext, startInput)
-                    .build()
-                    .getWorkflowId())
+            .setWorkflowId(startInput.getWorkflowId())
             .build();
     return new WorkflowUpdateWithStartOutput<>(new WorkflowStartOutput(execution), updateHandle);
   }
 
   private StartWorkflowExecutionRequest.Builder toStartRequest(
-      DataConverter dataConverterWithWorkflowContext, WorkflowStartInput workflowStartInput) {
+      DataConverter dataConverterWithWorkflowContext,
+      WorkflowStartInput workflowStartInput,
+      @Nullable PropagatedSerializationContext propagatedNexusSerializationContext) {
     Optional<Payloads> workflowInput =
         dataConverterWithWorkflowContext.toPayloads(workflowStartInput.getArguments());
 
@@ -412,6 +470,9 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             workflowInput.orElse(null),
             memo,
             userMetadata);
+    if (propagatedNexusSerializationContext != null) {
+      startRequest.setPropagatedNexusSerializationContext(propagatedNexusSerializationContext);
+    }
     storeHeader(
         startRequest.getHeaderBuilder(),
         workflowStartInput.getWorkflowId(),
@@ -422,46 +483,52 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   @Override
   public <R> GetResultOutput<R> getResult(GetResultInput<R> input) throws TimeoutException {
-    DataConverter dataConverterWithWorkflowContext =
-        workflowConverter(input.getWorkflowExecution());
-    Optional<Payloads> resultValue =
-        WorkflowClientLongPollHelper.getWorkflowExecutionResult(
+    GetWorkflowExecutionHistoryResponse closed =
+        WorkflowClientLongPollHelper.getInstanceCloseEvent(
             genericClient,
             requestsHelper,
             input.getWorkflowExecution(),
-            input.getWorkflowType(),
-            dataConverterWithWorkflowContext,
             input.getTimeout(),
             input.getTimeoutUnit());
-    return new GetResultOutput<>(
-        convertResultPayloads(
-            resultValue,
-            input.getResultClass(),
-            input.getResultType(),
-            dataConverterWithWorkflowContext));
+    return new GetResultOutput<>(convertClosedWorkflowResult(input, closed));
   }
 
   @Override
   public <R> GetResultAsyncOutput<R> getResultAsync(GetResultInput<R> input) {
-    DataConverter dataConverterWithWorkflowContext =
-        workflowConverter(input.getWorkflowExecution());
-    CompletableFuture<Optional<Payloads>> resultValue =
-        WorkflowClientLongPollAsyncHelper.getWorkflowExecutionResultAsync(
+    CompletableFuture<GetWorkflowExecutionHistoryResponse> closed =
+        WorkflowClientLongPollAsyncHelper.getInstanceCloseEventAsync(
             genericClient,
             requestsHelper,
             input.getWorkflowExecution(),
-            input.getWorkflowType(),
             input.getTimeout(),
-            input.getTimeoutUnit(),
-            dataConverterWithWorkflowContext);
-    return new GetResultAsyncOutput<>(
-        resultValue.thenApply(
-            payloads ->
-                convertResultPayloads(
-                    payloads,
-                    input.getResultClass(),
-                    input.getResultType(),
-                    dataConverterWithWorkflowContext)));
+            input.getTimeoutUnit());
+    return new GetResultAsyncOutput<>(closed.thenApply(c -> convertClosedWorkflowResult(input, c)));
+  }
+
+  /**
+   * Decodes the result of a closed workflow, or throws the failure it closed with.
+   *
+   * <p>A workflow started by a Nexus operation handler encodes its result and failure with the
+   * handler's Nexus serialization context, which the server returns with the history. Other
+   * workflows use their own workflow context.
+   */
+  private <R> R convertClosedWorkflowResult(
+      GetResultInput<R> input, GetWorkflowExecutionHistoryResponse closed) {
+    WorkflowExecution execution = input.getWorkflowExecution();
+    DataConverter dataConverter =
+        outcomeConverter(
+            closed.hasPropagatedNexusSerializationContext()
+                ? closed.getPropagatedNexusSerializationContext()
+                : null,
+            execution,
+            workflowConverter(execution));
+    // The long poll helpers return a response whose single event is the close event.
+    HistoryEvent closeEvent = closed.getHistory().getEvents(0);
+    Optional<Payloads> resultValue =
+        WorkflowExecutionUtils.getResultFromCloseEvent(
+            execution, input.getWorkflowType(), closeEvent, dataConverter);
+    return convertResultPayloads(
+        resultValue, input.getResultClass(), input.getResultType(), dataConverter);
   }
 
   @Override
@@ -469,7 +536,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     WorkflowQuery.Builder query =
         WorkflowQuery.newBuilder()
             .setQueryType(input.getQueryType())
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
+            .setHeader(workflowHeader(input.getHeader(), input.getWorkflowExecution()));
     DataConverter dataConverterWithWorkflowContext =
         workflowConverter(input.getWorkflowExecution());
 
@@ -573,7 +640,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         dataConverterWithWorkflowContext.toPayloads(input.getArguments());
     Input.Builder updateInput =
         Input.newBuilder()
-            .setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null))
+            .setHeader(workflowHeader(input.getHeader(), input.getWorkflowExecution()))
             .setName(input.getUpdateName());
     inputArgs.ifPresent(updateInput::setArgs);
     storeHeader(
@@ -586,6 +653,17 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         Request.newBuilder()
             .setMeta(Meta.newBuilder().setUpdateId(input.getUpdateId()).setIdentity(identity))
             .setInput(updateInput);
+
+    // An update sent by a Nexus operation handler returns its result and failure to the Nexus
+    // caller, so they are serialized with the handler's Nexus context. It is sent with the request
+    // so the server can propagate it to the worker and to clients reading the outcome. The update's
+    // arguments keep the workflow context.
+    @Nullable
+    PropagatedSerializationContext propagatedNexusSerializationContext =
+        PropagatedNexusSerializationContext.current();
+    if (propagatedNexusSerializationContext != null) {
+      requestBuilder.setPropagatedNexusSerializationContext(propagatedNexusSerializationContext);
+    }
 
     // If this update is being issued via TemporalNexusClientImpl.startWorkflowUpdate,
     // set the fields the server needs to deliver the Nexus completion callback
@@ -638,15 +716,19 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
       UpdateWorkflowExecutionResponse result,
       DataConverter dataConverterWithWorkflowContext) {
     if (result.hasOutcome()) {
+      DataConverter dataConverter =
+          outcomeConverter(
+              result.hasPropagatedNexusSerializationContext()
+                  ? result.getPropagatedNexusSerializationContext()
+                  : null,
+              result.getUpdateRef().getWorkflowExecution(),
+              dataConverterWithWorkflowContext);
       switch (result.getOutcome().getValueCase()) {
         case SUCCESS:
           Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
           R resultValue =
               convertResultPayloads(
-                  updateResult,
-                  input.getResultClass(),
-                  input.getResultType(),
-                  dataConverterWithWorkflowContext);
+                  updateResult, input.getResultClass(), input.getResultType(), dataConverter);
           return new CompletedWorkflowUpdateHandleImpl<>(
               result.getUpdateRef().getUpdateId(),
               result.getUpdateRef().getWorkflowExecution(),
@@ -659,8 +741,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
                   result.getUpdateRef().getWorkflowExecution(),
                   result.getUpdateRef().getUpdateId(),
                   input.getUpdateName(),
-                  dataConverterWithWorkflowContext.failureToException(
-                      result.getOutcome().getFailure())));
+                  dataConverter.failureToException(result.getOutcome().getFailure())));
         default:
           throw new RuntimeException(
               "Received unexpected outcome from update request: "
@@ -720,21 +801,24 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         future.thenApply(
             (result) -> {
               if (result.hasOutcome()) {
+                DataConverter dataConverter =
+                    outcomeConverter(
+                        result.hasPropagatedNexusSerializationContext()
+                            ? result.getPropagatedNexusSerializationContext()
+                            : null,
+                        input.getWorkflowExecution(),
+                        dataConverterWithWorkflowContext);
                 switch (result.getOutcome().getValueCase()) {
                   case SUCCESS:
                     Optional<Payloads> updateResult = Optional.of(result.getOutcome().getSuccess());
                     return convertResultPayloads(
-                        updateResult,
-                        input.getResultClass(),
-                        input.getResultType(),
-                        dataConverterWithWorkflowContext);
+                        updateResult, input.getResultClass(), input.getResultType(), dataConverter);
                   case FAILURE:
                     throw new WorkflowUpdateException(
                         input.getWorkflowExecution(),
                         input.getUpdateId(),
                         input.getUpdateName(),
-                        dataConverterWithWorkflowContext.failureToException(
-                            result.getOutcome().getFailure()));
+                        dataConverter.failureToException(result.getOutcome().getFailure()));
                   default:
                     throw new RuntimeException(
                         "Received unexpected outcome from poll update request: "

@@ -5,7 +5,9 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.util.Objects;
 import javax.annotation.Nullable;
@@ -36,9 +38,16 @@ public final class ClientDataConverterFactory {
     return withStorage(configured, Objects.requireNonNull(externalStorage, "externalStorage"));
   }
 
-  private static ExternalStorageDataConverter withStorage(
+  static ExternalStorageDataConverter withStorage(
       DataConverter configured, @Nullable ExternalStorageRunner externalStorage) {
     return new ExternalStorageDataConverter(transferAware(configured), externalStorage);
+  }
+
+  static DataConverter withStorageTarget(
+      DataConverter converter, @Nullable StorageDriverTargetInfo storageTarget) {
+    return converter instanceof ExternalStorageDataConverter
+        ? ((ExternalStorageDataConverter) converter).withStorageTarget(storageTarget)
+        : converter;
   }
 
   private static DataConverter transferAware(DataConverter configured) {
@@ -47,8 +56,21 @@ public final class ClientDataConverterFactory {
 
   DataConverter forWorkflow(
       String workflowId, @Nullable String runId, @Nullable String workflowType) {
-    DataConverter converter =
-        workflowConverter.withContext(new WorkflowSerializationContext(namespace, workflowId));
+    return forWorkflow(
+        new WorkflowSerializationContext(namespace, workflowId), workflowId, runId, workflowType);
+  }
+
+  /**
+   * Same as {@link #forWorkflow(String, String, String)}, but with an explicit serialization
+   * context. Used for payloads of a workflow started by a Nexus operation handler, which are
+   * serialized with the handler's Nexus context rather than the workflow's own.
+   */
+  DataConverter forWorkflow(
+      SerializationContext context,
+      String workflowId,
+      @Nullable String runId,
+      @Nullable String workflowType) {
+    DataConverter converter = workflowConverter.withContext(context);
     return ((ExternalStorageDataConverter) converter)
         .withStorageTarget(
             new StorageDriverWorkflowInfo(

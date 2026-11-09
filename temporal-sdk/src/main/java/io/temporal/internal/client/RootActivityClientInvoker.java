@@ -16,11 +16,13 @@ import io.temporal.api.common.v1.Callback;
 import io.temporal.api.common.v1.Link;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.errordetails.v1.ActivityExecutionAlreadyStartedFailure;
+import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.client.*;
 import io.temporal.client.ActivityOptionsUpdate;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.interceptors.ActivityClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
@@ -32,7 +34,13 @@ import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.nexus.CurrentNexusOperationContext;
 import io.temporal.internal.nexus.InternalNexusOperationContext;
 import io.temporal.internal.nexus.NexusOperationMetadata;
+import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
+import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
+import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.serviceclient.StatusUtils;
 import java.lang.reflect.Type;
 import java.util.*;
@@ -40,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 
 /**
  * Terminus of the activity interceptor chain. Implements all activity RPCs against the Temporal
@@ -50,17 +59,31 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   private final GenericWorkflowClient genericClient;
   private final String namespace;
   private final String identity;
-  private final DataConverter dataConverter;
+  private final ExternalStorageDataConverter dataConverter;
+  private final @Nullable ExternalStorageRunner externalStorage;
+  private final @Nullable PayloadCodec headerCodec;
 
   public RootActivityClientInvoker(
       GenericWorkflowClient genericClient,
       String namespace,
       String identity,
       DataConverter dataConverter) {
+    this(genericClient, namespace, identity, dataConverter, null);
+  }
+
+  public RootActivityClientInvoker(
+      GenericWorkflowClient genericClient,
+      String namespace,
+      String identity,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.identity = identity;
-    this.dataConverter = dataConverter;
+    // Activity reads must reject storage references even when no driver is configured.
+    this.dataConverter = ClientDataConverterFactory.withStorage(dataConverter, externalStorage);
+    this.externalStorage = externalStorage;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
   }
 
   @Override
@@ -69,13 +92,26 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     if (Strings.isNullOrEmpty(options.getTaskQueue())) {
       throw new IllegalArgumentException("taskQueue must not be null or empty");
     }
+    // An activity started from a Nexus operation handler returns its result and failure to the
+    // Nexus caller, so they are serialized with the handler's Nexus context. It is sent with the
+    // request so the server can propagate it to the activity worker and to clients reading the
+    // result. The input and user metadata keep the activity context.
+    @Nullable
+    PropagatedSerializationContext propagatedNexusSerializationContext =
+        PropagatedNexusSerializationContext.current();
+    StorageDriverActivityInfo storageTarget =
+        new StorageDriverActivityInfo(
+            namespace,
+            Strings.emptyToNull(options.getId()),
+            null,
+            Strings.emptyToNull(input.getActivityType()));
+    ActivitySerializationContext serializationContext =
+        new ActivitySerializationContext(
+            namespace, null, null, input.getActivityType(), options.getTaskQueue(), false);
     DataConverter dc =
-        dataConverter.withContext(
-            new ActivitySerializationContext(
-                namespace, null, null, input.getActivityType(), options.getTaskQueue(), false));
+        dataConverter.withStorageTarget(storageTarget).withContext(serializationContext);
 
-    InternalNexusOperationContext nexusContext =
-        CurrentNexusOperationContext.isNexusContext() ? CurrentNexusOperationContext.get() : null;
+    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.getOrNull();
     NexusOperationMetadata nexusOperationMetadata =
         nexusContext == null ? null : nexusContext.getNexusOperationMetadata();
 
@@ -94,6 +130,9 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
             .setTaskQueue(TaskQueue.newBuilder().setName(options.getTaskQueue()).build())
             .setIdReusePolicy(options.getIdReusePolicy())
             .setIdConflictPolicy(options.getIdConflictPolicy());
+    if (propagatedNexusSerializationContext != null) {
+      request.setPropagatedNexusSerializationContext(propagatedNexusSerializationContext);
+    }
 
     Optional<Payloads> activityInput = dc.toPayloads(input.getArgs().toArray());
     activityInput.ifPresent(request::setInput);
@@ -135,7 +174,13 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
     }
 
-    io.temporal.api.common.v1.Header grpcHeader = HeaderUtils.toHeaderGrpc(input.getHeader(), null);
+    io.temporal.api.common.v1.Header.Builder grpcHeader =
+        HeaderUtils.toHeaderGrpc(
+            input.getHeader(), null, HeaderUtils.withContext(headerCodec, serializationContext))
+            .toBuilder();
+    if (externalStorage != null && grpcHeader.getFieldsCount() > 0) {
+      externalStorage.store(grpcHeader, storageTarget, null, CancellationToken.none());
+    }
     request.setHeader(grpcHeader);
 
     List<Link> protoLinks = Collections.emptyList();
@@ -212,7 +257,6 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> GetActivityResultOutput<R> getActivityResult(GetActivityResultInput<R> input)
       throws TimeoutException {
-    DataConverter dc = dataConverter.withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
 
     while (true) {
@@ -250,6 +294,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
         continue;
       }
 
+      DataConverter dc = resultDataConverter(pollResponse);
       ActivityExecutionOutcome outcome = pollResponse.getOutcome();
       switch (outcome.getValueCase()) {
         case RESULT:
@@ -287,19 +332,18 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
   @Override
   public <R> CompletableFuture<GetActivityResultOutput<R>> getActivityResultAsync(
       GetActivityResultInput<R> input) {
-    DataConverter dc = dataConverter.withContext(resultSerializationContext(input));
     Deadline deadline = Deadline.after(input.getTimeout(), input.getTimeoutUnit());
     return pollActivityUntilOutcome(input, deadline)
         .handle(
-            (outcome, e) -> {
+            (response, e) -> {
               if (e == null) {
-                return decodeOutcome(outcome, input, dc);
+                return decodeOutcome(response.getOutcome(), input, resultDataConverter(response));
               }
               throw handleAsyncException(e, deadline, input.getActivityId());
             });
   }
 
-  private CompletableFuture<ActivityExecutionOutcome> pollActivityUntilOutcome(
+  private CompletableFuture<PollActivityExecutionResponse> pollActivityUntilOutcome(
       GetActivityResultInput<?> input, Deadline deadline) {
     PollActivityExecutionRequest.Builder pollRequest =
         PollActivityExecutionRequest.newBuilder()
@@ -315,7 +359,7 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
               if (!response.hasOutcome()) {
                 return pollActivityUntilOutcome(input, deadline);
               }
-              return CompletableFuture.completedFuture(response.getOutcome());
+              return CompletableFuture.completedFuture(response);
             });
   }
 
@@ -369,10 +413,20 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
     }
   }
 
-  private ActivitySerializationContext resultSerializationContext(GetActivityResultInput<?> input) {
-    // Currently, result doesn't have access to activity type and serialization context doesn't hold
-    // activity ID.
-    return new ActivitySerializationContext(namespace, null, null, null, null, false);
+  /**
+   * The data converter for the result or failure in a poll response. An activity started from a
+   * Nexus operation handler uses the handler's Nexus context, which the server returns with the
+   * response; other activities use an activity context.
+   */
+  private DataConverter resultDataConverter(PollActivityExecutionResponse response) {
+    SerializationContext context =
+        response.hasPropagatedNexusSerializationContext()
+            ? PropagatedNexusSerializationContext.fromProto(
+                response.getPropagatedNexusSerializationContext())
+            // Currently, result doesn't have access to activity type and serialization context
+            // doesn't hold activity ID.
+            : new ActivitySerializationContext(namespace, null, null, null, null, false);
+    return dataConverter.withContext(context);
   }
 
   @Override

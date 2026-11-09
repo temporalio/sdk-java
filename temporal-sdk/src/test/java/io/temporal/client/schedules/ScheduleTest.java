@@ -655,9 +655,19 @@ public class ScheduleTest {
         client.createSchedule(
             scheduleId, createTestSchedule().build(), ScheduleOptions.newBuilder().build());
     try {
-      // Add delay for schedule to appear
-      testWorkflowRule.sleep(Duration.ofSeconds(2));
-      // List all schedules and filter
+      // Wait for the eventually consistent schedule list without recording extra interceptor calls.
+      ScheduleClient visibilityClient = createScheduleClient();
+      Eventually.assertEventually(
+          Duration.ofSeconds(30),
+          () -> {
+            long matchingSchedules =
+                visibilityClient
+                    .listSchedules()
+                    .filter(s -> s.getScheduleId().equals(scheduleId))
+                    .count();
+            Assert.assertEquals(1, matchingSchedules);
+          });
+      // List all schedules and filter.
       Stream<ScheduleListDescription> scheduleStream = client.listSchedules();
       List<ScheduleListDescription> listedSchedules =
           scheduleStream

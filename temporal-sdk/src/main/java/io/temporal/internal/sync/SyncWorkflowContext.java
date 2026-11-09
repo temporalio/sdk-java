@@ -10,6 +10,7 @@ import static io.temporal.internal.sync.WorkflowInternal.DEFAULT_VERSION;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.uber.m3.tally.Scope;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.activity.LocalActivityOptions;
@@ -45,6 +46,7 @@ import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
 import io.temporal.internal.replay.WorkflowContext;
 import io.temporal.internal.statemachines.*;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
@@ -81,6 +83,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private final SyncWorkflowDefinition workflowDefinition;
   private final WorkflowImplementationOptions workflowImplementationOptions;
   private final DataConverter dataConverter;
+  private final @Nullable PayloadCodec headerCodec;
   // to be used in this class, should not be passed down. Pass the original #dataConverter instead
   private final DataConverter dataConverterWithCurrentWorkflowContext;
   private final List<ContextPropagator> contextPropagators;
@@ -104,6 +107,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private boolean readOnly = false;
   private final WorkflowThreadLocal<UpdateInfo> currentUpdateInfo = new WorkflowThreadLocal<>();
   @Nullable private String currentDetails;
+  // Set when the workflow was started by a Nexus operation handler. Its result and the failure that
+  // closes it are returned to the Nexus caller, so they are serialized with the handler's Nexus
+  // context instead of the workflow context. Everything else keeps the workflow context.
+  @Nullable private DataConverter dataConverterWithPropagatedNexusContext;
 
   public SyncWorkflowContext(
       @Nonnull String namespace,
@@ -119,6 +126,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     this.workflowExecution = workflowExecution;
     this.workflowDefinition = workflowDefinition;
     this.dataConverter = dataConverter;
+    this.headerCodec = HeaderUtils.resolveHeaderCodec(dataConverter);
     this.dataConverterWithCurrentWorkflowContext =
         dataConverter.withContext(
             new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId()));
@@ -267,19 +275,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <T> ActivityOutput<T> executeActivity(ActivityInput<T> input) {
-    ActivitySerializationContext serializationContext =
-        new ActivitySerializationContext(
-            replayContext.getNamespace(),
-            replayContext.getWorkflowId(),
-            replayContext.getWorkflowType().getName(),
-            input.getActivityName(),
-            // input.getOptions().getTaskQueue() may be not specified, workflow task queue is used
-            // by the Server in this case
-            MoreObjects.firstNonNull(
-                input.getOptions().getTaskQueue(), replayContext.getTaskQueue()),
-            false);
     DataConverter dataConverterWithActivityContext =
-        dataConverter.withContext(serializationContext);
+        dataConverter.withContext(
+            activityContext(
+                input.getActivityName(),
+                MoreObjects.firstNonNull(
+                    input.getOptions().getTaskQueue(), replayContext.getTaskQueue()),
+                false));
     Optional<Payloads> args = dataConverterWithActivityContext.toPayloads(input.getArgs());
 
     ActivityOutput<Optional<Payloads>> output =
@@ -348,8 +350,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   public Optional<Payloads> handleExecuteUpdate(
-      String updateName, String updateId, Optional<Payloads> input, long eventId, Header header) {
-    return updateDispatcher.handleExecuteUpdate(updateName, updateId, input, eventId, header);
+      String updateName,
+      String updateId,
+      Optional<Payloads> input,
+      long eventId,
+      Header header,
+      DataConverter resultDataConverter) {
+    return updateDispatcher.handleExecuteUpdate(
+        updateName, updateId, input, eventId, header, resultDataConverter);
   }
 
   public void handleInterceptedValidateUpdate(WorkflowInboundCallsInterceptor.UpdateInput input) {
@@ -440,16 +448,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public <R> LocalActivityOutput<R> executeLocalActivity(LocalActivityInput<R> input) {
-    ActivitySerializationContext serializationContext =
-        new ActivitySerializationContext(
-            replayContext.getNamespace(),
-            replayContext.getWorkflowId(),
-            replayContext.getWorkflowType().getName(),
-            input.getActivityName(),
-            replayContext.getTaskQueue(),
-            true);
     DataConverter dataConverterWithActivityContext =
-        dataConverter.withContext(serializationContext);
+        dataConverter.withContext(
+            activityContext(input.getActivityName(), replayContext.getTaskQueue(), true));
     Optional<Payloads> payloads = dataConverterWithActivityContext.toPayloads(input.getArgs());
 
     long originalScheduledTime = System.currentTimeMillis();
@@ -583,6 +584,17 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return callback.result;
   }
 
+  private ActivitySerializationContext activityContext(
+      String name, String taskQueue, boolean local) {
+    return new ActivitySerializationContext(
+        replayContext.getNamespace(),
+        replayContext.getWorkflowId(),
+        replayContext.getWorkflowType().getName(),
+        name,
+        taskQueue,
+        local);
+  }
+
   @SuppressWarnings("deprecation")
   private ExecuteActivityParameters constructExecuteActivityParameters(
       String name,
@@ -626,7 +638,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       propagators = this.contextPropagators;
     }
     io.temporal.api.common.v1.Header grpcHeader =
-        toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
+        toHeaderGrpc(
+            header,
+            HeaderUtils.fromContextPropagators(propagators),
+            HeaderUtils.withContext(headerCodec, activityContext(name, taskQueue, false)));
     attributes.setHeader(grpcHeader);
 
     if (options.getVersioningIntent() != null) {
@@ -687,7 +702,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
 
     io.temporal.api.common.v1.Header grpcHeader =
-        toHeaderGrpc(header, extractContextsAndConvertToBytes(contextPropagators));
+        toHeaderGrpc(
+            header,
+            HeaderUtils.fromContextPropagators(contextPropagators),
+            HeaderUtils.withContext(
+                headerCodec, activityContext(name, replayContext.getTaskQueue(), true)));
     activityTask.setHeader(grpcHeader);
     input.ifPresent(activityTask::setInput);
     RetryOptions retryOptions = options.getRetryOptions();
@@ -968,7 +987,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       propagators = this.contextPropagators;
     }
     io.temporal.api.common.v1.Header grpcHeader =
-        toHeaderGrpc(header, extractContextsAndConvertToBytes(propagators));
+        toHeaderGrpc(
+            header,
+            HeaderUtils.fromContextPropagators(propagators),
+            HeaderUtils.withContext(
+                headerCodec,
+                new WorkflowSerializationContext(
+                    Strings.isNullOrEmpty(options.getNamespace())
+                        ? replayContext.getNamespace()
+                        : options.getNamespace(),
+                    workflowId)));
     attributes.setHeader(grpcHeader);
 
     ParentClosePolicy parentClosePolicy = options.getParentClosePolicy();
@@ -991,18 +1019,6 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     }
     return new StartChildWorkflowExecutionParameters(
         attributes, options.getCancellationType(), metadata);
-  }
-
-  private static Header extractContextsAndConvertToBytes(
-      List<ContextPropagator> contextPropagators) {
-    if (contextPropagators == null) {
-      return null;
-    }
-    Map<String, Payload> result = new HashMap<>();
-    for (ContextPropagator propagator : contextPropagators) {
-      result.putAll(propagator.serializeContext(propagator.getCurrentContext()));
-    }
-    return new Header(result);
   }
 
   private static RuntimeException mapChildWorkflowException(
@@ -1300,6 +1316,30 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return dataConverterWithCurrentWorkflowContext;
   }
 
+  /**
+   * Records the serialization context of the Nexus operation handler that started this workflow, as
+   * propagated by the server in the WorkflowExecutionStarted event.
+   */
+  void setPropagatedNexusSerializationContext(
+      @Nullable NexusSerializationContext propagatedNexusSerializationContext) {
+    this.dataConverterWithPropagatedNexusContext =
+        propagatedNexusSerializationContext == null
+            ? null
+            : dataConverter.withContext(propagatedNexusSerializationContext);
+  }
+
+  /**
+   * The data converter for the workflow result and the failure that closes the workflow, which are
+   * returned to the Nexus caller: the propagated Nexus context if the workflow was started by a
+   * Nexus operation handler, otherwise the workflow context. Input, memo, signals and queries
+   * always use the workflow context. Updates use {@link #getDataConverterForUpdateOutcome}.
+   */
+  DataConverter getDataConverterForResult() {
+    return dataConverterWithPropagatedNexusContext != null
+        ? dataConverterWithPropagatedNexusContext
+        : dataConverterWithCurrentWorkflowContext;
+  }
+
   boolean isReplaying() {
     return replayContext.isReplaying();
   }
@@ -1338,7 +1378,14 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         SignalExternalWorkflowExecutionCommandAttributes.newBuilder();
     attributes.setSignalName(input.getSignalName());
     attributes.setExecution(childExecution);
-    attributes.setHeader(HeaderUtils.toHeaderGrpc(input.getHeader(), null));
+    attributes.setHeader(
+        HeaderUtils.toHeaderGrpc(
+            input.getHeader(),
+            null,
+            HeaderUtils.withContext(
+                headerCodec,
+                new WorkflowSerializationContext(
+                    replayContext.getNamespace(), childExecution.getWorkflowId()))));
     Optional<Payloads> payloads = dataConverterWithChildWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
     CompletablePromise<Void> result = Workflow.newPromise();
@@ -1515,7 +1562,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             ? options.getContextPropagators()
             : this.contextPropagators;
     io.temporal.api.common.v1.Header grpcHeader =
-        toHeaderGrpc(input.getHeader(), extractContextsAndConvertToBytes(propagators));
+        toHeaderGrpc(
+            input.getHeader(),
+            HeaderUtils.fromContextPropagators(propagators),
+            HeaderUtils.withContext(
+                headerCodec,
+                new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId())));
     attributes.setHeader(grpcHeader);
 
     Optional<Payloads> payloads =
@@ -1625,7 +1677,21 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public Failure mapWorkflowExceptionToFailure(Throwable failure) {
-    return dataConverterWithCurrentWorkflowContext.exceptionToFailure(failure);
+    return getDataConverterForResult().exceptionToFailure(failure);
+  }
+
+  /**
+   * The data converter for an update's result, failure and rejection, which are returned to the
+   * update's caller: the Nexus context of the Nexus operation handler that sent the update, if it
+   * was sent by one, otherwise the workflow context. Unlike {@link #getDataConverterForResult},
+   * this doesn't depend on how the workflow was started, because the outcome belongs to the update
+   * rather than closing the workflow. The update's arguments always use the workflow context.
+   */
+  DataConverter getDataConverterForUpdateOutcome(
+      @Nullable NexusSerializationContext nexusSerializationContext) {
+    return nexusSerializationContext != null
+        ? dataConverter.withContext(nexusSerializationContext)
+        : dataConverterWithCurrentWorkflowContext;
   }
 
   @Nullable
@@ -1640,15 +1706,31 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return contextPropagators;
   }
 
+  Header headerWithCodec(io.temporal.api.common.v1.Header header) {
+    return new Header(
+        header,
+        HeaderUtils.withContext(
+            headerCodec,
+            new WorkflowSerializationContext(namespace, workflowExecution.getWorkflowId())));
+  }
+
   @Override
   public Map<String, Object> getPropagatedContexts() {
     if (contextPropagators == null || contextPropagators.isEmpty()) {
       return new HashMap<>();
     }
 
-    Map<String, Payload> headerData = new HashMap<>(replayContext.getHeader());
     Map<String, Object> contextData = new HashMap<>();
+    Header header =
+        headerWithCodec(
+            io.temporal.api.common.v1.Header.newBuilder()
+                .putAllFields(replayContext.getHeader())
+                .build());
     for (ContextPropagator propagator : contextPropagators) {
+      Map<String, Payload> headerData =
+          propagator.encodeHeaders()
+              ? header.getCodecDecodedValues()
+              : new HashMap<>(header.getValues());
       contextData.put(propagator.getName(), propagator.deserializeContext(headerData));
     }
 

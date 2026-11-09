@@ -5,14 +5,22 @@ import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.common.Experimental;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /** ClientConfigProfile is profile-level configuration for a client. */
 public class ClientConfigProfile {
@@ -51,14 +59,20 @@ public class ClientConfigProfile {
   /**
    * Load a client profile from given sources, applying environment variable overrides.
    *
+   * <p>If {@link LoadClientConfigProfileOptions#getExtensions() extensions} are set, each is then
+   * called in order with the loaded profile, and any plugin it returns is added to the returned
+   * profile's {@link #getPlugins() plugins}.
+   *
    * @param options options to control loading the profile
-   * @throws IOException if the config file cannot be read or parsed
+   * @throws IOException if the config file cannot be read or parsed, or an extension fails with an
+   *     {@link IOException}
    */
   public static ClientConfigProfile load(LoadClientConfigProfileOptions options)
       throws IOException {
     if (options.isDisableFile() && options.isDisableEnv()) {
       throw new IllegalArgumentException("Cannot have both DisableFile and DisableEnv set to true");
     }
+    validateExtensions(options.getExtensions());
     Map<String, String> env = System.getenv();
     if (options.getEnvOverrides() != null) {
       env = options.getEnvOverrides();
@@ -94,7 +108,61 @@ public class ClientConfigProfile {
     if (!options.isDisableEnv()) {
       clientConfigProfile.applyEnvOverrides(options.getEnvOverrides());
     }
+    if (!options.getExtensions().isEmpty()) {
+      clientConfigProfile =
+          applyExtensions(
+              clientConfigProfile, options.getExtensions(), options.isDisableEnv() ? null : env);
+    }
     return clientConfigProfile;
+  }
+
+  private static void validateExtensions(List<ClientConfigExtension> extensions) {
+    Set<String> seen = new HashSet<>();
+    for (int i = 0; i < extensions.size(); i++) {
+      ClientConfigExtension extension = extensions.get(i);
+      if (extension == null) {
+        throw new IllegalArgumentException("Client config extension at index " + i + " is null");
+      }
+      String name = extension.getName();
+      if (name == null || name.isEmpty()) {
+        throw new IllegalArgumentException(
+            "Client config extension at index "
+                + i
+                + " ("
+                + extension.getClass().getName()
+                + ") has empty name");
+      }
+      if (!seen.add(name)) {
+        throw new IllegalArgumentException(
+            "Duplicate client config extension name \"" + name + "\"");
+      }
+    }
+  }
+
+  private static ClientConfigProfile applyExtensions(
+      ClientConfigProfile profile, List<ClientConfigExtension> extensions, Map<String, String> env)
+      throws IOException {
+    ClientConfigExtensionRequest request =
+        ClientConfigExtensionRequest.newBuilder().setProfile(profile).setEnv(env).build();
+    List<WorkflowServiceStubsPlugin> plugins = new ArrayList<>(profile.plugins);
+    for (ClientConfigExtension extension : extensions) {
+      WorkflowServiceStubsPlugin plugin;
+      try {
+        plugin = extension.getClientPlugin(request);
+      } catch (IOException e) {
+        throw new IOException(extensionErrorMessage(extension, e), e);
+      } catch (RuntimeException e) {
+        throw new RuntimeException(extensionErrorMessage(extension, e), e);
+      }
+      if (plugin != null) {
+        plugins.add(plugin);
+      }
+    }
+    return profile.toBuilder().setPlugins(plugins).build();
+  }
+
+  private static String extensionErrorMessage(ClientConfigExtension extension, Exception e) {
+    return "Client config extension \"" + extension.getName() + "\" failed: " + e.getMessage();
   }
 
   private String namespace;
@@ -102,14 +170,27 @@ public class ClientConfigProfile {
   private String apiKey;
   private Metadata metadata;
   private ClientConfigTLS tls;
+  private final Map<String, Map<String, Object>> ext;
+  // Unlike the other fields, plugins are not loaded config but runtime objects returned by
+  // extensions during load. They're stored here because the profile is the only thing carried from
+  // load() to toWorkflowServiceStubsOptions().
+  private final List<WorkflowServiceStubsPlugin> plugins;
 
   private ClientConfigProfile(
-      String namespace, String address, String apiKey, Metadata metadata, ClientConfigTLS tls) {
+      String namespace,
+      String address,
+      String apiKey,
+      Metadata metadata,
+      ClientConfigTLS tls,
+      Map<String, Map<String, Object>> ext,
+      List<WorkflowServiceStubsPlugin> plugins) {
     this.namespace = namespace;
     this.address = address;
     this.apiKey = apiKey;
     this.metadata = metadata;
     this.tls = tls;
+    this.ext = ext;
+    this.plugins = plugins;
   }
 
   public Builder toBuilder() {
@@ -119,6 +200,11 @@ public class ClientConfigProfile {
   /**
    * Converts this profile to WorkflowServiceStubsOptions. Note that not all fields are converted,
    * only those relevant to service stubs.
+   *
+   * <p>The profile's {@link #getPlugins() plugins}, such as those returned by extensions, are set
+   * as the options' plugins. Plugins that also implement {@link
+   * io.temporal.client.WorkflowClientPlugin} are propagated to a workflow client created from the
+   * resulting service stubs.
    */
   public WorkflowServiceStubsOptions toWorkflowServiceStubsOptions() {
     WorkflowServiceStubsOptions.Builder builder = WorkflowServiceStubsOptions.newBuilder();
@@ -201,6 +287,9 @@ public class ClientConfigProfile {
         builder.setEnableHttps(true);
       }
     }
+    if (!this.plugins.isEmpty()) {
+      builder.setPlugins(this.plugins.toArray(new WorkflowServiceStubsPlugin[0]));
+    }
 
     return builder.build();
   }
@@ -208,6 +297,10 @@ public class ClientConfigProfile {
   /**
    * Converts this profile to WorkflowClientOptions. Note that not all fields are converted, only
    * those relevant to client options.
+   *
+   * <p>The profile's {@link #getPlugins() plugins} are not included here, since they are propagated
+   * from the service stubs created with {@link #toWorkflowServiceStubsOptions()}. Including them
+   * here as well would register them twice when both conversions are used, which is the usual case.
    */
   public WorkflowClientOptions toWorkflowClientOptions() {
     WorkflowClientOptions.Builder builder = WorkflowClientOptions.newBuilder();
@@ -360,6 +453,26 @@ public class ClientConfigProfile {
     return tls;
   }
 
+  /**
+   * Raw extension config, keyed by extension name, never null. Loaded from TOML tables at {@code
+   * profile.<profile>.ext.<name>}, which are not interpreted or validated (even in strict mode).
+   * Each {@link ClientConfigExtension} decodes its own entry. Values are untyped TOML values (e.g.
+   * {@link String}, {@link Number}, {@link Boolean}, {@link List}, {@link Map}). Unmodifiable.
+   */
+  @Experimental
+  public Map<String, Map<String, Object>> getExt() {
+    return ext;
+  }
+
+  /**
+   * Plugins to include in {@link #toWorkflowServiceStubsOptions()}, never null. Populated by {@link
+   * ClientConfigExtension extensions} when loading the profile. Unmodifiable.
+   */
+  @Experimental
+  public List<WorkflowServiceStubsPlugin> getPlugins() {
+    return plugins;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (o == null || getClass() != o.getClass()) return false;
@@ -389,12 +502,14 @@ public class ClientConfigProfile {
     return Objects.equals(namespace, profile.namespace)
         && Objects.equals(address, profile.address)
         && Objects.equals(apiKey, profile.apiKey)
-        && Objects.equals(tls, profile.tls);
+        && Objects.equals(tls, profile.tls)
+        && Objects.equals(ext, profile.ext)
+        && Objects.equals(plugins, profile.plugins);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(namespace, address, apiKey, metadata, tls);
+    return Objects.hash(namespace, address, apiKey, metadata, tls, ext, plugins);
   }
 
   @Override
@@ -413,6 +528,10 @@ public class ClientConfigProfile {
         + metadata
         + ", tls="
         + tls
+        + ", ext="
+        + ext
+        + ", plugins="
+        + plugins
         + '}';
   }
 
@@ -422,6 +541,8 @@ public class ClientConfigProfile {
     private String apiKey;
     private Metadata metadata;
     private ClientConfigTLS tls;
+    private Map<String, Map<String, Object>> ext;
+    private List<WorkflowServiceStubsPlugin> plugins;
 
     private Builder() {}
 
@@ -431,6 +552,8 @@ public class ClientConfigProfile {
       this.apiKey = profile.apiKey;
       this.metadata = profile.metadata;
       this.tls = profile.tls;
+      this.ext = profile.ext;
+      this.plugins = profile.plugins;
     }
 
     /**
@@ -474,8 +597,66 @@ public class ClientConfigProfile {
       return this;
     }
 
+    /**
+     * Sets the raw extension config, keyed by extension name. This is optional; if not set, there
+     * is no extension config. The config is copied, see {@link ClientConfigProfile#getExt()}.
+     */
+    @Experimental
+    public Builder setExt(Map<String, Map<String, Object>> ext) {
+      this.ext = ext;
+      return this;
+    }
+
+    /**
+     * Sets the plugins to include in {@link ClientConfigProfile#toWorkflowServiceStubsOptions()}.
+     * This is optional; if not set, no plugins will be included. This is usually populated by
+     * {@link ClientConfigExtension extensions} when loading the profile.
+     */
+    @Experimental
+    public Builder setPlugins(List<WorkflowServiceStubsPlugin> plugins) {
+      this.plugins = plugins;
+      return this;
+    }
+
     public ClientConfigProfile build() {
-      return new ClientConfigProfile(namespace, address, apiKey, metadata, tls);
+      return new ClientConfigProfile(
+          namespace,
+          address,
+          apiKey,
+          metadata,
+          tls,
+          copyExt(ext),
+          plugins == null
+              ? Collections.emptyList()
+              : Collections.unmodifiableList(new ArrayList<>(plugins)));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Map<String, Object>> copyExt(Map<String, Map<String, Object>> ext) {
+      if (ext == null || ext.isEmpty()) {
+        return Collections.emptyMap();
+      }
+      return (Map<String, Map<String, Object>>) (Map<String, ?>) copyValue(ext);
+    }
+
+    // Deep unmodifiable copy of an untyped TOML value
+    private static Object copyValue(Object value) {
+      if (value instanceof Map) {
+        Map<?, ?> map = (Map<?, ?>) value;
+        Map<Object, Object> copy = new LinkedHashMap<>(map.size());
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+          copy.put(entry.getKey(), copyValue(entry.getValue()));
+        }
+        return Collections.unmodifiableMap(copy);
+      } else if (value instanceof List) {
+        List<?> list = (List<?>) value;
+        List<Object> copy = new ArrayList<>(list.size());
+        for (Object item : list) {
+          copy.add(copyValue(item));
+        }
+        return Collections.unmodifiableList(copy);
+      }
+      return value;
     }
   }
 }

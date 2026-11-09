@@ -5,7 +5,7 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
-import io.temporal.common.interceptors.Header;
+import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -48,7 +48,7 @@ class WorkflowExecutionHandler {
     try {
       Optional<Payloads> input =
           attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
-      output = workflow.execute(new Header(attributes.getHeader()), input);
+      output = workflow.execute(context.headerWithCodec(attributes.getHeader()), input);
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     } finally {
@@ -85,7 +85,7 @@ class WorkflowExecutionHandler {
       long eventId,
       io.temporal.api.common.v1.Header header) {
     try {
-      context.handleSignal(signalName, input, eventId, new Header(header));
+      context.handleSignal(signalName, input, eventId, context.headerWithCodec(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
@@ -93,7 +93,7 @@ class WorkflowExecutionHandler {
 
   public Optional<Payloads> handleQuery(
       String type, io.temporal.api.common.v1.Header header, Optional<Payloads> args) {
-    return context.handleQuery(type, new Header(header), args);
+    return context.handleQuery(type, context.headerWithCodec(header), args);
   }
 
   public void handleValidateUpdate(
@@ -101,11 +101,13 @@ class WorkflowExecutionHandler {
       String updateId,
       Optional<Payloads> input,
       long eventId,
-      io.temporal.api.common.v1.Header header) {
+      io.temporal.api.common.v1.Header header,
+      DataConverter outcomeDataConverter) {
     try {
-      context.handleValidateUpdate(updateName, updateId, input, eventId, new Header(header));
+      context.handleValidateUpdate(
+          updateName, updateId, input, eventId, context.headerWithCodec(header));
     } catch (Throwable e) {
-      applyWorkflowFailurePolicyAndRethrow(e);
+      applyWorkflowFailurePolicyAndRethrow(e, outcomeDataConverter);
     }
   }
 
@@ -114,19 +116,36 @@ class WorkflowExecutionHandler {
       String updateId,
       Optional<Payloads> input,
       long eventId,
-      io.temporal.api.common.v1.Header header) {
+      io.temporal.api.common.v1.Header header,
+      DataConverter outcomeDataConverter) {
     try {
-      return context.handleExecuteUpdate(updateName, updateId, input, eventId, new Header(header));
+      return context.handleExecuteUpdate(
+          updateName,
+          updateId,
+          input,
+          eventId,
+          context.headerWithCodec(header),
+          outcomeDataConverter);
     } catch (UnsupportedContinueAsNewRequest e) {
       // Re-throw to fail the workflow task
       throw e;
     } catch (Throwable e) {
-      applyWorkflowFailurePolicyAndRethrow(e);
+      applyWorkflowFailurePolicyAndRethrow(e, outcomeDataConverter);
     }
     return Optional.empty();
   }
 
   private void applyWorkflowFailurePolicyAndRethrow(Throwable e) {
+    applyWorkflowFailurePolicyAndRethrow(e, null);
+  }
+
+  /**
+   * @param updateOutcomeDataConverter the converter for the update's outcome if the exception was
+   *     thrown by an update validator or handler, in which case the resulting failure rejects or
+   *     fails the update rather than closing the workflow, or null otherwise
+   */
+  private void applyWorkflowFailurePolicyAndRethrow(
+      Throwable e, @Nullable DataConverter updateOutcomeDataConverter) {
     if (e instanceof DestroyWorkflowThreadError) {
       throw (DestroyWorkflowThreadError) e;
     }
@@ -134,18 +153,19 @@ class WorkflowExecutionHandler {
 
     Class<? extends Throwable>[] failTypes = implementationOptions.getFailWorkflowExceptionTypes();
     if (exception instanceof TemporalFailure) {
-      throwAndFailWorkflowExecution(exception);
+      throwAndFailWorkflowExecution(exception, updateOutcomeDataConverter);
     }
     for (Class<? extends Throwable> failType : failTypes) {
       if (failType.isAssignableFrom(exception.getClass())) {
-        throwAndFailWorkflowExecution(exception);
+        throwAndFailWorkflowExecution(exception, updateOutcomeDataConverter);
       }
     }
 
     throw wrap(exception);
   }
 
-  private void throwAndFailWorkflowExecution(Throwable exception) {
+  private void throwAndFailWorkflowExecution(
+      Throwable exception, @Nullable DataConverter updateOutcomeDataConverter) {
     ReplayWorkflowContext replayWorkflowContext = context.getReplayContext();
     @Nullable
     String fullReplayDirectQueryName = replayWorkflowContext.getFullReplayDirectQueryName();
@@ -174,7 +194,12 @@ class WorkflowExecutionHandler {
       }
     }
 
-    throw new WorkflowExecutionException(context.mapWorkflowExceptionToFailure(exception));
+    // An update failure belongs to the update, so it uses the update's own converter rather than
+    // the one for the failure that closes the workflow.
+    throw new WorkflowExecutionException(
+        updateOutcomeDataConverter != null
+            ? updateOutcomeDataConverter.exceptionToFailure(exception)
+            : context.mapWorkflowExceptionToFailure(exception));
   }
 
   /**

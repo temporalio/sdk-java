@@ -13,6 +13,7 @@ import io.temporal.internal.client.RootScheduleClientInvoker;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.client.external.GenericWorkflowClientImpl;
 import io.temporal.internal.common.PluginUtils;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
@@ -87,7 +88,12 @@ final class ScheduleClientImpl implements ScheduleClient {
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();
-    this.scheduleClientCallsInvoker = initializeClientInvoker(internalDataConverter);
+    this.scheduleClientCallsInvoker =
+        initializeClientInvoker(
+            internalDataConverter,
+            options.getExternalStorage() == null
+                ? null
+                : ExternalStorageRunner.create(options.getExternalStorage()));
   }
 
   private static ScheduleClientPlugin[] extractScheduleClientPlugins(
@@ -104,14 +110,16 @@ final class ScheduleClientImpl implements ScheduleClient {
     return schedulePlugins.toArray(new ScheduleClientPlugin[0]);
   }
 
-  private ScheduleClientCallsInterceptor initializeClientInvoker(DataConverter dataConverter) {
+  private ScheduleClientCallsInterceptor initializeClientInvoker(
+      DataConverter dataConverter, @Nullable ExternalStorageRunner externalStorage) {
     ScheduleClientCallsInterceptor scheduleClientInvoker =
         new RootScheduleClientInvoker(
             genericClient,
             options.getNamespace(),
             options.getIdentity(),
             options.getContextPropagators(),
-            dataConverter);
+            dataConverter,
+            externalStorage);
     for (ScheduleClientInterceptor clientInterceptor : interceptors) {
       scheduleClientInvoker =
           clientInterceptor.scheduleClientCallsInterceptor(scheduleClientInvoker);

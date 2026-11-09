@@ -141,10 +141,23 @@ public final class OpenTelemetryWorker {
       @Nonnull WorkflowClientOptions.Builder clientOptions,
       @Nonnull WorkerFactoryOptions.Builder workerFactoryOptions,
       @Nonnull OpenTelemetry openTelemetry) {
+    configureTracing(clientOptions, workerFactoryOptions, openTelemetry, false);
+  }
+
+  /**
+   * Configures tracing with optional codec processing using the configured client's payload codec.
+   * Only tracing headers are encoded; application-supplied headers are unchanged.
+   */
+  public static void configureTracing(
+      @Nonnull WorkflowClientOptions.Builder clientOptions,
+      @Nonnull WorkerFactoryOptions.Builder workerFactoryOptions,
+      @Nonnull OpenTelemetry openTelemetry,
+      boolean encodeHeaders) {
     Objects.requireNonNull(clientOptions, "clientOptions");
     Objects.requireNonNull(workerFactoryOptions, "workerFactoryOptions");
     OpenTracingOptions tracingOptions =
-        createOpenTracingOptions(Objects.requireNonNull(openTelemetry, "openTelemetry"));
+        createOpenTracingOptions(
+            Objects.requireNonNull(openTelemetry, "openTelemetry"), encodeHeaders);
     appendClientInterceptor(clientOptions, new OpenTracingClientInterceptor(tracingOptions));
     appendWorkerInterceptor(workerFactoryOptions, new OpenTracingWorkerInterceptor(tracingOptions));
   }
@@ -205,6 +218,17 @@ public final class OpenTelemetryWorker {
   }
 
   public static final class Builder {
+    private boolean encodeHeaders;
+
+    /**
+     * Uses the configured client's payload codec for tracing headers. Defaults to false;
+     * application-supplied headers and standard tracing serialization are unchanged.
+     */
+    public Builder setEncodeHeaders(boolean encodeHeaders) {
+      this.encodeHeaders = encodeHeaders;
+      return this;
+    }
+
     private final Map<String, String> env;
     private OpenTelemetry openTelemetry;
     private String endpoint;
@@ -294,7 +318,7 @@ public final class OpenTelemetryWorker {
           resolvedOpenTelemetry,
           getServiceName(),
           metricsReportInterval);
-      configureTracing(clientOptions, workerFactoryOptions, resolvedOpenTelemetry);
+      configureTracing(clientOptions, workerFactoryOptions, resolvedOpenTelemetry, encodeHeaders);
       if (flushHook == null) {
         configureFlushHook(addShutdownHook, resolvedOpenTelemetry, flushTimeout);
       } else {
@@ -377,8 +401,10 @@ public final class OpenTelemetryWorker {
                 requirePositive(reportInterval, "reportInterval").toMillis()));
   }
 
-  static OpenTracingOptions createOpenTracingOptions(@Nonnull OpenTelemetry openTelemetry) {
+  static OpenTracingOptions createOpenTracingOptions(
+      @Nonnull OpenTelemetry openTelemetry, boolean encodeHeaders) {
     return OpenTracingOptions.newBuilder()
+        .setEncodeHeaders(encodeHeaders)
         .setTracer(
             OpenTracingShim.createTracerShim(
                 Objects.requireNonNull(openTelemetry, "openTelemetry")))
