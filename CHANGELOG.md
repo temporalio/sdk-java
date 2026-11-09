@@ -36,6 +36,9 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Experimental Event Groups associate related workflow commands so their history events can be
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
+  `addEventGroups` on the command's options.
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
   the configured client's payload codec. Only opted-in producers' output is encoded, while
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
