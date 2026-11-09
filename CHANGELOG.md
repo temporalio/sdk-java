@@ -41,6 +41,10 @@ to docs, or any other relevant information.
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
   views. Existing propagators default to false; custom converter wrappers can expose their codec
   through `PayloadCodecProvider`.
+- Experimental Event Groups associate related workflow commands so their history events can be
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it either by running
+  commands inside `EventGroup.run` or by calling `addEventGroups` on the command's options. Signal
+  and update handlers receive an implicit group for the signal event or update that invoked them.
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
