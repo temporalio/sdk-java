@@ -15,6 +15,9 @@ final class EventGroupImpl implements EventGroup {
   private final String id;
   private final @Nullable String label;
 
+  // Cache the marker to avoid reencoding for each command.
+  private @Nullable EventGroupMarker marker;
+
   EventGroupImpl(@Nonnull String id, @Nullable String label) {
     this.id = id;
     this.label = label;
@@ -50,6 +53,13 @@ final class EventGroupImpl implements EventGroup {
    * @param dataConverter converter used to encode the label, including any payload codec
    */
   EventGroupMarker toMarker(DataConverter dataConverter) {
+    if (marker == null) {
+      marker = buildMarker(dataConverter);
+    }
+    return marker;
+  }
+
+  private EventGroupMarker buildMarker(DataConverter dataConverter) {
     EventGroupMarker.Label.Builder labelMarker = EventGroupMarker.Label.newBuilder().setId(id);
     if (label != null) {
       // Converting to json/plain first keeps the label readable by UIs regardless of the

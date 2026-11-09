@@ -142,7 +142,8 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                       null,
                       false,
                       null,
-                      null),
+                      null,
+                      Collections.emptyList()),
                   (r, e) -> {});
               return false;
             })

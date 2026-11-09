@@ -10,20 +10,24 @@ import io.temporal.activity.ActivityCancellationType;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.ActivityOptions;
+import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
+import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeKey;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ActivityFailure;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.ChildWorkflowFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.worker.WorkflowImplementationOptions;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -54,6 +58,8 @@ public class EventGroupsTest {
               AwaitWorkflowImpl.class,
               ActivityWorkflowImpl.class,
               ActivityCancelWorkflowImpl.class,
+              LocalActivityWorkflowImpl.class,
+              LocalActivityBackoffWorkflowImpl.class,
               ChildWorkflowImpl.class,
               QuickChildImpl.class,
               ChildCancelWorkflowImpl.class,
@@ -350,6 +356,8 @@ public class EventGroupsTest {
   // ////////////////////////////////////////////////////////////////////////////////////////////////
   // 6. Command Type Coverage (`EG-COMMANDS`)
   //
+  // EG-COMMANDS-03-CANCEL is skipped: Java does not cancel a local activity.
+  // LocalActivityStateMachine.cancel is a no-op, so there is no cancellation marker.
   // EG-COMMANDS-05 and 05-CANCEL are in EventGroupsNexusTest: they need a Nexus endpoint.
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -407,6 +415,33 @@ public class EventGroupsTest {
         require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null),
         "direct",
         "scope");
+  }
+
+  @Test
+  public void localActivityCommandsCarryMarkers() {
+    List<HistoryEvent> events = localActivityHistory();
+
+    // EG-COMMANDS-03: Local Activity commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, "local-activity"), "direct", "scope");
+  }
+
+  @Test
+  public void localActivityRetryBackoffTimerCarriesTheLasMarkers() {
+    List<HistoryEvent> events = localActivityBackoffHistory();
+
+    List<HistoryEvent> markers = new ArrayList<>();
+    for (HistoryEvent event : events) {
+      if (event.getEventType() == EventType.EVENT_TYPE_MARKER_RECORDED) {
+        markers.add(event);
+      }
+    }
+    assertEquals(2, markers.size());
+
+    // EG-COMMANDS-03-BACKOFF: Local Activity Retry Backoff Timer carries LA's markers
+    assertLabelGroups(markers.get(0), "direct", "scope");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, null), "direct", "scope");
+    assertLabelGroups(markers.get(1), "direct", "scope");
   }
 
   @Test
@@ -559,6 +594,9 @@ public class EventGroupsTest {
 
     @ActivityMethod
     void gate();
+
+    @ActivityMethod
+    void failOnce();
   }
 
   public static class Activities implements EventGroupActivities {
@@ -582,6 +620,13 @@ public class EventGroupsTest {
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw Activity.wrap(e);
+      }
+    }
+
+    @Override
+    public void failOnce() {
+      if (Activity.getExecutionContext().getInfo().getAttempt() == 1) {
+        throw ApplicationFailure.newFailure("flaky activity failing on purpose", "flaky");
       }
     }
 
@@ -716,6 +761,71 @@ public class EventGroupsTest {
     } finally {
       activities.hold.countDown();
     }
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface LocalActivityWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class LocalActivityWorkflowImpl implements LocalActivityWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      scope.run(
+          () ->
+              Workflow.newLocalActivityStub(
+                      EventGroupActivities.class, localActivity("local-activity", direct))
+                  .greet("hi"));
+    }
+  }
+
+  private List<HistoryEvent> localActivityHistory() {
+    LocalActivityWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(LocalActivityWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface LocalActivityBackoffWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class LocalActivityBackoffWorkflowImpl implements LocalActivityBackoffWorkflow {
+    @Override
+    public void execute() {
+      EventGroup scope = Workflow.newEventGroup("scope");
+      EventGroup direct = Workflow.newEventGroup("direct");
+      // A retry interval past localRetryThreshold is what records the backoff as a workflow
+      // timer. The plan uses a 10s interval against a 5s workflow task timeout; lowering the
+      // threshold reaches the same branch without waiting that long.
+      LocalActivityOptions options =
+          LocalActivityOptions.newBuilder()
+              .setStartToCloseTimeout(Duration.ofSeconds(20))
+              .setLocalRetryThreshold(Duration.ofMillis(1))
+              .setRetryOptions(
+                  RetryOptions.newBuilder()
+                      .setInitialInterval(Duration.ofSeconds(1))
+                      .setBackoffCoefficient(1)
+                      .setMaximumAttempts(2)
+                      .build())
+              .setSummary("backoff")
+              .addEventGroups(direct)
+              .build();
+      scope.run(
+          () -> Workflow.newLocalActivityStub(EventGroupActivities.class, options).failOnce());
+    }
+  }
+
+  private List<HistoryEvent> localActivityBackoffHistory() {
+    LocalActivityBackoffWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(LocalActivityBackoffWorkflow.class);
+    workflow.execute();
     return history(workflow);
   }
 
@@ -1546,6 +1656,14 @@ public class EventGroupsTest {
         .setWorkflowId(Workflow.getInfo().getWorkflowId() + "-" + suffix)
         .setCancellationType(ChildWorkflowCancellationType.TRY_CANCEL)
         .addEventGroups(direct)
+        .build();
+  }
+
+  private static LocalActivityOptions localActivity(String summary, EventGroup... groups) {
+    return LocalActivityOptions.newBuilder()
+        .setStartToCloseTimeout(Duration.ofSeconds(20))
+        .setSummary(summary)
+        .addEventGroups(groups)
         .build();
   }
 

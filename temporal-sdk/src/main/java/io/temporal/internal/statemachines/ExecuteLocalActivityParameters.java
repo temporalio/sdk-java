@@ -3,12 +3,14 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.common.v1.ActivityType;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Workflow;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +35,7 @@ public class ExecuteLocalActivityParameters {
   private final @Nullable Duration scheduleToStartTimeout;
   private @Nullable Functions.Proc onNewAttemptCallback;
   private final UserMetadata metadata;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -41,7 +44,8 @@ public class ExecuteLocalActivityParameters {
       @Nullable Failure previousLocalExecutionFailure,
       boolean doNotIncludeArgumentsIntoMarker,
       @Nonnull Duration localRetryThreshold,
-      UserMetadata metadata) {
+      UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.originalScheduledTimestamp = originalScheduledTimestamp;
@@ -50,6 +54,7 @@ public class ExecuteLocalActivityParameters {
     this.localRetryThreshold = localRetryThreshold;
     this.onNewAttemptCallback = null;
     this.metadata = metadata;
+    this.eventGroupMarkers = Objects.requireNonNull(eventGroupMarkers);
   }
 
   public String getActivityId() {
@@ -123,5 +128,9 @@ public class ExecuteLocalActivityParameters {
 
   public UserMetadata getMetadata() {
     return metadata;
+  }
+
+  public List<EventGroupMarker> getEventGroupMarkers() {
+    return eventGroupMarkers;
   }
 }
