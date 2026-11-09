@@ -190,6 +190,7 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
                 .setNamespace(wc.getOptions().getNamespace())
                 .setDataConverter(wc.getOptions().getDataConverter())
                 .setIdentity(wc.getOptions().getIdentity())
+                .setExternalStorage(wc.getOptions().getExternalStorage())
                 .build());
     ac.getHandle(input.getActivityId(), input.getRunId()).cancel();
   }

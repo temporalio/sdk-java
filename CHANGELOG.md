@@ -34,6 +34,11 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
+  the configured client's payload codec. Only opted-in producers' output is encoded, while
+  application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
+  views. Existing propagators default to false; custom converter wrappers can expose their codec
+  through `PayloadCodecProvider`.
 - Poller pools now report their poller target to the server on each poll and in the worker
   heartbeat, covering workflow, sticky workflow, activity, and Nexus pools. An autoscaling pool
   reports its current target, a fixed-size pool its configured size. (We'll use this count on the
@@ -78,6 +83,8 @@ to docs, or any other relevant information.
   To complete such an activity asynchronously, read the context from
   `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
+- **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
+  `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
 
 ### Changed
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
@@ -110,6 +117,7 @@ to docs, or any other relevant information.
 - `RpcRetryOptions` no longer changes when the builder that created it is reused. Previously,
   `addDoNotRetry` calls made after `build()` or `validateBuildWithDefaults()` also appeared in
   the options already built.
+- Schedule action headers are now preserved when describing and updating a schedule.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).
