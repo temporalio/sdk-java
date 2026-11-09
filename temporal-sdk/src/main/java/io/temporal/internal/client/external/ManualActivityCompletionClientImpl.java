@@ -18,9 +18,10 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
 import io.temporal.internal.common.OptionsUtils;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
-import io.temporal.payload.context.ActivitySerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -57,7 +58,7 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       @Nullable byte[] taskToken,
       @Nullable WorkflowExecution execution,
       @Nullable String activityId,
-      @Nullable ActivitySerializationContext context,
+      @Nullable SerializationContext context,
       @Nullable StorageDriverTargetInfo storageTarget,
       @Nullable ExternalStorageRunner externalStorage) {
     this.service = service;
@@ -210,7 +211,8 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
         payloads.ifPresent(builder::setDetails);
         RecordActivityTaskHeartbeatRequest request = storeOutbound(builder.build());
         RecordActivityTaskHeartbeatResponse status =
-            ActivityClientHelper.sendHeartbeatRequest(service, request, metricsScope);
+            ActivityClientHelper.sendHeartbeatRequest(
+                service, request, metricsScope, PayloadErrorLimits.NONE);
         if (status.getCancelRequested()) {
           throw new ActivityCanceledException();
         } else if (status.getActivityReset()) {

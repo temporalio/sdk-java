@@ -10,7 +10,6 @@ import io.temporal.client.ActivityClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.common.Experimental;
 import io.temporal.common.metadata.POJOWorkflowImplMetadata;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
@@ -486,7 +485,6 @@ public class TestWorkflowExtension
      * <p>The extension closes the server after each test. Dev-server tests do not support time
      * skipping.
      */
-    @Experimental
     public Builder useDevServer() {
       return useDevServer(TemporalDevServerOptions.getDefaultInstance());
     }
@@ -501,7 +499,6 @@ public class TestWorkflowExtension
      *     .build();
      * }</pre>
      */
-    @Experimental
     public Builder useDevServer(@Nonnull TemporalDevServerOptions options) {
       if (options == null) {
         throw new NullPointerException("options");

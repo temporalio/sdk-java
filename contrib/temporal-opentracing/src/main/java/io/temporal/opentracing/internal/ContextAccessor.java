@@ -13,6 +13,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.opentracing.OpenTracingOptions;
 import io.temporal.opentracing.OpenTracingSpanContextCodec;
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -24,9 +25,11 @@ public class ContextAccessor {
       new TypeToken<HashMap<String, String>>() {}.getType();
 
   private final OpenTracingSpanContextCodec codec;
+  private final boolean encodeHeaders;
 
   public ContextAccessor(OpenTracingOptions options) {
     this.codec = options.getSpanContextCodec();
+    this.encodeHeaders = options.isEncodeHeaders();
   }
 
   public Span writeSpanContextToHeader(
@@ -40,11 +43,13 @@ public class ContextAccessor {
     Map<String, String> serializedSpanContext = codec.encode(spanContext, tracer);
     Optional<Payload> payload =
         DefaultDataConverter.STANDARD_INSTANCE.toPayload(serializedSpanContext);
-    header.getValues().put(TRACER_HEADER_KEY, payload.get());
+    header.putAll(Collections.singletonMap(TRACER_HEADER_KEY, payload.get()), encodeHeaders);
   }
 
   public SpanContext readSpanContextFromHeader(Header header, Tracer tracer) {
-    Payload payload = header.getValues().get(TRACER_HEADER_KEY);
+    Payload payload =
+        (encodeHeaders ? header.getCodecDecodedValues() : header.getValues())
+            .get(TRACER_HEADER_KEY);
     if (payload == null) {
       return null;
     }

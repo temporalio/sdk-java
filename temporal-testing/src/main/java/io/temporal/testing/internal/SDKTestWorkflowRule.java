@@ -270,14 +270,16 @@ public class SDKTestWorkflowRule implements TestRule {
   }
 
   /**
-   * Returns a {@link NexusClient} bound to this rule's namespace and service stubs. Use for tests
-   * that exercise the standalone Nexus client surface.
+   * Returns a {@link NexusClient} bound to this rule's namespace, configured data converter, and
+   * service stubs. Use for tests that exercise the standalone Nexus client surface.
    */
   public NexusClient getNexusClient() {
+    WorkflowClientOptions options = getWorkflowClient().getOptions();
     return NexusClient.newInstance(
         getWorkflowServiceStubs(),
         NexusClientOptions.newBuilder()
-            .setNamespace(getWorkflowClient().getOptions().getNamespace())
+            .setNamespace(options.getNamespace())
+            .setDataConverter(options.getDataConverter())
             .build());
   }
 

@@ -1,0 +1,234 @@
+name: Release
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+on:
+  pull_request:
+    branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
+    paths: [CHANGELOG.md]
+  push:
+    branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
+    paths: [CHANGELOG.md]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version already present in CHANGELOG.md, without a leading v
+        required: true
+        type: string
+      draft_release:
+        description: Hold the GitHub Release as a draft and leave Maven unpublished
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Resolve release candidate
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.metadata.outputs.commit }}
+      draft_release: ${{ steps.metadata.outputs.draft_release }}
+      prerelease: ${{ steps.metadata.outputs.prerelease }}
+      release: ${{ steps.metadata.outputs.release }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      version: ${{ steps.metadata.outputs.version }}
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate changelog transition
+        id: metadata
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          MANUAL_DRAFT_RELEASE: ${{ inputs.draft_release }}
+          MANUAL_REF: ${{ github.ref_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
+        run: .github/scripts/release.sh candidate "$RUNNER_TEMP/release-notes.md"
+
+      - name: Upload exact release notes
+        if: >-
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          steps.metadata.outputs.release == 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: release-notes-${{ steps.metadata.outputs.commit }}
+          path: ${{ runner.temp }}/release-notes.md
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
+
+      - name: Summarize candidate
+        if: steps.metadata.outputs.release == 'true'
+        env:
+          RELEASE_COMMIT: ${{ steps.metadata.outputs.commit }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          {
+            echo "## Release candidate"
+            echo
+            echo "- Tag: \`$RELEASE_TAG\`"
+            echo "- Commit: \`$RELEASE_COMMIT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build_maven:
+    name: Test and inspect Maven publications
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
+    needs: candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.candidate.outputs.commit }}
+          submodules: recursive
+
+      - name: Set up Java
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: "23"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+
+      - name: Test and inspect Maven publications
+        env:
+          RELEASE_COMMIT: ${{ needs.candidate.outputs.commit }}
+          RELEASE_VERSION: ${{ needs.candidate.outputs.version }}
+        run: >-
+          .github/scripts/release.sh build-maven
+          "$RUNNER_TEMP/maven-repository"
+
+  build_native:
+    name: Build native test server
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
+    needs: candidate
+    uses: ./.github/workflows/build-native-image.yml
+    with:
+      artifact_prefix: release-native-
+      ref: ${{ needs.candidate.outputs.commit }}
+      upload_artifact: true
+
+  package_native:
+    name: Package native release assets
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
+    needs: [candidate, build_native]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.candidate.outputs.commit }}
+
+      - name: Download native executables
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: release-native-*
+          path: native
+
+      - name: Package native executables
+        env:
+          RELEASE_VERSION: ${{ needs.candidate.outputs.version }}
+        run: .github/scripts/package-native-release.sh native release-assets
+
+      - name: Preserve exact release assets
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: release-assets-${{ needs.candidate.outputs.commit }}
+          path: release-assets
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
+
+  publish:
+    name: Publish ${{ needs.candidate.outputs.tag }}
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      needs.candidate.outputs.release == 'true'
+    needs: [candidate, build_maven, package_native]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    concurrency:
+      group: sdk-java-release-publication
+      cancel-in-progress: false
+    environment:
+      name: release-publication
+    permissions:
+      actions: read
+      contents: write
+    env:
+      RELEASE_COMMIT: ${{ needs.candidate.outputs.commit }}
+      RELEASE_TAG: ${{ needs.candidate.outputs.tag }}
+      RELEASE_VERSION: ${{ needs.candidate.outputs.version }}
+    steps:
+      - name: Checkout exact release commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.candidate.outputs.commit }}
+          submodules: recursive
+
+      - name: Download release inputs
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ${{ format('*-{0}', needs.candidate.outputs.commit) }}
+          path: release-inputs
+
+      - name: Publish or draft GitHub release
+        id: github_release
+        env:
+          DRAFT_RELEASE: ${{ vars.DRAFT_RELEASE }}
+          GH_TOKEN: ${{ github.token }}
+          MANUAL_DRAFT_RELEASE: ${{ needs.candidate.outputs.draft_release }}
+          PRERELEASE: ${{ needs.candidate.outputs.prerelease }}
+        run: >-
+          .github/scripts/release.sh publish-github
+          "release-inputs/release-notes-$RELEASE_COMMIT/release-notes.md"
+          "release-inputs/release-assets-$RELEASE_COMMIT"
+
+      - name: Set up Java
+        if: steps.github_release.outputs.draft == 'false'
+        uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654 # v5
+        with:
+          java-version: "23"
+          distribution: temurin
+
+      - name: Set up Gradle
+        if: steps.github_release.outputs.draft == 'false'
+        uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
+
+      - name: Publish and verify Maven artifacts
+        if: steps.github_release.outputs.draft == 'false'
+        env:
+          GRADLE_USER_HOME: ${{ runner.temp }}/release-gradle-home
+          KEY: ${{ secrets.JAR_SIGNING_KEY }}
+          KEY_ID: ${{ secrets.JAR_SIGNING_KEY_ID }}
+          KEY_PASSWORD: ${{ secrets.JAR_SIGNING_KEY_PASSWORD }}
+          MAVEN_RETRY_REQUIRED: ${{ steps.github_release.outputs.maven_retry_required }}
+          MAVEN_RETRY_COMMIT: ${{ vars.MAVEN_RETRY_COMMIT }}
+          RH_PASSWORD: ${{ secrets.RH_PASSWORD }}
+          RH_USER: ${{ secrets.RH_USER }}
+        run: .github/scripts/release.sh publish-maven

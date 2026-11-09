@@ -4,7 +4,7 @@ import io.temporal.common.converter.EncodedValues;
 import io.temporal.spring.boot.WorkflowImpl;
 import io.temporal.workflow.DynamicWorkflow;
 
-@WorkflowImpl(workers = "mainWorker")
+@WorkflowImpl(workers = "${default-worker.name:mainWorker}")
 public class TestDynamicWorkflowImpl implements DynamicWorkflow {
   @Override
   public Object execute(EncodedValues args) {

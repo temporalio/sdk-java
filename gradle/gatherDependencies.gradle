@@ -1,5 +1,5 @@
 subprojects {
-    if (name == 'temporal-bom') {
+    if (!plugins.hasPlugin('java')) {
         return
     }
     // Creates build/runtimeDeps folder in each module that contains all the dependencies

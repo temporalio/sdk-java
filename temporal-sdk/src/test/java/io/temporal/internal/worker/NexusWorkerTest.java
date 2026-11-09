@@ -3,6 +3,7 @@ package io.temporal.internal.worker;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -16,10 +17,14 @@ import com.google.protobuf.ByteString;
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.RootScopeBuilder;
 import com.uber.m3.tally.Scope;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.Payloads;
+import io.temporal.api.enums.v1.NexusHandlerErrorRetryBehavior;
 import io.temporal.api.failure.v1.ApplicationFailureInfo;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.namespace.v1.NamespaceInfo;
 import io.temporal.api.nexus.v1.Request;
 import io.temporal.api.nexus.v1.Response;
 import io.temporal.api.nexus.v1.StartOperationRequest;
@@ -28,12 +33,18 @@ import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueRequest;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
+import io.temporal.api.workflowservice.v1.RespondNexusTaskCompletedRequest;
 import io.temporal.api.workflowservice.v1.RespondNexusTaskFailedRequest;
 import io.temporal.api.workflowservice.v1.ShutdownWorkerRequest;
 import io.temporal.api.workflowservice.v1.ShutdownWorkerResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.reporter.TestStatsReporter;
+import io.temporal.internal.payload.limits.LimitClass;
+import io.temporal.internal.payload.limits.LimitSeverity;
+import io.temporal.internal.payload.limits.PayloadErrorLimits;
+import io.temporal.internal.payload.limits.PayloadLimitViolation;
+import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
@@ -60,6 +71,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 
 public class NexusWorkerTest {
@@ -223,29 +235,132 @@ public class NexusWorkerTest {
         execFailedTags(MetricsTag.TASK_FAILURE_VALUE_HANDLER_ERROR_INTERNAL));
   }
 
+  /**
+   * A completion over the namespace's payload error limit is reported as a retryable handler error
+   * instead, and counted once as PayloadsTooLarge.
+   */
+  @Test
+  public void aCompletionOverThePayloadErrorLimitFailsTheTaskRetryably() throws Exception {
+    Fixture fixture = new Fixture(metricsScope, payloadErrorLimits(), syncSuccess());
+    when(fixture.blockingStub.respondNexusTaskCompleted(
+            any(RespondNexusTaskCompletedRequest.class)))
+        .thenThrow(payloadLimitViolation());
+    CountDownLatch reported = reportedLatch(fixture);
+
+    try {
+      assertTrue(fixture.worker.start());
+      assertTrue("the violation must be reported", reported.await(10, TimeUnit.SECONDS));
+    } finally {
+      shutdown(fixture);
+    }
+
+    ArgumentCaptor<RespondNexusTaskFailedRequest> sent =
+        ArgumentCaptor.forClass(RespondNexusTaskFailedRequest.class);
+    verify(fixture.blockingStub).respondNexusTaskFailed(sent.capture());
+    Failure failure = sent.getValue().getFailure();
+    assertEquals("INTERNAL", failure.getNexusHandlerFailureInfo().getType());
+    assertEquals(
+        NexusHandlerErrorRetryBehavior.NEXUS_HANDLER_ERROR_RETRY_BEHAVIOR_RETRYABLE,
+        failure.getNexusHandlerFailureInfo().getRetryBehavior());
+    assertEquals("PayloadsTooLarge", failure.getCause().getApplicationFailureInfo().getType());
+    Eventually.assertEventually(
+        Duration.ofSeconds(10),
+        () ->
+            reporter.assertCounter(
+                MetricsType.NEXUS_EXEC_FAILED_COUNTER,
+                execFailedTags(MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE),
+                1));
+  }
+
+  /**
+   * An operation failure is already counted under its own reason. Its report being over the payload
+   * error limit must not count the same task a second time.
+   */
+  @Test
+  public void anOperationFailureOverThePayloadErrorLimitCountsOneExecFailure() throws Exception {
+    Fixture fixture = new Fixture(metricsScope, payloadErrorLimits(), operationFailure());
+    when(fixture.blockingStub.respondNexusTaskCompleted(
+            any(RespondNexusTaskCompletedRequest.class)))
+        .thenThrow(payloadLimitViolation());
+    CountDownLatch reported = reportedLatch(fixture);
+
+    try {
+      assertTrue(fixture.worker.start());
+      assertTrue("the violation must be reported", reported.await(10, TimeUnit.SECONDS));
+    } finally {
+      shutdown(fixture);
+    }
+
+    Eventually.assertEventually(
+        Duration.ofSeconds(10),
+        () ->
+            reporter.assertCounter(
+                MetricsType.NEXUS_EXEC_FAILED_COUNTER,
+                execFailedTags(MetricsTag.TASK_FAILURE_VALUE_OPERATION_FAILED),
+                1));
+    reporter.assertNoMetric(
+        MetricsType.NEXUS_EXEC_FAILED_COUNTER,
+        execFailedTags(MetricsTag.TASK_FAILURE_VALUE_PAYLOADS_TOO_LARGE));
+  }
+
+  @Test
+  public void repliesCarryTheNamespacePayloadErrorLimits() throws Exception {
+    NamespaceCapabilities capabilities = payloadErrorLimits();
+    Fixture fixture = new Fixture(new NoopScope(), capabilities, syncSuccess());
+    CountDownLatch completed = new CountDownLatch(1);
+    when(fixture.blockingStub.respondNexusTaskCompleted(
+            any(RespondNexusTaskCompletedRequest.class)))
+        .thenAnswer(
+            (Answer<Object>)
+                invocation -> {
+                  completed.countDown();
+                  return null;
+                });
+
+    try {
+      assertTrue(fixture.worker.start());
+      assertTrue("the task must complete", completed.await(10, TimeUnit.SECONDS));
+    } finally {
+      shutdown(fixture);
+    }
+
+    PayloadErrorLimits limits = capabilities.getPayloadErrorLimits();
+    assertNotNull(limits);
+    verify(fixture.blockingStub).withOption(PayloadErrorLimits.CALL_OPTIONS_KEY, limits);
+  }
+
   /** A worker wired to {@code driver}, polling exactly one nexus task that returns a payload. */
   private static final class Fixture {
     final NexusWorker worker;
     final WorkflowServiceGrpc.WorkflowServiceBlockingStub blockingStub;
 
     Fixture(StorageDriver driver) throws Exception {
-      this(driver, null, new NoopScope(), syncSuccess());
+      this(driver, null, new NoopScope(), syncSuccess(), new NamespaceCapabilities());
     }
 
     Fixture(StorageDriver driver, Payload inboundPayload) throws Exception {
-      this(driver, inboundPayload, new NoopScope(), syncSuccess());
+      this(driver, inboundPayload, new NoopScope(), syncSuccess(), new NamespaceCapabilities());
     }
 
     Fixture(StorageDriver driver, Scope metricsScope, NexusTaskHandler.Result handlerResult)
         throws Exception {
-      this(driver, null, metricsScope, handlerResult);
+      this(driver, null, metricsScope, handlerResult, new NamespaceCapabilities());
+    }
+
+    Fixture(
+        Scope metricsScope,
+        NamespaceCapabilities namespaceCapabilities,
+        NexusTaskHandler.Result handlerResult)
+        throws Exception {
+      this(null, null, metricsScope, handlerResult, namespaceCapabilities);
     }
 
     private Fixture(
         StorageDriver driver,
         Payload inboundPayload,
         Scope metricsScope,
-        NexusTaskHandler.Result handlerResult)
+        NexusTaskHandler.Result handlerResult,
+        NamespaceCapabilities namespaceCapabilities)
         throws Exception {
       WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
       when(service.getServerCapabilities())
@@ -309,7 +424,7 @@ public class NexusWorkerTest {
               handler,
               DefaultDataConverter.newDefaultInstance(),
               new FixedSizeSlotSupplier<>(10),
-              new NamespaceCapabilities());
+              namespaceCapabilities);
     }
   }
 
@@ -350,6 +465,31 @@ public class NexusWorkerTest {
         "operation",
         MetricsTag.TASK_FAILURE_TYPE,
         failureReason);
+  }
+
+  private static NamespaceCapabilities payloadErrorLimits() {
+    NamespaceCapabilities capabilities = new NamespaceCapabilities();
+    capabilities.setFromLimits(
+        NamespaceInfo.Limits.newBuilder()
+            .setBlobSizeLimitError(100)
+            .setMemoSizeLimitError(100)
+            .build());
+    return capabilities;
+  }
+
+  /** Returns what the payload limits interceptor throws for a reply over an error limit. */
+  private static StatusRuntimeException payloadLimitViolation() {
+    PayloadLimitViolation violation =
+        new PayloadLimitViolation(
+            "response.start_operation.sync_success.payload",
+            LimitClass.BLOB,
+            LimitSeverity.ERROR,
+            1000,
+            100);
+    return Status.INVALID_ARGUMENT
+        .withDescription(violation.getMessage())
+        .withCause(new PayloadLimitViolationException(violation))
+        .asRuntimeException();
   }
 
   private static NexusTaskHandler.Result syncSuccess() {

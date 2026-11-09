@@ -1,13 +1,16 @@
 package io.temporal.client;
 
+import io.temporal.common.Experimental;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
+import io.temporal.payload.storage.ExternalStorage;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /** Options for {@link ActivityClient} configuration. */
 public final class ActivityClientOptions {
@@ -46,6 +49,7 @@ public final class ActivityClientOptions {
     private String identity;
     private List<ContextPropagator> contextPropagators;
     private List<ActivityClientInterceptor> interceptors;
+    private ExternalStorage externalStorage;
 
     private Builder() {}
 
@@ -58,6 +62,7 @@ public final class ActivityClientOptions {
       identity = options.identity;
       contextPropagators = options.contextPropagators;
       interceptors = options.interceptors;
+      externalStorage = options.externalStorage;
     }
 
     /** Set the namespace this client will operate on. */
@@ -102,6 +107,17 @@ public final class ActivityClientOptions {
       return this;
     }
 
+    /**
+     * External storage configuration used to store/retrieve large payloads.
+     *
+     * <p>Defaults to null.
+     */
+    @Experimental
+    public Builder setExternalStorage(@Nullable ExternalStorage externalStorage) {
+      this.externalStorage = externalStorage;
+      return this;
+    }
+
     public ActivityClientOptions build() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new ActivityClientOptions(
@@ -109,7 +125,8 @@ public final class ActivityClientOptions {
           dataConverter == null ? GlobalDataConverter.get() : dataConverter,
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
-          interceptors == null ? EMPTY_INTERCEPTORS : interceptors);
+          interceptors == null ? EMPTY_INTERCEPTORS : interceptors,
+          externalStorage);
     }
   }
 
@@ -118,18 +135,21 @@ public final class ActivityClientOptions {
   private final String identity;
   private final List<ContextPropagator> contextPropagators;
   private final List<ActivityClientInterceptor> interceptors;
+  private final @Nullable ExternalStorage externalStorage;
 
   private ActivityClientOptions(
       String namespace,
       DataConverter dataConverter,
       String identity,
       List<ContextPropagator> contextPropagators,
-      List<ActivityClientInterceptor> interceptors) {
+      List<ActivityClientInterceptor> interceptors,
+      @Nullable ExternalStorage externalStorage) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.interceptors = interceptors;
+    this.externalStorage = externalStorage;
   }
 
   /**
@@ -177,6 +197,13 @@ public final class ActivityClientOptions {
     return interceptors;
   }
 
+  /** External storage used to offload large payloads or null when disabled. */
+  @Experimental
+  @Nullable
+  public ExternalStorage getExternalStorage() {
+    return externalStorage;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -186,12 +213,14 @@ public final class ActivityClientOptions {
         && Objects.equals(dataConverter, that.dataConverter)
         && Objects.equals(identity, that.identity)
         && Objects.equals(contextPropagators, that.contextPropagators)
-        && Objects.equals(interceptors, that.interceptors);
+        && Objects.equals(interceptors, that.interceptors)
+        && Objects.equals(externalStorage, that.externalStorage);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(namespace, dataConverter, identity, contextPropagators, interceptors);
+    return Objects.hash(
+        namespace, dataConverter, identity, contextPropagators, interceptors, externalStorage);
   }
 
   @Override
@@ -209,6 +238,8 @@ public final class ActivityClientOptions {
         + contextPropagators
         + ", interceptors="
         + interceptors
+        + ", externalStorage="
+        + externalStorage
         + '}';
   }
 }

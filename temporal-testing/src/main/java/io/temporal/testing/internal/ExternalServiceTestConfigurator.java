@@ -1,5 +1,6 @@
 package io.temporal.testing.internal;
 
+import io.temporal.client.WorkflowClientOptions;
 import io.temporal.envconfig.ClientConfigProfile;
 import io.temporal.internal.common.env.EnvironmentVariableUtils;
 import io.temporal.testing.TestEnvironmentOptions;
@@ -79,7 +80,7 @@ public class ExternalServiceTestConfigurator {
     testWorkflowRule.setTarget(profile.getAddress());
     testWorkflowRule.setNamespace(profile.getNamespace());
     testWorkflowRule.setWorkflowServiceStubsOptions(profile.toWorkflowServiceStubsOptions());
-    testWorkflowRule.setWorkflowClientOptions(profile.toWorkflowClientOptions());
+    // TestWorkflowRule applies the namespace without replacing test-specific client options.
     return testWorkflowRule;
   }
 
@@ -89,7 +90,10 @@ public class ExternalServiceTestConfigurator {
     testEnvironmentOptions.setUseExternalService(true);
     testEnvironmentOptions.setTarget(profile.getAddress());
     testEnvironmentOptions.setWorkflowServiceStubsOptions(profile.toWorkflowServiceStubsOptions());
-    testEnvironmentOptions.setWorkflowClientOptions(profile.toWorkflowClientOptions());
+    testEnvironmentOptions.setWorkflowClientOptions(
+        WorkflowClientOptions.newBuilder(testEnvironmentOptions.build().getWorkflowClientOptions())
+            .setNamespace(profile.getNamespace())
+            .build());
     return testEnvironmentOptions;
   }
 

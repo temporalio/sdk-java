@@ -1,6 +1,5 @@
 package io.temporal.testing;
 
-import io.temporal.common.Experimental;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,8 +7,12 @@ import java.util.List;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-/** Options for a {@link TemporalDevServer}. */
-@Experimental
+/**
+ * Options for a {@link TemporalDevServer}.
+ *
+ * <p>These options are specific to the Temporal CLI dev server implementation. If that
+ * implementation changes, these options and their values may no longer be valid.
+ */
 public final class TemporalDevServerOptions {
   private static final TemporalDevServerOptions DEFAULT_INSTANCE = newBuilder().build();
 
@@ -178,7 +181,12 @@ public final class TemporalDevServerOptions {
       return this;
     }
 
-    /** Sets additional arguments appended to the generated {@code server start-dev} command. */
+    /**
+     * Sets additional arguments appended to the generated {@code server start-dev} command.
+     *
+     * <p>If the dev server implementation changes, there is no guarantee these arguments will
+     * continue to be supported.
+     */
     public Builder setExtraArgs(@Nonnull List<String> extraArgs) {
       if (extraArgs == null) {
         throw new NullPointerException("extraArgs");
@@ -187,7 +195,12 @@ public final class TemporalDevServerOptions {
       return this;
     }
 
-    /** Sets additional arguments appended to the generated {@code server start-dev} command. */
+    /**
+     * Sets additional arguments appended to the generated {@code server start-dev} command.
+     *
+     * <p>If the dev server implementation changes, there is no guarantee these arguments will
+     * continue to be supported.
+     */
     public Builder setExtraArgs(@Nonnull String... extraArgs) {
       if (extraArgs == null) {
         throw new NullPointerException("extraArgs");
