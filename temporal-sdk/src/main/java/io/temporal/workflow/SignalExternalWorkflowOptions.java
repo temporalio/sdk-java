@@ -4,7 +4,7 @@ import io.temporal.common.Experimental;
 import java.util.*;
 
 /**
- * Options for {@link ExternalWorkflowStub#signal(String, SignalExternalWorkflowOptions,
+ * Options for {@link ExternalWorkflowStub#signalWithOptions(String, SignalExternalWorkflowOptions,
  * Object...)}.
  */
 public final class SignalExternalWorkflowOptions {
@@ -69,6 +69,16 @@ public final class SignalExternalWorkflowOptions {
         this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
       }
       return this;
+    }
+
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
     }
 
     public SignalExternalWorkflowOptions build() {

@@ -4,7 +4,7 @@ import io.temporal.common.Experimental;
 import java.util.*;
 import javax.annotation.Nullable;
 
-/** Options for {@link ExternalWorkflowStub#cancel(CancelExternalWorkflowOptions)}. */
+/** Options for {@link ExternalWorkflowStub#cancelWithOptions(CancelExternalWorkflowOptions)}. */
 public final class CancelExternalWorkflowOptions {
 
   public static CancelExternalWorkflowOptions.Builder newBuilder() {
@@ -67,6 +67,16 @@ public final class CancelExternalWorkflowOptions {
         this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
       }
       return this;
+    }
+
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
     }
 
     public CancelExternalWorkflowOptions build() {

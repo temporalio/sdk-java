@@ -59,7 +59,7 @@ public interface ExternalWorkflowStub {
    * @param args signal method arguments
    * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
    */
-  void signal(String signalName, SignalExternalWorkflowOptions options, Object... args);
+  void signalWithOptions(String signalName, SignalExternalWorkflowOptions options, Object... args);
 
   /** Request cancellation of the workflow execution. */
   void cancel();
@@ -77,5 +77,5 @@ public interface ExternalWorkflowStub {
    *
    * @param options options of the cancellation request command
    */
-  void cancel(CancelExternalWorkflowOptions options);
+  void cancelWithOptions(CancelExternalWorkflowOptions options);
 }

@@ -30,11 +30,12 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
-    signal(signalName, SignalExternalWorkflowOptions.getDefaultInstance(), args);
+    signalWithOptions(signalName, SignalExternalWorkflowOptions.getDefaultInstance(), args);
   }
 
   @Override
-  public void signal(String signalName, SignalExternalWorkflowOptions options, Object... args) {
+  public void signalWithOptions(
+      String signalName, SignalExternalWorkflowOptions options, Object... args) {
     assertReadOnly.apply("signal external workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
@@ -58,16 +59,16 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
-    cancel(CancelExternalWorkflowOptions.getDefaultInstance());
+    cancelWithOptions(CancelExternalWorkflowOptions.getDefaultInstance());
   }
 
   @Override
   public void cancel(@Nullable String reason) {
-    cancel(CancelExternalWorkflowOptions.newBuilder().setReason(reason).build());
+    cancelWithOptions(CancelExternalWorkflowOptions.newBuilder().setReason(reason).build());
   }
 
   @Override
-  public void cancel(CancelExternalWorkflowOptions options) {
+  public void cancelWithOptions(CancelExternalWorkflowOptions options) {
     assertReadOnly.apply("cancel external workflow");
     if (options.getReason() == null) {
       try {

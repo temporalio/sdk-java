@@ -68,6 +68,16 @@ public class SideEffectOptions {
       return this;
     }
 
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public SideEffectOptions.Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
+    }
+
     public SideEffectOptions build() {
       return new SideEffectOptions(summary, eventGroups);
     }

@@ -353,6 +353,16 @@ public final class ChildWorkflowOptions {
     }
 
     /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
+    }
+
+    /**
      * Optional priority settings that control relative ordering of task processing when tasks are
      * backed up in a queue.
      */

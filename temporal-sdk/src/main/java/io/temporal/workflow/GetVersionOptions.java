@@ -55,6 +55,16 @@ public final class GetVersionOptions {
       return this;
     }
 
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
+    }
+
     public GetVersionOptions build() {
       return new GetVersionOptions(eventGroups);
     }

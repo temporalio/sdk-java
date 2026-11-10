@@ -644,7 +644,7 @@ public class EventGroupsTest {
       EventGroup direct = Workflow.newEventGroup("direct");
       try {
         Workflow.newUntypedExternalWorkflowStub("other-workflow")
-            .signal(
+            .signalWithOptions(
                 "signal",
                 SignalExternalWorkflowOptions.newBuilder().addEventGroups(direct).build());
       } catch (ApplicationFailure expected) {
@@ -657,7 +657,8 @@ public class EventGroupsTest {
       Promise<Void> done = Async.procedure(child::execute);
       Workflow.getWorkflowExecution(child).get();
       ChildWorkflowStub.fromTyped(child)
-          .signal("signal", SignalChildWorkflowOptions.newBuilder().addEventGroups(direct).build());
+          .signalWithOptions(
+              "signal", SignalChildWorkflowOptions.newBuilder().addEventGroups(direct).build());
       done.get();
     }
   }
@@ -722,7 +723,7 @@ public class EventGroupsTest {
       Async.procedure(
           () ->
               Workflow.newUntypedExternalWorkflowStub("other-workflow")
-                  .cancel(
+                  .cancelWithOptions(
                       CancelExternalWorkflowOptions.newBuilder().addEventGroups(direct).build()));
     }
   }

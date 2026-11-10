@@ -114,5 +114,5 @@ public interface ChildWorkflowStub {
    * @param args signal method arguments.
    * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
    */
-  void signal(String signalName, SignalChildWorkflowOptions options, Object... args);
+  void signalWithOptions(String signalName, SignalChildWorkflowOptions options, Object... args);
 }
