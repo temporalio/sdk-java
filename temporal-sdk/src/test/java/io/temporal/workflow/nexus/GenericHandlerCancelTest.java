@@ -9,10 +9,11 @@ import io.temporal.client.WorkflowOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.Signal;
+import io.temporal.nexus.Nexus;
+import io.temporal.nexus.NexusOperationInfo;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -128,14 +129,14 @@ public class GenericHandlerCancelTest extends BaseNexusTest {
   @ServiceImpl(service = TestNexusCancelService.class)
   public class TestNexusServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<Void> operation(
-        TemporalOperationStartContext context, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<Void> operation(TemporalNexusClient client, String input) {
+      NexusOperationInfo info = Nexus.getInfo();
       return client.startWorkflow(
           WaitForCancelWorkflowInterface.class,
           WaitForCancelWorkflowInterface::execute,
           input,
           WorkflowOptions.newBuilder()
-              .setWorkflowId("generic-cancel-test-" + context.getService())
+              .setWorkflowId("generic-cancel-test-" + info.getService())
               .build());
     }
   }

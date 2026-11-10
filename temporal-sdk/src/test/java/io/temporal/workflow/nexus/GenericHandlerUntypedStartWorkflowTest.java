@@ -4,10 +4,11 @@ import io.nexusrpc.Operation;
 import io.nexusrpc.Service;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.nexus.Nexus;
+import io.temporal.nexus.NexusOperationInfo;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -64,14 +65,14 @@ public class GenericHandlerUntypedStartWorkflowTest {
   @ServiceImpl(service = TestNexusServiceUntyped.class)
   public class TestNexusServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> operation(
-        TemporalOperationStartContext context, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
+      NexusOperationInfo info = Nexus.getInfo();
       return client.startWorkflow(
           "func1",
           String.class,
           WorkflowOptions.newBuilder()
               .setWorkflowId(
-                  "generic-handler-untyped-" + context.getService() + "-" + context.getOperation())
+                  "generic-handler-untyped-" + info.getService() + "-" + info.getOperation())
               .build(),
           input);
     }
