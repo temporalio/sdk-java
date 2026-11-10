@@ -24,7 +24,8 @@ import org.junit.Test;
 public class TemporalInterceptorMiddlewareTest {
 
   @Test
-  public void interceptorReadsHeadersBeforeContextFreeHandler() throws OperationException {
+  public void headersRemainAccessibleToInterceptorWithContextFreeHandler()
+      throws OperationException {
     OperationContext operationContext =
         OperationContext.newBuilder()
             .setService("service")
