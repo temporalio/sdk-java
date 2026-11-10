@@ -43,25 +43,6 @@ public class ExecuteLocalActivityParameters {
       @Nullable Failure previousLocalExecutionFailure,
       boolean doNotIncludeArgumentsIntoMarker,
       @Nonnull Duration localRetryThreshold,
-      UserMetadata metadata) {
-    this(
-        activityTaskBuilder,
-        scheduleToStartTimeout,
-        originalScheduledTimestamp,
-        previousLocalExecutionFailure,
-        doNotIncludeArgumentsIntoMarker,
-        localRetryThreshold,
-        metadata,
-        null);
-  }
-
-  public ExecuteLocalActivityParameters(
-      @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
-      @Nullable Duration scheduleToStartTimeout,
-      long originalScheduledTimestamp,
-      @Nullable Failure previousLocalExecutionFailure,
-      boolean doNotIncludeArgumentsIntoMarker,
-      @Nonnull Duration localRetryThreshold,
       UserMetadata metadata,
       @Nullable LocalActivityArguments arguments) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");

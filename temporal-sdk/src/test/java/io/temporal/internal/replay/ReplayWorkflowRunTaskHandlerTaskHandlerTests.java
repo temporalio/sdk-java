@@ -103,6 +103,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
                             null,
                             false,
                             Duration.ZERO,
+                            null,
                             null),
                         (result, failure) -> {});
               }
@@ -457,6 +458,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null,
             false,
             null,
+            null,
             null);
     laMeteringHelper.addNewLocalActivity(executeLA);
     laMeteringHelper.addNewLocalActivity(
@@ -466,6 +468,7 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             0,
             null,
             false,
+            null,
             null,
             null));
     for (int i = 0; i < 5; i++) {
