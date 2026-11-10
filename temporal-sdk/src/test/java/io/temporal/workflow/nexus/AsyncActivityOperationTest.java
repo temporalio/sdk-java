@@ -11,6 +11,7 @@ import io.temporal.client.StartActivityOptions;
 import io.temporal.internal.nexus.OperationToken;
 import io.temporal.internal.nexus.OperationTokenType;
 import io.temporal.internal.nexus.OperationTokenUtil;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
@@ -99,7 +100,7 @@ public class AsyncActivityOperationTest {
                   TestActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + input)
+                      .setId("act-" + Nexus.getInfo().getRequestId())
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .build()));
     }

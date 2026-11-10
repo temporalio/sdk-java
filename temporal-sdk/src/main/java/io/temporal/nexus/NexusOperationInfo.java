@@ -32,6 +32,12 @@ public interface NexusOperationInfo {
   // :>) add comment
   String getOperation();
 
+  /**
+   * @return Request ID for the current Nexus start request. The ID remains stable across redelivery
+   *     of the same request.
+   */
+  String getRequestId();
+
   // :>) add comment
   @Nullable
   Instant getDeadline();

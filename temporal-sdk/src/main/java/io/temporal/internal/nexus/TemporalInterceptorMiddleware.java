@@ -39,6 +39,7 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
                 temporalNexusContext.getEndpoint(),
                 context.getService(),
                 context.getOperation(),
+                temporalNexusContext.getRequestId(),
                 context.getDeadline(),
                 cancellationSource.token())));
     return new OperationInterceptorConverter(inboundCallsInterceptor);
