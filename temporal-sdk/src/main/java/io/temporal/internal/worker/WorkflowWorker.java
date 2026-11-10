@@ -228,6 +228,7 @@ final class WorkflowWorker implements SuspendableWorker {
                     service.getServerCapabilities(),
                     pollerTracker,
                     stickyPollerTracker,
+                    pollerBehavior.getMaxConcurrentTaskPollers(),
                     workerControlTaskQueue()),
                 pollTaskExecutor,
                 pollerOptions,

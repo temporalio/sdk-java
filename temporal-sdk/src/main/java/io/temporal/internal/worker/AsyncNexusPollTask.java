@@ -7,6 +7,7 @@ import com.uber.m3.tally.Scope;
 import io.grpc.Context;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueRequest;
@@ -21,6 +22,7 @@ import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.worker.tuning.SlotReleaseReason;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -110,11 +112,35 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
     this.pollRequest = pollRequest.build();
   }
 
+  private volatile IntSupplier pollerTargetSupplier;
+
+  @Override
+  public void setPollerTargetSupplier(IntSupplier pollerTargetSupplier) {
+    this.pollerTargetSupplier = pollerTargetSupplier;
+    pollerTracker.setPollerTargetSupplier(pollerTargetSupplier);
+  }
+
+  /**
+   * The poll request with the pool's current scaling target attached. Rebuilt per poll because the
+   * target moves.
+   */
+  private PollNexusTaskQueueRequest pollRequestWithScalingInfo() {
+    IntSupplier supplier = pollerTargetSupplier;
+    if (supplier == null) {
+      return pollRequest;
+    }
+    return pollRequest.toBuilder()
+        .setPollerPoolInfo(
+            PollerPoolInfo.newBuilder().setTargetPollers(supplier.getAsInt()).build())
+        .build();
+  }
+
   @Override
   @SuppressWarnings("deprecation")
   public CompletableFuture<NexusTask> poll(SlotPermit permit) {
+    PollNexusTaskQueueRequest request = pollRequestWithScalingInfo();
     if (log.isTraceEnabled()) {
-      log.trace("poll request begin: " + pollRequest);
+      log.trace("poll request begin: " + request);
     }
 
     MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
@@ -130,7 +156,7 @@ public class AsyncNexusPollTask implements AsyncPoller.PollTaskAsync<NexusTask> 
                       service
                           .futureStub()
                           .withOption(METRICS_TAGS_CALL_OPTIONS_KEY, metricsScope)
-                          .pollNexusTaskQueue(pollRequest)));
+                          .pollNexusTaskQueue(request)));
     } catch (Exception e) {
       MetricsTag.tagged(metricsScope, PollerTypeMetricsTag.PollerType.NEXUS_TASK)
           .gauge(MetricsType.NUM_POLLERS)

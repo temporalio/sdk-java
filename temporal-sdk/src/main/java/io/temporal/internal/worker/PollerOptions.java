@@ -4,6 +4,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.temporal.worker.tuning.PollerBehavior;
 import io.temporal.worker.tuning.PollerBehaviorAutoscaling;
+import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import java.time.Duration;
 import java.util.concurrent.ExecutorService;
 import org.slf4j.Logger;
@@ -294,6 +295,13 @@ public final class PollerOptions {
 
   public PollerBehavior getPollerBehavior() {
     return pollerBehavior;
+  }
+
+  /** Configured size of a fixed-size poller pool, or 0 if the pool is autoscaling. */
+  public int getFixedPollerCount() {
+    return pollerBehavior instanceof PollerBehaviorSimpleMaximum
+        ? ((PollerBehaviorSimpleMaximum) pollerBehavior).getMaxConcurrentTaskPollers()
+        : 0;
   }
 
   public Thread.UncaughtExceptionHandler getUncaughtExceptionHandler() {

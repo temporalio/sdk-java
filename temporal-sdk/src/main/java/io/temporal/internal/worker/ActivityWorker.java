@@ -157,6 +157,7 @@ final class ActivityWorker implements SuspendableWorker {
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     pollerTracker,
+                    pollerOptions.getFixedPollerCount(),
                     workerControlTaskQueue()),
                 this.pollTaskExecutor,
                 pollerOptions,
