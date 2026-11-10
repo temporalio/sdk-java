@@ -6,7 +6,6 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
-import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
@@ -145,9 +144,7 @@ public class TemporalOperationAnnotationTest {
           SugarTargetWorkflow.class,
           SugarTargetWorkflow::run,
           input,
-          WorkflowOptions.newBuilder()
-              .setWorkflowId("sugar-" + Nexus.getInfo().getRequestId())
-              .build());
+          WorkflowOptions.newBuilder().setWorkflowId("sugar-" + input).build());
     }
   }
 
@@ -167,9 +164,7 @@ public class TemporalOperationAnnotationTest {
           SugarTargetWorkflow.class,
           SugarTargetWorkflow::run,
           input,
-          WorkflowOptions.newBuilder()
-              .setWorkflowId("mixed-" + Nexus.getInfo().getRequestId())
-              .build());
+          WorkflowOptions.newBuilder().setWorkflowId("mixed-" + input).build());
     }
 
     @OperationImpl
