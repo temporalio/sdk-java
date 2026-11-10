@@ -2,6 +2,7 @@ package io.temporal.workflow;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import io.temporal.activity.Activity;
@@ -14,6 +15,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.EventGroupMarker;
+import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SearchAttributeKey;
@@ -41,12 +43,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-/**
- * Tests for Event Groups.
- *
- * <p>Implicit Event Groups (`EG-IMPLICIT`) are not covered: Java does not yet create implicit Event
- * Groups for signal and update handlers.
- */
+/** Tests for Event Groups. */
 public class EventGroupsTest {
 
   private final Activities activities = new Activities();
@@ -69,6 +66,13 @@ public class EventGroupsTest {
               ScopeKeptAfterExitWorkflowImpl.class,
               ScopeNotInheritedWorkflowImpl.class,
               ScopeUnwindsWorkflowImpl.class,
+              StaticSignalWorkflowImpl.class,
+              RuntimeSignalWorkflowImpl.class,
+              BufferedSignalWorkflowImpl.class,
+              CatchAllSignalWorkflowImpl.class,
+              StaticUpdateWorkflowImpl.class,
+              RuntimeUpdateWorkflowImpl.class,
+              CatchAllUpdateWorkflowImpl.class,
               AggregationWorkflowImpl.class,
               TimerCommandWorkflowImpl.class,
               AwaitWorkflowImpl.class,
@@ -93,6 +97,7 @@ public class EventGroupsTest {
   @Before
   public void resetActivities() {
     activities.hold = new CountDownLatch(1);
+    activities.handlerRegistered = new CountDownLatch(1);
   }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -538,7 +543,416 @@ public class EventGroupsTest {
   // 4. Implicit Event Groups (`EG-IMPLICIT`)
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // FIXME: Implicit Event Groups are not yet supported in Java.
+  @Test
+  public void implicitScopeOnStaticallyDeclaredSignalHandlerExistsAndComposesAppropriately() {
+    List<HistoryEvent> events = staticSignalHistory();
+    long signalEventId = signaledEventId(events, "mySignal");
+
+    // EG-IMPLICIT-00: A statically declared signal handler carries the signaled event's marker
+    HistoryEvent fromSignal = require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-signal");
+    assertEquals(signalEventId, inboundEventId(fromSignal));
+    assertLabelGroups(fromSignal);
+
+    // EG-IMPLICIT-01: An explicit scope composes with a statically declared signal handler's
+    // implicit scope
+    HistoryEvent inScope =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-signal-in-scope");
+    assertEquals(signalEventId, inboundEventId(inScope));
+    assertLabelGroups(inScope, "aaa");
+
+    // EG-IMPLICIT-30: Signal implicit scope does not leak to commands in the Workflow main function
+    assertNoMarkers(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-main-before-signal"));
+    assertNoMarkers(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-main-after-signal"));
+  }
+
+  private List<HistoryEvent> staticSignalHistory() {
+    StaticSignalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(StaticSignalWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    workflow.mySignal();
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface StaticSignalWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod(name = "mySignal")
+    void mySignal();
+  }
+
+  public static class StaticSignalWorkflowImpl implements StaticSignalWorkflow {
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "from-main-before-signal"));
+      Workflow.await(() -> handled);
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "from-main-after-signal"));
+    }
+
+    @Override
+    public void mySignal() {
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "from-signal"));
+      Workflow.newEventGroup("aaa")
+          .run(() -> Workflow.sleep(Duration.ofMillis(1), timer(null, "from-signal-in-scope")));
+      handled = true;
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void implicitScopeOnRuntimeRegisteredSignalHandlerExistsAndComposesAppropriately()
+      throws InterruptedException {
+    List<HistoryEvent> events = runtimeSignalHistory();
+    long signalEventId = signaledEventId(events, "mySignal");
+
+    // EG-IMPLICIT-10: A runtime-registered signal handler does not inherit its registration scope
+    HistoryEvent fromSignal =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-runtime-signal");
+    assertEquals(signalEventId, inboundEventId(fromSignal));
+    assertLabelGroups(fromSignal);
+
+    // EG-IMPLICIT-11: An explicit scope composes with a runtime-registered signal handler's
+    // implicit scope
+    HistoryEvent inScope =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-runtime-signal-in-scope");
+    assertEquals(signalEventId, inboundEventId(inScope));
+    assertLabelGroups(inScope, "inside");
+  }
+
+  private List<HistoryEvent> runtimeSignalHistory() throws InterruptedException {
+    RuntimeSignalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(RuntimeSignalWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    // A signal sent before registration would be buffered, which is EG-IMPLICIT-12's case.
+    assertTrue(activities.handlerRegistered.await(10, TimeUnit.SECONDS));
+    WorkflowStub.fromTyped(workflow).signal("mySignal");
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface RuntimeSignalWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class RuntimeSignalWorkflowImpl implements RuntimeSignalWorkflow {
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      EventGroup outside = Workflow.newEventGroup("outside");
+      EventGroup inside = Workflow.newEventGroup("inside");
+      outside.run(
+          () ->
+              Workflow.registerListener(
+                  (MySignalListener)
+                      () -> {
+                        Workflow.sleep(Duration.ofMillis(1), timer(null, "from-runtime-signal"));
+                        inside.run(
+                            () ->
+                                Workflow.sleep(
+                                    Duration.ofMillis(1),
+                                    timer(null, "from-runtime-signal-in-scope")));
+                        handled = true;
+                      }));
+      Workflow.newActivityStub(
+              EventGroupActivities.class, activity(null, "activity-handler-registered"))
+          .handlerRegistered();
+      Workflow.await(() -> handled);
+    }
+  }
+
+  @WorkflowInterface
+  public interface MySignalListener {
+    @SignalMethod(name = "mySignal")
+    void mySignal();
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void aSignalBufferedBeforeRuntimeRegistrationKeepsItsOriginalImplicitMarker() {
+    List<HistoryEvent> events = bufferedSignalHistory();
+
+    // EG-IMPLICIT-12: A signal buffered before runtime registration keeps its original implicit
+    // marker
+    HistoryEvent fromSignal =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-runtime-signal");
+    assertEquals(signaledEventId(events, "mySignal"), inboundEventId(fromSignal));
+    assertLabelGroups(fromSignal);
+  }
+
+  private List<HistoryEvent> bufferedSignalHistory() {
+    BufferedSignalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(BufferedSignalWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    WorkflowStub.fromTyped(workflow).signal("mySignal");
+    workflow.unblock();
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface BufferedSignalWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @SignalMethod(name = "unblock")
+    void unblock();
+  }
+
+  public static class BufferedSignalWorkflowImpl implements BufferedSignalWorkflow {
+    private boolean unblocked;
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      Workflow.await(() -> unblocked);
+      Workflow.registerListener(
+          (MySignalListener)
+              () -> {
+                Workflow.sleep(Duration.ofMillis(1), timer(null, "from-runtime-signal"));
+                handled = true;
+              });
+      Workflow.await(() -> handled);
+    }
+
+    @Override
+    public void unblock() {
+      unblocked = true;
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void aCatchAllSignalHandlerCarriesTheSignaledEventsMarker() {
+    List<HistoryEvent> events = catchAllSignalHistory();
+
+    // EG-IMPLICIT-20: A catch-all signal handler carries the signaled event's marker
+    HistoryEvent fromSignal =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-catch-all-signal");
+    assertEquals(signaledEventId(events, "non-existent-signal"), inboundEventId(fromSignal));
+    assertLabelGroups(fromSignal);
+  }
+
+  private List<HistoryEvent> catchAllSignalHistory() {
+    CatchAllSignalWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(CatchAllSignalWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    WorkflowStub.fromTyped(workflow).signal("non-existent-signal");
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface CatchAllSignalWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class CatchAllSignalWorkflowImpl implements CatchAllSignalWorkflow {
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      Workflow.registerListener(
+          (DynamicSignalHandler)
+              (name, args) -> {
+                Workflow.sleep(Duration.ofMillis(1), timer(null, "from-catch-all-signal"));
+                handled = true;
+              });
+      Workflow.await(() -> handled);
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void implicitScopeOnStaticallyDeclaredUpdateHandlerExistsAndComposesAppropriately() {
+    List<HistoryEvent> events = staticUpdateHistory();
+    String updateId = acceptedUpdateId(events, "myUpdate");
+
+    // EG-IMPLICIT-50: A statically declared update handler carries the update ID
+    HistoryEvent fromUpdate = require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-update");
+    assertEquals(updateId, inboundUpdateId(fromUpdate));
+    assertLabelGroups(fromUpdate);
+
+    // EG-IMPLICIT-51: An explicit scope composes with a statically declared update handler's
+    // implicit scope
+    HistoryEvent inScope =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-update-in-scope");
+    assertEquals(updateId, inboundUpdateId(inScope));
+    assertLabelGroups(inScope, "inside");
+
+    // EG-IMPLICIT-80: Update implicit scope does not leak to commands in the Workflow main function
+    assertNoMarkers(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-main-before-update"));
+    assertNoMarkers(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-main-after-update"));
+  }
+
+  private List<HistoryEvent> staticUpdateHistory() {
+    StaticUpdateWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(StaticUpdateWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    workflow.myUpdate();
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface StaticUpdateWorkflow {
+    @WorkflowMethod
+    void execute();
+
+    @UpdateMethod(name = "myUpdate")
+    void myUpdate();
+  }
+
+  public static class StaticUpdateWorkflowImpl implements StaticUpdateWorkflow {
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "from-main-before-update"));
+      Workflow.await(() -> handled);
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "from-main-after-update"));
+    }
+
+    @Override
+    public void myUpdate() {
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "from-update"));
+      Workflow.newEventGroup("inside")
+          .run(() -> Workflow.sleep(Duration.ofMillis(1), timer(null, "from-update-in-scope")));
+      handled = true;
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void implicitScopeOnRuntimeRegisteredUpdateHandlerExistsAndComposesAppropriately()
+      throws InterruptedException {
+    List<HistoryEvent> events = runtimeUpdateHistory();
+    String updateId = acceptedUpdateId(events, "myUpdate");
+
+    // EG-IMPLICIT-60: A runtime-registered update handler does not inherit its registration scope
+    HistoryEvent fromUpdate =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-runtime-update");
+    assertEquals(updateId, inboundUpdateId(fromUpdate));
+    assertLabelGroups(fromUpdate);
+
+    // EG-IMPLICIT-61: An explicit scope composes with a runtime-registered update handler's
+    // implicit scope
+    HistoryEvent inScope =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-runtime-update-in-scope");
+    assertEquals(updateId, inboundUpdateId(inScope));
+    assertLabelGroups(inScope, "inside");
+  }
+
+  private List<HistoryEvent> runtimeUpdateHistory() throws InterruptedException {
+    RuntimeUpdateWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(RuntimeUpdateWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    // Updates are rejected until a handler is registered.
+    assertTrue(activities.handlerRegistered.await(10, TimeUnit.SECONDS));
+    WorkflowStub.fromTyped(workflow).update("myUpdate", Void.class);
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface RuntimeUpdateWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class RuntimeUpdateWorkflowImpl implements RuntimeUpdateWorkflow {
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      EventGroup outside = Workflow.newEventGroup("outside");
+      EventGroup inside = Workflow.newEventGroup("inside");
+      outside.run(
+          () ->
+              Workflow.registerListener(
+                  (MyUpdateListener)
+                      () -> {
+                        Workflow.sleep(Duration.ofMillis(1), timer(null, "from-runtime-update"));
+                        inside.run(
+                            () ->
+                                Workflow.sleep(
+                                    Duration.ofMillis(1),
+                                    timer(null, "from-runtime-update-in-scope")));
+                        handled = true;
+                      }));
+      Workflow.newActivityStub(
+              EventGroupActivities.class, activity(null, "activity-handler-registered"))
+          .handlerRegistered();
+      Workflow.await(() -> handled);
+    }
+  }
+
+  @WorkflowInterface
+  public interface MyUpdateListener {
+    @UpdateMethod(name = "myUpdate")
+    void myUpdate();
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void aCatchAllUpdateHandlerCarriesTheUpdateId() throws InterruptedException {
+    List<HistoryEvent> events = catchAllUpdateHistory();
+
+    // EG-IMPLICIT-70: A catch-all update handler carries the update ID
+    HistoryEvent fromUpdate =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "from-catch-all-update");
+    assertEquals(acceptedUpdateId(events, "non-existent-update"), inboundUpdateId(fromUpdate));
+    assertLabelGroups(fromUpdate);
+  }
+
+  private List<HistoryEvent> catchAllUpdateHistory() throws InterruptedException {
+    CatchAllUpdateWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(CatchAllUpdateWorkflow.class);
+    WorkflowClient.start(workflow::execute);
+    // Updates are rejected until a handler is registered.
+    assertTrue(activities.handlerRegistered.await(10, TimeUnit.SECONDS));
+    WorkflowStub.fromTyped(workflow).update("non-existent-update", Void.class);
+    WorkflowStub.fromTyped(workflow).getResult(Void.class);
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface CatchAllUpdateWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class CatchAllUpdateWorkflowImpl implements CatchAllUpdateWorkflow {
+    private boolean handled;
+
+    @Override
+    public void execute() {
+      Workflow.registerListener(
+          (DynamicUpdateHandler)
+              (name, args) -> {
+                Workflow.sleep(Duration.ofMillis(1), timer(null, "from-catch-all-update"));
+                handled = true;
+                return null;
+              });
+      Workflow.newActivityStub(
+              EventGroupActivities.class, activity(null, "activity-handler-registered"))
+          .handlerRegistered();
+      Workflow.await(() -> handled);
+    }
+  }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
   // 5. Event Group Marker Aggregation (`EG-AGGREGATION`)
@@ -1324,12 +1738,16 @@ public class EventGroupsTest {
 
     @ActivityMethod(name = "backoff-local-activity-fail-first-attempt")
     void failFirstAttempt();
+
+    @ActivityMethod(name = "activity-handler-registered")
+    void handlerRegistered();
   }
 
   public static class Activities implements EventGroupActivities {
     // Released after the workflow returns, so the cancelled activity does not complete into a
     // workflow task that is still running.
     private CountDownLatch hold = new CountDownLatch(1);
+    private CountDownLatch handlerRegistered = new CountDownLatch(1);
 
     @Override
     public void run() {}
@@ -1354,6 +1772,11 @@ public class EventGroupsTest {
       if (Activity.getExecutionContext().getInfo().getAttempt() == 1) {
         throw ApplicationFailure.newFailure("flaky activity failing on purpose", "flaky");
       }
+    }
+
+    @Override
+    public void handlerRegistered() {
+      handlerRegistered.countDown();
     }
   }
 
@@ -1424,6 +1847,60 @@ public class EventGroupsTest {
     }
     return DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
         marker.getLabel().getLabel(), String.class, String.class);
+  }
+
+  private static void assertNoMarkers(HistoryEvent event) {
+    assertEquals(Collections.emptyList(), event.getEventGroupMarkersList());
+  }
+
+  private static long inboundEventId(HistoryEvent event) {
+    List<Long> ids = new ArrayList<>();
+    for (EventGroupMarker marker : event.getEventGroupMarkersList()) {
+      if (marker.hasInboundEvent()) {
+        ids.add(marker.getInboundEvent().getInboundEventId());
+      }
+    }
+    assertEquals(1, ids.size());
+    return ids.get(0);
+  }
+
+  private static String inboundUpdateId(HistoryEvent event) {
+    List<String> ids = new ArrayList<>();
+    for (EventGroupMarker marker : event.getEventGroupMarkersList()) {
+      if (marker.hasInboundUpdate()) {
+        ids.add(marker.getInboundUpdate().getInboundUpdateId());
+      }
+    }
+    assertEquals(1, ids.size());
+    return ids.get(0);
+  }
+
+  private static long signaledEventId(List<HistoryEvent> events, String signalName) {
+    for (HistoryEvent event : events) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED
+          && signalName.equals(
+              event.getWorkflowExecutionSignaledEventAttributes().getSignalName())) {
+        return event.getEventId();
+      }
+    }
+    fail("no signal named " + signalName);
+    return 0;
+  }
+
+  private static String acceptedUpdateId(List<HistoryEvent> events, String updateName) {
+    for (HistoryEvent event : events) {
+      if (event.getEventType() == EventType.EVENT_TYPE_WORKFLOW_EXECUTION_UPDATE_ACCEPTED
+          && updateName.equals(
+              event
+                  .getWorkflowExecutionUpdateAcceptedEventAttributes()
+                  .getAcceptedRequest()
+                  .getInput()
+                  .getName())) {
+        return event.getWorkflowExecutionUpdateAcceptedEventAttributes().getProtocolInstanceId();
+      }
+    }
+    fail("no accepted update named " + updateName);
+    return null;
   }
 
   private static String summaryOf(HistoryEvent event) {
