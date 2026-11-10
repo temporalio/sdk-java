@@ -13,7 +13,6 @@ import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -170,7 +169,7 @@ public class GenericHandlerSignalDeduplicationTest {
   public static class TestNexusServiceImpl {
     @TemporalOperation
     public TemporalOperationResult<String> doubleSignal(
-        TemporalOperationStartContext context, TemporalNexusClient client, String targetId) {
+        TemporalNexusClient client, String targetId) {
       client.getWorkflowClient().newUntypedWorkflowStub(targetId).signal("mySignal", targetId);
       // The first signal uses up the invocation's only signal, so a second one is rejected even
       // though it targets a different workflow.
@@ -191,7 +190,7 @@ public class GenericHandlerSignalDeduplicationTest {
 
     @TemporalOperation
     public TemporalOperationResult<String> signalRetry(
-        TemporalOperationStartContext context, TemporalNexusClient client, String targetId) {
+        TemporalNexusClient client, String targetId) {
       client
           .getWorkflowClient()
           .newUntypedWorkflowStub(
@@ -204,7 +203,7 @@ public class GenericHandlerSignalDeduplicationTest {
 
       List<String> requestIds =
           retryRequestIds.computeIfAbsent(targetId, k -> new CopyOnWriteArrayList<>());
-      requestIds.add(context.getRequestId());
+      requestIds.add(Nexus.getInfo().getRequestId());
       if (requestIds.size() == 1) {
         throw new HandlerException(
             HandlerException.ErrorType.INTERNAL,
