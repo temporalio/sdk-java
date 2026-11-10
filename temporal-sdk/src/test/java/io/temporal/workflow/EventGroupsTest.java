@@ -4,12 +4,18 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityCancellationType;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
+import io.temporal.activity.ActivityOptions;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.failure.ActivityFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import java.time.Duration;
@@ -17,6 +23,9 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -28,6 +37,8 @@ import org.junit.Test;
  */
 public class EventGroupsTest {
 
+  private final Activities activities = new Activities();
+
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
@@ -36,8 +47,15 @@ public class EventGroupsTest {
               LabelPayloadWorkflowImpl.class,
               AggregationWorkflowImpl.class,
               TimerCommandWorkflowImpl.class,
-              AwaitWorkflowImpl.class)
+              AwaitWorkflowImpl.class,
+              ActivityCommandWorkflowImpl.class)
+          .setActivityImplementations(activities)
           .build();
+
+  @Before
+  public void resetActivities() {
+    activities.hold = new CountDownLatch(1);
+  }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
   // 1. Explicit Event Groups Marker Label IDs (`EG-LABEL-ID`)
@@ -81,18 +99,18 @@ public class EventGroupsTest {
     public void execute() {
       EventGroup c =
           Workflow.newEventGroup("c-id", EventGroupOptions.newBuilder().setLabel("ccc").build());
-      
+
       // d1 and d2 have different labels but the same ID => same group
       EventGroup d1 =
           Workflow.newEventGroup("d-id", EventGroupOptions.newBuilder().setLabel("ddd1").build());
       EventGroup d2 =
           Workflow.newEventGroup("d-id", EventGroupOptions.newBuilder().setLabel("ddd2").build());
-      
+
       // Same label as c, but different ID => distinct group
       EventGroup notC =
           Workflow.newEventGroup(
               "not-c-id", EventGroupOptions.newBuilder().setLabel("ccc").build());
-      
+
       Workflow.sleep(Duration.ofMillis(1), timer(c, "activity-c"));
       Workflow.sleep(Duration.ofMillis(1), timer(d1, "activity-d1"));
       Workflow.sleep(Duration.ofMillis(1), timer(d2, "activity-d2"));
@@ -208,7 +226,7 @@ public class EventGroupsTest {
           Workflow.newEventGroup("b-id", EventGroupOptions.newBuilder().setLabel("bbb1").build());
       EventGroup b2 =
           Workflow.newEventGroup("b-id", EventGroupOptions.newBuilder().setLabel("bbb2").build());
-      
+
       Workflow.sleep(
           Duration.ofMillis(1),
           TimerOptions.newBuilder()
@@ -306,6 +324,98 @@ public class EventGroupsTest {
     }
   }
 
+  @Test
+  public void activityCommandsCarryMarkers() {
+    List<HistoryEvent> events = activityCommandHistory();
+
+    // EG-COMMANDS-02: Activity commands carry markers
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, "activity"), "direct");
+  }
+
+  @Test
+  public void activityCancellationCommandsCarryTheActivitysMarkers() {
+    List<HistoryEvent> events = activityCommandHistory();
+
+    // EG-COMMANDS-02-CANCEL: Activity Cancellation commands carry Activity's markers
+    assertLabelGroups(
+        require(
+            events, EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, "activity-cancelled-sleep-5s"),
+        "direct");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null), "direct");
+  }
+
+  private List<HistoryEvent> activityCommandHistory() {
+    ActivityCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ActivityCommandWorkflow.class);
+    try {
+      workflow.execute();
+    } finally {
+      activities.hold.countDown();
+    }
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ActivityCommandWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ActivityCommandWorkflowImpl implements ActivityCommandWorkflow {
+    @Override
+    public void execute() {
+      EventGroup direct = Workflow.newEventGroup("direct");
+      Workflow.newActivityStub(EventGroupActivities.class, activity(direct, "activity")).run();
+
+      CancellationScope cancellation =
+          Workflow.newCancellationScope(
+              () ->
+                  Workflow.newActivityStub(
+                          EventGroupActivities.class,
+                          activity(direct, "activity-cancelled-sleep-5s").toBuilder()
+                              .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+                              .build())
+                      .sleepUntilCancelled());
+      Promise<Void> running = Async.procedure(cancellation::run);
+      // A Workflow Task boundary so the schedule command reaches the server before cancellation.
+      Workflow.sleep(Duration.ofMillis(1));
+      cancellation.cancel();
+      swallowCancellation(running);
+    }
+  }
+
+  @ActivityInterface
+  public interface EventGroupActivities {
+    @ActivityMethod(name = "activity")
+    void run();
+
+    @ActivityMethod(name = "activity-cancelled-sleep-5s")
+    void sleepUntilCancelled();
+  }
+
+  public static class Activities implements EventGroupActivities {
+    // Released after the workflow returns, so the cancelled activity does not complete into a
+    // workflow task that is still running.
+    private CountDownLatch hold = new CountDownLatch(1);
+
+    @Override
+    public void run() {}
+
+    @Override
+    public void sleepUntilCancelled() {
+      try {
+        if (!hold.await(15, TimeUnit.SECONDS)) {
+          throw new IllegalStateException("cancelled activity was not released");
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw Activity.wrap(e);
+      }
+    }
+  }
+
   ////////////////////////////////////////////////////////////////////////////////////////////////////
   // HISTORY HELPERS
   ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -393,6 +503,15 @@ public class EventGroupsTest {
     }
   }
 
+  private static ActivityOptions activity(EventGroup direct, String summary) {
+    return ActivityOptions.newBuilder()
+        .setScheduleToStartTimeout(Duration.ofSeconds(10))
+        .setStartToCloseTimeout(Duration.ofSeconds(20))
+        .setSummary(summary)
+        .addEventGroups(direct)
+        .build();
+  }
+
   private static TimerOptions timer(EventGroup direct, String summary) {
     TimerOptions.Builder builder = TimerOptions.newBuilder().setSummary(summary);
     if (direct != null) {
@@ -404,7 +523,7 @@ public class EventGroupsTest {
   private static void swallowCancellation(Promise<Void> promise) {
     try {
       promise.get();
-    } catch (CanceledFailure expected) {
+    } catch (CanceledFailure | ActivityFailure expected) {
       // The cancelled command's failure is the point of the test.
     }
   }

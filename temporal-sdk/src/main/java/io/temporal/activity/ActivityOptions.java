@@ -5,8 +5,10 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.*;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.failure.CanceledFailure;
+import io.temporal.workflow.EventGroup;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** Options used to configure how an activity is invoked. */
@@ -47,6 +49,7 @@ public final class ActivityOptions {
     private VersioningIntent versioningIntent;
 
     private String summary;
+    private List<EventGroup> eventGroups;
     private Priority priority;
 
     private Builder() {}
@@ -66,6 +69,9 @@ public final class ActivityOptions {
       this.disableEagerExecution = options.disableEagerExecution;
       this.versioningIntent = options.versioningIntent;
       this.summary = options.summary;
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
       this.priority = options.priority;
     }
 
@@ -244,6 +250,23 @@ public final class ActivityOptions {
     }
 
     /**
+     * Event Groups to associate with this activity. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(java.util.Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
+    /**
      * Optional priority settings that control relative ordering of task processing when tasks are
      * backed up in a queue.
      *
@@ -289,6 +312,13 @@ public final class ActivityOptions {
         this.versioningIntent = override.versioningIntent;
       }
       this.summary = (override.summary == null) ? this.summary : override.summary;
+      if (!override.eventGroups.isEmpty()) {
+        if (this.eventGroups == null) {
+          this.eventGroups = new ArrayList<>(override.eventGroups);
+        } else {
+          this.eventGroups.addAll(override.eventGroups);
+        }
+      }
       this.priority = (override.priority == null) ? this.priority : override.priority;
       return this;
     }
@@ -314,6 +344,7 @@ public final class ActivityOptions {
           disableEagerExecution,
           versioningIntent,
           summary,
+          eventGroups,
           priority);
     }
 
@@ -333,6 +364,7 @@ public final class ActivityOptions {
               ? VersioningIntent.VERSIONING_INTENT_UNSPECIFIED
               : versioningIntent,
           summary,
+          eventGroups,
           priority);
     }
   }
@@ -351,6 +383,7 @@ public final class ActivityOptions {
   private final VersioningIntent versioningIntent;
 
   private final String summary;
+  private final List<EventGroup> eventGroups;
   private final Priority priority;
 
   private ActivityOptions(
@@ -365,6 +398,7 @@ public final class ActivityOptions {
       boolean disableEagerExecution,
       @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
       String summary,
+      List<EventGroup> eventGroups,
       Priority priority) {
     this.heartbeatTimeout = heartbeatTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
@@ -377,6 +411,10 @@ public final class ActivityOptions {
     this.disableEagerExecution = disableEagerExecution;
     this.versioningIntent = versioningIntent;
     this.summary = summary;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
     this.priority = priority;
   }
 
@@ -454,6 +492,14 @@ public final class ActivityOptions {
     return summary;
   }
 
+  /**
+   * @see ActivityOptions.Builder#addEventGroups(EventGroup...)
+   */
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
+
   public Priority getPriority() {
     return priority;
   }
@@ -478,6 +524,7 @@ public final class ActivityOptions {
         && disableEagerExecution == that.disableEagerExecution
         && versioningIntent == that.versioningIntent
         && Objects.equal(summary, that.summary)
+        && Objects.equal(eventGroups, that.eventGroups)
         && Objects.equal(priority, that.priority);
   }
 
@@ -495,6 +542,7 @@ public final class ActivityOptions {
         disableEagerExecution,
         versioningIntent,
         summary,
+        eventGroups,
         priority);
   }
 
@@ -524,6 +572,8 @@ public final class ActivityOptions {
         + versioningIntent
         + ", summary="
         + summary
+        + ", eventGroups="
+        + eventGroups
         + ", priority="
         + priority
         + '}';
