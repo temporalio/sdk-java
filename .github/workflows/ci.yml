@@ -275,6 +275,7 @@ jobs:
     needs:
       - unit_test_edge
       - unit_test_jdk8
+      - unit_test_cloud
       - code_format
       - features-test
     runs-on: ubuntu-latest
