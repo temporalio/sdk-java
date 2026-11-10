@@ -9,7 +9,6 @@ import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -134,10 +133,7 @@ public class TemporalOperationProcessorTest {
   public void rejects_badArity() {
     IllegalArgumentException e =
         assertInvalid(() -> TemporalOperationProcessor.process(new BadArity()));
-    Assert.assertTrue(
-        e.getMessage(),
-        e.getMessage()
-            .contains("must accept (TemporalOperationStartContext, TemporalNexusClient, I)"));
+    Assert.assertTrue(e.getMessage(), e.getMessage().contains("TemporalNexusClient, I)"));
   }
 
   @Test
@@ -181,8 +177,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class ValidSugar {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -190,7 +185,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class BadReturnType {
     @TemporalOperation
-    public String op(TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public String op(TemporalNexusClient client, String input) {
       return input;
     }
   }
@@ -198,7 +193,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class BadArity {
     @TemporalOperation
-    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -207,9 +202,7 @@ public class TemporalOperationProcessorTest {
   public static class CompositeOk {
     @TemporalOperation
     public TemporalOperationResult<java.util.List<String>> compose(
-        TemporalOperationStartContext ctx,
-        TemporalNexusClient client,
-        java.util.Map<String, Integer> input) {
+        TemporalNexusClient client, java.util.Map<String, Integer> input) {
       return TemporalOperationResult.sync(java.util.Collections.emptyList());
     }
   }
@@ -219,9 +212,7 @@ public class TemporalOperationProcessorTest {
     // Map value type is String instead of Integer.
     @TemporalOperation
     public TemporalOperationResult<java.util.List<String>> compose(
-        TemporalOperationStartContext ctx,
-        TemporalNexusClient client,
-        java.util.Map<String, String> input) {
+        TemporalNexusClient client, java.util.Map<String, String> input) {
       return TemporalOperationResult.sync(java.util.Collections.emptyList());
     }
   }
@@ -231,9 +222,7 @@ public class TemporalOperationProcessorTest {
     // Result list element type is Integer instead of String.
     @TemporalOperation
     public TemporalOperationResult<java.util.List<Integer>> compose(
-        TemporalOperationStartContext ctx,
-        TemporalNexusClient client,
-        java.util.Map<String, Integer> input) {
+        TemporalNexusClient client, java.util.Map<String, Integer> input) {
       return TemporalOperationResult.sync(java.util.Collections.emptyList());
     }
   }
@@ -242,8 +231,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class RawReturnType {
     @TemporalOperation
-    public TemporalOperationResult op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -251,8 +239,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class NonPublicMethod {
     @TemporalOperation
-    TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -260,8 +247,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class StaticMethod {
     @TemporalOperation
-    public static TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public static TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -291,8 +277,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = VoidIoService.class)
   public static class VoidIo {
     @TemporalOperation
-    public TemporalOperationResult<Void> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, Void input) {
+    public TemporalOperationResult<Void> op(TemporalNexusClient client, Void input) {
       return TemporalOperationResult.sync(null);
     }
   }
@@ -300,8 +285,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class DeclaresCheckedException {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input)
         throws java.io.IOException {
       return TemporalOperationResult.sync(input);
     }
@@ -310,8 +294,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class DeclaresRuntimeException {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input)
         throws IllegalStateException {
       return TemporalOperationResult.sync(input);
     }
@@ -320,8 +303,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class DeclaresNexusrpcCheckedExceptions {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input)
         throws io.nexusrpc.OperationException, io.nexusrpc.handler.HandlerException {
       return TemporalOperationResult.sync(input);
     }
