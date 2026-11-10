@@ -16,7 +16,6 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.CancelActivityExecutionInput;
-import io.temporal.nexus.TemporalOperationCancelContext;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
@@ -255,8 +254,7 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                       .build())) {
         @Override
-        protected void cancelActivityExecution(
-            TemporalOperationCancelContext ctx, CancelActivityExecutionInput input) {
+        protected void cancelActivityExecution(CancelActivityExecutionInput input) {
           customCancelInvoked.set(true);
           // Intentionally do NOT invoke default cancel; the activity will self-terminate via
           // startToCloseTimeout.
