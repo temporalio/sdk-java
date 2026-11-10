@@ -45,6 +45,7 @@ import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -103,7 +104,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
                             null,
                             false,
                             Duration.ZERO,
-                            null),
+                            null,
+                            Collections.emptyList()),
                         (result, failure) -> {});
               }
               return false;
@@ -457,7 +459,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null,
             false,
             null,
-            null);
+            null,
+            Collections.emptyList());
     laMeteringHelper.addNewLocalActivity(executeLA);
     laMeteringHelper.addNewLocalActivity(
         new ExecuteLocalActivityParameters(
@@ -467,7 +470,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             null,
             false,
             null,
-            null));
+            null,
+            Collections.emptyList()));
     for (int i = 0; i < 5; i++) {
       executeLA.getOnNewAttemptCallback().apply();
     }

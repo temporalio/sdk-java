@@ -23,6 +23,7 @@ import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,7 +84,8 @@ public class LocalActivityStateMachineTest {
                 null,
                 true,
                 null,
-                null);
+                null,
+                Collections.emptyList());
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -94,7 +96,8 @@ public class LocalActivityStateMachineTest {
                 null,
                 false,
                 null,
-                null);
+                null,
+                Collections.emptyList());
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -105,7 +108,8 @@ public class LocalActivityStateMachineTest {
                 null,
                 true,
                 null,
-                null);
+                null,
+                Collections.emptyList());
 
         builder
             .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
@@ -287,7 +291,8 @@ public class LocalActivityStateMachineTest {
                 null,
                 false,
                 null,
-                null);
+                null,
+                Collections.emptyList());
         builder
             .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
@@ -353,7 +358,8 @@ public class LocalActivityStateMachineTest {
                 null,
                 false,
                 null,
-                null);
+                null,
+                Collections.emptyList());
         // TODO: This is a workaround for the lack of support for child workflow in the test
         // framework.
         // The test framework has no support for state machines with multiple callbacks.

@@ -519,7 +519,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   (LocalActivityCallback.LocalActivityFailedException) e;
               @Nullable Duration backoff = laException.getBackoff();
               if (backoff != null) {
-                WorkflowInternal.newTimer(backoff)
+                WorkflowInternal.newTimer(
+                        backoff,
+                        TimerOptions.newBuilder()
+                            .addEventGroups(options.getEventGroups().toArray(new EventGroup[0]))
+                            .build())
                     .thenApply(
                         unused -> {
                           executeLocalActivityOverLocalRetryThreshold(
@@ -733,7 +737,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         previousExecutionFailure,
         options.isDoNotIncludeArgumentsIntoMarker(),
         localRetryThreshold,
-        userMetadata);
+        userMetadata,
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   @Override

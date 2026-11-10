@@ -11,6 +11,7 @@ import io.temporal.api.failure.v1.ActivityFailureInfo;
 import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCanceledRequest;
 import io.temporal.api.workflowservice.v1.RespondActivityTaskCompletedRequest;
@@ -21,6 +22,7 @@ import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.workflow.Functions;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,7 @@ final class LocalActivityStateMachine
 
   private ExecuteLocalActivityParameters localActivityParameters;
   private @Nullable UserMetadata userMetadata;
+  private final List<EventGroupMarker> eventGroupMarkers;
   private final Functions.Func<Boolean> replaying;
 
   /** Accepts proposed current time. Returns accepted current time. */
@@ -194,6 +197,7 @@ final class LocalActivityStateMachine
     this.setCurrentTimeCallback = setCurrentTimeCallback;
     this.localActivityParameters = localActivityParameters;
     this.userMetadata = localActivityParameters.getMetadata();
+    this.eventGroupMarkers = localActivityParameters.getEventGroupMarkers();
     this.activityId = localActivityParameters.getActivityId();
     this.activityType = localActivityParameters.getActivityType();
     this.originalScheduledTimestamp = localActivityParameters.getOriginalScheduledTimestamp();
@@ -328,7 +332,8 @@ final class LocalActivityStateMachine
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-            .setRecordMarkerCommandAttributes(markerAttributes.build());
+            .setRecordMarkerCommandAttributes(markerAttributes.build())
+            .addAllEventGroupMarkers(eventGroupMarkers);
     if (userMetadata != null) {
       command.setUserMetadata(userMetadata);
       userMetadata = null;
