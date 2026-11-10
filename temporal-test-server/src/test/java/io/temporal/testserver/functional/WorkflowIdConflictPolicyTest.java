@@ -112,7 +112,7 @@ public class WorkflowIdConflictPolicyTest {
                     .setNexus(
                         Callback.Nexus.newBuilder()
                             .setUrl("http://localhost:7243/test")
-                            .putHeader("operation-reference", ref.toBytes().toStringUtf8())))
+                            .putHeader("operation-reference", ref.toHeaderValue())))
             .addLinks(
                 Link.newBuilder()
                     .setWorkflowEvent(
