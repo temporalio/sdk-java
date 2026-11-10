@@ -132,6 +132,9 @@ final class MutableSideEffectStateMachine {
 
     void notifySkippedReplaying() {
       if (getState() == State.RESULT_NOTIFIED_REPLAYING) {
+        // No marker event accounts for this skip. Count it before the callback can make another
+        // call.
+        currentSkipCount++;
         explicitEvent(ExplicitEvent.NON_MATCHING_EVENT);
       }
     }

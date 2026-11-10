@@ -308,6 +308,136 @@ public class MutableSideEffectStateMachineTest {
   }
 
   @Test
+  public void testChangedMarkerAfterTwoRecoveredSkips() {
+    assertChangedMarkerAfterTwoRecoveredSkips(false);
+    assertChangedMarkerAfterTwoRecoveredSkips(true);
+  }
+
+  private void assertChangedMarkerAfterTwoRecoveredSkips(boolean skipsInOneTask) {
+    List<String> results = new ArrayList<>();
+    List<String> supplierCalls = new ArrayList<>();
+    boolean[] live = {true};
+    class TestListener extends TestEntityManagerListenerBase {
+      @Override
+      protected void buildWorkflow(AsyncWorkflowBuilder<Void> builder) {
+        read(builder, "old");
+      }
+
+      @Override
+      protected void signal(HistoryEvent event, AsyncWorkflowBuilder<Void> builder) {
+        if (event.getWorkflowExecutionSignaledEventAttributes().getSignalName().equals("skip")) {
+          AsyncWorkflowBuilder<Optional<Payloads>> skipped = read(builder, null);
+          if (skipsInOneTask) {
+            read(skipped, null);
+          }
+        } else {
+          read(builder, "new").add(stateMachines::completeWorkflow);
+        }
+      }
+
+      private <T> AsyncWorkflowBuilder<Optional<Payloads>> read(
+          AsyncWorkflowBuilder<T> builder, String changedValue) {
+        return builder
+            .<Optional<Payloads>>add1(
+                (v, callback) ->
+                    stateMachines.mutableSideEffect(
+                        "id1",
+                        null,
+                        previous -> {
+                          assertTrue("Replay must not execute the supplier", live[0]);
+                          supplierCalls.add(changedValue);
+                          return changedValue == null
+                              ? Optional.empty()
+                              : converter.toPayloads(changedValue);
+                        },
+                        callback))
+            .add(
+                result ->
+                    results.add(converter.fromPayloads(0, result, String.class, String.class)));
+      }
+    }
+    MarkerRecordedEventAttributes.Builder marker =
+        MarkerRecordedEventAttributes.newBuilder()
+            .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
+            .putDetails(MARKER_ID_KEY, converter.toPayloads("id1").get());
+    TestHistoryBuilder history =
+        new TestHistoryBuilder()
+            .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_STARTED)
+            .addWorkflowTaskScheduledAndStarted()
+            .add(
+                EventType.EVENT_TYPE_WORKFLOW_TASK_COMPLETED,
+                WorkflowTaskCompletedEventAttributes.newBuilder()
+                    .setScheduledEventId(2)
+                    .setStartedEventId(3)
+                    .setSdkMetadata(
+                        WorkflowTaskCompletedMetadata.newBuilder()
+                            .addLangUsedFlags(
+                                SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY.getValue()))
+                    .build())
+            .add(
+                EventType.EVENT_TYPE_MARKER_RECORDED,
+                marker
+                    .putDetails(MARKER_DATA_KEY, converter.toPayloads("old").get())
+                    .putDetails(MARKER_SKIP_COUNT_KEY, converter.toPayloads(0).get())
+                    .build());
+    int skipTasks = skipsInOneTask ? 1 : 2;
+    for (int skip = 0; skip < skipTasks; skip++) {
+      history
+          .add(
+              EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+              WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("skip").build())
+          .addWorkflowTask();
+    }
+    history
+        .add(
+            EventType.EVENT_TYPE_WORKFLOW_EXECUTION_SIGNALED,
+            WorkflowExecutionSignaledEventAttributes.newBuilder().setSignalName("change").build())
+        .addWorkflowTask()
+        .add(
+            EventType.EVENT_TYPE_MARKER_RECORDED,
+            marker
+                .putDetails(MARKER_DATA_KEY, converter.toPayloads("new").get())
+                .putDetails(MARKER_SKIP_COUNT_KEY, converter.toPayloads(2).get())
+                .build())
+        .add(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_COMPLETED);
+
+    stateMachines = newStateMachines(new TestListener());
+    assertCommand(
+        CommandType.COMMAND_TYPE_RECORD_MARKER,
+        history.handleWorkflowTaskTakeCommands(stateMachines, 1));
+    int changeTask = skipTasks + 2;
+    for (int task = 2; task < changeTask; task++) {
+      assertTrue(history.handleWorkflowTaskTakeCommands(stateMachines, task).isEmpty());
+    }
+    List<Command> commands = history.handleWorkflowTaskTakeCommands(stateMachines, changeTask);
+    assertEquals(2, commands.size());
+    assertEquals(
+        converter.toPayloads(2).get(),
+        commands
+            .get(0)
+            .getRecordMarkerCommandAttributes()
+            .getDetailsOrThrow(MARKER_SKIP_COUNT_KEY));
+    List<String> expected = Arrays.asList("old", "old", "old", "new");
+    assertEquals(expected, results);
+
+    live[0] = false;
+    results.clear();
+    stateMachines = newStateMachines(new TestListener());
+    assertTrue(history.handleWorkflowTaskTakeCommands(stateMachines).isEmpty());
+    assertEquals(expected, results);
+
+    // Resume live execution after replaying the recovered skips. The new marker must have the
+    // same skip count and result as an execution that remained cached.
+    live[0] = true;
+    results.clear();
+    supplierCalls.clear();
+    stateMachines = newStateMachines(new TestListener());
+    assertEquals(commands, history.handleWorkflowTaskTakeCommands(stateMachines, changeTask));
+    assertEquals(expected, results);
+    assertEquals(Collections.singletonList("new"), supplierCalls);
+  }
+
+  @Test
   public void testRecoveryFlagIsRecordedAtMutableSideEffectCall() {
     class TestListener extends TestEntityManagerListenerBase {
       @Override

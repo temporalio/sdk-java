@@ -45,6 +45,40 @@ public class MutableSideEffectReplayTest {
   }
 
   @Test
+  public void changedValueAfterTwoRecoveredSkipsSurvivesFullReplay() throws Exception {
+    List<SdkFlag> savedInitialFlags = WorkflowStateMachines.initialFlags;
+    List<SdkFlag> enabledFlags = new ArrayList<>(savedInitialFlags);
+    enabledFlags.add(SdkFlag.MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY);
+    WorkflowStateMachines.initialFlags = Collections.unmodifiableList(enabledFlags);
+    try {
+      SkippedMutableSideEffectWorkflow workflow =
+          testWorkflowRule.newWorkflowStubTimeoutOptions(SkippedMutableSideEffectWorkflow.class);
+      WorkflowClient.start(workflow::run);
+      assertEquals("1", workflow.getValues());
+      workflow.setValue(1);
+      assertEquals("1,1", workflow.getValues());
+      workflow.setValue(1);
+      assertEquals("1,1,1", workflow.getValues());
+      workflow.setValue(2);
+      assertEquals("1,1,1,2", workflow.getValues());
+
+      // The cached writer recorded the changed marker with skipCount=2. Replay must return its
+      // payload, not the cached value from before the two commandless skipped tasks.
+      testWorkflowRule.invalidateWorkflowCache();
+      workflow.setValue(3);
+      assertEquals(
+          "1,1,1,2",
+          WorkflowStub.fromTyped(workflow).getResult(10, TimeUnit.SECONDS, String.class));
+      WorkflowReplayer.replayWorkflowExecution(
+          testWorkflowRule.getExecutionHistory(
+              WorkflowStub.fromTyped(workflow).getExecution().getWorkflowId()),
+          SkippedMutableSideEffectWorkflowImpl.class);
+    } finally {
+      WorkflowStateMachines.initialFlags = savedInitialFlags;
+    }
+  }
+
+  @Test
   public void replayHistoryWrittenWithoutEviction() throws Exception {
     assertFalse(
         "The recovery flag must remain disabled by default in its first release",
