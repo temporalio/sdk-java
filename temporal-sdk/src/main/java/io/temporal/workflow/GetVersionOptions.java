@@ -39,7 +39,8 @@ public final class GetVersionOptions {
     }
 
     /**
-     * Event Groups to associate with the version marker. Calls accumulate.
+     * Event Groups to associate with the version marker, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */

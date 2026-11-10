@@ -53,7 +53,8 @@ public final class CancelExternalWorkflowOptions {
     }
 
     /**
-     * Event Groups to associate with the cancellation request command. Calls accumulate.
+     * Event Groups to associate with the cancellation request command, in addition to those in
+     * scope. Calls accumulate.
      *
      * @see EventGroup
      */

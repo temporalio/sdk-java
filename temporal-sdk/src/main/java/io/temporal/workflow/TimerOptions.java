@@ -52,7 +52,7 @@ public final class TimerOptions {
     }
 
     /**
-     * Event Groups to associate with this timer. Calls accumulate.
+     * Event Groups to associate with this timer, in addition to those in scope. Calls accumulate.
      *
      * @see EventGroup
      */

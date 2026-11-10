@@ -250,7 +250,8 @@ public final class ActivityOptions {
     }
 
     /**
-     * Event Groups to associate with this activity. Calls accumulate.
+     * Event Groups to associate with this activity, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */

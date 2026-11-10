@@ -181,7 +181,8 @@ public final class LocalActivityOptions {
     }
 
     /**
-     * Event Groups to associate with this local activity. Calls accumulate.
+     * Event Groups to associate with this local activity, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */

@@ -44,7 +44,8 @@ public final class UpsertSearchAttributesOptions {
     }
 
     /**
-     * Event Groups to associate with the search attributes update. Calls accumulate.
+     * Event Groups to associate with the search attributes update, in addition to those in scope.
+     * Calls accumulate.
      *
      * @see EventGroup
      */

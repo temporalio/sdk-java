@@ -13,6 +13,7 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.workflow.EventGroup;
 import io.temporal.workflow.EventGroupOptions;
+import io.temporal.workflow.Functions;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,7 +34,7 @@ public class EventGroupImplTest {
   @Test
   public void idIsUsedVerbatim() {
     List<EventGroupMarker> markers =
-        EventGroupImpl.toMarkers(Collections.singletonList(group("c-id", "ccc")), CONVERTER);
+        EventGroupScope.EMPTY.toMarkers(Collections.singletonList(group("c-id", "ccc")), CONVERTER);
 
     assertEquals(1, markers.size());
     assertEquals("c-id", markers.get(0).getLabel().getId());
@@ -48,7 +49,8 @@ public class EventGroupImplTest {
   @Test
   public void labelConvertsToJsonString() {
     Payload payload =
-        EventGroupImpl.toMarkers(Collections.singletonList(group("bbb", "Label B")), CONVERTER)
+        EventGroupScope.EMPTY
+            .toMarkers(Collections.singletonList(group("bbb", "Label B")), CONVERTER)
             .get(0)
             .getLabel()
             .getLabel();
@@ -65,7 +67,8 @@ public class EventGroupImplTest {
   @Test
   public void omittedLabelProducesNoPayload() {
     EventGroupMarker marker =
-        EventGroupImpl.toMarkers(
+        EventGroupScope.EMPTY
+            .toMarkers(
                 Collections.singletonList(WorkflowInternal.newEventGroup("aaa", null)), CONVERTER)
             .get(0);
 
@@ -79,7 +82,8 @@ public class EventGroupImplTest {
             CONVERTER, Collections.singletonList(new CodecDataConverterTest.PrefixPayloadCodec()));
 
     EventGroupMarker marker =
-        EventGroupImpl.toMarkers(Collections.singletonList(group("bbb", "Label B")), codecConverter)
+        EventGroupScope.EMPTY
+            .toMarkers(Collections.singletonList(group("bbb", "Label B")), codecConverter)
             .get(0);
 
     assertEquals("bbb", marker.getLabel().getId());
@@ -91,7 +95,7 @@ public class EventGroupImplTest {
   @Test
   public void groupsWithTheSameIdAreRecordedOnceWithTheFirstLabel() {
     List<EventGroupMarker> markers =
-        EventGroupImpl.toMarkers(
+        EventGroupScope.EMPTY.toMarkers(
             Arrays.asList(group("b-id", "bbb1"), group("aaa", null), group("b-id", "bbb2")),
             CONVERTER);
 
@@ -118,10 +122,20 @@ public class EventGroupImplTest {
           public String getLabel() {
             return null;
           }
+
+          @Override
+          public void run(Functions.Proc proc) {
+            throw new UnsupportedOperationException();
+          }
+
+          @Override
+          public <R> R run(Functions.Func<R> func) {
+            throw new UnsupportedOperationException();
+          }
         };
 
     assertThrows(
         IllegalArgumentException.class,
-        () -> EventGroupImpl.toMarkers(Collections.singletonList(foreign), CONVERTER));
+        () -> EventGroupScope.EMPTY.toMarkers(Collections.singletonList(foreign), CONVERTER));
   }
 }

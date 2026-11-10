@@ -37,8 +37,9 @@ to docs, or any other relevant information.
 
 ### Added
 - Experimental Event Groups associate related workflow commands so their history events can be
-  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
-  `addEventGroups` on the command's options.
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it either by running
+  commands inside `EventGroup.run` or by calling `addEventGroups` on the command's options. Signal
+  and update handlers receive an implicit group for the signal event or update that invoked them.
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
   the configured client's payload codec. Only opted-in producers' output is encoded, while
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded

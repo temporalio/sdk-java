@@ -7,12 +7,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.workflow.EventGroup;
-import java.util.ArrayList;
-import java.util.Collection;
+import io.temporal.workflow.Functions;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -29,30 +25,6 @@ final class EventGroupImpl implements EventGroup {
     this.label = label;
   }
 
-  /**
-   * @param groups groups attached to a command, through its options
-   * @param dataConverter converter used to encode labels, including any payload codec
-   */
-  static List<EventGroupMarker> toMarkers(
-      Collection<EventGroup> groups, DataConverter dataConverter) {
-    if (groups.isEmpty()) {
-      return Collections.emptyList();
-    }
-    Map<String, EventGroupImpl> byId = new LinkedHashMap<>();
-    for (EventGroup group : groups) {
-      Preconditions.checkArgument(
-          group instanceof EventGroupImpl,
-          "Event groups must be created with Workflow.newEventGroup, got %s",
-          group);
-      byId.putIfAbsent(group.getId(), (EventGroupImpl) group);
-    }
-    List<EventGroupMarker> markers = new ArrayList<>(byId.size());
-    for (EventGroupImpl group : byId.values()) {
-      markers.add(group.toMarker(dataConverter));
-    }
-    return markers;
-  }
-
   @Nonnull
   @Override
   public String getId() {
@@ -63,6 +35,20 @@ final class EventGroupImpl implements EventGroup {
   @Override
   public String getLabel() {
     return label;
+  }
+
+  @Override
+  public void run(Functions.Proc proc) {
+    run(
+        () -> {
+          proc.apply();
+          return null;
+        });
+  }
+
+  @Override
+  public <R> R run(Functions.Func<R> func) {
+    return EventGroupScope.current().withExplicitGroups(Collections.singletonList(this)).run(func);
   }
 
   /**

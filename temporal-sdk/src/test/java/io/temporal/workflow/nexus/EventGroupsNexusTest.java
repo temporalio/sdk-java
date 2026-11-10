@@ -64,7 +64,8 @@ public class EventGroupsNexusTest extends BaseNexusTest {
     // EG-COMMANDS-05: Nexus Operation commands carry markers
     assertLabelGroups(
         require(events, EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED, "nexus-operation"),
-        "direct");
+        "direct",
+        "scope");
   }
 
   @Test
@@ -75,9 +76,12 @@ public class EventGroupsNexusTest extends BaseNexusTest {
     // markers
     assertLabelGroups(
         require(events, EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED, "nexus-operation-sleep-5s"),
-        "direct");
+        "direct",
+        "scope");
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED, null), "direct");
+        require(events, EventType.EVENT_TYPE_NEXUS_OPERATION_CANCEL_REQUESTED, null),
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> nexusCommandHistory() {
@@ -100,6 +104,7 @@ public class EventGroupsNexusTest extends BaseNexusTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
+      EventGroup scope = Workflow.newEventGroup("scope");
       NexusServiceOptions serviceOptions =
           NexusServiceOptions.newBuilder()
               .setEndpoint(getEndpointName())
@@ -111,24 +116,28 @@ public class EventGroupsNexusTest extends BaseNexusTest {
               .build();
       TestNexusService service =
           Workflow.newNexusServiceStub(TestNexusService.class, serviceOptions);
-      Workflow.startNexusOperation(service::nexusOperation).getResult().get();
+      scope.run(
+          () -> {
+            Workflow.startNexusOperation(service::nexusOperation).getResult().get();
 
-      try {
-        Workflow.newCancellationScope(
-                () -> {
-                  NexusOperationHandle<Void> handle =
-                      Workflow.startNexusOperation(service::nexusOperationSleep5s);
-                  // Cancelling before the operation is scheduled records no cancel-requested event.
-                  handle.getExecution().get();
-                  CancellationScope.current().cancel();
-                  handle.getResult().get();
-                })
-            .run();
-      } catch (NexusOperationFailure expected) {
-        if (!(expected.getCause() instanceof CanceledFailure)) {
-          throw expected;
-        }
-      }
+            try {
+              Workflow.newCancellationScope(
+                      () -> {
+                        NexusOperationHandle<Void> handle =
+                            Workflow.startNexusOperation(service::nexusOperationSleep5s);
+                        // Cancelling before the operation is scheduled records no
+                        // cancel-requested event.
+                        handle.getExecution().get();
+                        CancellationScope.current().cancel();
+                        handle.getResult().get();
+                      })
+                  .run();
+            } catch (NexusOperationFailure expected) {
+              if (!(expected.getCause() instanceof CanceledFailure)) {
+                throw expected;
+              }
+            }
+          });
     }
   }
 
