@@ -384,13 +384,28 @@ public interface WorkflowOutboundCallsInterceptor {
     private final String signalName;
     private final Header header;
     private final Object[] args;
+    private final SignalExternalWorkflowOptions options;
 
+    /**
+     * @deprecated Kept only for backward compatibility.
+     */
+    @Deprecated
     public SignalExternalInput(
         WorkflowExecution execution, String signalName, Header header, Object[] args) {
+      this(execution, signalName, header, args, SignalExternalWorkflowOptions.getDefaultInstance());
+    }
+
+    public SignalExternalInput(
+        WorkflowExecution execution,
+        String signalName,
+        Header header,
+        Object[] args,
+        SignalExternalWorkflowOptions options) {
       this.execution = execution;
       this.signalName = signalName;
       this.header = header;
       this.args = args;
+      this.options = options;
     }
 
     public WorkflowExecution getExecution() {
@@ -408,6 +423,10 @@ public interface WorkflowOutboundCallsInterceptor {
     public Object[] getArgs() {
       return args;
     }
+
+    public SignalExternalWorkflowOptions getOptions() {
+      return options;
+    }
   }
 
   final class SignalExternalOutput {
@@ -424,26 +443,44 @@ public interface WorkflowOutboundCallsInterceptor {
 
   final class CancelWorkflowInput {
     private final WorkflowExecution execution;
-    private final @Nullable String reason;
+    private final CancelExternalWorkflowOptions options;
 
-    // Kept for backward compatibility
+    /**
+     * @deprecated Kept only for backward compatibility.
+     */
     @Deprecated
     public CancelWorkflowInput(WorkflowExecution execution) {
-      this(execution, null);
+      this(execution, CancelExternalWorkflowOptions.getDefaultInstance());
     }
 
+    /**
+     * @deprecated Kept only for backward compatibility.
+     */
+    @Deprecated
     public CancelWorkflowInput(WorkflowExecution execution, @Nullable String reason) {
+      this(execution, CancelExternalWorkflowOptions.newBuilder().setReason(reason).build());
+    }
+
+    public CancelWorkflowInput(WorkflowExecution execution, CancelExternalWorkflowOptions options) {
       this.execution = execution;
-      this.reason = reason;
+      this.options = options;
     }
 
     public WorkflowExecution getExecution() {
       return execution;
     }
 
+    /**
+     * @deprecated Use {@link #getOptions()} and {@link CancelExternalWorkflowOptions#getReason()}.
+     */
+    @Deprecated
     @Nullable
     public String getReason() {
-      return reason;
+      return options.getReason();
+    }
+
+    public CancelExternalWorkflowOptions getOptions() {
+      return options;
     }
   }
 
@@ -814,6 +851,8 @@ public interface WorkflowOutboundCallsInterceptor {
 
   int getVersion(String changeId, int minSupported, int maxSupported);
 
+  int getVersion(String changeId, int minSupported, int maxSupported, GetVersionOptions options);
+
   void continueAsNew(ContinueAsNewInput input);
 
   void registerQuery(RegisterQueryInput input);
@@ -834,7 +873,12 @@ public interface WorkflowOutboundCallsInterceptor {
 
   void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates);
 
+  void upsertTypedSearchAttributes(
+      UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates);
+
   void upsertMemo(Map<String, Object> memo);
+
+  void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options);
 
   /** Intercepts call to get the metric scope in a workflow. */
   Scope getMetricsScope();

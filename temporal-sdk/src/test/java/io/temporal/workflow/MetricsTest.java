@@ -738,7 +738,8 @@ public class MetricsTest {
               input.getExecution(),
               overrideSignalName.apply(input.getSignalName()),
               Header.empty(),
-              overrideArgs.apply(args)));
+              overrideArgs.apply(args),
+              input.getOptions()));
     }
   }
 

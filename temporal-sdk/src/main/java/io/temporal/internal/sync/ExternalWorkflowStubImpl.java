@@ -30,12 +30,17 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    signal(signalName, SignalExternalWorkflowOptions.getDefaultInstance(), args);
+  }
+
+  @Override
+  public void signal(String signalName, SignalExternalWorkflowOptions options, Object... args) {
     assertReadOnly.apply("signal external workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
             .signalExternalWorkflow(
                 new WorkflowOutboundCallsInterceptor.SignalExternalInput(
-                    execution, signalName, Header.empty(), args))
+                    execution, signalName, Header.empty(), args, options))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);
@@ -53,17 +58,22 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
 
   @Override
   public void cancel() {
-    cancel(null);
+    cancel(CancelExternalWorkflowOptions.getDefaultInstance());
   }
 
   @Override
   public void cancel(@Nullable String reason) {
+    cancel(CancelExternalWorkflowOptions.newBuilder().setReason(reason).build());
+  }
+
+  @Override
+  public void cancel(CancelExternalWorkflowOptions options) {
     assertReadOnly.apply("cancel external workflow");
-    if (reason == null) {
+    if (options.getReason() == null) {
       try {
         CancellationScope currentScope = CancellationScope.current();
         if (currentScope.isCancelRequested()) {
-          reason = currentScope.getCancellationReason();
+          options = options.toBuilder().setReason(currentScope.getCancellationReason()).build();
         }
       } catch (IllegalStateException ignored) {
         // Outside of workflow thread; leave reason as null.
@@ -72,7 +82,7 @@ class ExternalWorkflowStubImpl implements ExternalWorkflowStub {
     Promise<Void> cancelRequested =
         outboundCallsInterceptor
             .cancelWorkflow(
-                new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution, reason))
+                new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution, options))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(cancelRequested);

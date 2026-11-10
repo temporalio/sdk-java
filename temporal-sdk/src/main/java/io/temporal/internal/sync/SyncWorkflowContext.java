@@ -1206,6 +1206,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
+    return getVersion(changeId, minSupported, maxSupported, GetVersionOptions.getDefaultInstance());
+  }
+
+  @Override
+  public int getVersion(
+      String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
     CompletablePromise<Integer> result = Workflow.newPromise();
     Integer versionToUse;
     try {
@@ -1583,7 +1589,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Void> result = Workflow.newPromise();
     replayContext.requestCancelExternalWorkflowExecution(
         input.getExecution(),
-        input.getReason(),
+        input.getOptions().getReason(),
         (r, exception) -> {
           if (exception == null) {
             result.complete(null);
@@ -1613,12 +1619,24 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    upsertTypedSearchAttributes(
+        UpsertSearchAttributesOptions.getDefaultInstance(), searchAttributeUpdates);
+  }
+
+  @Override
+  public void upsertTypedSearchAttributes(
+      UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
     SearchAttributes attr = SearchAttributesUtil.encodeTypedUpdates(searchAttributeUpdates);
     replayContext.upsertSearchAttributes(attr);
   }
 
   @Override
   public void upsertMemo(Map<String, Object> memo) {
+    upsertMemo(memo, UpsertMemoOptions.getDefaultInstance());
+  }
+
+  @Override
+  public void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
     Preconditions.checkArgument(memo != null, "null memo");
     Preconditions.checkArgument(!memo.isEmpty(), "empty memo");
     replayContext.upsertMemo(
