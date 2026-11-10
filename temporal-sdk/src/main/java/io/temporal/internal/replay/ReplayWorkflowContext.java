@@ -5,6 +5,7 @@ import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttribute
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
@@ -213,7 +214,10 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     to cancel timer.
    */
   Functions.Proc1<RuntimeException> newTimer(
-      Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback);
+      Duration delay,
+      UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
+      Functions.Proc1<RuntimeException> callback);
 
   /**
    * Executes the provided function once, records its result into the workflow history. The recorded

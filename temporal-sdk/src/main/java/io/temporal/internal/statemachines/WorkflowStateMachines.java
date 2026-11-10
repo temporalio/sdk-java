@@ -18,6 +18,7 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.common.SuggestContinueAsNewReason;
@@ -947,12 +948,14 @@ public final class WorkflowStateMachines {
   public Functions.Proc newTimer(
       StartTimerCommandAttributes attributes,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<HistoryEvent> completionCallback) {
     checkEventLoopExecuting();
     TimerStateMachine timer =
         TimerStateMachine.newInstance(
             attributes,
             metadata,
+            eventGroupMarkers,
             (event) -> {
               completionCallback.apply(event);
               // Needed due to immediate cancellation

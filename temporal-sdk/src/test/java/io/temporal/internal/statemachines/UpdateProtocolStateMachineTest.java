@@ -88,6 +88,7 @@ public class UpdateProtocolStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add(
                 (r) -> {
@@ -448,6 +449,7 @@ public class UpdateProtocolStateMachineTest {
                             ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                         .build(),
                     null,
+                    Collections.emptyList(),
                     c));
       }
 
@@ -472,6 +474,7 @@ public class UpdateProtocolStateMachineTest {
                             ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                         .build(),
                     null,
+                    Collections.emptyList(),
                     c));
       }
     }

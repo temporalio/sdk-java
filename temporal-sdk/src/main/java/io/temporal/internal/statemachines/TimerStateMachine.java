@@ -7,8 +7,10 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.TimerCanceledEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
+import java.util.List;
 import javax.annotation.Nullable;
 
 final class TimerStateMachine
@@ -18,6 +20,7 @@ final class TimerStateMachine
   private final StartTimerCommandAttributes startAttributes;
 
   private UserMetadata metadata;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   private final Functions.Proc1<HistoryEvent> completionCallback;
 
@@ -26,6 +29,7 @@ final class TimerStateMachine
    *
    * @param attributes timer command attributes
    * @param metadata user metadata to be associate with the timer
+   * @param eventGroupMarkers markers of the start command, also used for its cancellation
    * @param completionCallback invoked when timer fires or reports cancellation. One of
    *     TimerFiredEvent, TimerCanceledEvent.
    * @return cancellation callback that should be invoked to initiate timer cancellation
@@ -33,22 +37,25 @@ final class TimerStateMachine
   public static TimerStateMachine newInstance(
       StartTimerCommandAttributes attributes,
       @Nullable UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<HistoryEvent> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     return new TimerStateMachine(
-        attributes, metadata, completionCallback, commandSink, stateMachineSink);
+        attributes, metadata, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   private TimerStateMachine(
       StartTimerCommandAttributes attributes,
       @Nullable UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<HistoryEvent> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink, attributes.getTimerId());
     this.startAttributes = attributes;
     this.metadata = metadata;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -119,7 +126,8 @@ final class TimerStateMachine
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_START_TIMER)
-            .setStartTimerCommandAttributes(startAttributes);
+            .setStartTimerCommandAttributes(startAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers);
 
     if (metadata != null) {
       command.setUserMetadata(metadata);
@@ -161,6 +169,7 @@ final class TimerStateMachine
             .setCommandType(CommandType.COMMAND_TYPE_CANCEL_TIMER)
             .setCancelTimerCommandAttributes(
                 CancelTimerCommandAttributes.newBuilder().setTimerId(startAttributes.getTimerId()))
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
   }
 

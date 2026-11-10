@@ -33,11 +33,10 @@ public class EventGroupImplTest {
   @Test
   public void idIsUsedVerbatim() {
     List<EventGroupMarker> markers =
-        EventGroupImpl.toMarkers(
-            Collections.singletonList(group("custom id / already", null)), CONVERTER);
+        EventGroupImpl.toMarkers(Collections.singletonList(group("c-id", "ccc")), CONVERTER);
 
     assertEquals(1, markers.size());
-    assertEquals("custom id / already", markers.get(0).getLabel().getId());
+    assertEquals("c-id", markers.get(0).getLabel().getId());
   }
 
   @Test
@@ -49,13 +48,13 @@ public class EventGroupImplTest {
   @Test
   public void labelConvertsToJsonString() {
     Payload payload =
-        EventGroupImpl.toMarkers(Collections.singletonList(group("id", "hello")), CONVERTER)
+        EventGroupImpl.toMarkers(Collections.singletonList(group("bbb", "Label B")), CONVERTER)
             .get(0)
             .getLabel()
             .getLabel();
 
     assertEquals("json/plain", payload.getMetadataOrThrow("encoding").toStringUtf8());
-    assertEquals("hello", CONVERTER.fromPayload(payload, String.class, String.class));
+    assertEquals("Label B", CONVERTER.fromPayload(payload, String.class, String.class));
   }
 
   @Test
@@ -67,7 +66,7 @@ public class EventGroupImplTest {
   public void omittedLabelProducesNoPayload() {
     EventGroupMarker marker =
         EventGroupImpl.toMarkers(
-                Collections.singletonList(WorkflowInternal.newEventGroup("id", null)), CONVERTER)
+                Collections.singletonList(WorkflowInternal.newEventGroup("aaa", null)), CONVERTER)
             .get(0);
 
     assertFalse(marker.getLabel().hasLabel());
@@ -80,30 +79,30 @@ public class EventGroupImplTest {
             CONVERTER, Collections.singletonList(new CodecDataConverterTest.PrefixPayloadCodec()));
 
     EventGroupMarker marker =
-        EventGroupImpl.toMarkers(
-                Collections.singletonList(group("group-id", "hello")), codecConverter)
+        EventGroupImpl.toMarkers(Collections.singletonList(group("bbb", "Label B")), codecConverter)
             .get(0);
 
-    assertEquals("group-id", marker.getLabel().getId());
+    assertEquals("bbb", marker.getLabel().getId());
     Payload label = marker.getLabel().getLabel();
     assertTrue(label.getData().startsWith(CodecDataConverterTest.PrefixPayloadCodec.PREFIX));
-    assertEquals("hello", codecConverter.fromPayload(label, String.class, String.class));
+    assertEquals("Label B", codecConverter.fromPayload(label, String.class, String.class));
   }
 
   @Test
   public void groupsWithTheSameIdAreRecordedOnceWithTheFirstLabel() {
     List<EventGroupMarker> markers =
         EventGroupImpl.toMarkers(
-            Arrays.asList(group("a", "first"), group("b", null), group("a", "second")), CONVERTER);
+            Arrays.asList(group("b-id", "bbb1"), group("aaa", null), group("b-id", "bbb2")),
+            CONVERTER);
 
     Map<String, EventGroupMarker.Label> byId = new HashMap<>();
     for (EventGroupMarker marker : markers) {
       byId.put(marker.getLabel().getId(), marker.getLabel());
     }
     assertEquals(2, markers.size());
-    assertEquals(byId.keySet(), new HashSet<>(Arrays.asList("a", "b")));
+    assertEquals(byId.keySet(), new HashSet<>(Arrays.asList("aaa", "b-id")));
     assertEquals(
-        "first", CONVERTER.fromPayload(byId.get("a").getLabel(), String.class, String.class));
+        "bbb1", CONVERTER.fromPayload(byId.get("b-id").getLabel(), String.class, String.class));
   }
 
   @Test

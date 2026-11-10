@@ -1,6 +1,7 @@
 package io.temporal.workflow;
 
-import java.util.Objects;
+import io.temporal.common.Experimental;
+import java.util.*;
 
 /** TimerOptions is used to specify options for a timer. */
 public final class TimerOptions {
@@ -25,6 +26,7 @@ public final class TimerOptions {
 
   public static final class Builder {
     private String summary;
+    private List<EventGroup> eventGroups;
 
     private Builder() {}
 
@@ -33,6 +35,9 @@ public final class TimerOptions {
         return;
       }
       this.summary = options.summary;
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
     }
 
     /**
@@ -46,19 +51,46 @@ public final class TimerOptions {
       return this;
     }
 
+    /**
+     * Event Groups to associate with this timer. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
     public TimerOptions build() {
-      return new TimerOptions(summary);
+      return new TimerOptions(summary, eventGroups);
     }
   }
 
   private final String summary;
+  private final List<EventGroup> eventGroups;
 
-  private TimerOptions(String summary) {
+  private TimerOptions(String summary, List<EventGroup> eventGroups) {
     this.summary = summary;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
   }
 
   public String getSummary() {
     return summary;
+  }
+
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
   }
 
   public Builder toBuilder() {
@@ -67,7 +99,7 @@ public final class TimerOptions {
 
   @Override
   public String toString() {
-    return "TimerOptions{" + "summary='" + summary + '\'' + '}';
+    return "TimerOptions{" + "summary='" + summary + '\'' + ", eventGroups=" + eventGroups + '}';
   }
 
   @Override
@@ -75,11 +107,11 @@ public final class TimerOptions {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     TimerOptions that = (TimerOptions) o;
-    return Objects.equals(summary, that.summary);
+    return Objects.equals(summary, that.summary) && Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(summary);
+    return Objects.hash(summary, eventGroups);
   }
 }

@@ -25,6 +25,7 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.sdk.v1.WorkflowDefinition;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
@@ -1073,6 +1074,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         replayContext.newTimer(
             delay,
             userMetadata,
+            eventGroupMarkers(options.getEventGroups()),
             (e) ->
                 runner.executeInWorkflowThread(
                     "timer-callback",
@@ -1780,6 +1782,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public Optional<UpdateInfo> getCurrentUpdateInfo() {
     return Optional.ofNullable(currentUpdateInfo.get());
+  }
+
+  private List<EventGroupMarker> eventGroupMarkers(List<EventGroup> directGroups) {
+    return EventGroupImpl.toMarkers(directGroups, dataConverterWithCurrentWorkflowContext);
   }
 
   /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */

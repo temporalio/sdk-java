@@ -154,7 +154,7 @@ public class SyncWorkflowContextTest {
 
       ArgumentCaptor<UserMetadata> metadata = ArgumentCaptor.forClass(UserMetadata.class);
       verify(mockReplayWorkflowContext)
-          .newTimer(eq(Duration.ofHours(1)), metadata.capture(), any());
+          .newTimer(eq(Duration.ofHours(1)), metadata.capture(), any(), any());
       assertEquals(
           "await-summary",
           DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
