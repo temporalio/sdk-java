@@ -464,7 +464,7 @@ public class NexusSerializationContextPropagationTest {
                               .setMemo(Collections.singletonMap("started", input))
                               .setStaticSummary("summary-" + input)
                               .setStaticDetails("details-" + input)
-                              .setTaskQueue(Nexus.getOperationContext().getInfo().getTaskQueue())
+                              .setTaskQueue(Nexus.getInfo().getTaskQueue())
                               .build())
                   ::execute);
     }

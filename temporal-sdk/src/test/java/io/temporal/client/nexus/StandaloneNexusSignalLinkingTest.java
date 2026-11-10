@@ -176,7 +176,7 @@ public class StandaloneNexusSignalLinkingTest {
               io.nexusrpc.handler.OperationStartDetails details,
               String input) -> {
             WorkflowClient client = Nexus.getOperationContext().getWorkflowClient();
-            String tq = Nexus.getOperationContext().getInfo().getTaskQueue();
+            String tq = Nexus.getInfo().getTaskQueue();
             SanoSignalCalleeWorkflow startStub =
                 client.newWorkflowStub(
                     SanoSignalCalleeWorkflow.class,
