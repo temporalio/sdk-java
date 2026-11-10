@@ -12,7 +12,6 @@ class NexusInfoImpl implements NexusOperationInfo {
   private final String endpoint;
   private final String service;
   private final String operation;
-  private final String requestId;
   private final @Nullable Instant deadline;
   private final CancellationToken<CancellationException> cancellationToken;
 
@@ -22,7 +21,6 @@ class NexusInfoImpl implements NexusOperationInfo {
       String endpoint,
       String service,
       String operation,
-      String requestId,
       @Nullable Instant deadline,
       CancellationToken<CancellationException> cancellationToken) {
     this.namespace = namespace;
@@ -30,7 +28,6 @@ class NexusInfoImpl implements NexusOperationInfo {
     this.endpoint = endpoint;
     this.service = service;
     this.operation = operation;
-    this.requestId = requestId;
     this.deadline = deadline;
     this.cancellationToken = cancellationToken;
   }
@@ -58,11 +55,6 @@ class NexusInfoImpl implements NexusOperationInfo {
   @Override
   public String getOperation() {
     return operation;
-  }
-
-  @Override
-  public String getRequestId() {
-    return requestId;
   }
 
   @Override
