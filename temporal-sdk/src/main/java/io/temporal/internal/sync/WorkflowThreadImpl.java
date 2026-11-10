@@ -42,6 +42,7 @@ class WorkflowThreadImpl implements WorkflowThread {
     private String originalName;
     private String name;
     private final CancellationScopeImpl cancellationScope;
+    private final EventGroupScope eventGroupScope;
     private final List<ContextPropagator> contextPropagators;
     private final Map<String, Object> propagatedContexts;
 
@@ -51,6 +52,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         String name,
         boolean detached,
         CancellationScopeImpl parent,
+        EventGroupScope eventGroupScope,
         Runnable runnable,
         List<ContextPropagator> contextPropagators,
         Map<String, Object> propagatedContexts) {
@@ -62,6 +64,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       this.cancellationScope =
           new CancellationScopeImpl(
               detached, deterministicCancellationScopeOrder, runnable, parent);
+      this.eventGroupScope = eventGroupScope;
       Preconditions.checkState(
           context.getStatus() == Status.CREATED, "threadContext not in CREATED state");
       this.contextPropagators = contextPropagators;
@@ -91,7 +94,11 @@ class WorkflowThreadImpl implements WorkflowThread {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise, r starts executing without control of the sync.
         threadContext.initialYield();
-        cancellationScope.run();
+        eventGroupScope.run(
+            () -> {
+              cancellationScope.run();
+              return null;
+            });
       } catch (DestroyWorkflowThreadError e) {
         if (!threadContext.isDestroyRequested()) {
           threadContext.setUnhandledException(e);
@@ -157,6 +164,7 @@ class WorkflowThreadImpl implements WorkflowThread {
       int priority,
       boolean detached,
       CancellationScopeImpl parentCancellationScope,
+      EventGroupScope eventGroupScope,
       Runnable runnable,
       WorkflowExecutorCache cache,
       List<ContextPropagator> contextPropagators,
@@ -174,6 +182,7 @@ class WorkflowThreadImpl implements WorkflowThread {
             Preconditions.checkNotNull(name, "Thread name shouldn't be null"),
             detached,
             parentCancellationScope,
+            eventGroupScope,
             runnable,
             contextPropagators,
             propagatedContexts);

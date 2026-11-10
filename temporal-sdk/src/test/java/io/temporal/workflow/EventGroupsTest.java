@@ -44,8 +44,8 @@ import org.junit.experimental.categories.Category;
 /**
  * Tests for Event Groups.
  *
- * <p>Event Group scopes (`EG-SCOPE`), implicit Event Groups (`EG-IMPLICIT`), and aggregation cases
- * involving scopes are not covered: Java only supports attaching Event Groups directly to commands.
+ * <p>Implicit Event Groups (`EG-IMPLICIT`) are not covered: Java does not yet create implicit Event
+ * Groups for signal and update handlers.
  */
 public class EventGroupsTest {
 
@@ -62,6 +62,13 @@ public class EventGroupsTest {
                   .build(),
               LabelIdWorkflowImpl.class,
               LabelPayloadWorkflowImpl.class,
+              ScopeWorkflowImpl.class,
+              NestedScopesWorkflowImpl.class,
+              ReenteredScopeWorkflowImpl.class,
+              ConcurrentScopesWorkflowImpl.class,
+              ScopeKeptAfterExitWorkflowImpl.class,
+              ScopeNotInheritedWorkflowImpl.class,
+              ScopeUnwindsWorkflowImpl.class,
               AggregationWorkflowImpl.class,
               TimerCommandWorkflowImpl.class,
               AwaitWorkflowImpl.class,
@@ -202,25 +209,358 @@ public class EventGroupsTest {
   // 3. Explicit Event Group Scopes (`EG-SCOPE`)
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // FIXME: Event Group Scopes are not yet supported in Java.
+  @Test
+  public void commandsInAnEventGroupScopeCarryItsMarker() {
+    List<HistoryEvent> events = scopeHistory();
+
+    // EG-SCOPE-00: Commands in an Event Group scope carry its marker
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, "activity"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "timer"), "aaa");
+    assertLabelGroups(requireChild(events, "child-workflow"), "aaa");
+  }
+
+  private List<HistoryEvent> scopeHistory() {
+    ScopeWorkflow workflow = testWorkflowRule.newWorkflowStubTimeoutOptions(ScopeWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ScopeWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ScopeWorkflowImpl implements ScopeWorkflow {
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      a.run(
+          () -> {
+            Workflow.newActivityStub(EventGroupActivities.class, activity(null, "activity")).run();
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "timer"));
+            Workflow.newChildWorkflowStub(ChildWorkflow.class, child(null, "child-workflow"))
+                .execute();
+          });
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void nestingEventGroupScopesComposesCorrectly() {
+    List<HistoryEvent> events = nestedScopesHistory();
+
+    // EG-SCOPE-01: Nesting Event Group Scopes composes correctly
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-before"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-b"), "aaa", "bbb");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-after"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "outside"));
+  }
+
+  private List<HistoryEvent> nestedScopesHistory() {
+    NestedScopesWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(NestedScopesWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface NestedScopesWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class NestedScopesWorkflowImpl implements NestedScopesWorkflow {
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      EventGroup b = Workflow.newEventGroup("bbb");
+      a.run(
+          () -> {
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "a-before"));
+            b.run(() -> Workflow.sleep(Duration.ofMillis(1), timer(null, "a-b")));
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "a-after"));
+          });
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "outside"));
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void reenteringAnEventGroupInstanceNestsCorrectly() {
+    List<HistoryEvent> events = reenteredScopeHistory();
+
+    // EG-SCOPE-02: Re-entering an Event Group instance nests correctly
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-before"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-inner"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-after"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "outside"));
+  }
+
+  private List<HistoryEvent> reenteredScopeHistory() {
+    ReenteredScopeWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ReenteredScopeWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ReenteredScopeWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ReenteredScopeWorkflowImpl implements ReenteredScopeWorkflow {
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      a.run(
+          () -> {
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "a-before"));
+            a.run(() -> Workflow.sleep(Duration.ofMillis(1), timer(null, "a-inner")));
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "a-after"));
+          });
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "outside"));
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void anEventGroupInstanceCanBeScopedConcurrentlyFromTwoBranches() {
+    List<HistoryEvent> events = concurrentScopesHistory();
+
+    // EG-SCOPE-03: An Event Group instance can be scoped concurrently from two branches
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "b-a-c"), "bbb", "aaa", "ccc");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "b-a"), "bbb", "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "b-after-a"), "bbb");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "d-a-e"), "ddd", "aaa", "eee");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "d-a"), "ddd", "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "d-after-a"), "ddd");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "outside"));
+  }
+
+  private List<HistoryEvent> concurrentScopesHistory() {
+    ConcurrentScopesWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ConcurrentScopesWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ConcurrentScopesWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ConcurrentScopesWorkflowImpl implements ConcurrentScopesWorkflow {
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      EventGroup b = Workflow.newEventGroup("bbb");
+      EventGroup c = Workflow.newEventGroup("ccc");
+      EventGroup d = Workflow.newEventGroup("ddd");
+      EventGroup e = Workflow.newEventGroup("eee");
+
+      Promise<Void> left =
+          Async.procedure(
+              () ->
+                  b.run(
+                      () -> {
+                        a.run(
+                            () -> {
+                              c.run(
+                                  () -> Workflow.sleep(Duration.ofMillis(1), timer(null, "b-a-c")));
+                              Workflow.sleep(Duration.ofMillis(1), timer(null, "b-a"));
+                            });
+                        Workflow.sleep(Duration.ofMillis(1), timer(null, "b-after-a"));
+                      }));
+      Promise<Void> right =
+          Async.procedure(
+              () ->
+                  d.run(
+                      () -> {
+                        a.run(
+                            () -> {
+                              e.run(
+                                  () -> Workflow.sleep(Duration.ofMillis(1), timer(null, "d-a-e")));
+                              Workflow.sleep(Duration.ofMillis(1), timer(null, "d-a"));
+                            });
+                        Workflow.sleep(Duration.ofMillis(1), timer(null, "d-after-a"));
+                      }));
+      Promise.allOf(left, right).get();
+
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "outside"));
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void aTaskStartedInsideAScopeKeepsItAfterTheScopeExits() {
+    List<HistoryEvent> events = scopeKeptAfterExitHistory();
+
+    // EG-SCOPE-04: A task started inside a scope keeps it after the scope exits
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "inside-before"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "inside-after"), "aaa");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "outside"));
+  }
+
+  private List<HistoryEvent> scopeKeptAfterExitHistory() {
+    ScopeKeptAfterExitWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ScopeKeptAfterExitWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ScopeKeptAfterExitWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ScopeKeptAfterExitWorkflowImpl implements ScopeKeptAfterExitWorkflow {
+    private boolean scopeExited;
+
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      Promise<Void> task =
+          a.run(
+              () ->
+                  Async.procedure(
+                      () -> {
+                        Workflow.sleep(Duration.ofMillis(1), timer(null, "inside-before"));
+                        Workflow.await(() -> scopeExited);
+                        Workflow.sleep(Duration.ofMillis(1), timer(null, "inside-after"));
+                      }));
+      scopeExited = true;
+      task.get();
+
+      Workflow.sleep(Duration.ofMillis(1), timer(null, "outside"));
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void aTaskCreatedOutsideAScopeDoesNotInheritItWhenResumedInside() {
+    List<HistoryEvent> events = scopeNotInheritedHistory();
+
+    // EG-SCOPE-05: A task created outside a scope does not inherit it when resumed inside
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "outside-task"));
+  }
+
+  private List<HistoryEvent> scopeNotInheritedHistory() {
+    ScopeNotInheritedWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ScopeNotInheritedWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ScopeNotInheritedWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ScopeNotInheritedWorkflowImpl implements ScopeNotInheritedWorkflow {
+    private boolean scopeEntered;
+
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      Promise<Void> task =
+          Async.procedure(
+              () -> {
+                Workflow.await(() -> scopeEntered);
+                Workflow.sleep(Duration.ofMillis(1), timer(null, "outside-task"));
+              });
+      a.run(
+          () -> {
+            scopeEntered = true;
+            task.get();
+          });
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void anEventGroupScopeUnwindsCleanlyWhenItsBodyThrows() {
+    List<HistoryEvent> events = scopeUnwindsHistory();
+
+    // EG-SCOPE-06: An Event Group scope unwinds cleanly when its body throws
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-b"), "aaa", "bbb");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "a-after"), "aaa");
+  }
+
+  private List<HistoryEvent> scopeUnwindsHistory() {
+    ScopeUnwindsWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ScopeUnwindsWorkflow.class);
+    workflow.execute();
+    return history(workflow);
+  }
+
+  @WorkflowInterface
+  public interface ScopeUnwindsWorkflow {
+    @WorkflowMethod
+    void execute();
+  }
+
+  public static class ScopeUnwindsWorkflowImpl implements ScopeUnwindsWorkflow {
+    @Override
+    public void execute() {
+      EventGroup a = Workflow.newEventGroup("aaa");
+      EventGroup b = Workflow.newEventGroup("bbb");
+      a.run(
+          () -> {
+            try {
+              b.run(
+                  () -> {
+                    Workflow.sleep(Duration.ofMillis(1), timer(null, "a-b"));
+                    throw new IllegalStateException("boom");
+                  });
+            } catch (IllegalStateException expected) {
+              // The point of the test is what the scope looks like once this unwinds.
+            }
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "a-after"));
+          });
+    }
+  }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
   // 4. Implicit Event Groups (`EG-IMPLICIT`)
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
-  // FIXME: Event Group Scopes are not yet supported in Java.
+  // FIXME: Implicit Event Groups are not yet supported in Java.
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
   // 5. Event Group Marker Aggregation (`EG-AGGREGATION`)
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
   @Test
-  public void directlyAttachedMarkersDedupeById() {
+  public void markersDedupeByIdWhetherScopedOrDirectlyAttached() {
     List<HistoryEvent> events = aggregationHistory();
 
     // EG-AGGREGATION-00: Duplicate markers directly attached to one command collapse into a set
     assertLabelGroups(
         require(events, EventType.EVENT_TYPE_TIMER_STARTED, "direct-duplicates"), "aaa", "b-id");
+
+    // EG-AGGREGATION-01: Nested scopes of duplicate groups collapse into a set
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "nested-scopes"), "aaa", "b-id");
+
+    // EG-AGGREGATION-02: Scoped and directly attached markers collapse into one set
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "scope-and-direct-b"), "aaa", "b-id");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "scope-and-direct-a-b"), "aaa", "b-id");
 
     // EG-AGGREGATION-03: The same group instance listed twice contributes one marker
     assertLabelGroups(
@@ -230,6 +570,10 @@ public class EventGroupsTest {
     HistoryEvent sameId = require(events, EventType.EVENT_TYPE_TIMER_STARTED, "same-id-direct");
     assertLabelGroups(sameId, "b-id");
     assertEquals("bbb1", labelText(onlyLabel(sameId)));
+    HistoryEvent sameIdScoped =
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "same-id-scope-and-direct");
+    assertLabelGroups(sameIdScoped, "b-id");
+    assertEquals("bbb1", labelText(onlyLabel(sameIdScoped)));
   }
 
   private List<HistoryEvent> aggregationHistory() {
@@ -264,6 +608,25 @@ public class EventGroupsTest {
               .setSummary("direct-duplicates")
               .addEventGroups(a2, b1, a1, b1, a2, a1)
               .build());
+      a1.run(
+          () ->
+              a2.run(
+                  () ->
+                      b1.run(
+                          () ->
+                              Workflow.sleep(Duration.ofMillis(1), timer(null, "nested-scopes")))));
+      a1.run(
+          () ->
+              b1.run(
+                  () -> {
+                    Workflow.sleep(Duration.ofMillis(1), timer(b1, "scope-and-direct-b"));
+                    Workflow.sleep(
+                        Duration.ofMillis(1),
+                        TimerOptions.newBuilder()
+                            .setSummary("scope-and-direct-a-b")
+                            .addEventGroups(b1, a1)
+                            .build());
+                  }));
       Workflow.sleep(
           Duration.ofMillis(1),
           TimerOptions.newBuilder()
@@ -273,6 +636,7 @@ public class EventGroupsTest {
       Workflow.sleep(
           Duration.ofMillis(1),
           TimerOptions.newBuilder().setSummary("same-id-direct").addEventGroups(b1, b2).build());
+      b1.run(() -> Workflow.sleep(Duration.ofMillis(1), timer(b2, "same-id-scope-and-direct")));
     }
   }
 
@@ -1130,12 +1494,15 @@ public class EventGroupsTest {
   }
 
   private static ActivityOptions activity(EventGroup direct, String summary) {
-    return ActivityOptions.newBuilder()
-        .setScheduleToStartTimeout(Duration.ofSeconds(10))
-        .setStartToCloseTimeout(Duration.ofSeconds(20))
-        .setSummary(summary)
-        .addEventGroups(direct)
-        .build();
+    ActivityOptions.Builder builder =
+        ActivityOptions.newBuilder()
+            .setScheduleToStartTimeout(Duration.ofSeconds(10))
+            .setStartToCloseTimeout(Duration.ofSeconds(20))
+            .setSummary(summary);
+    if (direct != null) {
+      builder.addEventGroups(direct);
+    }
+    return builder.build();
   }
 
   private static TimerOptions timer(EventGroup direct, String summary) {
