@@ -90,7 +90,8 @@ public class EventGroupsTest {
               VersionCommandWorkflowImpl.class,
               SideEffectCommandWorkflowImpl.class,
               MutableSideEffectCommandWorkflowImpl.class,
-              ContinueAsNewCommandWorkflowImpl.class)
+              ContinueAsNewCommandWorkflowImpl.class,
+              ContinueAsNewShortFormCommandWorkflowImpl.class)
           .setActivityImplementations(activities)
           .build();
 
@@ -1065,7 +1066,8 @@ public class EventGroupsTest {
     List<HistoryEvent> events = timerCommandHistory();
 
     // EG-COMMANDS-00: Timer commands carry markers
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "60s"), "direct");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "60s"), "direct", "scope");
   }
 
   @Test
@@ -1073,9 +1075,11 @@ public class EventGroupsTest {
     List<HistoryEvent> events = timerCommandHistory();
 
     // EG-COMMANDS-00-CANCEL: Timer Cancellation commands carry Timer's markers
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "60s"), "direct");
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_CANCELED, null), "direct");
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "1ms"));
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "60s"), "direct", "scope");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_CANCELED, null), "direct", "scope");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "1ms"), "scope");
   }
 
   private List<HistoryEvent> timerCommandHistory() {
@@ -1095,13 +1099,17 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      CancellationScope timer60s =
-          Workflow.newCancellationScope(
-              () -> Workflow.newTimer(Duration.ofSeconds(60), timer(direct, "60s")).get());
-      Promise<Void> running = Async.procedure(timer60s::run);
-      Workflow.sleep(Duration.ofMillis(1), timer(null, "1ms"));
-      timer60s.cancel();
-      swallowCancellation(running);
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () -> {
+            CancellationScope timer60s =
+                Workflow.newCancellationScope(
+                    () -> Workflow.newTimer(Duration.ofSeconds(60), timer(direct, "60s")).get());
+            Promise<Void> running = Async.procedure(timer60s::run);
+            Workflow.sleep(Duration.ofMillis(1), timer(null, "1ms"));
+            timer60s.cancel();
+            swallowCancellation(running);
+          });
     }
   }
 
@@ -1112,7 +1120,8 @@ public class EventGroupsTest {
     List<HistoryEvent> events = awaitHistory();
 
     // EG-COMMANDS-01: Wait conditions with timeouts carry markers to their timers
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, "await"), "direct");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_TIMER_STARTED, "await"), "direct", "scope");
   }
 
   private List<HistoryEvent> awaitHistory() {
@@ -1131,7 +1140,8 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.await(Duration.ofMillis(1), timer(direct, "await"), () -> false);
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(() -> Workflow.await(Duration.ofMillis(1), timer(direct, "await"), () -> false));
     }
   }
 
@@ -1143,7 +1153,9 @@ public class EventGroupsTest {
 
     // EG-COMMANDS-02: Activity commands carry markers
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, "activity"), "direct");
+        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, "activity"),
+        "direct",
+        "scope");
   }
 
   @Test
@@ -1154,9 +1166,12 @@ public class EventGroupsTest {
     assertLabelGroups(
         require(
             events, EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED, "activity-cancelled-sleep-5s"),
-        "direct");
+        "direct",
+        "scope");
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null), "direct");
+        require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null),
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> activityCommandHistory() {
@@ -1180,22 +1195,28 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.newActivityStub(EventGroupActivities.class, activity(direct, "activity")).run();
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () -> {
+            Workflow.newActivityStub(EventGroupActivities.class, activity(direct, "activity"))
+                .run();
 
-      CancellationScope cancellation =
-          Workflow.newCancellationScope(
-              () ->
-                  Workflow.newActivityStub(
-                          EventGroupActivities.class,
-                          activity(direct, "activity-cancelled-sleep-5s").toBuilder()
-                              .setCancellationType(ActivityCancellationType.TRY_CANCEL)
-                              .build())
-                      .sleepUntilCancelled());
-      Promise<Void> running = Async.procedure(cancellation::run);
-      // A Workflow Task boundary so the schedule command reaches the server before cancellation.
-      Workflow.sleep(Duration.ofMillis(1));
-      cancellation.cancel();
-      swallowCancellation(running);
+            CancellationScope cancellation =
+                Workflow.newCancellationScope(
+                    () ->
+                        Workflow.newActivityStub(
+                                EventGroupActivities.class,
+                                activity(direct, "activity-cancelled-sleep-5s").toBuilder()
+                                    .setCancellationType(ActivityCancellationType.TRY_CANCEL)
+                                    .build())
+                            .sleepUntilCancelled());
+            Promise<Void> running = Async.procedure(cancellation::run);
+            // A Workflow Task boundary so the schedule command reaches the server before
+            // cancellation.
+            Workflow.sleep(Duration.ofMillis(1));
+            cancellation.cancel();
+            swallowCancellation(running);
+          });
     }
   }
 
@@ -1207,12 +1228,12 @@ public class EventGroupsTest {
 
     // EG-COMMANDS-03: Local Activity commands carry markers
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, "local-activity"), "direct");
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, "local-activity"), "direct", "scope");
 
     // EG-COMMANDS-03-CANCEL is skipped: LocalActivityStateMachine.cancel is a no-op,
     // so a cancellation request produces no cancellation marker.
     // assertLabelGroups(require(events, EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED, null),
-    // "direct");
+    // "direct", "scope");
   }
 
   private List<HistoryEvent> localActivityCommandHistory() {
@@ -1232,9 +1253,12 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.newLocalActivityStub(
-              EventGroupActivities.class, localActivity(direct, "local-activity"))
-          .localActivity();
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.newLocalActivityStub(
+                      EventGroupActivities.class, localActivity(direct, "local-activity"))
+                  .localActivity());
     }
   }
 
@@ -1254,9 +1278,9 @@ public class EventGroupsTest {
     assertEquals(2, markers.size());
 
     // EG-COMMANDS-03-BACKOFF: Local Activity Retry Backoff Timer carries LA's markers
-    assertLabelGroups(markers.get(0), "direct");
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, null), "direct");
-    assertLabelGroups(markers.get(1), "direct");
+    assertLabelGroups(markers.get(0), "direct", "scope");
+    assertLabelGroups(require(events, EventType.EVENT_TYPE_TIMER_STARTED, null), "direct", "scope");
+    assertLabelGroups(markers.get(1), "direct", "scope");
   }
 
   private List<HistoryEvent> localActivityBackoffHistory() {
@@ -1293,7 +1317,11 @@ public class EventGroupsTest {
               .setSummary("backoff-local-activity-fail-first-attempt")
               .addEventGroups(direct)
               .build();
-      Workflow.newLocalActivityStub(EventGroupActivities.class, options).failFirstAttempt();
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.newLocalActivityStub(EventGroupActivities.class, options)
+                  .failFirstAttempt());
     }
   }
 
@@ -1304,7 +1332,7 @@ public class EventGroupsTest {
     List<HistoryEvent> events = childCommandHistory();
 
     // EG-COMMANDS-04: Child Workflow commands carry markers
-    assertLabelGroups(requireChild(events, "child-workflow"), "direct");
+    assertLabelGroups(requireChild(events, "child-workflow"), "direct", "scope");
   }
 
   @Test
@@ -1313,13 +1341,14 @@ public class EventGroupsTest {
 
     // EG-COMMANDS-04-CANCEL: Child Workflow Cancellation commands carry the Child Workflow's
     // markers
-    assertLabelGroups(requireChild(events, "child-workflow-sleep-5s"), "direct");
+    assertLabelGroups(requireChild(events, "child-workflow-sleep-5s"), "direct", "scope");
     assertLabelGroups(
         require(
             events,
             EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
             null),
-        "direct");
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> childCommandHistory() {
@@ -1339,24 +1368,29 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.newChildWorkflowStub(ChildWorkflow.class, child(direct, "child-workflow")).execute();
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () -> {
+            Workflow.newChildWorkflowStub(ChildWorkflow.class, child(direct, "child-workflow"))
+                .execute();
 
-      // The plan uses WAIT_CANCELLATION_REQUESTED, but the test server delivers the cancel request
-      // without holding the time-skipping lock, so time can skip to the parent's run timeout while
-      // the parent waits for the request to be acknowledged.
-      ChildWorkflowSleep5s sleeping =
-          Workflow.newChildWorkflowStub(
-              ChildWorkflowSleep5s.class,
-              child(direct, "child-workflow-sleep-5s").toBuilder()
-                  .setCancellationType(ChildWorkflowCancellationType.TRY_CANCEL)
-                  .build());
-      CancellationScope cancellation = Workflow.newCancellationScope(sleeping::execute);
-      Promise<Void> running = Async.procedure(cancellation::run);
-      // Cancelling while the child's start is still in flight makes the test server reject the
-      // workflow task with UnhandledCommand, and the workflow then times out.
-      Workflow.getWorkflowExecution(sleeping).get();
-      cancellation.cancel();
-      swallowCancellation(running);
+            // The plan uses WAIT_CANCELLATION_REQUESTED, but the test server delivers the cancel
+            // request without holding the time-skipping lock, so time can skip to the parent's run
+            // timeout while the parent waits for the request to be acknowledged.
+            ChildWorkflowSleep5s sleeping =
+                Workflow.newChildWorkflowStub(
+                    ChildWorkflowSleep5s.class,
+                    child(direct, "child-workflow-sleep-5s").toBuilder()
+                        .setCancellationType(ChildWorkflowCancellationType.TRY_CANCEL)
+                        .build());
+            CancellationScope cancellation = Workflow.newCancellationScope(sleeping::execute);
+            Promise<Void> running = Async.procedure(cancellation::run);
+            // Cancelling while the child's start is still in flight makes the test server reject
+            // the workflow task with UnhandledCommand, and the workflow then times out.
+            Workflow.getWorkflowExecution(sleeping).get();
+            cancellation.cancel();
+            swallowCancellation(running);
+          });
     }
   }
 
@@ -1392,7 +1426,7 @@ public class EventGroupsTest {
     List<HistoryEvent> events = signalCommandHistory();
 
     // EG-COMMANDS-06: Signal External Workflow commands carry markers
-    assertLabelGroups(requireSignal(events, "other-workflow"), "direct");
+    assertLabelGroups(requireSignal(events, "other-workflow"), "direct", "scope");
   }
 
   @Test
@@ -1400,7 +1434,7 @@ public class EventGroupsTest {
     List<HistoryEvent> events = signalCommandHistory();
 
     // EG-COMMANDS-06-CHILD: Signal Child Workflow commands carry markers
-    assertLabelGroups(requireSignal(events, "child-workflow-wait-for-signals"), "direct");
+    assertLabelGroups(requireSignal(events, "child-workflow-wait-for-signals"), "direct", "scope");
   }
 
   private List<HistoryEvent> signalCommandHistory() {
@@ -1420,22 +1454,31 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      try {
-        Workflow.newUntypedExternalWorkflowStub("other-workflow")
-            .signal(
-                "signal",
-                SignalExternalWorkflowOptions.newBuilder().addEventGroups(direct).build());
-      } catch (ApplicationFailure expected) {
-        // A missing workflow still records the initiated event before the request fails.
-      }
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () -> {
+            try {
+              Workflow.newUntypedExternalWorkflowStub("other-workflow")
+                  .signal(
+                      "signal",
+                      SignalExternalWorkflowOptions.newBuilder().addEventGroups(direct).build());
+            } catch (ApplicationFailure expected) {
+              // A missing workflow still records the initiated event before the request fails.
+            }
+          });
 
+      // Started outside the scope, so only the signal can contribute the scope's marker.
       ChildWorkflowWaitForSignals child =
           Workflow.newChildWorkflowStub(
               ChildWorkflowWaitForSignals.class, child(null, "child-workflow-wait-for-signals"));
       Promise<Void> done = Async.procedure(child::execute);
       Workflow.getWorkflowExecution(child).get();
-      ChildWorkflowStub.fromTyped(child)
-          .signal("signal", SignalChildWorkflowOptions.newBuilder().addEventGroups(direct).build());
+      scope.run(
+          () ->
+              ChildWorkflowStub.fromTyped(child)
+                  .signal(
+                      "signal",
+                      SignalChildWorkflowOptions.newBuilder().addEventGroups(direct).build()));
       done.get();
     }
   }
@@ -1475,7 +1518,8 @@ public class EventGroupsTest {
             events,
             EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
             null),
-        "direct");
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> cancelExternalCommandHistory() {
@@ -1495,13 +1539,18 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
+      EventGroup scope = Workflow.newEventGroup("scope");
       // The test server never resolves a cancel of a missing workflow, so waiting on it runs the
       // workflow out to its start-to-close timeout. The initiated event is recorded either way.
-      Async.procedure(
+      scope.run(
           () ->
-              Workflow.newUntypedExternalWorkflowStub("other-workflow")
-                  .cancel(
-                      CancelExternalWorkflowOptions.newBuilder().addEventGroups(direct).build()));
+              Async.procedure(
+                  () ->
+                      Workflow.newUntypedExternalWorkflowStub("other-workflow")
+                          .cancel(
+                              CancelExternalWorkflowOptions.newBuilder()
+                                  .addEventGroups(direct)
+                                  .build())));
     }
   }
 
@@ -1513,7 +1562,9 @@ public class EventGroupsTest {
 
     // EG-COMMANDS-20: Modify Workflow Properties commands carry markers
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED, null), "direct");
+        require(events, EventType.EVENT_TYPE_WORKFLOW_PROPERTIES_MODIFIED, null),
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> upsertMemoCommandHistory() {
@@ -1533,9 +1584,12 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.upsertMemo(
-          Collections.singletonMap("some-key", "some-value"),
-          UpsertMemoOptions.newBuilder().addEventGroups(direct).build());
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.upsertMemo(
+                  Collections.singletonMap("some-key", "some-value"),
+                  UpsertMemoOptions.newBuilder().addEventGroups(direct).build()));
     }
   }
 
@@ -1550,7 +1604,9 @@ public class EventGroupsTest {
 
     // EG-COMMANDS-21: Upsert Search Attribute commands carry markers
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null), "direct");
+        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null),
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> upsertSearchAttributesCommandHistory() {
@@ -1571,22 +1627,28 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.upsertTypedSearchAttributes(
-          UpsertSearchAttributesOptions.newBuilder().addEventGroups(direct).build(),
-          SearchAttributeKey.forKeyword("CustomKeywordField").valueSet("some-value"));
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.upsertTypedSearchAttributes(
+                  UpsertSearchAttributesOptions.newBuilder().addEventGroups(direct).build(),
+                  SearchAttributeKey.forKeyword("CustomKeywordField").valueSet("some-value")));
     }
   }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
   @Test
-  public void versionCommandsCarryMarkers() {
+  public void versionCommandsCarryTheAmbientScope() {
     List<HistoryEvent> events = versionCommandHistory();
 
-    // EG-COMMANDS-23: Version commands carry markers
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct");
+    // EG-COMMANDS-23: Version commands carry the ambient scope
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null), "direct");
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_UPSERT_WORKFLOW_SEARCH_ATTRIBUTES, null),
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> versionCommandHistory() {
@@ -1606,22 +1668,26 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.getVersion(
-          "my-change",
-          Workflow.DEFAULT_VERSION,
-          1,
-          GetVersionOptions.newBuilder().addEventGroups(direct).build());
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.getVersion(
+                  "my-change",
+                  Workflow.DEFAULT_VERSION,
+                  1,
+                  GetVersionOptions.newBuilder().addEventGroups(direct).build()));
     }
   }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
   @Test
-  public void sideEffectCommandsCarryMarkers() {
+  public void sideEffectCommandsCarryTheAmbientScope() {
     List<HistoryEvent> events = sideEffectCommandHistory();
 
-    // EG-COMMANDS-24: Side Effect commands carry markers
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct");
+    // EG-COMMANDS-24: Side Effect commands carry the ambient scope
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
   }
 
   private List<HistoryEvent> sideEffectCommandHistory() {
@@ -1641,19 +1707,25 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.sideEffect(
-          Integer.class, () -> 42, SideEffectOptions.newBuilder().addEventGroups(direct).build());
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.sideEffect(
+                  Integer.class,
+                  () -> 42,
+                  SideEffectOptions.newBuilder().addEventGroups(direct).build()));
     }
   }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
   @Test
-  public void mutableSideEffectCommandsCarryMarkers() {
+  public void mutableSideEffectCommandsCarryTheAmbientScope() {
     List<HistoryEvent> events = mutableSideEffectCommandHistory();
 
-    // EG-COMMANDS-25: Mutable Side Effect commands carry markers
-    assertLabelGroups(require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct");
+    // EG-COMMANDS-25: Mutable Side Effect commands carry the ambient scope
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_MARKER_RECORDED, null), "direct", "scope");
   }
 
   private List<HistoryEvent> mutableSideEffectCommandHistory() {
@@ -1674,24 +1746,29 @@ public class EventGroupsTest {
     @Override
     public void execute() {
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.mutableSideEffect(
-          "my-id",
-          Integer.class,
-          (previous, next) -> !previous.equals(next),
-          () -> 42,
-          MutableSideEffectOptions.newBuilder().addEventGroups(direct).build());
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.mutableSideEffect(
+                  "my-id",
+                  Integer.class,
+                  (previous, next) -> !previous.equals(next),
+                  () -> 42,
+                  MutableSideEffectOptions.newBuilder().addEventGroups(direct).build()));
     }
   }
 
   // ////////////////////////////////////////////////////////////////////////////////////////////////
 
   @Test
-  public void continueAsNewCommandsCarryMarkers() {
+  public void continueAsNewCarriesBothDirectlyAttachedAndAmbientMarkers() {
     List<HistoryEvent> events = continueAsNewCommandHistory();
 
-    // EG-COMMANDS-40: Continue-As-New carries directly attached markers
+    // EG-COMMANDS-40: Continue-As-New carries directly attached and ambient markers
     assertLabelGroups(
-        require(events, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW, null), "direct");
+        require(events, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW, null),
+        "direct",
+        "scope");
   }
 
   private List<HistoryEvent> continueAsNewCommandHistory() {
@@ -1716,7 +1793,51 @@ public class EventGroupsTest {
         return firstRunId.get();
       }
       EventGroup direct = Workflow.newEventGroup("direct");
-      Workflow.continueAsNew(ContinueAsNewOptions.newBuilder().addEventGroups(direct).build());
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(
+          () ->
+              Workflow.continueAsNew(
+                  ContinueAsNewOptions.newBuilder().addEventGroups(direct).build()));
+      return "unreachable";
+    }
+  }
+
+  // ////////////////////////////////////////////////////////////////////////////////////////////////
+
+  @Test
+  public void shortFormContinueAsNewCarriesAmbientMarkersOnly() {
+    List<HistoryEvent> events = continueAsNewShortFormCommandHistory();
+
+    // EG-COMMANDS-40: Continue-As-New's short form, which takes no options, carries ambient
+    // markers only
+    assertLabelGroups(
+        require(events, EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW, null), "scope");
+  }
+
+  private List<HistoryEvent> continueAsNewShortFormCommandHistory() {
+    ContinueAsNewShortFormCommandWorkflow workflow =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(ContinueAsNewShortFormCommandWorkflow.class);
+    return history(workflow, workflow.execute());
+  }
+
+  @WorkflowInterface
+  public interface ContinueAsNewShortFormCommandWorkflow {
+    @WorkflowMethod
+    String execute();
+  }
+
+  public static class ContinueAsNewShortFormCommandWorkflowImpl
+      implements ContinueAsNewShortFormCommandWorkflow {
+    @Override
+    public String execute() {
+      // The markers stay on the first run, which the client stub no longer points at once the
+      // workflow has continued as new.
+      Optional<String> firstRunId = Workflow.getInfo().getContinuedExecutionRunId();
+      if (firstRunId.isPresent()) {
+        return firstRunId.get();
+      }
+      EventGroup scope = Workflow.newEventGroup("scope");
+      scope.run(() -> Workflow.continueAsNew());
       return "unreachable";
     }
   }
