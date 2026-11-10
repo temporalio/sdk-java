@@ -198,7 +198,7 @@ public class GenericHandlerSignalDeduplicationTest {
               "CountSignalsWorkflow",
               WorkflowOptions.newBuilder()
                   .setWorkflowId(targetId)
-                  .setTaskQueue(Nexus.getOperationContext().getInfo().getTaskQueue())
+                  .setTaskQueue(Nexus.getInfo().getTaskQueue())
                   .build())
           .signalWithStart("mySignal", new Object[] {targetId}, new Object[] {});
 

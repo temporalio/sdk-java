@@ -6,8 +6,8 @@ import java.util.concurrent.CancellationException;
 import javax.annotation.Nullable;
 
 /**
- * Temporal information about the Nexus Operation. Use {@link NexusOperationContext#getInfo()} from
- * a Nexus Operation implementation to access.
+ * Temporal information about the Nexus Operation. Use {@link Nexus#getInfo()} from a Nexus
+ * Operation implementation to access.
  */
 public interface NexusOperationInfo {
   /**
