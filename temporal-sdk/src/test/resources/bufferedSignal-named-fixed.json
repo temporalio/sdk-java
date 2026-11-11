@@ -65,7 +65,7 @@
           "langUsedFlags": [
             1,
             3,
-            7
+            8
           ],
           "sdkName": "temporal-java",
           "sdkVersion": "1.41.0"
