@@ -34,6 +34,16 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
+  the configured client's payload codec. Only opted-in producers' output is encoded, while
+  application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
+  views. Existing propagators default to false; custom converter wrappers can expose their codec
+  through `PayloadCodecProvider`.
+- Poller pools now report their poller target to the server on each poll and in the worker
+  heartbeat, covering workflow, sticky workflow, activity, and Nexus pools. An autoscaling pool
+  reports its current target, a fixed-size pool its configured size. (We'll use this count on the
+  server side for now for load balancing pollers between workers, and for creating a per-worker
+  poller count metric.)
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
@@ -73,6 +83,8 @@ to docs, or any other relevant information.
   To complete such an activity asynchronously, read the context from
   `ActivityInfo.getNexusSerializationContext()`, store it with the task token, and pass it to
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
+- **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
+  `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
 
 ### Changed
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
@@ -96,6 +108,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
+  leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
+  by default in this release to preserve replay compatibility during SDK rollout.
 - `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
   and backoff coefficients until validation or annotation merging supplies them.
 - Buffered signals can be consumed once when a matching listener is registered, behind the new
@@ -108,6 +123,7 @@ to docs, or any other relevant information.
 - `RpcRetryOptions` no longer changes when the builder that created it is reused. Previously,
   `addDoNotRetry` calls made after `build()` or `validateBuildWithDefaults()` also appeared in
   the options already built.
+- Schedule action headers are now preserved when describing and updating a schedule.
 - `ActivityClient` now sends the `temporal-namespace` gRPC header like `WorkflowClient` and `ScheduleClient` do,
   so standalone activity calls are no longer rejected with `PERMISSION_DENIED` by namespace-scoped auth (e.g.
   Temporal Cloud API keys).

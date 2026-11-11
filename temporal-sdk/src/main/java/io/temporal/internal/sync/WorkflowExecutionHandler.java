@@ -6,7 +6,6 @@ import static io.temporal.serviceclient.CheckedExceptionWrapper.wrap;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
 import io.temporal.common.converter.DataConverter;
-import io.temporal.common.interceptors.Header;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -49,7 +48,7 @@ class WorkflowExecutionHandler {
     try {
       Optional<Payloads> input =
           attributes.hasInput() ? Optional.of(attributes.getInput()) : Optional.empty();
-      output = workflow.execute(new Header(attributes.getHeader()), input);
+      output = workflow.execute(context.headerWithCodec(attributes.getHeader()), input);
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     } finally {
@@ -86,7 +85,7 @@ class WorkflowExecutionHandler {
       long eventId,
       io.temporal.api.common.v1.Header header) {
     try {
-      context.handleSignal(signalName, input, eventId, new Header(header));
+      context.handleSignal(signalName, input, eventId, context.headerWithCodec(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e);
     }
@@ -94,7 +93,7 @@ class WorkflowExecutionHandler {
 
   public Optional<Payloads> handleQuery(
       String type, io.temporal.api.common.v1.Header header, Optional<Payloads> args) {
-    return context.handleQuery(type, new Header(header), args);
+    return context.handleQuery(type, context.headerWithCodec(header), args);
   }
 
   public void handleValidateUpdate(
@@ -105,7 +104,8 @@ class WorkflowExecutionHandler {
       io.temporal.api.common.v1.Header header,
       DataConverter outcomeDataConverter) {
     try {
-      context.handleValidateUpdate(updateName, updateId, input, eventId, new Header(header));
+      context.handleValidateUpdate(
+          updateName, updateId, input, eventId, context.headerWithCodec(header));
     } catch (Throwable e) {
       applyWorkflowFailurePolicyAndRethrow(e, outcomeDataConverter);
     }
@@ -120,7 +120,12 @@ class WorkflowExecutionHandler {
       DataConverter outcomeDataConverter) {
     try {
       return context.handleExecuteUpdate(
-          updateName, updateId, input, eventId, new Header(header), outcomeDataConverter);
+          updateName,
+          updateId,
+          input,
+          eventId,
+          context.headerWithCodec(header),
+          outcomeDataConverter);
     } catch (UnsupportedContinueAsNewRequest e) {
       // Re-throw to fail the workflow task
       throw e;

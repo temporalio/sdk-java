@@ -17,8 +17,10 @@ import io.temporal.common.interceptors.ScheduleClientCallsInterceptor;
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.common.SearchAttributesUtil;
+import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import java.util.*;
 import java.util.stream.StreamSupport;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +41,24 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
       String identity,
       List<ContextPropagator> contextPropagators,
       DataConverter dataConverter) {
+    this(genericClient, namespace, identity, contextPropagators, dataConverter, null);
+  }
+
+  public RootScheduleClientInvoker(
+      GenericWorkflowClient genericClient,
+      String namespace,
+      String identity,
+      List<ContextPropagator> contextPropagators,
+      DataConverter dataConverter,
+      @Nullable ExternalStorageRunner externalStorage) {
     this.genericClient = genericClient;
     this.namespace = namespace;
     this.identity = identity;
-    this.dataConverter = dataConverter;
+    // Schedule reads must reject storage references even when no driver is configured.
+    this.dataConverter = ClientDataConverterFactory.withStorage(dataConverter, externalStorage);
     this.scheduleRequestHeader =
-        new ScheduleProtoUtil(genericClient, namespace, contextPropagators, dataConverter);
+        new ScheduleProtoUtil(
+            genericClient, namespace, contextPropagators, this.dataConverter, externalStorage);
   }
 
   @Override
@@ -57,13 +71,16 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setNamespace(namespace)
             .setRequestId(UUID.randomUUID().toString())
             .setScheduleId(input.getId())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule()));
+            .setSchedule(scheduleRequestHeader.scheduleToProto(input.getSchedule(), null));
 
     if (input.getOptions().getMemo() != null) {
       // TODO we don't have a workflow context here, maybe we need a schedule context?
+      DataConverter memoConverter =
+          ClientDataConverterFactory.withStorageTarget(
+              dataConverter, scheduleRequestHeader.storageTarget(input.getSchedule().getAction()));
       request.setMemo(
           Memo.newBuilder()
-              .putAllFields(intoPayloadMap(dataConverter, input.getOptions().getMemo())));
+              .putAllFields(intoPayloadMap(memoConverter, input.getOptions().getMemo())));
     }
 
     if (input.getOptions().getSearchAttributes() != null
@@ -274,7 +291,9 @@ public class RootScheduleClientInvoker implements ScheduleClientCallsInterceptor
             .setIdentity(identity)
             .setScheduleId(input.getDescription().getId())
             .setRequestId(UUID.randomUUID().toString())
-            .setSchedule(scheduleRequestHeader.scheduleToProto(schedule.getSchedule()));
+            .setSchedule(
+                scheduleRequestHeader.scheduleToProto(
+                    schedule.getSchedule(), input.getDescription().getSchedule().getAction()));
     if (schedule.getTypedSearchAttributes() != null) {
       SearchAttributes encodedSa =
           SearchAttributesUtil.encodeTyped(schedule.getTypedSearchAttributes());

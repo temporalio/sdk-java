@@ -64,6 +64,7 @@ public class WorkflowSlotsSmallSizeTests {
                   .build())
           .setActivityImplementations(new TestActivitySemaphoreImpl())
           .setWorkflowTypes(ParallelActivities.class)
+          .setTestTimeoutSeconds(30)
           .setDoNotStart(true)
           .build();
 

@@ -112,6 +112,7 @@ public class WorkflowSlotInfoTest {
             WorkflowSlotInfoTest::buildIdCapabilities,
             new PollerTracker(),
             new PollerTracker(),
+            0,
             null);
 
     WorkflowTask task = pollTask.poll();

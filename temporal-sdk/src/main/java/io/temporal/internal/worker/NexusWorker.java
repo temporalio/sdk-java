@@ -183,6 +183,7 @@ final class NexusWorker implements SuspendableWorker {
                     workerMetricsScope,
                     service.getServerCapabilities(),
                     pollerTracker,
+                    pollerOptions.getFixedPollerCount(),
                     workerCommandsTaskQueue),
                 this.pollTaskExecutor,
                 pollerOptions,
