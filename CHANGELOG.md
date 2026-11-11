@@ -34,6 +34,9 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- The Spring Boot starter now accepts inline `spring.temporal.connection.mtls.key` and
+  `cert-chain` PEM values whose line breaks are written as the two characters `\n`, as happens when
+  they come from environment variables.
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
   the configured client's payload codec. Only opted-in producers' output is encoded, while
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded

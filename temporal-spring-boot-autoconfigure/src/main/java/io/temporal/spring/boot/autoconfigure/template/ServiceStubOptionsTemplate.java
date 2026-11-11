@@ -133,11 +133,11 @@ public class ServiceStubOptionsTemplate {
       try (InputStream certInputStream =
               certChainFile != null
                   ? Files.newInputStream(ResourceUtils.getFile(certChainFile).toPath())
-                  : new ByteArrayInputStream(certChain.getBytes(StandardCharsets.UTF_8));
+                  : new ByteArrayInputStream(toPemBytes(certChain));
           InputStream keyInputStream =
               keyFile != null
                   ? Files.newInputStream(ResourceUtils.getFile(keyFile).toPath())
-                  : new ByteArrayInputStream(key.getBytes(StandardCharsets.UTF_8)); ) {
+                  : new ByteArrayInputStream(toPemBytes(key)); ) {
         SimpleSslContextBuilder sslBuilder =
             SimpleSslContextBuilder.forPKCS8(certInputStream, keyInputStream);
         applyMTLSProperties(mtlsProperties, sslBuilder);
@@ -169,6 +169,15 @@ public class ServiceStubOptionsTemplate {
       stubsOptionsBuilder.setChannelInitializer(
           channelBuilder -> channelBuilder.overrideAuthority(serverName));
     }
+  }
+
+  /**
+   * Environment variables can't hold line breaks in most deployment systems, so PEM content passed
+   * inline through them often has line breaks escaped as the two characters {@code \n}. PEM content
+   * never contains a backslash, so such sequences are safe to turn back into real line breaks.
+   */
+  static byte[] toPemBytes(String pem) {
+    return pem.replace("\\r\\n", "\n").replace("\\n", "\n").getBytes(StandardCharsets.UTF_8);
   }
 
   private void applyMTLSProperties(
