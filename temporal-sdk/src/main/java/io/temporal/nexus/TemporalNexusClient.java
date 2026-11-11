@@ -15,14 +15,15 @@ import java.lang.reflect.Type;
  * Temporal from within a Nexus operation handler.
  *
  * <p>Passed to {@link TemporalOperation}-annotated methods (and {@link
- * TemporalOperationHandler.StartHandler} implementations) alongside the start context and input.
+ * TemporalOperationHandler.StartHandler} implementations) alongside the operation input. Access
+ * information about the current invocation through {@link Nexus#getInfo()}.
  *
  * <p>Example usage to start a workflow from an operation:
  *
  * <pre>{@code
  * @TemporalOperation
  * public TemporalOperationResult<TransferResult> startTransfer(
- *     TemporalOperationStartContext ctx, TemporalNexusClient client, TransferInput input) {
+ *     TemporalNexusClient client, TransferInput input) {
  *   return client.startWorkflow(
  *       TransferWorkflow.class,
  *       TransferWorkflow::transfer,
@@ -39,7 +40,7 @@ import java.lang.reflect.Type;
  * <pre>{@code
  * @TemporalOperation
  * public TemporalOperationResult<Void> cancelOrder(
- *     TemporalOperationStartContext ctx, TemporalNexusClient client, CancelOrderInput input) {
+ *     TemporalNexusClient client, CancelOrderInput input) {
  *   client.getWorkflowClient()
  *       .newUntypedWorkflowStub("order-" + input.getOrderId())
  *       .signal("requestCancellation", input);

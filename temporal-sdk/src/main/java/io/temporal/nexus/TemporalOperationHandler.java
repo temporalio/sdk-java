@@ -91,8 +91,6 @@ public class TemporalOperationHandler<T, R> implements OperationHandler<T, R> {
     TemporalNexusClient client =
         new TemporalNexusClientImpl(nexusCtx.getWorkflowClient(), ctx, details);
 
-    // :<) remove
-    // TemporalOperationStartContext startContext = new TemporalOperationStartContext(ctx, details);
     TemporalOperationResult<R> result = startHandler.apply(client, input);
 
     if (result.isSync()) {
