@@ -26,15 +26,32 @@ public interface NexusOperationInfo {
    */
   String getEndpoint();
 
-  // :>) add comment
+  /**
+   * @return Service name for the current Nexus request.
+   */
   String getService();
 
-  // :>) add comment
+  /**
+   * @return Operation name for the current Nexus request.
+   */
   String getOperation();
 
-  // :>) add comment
+  /**
+   * Returns the deadline for the current handler invocation. This is the time by which the handler
+   * method should complete, not the deadline for the Nexus Operation itself.
+   *
+   * @return Handler invocation deadline, or null if no deadline was provided.
+   */
   @Nullable
   Instant getDeadline();
 
+  /**
+   * Returns a read-only token for observing cancellation of the current handler invocation. This is
+   * separate from a request to cancel the Nexus Operation itself.
+   *
+   * <p>When cancellation is requested, {@link CancellationToken#throwIfCancellationRequested()}
+   * throws a {@link CancellationException} whose message contains the invocation cancellation
+   * reason.
+   */
   CancellationToken<CancellationException> getCancellationToken();
 }
