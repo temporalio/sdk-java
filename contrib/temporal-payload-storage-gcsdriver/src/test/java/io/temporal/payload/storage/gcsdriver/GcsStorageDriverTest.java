@@ -79,6 +79,7 @@ public class GcsStorageDriverTest {
     assertEquals(canonicalClaim().getClaimData(), claim.getClaimData());
     assertArrayEquals(
         payload.toByteArray(), client.objects.get("test-bucket/" + objectName(claim)));
+    assertEquals(1, client.existsAttempts.get());
     assertEquals(1, client.putAttempts.get());
   }
 
@@ -102,18 +103,55 @@ public class GcsStorageDriverTest {
         Collections.emptyList(), driver.store(STORE_CONTEXT, Collections.emptyList()).join());
     assertEquals(
         Collections.emptyList(), driver.retrieve(RETRIEVE_CONTEXT, Collections.emptyList()).join());
+    assertEquals(0, client.existsAttempts.get());
     assertEquals(0, client.putAttempts.get());
     assertEquals(0, client.getAttempts.get());
   }
 
   @Test
-  public void identicalBytesProduceSameClaimsOnRepeatedUploads() {
+  public void repeatedStoresReuseExistingObjectWithoutUploading() {
     InMemoryClient client = new InMemoryClient();
     GcsStorageDriver driver = driver(client);
     Payload payload = payload("duplicate");
     List<StorageDriverClaim> first = store(driver, payload);
     assertEquals(first, store(driver, payload));
-    assertEquals(2, client.putAttempts.get());
+    assertEquals(2, client.existsAttempts.get());
+    assertEquals(1, client.putAttempts.get());
+  }
+
+  @Test
+  public void existingObjectFromAnotherWriterIsNotUploaded() {
+    InMemoryClient client = new InMemoryClient();
+    Payload hello = Payload.newBuilder().setData(ByteString.copyFromUtf8("hello")).build();
+    client.objects.put("test-bucket/" + objectName(canonicalClaim()), new byte[] {1});
+    assertEquals(canonicalClaim(), store(driver(client), hello).get(0));
+    assertEquals(0, client.putAttempts.get());
+  }
+
+  @Test
+  public void existenceCheckFailureKeepsContextAndSkipsUpload() {
+    for (boolean synchronous : new boolean[] {false, true}) {
+      RuntimeException cause = new RuntimeException("access denied");
+      InMemoryClient client =
+          new InMemoryClient() {
+            @Override
+            public CompletableFuture<Boolean> objectExists(String bucket, String name) {
+              if (synchronous) {
+                throw cause;
+              }
+              return CompletableFutures.failedFuture(new CompletionException(cause));
+            }
+          };
+      GcsStorageException error =
+          failure(driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("x"))));
+      assertTrue(
+          error.getMessage(),
+          error
+              .getMessage()
+              .startsWith("existence check failed [bucket=test-bucket, object_name=v0/d/sha256/"));
+      assertSame(cause, error.getCause());
+      assertEquals(0, client.putAttempts.get());
+    }
   }
 
   @Test
@@ -127,6 +165,7 @@ public class GcsStorageDriverTest {
         failure(driver.store(STORE_CONTEXT, Arrays.asList(small, large)))
             .getMessage()
             .contains("exceeds maximum " + small.getSerializedSize()));
+    assertEquals(0, client.existsAttempts.get());
     assertEquals(0, client.putAttempts.get());
     assertEquals(1, store(driver, small).size());
   }
@@ -141,6 +180,7 @@ public class GcsStorageDriverTest {
         failure(driver(client).store(context, Collections.singletonList(payload("x"))))
             .getMessage()
             .contains("1024 UTF-8 bytes"));
+    assertEquals(0, client.existsAttempts.get());
     assertEquals(0, client.putAttempts.get());
   }
 
@@ -384,6 +424,49 @@ public class GcsStorageDriverTest {
   }
 
   @Test
+  public void cancellingDuringExistenceCheckCancelsItAndSkipsUpload() {
+    ControlledClient client = new ControlledClient();
+    client.holdExistenceChecks = true;
+    CompletableFuture<?> upload =
+        driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("a")));
+    upload.cancel(true);
+    assertTrue(client.existenceChecks.get(0).isCancelled());
+    assertTrue(client.uploads.isEmpty());
+  }
+
+  @Test
+  public void cancellationReachesUploadStartedAfterExistenceCheck() {
+    ControlledClient client = new ControlledClient();
+    client.holdExistenceChecks = true;
+    CompletableFuture<?> upload =
+        driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("a")));
+    client.existenceChecks.get(0).complete(false);
+    assertEquals(1, client.uploads.size());
+    upload.cancel(true);
+    assertTrue(client.uploads.get(0).isCancelled());
+  }
+
+  @Test
+  public void cancellationWhileUploadStartsCancelsTheUpload() {
+    CompletableFuture<Void> pending = new CompletableFuture<>();
+    List<CompletableFuture<?>> batch = new ArrayList<>();
+    ControlledClient client =
+        new ControlledClient() {
+          @Override
+          public CompletableFuture<Void> putObjectIfAbsent(
+              String bucket, String name, byte[] data) {
+            batch.get(0).cancel(true);
+            return pending;
+          }
+        };
+    client.holdExistenceChecks = true;
+    batch.add(driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("a"))));
+    client.existenceChecks.get(0).complete(false);
+    assertTrue(batch.get(0).isCancelled());
+    assertTrue(pending.isCancelled());
+  }
+
+  @Test
   public void cancellingBatchFutureCancelsProviderFutures() {
     ControlledClient client = new ControlledClient();
     CompletableFuture<?> upload =
@@ -430,6 +513,7 @@ public class GcsStorageDriverTest {
         driver(client)
             .retrieve(retrieveContext(token), Collections.singletonList(canonicalClaim()))
             .isCancelled());
+    assertEquals(0, client.existsAttempts.get());
     assertEquals(0, client.putAttempts.get());
     assertEquals(0, client.getAttempts.get());
     assertNull(token.callback);
@@ -531,6 +615,7 @@ public class GcsStorageDriverTest {
 
   private static class InMemoryClient implements GcsStorageDriverClient {
     final Map<String, byte[]> objects = new ConcurrentHashMap<>();
+    final AtomicInteger existsAttempts = new AtomicInteger();
     final AtomicInteger putAttempts = new AtomicInteger();
     final AtomicInteger getAttempts = new AtomicInteger();
     RuntimeException putError;
@@ -546,6 +631,12 @@ public class GcsStorageDriverTest {
     }
 
     @Override
+    public CompletableFuture<Boolean> objectExists(String bucket, String name) {
+      existsAttempts.incrementAndGet();
+      return CompletableFuture.completedFuture(objects.containsKey(bucket + "/" + name));
+    }
+
+    @Override
     public CompletableFuture<byte[]> getObject(String bucket, String name) {
       getAttempts.incrementAndGet();
       byte[] data = objects.get(bucket + "/" + name);
@@ -555,9 +646,21 @@ public class GcsStorageDriverTest {
     }
   }
 
-  private static final class ControlledClient extends InMemoryClient {
+  private static class ControlledClient extends InMemoryClient {
+    final List<CompletableFuture<Boolean>> existenceChecks = new ArrayList<>();
     final List<CompletableFuture<Void>> uploads = new ArrayList<>();
     final List<CompletableFuture<byte[]>> downloads = new ArrayList<>();
+    boolean holdExistenceChecks;
+
+    @Override
+    public CompletableFuture<Boolean> objectExists(String bucket, String name) {
+      if (!holdExistenceChecks) {
+        return CompletableFuture.completedFuture(false);
+      }
+      CompletableFuture<Boolean> result = new CompletableFuture<>();
+      existenceChecks.add(result);
+      return result;
+    }
 
     @Override
     public CompletableFuture<Void> putObjectIfAbsent(String bucket, String name, byte[] data) {

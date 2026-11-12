@@ -109,7 +109,9 @@ including `/` and `%` within individual fields.
 
 Names over 1,024 UTF-8 bytes fall back to `v0/ns/{namespace}/d/sha256/{hex-digest}`,
 retaining the namespace for access policies. Identical payload bytes in the same context reuse an
-object. Uploads never overwrite existing objects, and downloads verify the hash before decoding.
+object. The driver checks whether the object exists before uploading, so repeated payloads, such as
+those stored again during replay, are not sent twice. Uploads never overwrite existing objects, and
+downloads verify the hash before decoding.
 
 References record `bucket`, `object_name`, `hash_algorithm`, and `hash_value`.
 Downloads use the recorded bucket, so changing the upload bucket does not invalidate earlier references.

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -83,13 +84,59 @@ public final class GcsStorageDriver implements StorageDriver {
       return CompletableFutures.failedFuture(e);
     }
     return CompletableFutures.mapAsync(
-        prepared,
-        context.getCancellationToken(),
-        payload ->
-            request(
-                () -> client.putObjectIfAbsent(bucket, payload.objectName, payload.data),
-                "upload failed " + location(bucket, payload.objectName),
-                ignored -> claimFor(bucket, payload.objectName, payload.hash)));
+        prepared, context.getCancellationToken(), this::uploadIfMissing);
+  }
+
+  /**
+   * Uploads a payload unless its object already exists, which is common during replay. Cancelling
+   * the returned future cancels whichever request is in flight.
+   */
+  private CompletableFuture<StorageDriverClaim> uploadIfMissing(PreparedPayload payload) {
+    String location = location(bucket, payload.objectName);
+    StorageDriverClaim claim = claimFor(bucket, payload.objectName, payload.hash);
+    CompletableFuture<StorageDriverClaim> result = new CompletableFuture<>();
+    CompletableFuture<Boolean> existenceCheck =
+        request(
+            () -> client.objectExists(bucket, payload.objectName),
+            "existence check failed " + location,
+            Function.identity());
+    AtomicReference<CompletableFuture<?>> inFlight = new AtomicReference<>(existenceCheck);
+    result.whenComplete(
+        (value, error) -> {
+          if (result.isCancelled()) {
+            inFlight.get().cancel(true);
+          }
+        });
+    existenceCheck.whenComplete(
+        (exists, error) -> {
+          if (error != null) {
+            result.completeExceptionally(CompletableFutures.unwrap(error));
+            return;
+          }
+          if (Boolean.TRUE.equals(exists)) {
+            result.complete(claim);
+            return;
+          }
+          CompletableFuture<StorageDriverClaim> upload =
+              request(
+                  () -> client.putObjectIfAbsent(bucket, payload.objectName, payload.data),
+                  "upload failed " + location,
+                  ignored -> claim);
+          inFlight.set(upload);
+          // The result may have been cancelled before the upload was recorded as in flight.
+          if (result.isCancelled()) {
+            upload.cancel(true);
+          }
+          upload.whenComplete(
+              (value, uploadError) -> {
+                if (uploadError == null) {
+                  result.complete(value);
+                } else {
+                  result.completeExceptionally(CompletableFutures.unwrap(uploadError));
+                }
+              });
+        });
+    return result;
   }
 
   @Nonnull

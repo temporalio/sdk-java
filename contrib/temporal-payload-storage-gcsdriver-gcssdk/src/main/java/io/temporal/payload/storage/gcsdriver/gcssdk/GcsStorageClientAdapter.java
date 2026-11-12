@@ -67,6 +67,20 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
 
   @Nonnull
   @Override
+  public CompletableFuture<Boolean> objectExists(
+      @Nonnull String bucket, @Nonnull String objectName) {
+    // The client returns null for a missing object or bucket. A missing bucket then fails the
+    // upload with a 404.
+    return submit(
+        () ->
+            storage.get(
+                    BlobId.of(bucket, objectName),
+                    Storage.BlobGetOption.fields(Storage.BlobField.NAME))
+                != null);
+  }
+
+  @Nonnull
+  @Override
   public CompletableFuture<byte[]> getObject(@Nonnull String bucket, @Nonnull String objectName) {
     return submit(() -> storage.readAllBytes(BlobId.of(bucket, objectName)));
   }

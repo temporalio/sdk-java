@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
@@ -86,6 +87,43 @@ public class GcsStorageClientAdapterTest {
           .thenThrow(original);
       assertSame(original, failure(adapter.putObjectIfAbsent("bucket", "object", new byte[] {1})));
     }
+  }
+
+  @Test
+  public void existenceCheckRequestsOnlyTheObjectName() throws Exception {
+    BlobId id = BlobId.of("bucket", "日本語/object");
+    Storage.BlobGetOption nameOnly = Storage.BlobGetOption.fields(Storage.BlobField.NAME);
+    when(storage.get(eq(id), any(Storage.BlobGetOption[].class))).thenReturn(mock(Blob.class));
+    assertTrue(adapter.objectExists("bucket", "日本語/object").get(5, TimeUnit.SECONDS));
+    verify(storage).get(eq(id), eq(nameOnly));
+    verifyNoMoreInteractions(storage);
+  }
+
+  @Test
+  public void missingObjectIsReportedAsAbsent() throws Exception {
+    assertFalse(adapter.objectExists("bucket", "object").get(5, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void existenceCheckErrorsPropagateUnchanged() throws Exception {
+    for (int code : new int[] {403, 429, 500}) {
+      StorageException original = new StorageException(code, "metadata failure");
+      when(storage.get(any(BlobId.class), any(Storage.BlobGetOption[].class))).thenThrow(original);
+      assertSame(original, failure(adapter.objectExists("bucket", "object")));
+    }
+  }
+
+  @Test
+  public void driverSkipsUploadWhenObjectExists() throws Exception {
+    when(storage.get(any(BlobId.class), any(Storage.BlobGetOption[].class)))
+        .thenReturn(mock(Blob.class));
+    GcsStorageDriver driver =
+        GcsStorageDriver.newBuilder().setClient(adapter).setBucket("bucket").build();
+    driver
+        .store(() -> null, Collections.singletonList(Payload.getDefaultInstance()))
+        .get(5, TimeUnit.SECONDS);
+    verify(storage, never())
+        .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
   }
 
   @Test

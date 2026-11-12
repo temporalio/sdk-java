@@ -5,9 +5,9 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 /**
- * Provider operations used by {@link GcsStorageDriver}. Implementations must support concurrent
- * calls and make a best-effort attempt to cancel underlying work when a returned future is
- * cancelled.
+ * Provider operations used by {@link GcsStorageDriver}: upload, existence check, and download.
+ * Implementations must support concurrent calls and make a best-effort attempt to cancel underlying
+ * work when a returned future is cancelled.
  */
 @Experimental
 public interface GcsStorageDriverClient {
@@ -18,6 +18,14 @@ public interface GcsStorageDriverClient {
   @Nonnull
   CompletableFuture<Void> putObjectIfAbsent(
       @Nonnull String bucket, @Nonnull String objectName, @Nonnull byte[] data);
+
+  /**
+   * Reports whether an object exists. Completes with {@code false} when the object is absent, and
+   * completes exceptionally when existence cannot be determined, such as on a network or permission
+   * failure.
+   */
+  @Nonnull
+  CompletableFuture<Boolean> objectExists(@Nonnull String bucket, @Nonnull String objectName);
 
   /** Downloads an object's bytes. A missing object must complete exceptionally. */
   @Nonnull

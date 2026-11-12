@@ -124,6 +124,27 @@ public class GcsStorageClientAdapterIntegrationTest {
   }
 
   @Test
+  public void existenceCheckReportsPresentAndMissingObjects() throws Exception {
+    storage.create(BlobInfo.newBuilder(bucket, "present/日本語").build(), new byte[] {1});
+    assertTrue(adapter.objectExists(bucket, "present/日本語").get(5, TimeUnit.SECONDS));
+    assertFalse(adapter.objectExists(bucket, "missing-object").get(5, TimeUnit.SECONDS));
+    assertFalse(adapter.objectExists(bucket + "-missing", "object").get(5, TimeUnit.SECONDS));
+  }
+
+  @Test
+  public void repeatedStoreLeavesExistingObjectUntouched() throws Exception {
+    Payload original = Payload.newBuilder().setData(ByteString.copyFromUtf8("payload")).build();
+    List<StorageDriverClaim> first =
+        driver.store(() -> null, Collections.singletonList(original)).get(5, TimeUnit.SECONDS);
+    String name = first.get(0).getClaimData().get("object_name");
+    Long generation = storage.get(bucket, name).getGeneration();
+    assertEquals(
+        first,
+        driver.store(() -> null, Collections.singletonList(original)).get(5, TimeUnit.SECONDS));
+    assertEquals(generation, storage.get(bucket, name).getGeneration());
+  }
+
+  @Test
   public void missingObjectsAndBucketsPropagate404() throws Exception {
     assertNotFound(adapter.getObject(bucket, "missing-object"));
     assertNotFound(adapter.getObject(bucket + "-missing", "object"));
