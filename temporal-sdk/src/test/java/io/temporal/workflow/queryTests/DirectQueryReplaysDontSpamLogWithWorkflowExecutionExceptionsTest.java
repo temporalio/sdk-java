@@ -7,7 +7,6 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import io.temporal.activity.ActivityOptions;
-import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowException;
 import io.temporal.common.RetryOptions;
@@ -17,7 +16,9 @@ import io.temporal.internal.Issue;
 import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.UpdateMethod;
 import io.temporal.workflow.Workflow;
+import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.shared.TestActivities;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
@@ -81,13 +82,20 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
   public void queriedWorkflowFailureDoesntProduceAdditionalLogsWhenWorkflowIsNotCompleted() {
     assumeTrue("This test is flaky on the Test Server", SDKTestWorkflowRule.useExternalService);
 
-    TestWorkflows.QueryableWorkflow workflow =
-        testWorkflowRule.newWorkflowStub(TestWorkflows.QueryableWorkflow.class);
+    QueryableWorkflowWithFailureBarrier workflow =
+        testWorkflowRule.newWorkflowStub(QueryableWorkflowWithFailureBarrier.class);
 
-    WorkflowExecution execution = WorkflowClient.start(workflow::execute);
+    WorkflowClient.start(workflow::execute);
 
+    // Update completion is persisted with its workflow task. A query returning the constant state
+    // alone does not establish that the activity-failure-handling task has finished.
+    workflow.awaitActivityFailure();
     assertEquals("my-state", workflow.getState());
     assertEquals("There was only one execution.", 1, workflowCodeExecutionCount.get());
+    assertEquals(
+        "The activity failure must be logged before cache eviction.",
+        1,
+        workflowExecuteRunnableLoggerAppender.list.size());
 
     testWorkflowRule.invalidateWorkflowCache();
     assertEquals("my-state", workflow.getState());
@@ -110,7 +118,13 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
         workflowExecuteRunnableLoggerAppender.list.size());
   }
 
-  public static class LogAndKeepRunningWorkflow implements TestWorkflows.QueryableWorkflow {
+  @WorkflowInterface
+  public interface QueryableWorkflowWithFailureBarrier extends TestWorkflows.QueryableWorkflow {
+    @UpdateMethod
+    void awaitActivityFailure();
+  }
+
+  public static class LogAndKeepRunningWorkflow implements QueryableWorkflowWithFailureBarrier {
     private final org.slf4j.Logger logger =
         Workflow.getLogger("io.temporal.internal.sync.WorkflowExecutionHandler");
     private final TestActivities.VariousTestActivities activities =
@@ -121,6 +135,7 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
                 .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                 .build());
     private boolean exit;
+    private boolean activityFailureHandled;
 
     @Override
     public String execute() {
@@ -130,10 +145,16 @@ public class DirectQueryReplaysDontSpamLogWithWorkflowExecutionExceptionsTest {
           activities.throwIO();
         } catch (ActivityFailure e) {
           logger.error("Unexpected error on activity", e);
+          activityFailureHandled = true;
           Workflow.await(() -> exit);
           return "exit";
         }
       }
+    }
+
+    @Override
+    public void awaitActivityFailure() {
+      Workflow.await(() -> activityFailureHandled);
     }
 
     @Override

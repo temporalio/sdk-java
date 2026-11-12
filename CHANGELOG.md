@@ -42,6 +42,11 @@ to docs, or any other relevant information.
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
   views. Existing propagators default to false; custom converter wrappers can expose their codec
   through `PayloadCodecProvider`.
+- Poller pools now report their poller target to the server on each poll and in the worker
+  heartbeat, covering workflow, sticky workflow, activity, and Nexus pools. An autoscaling pool
+  reports its current target, a fixed-size pool its configured size. (We'll use this count on the
+  server side for now for load balancing pollers between workers, and for creating a per-worker
+  poller count metric.)
 - Applications can use the experimental `@TransferTypeConvertible` annotation and
   `TransferTypeConverter` interface to convert top-level model values to transfer types. The SDK
   applies this conversion to workflow, activity, Nexus, and schedule payloads, including failure
@@ -51,6 +56,9 @@ to docs, or any other relevant information.
   version. Detection is best effort and respects the worker environment information opt-out.
   Factory registration overloads accept an implementation class for runtime detection, including
   Spring Boot workflow registrations.
+- Added experimental `Copyable<T>` for isolated in-process copies. Local activities copy
+  eligible inputs for each attempt and outputs for live execution, preserving history serialization
+  and replay. Deeply immutable values may return themselves.
 - Added experimental `ChildWorkflowOptions.Builder.setVersioningOverride` and
   `VersioningOverride.OneTimeVersioningOverride` for explicit pinned, auto-upgrade, and one-time
   child workflow routing. Invalid child overrides are reported as `InvalidVersioningOverrideFailure`
@@ -106,6 +114,9 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
+  leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
+  by default in this release to preserve replay compatibility during SDK rollout.
 - `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
   and backoff coefficients until validation or annotation merging supplies them.
 - Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before

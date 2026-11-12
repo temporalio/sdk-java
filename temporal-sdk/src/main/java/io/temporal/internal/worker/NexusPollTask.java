@@ -6,6 +6,7 @@ import com.google.protobuf.Timestamp;
 import com.uber.m3.tally.Scope;
 import io.temporal.api.common.v1.WorkerVersionCapabilities;
 import io.temporal.api.enums.v1.TaskQueueKind;
+import io.temporal.api.taskqueue.v1.PollerPoolInfo;
 import io.temporal.api.taskqueue.v1.TaskQueue;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.internal.common.ProtobufTimeUtils;
@@ -40,7 +41,8 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
       @Nonnull TrackingSlotSupplier<NexusSlotInfo> slotSupplier,
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
-      @Nonnull PollerTracker pollerTracker) {
+      @Nonnull PollerTracker pollerTracker,
+      int targetPollers) {
     this(
         service,
         namespace,
@@ -52,6 +54,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
         metricsScope,
         serverCapabilities,
         pollerTracker,
+        targetPollers,
         false);
   }
 
@@ -67,6 +70,7 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
       @Nonnull Scope metricsScope,
       @Nonnull Supplier<GetSystemInfoResponse.Capabilities> serverCapabilities,
       @Nonnull PollerTracker pollerTracker,
+      int targetPollers,
       boolean workerCommandsTaskQueue) {
     this.service = Objects.requireNonNull(service);
     this.slotSupplier = slotSupplier;
@@ -99,6 +103,11 @@ final class NexusPollTask implements MultiThreadedPoller.PollTask<NexusTask> {
                 .build());
       }
     }
+    if (targetPollers > 0) {
+      pollRequest.setPollerPoolInfo(PollerPoolInfo.newBuilder().setTargetPollers(targetPollers));
+      pollerTracker.setPollerTargetSupplier(() -> targetPollers);
+    }
+
     this.pollRequest = pollRequest.build();
   }
 

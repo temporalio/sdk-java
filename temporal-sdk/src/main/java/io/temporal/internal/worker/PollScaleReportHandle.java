@@ -37,6 +37,11 @@ public class PollScaleReportHandle<T extends ScalingTask> implements Runnable {
     this.scaleCallback = scaleCallback;
   }
 
+  /** The pool's current scaling target. */
+  public synchronized int getTargetPollerCount() {
+    return targetPollerCount;
+  }
+
   public synchronized void report(T task, Throwable e) {
     if (e != null) {
       // We want to avoid scaling down on errors if we have never seen a scaling decision

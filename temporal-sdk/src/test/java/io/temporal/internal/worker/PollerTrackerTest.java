@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Test;
 
 public class PollerTrackerTest {
@@ -82,5 +83,21 @@ public class PollerTrackerTest {
     Instant second = tracker.getLastSuccessfulPollTime();
     assertNotNull(second);
     assertFalse("Last poll time should advance with each successful poll", second.isBefore(first));
+  }
+
+  @Test
+  public void testTargetPollersIsZeroWithoutASupplier() {
+    PollerTracker tracker = new PollerTracker();
+    assertEquals(0, tracker.getTargetPollers());
+  }
+
+  @Test
+  public void testTargetPollersFollowsTheSupplier() {
+    PollerTracker tracker = new PollerTracker();
+    AtomicInteger target = new AtomicInteger(5);
+    tracker.setPollerTargetSupplier(target::get);
+    assertEquals(5, tracker.getTargetPollers());
+    target.set(2);
+    assertEquals(2, tracker.getTargetPollers());
   }
 }

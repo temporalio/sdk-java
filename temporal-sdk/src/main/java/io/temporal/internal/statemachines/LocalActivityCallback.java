@@ -11,10 +11,21 @@ import javax.annotation.Nullable;
 @FunctionalInterface
 public interface LocalActivityCallback
     extends Functions.Proc2<
-        Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException> {
+        LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException> {
 
   @Override
-  void apply(Optional<Payloads> successOutput, LocalActivityFailedException exception);
+  void apply(Output successOutput, LocalActivityFailedException exception);
+
+  /** Serialized history output and an optional copied value for live execution. */
+  final class Output {
+    public final Optional<Payloads> payloads;
+    public final @Nullable Object copiedResult;
+
+    public Output(Optional<Payloads> payloads, @Nullable Object copiedResult) {
+      this.payloads = payloads;
+      this.copiedResult = copiedResult;
+    }
+  }
 
   class LocalActivityFailedException extends RuntimeException {
     private final @Nonnull Failure failure;
