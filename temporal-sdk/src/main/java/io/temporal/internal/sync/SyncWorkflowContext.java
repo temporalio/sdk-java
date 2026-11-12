@@ -41,6 +41,7 @@ import io.temporal.common.interceptors.Header;
 import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.failure.*;
+import io.temporal.internal.activity.LocalActivityArguments;
 import io.temporal.internal.common.*;
 import io.temporal.internal.replay.ChildWorkflowTaskFailedException;
 import io.temporal.internal.replay.ReplayWorkflowContext;
@@ -432,10 +433,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private class LocalActivityCallbackImpl implements LocalActivityCallback {
-    private final CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
+    private final CompletablePromise<LocalActivityCallback.Output> result = Workflow.newPromise();
 
     @Override
-    public void apply(Optional<Payloads> successOutput, LocalActivityFailedException exception) {
+    public void apply(
+        LocalActivityCallback.Output successOutput, LocalActivityFailedException exception) {
       if (exception != null) {
         runner.executeInWorkflowThread(
             "local activity failure callback", () -> result.completeExceptionally(exception));
@@ -451,10 +453,16 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     DataConverter dataConverterWithActivityContext =
         dataConverter.withContext(
             activityContext(input.getActivityName(), replayContext.getTaskQueue(), true));
-    Optional<Payloads> payloads = dataConverterWithActivityContext.toPayloads(input.getArgs());
+    LocalActivityArguments arguments = LocalActivityArguments.capture(input.getArgs());
+    Optional<Payloads> payloads =
+        arguments == null
+            ? dataConverterWithActivityContext.toPayloads(input.getArgs())
+            : input.getOptions().isDoNotIncludeArgumentsIntoMarker()
+                ? Optional.empty()
+                : arguments.toPayloads(dataConverterWithActivityContext);
 
     long originalScheduledTime = System.currentTimeMillis();
-    CompletablePromise<Optional<Payloads>> serializedResult =
+    CompletablePromise<LocalActivityCallback.Output> localActivityResult =
         WorkflowInternal.newCompletablePromise();
     executeLocalActivityOverLocalRetryThreshold(
         input.getActivityName(),
@@ -462,22 +470,28 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         input.getOptions(),
         input.getHeader(),
         payloads,
+        arguments,
         originalScheduledTime,
         1,
         null,
-        serializedResult);
+        localActivityResult);
 
     // Avoid passing the input to the output handle as it causes the input to be retained for the
     // duration of the operation.
     Type resultType = input.getResultType();
     Class<R> resultClass = input.getResultClass();
     Promise<R> result =
-        serializedResult.handle(
+        localActivityResult.handle(
             (r, f) -> {
               if (f == null) {
-                return resultClass != Void.TYPE
-                    ? dataConverterWithActivityContext.fromPayloads(0, r, resultClass, resultType)
-                    : null;
+                if (resultClass == Void.TYPE) {
+                  return null;
+                }
+                if (resultClass.isInstance(r.copiedResult)) {
+                  return resultClass.cast(r.copiedResult);
+                }
+                return dataConverterWithActivityContext.fromPayloads(
+                    0, r.payloads, resultClass, resultType);
               } else {
                 throw dataConverterWithActivityContext.failureToException(
                     ((LocalActivityCallback.LocalActivityFailedException) f).getFailure());
@@ -487,23 +501,25 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return new LocalActivityOutput<>(result);
   }
 
-  public void executeLocalActivityOverLocalRetryThreshold(
+  private void executeLocalActivityOverLocalRetryThreshold(
       String activityTypeName,
       @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
+      @Nullable LocalActivityArguments arguments,
       long originalScheduledTime,
       int attempt,
       @Nullable Failure previousExecutionFailure,
-      CompletablePromise<Optional<Payloads>> result) {
-    CompletablePromise<Optional<Payloads>> localExecutionResult =
+      CompletablePromise<LocalActivityCallback.Output> result) {
+    CompletablePromise<LocalActivityCallback.Output> localExecutionResult =
         executeLocalActivityLocally(
             activityTypeName,
             activityId,
             options,
             header,
             input,
+            arguments,
             originalScheduledTime,
             attempt,
             previousExecutionFailure);
@@ -527,6 +543,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                               options,
                               header,
                               input,
+                              arguments,
                               originalScheduledTime,
                               laException.getLastAttempt() + 1,
                               // Carry the attempt failure, not the local ActivityFailure wrapper.
@@ -552,12 +569,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         });
   }
 
-  private CompletablePromise<Optional<Payloads>> executeLocalActivityLocally(
+  private CompletablePromise<LocalActivityCallback.Output> executeLocalActivityLocally(
       String activityTypeName,
       @Nullable String activityId,
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
+      @Nullable LocalActivityArguments arguments,
       long originalScheduledTime,
       int attempt,
       @Nullable Failure previousExecutionFailure) {
@@ -570,6 +588,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             options,
             header,
             input,
+            arguments,
             attempt,
             originalScheduledTime,
             previousExecutionFailure);
@@ -669,6 +688,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       LocalActivityOptions options,
       Header header,
       Optional<Payloads> input,
+      @Nullable LocalActivityArguments arguments,
       int attempt,
       long originalScheduledTime,
       @Nullable Failure previousExecutionFailure) {
@@ -728,7 +748,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         previousExecutionFailure,
         options.isDoNotIncludeArgumentsIntoMarker(),
         localRetryThreshold,
-        userMetadata);
+        userMetadata,
+        arguments);
   }
 
   @Override
