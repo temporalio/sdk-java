@@ -2,9 +2,7 @@ package io.temporal.internal.nexus;
 
 import io.temporal.common.CancellationToken;
 import io.temporal.nexus.NexusOperationInfo;
-import java.time.Instant;
 import java.util.concurrent.CancellationException;
-import javax.annotation.Nullable;
 
 class NexusInfoImpl implements NexusOperationInfo {
   private final String namespace;
@@ -12,7 +10,6 @@ class NexusInfoImpl implements NexusOperationInfo {
   private final String endpoint;
   private final String service;
   private final String operation;
-  private final @Nullable Instant deadline;
   private final CancellationToken<CancellationException> cancellationToken;
 
   NexusInfoImpl(
@@ -21,14 +18,12 @@ class NexusInfoImpl implements NexusOperationInfo {
       String endpoint,
       String service,
       String operation,
-      @Nullable Instant deadline,
       CancellationToken<CancellationException> cancellationToken) {
     this.namespace = namespace;
     this.taskQueue = taskQueue;
     this.endpoint = endpoint;
     this.service = service;
     this.operation = operation;
-    this.deadline = deadline;
     this.cancellationToken = cancellationToken;
   }
 
@@ -55,11 +50,6 @@ class NexusInfoImpl implements NexusOperationInfo {
   @Override
   public String getOperation() {
     return operation;
-  }
-
-  @Override
-  public @Nullable Instant getDeadline() {
-    return deadline;
   }
 
   @Override

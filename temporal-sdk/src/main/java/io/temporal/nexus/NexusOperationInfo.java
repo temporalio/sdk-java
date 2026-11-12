@@ -1,9 +1,7 @@
 package io.temporal.nexus;
 
 import io.temporal.common.CancellationToken;
-import java.time.Instant;
 import java.util.concurrent.CancellationException;
-import javax.annotation.Nullable;
 
 /**
  * Temporal information about the Nexus Operation. Use {@link Nexus#getInfo()} from a Nexus
@@ -35,15 +33,6 @@ public interface NexusOperationInfo {
    * @return Operation name for the current Nexus request.
    */
   String getOperation();
-
-  /**
-   * Returns the deadline for the current handler invocation. This is the time by which the handler
-   * method should complete, not the deadline for the Nexus Operation itself.
-   *
-   * @return Handler invocation deadline, or null if no deadline was provided.
-   */
-  @Nullable
-  Instant getDeadline();
 
   /**
    * Returns a read-only token for observing cancellation of the current handler invocation. This is
