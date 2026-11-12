@@ -3,7 +3,9 @@ description = '''Temporal Java SDK External Storage GCS Driver - Google Cloud St
 apply from: "$rootDir/gradle/fakeGcsServer.gradle"
 
 ext {
-    googleCloudStorageVersion = '2.75.0'
+    // 2.62.0 is the newest release that keeps protobuf 3.25.x and gRPC 1.76.x, matching the
+    // versions the SDK is built against. Applications can still use a newer client.
+    googleCloudStorageVersion = '2.62.0'
 }
 
 dependencies {
