@@ -20,19 +20,43 @@ final class EventGroupImpl implements EventGroup {
   private final @Nonnull String id;
   private final @Nullable String label;
 
-  // Cache the marker to avoid reencoding for each command.
-  private @Nullable EventGroupMarker marker;
-
   EventGroupImpl(@Nonnull String id, @Nullable String label) {
     Preconditions.checkArgument(id != null && !id.isEmpty(), "Event group ID must not be empty");
     this.id = id;
     this.label = label;
   }
 
-  /**
-   * @param groups groups attached to a command, through its options
-   * @param dataConverter converter used to encode labels, including any payload codec
-   */
+  @Nonnull
+  @Override
+  public String getId() {
+    return id;
+  }
+
+  @Nullable
+  @Override
+  public String getLabel() {
+    return label;
+  }
+
+  EventGroupMarker toMarker(DataConverter dataConverter) {
+    EventGroupMarker.Label.Builder labelMarker = EventGroupMarker.Label.newBuilder().setId(id);
+    if (label != null) {
+      // Converting to json/plain first keeps the label readable by UIs regardless of the
+      // user's payload converters, while RawValue still lets the user's codec apply.
+      Payload plain =
+          DefaultDataConverter.STANDARD_INSTANCE
+              .toPayload(label)
+              .orElseThrow(() -> new IllegalStateException("Failed to encode event group label"));
+      dataConverter.toPayload(new RawValue(plain)).ifPresent(labelMarker::setLabel);
+    }
+    return EventGroupMarker.newBuilder().setLabel(labelMarker).build();
+  }
+
+  @Override
+  public String toString() {
+    return "EventGroup{" + "id='" + id + '\'' + ", label='" + label + '\'' + '}';
+  }
+
   static List<EventGroupMarker> toMarkers(
       Collection<EventGroup> groups, DataConverter dataConverter) {
     if (groups.isEmpty()) {
@@ -51,42 +75,5 @@ final class EventGroupImpl implements EventGroup {
       markers.add(group.toMarker(dataConverter));
     }
     return markers;
-  }
-
-  @Nonnull
-  @Override
-  public String getId() {
-    return id;
-  }
-
-  @Nullable
-  @Override
-  public String getLabel() {
-    return label;
-  }
-
-  /**
-   * @param dataConverter converter used to encode the label, including any payload codec
-   */
-  EventGroupMarker toMarker(DataConverter dataConverter) {
-    if (this.marker == null) {
-      EventGroupMarker.Label.Builder labelMarker = EventGroupMarker.Label.newBuilder().setId(id);
-      if (label != null) {
-        // Converting to json/plain first keeps the label readable by UIs regardless of the
-        // user's payload converters, while RawValue still lets the user's codec apply.
-        Payload plain =
-            DefaultDataConverter.STANDARD_INSTANCE
-                .toPayload(label)
-                .orElseThrow(() -> new IllegalStateException("Failed to encode event group label"));
-        dataConverter.toPayload(new RawValue(plain)).ifPresent(labelMarker::setLabel);
-      }
-      this.marker = EventGroupMarker.newBuilder().setLabel(labelMarker).build();
-    }
-    return this.marker;
-  }
-
-  @Override
-  public String toString() {
-    return "EventGroup{" + "id='" + id + '\'' + ", label='" + label + '\'' + '}';
   }
 }
