@@ -14,20 +14,24 @@ import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 /**
- * Google Cloud Storage adapter that runs blocking calls on an application-supplied executor.
+ * Google Cloud Storage adapter that runs blocking calls on a thread pool. Construct via {@link
+ * #newBuilder()}.
  *
  * <p>The application configures credentials, transport, retries, and time limits on {@link
- * Storage}. It owns both resources and must shut them down after Temporal's storage work finishes.
- * Use a dedicated executor: {@code Executors.newVirtualThreadPerTaskExecutor()} on Java 21+, or a
- * fixed thread pool sized to at least the worker's activity and workflow task slots on earlier
- * versions.
+ * Storage}, and closes it after Temporal's storage work finishes. By default the adapter creates
+ * its own thread pool, which {@link #close()} shuts down. An executor supplied with {@link
+ * Builder#setExecutor(Executor)} is owned and shut down by the application.
  *
  * <p>Provider failures propagate unchanged. The storage driver adds operation and location context.
  *
@@ -36,13 +40,37 @@ import javax.annotation.Nonnull;
  * upload.
  */
 @Experimental
-public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
-  private final Storage storage;
-  private final ExecutorService executor;
+public final class GcsStorageClientAdapter implements GcsStorageDriverClient, AutoCloseable {
+  private static final int DEFAULT_THREAD_POOL_MAX_SIZE = 400;
+  private static final long THREAD_KEEP_ALIVE_SECONDS = 60;
+  private static final AtomicInteger POOL_THREAD_COUNTER = new AtomicInteger();
 
-  public GcsStorageClientAdapter(@Nonnull Storage storage, @Nonnull ExecutorService executor) {
-    this.storage = Objects.requireNonNull(storage, "storage");
-    this.executor = Objects.requireNonNull(executor, "executor");
+  private final Storage storage;
+  private final Executor executor;
+  // Null when the application supplied the executor.
+  private final ThreadPoolExecutor ownedPool;
+
+  private GcsStorageClientAdapter(
+      Storage storage, Executor executor, ThreadPoolExecutor ownedPool) {
+    this.storage = storage;
+    this.executor = executor;
+    this.ownedPool = ownedPool;
+  }
+
+  public static Builder newBuilder() {
+    return new Builder();
+  }
+
+  /**
+   * Shuts down the adapter's built-in thread pool, if it has one. Calls in progress finish, and
+   * later calls fail. Does not close {@link Storage} or an application-supplied executor. Safe to
+   * call more than once.
+   */
+  @Override
+  public void close() {
+    if (ownedPool != null) {
+      ownedPool.shutdown();
+    }
   }
 
   @Nonnull
@@ -132,5 +160,85 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
       task.cancel(true);
     }
     return result;
+  }
+
+  @Experimental
+  public static final class Builder {
+    private Storage storage;
+    private Executor executor;
+    private Integer threadPoolMaxSize;
+
+    private Builder() {}
+
+    /** Required. The Google Cloud Storage client used for all calls. */
+    public Builder setStorage(@Nonnull Storage storage) {
+      this.storage = Objects.requireNonNull(storage, "storage");
+      return this;
+    }
+
+    /**
+     * Maximum number of threads in the adapter's built-in thread pool. Defaults to 400, matching
+     * the worker's default 200 workflow task slots and 200 activity slots. Threads start on demand
+     * and stop after a minute without work. Calls beyond the limit wait in a queue. Cannot be
+     * combined with {@link #setExecutor(Executor)}.
+     */
+    public Builder setThreadPoolMaxSize(int threadPoolMaxSize) {
+      if (threadPoolMaxSize <= 0) {
+        throw new IllegalArgumentException(
+            "threadPoolMaxSize must be positive, got " + threadPoolMaxSize);
+      }
+      this.threadPoolMaxSize = threadPoolMaxSize;
+      return this;
+    }
+
+    /**
+     * Runs calls on an application-supplied executor instead of the built-in thread pool. The
+     * application owns the executor and shuts it down; {@link GcsStorageClientAdapter#close()}
+     * leaves it running. Avoid executors that reject tasks or run them on the calling thread.
+     * Cannot be combined with {@link #setThreadPoolMaxSize(int)}.
+     */
+    public Builder setExecutor(@Nonnull Executor executor) {
+      this.executor = Objects.requireNonNull(executor, "executor");
+      return this;
+    }
+
+    public GcsStorageClientAdapter build() {
+      if (storage == null) {
+        throw new IllegalStateException("storage is required");
+      }
+      if (executor != null && threadPoolMaxSize != null) {
+        throw new IllegalStateException(
+            "set either an executor or a thread pool max size, not both");
+      }
+      if (executor != null) {
+        return new GcsStorageClientAdapter(storage, executor, null);
+      }
+      ThreadPoolExecutor pool =
+          newThreadPool(
+              threadPoolMaxSize != null ? threadPoolMaxSize : DEFAULT_THREAD_POOL_MAX_SIZE);
+      return new GcsStorageClientAdapter(storage, pool, pool);
+    }
+
+    private static ThreadPoolExecutor newThreadPool(int maxSize) {
+      // Core and maximum sizes match because the pool only grows past its core size when the
+      // queue is full, and this queue is unbounded. Core threads time out when idle.
+      ThreadPoolExecutor pool =
+          new ThreadPoolExecutor(
+              maxSize,
+              maxSize,
+              THREAD_KEEP_ALIVE_SECONDS,
+              TimeUnit.SECONDS,
+              new LinkedBlockingQueue<>(),
+              runnable -> {
+                Thread thread =
+                    new Thread(
+                        runnable, "temporal-gcs-storage-" + POOL_THREAD_COUNTER.incrementAndGet());
+                // Daemon threads do not keep the JVM alive if the adapter is never closed.
+                thread.setDaemon(true);
+                return thread;
+              });
+      pool.allowCoreThreadTimeOut(true);
+      return pool;
+    }
   }
 }

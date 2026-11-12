@@ -12,18 +12,16 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
 import io.temporal.payload.storage.gcsdriver.GcsStorageDriver;
 import io.temporal.payload.storage.gcsdriver.gcssdk.GcsStorageClientAdapter;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 Storage storage =
   StorageOptions.grpc().setProjectId("my-project").build().getService();
 
-// Java 21+. On Java 8-20, use Executors.newFixedThreadPool(n); see Configuration.
-ExecutorService storageExecutor = Executors.newVirtualThreadPerTaskExecutor();
+GcsStorageClientAdapter storageClient =
+  GcsStorageClientAdapter.newBuilder().setStorage(storage).build();
 
 GcsStorageDriver driver =
   GcsStorageDriver.newBuilder()
-    .setClient(new GcsStorageClientAdapter(storage, storageExecutor))
+    .setClient(storageClient)
     .setBucket("temporal-payloads")
     .build();
 ```
@@ -33,7 +31,7 @@ To choose a bucket per payload, use `setBucketResolver` instead of `setBucket`:
 ```java
 GcsStorageDriver driver =
   GcsStorageDriver.newBuilder()
-    .setClient(new GcsStorageClientAdapter(storage, storageExecutor))
+    .setClient(storageClient)
     .setBucketResolver((context, payload) -> "temporal-payloads-" + tenantOf(context))
     .build();
 ```
@@ -49,26 +47,28 @@ ExternalStorage externalStorage =
     .build();
 ```
 
-The application owns the Google client and executor; see [Configuration](#configuration).
+The application owns the Google client; see [Configuration](#configuration).
 
 ## Configuration
 
-The adapter runs each blocking GCS call on the executor you supply. Use a dedicated executor:
+The adapter runs each blocking GCS call on its own thread pool of up to 400 threads, matching the
+worker's default 200 activity slots and 200 workflow task slots. Threads start on demand and stop
+after a minute without work; calls beyond the limit wait in a queue. If you raise the worker's
+slots, raise the pool with `setThreadPoolMaxSize(n)` to at least the activity slots plus workflow
+task slots. A smaller pool queues storage calls and slows workflow tasks under load.
 
-- Java 21+: `Executors.newVirtualThreadPerTaskExecutor()`.
-- Java 8-20: `Executors.newFixedThreadPool(n)`, with `n` at least the worker's activity slots
-  plus workflow task slots. A smaller pool queues storage calls and slows workflow tasks under load.
-
-Avoid a bounded queue that rejects tasks, because a rejection fails the store or retrieve. Avoid
-`CallerRunsPolicy`, because it runs the GCS call on the SDK's worker thread and cancellation then
-interrupts that thread.
+To use your own executor instead, such as `Executors.newVirtualThreadPerTaskExecutor()` on
+Java 21+, call `setExecutor(...)`. Avoid an executor that rejects tasks, because a rejection fails
+the store or retrieve. Avoid `CallerRunsPolicy`, because it runs the GCS call on the SDK's worker
+thread and cancellation then interrupts that thread.
 
 The SDK waits for each storage operation on the worker thread, so worker slots
 (`setMaxConcurrentActivityExecutionSize` and `setMaxConcurrentWorkflowTaskExecutionSize`) limit
-concurrent GCS calls and the payload memory they hold. Tune those rather than the executor.
+concurrent GCS calls and the payload memory they hold. Tune those rather than the thread pool.
 
-Shut down the executor and close the Google client after the worker factory terminates. Configure
-timeouts and retry limits on the client; cancellation uses best-effort interruption.
+After the worker factory terminates, close the adapter, which shuts down its thread pool, then
+close the Google client. Shut down your own executor if you supplied one. Configure timeouts and
+retry limits on the client; cancellation uses best-effort interruption.
 
 Authenticate with
 [Application Default Credentials or workload identity](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc).

@@ -16,16 +16,20 @@ import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
 import io.temporal.payload.storage.gcsdriver.GcsStorageDriver;
 import io.temporal.payload.storage.gcsdriver.GcsStorageException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,7 +44,7 @@ public class GcsStorageClientAdapterTest {
   public void setUp() {
     storage = mock(Storage.class);
     executor = Executors.newSingleThreadExecutor();
-    adapter = new GcsStorageClientAdapter(storage, executor);
+    adapter = withExecutor(executor);
   }
 
   @After
@@ -50,9 +54,116 @@ public class GcsStorageClientAdapterTest {
   }
 
   @Test
-  public void requiresApplicationResources() {
-    assertThrows(NullPointerException.class, () -> new GcsStorageClientAdapter(null, executor));
-    assertThrows(NullPointerException.class, () -> new GcsStorageClientAdapter(storage, null));
+  public void builderValidatesConfiguration() {
+    assertThrows(
+        NullPointerException.class, () -> GcsStorageClientAdapter.newBuilder().setStorage(null));
+    assertThrows(
+        NullPointerException.class, () -> GcsStorageClientAdapter.newBuilder().setExecutor(null));
+    for (int size : new int[] {0, -1}) {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> GcsStorageClientAdapter.newBuilder().setThreadPoolMaxSize(size));
+    }
+    assertThrows(IllegalStateException.class, () -> GcsStorageClientAdapter.newBuilder().build());
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            GcsStorageClientAdapter.newBuilder()
+                .setStorage(storage)
+                .setExecutor(executor)
+                .setThreadPoolMaxSize(4)
+                .build());
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            GcsStorageClientAdapter.newBuilder()
+                .setStorage(storage)
+                .setThreadPoolMaxSize(4)
+                .setExecutor(executor)
+                .build());
+  }
+
+  @Test
+  public void builtInPoolRunsCallsOnNamedDaemonThreads() throws Exception {
+    List<Thread> threads = new CopyOnWriteArrayList<>();
+    when(storage.readAllBytes(BlobId.of("bucket", "object")))
+        .thenAnswer(
+            invocation -> {
+              threads.add(Thread.currentThread());
+              return new byte[] {1};
+            });
+    try (GcsStorageClientAdapter pooled =
+        GcsStorageClientAdapter.newBuilder().setStorage(storage).build()) {
+      assertArrayEquals(
+          new byte[] {1}, pooled.getObject("bucket", "object").get(5, TimeUnit.SECONDS));
+    }
+    assertEquals(1, threads.size());
+    assertTrue(
+        threads.get(0).getName(), threads.get(0).getName().startsWith("temporal-gcs-storage-"));
+    assertTrue(threads.get(0).isDaemon());
+  }
+
+  @Test
+  public void builtInPoolQueuesCallsBeyondMaxSize() throws Exception {
+    AtomicInteger running = new AtomicInteger();
+    CountDownLatch twoRunning = new CountDownLatch(2);
+    CountDownLatch release = new CountDownLatch(1);
+    when(storage.readAllBytes(any(BlobId.class)))
+        .thenAnswer(
+            invocation -> {
+              running.incrementAndGet();
+              twoRunning.countDown();
+              release.await();
+              return new byte[] {1};
+            });
+    try (GcsStorageClientAdapter pooled =
+        GcsStorageClientAdapter.newBuilder().setStorage(storage).setThreadPoolMaxSize(2).build()) {
+      List<CompletableFuture<byte[]>> downloads = new ArrayList<>();
+      for (int i = 0; i < 3; i++) {
+        downloads.add(pooled.getObject("bucket", "object-" + i));
+      }
+      assertTrue(twoRunning.await(5, TimeUnit.SECONDS));
+      Thread.sleep(200);
+      assertEquals(2, running.get());
+      assertFalse(downloads.get(2).isDone());
+      release.countDown();
+      for (CompletableFuture<byte[]> download : downloads) {
+        assertArrayEquals(new byte[] {1}, download.get(5, TimeUnit.SECONDS));
+      }
+      assertEquals(3, running.get());
+    }
+  }
+
+  @Test
+  public void closeLetsRunningCallsFinishAndRejectsLaterCalls() throws Exception {
+    CountDownLatch started = new CountDownLatch(1);
+    CountDownLatch release = new CountDownLatch(1);
+    when(storage.readAllBytes(BlobId.of("bucket", "object")))
+        .thenAnswer(
+            invocation -> {
+              started.countDown();
+              release.await();
+              return new byte[] {1};
+            });
+    GcsStorageClientAdapter pooled =
+        GcsStorageClientAdapter.newBuilder().setStorage(storage).build();
+    CompletableFuture<byte[]> running = pooled.getObject("bucket", "object");
+    assertTrue(started.await(5, TimeUnit.SECONDS));
+    pooled.close();
+    pooled.close();
+    release.countDown();
+    assertArrayEquals(new byte[] {1}, running.get(5, TimeUnit.SECONDS));
+    assertTrue(failure(pooled.getObject("bucket", "object")) instanceof RejectedExecutionException);
+    verify(storage, never()).close();
+  }
+
+  @Test
+  public void closeLeavesApplicationExecutorRunning() throws Exception {
+    when(storage.readAllBytes(BlobId.of("bucket", "object"))).thenReturn(new byte[] {1});
+    adapter.close();
+    assertFalse(executor.isShutdown());
+    assertArrayEquals(
+        new byte[] {1}, adapter.getObject("bucket", "object").get(5, TimeUnit.SECONDS));
   }
 
   @Test
@@ -180,8 +291,7 @@ public class GcsStorageClientAdapterTest {
   @Test
   public void queuedTaskIsCancelledBeforeItCanRun() {
     ExecutorService queued = mock(ExecutorService.class);
-    CompletableFuture<byte[]> download =
-        new GcsStorageClientAdapter(storage, queued).getObject("bucket", "object");
+    CompletableFuture<byte[]> download = withExecutor(queued).getObject("bucket", "object");
     ArgumentCaptor<Runnable> task = ArgumentCaptor.forClass(Runnable.class);
     verify(queued).execute(task.capture());
     assertFalse(download.isDone());
@@ -196,9 +306,7 @@ public class GcsStorageClientAdapterTest {
     ExecutorService rejected = mock(ExecutorService.class);
     RejectedExecutionException original = new RejectedExecutionException("queue is full");
     doThrow(original).when(rejected).execute(any(Runnable.class));
-    assertSame(
-        original,
-        failure(new GcsStorageClientAdapter(storage, rejected).getObject("bucket", "object")));
+    assertSame(original, failure(withExecutor(rejected).getObject("bucket", "object")));
     verifyNoInteractions(storage);
   }
 
@@ -247,6 +355,10 @@ public class GcsStorageClientAdapterTest {
     assertTrue(
         error.getMessage(),
         error.getMessage().startsWith("upload failed [bucket=bucket, object_name="));
+  }
+
+  private GcsStorageClientAdapter withExecutor(Executor executor) {
+    return GcsStorageClientAdapter.newBuilder().setStorage(storage).setExecutor(executor).build();
   }
 
   private static Throwable failure(CompletableFuture<?> future) throws Exception {

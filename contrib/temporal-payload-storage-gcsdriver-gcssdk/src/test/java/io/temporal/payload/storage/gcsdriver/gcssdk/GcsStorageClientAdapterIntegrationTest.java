@@ -63,7 +63,8 @@ public class GcsStorageClientAdapterIntegrationTest {
             .build()
             .getService();
     executor = Executors.newFixedThreadPool(4);
-    adapter = new GcsStorageClientAdapter(storage, executor);
+    adapter =
+        GcsStorageClientAdapter.newBuilder().setStorage(storage).setExecutor(executor).build();
     bucket = "temporal-test-" + UUID.randomUUID();
     storage.create(BucketInfo.of(bucket));
     driver = GcsStorageDriver.newBuilder().setClient(adapter).setBucket(bucket).build();
