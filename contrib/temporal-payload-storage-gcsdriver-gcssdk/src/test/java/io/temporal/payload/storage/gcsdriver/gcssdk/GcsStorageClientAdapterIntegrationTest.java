@@ -146,6 +146,18 @@ public class GcsStorageClientAdapterIntegrationTest {
 
   @Test
   public void missingObjectsAndBucketsPropagate404() throws Exception {
+    ExecutionException error =
+        assertThrows(
+            ExecutionException.class,
+            () ->
+                driver
+                    .retrieve(
+                        RETRIEVE_CONTEXT,
+                        Collections.singletonList(claim(bucket, "missing-object", "0")))
+                    .get(5, TimeUnit.SECONDS));
+    assertTrue(
+        error.getCause().getMessage(),
+        error.getCause().getMessage().contains(", client_project_id=temporal-test]"));
     assertNotFound(adapter.getObject(bucket, "missing-object"));
     assertNotFound(adapter.getObject(bucket + "-missing", "object"));
     assertNotFound(adapter.putObjectIfAbsent(bucket + "-missing", "object", new byte[] {1}));
@@ -217,6 +229,15 @@ public class GcsStorageClientAdapterIntegrationTest {
             () -> driver.retrieve(RETRIEVE_CONTEXT, claims).get(5, TimeUnit.SECONDS));
     assertTrue(error.getCause() instanceof GcsStorageException);
     assertTrue(error.getCause().getMessage().contains("integrity check failed"));
+  }
+
+  private static StorageDriverClaim claim(String bucket, String name, String hashDigit) {
+    Map<String, String> data = new HashMap<>();
+    data.put("bucket", bucket);
+    data.put("object_name", name);
+    data.put("hash_algorithm", "sha256");
+    data.put("hash_value", String.join("", Collections.nCopies(64, hashDigit)));
+    return new StorageDriverClaim(data);
   }
 
   private static void assertNotFound(CompletableFuture<?> operation) throws Exception {

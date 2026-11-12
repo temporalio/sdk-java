@@ -393,6 +393,42 @@ public class GcsStorageDriverTest {
   }
 
   @Test
+  public void requestFailuresIncludeClientDescription() {
+    RuntimeException cause = new RuntimeException("access denied");
+    InMemoryClient client =
+        new InMemoryClient() {
+          @Override
+          public CompletableFuture<Boolean> objectExists(String bucket, String name) {
+            return existenceFails
+                ? CompletableFutures.failedFuture(cause)
+                : super.objectExists(bucket, name);
+          }
+
+          @Override
+          public Map<String, String> describe() {
+            return Collections.singletonMap("client_project_id", "my-project");
+          }
+        };
+    client.existenceFails = true;
+    assertTrue(
+        failure(driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("x"))))
+            .getMessage()
+            .endsWith(", client_project_id=my-project]: access denied"));
+    client.existenceFails = false;
+    client.putError = cause;
+    assertTrue(
+        failure(driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("x"))))
+            .getMessage()
+            .endsWith(", client_project_id=my-project]: access denied"));
+    assertTrue(
+        failure(
+                driver(client)
+                    .retrieve(RETRIEVE_CONTEXT, Collections.singletonList(canonicalClaim())))
+            .getMessage()
+            .endsWith(", client_project_id=my-project]: not found"));
+  }
+
+  @Test
   public void uploadFailureCancelsPendingUploads() {
     ControlledClient client = new ControlledClient();
     CompletableFuture<?> batch =
@@ -619,6 +655,7 @@ public class GcsStorageDriverTest {
     final AtomicInteger putAttempts = new AtomicInteger();
     final AtomicInteger getAttempts = new AtomicInteger();
     RuntimeException putError;
+    boolean existenceFails;
 
     @Override
     public CompletableFuture<Void> putObjectIfAbsent(String bucket, String name, byte[] data) {

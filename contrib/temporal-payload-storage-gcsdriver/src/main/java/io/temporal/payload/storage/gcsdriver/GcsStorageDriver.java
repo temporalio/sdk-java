@@ -83,16 +83,20 @@ public final class GcsStorageDriver implements StorageDriver {
     } catch (RuntimeException e) {
       return CompletableFutures.failedFuture(e);
     }
+    String describeSuffix = describeSuffix();
     return CompletableFutures.mapAsync(
-        prepared, context.getCancellationToken(), this::uploadIfMissing);
+        prepared,
+        context.getCancellationToken(),
+        payload -> uploadIfMissing(payload, describeSuffix));
   }
 
   /**
    * Uploads a payload unless its object already exists, which is common during replay. Cancelling
    * the returned future cancels whichever request is in flight.
    */
-  private CompletableFuture<StorageDriverClaim> uploadIfMissing(PreparedPayload payload) {
-    String location = location(bucket, payload.objectName);
+  private CompletableFuture<StorageDriverClaim> uploadIfMissing(
+      PreparedPayload payload, String describeSuffix) {
+    String location = requestLocation(bucket, payload.objectName, describeSuffix);
     StorageDriverClaim claim = claimFor(bucket, payload.objectName, payload.hash);
     CompletableFuture<StorageDriverClaim> result = new CompletableFuture<>();
     CompletableFuture<Boolean> existenceCheck =
@@ -163,6 +167,7 @@ public final class GcsStorageDriver implements StorageDriver {
     } catch (RuntimeException e) {
       return CompletableFutures.failedFuture(e);
     }
+    String describeSuffix = describeSuffix();
     return CompletableFutures.mapAsync(
         validated,
         context.getCancellationToken(),
@@ -171,7 +176,7 @@ public final class GcsStorageDriver implements StorageDriver {
           String objectName = claim.get("object_name");
           return request(
               () -> client.getObject(claimBucket, objectName),
-              "download failed " + location(claimBucket, objectName),
+              "download failed " + requestLocation(claimBucket, objectName, describeSuffix),
               data -> verifyAndParse(data, claim));
         });
   }
@@ -214,7 +219,27 @@ public final class GcsStorageDriver implements StorageDriver {
   }
 
   private static String location(String bucket, String objectName) {
-    return "[bucket=" + bucket + ", object_name=" + objectName + "]";
+    return requestLocation(bucket, objectName, "");
+  }
+
+  private static String requestLocation(String bucket, String objectName, String describeSuffix) {
+    return "[bucket=" + bucket + ", object_name=" + objectName + describeSuffix + "]";
+  }
+
+  /**
+   * Renders {@link GcsStorageDriverClient#describe()} as a {@code ", k=v"} suffix for request
+   * failure messages.
+   */
+  private String describeSuffix() {
+    Map<String, String> describe = client.describe();
+    if (describe == null || describe.isEmpty()) {
+      return "";
+    }
+    StringBuilder sb = new StringBuilder();
+    for (Map.Entry<String, String> entry : describe.entrySet()) {
+      sb.append(", ").append(entry.getKey()).append("=").append(entry.getValue());
+    }
+    return sb.toString();
   }
 
   private static <I, O> CompletableFuture<O> request(

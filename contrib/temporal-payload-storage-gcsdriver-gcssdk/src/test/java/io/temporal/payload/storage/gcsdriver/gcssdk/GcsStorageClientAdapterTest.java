@@ -9,6 +9,7 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -124,6 +125,16 @@ public class GcsStorageClientAdapterTest {
         .get(5, TimeUnit.SECONDS);
     verify(storage, never())
         .create(any(BlobInfo.class), any(byte[].class), any(Storage.BlobTargetOption[].class));
+  }
+
+  @Test
+  public void describesConfiguredProject() {
+    StorageOptions options = mock(StorageOptions.class);
+    when(storage.getOptions()).thenReturn(options);
+    when(options.getProjectId()).thenReturn("my-project");
+    assertEquals(Collections.singletonMap("client_project_id", "my-project"), adapter.describe());
+    when(options.getProjectId()).thenReturn(null);
+    assertEquals(Collections.emptyMap(), adapter.describe());
   }
 
   @Test

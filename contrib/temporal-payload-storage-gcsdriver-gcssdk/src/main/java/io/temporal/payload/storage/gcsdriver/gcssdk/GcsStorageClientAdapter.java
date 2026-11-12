@@ -4,9 +4,12 @@ import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
+import com.google.cloud.storage.StorageOptions;
 import io.temporal.common.Experimental;
 import io.temporal.payload.storage.gcsdriver.GcsStorageDriverClient;
 import java.net.HttpURLConnection;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -83,6 +86,18 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient {
   @Override
   public CompletableFuture<byte[]> getObject(@Nonnull String bucket, @Nonnull String objectName) {
     return submit(() -> storage.readAllBytes(BlobId.of(bucket, objectName)));
+  }
+
+  /** Reports the Google client's project, when one is configured. */
+  @Nonnull
+  @Override
+  public Map<String, String> describe() {
+    StorageOptions options = storage.getOptions();
+    String projectId = options == null ? null : options.getProjectId();
+    if (projectId == null || projectId.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    return Collections.singletonMap("client_project_id", projectId);
   }
 
   private <T> CompletableFuture<T> submit(Supplier<T> call) {

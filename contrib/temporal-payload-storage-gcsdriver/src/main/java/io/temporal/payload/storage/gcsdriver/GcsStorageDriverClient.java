@@ -1,6 +1,8 @@
 package io.temporal.payload.storage.gcsdriver;
 
 import io.temporal.common.Experimental;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -30,4 +32,14 @@ public interface GcsStorageDriverClient {
   /** Downloads an object's bytes. A missing object must complete exceptionally. */
   @Nonnull
   CompletableFuture<byte[]> getObject(@Nonnull String bucket, @Nonnull String objectName);
+
+  /**
+   * Diagnostic metadata about the client configuration, such as {@code {"client_project_id":
+   * "my-project"}}, that the driver appends to request failure messages. Returns an empty map by
+   * default.
+   */
+  @Nonnull
+  default Map<String, String> describe() {
+    return Collections.emptyMap();
+  }
 }
