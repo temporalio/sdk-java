@@ -1,4 +1,4 @@
-package io.temporal.internal.payload.storage;
+package io.temporal.payload.storage.gcsdriver;
 
 import io.temporal.common.CancellationToken;
 import java.util.ArrayList;
@@ -10,15 +10,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-/** Future coordination shared by external storage drivers. */
-public final class CompletableFutures {
+/** Future coordination for the GCS storage driver. */
+final class CompletableFutures {
   private CompletableFutures() {}
 
   /**
    * Completes with the results in input order once every future succeeds. Fails fast with the first
    * failure's cause as soon as any future fails, without waiting for the rest.
    */
-  public static <T> CompletableFuture<List<T>> allAsList(List<CompletableFuture<T>> futures) {
+  static <T> CompletableFuture<List<T>> allAsList(List<CompletableFuture<T>> futures) {
     CompletableFuture<List<T>> result = new CompletableFuture<>();
     if (futures.isEmpty()) {
       result.complete(new ArrayList<>());
@@ -54,7 +54,7 @@ public final class CompletableFutures {
    * Starts operations until the batch fails or is cancelled, collecting results in input order.
    * Batch failure, batch cancellation, and token cancellation cancel outstanding operations.
    */
-  public static <I, O> CompletableFuture<List<O>> mapAsync(
+  static <I, O> CompletableFuture<List<O>> mapAsync(
       List<I> inputs,
       CancellationToken<CancellationException> token,
       Function<I, CompletableFuture<O>> operation) {
@@ -97,7 +97,7 @@ public final class CompletableFutures {
   }
 
   /** Returns the underlying cause of completion and execution exception wrappers. */
-  public static Throwable unwrap(Throwable t) {
+  static Throwable unwrap(Throwable t) {
     while ((t instanceof CompletionException || t instanceof ExecutionException)
         && t.getCause() != null) {
       t = t.getCause();
@@ -106,7 +106,7 @@ public final class CompletableFutures {
   }
 
   /** Returns an exceptionally completed future, including when running on Java 8. */
-  public static <T> CompletableFuture<T> failedFuture(Throwable error) {
+  static <T> CompletableFuture<T> failedFuture(Throwable error) {
     CompletableFuture<T> result = new CompletableFuture<>();
     result.completeExceptionally(error);
     return result;

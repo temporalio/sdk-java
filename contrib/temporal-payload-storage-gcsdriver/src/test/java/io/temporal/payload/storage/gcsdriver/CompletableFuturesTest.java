@@ -1,4 +1,4 @@
-package io.temporal.internal.payload.storage;
+package io.temporal.payload.storage.gcsdriver;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

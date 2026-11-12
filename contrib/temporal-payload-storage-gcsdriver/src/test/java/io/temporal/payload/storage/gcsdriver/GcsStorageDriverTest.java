@@ -6,8 +6,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
-import io.temporal.internal.payload.storage.CompletableFutures;
-import io.temporal.internal.payload.storage.PayloadHasher;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
