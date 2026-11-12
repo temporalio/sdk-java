@@ -15,7 +15,6 @@ import io.temporal.common.interceptors.WorkerInterceptorBase;
 import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import java.time.Instant;
 import java.util.concurrent.CancellationException;
 import org.junit.After;
 import org.junit.Assert;
@@ -104,20 +103,6 @@ public class TemporalInterceptorMiddlewareTest {
     CancellationException exception =
         Assert.assertThrows(CancellationException.class, token::throwIfCancellationRequested);
     Assert.assertEquals("early reason", exception.getMessage());
-  }
-
-  @Test
-  public void deadlineReachesNexusOperationInfo() {
-    Instant deadline = Instant.parse("2030-01-02T03:04:05Z");
-    OperationContext operationContext =
-        OperationContext.newBuilder()
-            .setService("service")
-            .setOperation("operation")
-            .setDeadline(deadline)
-            .build();
-    installOperationContext(operationContext);
-
-    Assert.assertEquals(deadline, Nexus.getInfo().getDeadline());
   }
 
   private static void installOperationContext(OperationContext operationContext) {

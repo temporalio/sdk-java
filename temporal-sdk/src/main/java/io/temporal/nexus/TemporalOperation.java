@@ -42,7 +42,7 @@ import java.lang.annotation.*;
  * }</pre>
  *
  * <p>Access information about the current invocation through {@link Nexus#getInfo()}, including its
- * deadline and cancellation token.
+ * cancellation token.
  *
  * <p>For custom cancel, or any other handler composition, use {@link OperationImpl} with a {@link
  * TemporalOperationHandler} subclass that overrides {@link
