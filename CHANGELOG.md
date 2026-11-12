@@ -116,6 +116,9 @@ to docs, or any other relevant information.
   by default in this release to preserve replay compatibility during SDK rollout.
 - `RetryOptions.merge` now accepts partially configured policies, preserving unset initial intervals
   and backoff coefficients until validation or annotation merging supplies them.
+- Buffered signals can be consumed once when a matching listener is registered, behind the new
+  `CONSUME_BUFFERED_SIGNALS` SDK flag. The flag is initially disabled; enabling it for new workflows
+  is deferred to a later release. Histories without the flag retain the previous delivery behavior.
 - Fixed workflow task completion pagination, which threw `UnsupportedOperationException` before
   sending the first page. A completion that needed pagination timed out on every attempt instead
   of being sent. The same fix lets `RpcRetryOptions.newBuilder(options).addDoNotRetry(...)` extend

@@ -1296,7 +1296,9 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public void registerSignalHandlers(RegisterSignalHandlersInput input) {
-    signalDispatcher.registerSignalHandlers(input);
+    // Enable this flag with tryUseSdkFlag only in a release after it is introduced.
+    signalDispatcher.registerSignalHandlers(
+        input, replayContext.checkSdkFlag(SdkFlag.CONSUME_BUFFERED_SIGNALS));
   }
 
   @Override
@@ -1306,7 +1308,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public void registerDynamicSignalHandler(RegisterDynamicSignalHandlerInput input) {
-    signalDispatcher.registerDynamicSignalHandler(input);
+    signalDispatcher.registerDynamicSignalHandler(
+        input, replayContext.checkSdkFlag(SdkFlag.CONSUME_BUFFERED_SIGNALS));
   }
 
   @Override
