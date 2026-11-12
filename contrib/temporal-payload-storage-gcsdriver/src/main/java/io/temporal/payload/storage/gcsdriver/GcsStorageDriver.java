@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 import javax.annotation.Nonnull;
 
 /**
- * Stores complete serialized Temporal payloads in a flat namespace GCS bucket using conditional
+ * Stores complete serialized Temporal payloads in flat namespace GCS buckets using conditional
  * creation and SHA-256 content addressing. Downloads are verified before parsing.
  *
  * <p>Construct via {@link #newBuilder()}. The application owns the provider client and its
@@ -34,13 +34,13 @@ public final class GcsStorageDriver implements StorageDriver {
   private static final Pattern SHA256_HEX = Pattern.compile("[0-9a-f]{64}");
 
   private final GcsStorageDriverClient client;
-  private final String bucket;
+  private final BucketResolver bucketResolver;
   private final String name;
   private final int maxPayloadSize;
 
   private GcsStorageDriver(Builder builder) {
     client = builder.client;
-    bucket = builder.bucket;
+    bucketResolver = builder.bucketResolver;
     name = builder.name;
     maxPayloadSize = builder.maxPayloadSize;
   }
@@ -75,10 +75,14 @@ public final class GcsStorageDriver implements StorageDriver {
         }
       }
       for (Payload payload : payloads) {
+        String bucket = bucketResolver.resolveBucket(context, payload);
+        if (bucket == null || bucket.isEmpty()) {
+          throw new GcsStorageException("bucket resolver returned an empty bucket");
+        }
         byte[] data = payload.toByteArray();
         String hash = PayloadHasher.sha256Hex(data);
         String objectName = GcsStorageKey.forPayload(context.getTarget(), hash);
-        prepared.add(new PreparedPayload(data, objectName, hash));
+        prepared.add(new PreparedPayload(bucket, data, objectName, hash));
       }
     } catch (RuntimeException e) {
       return CompletableFutures.failedFuture(e);
@@ -96,6 +100,7 @@ public final class GcsStorageDriver implements StorageDriver {
    */
   private CompletableFuture<StorageDriverClaim> uploadIfMissing(
       PreparedPayload payload, String describeSuffix) {
+    String bucket = payload.bucket;
     String location = requestLocation(bucket, payload.objectName, describeSuffix);
     StorageDriverClaim claim = claimFor(bucket, payload.objectName, payload.hash);
     CompletableFuture<StorageDriverClaim> result = new CompletableFuture<>();
@@ -273,11 +278,13 @@ public final class GcsStorageDriver implements StorageDriver {
   }
 
   private static final class PreparedPayload {
+    final String bucket;
     final byte[] data;
     final String objectName;
     final String hash;
 
-    PreparedPayload(byte[] data, String objectName, String hash) {
+    PreparedPayload(String bucket, byte[] data, String objectName, String hash) {
+      this.bucket = bucket;
       this.data = data;
       this.objectName = objectName;
       this.hash = hash;
@@ -287,7 +294,7 @@ public final class GcsStorageDriver implements StorageDriver {
   @Experimental
   public static final class Builder {
     private GcsStorageDriverClient client;
-    private String bucket;
+    private BucketResolver bucketResolver;
     private String name = DRIVER_TYPE;
     private int maxPayloadSize = DEFAULT_MAX_PAYLOAD_SIZE;
 
@@ -299,9 +306,24 @@ public final class GcsStorageDriver implements StorageDriver {
       return this;
     }
 
-    /** Required. The nonempty, fixed upload bucket, configured with a flat namespace. */
+    /**
+     * Stores every payload in a fixed, nonempty bucket configured with a flat namespace.
+     * Convenience for a {@link BucketResolver} that always returns {@code bucket}. The last of
+     * {@code setBucket}/{@code setBucketResolver} wins.
+     */
     public Builder setBucket(@Nonnull String bucket) {
-      this.bucket = nonempty(bucket, "bucket");
+      String fixed = nonempty(bucket, "bucket");
+      this.bucketResolver = (context, payload) -> fixed;
+      return this;
+    }
+
+    /**
+     * Selects the upload bucket per payload. Buckets must use a flat namespace. Downloads use the
+     * bucket recorded in each reference. The last of {@code setBucket}/{@code setBucketResolver}
+     * wins.
+     */
+    public Builder setBucketResolver(@Nonnull BucketResolver bucketResolver) {
+      this.bucketResolver = Objects.requireNonNull(bucketResolver, "bucketResolver");
       return this;
     }
 
@@ -328,8 +350,8 @@ public final class GcsStorageDriver implements StorageDriver {
       if (client == null) {
         throw new IllegalStateException("client is required");
       }
-      if (bucket == null) {
-        throw new IllegalStateException("bucket is required");
+      if (bucketResolver == null) {
+        throw new IllegalStateException("a bucket or bucket resolver is required");
       }
       return new GcsStorageDriver(this);
     }

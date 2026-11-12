@@ -53,6 +53,8 @@ public class GcsStorageDriverTest {
   public void rejectsNullConfiguration() {
     assertThrows(NullPointerException.class, () -> GcsStorageDriver.newBuilder().setClient(null));
     assertThrows(NullPointerException.class, () -> GcsStorageDriver.newBuilder().setBucket(null));
+    assertThrows(
+        NullPointerException.class, () -> GcsStorageDriver.newBuilder().setBucketResolver(null));
     assertThrows(NullPointerException.class, () -> GcsStorageDriver.newBuilder().setName(null));
   }
 
@@ -69,6 +71,76 @@ public class GcsStorageDriverTest {
           IllegalArgumentException.class,
           () -> GcsStorageDriver.newBuilder().setMaxPayloadSize(limit));
     }
+  }
+
+  @Test
+  public void bucketResolverChoosesBucketPerPayload() {
+    InMemoryClient client = new InMemoryClient();
+    List<StorageDriverStoreContext> contexts = new ArrayList<>();
+    GcsStorageDriver driver =
+        GcsStorageDriver.newBuilder()
+            .setClient(client)
+            .setBucketResolver(
+                (context, payload) -> {
+                  contexts.add(context);
+                  return "bucket-" + payload.getData().toStringUtf8();
+                })
+            .build();
+    List<StorageDriverClaim> claims =
+        driver.store(STORE_CONTEXT, Arrays.asList(payload("a"), payload("b"))).join();
+    assertEquals("bucket-a", claims.get(0).getClaimData().get("bucket"));
+    assertEquals("bucket-b", claims.get(1).getClaimData().get("bucket"));
+    assertTrue(client.objects.containsKey("bucket-a/" + objectName(claims.get(0))));
+    assertTrue(client.objects.containsKey("bucket-b/" + objectName(claims.get(1))));
+    assertEquals(Arrays.asList(STORE_CONTEXT, STORE_CONTEXT), contexts);
+    assertEquals(
+        Arrays.asList(payload("a"), payload("b")),
+        driver.retrieve(RETRIEVE_CONTEXT, claims).join());
+  }
+
+  @Test
+  public void lastBucketSettingWins() {
+    InMemoryClient client = new InMemoryClient();
+    GcsStorageDriver fixedLast =
+        builder(client)
+            .setBucketResolver((context, payload) -> "resolved")
+            .setBucket("fixed")
+            .build();
+    GcsStorageDriver resolverLast =
+        builder(client).setBucketResolver((context, payload) -> "resolved").build();
+    assertEquals("fixed", store(fixedLast, payload("x")).get(0).getClaimData().get("bucket"));
+    assertEquals("resolved", store(resolverLast, payload("x")).get(0).getClaimData().get("bucket"));
+  }
+
+  @Test
+  public void bucketResolverFailuresStartNoRequests() {
+    RuntimeException cause = new RuntimeException("no bucket");
+    InMemoryClient client = new InMemoryClient();
+    CompletionException thrown =
+        assertThrows(
+            CompletionException.class,
+            () ->
+                builder(client)
+                    .setBucketResolver(
+                        (context, payload) -> {
+                          throw cause;
+                        })
+                    .build()
+                    .store(STORE_CONTEXT, Collections.singletonList(payload("x")))
+                    .join());
+    assertSame(cause, thrown.getCause());
+    for (String invalid : new String[] {null, ""}) {
+      assertTrue(
+          failure(
+                  builder(client)
+                      .setBucketResolver((context, payload) -> invalid)
+                      .build()
+                      .store(STORE_CONTEXT, Collections.singletonList(payload("x"))))
+              .getMessage()
+              .contains("empty bucket"));
+    }
+    assertEquals(0, client.existsAttempts.get());
+    assertEquals(0, client.putAttempts.get());
   }
 
   @Test

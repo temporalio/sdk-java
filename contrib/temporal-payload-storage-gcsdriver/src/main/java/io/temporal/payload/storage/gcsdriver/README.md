@@ -28,6 +28,16 @@ GcsStorageDriver driver =
     .build();
 ```
 
+To choose a bucket per payload, use `setBucketResolver` instead of `setBucket`:
+
+```java
+GcsStorageDriver driver =
+  GcsStorageDriver.newBuilder()
+    .setClient(new GcsStorageClientAdapter(storage, storageExecutor))
+    .setBucketResolver((context, payload) -> "temporal-payloads-" + tenantOf(context))
+    .build();
+```
+
 Register the driver in external storage config:
 
 ```java
@@ -62,7 +72,7 @@ timeouts and retry limits on the client; cancellation uses best-effort interrupt
 
 Authenticate with
 [Application Default Credentials or workload identity](https://docs.cloud.google.com/docs/authentication/provide-credentials-adc).
-Create a flat-namespace bucket first and grant `storage.objects.create` and `storage.objects.get`.
+Create flat-namespace buckets first and grant `storage.objects.create` and `storage.objects.get`.
 
 Hierarchical namespace (HNS) buckets are not currently supported. Their
 [folder paths are limited to 512 UTF-8 bytes](https://docs.cloud.google.com/storage/docs/objects#naming),
@@ -114,7 +124,8 @@ those stored again during replay, are not sent twice. Uploads never overwrite ex
 downloads verify the hash before decoding.
 
 References record `bucket`, `object_name`, `hash_algorithm`, and `hash_value`.
-Downloads use the recorded bucket, so changing the upload bucket does not invalidate earlier references.
+Downloads use the recorded bucket, so changing the upload bucket or resolver does not invalidate
+earlier references.
 
 ## Testing
 
