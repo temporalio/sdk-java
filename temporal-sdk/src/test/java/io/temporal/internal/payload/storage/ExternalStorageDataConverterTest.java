@@ -202,7 +202,8 @@ public class ExternalStorageDataConverterTest {
 
   private static ExternalStorageRunner runner(StorageDriver driver, int threshold) {
     return ExternalStorageRunner.create(
-        ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build());
+        ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build(),
+        "default");
   }
 
   /** Obscures payload bytes so plaintext reaching a driver is detectable. */
@@ -242,7 +243,8 @@ public class ExternalStorageDataConverterTest {
                 ExternalStorage.newBuilder()
                     .setDriver(TestStorageDriver.create())
                     .setPayloadSizeThreshold(0)
-                    .build()));
+                    .build(),
+                "default"));
     return configured.toPayload(value).get();
   }
 

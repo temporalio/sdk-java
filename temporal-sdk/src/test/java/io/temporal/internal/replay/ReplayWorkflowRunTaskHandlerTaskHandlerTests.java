@@ -224,7 +224,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     TestStorageDriver driver = TestStorageDriver.create();
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            "default");
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
@@ -288,7 +289,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     TestStorageDriver driver = TestStorageDriver.create();
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            "default");
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
@@ -338,7 +340,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     TestStorageDriver driver = TestStorageDriver.create();
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            "default");
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
@@ -388,7 +391,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
             ExternalStorage.newBuilder()
                 .setDriver(TestStorageDriver.create())
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();

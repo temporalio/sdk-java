@@ -27,9 +27,13 @@ public final class ExternalStorageRunner {
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
 
-  public static ExternalStorageRunner create(ExternalStorage options) {
+  /**
+   * @param namespace namespace of the client or worker that will use this runner, exposed to
+   *     drivers and selectors on store.
+   */
+  public static ExternalStorageRunner create(ExternalStorage options, String namespace) {
     return new ExternalStorageRunner(
-        ExternalStoragePayloadTransformer.fromOptions(options),
+        ExternalStoragePayloadTransformer.fromOptions(options, namespace),
         options.getMaxConcurrentPayloadVisits());
   }
 
