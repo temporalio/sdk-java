@@ -140,6 +140,7 @@ public class OutdatedDirectQueryReplayWorkflowRunTaskHandlerTest {
                       null,
                       false,
                       null,
+                      null,
                       null),
                   (r, e) -> {});
               return false;
