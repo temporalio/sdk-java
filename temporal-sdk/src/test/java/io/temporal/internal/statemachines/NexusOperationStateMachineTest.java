@@ -17,6 +17,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.NexusOperationCancellationType;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -73,7 +74,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         builder
             .<Optional<Payload>, Failure>add2(
                 (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
@@ -151,7 +153,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         builder
             .<Optional<Payload>, Failure>add2(
                 (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
@@ -225,7 +228,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         builder
             .<Optional<Payload>, Failure>add2(
                 (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
@@ -299,7 +303,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         builder
             .<Optional<Payload>, Failure>add2(
                 (v, c) -> stateMachines.startNexusOperation(startParams, (o, f) -> {}, c))
@@ -374,7 +379,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         builder
             .<Optional<Payload>, Failure>add2(
                 (v, c) ->
@@ -414,7 +420,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
@@ -510,7 +517,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
@@ -602,7 +610,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
@@ -694,7 +703,8 @@ public class NexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         DelayedCallback2<Optional<Payload>, Failure> delayedCallback = new DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(

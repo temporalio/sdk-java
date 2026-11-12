@@ -18,6 +18,7 @@ import io.temporal.api.failure.v1.CanceledFailureInfo;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.api.protocol.v1.Message;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.GetSystemInfoResponse;
 import io.temporal.common.SuggestContinueAsNewReason;
@@ -964,12 +965,14 @@ public final class WorkflowStateMachines {
   public Functions.Proc newTimer(
       StartTimerCommandAttributes attributes,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<HistoryEvent> completionCallback) {
     checkEventLoopExecuting();
     TimerStateMachine timer =
         TimerStateMachine.newInstance(
             attributes,
             metadata,
+            eventGroupMarkers,
             (event) -> {
               completionCallback.apply(event);
               // Needed due to immediate cancellation
@@ -1002,6 +1005,7 @@ public final class WorkflowStateMachines {
         ChildWorkflowStateMachine.newInstance(
             attributes,
             parameters.getMetadata(),
+            parameters.getEventGroupMarkers(),
             startedCallback,
             completionCallback,
             commandSink,
@@ -1024,6 +1028,7 @@ public final class WorkflowStateMachines {
                 .setNamespace(attributes.getNamespace())
                 .setChildWorkflowOnly(true)
                 .build(),
+            parameters.getEventGroupMarkers(),
             (r, e) -> { // TODO(maxim): Decide what to do if an error is passed to the callback.
               if (cancellationType == ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED) {
                 notifyChildCanceled(completionCallback);
@@ -1046,6 +1051,7 @@ public final class WorkflowStateMachines {
         NexusOperationStateMachine.newInstance(
             parameters.getAttributes().build(),
             parameters.getMetadata(),
+            parameters.getEventGroupMarkers(),
             startedCallback,
             completionCallback,
             commandSink,
@@ -1065,6 +1071,7 @@ public final class WorkflowStateMachines {
             RequestCancelNexusOperationCommandAttributes.newBuilder()
                 .setScheduledEventId(operation.getInitialCommandEventId())
                 .build(),
+            parameters.getEventGroupMarkers(),
             (r, f) -> {
               if (cancellationType == NexusOperationCancellationType.WAIT_REQUESTED) {
                 notifyNexusOperationCanceled(f, operation, startedCallback, completionCallback);
@@ -1115,10 +1122,11 @@ public final class WorkflowStateMachines {
    */
   public Functions.Proc signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback) {
     checkEventLoopExecuting();
     return SignalExternalStateMachine.newInstance(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   /**
@@ -1127,10 +1135,11 @@ public final class WorkflowStateMachines {
    */
   public void requestCancelExternalWorkflowExecution(
       RequestCancelExternalWorkflowExecutionCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> completionCallback) {
     checkEventLoopExecuting();
     CancelExternalStateMachine.newInstance(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   /**
@@ -1140,21 +1149,25 @@ public final class WorkflowStateMachines {
    */
   public void requestCancelNexusOperation(
       RequestCancelNexusOperationCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback) {
     checkEventLoopExecuting();
     CancelNexusOperationStateMachine.newInstance(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
-  public void upsertSearchAttributes(SearchAttributes attributes) {
+  public void upsertSearchAttributes(
+      SearchAttributes attributes, List<EventGroupMarker> eventGroupMarkers) {
     checkEventLoopExecuting();
-    UpsertSearchAttributesStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    UpsertSearchAttributesStateMachine.newInstance(
+        attributes, eventGroupMarkers, commandSink, stateMachineSink);
   }
 
-  public void upsertMemo(Memo memo) {
+  public void upsertMemo(Memo memo, List<EventGroupMarker> eventGroupMarkers) {
     checkEventLoopExecuting();
     WorkflowPropertiesModifiedStateMachine.newInstance(
         ModifyWorkflowPropertiesCommandAttributes.newBuilder().setUpsertedMemo(memo).build(),
+        eventGroupMarkers,
         commandSink,
         stateMachineSink);
   }
@@ -1182,9 +1195,9 @@ public final class WorkflowStateMachines {
     postCompletionMetricCounter = MetricsType.WORKFLOW_CANCELED_COUNTER;
   }
 
-  public void continueAsNewWorkflow(ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+  public void continueAsNewWorkflow(ContinueAsNewWorkflowParameters parameters) {
     checkEventLoopExecuting();
-    ContinueAsNewWorkflowStateMachine.newInstance(attributes, commandSink, stateMachineSink);
+    ContinueAsNewWorkflowStateMachine.newInstance(parameters, commandSink, stateMachineSink);
     postCompletionMetricCounter = MetricsType.WORKFLOW_CONTINUE_AS_NEW_COUNTER;
   }
 
@@ -1215,10 +1228,12 @@ public final class WorkflowStateMachines {
   public void sideEffect(
       Functions.Func<Optional<Payloads>> func,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
     SideEffectStateMachine.newInstance(
         userMetadata,
+        eventGroupMarkers,
         this::isReplaying,
         func,
         (payloads) -> {
@@ -1239,6 +1254,7 @@ public final class WorkflowStateMachines {
   public void mutableSideEffect(
       String id,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
     checkEventLoopExecuting();
@@ -1256,6 +1272,7 @@ public final class WorkflowStateMachines {
     MutableSideEffectStateMachine.InvocationStateMachine invocation =
         stateMachine.mutableSideEffect(
             func,
+            eventGroupMarkers,
             (r) -> {
               callback.apply(r);
               // callback unblocked mutableSideEffect call. Give workflow code chance to make
@@ -1275,7 +1292,8 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       Functions.Proc2<Integer, RuntimeException> callback) {
-    return getVersion(changeId, minSupported, maxSupported, null, callback);
+    return getVersion(
+        changeId, minSupported, maxSupported, null, Collections.emptyList(), callback);
   }
 
   public Integer getVersion(
@@ -1283,6 +1301,7 @@ public final class WorkflowStateMachines {
       int minSupported,
       int maxSupported,
       @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback) {
     VersionStateMachine stateMachine =
         versions.computeIfAbsent(
@@ -1316,6 +1335,7 @@ public final class WorkflowStateMachines {
           return sa;
         },
         preferredVersionProvider,
+        eventGroupMarkers,
         (v, e) -> {
           callback.apply(v, e);
           // without this getVersion call will trigger the end of WFT,

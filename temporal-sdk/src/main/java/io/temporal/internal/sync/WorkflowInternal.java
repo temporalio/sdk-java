@@ -121,6 +121,11 @@ public final class WorkflowInternal {
     return result;
   }
 
+  public static EventGroup newEventGroup(String id, EventGroupOptions options) {
+    String label = options == null ? null : options.getLabel();
+    return new EventGroupImpl(id, label);
+  }
+
   /**
    * Register query or queries implementation object. There is no need to register top level
    * workflow implementation object as it is done implicitly. Only methods annotated with @{@link
@@ -624,6 +629,13 @@ public final class WorkflowInternal {
     return getWorkflowOutboundInterceptor().getVersion(changeId, minSupported, maxSupported);
   }
 
+  public static int getVersion(
+      String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
+    assertNotReadOnly("get version");
+    return getWorkflowOutboundInterceptor()
+        .getVersion(changeId, minSupported, maxSupported, options);
+  }
+
   public static <V> Promise<Void> promiseAllOf(Iterable<Promise<V>> promises) {
     return new AllOfPromise(promises);
   }
@@ -720,7 +732,9 @@ public final class WorkflowInternal {
   public static Promise<Void> cancelWorkflow(WorkflowExecution execution, @Nullable String reason) {
     assertNotReadOnly("cancel workflow");
     return getWorkflowOutboundInterceptor()
-        .cancelWorkflow(new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(execution, reason))
+        .cancelWorkflow(
+            new WorkflowOutboundCallsInterceptor.CancelWorkflowInput(
+                execution, CancelExternalWorkflowOptions.newBuilder().setReason(reason).build()))
         .getResult();
   }
 
@@ -855,9 +869,20 @@ public final class WorkflowInternal {
     getWorkflowOutboundInterceptor().upsertTypedSearchAttributes(searchAttributeUpdates);
   }
 
+  public static void upsertTypedSearchAttributes(
+      UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    assertNotReadOnly("upsert search attribute");
+    getWorkflowOutboundInterceptor().upsertTypedSearchAttributes(options, searchAttributeUpdates);
+  }
+
   public static void upsertMemo(Map<String, Object> memo) {
     assertNotReadOnly("upsert memo");
     getWorkflowOutboundInterceptor().upsertMemo(memo);
+  }
+
+  public static void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
+    assertNotReadOnly("upsert memo");
+    getWorkflowOutboundInterceptor().upsertMemo(memo, options);
   }
 
   public static DataConverter getDataConverter() {

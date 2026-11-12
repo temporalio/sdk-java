@@ -2,10 +2,10 @@ package io.temporal.internal.sync;
 
 import com.uber.m3.tally.NoopScope;
 import com.uber.m3.tally.Scope;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SuggestContinueAsNewReason;
@@ -93,7 +93,7 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
+    public ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion() {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -205,6 +205,7 @@ public class DummySyncWorkflowContext {
     @Override
     public Functions.Proc1<Exception> signalExternalWorkflowExecution(
         SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Void, Failure> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -213,13 +214,13 @@ public class DummySyncWorkflowContext {
     public void requestCancelExternalWorkflowExecution(
         WorkflowExecution execution,
         @Nullable String reason,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Void, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void continueAsNewOnCompletion(
-        ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
+    public void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters) {
       throw new UnsupportedOperationException("not implemented");
     }
 
@@ -240,7 +241,10 @@ public class DummySyncWorkflowContext {
 
     @Override
     public Functions.Proc1<RuntimeException> newTimer(
-        Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback) {
+        Duration delay,
+        UserMetadata metadata,
+        List<EventGroupMarker> eventGroupMarkers,
+        Functions.Proc1<RuntimeException> callback) {
       timer.schedule(
           new TimerTask() {
             @Override
@@ -258,6 +262,7 @@ public class DummySyncWorkflowContext {
     public void sideEffect(
         Functions.Func<Optional<Payloads>> func,
         UserMetadata userMetadata,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply());
     }
@@ -266,6 +271,7 @@ public class DummySyncWorkflowContext {
     public void mutableSideEffect(
         String id,
         UserMetadata userMetadata,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
         Functions.Proc1<Optional<Payloads>> callback) {
       callback.apply(func.apply(Optional.empty()));
@@ -281,6 +287,7 @@ public class DummySyncWorkflowContext {
         String changeId,
         int minSupported,
         int maxSupported,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Integer, RuntimeException> callback) {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -306,12 +313,13 @@ public class DummySyncWorkflowContext {
     }
 
     @Override
-    public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+    public void upsertSearchAttributes(
+        @Nonnull SearchAttributes searchAttributes, List<EventGroupMarker> eventGroupMarkers) {
       throw new UnsupportedOperationException("not implemented");
     }
 
     @Override
-    public void upsertMemo(Memo memo) {
+    public void upsertMemo(@Nonnull Memo memo, List<EventGroupMarker> eventGroupMarkers) {
       throw new UnsupportedOperationException("not implemented");
     }
 

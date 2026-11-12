@@ -5,8 +5,10 @@ import io.temporal.api.command.v1.RequestCancelExternalWorkflowExecutionCommandA
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.workflow.CancelExternalWorkflowException;
 import io.temporal.workflow.Functions;
+import java.util.List;
 
 final class CancelExternalStateMachine
     extends EntityStateMachineInitialCommand<
@@ -15,6 +17,7 @@ final class CancelExternalStateMachine
         CancelExternalStateMachine> {
 
   private final RequestCancelExternalWorkflowExecutionCommandAttributes requestCancelAttributes;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   private final Functions.Proc2<Void, RuntimeException> completionCallback;
 
@@ -26,19 +29,23 @@ final class CancelExternalStateMachine
    */
   public static void newInstance(
       RequestCancelExternalWorkflowExecutionCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    new CancelExternalStateMachine(attributes, completionCallback, commandSink, stateMachineSink);
+    new CancelExternalStateMachine(
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   private CancelExternalStateMachine(
       RequestCancelExternalWorkflowExecutionCommandAttributes requestCancelAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.requestCancelAttributes = requestCancelAttributes;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -92,6 +99,7 @@ final class CancelExternalStateMachine
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION)
             .setRequestCancelExternalWorkflowExecutionCommandAttributes(requestCancelAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
   }
 

@@ -100,12 +100,22 @@ class ChildWorkflowStubImpl implements ChildWorkflowStub {
 
   @Override
   public void signal(String signalName, Object... args) {
+    signalWithOptions(signalName, SignalChildWorkflowOptions.getDefaultInstance(), args);
+  }
+
+  @Override
+  public void signalWithOptions(
+      String signalName, SignalChildWorkflowOptions options, Object... args) {
     assertReadOnly.apply("signal workflow");
     Promise<Void> signaled =
         outboundCallsInterceptor
             .signalExternalWorkflow(
                 new WorkflowOutboundCallsInterceptor.SignalExternalInput(
-                    execution.get(), signalName, Header.empty(), args))
+                    execution.get(),
+                    signalName,
+                    Header.empty(),
+                    args,
+                    SignalExternalWorkflowOptions.from(options)))
             .getResult();
     if (AsyncInternal.isAsync()) {
       AsyncInternal.setAsyncResult(signaled);

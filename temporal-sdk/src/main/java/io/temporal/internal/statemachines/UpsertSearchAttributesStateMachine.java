@@ -5,7 +5,9 @@ import io.temporal.api.command.v1.UpsertWorkflowSearchAttributesCommandAttribute
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.workflow.Functions;
+import java.util.List;
 
 final class UpsertSearchAttributesStateMachine
     extends EntityStateMachineInitialCommand<
@@ -14,20 +16,25 @@ final class UpsertSearchAttributesStateMachine
         UpsertSearchAttributesStateMachine> {
 
   private SearchAttributes searchAttributes;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   public static void newInstance(
       SearchAttributes searchAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    new UpsertSearchAttributesStateMachine(searchAttributes, commandSink, stateMachineSink);
+    new UpsertSearchAttributesStateMachine(
+        searchAttributes, eventGroupMarkers, commandSink, stateMachineSink);
   }
 
   private UpsertSearchAttributesStateMachine(
       SearchAttributes searchAttributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.searchAttributes = searchAttributes;
+    this.eventGroupMarkers = eventGroupMarkers;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
@@ -69,6 +76,7 @@ final class UpsertSearchAttributesStateMachine
                 UpsertWorkflowSearchAttributesCommandAttributes.newBuilder()
                     .setSearchAttributes(searchAttributes)
                     .build())
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
     searchAttributes = null;
   }

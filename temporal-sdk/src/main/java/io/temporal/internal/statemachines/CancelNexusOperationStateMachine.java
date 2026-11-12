@@ -5,7 +5,9 @@ import io.temporal.api.command.v1.RequestCancelNexusOperationCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.workflow.Functions;
+import java.util.List;
 
 /** CancelNexusOperationStateMachine manges a request to cancel a nexus operation. */
 final class CancelNexusOperationStateMachine
@@ -15,6 +17,7 @@ final class CancelNexusOperationStateMachine
         CancelNexusOperationStateMachine> {
 
   private final RequestCancelNexusOperationCommandAttributes requestCancelNexusAttributes;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   private final Functions.Proc2<Void, Failure> completionCallback;
 
@@ -24,20 +27,23 @@ final class CancelNexusOperationStateMachine
    */
   public static void newInstance(
       RequestCancelNexusOperationCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     new CancelNexusOperationStateMachine(
-        attributes, completionCallback, commandSink, stateMachineSink);
+        attributes, eventGroupMarkers, completionCallback, commandSink, stateMachineSink);
   }
 
   private CancelNexusOperationStateMachine(
       RequestCancelNexusOperationCommandAttributes attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> completionCallback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.requestCancelNexusAttributes = attributes;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -92,6 +98,7 @@ final class CancelNexusOperationStateMachine
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_REQUEST_CANCEL_NEXUS_OPERATION)
             .setRequestCancelNexusOperationCommandAttributes(requestCancelNexusAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
   }
 

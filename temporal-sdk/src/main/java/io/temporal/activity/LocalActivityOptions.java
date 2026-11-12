@@ -1,9 +1,14 @@
 package io.temporal.activity;
 
 import com.google.common.base.Objects;
+import io.temporal.common.Experimental;
 import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
+import io.temporal.workflow.EventGroup;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /** Options used to configure how a local Activity is invoked. */
 public final class LocalActivityOptions {
@@ -37,6 +42,7 @@ public final class LocalActivityOptions {
     private RetryOptions retryOptions;
     private Boolean doNotIncludeArgumentsIntoMarker;
     private String summary;
+    private List<EventGroup> eventGroups;
 
     /** Copy Builder fields from the options. */
     private Builder(LocalActivityOptions options) {
@@ -50,6 +56,9 @@ public final class LocalActivityOptions {
       this.retryOptions = options.getRetryOptions();
       this.doNotIncludeArgumentsIntoMarker = options.isDoNotIncludeArgumentsIntoMarker();
       this.summary = options.getSummary();
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
     }
 
     /**
@@ -171,6 +180,33 @@ public final class LocalActivityOptions {
       return this;
     }
 
+    /**
+     * Event Groups to associate with this local activity. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(java.util.Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
+    }
+
     public Builder mergeActivityOptions(LocalActivityOptions override) {
       if (override == null) {
         return this;
@@ -198,6 +234,13 @@ public final class LocalActivityOptions {
               ? override.doNotIncludeArgumentsIntoMarker
               : this.doNotIncludeArgumentsIntoMarker;
       this.summary = (override.summary == null) ? this.summary : override.summary;
+      if (!override.eventGroups.isEmpty()) {
+        if (this.eventGroups == null) {
+          this.eventGroups = new ArrayList<>(override.eventGroups);
+        } else {
+          this.eventGroups.addAll(override.eventGroups);
+        }
+      }
       return this;
     }
 
@@ -209,7 +252,8 @@ public final class LocalActivityOptions {
           localRetryThreshold,
           retryOptions,
           doNotIncludeArgumentsIntoMarker,
-          summary);
+          summary,
+          eventGroups);
     }
 
     public LocalActivityOptions validateAndBuildWithDefaults() {
@@ -224,7 +268,8 @@ public final class LocalActivityOptions {
           localRetryThreshold,
           RetryOptions.newBuilder(retryOptions).validateBuildWithDefaults(),
           doNotIncludeArgumentsIntoMarker,
-          summary);
+          summary,
+          eventGroups);
     }
   }
 
@@ -235,6 +280,7 @@ public final class LocalActivityOptions {
   private final RetryOptions retryOptions;
   private final Boolean doNotIncludeArgumentsIntoMarker;
   private final String summary;
+  private final List<EventGroup> eventGroups;
 
   private LocalActivityOptions(
       Duration startToCloseTimeout,
@@ -243,7 +289,8 @@ public final class LocalActivityOptions {
       Duration localRetryThreshold,
       RetryOptions retryOptions,
       Boolean doNotIncludeArgumentsIntoMarker,
-      String summary) {
+      String summary,
+      List<EventGroup> eventGroups) {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
@@ -251,6 +298,10 @@ public final class LocalActivityOptions {
     this.retryOptions = retryOptions;
     this.doNotIncludeArgumentsIntoMarker = doNotIncludeArgumentsIntoMarker;
     this.summary = summary;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
   }
 
   public Duration getScheduleToCloseTimeout() {
@@ -281,6 +332,14 @@ public final class LocalActivityOptions {
     return summary;
   }
 
+  /**
+   * @see LocalActivityOptions.Builder#addEventGroups(EventGroup...)
+   */
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
+
   public Builder toBuilder() {
     return new Builder(this);
   }
@@ -296,7 +355,8 @@ public final class LocalActivityOptions {
         && Objects.equal(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equal(localRetryThreshold, that.localRetryThreshold)
         && Objects.equal(retryOptions, that.retryOptions)
-        && Objects.equal(summary, that.summary);
+        && Objects.equal(summary, that.summary)
+        && Objects.equal(eventGroups, that.eventGroups);
   }
 
   @Override
@@ -308,7 +368,8 @@ public final class LocalActivityOptions {
         localRetryThreshold,
         retryOptions,
         doNotIncludeArgumentsIntoMarker,
-        summary);
+        summary,
+        eventGroups);
   }
 
   @Override
@@ -326,6 +387,8 @@ public final class LocalActivityOptions {
         + isDoNotIncludeArgumentsIntoMarker()
         + ", summary="
         + summary
+        + ", eventGroups="
+        + eventGroups
         + '}';
   }
 }

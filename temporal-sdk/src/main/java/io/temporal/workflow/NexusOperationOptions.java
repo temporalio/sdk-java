@@ -2,7 +2,7 @@ package io.temporal.workflow;
 
 import io.temporal.common.Experimental;
 import java.time.Duration;
-import java.util.Objects;
+import java.util.*;
 
 /**
  * NexusOperationOptions is used to specify the options for starting a Nexus operation from a
@@ -35,6 +35,7 @@ public final class NexusOperationOptions {
     private Duration startToCloseTimeout;
     private NexusOperationCancellationType cancellationType;
     private String summary;
+    private List<EventGroup> eventGroups;
 
     /**
      * Sets the schedule to close timeout for the Nexus operation.
@@ -111,6 +112,33 @@ public final class NexusOperationOptions {
       return this;
     }
 
+    /**
+     * Event Groups to associate with this Nexus operation. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public NexusOperationOptions.Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public NexusOperationOptions.Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
+    }
+
     private Builder() {}
 
     private Builder(NexusOperationOptions options) {
@@ -122,6 +150,9 @@ public final class NexusOperationOptions {
       this.startToCloseTimeout = options.getStartToCloseTimeout();
       this.cancellationType = options.getCancellationType();
       this.summary = options.getSummary();
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
     }
 
     public NexusOperationOptions build() {
@@ -130,7 +161,8 @@ public final class NexusOperationOptions {
           scheduleToStartTimeout,
           startToCloseTimeout,
           cancellationType,
-          summary);
+          summary,
+          eventGroups);
     }
 
     public NexusOperationOptions.Builder mergeNexusOperationOptions(
@@ -153,6 +185,13 @@ public final class NexusOperationOptions {
       this.cancellationType =
           (override.cancellationType == null) ? this.cancellationType : override.cancellationType;
       this.summary = (override.summary == null) ? this.summary : override.summary;
+      if (!override.eventGroups.isEmpty()) {
+        if (this.eventGroups == null) {
+          this.eventGroups = new ArrayList<>(override.eventGroups);
+        } else {
+          this.eventGroups.addAll(override.eventGroups);
+        }
+      }
       return this;
     }
   }
@@ -162,12 +201,17 @@ public final class NexusOperationOptions {
       Duration scheduleToStartTimeout,
       Duration startToCloseTimeout,
       NexusOperationCancellationType cancellationType,
-      String summary) {
+      String summary,
+      List<EventGroup> eventGroups) {
     this.scheduleToCloseTimeout = scheduleToCloseTimeout;
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.startToCloseTimeout = startToCloseTimeout;
     this.cancellationType = cancellationType;
     this.summary = summary;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
   }
 
   public NexusOperationOptions.Builder toBuilder() {
@@ -179,6 +223,7 @@ public final class NexusOperationOptions {
   private final Duration startToCloseTimeout;
   private final NexusOperationCancellationType cancellationType;
   private final String summary;
+  private final List<EventGroup> eventGroups;
 
   public Duration getScheduleToCloseTimeout() {
     return scheduleToCloseTimeout;
@@ -202,6 +247,11 @@ public final class NexusOperationOptions {
     return summary;
   }
 
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -211,7 +261,8 @@ public final class NexusOperationOptions {
         && Objects.equals(scheduleToStartTimeout, that.scheduleToStartTimeout)
         && Objects.equals(startToCloseTimeout, that.startToCloseTimeout)
         && Objects.equals(cancellationType, that.cancellationType)
-        && Objects.equals(summary, that.summary);
+        && Objects.equals(summary, that.summary)
+        && Objects.equals(eventGroups, that.eventGroups);
   }
 
   @Override
@@ -221,7 +272,8 @@ public final class NexusOperationOptions {
         scheduleToStartTimeout,
         startToCloseTimeout,
         cancellationType,
-        summary);
+        summary,
+        eventGroups);
   }
 
   @Override
@@ -238,6 +290,8 @@ public final class NexusOperationOptions {
         + ", summary='"
         + summary
         + '\''
+        + ", eventGroups="
+        + eventGroups
         + '}';
   }
 }

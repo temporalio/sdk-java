@@ -25,6 +25,7 @@ import io.temporal.api.common.v1.WorkflowType;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.sdk.v1.WorkflowDefinition;
 import io.temporal.api.sdk.v1.WorkflowInteractionDefinition;
@@ -518,7 +519,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   (LocalActivityCallback.LocalActivityFailedException) e;
               @Nullable Duration backoff = laException.getBackoff();
               if (backoff != null) {
-                WorkflowInternal.newTimer(backoff)
+                WorkflowInternal.newTimer(
+                        backoff,
+                        TimerOptions.newBuilder()
+                            .addEventGroups(options.getEventGroups().toArray(new EventGroup[0]))
+                            .build())
                     .thenApply(
                         unused -> {
                           executeLocalActivityOverLocalRetryThreshold(
@@ -660,7 +665,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       attributes.setPriority(ProtoConverters.toProto(options.getPriority()));
     }
 
-    return new ExecuteActivityParameters(attributes, options.getCancellationType(), userMetadata);
+    return new ExecuteActivityParameters(
+        attributes,
+        options.getCancellationType(),
+        userMetadata,
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   private ExecuteLocalActivityParameters constructExecuteLocalActivityParameters(
@@ -728,7 +737,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         previousExecutionFailure,
         options.isDoNotIncludeArgumentsIntoMarker(),
         localRetryThreshold,
-        userMetadata);
+        userMetadata,
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   @Override
@@ -875,7 +885,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     StartNexusOperationParameters parameters =
         new StartNexusOperationParameters(
-            attributes, input.getOptions().getCancellationType(), userMetadata);
+            attributes,
+            input.getOptions().getCancellationType(),
+            userMetadata,
+            eventGroupMarkers(input.getOptions().getEventGroups()));
 
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.startNexusOperation(
@@ -1018,7 +1031,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       attributes.setVersioningOverride(ProtoConverters.toProto(options.getVersioningOverride()));
     }
     return new StartChildWorkflowExecutionParameters(
-        attributes, options.getCancellationType(), metadata);
+        attributes,
+        options.getCancellationType(),
+        metadata,
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   private static RuntimeException mapChildWorkflowException(
@@ -1073,6 +1089,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         replayContext.newTimer(
             delay,
             userMetadata,
+            eventGroupMarkers(options.getEventGroups()),
             (e) ->
                 runner.executeInWorkflowThread(
                     "timer-callback",
@@ -1104,6 +1121,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     @Nullable
     UserMetadata userMetadata =
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+    List<EventGroupMarker> eventGroupMarkers = eventGroupMarkers(options.getEventGroups());
     try {
       CompletablePromise<Optional<Payloads>> result = Workflow.newPromise();
       replayContext.sideEffect(
@@ -1117,6 +1135,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             }
           },
           userMetadata,
+          eventGroupMarkers,
           (p) ->
               runner.executeInWorkflowThread(
                   "side-effect-callback", () -> result.complete(Objects.requireNonNull(p))));
@@ -1147,8 +1166,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     @Nullable
     UserMetadata userMetadata =
         makeUserMetaData(options.getSummary(), null, dataConverterWithCurrentWorkflowContext);
+    List<EventGroupMarker> eventGroupMarkers = eventGroupMarkers(options.getEventGroups());
     try {
-      return mutableSideEffectImpl(id, userMetadata, resultClass, resultType, updated, func);
+      return mutableSideEffectImpl(
+          id, userMetadata, eventGroupMarkers, resultClass, resultType, updated, func);
     } catch (Exception e) {
       // MutableSideEffect cannot throw normal exception as it can lead to non-deterministic
       // behavior. So fail the workflow task by throwing an Error.
@@ -1159,6 +1180,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   private <R> R mutableSideEffectImpl(
       String id,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Class<R> resultClass,
       Type resultType,
       BiPredicate<R, R> updated,
@@ -1168,6 +1190,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     replayContext.mutableSideEffect(
         id,
         metadata,
+        eventGroupMarkers,
         (storedBinary) -> {
           Optional<R> stored =
               storedBinary.map(
@@ -1206,6 +1229,12 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   @Override
   public int getVersion(String changeId, int minSupported, int maxSupported) {
+    return getVersion(changeId, minSupported, maxSupported, GetVersionOptions.getDefaultInstance());
+  }
+
+  @Override
+  public int getVersion(
+      String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
     CompletablePromise<Integer> result = Workflow.newPromise();
     Integer versionToUse;
     try {
@@ -1214,6 +1243,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
               changeId,
               minSupported,
               maxSupported,
+              eventGroupMarkers(options.getEventGroups()),
               (v, e) ->
                   runner.executeInWorkflowThread(
                       "version-callback",
@@ -1392,6 +1422,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Functions.Proc1<Exception> cancellationCallback =
         replayContext.signalExternalWorkflowExecution(
             attributes,
+            eventGroupMarkers(input.getOptions().getEventGroups()),
             (output, failure) -> {
               if (failure != null) {
                 runner.executeInWorkflowThread(
@@ -1574,7 +1605,11 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         dataConverterWithCurrentWorkflowContext.toPayloads(input.getArgs());
     payloads.ifPresent(attributes::setInput);
 
-    replayContext.continueAsNewOnCompletion(attributes.build());
+    replayContext.continueAsNewOnCompletion(
+        new ContinueAsNewWorkflowParameters(
+            attributes.build(),
+            eventGroupMarkers(
+                options != null ? options.getEventGroups() : Collections.emptyList())));
     WorkflowThread.exit();
   }
 
@@ -1583,7 +1618,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     CompletablePromise<Void> result = Workflow.newPromise();
     replayContext.requestCancelExternalWorkflowExecution(
         input.getExecution(),
-        input.getReason(),
+        input.getOptions().getReason(),
+        eventGroupMarkers(input.getOptions().getEventGroups()),
         (r, exception) -> {
           if (exception == null) {
             result.complete(null);
@@ -1608,23 +1644,36 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     Preconditions.checkArgument(searchAttributes != null, "null search attributes");
     Preconditions.checkArgument(!searchAttributes.isEmpty(), "empty search attributes");
     SearchAttributes attr = SearchAttributesUtil.encode(searchAttributes);
-    replayContext.upsertSearchAttributes(attr);
+    replayContext.upsertSearchAttributes(attr, eventGroupMarkers(Collections.emptyList()));
   }
 
   @Override
   public void upsertTypedSearchAttributes(SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    upsertTypedSearchAttributes(
+        UpsertSearchAttributesOptions.getDefaultInstance(), searchAttributeUpdates);
+  }
+
+  @Override
+  public void upsertTypedSearchAttributes(
+      UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
     SearchAttributes attr = SearchAttributesUtil.encodeTypedUpdates(searchAttributeUpdates);
-    replayContext.upsertSearchAttributes(attr);
+    replayContext.upsertSearchAttributes(attr, eventGroupMarkers(options.getEventGroups()));
   }
 
   @Override
   public void upsertMemo(Map<String, Object> memo) {
+    upsertMemo(memo, UpsertMemoOptions.getDefaultInstance());
+  }
+
+  @Override
+  public void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
     Preconditions.checkArgument(memo != null, "null memo");
     Preconditions.checkArgument(!memo.isEmpty(), "empty memo");
     replayContext.upsertMemo(
         Memo.newBuilder()
             .putAllFields(intoPayloadMap(dataConverterWithCurrentWorkflowContext, memo))
-            .build());
+            .build(),
+        eventGroupMarkers(options.getEventGroups()));
   }
 
   @Nonnull
@@ -1762,6 +1811,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
   public Optional<UpdateInfo> getCurrentUpdateInfo() {
     return Optional.ofNullable(currentUpdateInfo.get());
+  }
+
+  private List<EventGroupMarker> eventGroupMarkers(List<EventGroup> directGroups) {
+    return EventGroupImpl.toMarkers(directGroups, dataConverterWithCurrentWorkflowContext);
   }
 
   /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */

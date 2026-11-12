@@ -8,11 +8,13 @@ import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.StdConverterBackwardsCompatAdapter;
 import io.temporal.workflow.Functions;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -113,9 +115,11 @@ final class MutableSideEffectStateMachine {
 
     private final Functions.Proc1<Optional<Payloads>> resultCallback;
     private final Functions.Func1<Optional<Payloads>, Optional<Payloads>> func;
+    private final List<EventGroupMarker> eventGroupMarkers;
 
     InvocationStateMachine(
         Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc1<Optional<Payloads>> callback,
         Functions.Proc1<StateMachine> stateMachineSink) {
       super(
@@ -123,6 +127,7 @@ final class MutableSideEffectStateMachine {
           MutableSideEffectStateMachine.this.commandSink,
           stateMachineSink);
       this.func = Objects.requireNonNull(func);
+      this.eventGroupMarkers = Objects.requireNonNull(eventGroupMarkers);
       this.resultCallback = Objects.requireNonNull(callback);
     }
 
@@ -185,7 +190,9 @@ final class MutableSideEffectStateMachine {
                 .setMarkerName(MUTABLE_SIDE_EFFECT_MARKER_NAME)
                 .putAllDetails(details)
                 .build();
-        addCommand(StateMachineCommandUtils.createRecordMarker(markerAttributes, metadata));
+        addCommand(
+            StateMachineCommandUtils.createRecordMarker(
+                markerAttributes, metadata, eventGroupMarkers));
         metadata = null; // only used once
         currentSkipCount = 0;
         return State.MARKER_COMMAND_CREATED;
@@ -278,9 +285,11 @@ final class MutableSideEffectStateMachine {
 
   public InvocationStateMachine mutableSideEffect(
       Functions.Func1<Optional<Payloads>, Optional<Payloads>> func,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<Optional<Payloads>> callback,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    InvocationStateMachine ism = new InvocationStateMachine(func, callback, stateMachineSink);
+    InvocationStateMachine ism =
+        new InvocationStateMachine(func, eventGroupMarkers, callback, stateMachineSink);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);
     return ism;

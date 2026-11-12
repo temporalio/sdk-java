@@ -831,6 +831,34 @@ public final class Workflow {
   }
 
   /**
+   * Creates an {@link EventGroup}, which can be used to associate related workflow commands so that
+   * their resulting history events can be presented together in UI/CLI.
+   *
+   * @param id ID of the group. Must not be empty. Commands associated with groups that have the
+   *     same ID are presented together, even if they were associated with distinct {@link
+   *     EventGroup} instances.
+   * @see EventGroup
+   */
+  @Experimental
+  public static EventGroup newEventGroup(String id) {
+    return WorkflowInternal.newEventGroup(id, null);
+  }
+
+  /**
+   * Creates an {@link EventGroup} with options, such as a display label.
+   *
+   * @param id ID of the group. Must not be empty. Commands associated with groups that have the
+   *     same ID are presented together, even if they were associated with distinct {@link
+   *     EventGroup} instances, or have different labels.
+   * @param options options of the group.
+   * @see #newEventGroup(String)
+   */
+  @Experimental
+  public static EventGroup newEventGroup(String id, EventGroupOptions options) {
+    return WorkflowInternal.newEventGroup(id, options);
+  }
+
+  /**
    * Creates a {@link WorkflowLock} implementation that can be used from workflow code.
    *
    * <p>Note: The lock returned is not reentrant. If a workflow thread tries to acquire a lock that
@@ -894,6 +922,17 @@ public final class Workflow {
    */
   public static void sleep(Duration duration, TimerOptions options) {
     WorkflowInternal.sleep(duration, options);
+  }
+
+  /**
+   * Must be called instead of {@link Thread#sleep(long)} to guarantee determinism.
+   *
+   * @param millis time to sleep, in milliseconds.
+   * @param options options for the underlying timer, such as its summary.
+   * @see #newTimer(Duration, TimerOptions)
+   */
+  public static void sleep(long millis, TimerOptions options) {
+    WorkflowInternal.sleep(Duration.ofMillis(millis), options);
   }
 
   /**
@@ -1520,6 +1559,24 @@ public final class Workflow {
   }
 
   /**
+   * Same as {@link #getVersion(String, int, int)}, with options such as Event Groups to associate
+   * with the version marker and with the associated search attribute update.
+   *
+   * @param changeId identifier of a particular change. All calls to getVersion that share a
+   *     changeId are guaranteed to return the same version number. Use this to perform multiple
+   *     coordinated changes that should be enabled together.
+   * @param minSupported min version supported for the change
+   * @param maxSupported max version supported for the change
+   * @param options options of the call
+   * @return {@code maxSupported} when is originally executed. Original version recorded in the
+   *     history on replays.
+   */
+  public static int getVersion(
+      String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
+    return WorkflowInternal.getVersion(changeId, minSupported, maxSupported, options);
+  }
+
+  /**
    * Get scope for reporting business metrics in workflow logic. This should be used instead of
    * creating new metrics scopes as it is able to dedupe metrics during replay.
    *
@@ -1717,6 +1774,18 @@ public final class Workflow {
   }
 
   /**
+   * Same as {@link #upsertTypedSearchAttributes(SearchAttributeUpdate[])}, with options such as
+   * Event Groups to associate with the update.
+   *
+   * @param options options of the update.
+   * @param searchAttributeUpdates set of updates to apply to search attributes.
+   */
+  public static void upsertTypedSearchAttributes(
+      UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
+    WorkflowInternal.upsertTypedSearchAttributes(options, searchAttributeUpdates);
+  }
+
+  /**
    * Updates a Workflow Memos by applying {@code memoUpdates} to the existing Memos set attached to
    * the workflow. Memos are additional non-indexed information attributed to workflow and can
    * return by describing or listing a workflow. The type of value can be any object that are
@@ -1725,6 +1794,14 @@ public final class Workflow {
    */
   public static void upsertMemo(Map<String, Object> memo) {
     WorkflowInternal.upsertMemo(memo);
+  }
+
+  /**
+   * Same as {@link #upsertMemo(Map)}, with options such as Event Groups to associate with the
+   * update.
+   */
+  public static void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
+    WorkflowInternal.upsertMemo(memo, options);
   }
 
   /**

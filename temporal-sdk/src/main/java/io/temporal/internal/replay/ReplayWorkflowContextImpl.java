@@ -8,6 +8,7 @@ import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.SuggestContinueAsNewReason;
@@ -228,9 +229,11 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   @Override
   public Functions.Proc1<Exception> signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> callback) {
     Functions.Proc cancellationHandler =
-        workflowStateMachines.signalExternalWorkflowExecution(attributes.build(), callback);
+        workflowStateMachines.signalExternalWorkflowExecution(
+            attributes.build(), eventGroupMarkers, callback);
     return (e) -> cancellationHandler.apply();
   }
 
@@ -238,6 +241,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   public void requestCancelExternalWorkflowExecution(
       WorkflowExecution execution,
       @Nullable String reason,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> callback) {
     RequestCancelExternalWorkflowExecutionCommandAttributes.Builder attributes =
         RequestCancelExternalWorkflowExecutionCommandAttributes.newBuilder()
@@ -246,7 +250,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
     if (reason != null) {
       attributes.setReason(reason);
     }
-    workflowStateMachines.requestCancelExternalWorkflowExecution(attributes.build(), callback);
+    workflowStateMachines.requestCancelExternalWorkflowExecution(
+        attributes.build(), eventGroupMarkers, callback);
   }
 
   @Override
@@ -284,7 +289,10 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
 
   @Override
   public Functions.Proc1<RuntimeException> newTimer(
-      Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback) {
+      Duration delay,
+      UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
+      Functions.Proc1<RuntimeException> callback) {
     if (delay.compareTo(Duration.ZERO) <= 0) {
       callback.apply(null);
       return (e) -> {};
@@ -296,7 +304,10 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
             .build();
     Functions.Proc cancellationHandler =
         workflowStateMachines.newTimer(
-            attributes, metadata, (event) -> handleTimerCallback(callback, event));
+            attributes,
+            metadata,
+            eventGroupMarkers,
+            (event) -> handleTimerCallback(callback, event));
     return (e) -> cancellationHandler.apply();
   }
 
@@ -322,17 +333,19 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   public void sideEffect(
       Func<Optional<Payloads>> func,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<Optional<Payloads>> callback) {
-    workflowStateMachines.sideEffect(func, metadata, callback);
+    workflowStateMachines.sideEffect(func, metadata, eventGroupMarkers, callback);
   }
 
   @Override
   public void mutableSideEffect(
       String id,
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback) {
-    workflowStateMachines.mutableSideEffect(id, metadata, func, callback);
+    workflowStateMachines.mutableSideEffect(id, metadata, eventGroupMarkers, func, callback);
   }
 
   @Override
@@ -340,6 +353,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
       String changeId,
       int minSupported,
       int maxSupported,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback) {
     PreferredVersionProvider preferredVersionProvider = workerOptions.getPreferredVersionProvider();
     return workflowStateMachines.getVersion(
@@ -354,6 +368,7 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
                         preferredVersionProvider.getPreferredVersion(
                             new PreferredVersionProviderInput(
                                 WorkflowInternal.getWorkflowInfo(), changeId, min, max))),
+        eventGroupMarkers,
         callback);
   }
 
@@ -363,7 +378,8 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes) {
+  public void upsertSearchAttributes(
+      @Nonnull SearchAttributes searchAttributes, List<EventGroupMarker> eventGroupMarkers) {
     /*
      * Temporal Change Version is a reserved field and should ideally not be set by the user.
      * It is set by the SDK when getVersion is called. We know that users have been setting
@@ -376,13 +392,13 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
           "{} is a reserved field. This can be set automatically by the SDK by calling `setEnableUpsertVersionSearchAttributes` on your `WorkflowImplementationOptions`",
           TEMPORAL_CHANGE_VERSION.getName());
     }
-    workflowStateMachines.upsertSearchAttributes(searchAttributes);
+    workflowStateMachines.upsertSearchAttributes(searchAttributes, eventGroupMarkers);
     mutableState.upsertSearchAttributes(searchAttributes);
   }
 
   @Override
-  public void upsertMemo(@Nonnull Memo memo) {
-    workflowStateMachines.upsertMemo(memo);
+  public void upsertMemo(@Nonnull Memo memo, List<EventGroupMarker> eventGroupMarkers) {
+    workflowStateMachines.upsertMemo(memo, eventGroupMarkers);
     mutableState.upsertMemo(memo);
   }
 
@@ -468,14 +484,14 @@ final class ReplayWorkflowContextImpl implements ReplayWorkflowContext {
   }
 
   @Override
-  public ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
+  @Nullable
+  public ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion() {
     return mutableState.getContinueAsNewOnCompletion();
   }
 
   @Override
-  public void continueAsNewOnCompletion(
-      ContinueAsNewWorkflowExecutionCommandAttributes attributes) {
-    mutableState.continueAsNewOnCompletion(attributes);
+  public void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters) {
+    mutableState.continueAsNewOnCompletion(parameters);
   }
 
   @Override

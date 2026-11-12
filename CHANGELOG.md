@@ -20,8 +20,10 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### :boom: Breaking Changes
-- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
-  `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
+- `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)`,
+  `await(Duration, TimerOptions, String, Supplier)`, `getVersion(..., GetVersionOptions)`,
+  `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
+  `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
 - **Experimental**: A `@TemporalOperation` handler can now send only one signal per operation invocation; `signal`
   and `signalWithStart` count toward the same limit. While the first signal is in flight, or after it succeeds, a
@@ -34,6 +36,9 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Experimental Event Groups associate related workflow commands so their history events can be
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
+  `addEventGroups` on the command's options.
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
   the configured client's payload codec. Only opted-in producers' output is encoded, while
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
