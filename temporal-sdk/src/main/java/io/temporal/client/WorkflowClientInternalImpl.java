@@ -118,7 +118,9 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
             .tagged(MetricsTag.defaultTags(options.getNamespace()));
     ExternalStorage externalStorage = options.getExternalStorage();
     ExternalStorageRunner externalStorageRunner =
-        externalStorage == null ? null : ExternalStorageRunner.create(externalStorage);
+        externalStorage == null
+            ? null
+            : ExternalStorageRunner.create(externalStorage, options.getNamespace());
     this.externalStorageRunner = externalStorageRunner;
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();

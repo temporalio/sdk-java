@@ -109,6 +109,21 @@ public class NexusExternalStorageTest {
         driver.targets.stream().allMatch(target -> target == null));
   }
 
+  @Test
+  public void nexusPayloadsCarryTheNamespaceOfTheStoringClientOrWorker() {
+    buildServiceClient()
+        .execute(
+            TestNexusServices.TestNexusService1::operation,
+            newOptionsWithId(),
+            "extstore-namespace-" + UUID.randomUUID());
+
+    Assert.assertFalse("expected the driver to have been used", driver.namespaces.isEmpty());
+    String namespace = testWorkflowRule.getWorkflowClient().getOptions().getNamespace();
+    Assert.assertTrue(
+        "Nexus payloads carry the namespace of the storing client or worker",
+        driver.namespaces.stream().allMatch(namespace::equals));
+  }
+
   private static StartNexusOperationOptions newOptionsWithId() {
     return StartNexusOperationOptions.newBuilder().setId(UUID.randomUUID().toString()).build();
   }
@@ -138,6 +153,7 @@ public class NexusExternalStorageTest {
     private final Map<String, Payload> objects = new HashMap<>();
     private final List<String> storedData = new CopyOnWriteArrayList<>();
     final List<StorageDriverTargetInfo> targets = new CopyOnWriteArrayList<>();
+    final List<String> namespaces = new CopyOnWriteArrayList<>();
     final AtomicInteger retrieves = new AtomicInteger();
     private int counter = 0;
 
@@ -149,6 +165,7 @@ public class NexusExternalStorageTest {
       objects.clear();
       storedData.clear();
       targets.clear();
+      namespaces.clear();
       retrieves.set(0);
     }
 
@@ -172,6 +189,7 @@ public class NexusExternalStorageTest {
       List<StorageDriverClaim> claims = new ArrayList<>();
       for (Payload payload : payloads) {
         targets.add(context.getTarget());
+        namespaces.add(context.getNamespace());
         storedData.add(payload.getData().toStringUtf8());
         String key = name + "-" + (counter++);
         objects.put(key, payload);

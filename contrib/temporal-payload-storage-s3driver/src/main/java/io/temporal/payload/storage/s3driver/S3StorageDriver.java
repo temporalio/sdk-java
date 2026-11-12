@@ -86,7 +86,8 @@ public final class S3StorageDriver implements StorageDriver {
       byte[] data = payload.toByteArray();
       String hexDigest = PayloadHasher.sha256Hex(data);
       String bucket = bucketResolver.resolveBucket(context, payload);
-      String key = S3StorageKey.forPayload(target, HASH_ALGORITHM, hexDigest);
+      String key =
+          S3StorageKey.forPayload(target, context.getNamespace(), HASH_ALGORITHM, hexDigest);
       String location = storageLocation(bucket, key, describeSuffix);
 
       CompletableFuture<Boolean> existsRequest = client.objectExists(bucket, key);

@@ -35,6 +35,7 @@ public final class TestStorageDriver implements StorageDriver {
   public final List<Integer> retrieveBatchSizes = new CopyOnWriteArrayList<>();
   public final List<String> retrievedKeys = new CopyOnWriteArrayList<>();
   public final List<StorageDriverTargetInfo> targets = new CopyOnWriteArrayList<>();
+  public final List<String> namespaces = new CopyOnWriteArrayList<>();
   public final List<String> storedData = new CopyOnWriteArrayList<>();
   public final AtomicInteger stores = new AtomicInteger();
   public final AtomicInteger retrieves = new AtomicInteger();
@@ -113,6 +114,7 @@ public final class TestStorageDriver implements StorageDriver {
     stores.incrementAndGet();
     storeBatchSizes.add(payloads.size());
     targets.add(context.getTarget());
+    namespaces.add(context.getNamespace());
 
     CountDownLatch entered = storeEntered;
     if (entered != null) {
@@ -180,6 +182,7 @@ public final class TestStorageDriver implements StorageDriver {
     retrieveBatchSizes.clear();
     retrievedKeys.clear();
     targets.clear();
+    namespaces.clear();
     storedData.clear();
     stores.set(0);
     retrieves.set(0);

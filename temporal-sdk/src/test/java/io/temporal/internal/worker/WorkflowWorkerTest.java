@@ -1014,7 +1014,8 @@ public class WorkflowWorkerTest {
                             ExternalStorage.newBuilder()
                                 .setDriver(driver)
                                 .setPayloadSizeThreshold(0)
-                                .build()))
+                                .build(),
+                            "default"))
                 .setStorageCancellation(storageCancellation)
                 .build(),
             runLockManager,
@@ -1125,7 +1126,8 @@ public class WorkflowWorkerTest {
                           ExternalStorage.newBuilder()
                               .setDriver(driver)
                               .setPayloadSizeThreshold(0)
-                              .build()))
+                              .build(),
+                          "default"))
                   .setStorageCancellation(storageCancellation.token())
                   .build(),
               runLockManager,

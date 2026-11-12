@@ -85,8 +85,13 @@ to docs, or any other relevant information.
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 - **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
   `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
+- **Experimental**: `StorageDriverStoreContext` and `StorageDriverSelectContext` now have `getNamespace()`, returning
+  the namespace of the client or worker performing the store.
 
 ### Changed
+- **Experimental**: The S3 storage driver now writes payloads stored without a workflow or activity target under
+  `v0/ns/{namespace}/d/sha256/{hash}`, using the namespace of the storing client or worker (`null` when it is
+  unknown), instead of `v0/d/sha256/{hash}`. Existing objects remain retrievable.
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
   operation's request ID, so a retried Nexus task no longer delivers the same signal twice. Signals sent from other
   Nexus operation handlers keep an independent request ID per call and are not deduplicated.

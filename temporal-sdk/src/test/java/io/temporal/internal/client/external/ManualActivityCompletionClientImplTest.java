@@ -45,7 +45,8 @@ public class ManualActivityCompletionClientImplTest {
                 .setDriver(new FailingDriver())
                 .setPayloadSizeThreshold(0)
                 .setMaxConcurrentPayloadVisits(1)
-                .build());
+                .build(),
+            "default");
   }
 
   @Test

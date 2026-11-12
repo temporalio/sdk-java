@@ -280,7 +280,8 @@ public class ExternalStorageRunnerTest {
             ExternalStorage.newBuilder()
                 .setDriver(driver)
                 .setPayloadSizeThreshold(threshold)
-                .build());
+                .build(),
+            "default");
     return new ExternalStorageRunner(payloadTransformer, 4);
   }
 

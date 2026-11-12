@@ -140,7 +140,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriver(driver)
                 .setDriverSelector((context, payload) -> null)
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
 
     List<Payload> stored =
         transformer
@@ -166,7 +167,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDrivers(Arrays.asList(d1, d2))
                 .setDriverSelector(selector)
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
     List<Payload> input = Arrays.asList(payload("1-a"), payload("2-b"), payload("1-c"));
 
     List<Payload> stored = transformer.store(input, null, CancellationToken.none()).get();
@@ -191,7 +193,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriver(driver)
                 .setDriverSelector(selector)
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
     StorageDriverTargetInfo target =
         new StorageDriverWorkflowInfo("ns", "wf-id", "run-id", "MyWorkflow");
 
@@ -202,6 +205,44 @@ public class ExternalStoragePayloadTransformerTest {
     assertNotNull(seen.get());
     assertSame(target, seen.get().getTarget());
     assertEquals(Collections.singletonList(target), driver.targets);
+  }
+
+  @Test
+  public void selectAndStoreContextsCarryTheNamespaceWithoutATarget() throws Exception {
+    AtomicReference<StorageDriverSelectContext> selectContext = new AtomicReference<>();
+    AtomicReference<StorageDriverStoreContext> storeContext = new AtomicReference<>();
+    StorageDriver driver =
+        new FakeDriver("d1") {
+          @Override
+          public CompletableFuture<List<StorageDriverClaim>> store(
+              StorageDriverStoreContext context, List<Payload> payloads) {
+            storeContext.set(context);
+            return CompletableFuture.completedFuture(
+                Collections.singletonList(
+                    new StorageDriverClaim(Collections.singletonMap("k", "v"))));
+          }
+        };
+    ExternalStoragePayloadTransformer transformer =
+        ExternalStoragePayloadTransformer.fromOptions(
+            ExternalStorage.newBuilder()
+                .setDriver(driver)
+                .setDriverSelector(
+                    (context, payload) -> {
+                      selectContext.set(context);
+                      return driver;
+                    })
+                .setPayloadSizeThreshold(0)
+                .build(),
+            "my-namespace");
+
+    transformer
+        .store(Collections.singletonList(payload("a")), null, CancellationToken.none())
+        .get();
+
+    assertNull(selectContext.get().getTarget());
+    assertEquals("my-namespace", selectContext.get().getNamespace());
+    assertNull(storeContext.get().getTarget());
+    assertEquals("my-namespace", storeContext.get().getNamespace());
   }
 
   @Test
@@ -291,7 +332,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriver(registered)
                 .setDriverSelector((context, payload) -> stranger)
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
 
     Throwable cause =
         causeOf(
@@ -327,7 +369,8 @@ public class ExternalStoragePayloadTransformerTest {
                     (context, payload) ->
                         byPrefix.get(payload.getData().toStringUtf8().substring(0, 1)))
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
 
     CompletableFuture<List<Payload>> result =
         transformer.store(
@@ -411,7 +454,8 @@ public class ExternalStoragePayloadTransformerTest {
                       return driver;
                     })
                 .setPayloadSizeThreshold(0)
-                .build());
+                .build(),
+            "default");
 
     transformer.store(Collections.singletonList(payload("a")), null, caller.token());
 
@@ -421,7 +465,8 @@ public class ExternalStoragePayloadTransformerTest {
   private static ExternalStoragePayloadTransformer transformer(
       StorageDriver driver, int threshold) {
     return ExternalStoragePayloadTransformer.fromOptions(
-        ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build());
+        ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build(),
+        "default");
   }
 
   private static Payload payload(String data) {

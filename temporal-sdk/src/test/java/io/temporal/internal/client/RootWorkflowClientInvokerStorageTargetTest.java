@@ -267,7 +267,8 @@ public class RootWorkflowClientInvokerStorageTargetTest {
         options.getDataConverter(),
         new WorkerFactoryRegistry(),
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build()));
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            NAMESPACE));
   }
 
   private static final class CapturingDriver implements StorageDriver {

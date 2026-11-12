@@ -93,7 +93,8 @@ final class ScheduleClientImpl implements ScheduleClient {
             internalDataConverter,
             options.getExternalStorage() == null
                 ? null
-                : ExternalStorageRunner.create(options.getExternalStorage()));
+                : ExternalStorageRunner.create(
+                    options.getExternalStorage(), options.getNamespace()));
   }
 
   private static ScheduleClientPlugin[] extractScheduleClientPlugins(

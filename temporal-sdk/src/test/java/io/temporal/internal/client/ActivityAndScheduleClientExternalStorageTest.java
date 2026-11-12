@@ -93,7 +93,11 @@ public class ActivityAndScheduleClientExternalStorageTest {
         ArgumentCaptor.forClass(StartActivityExecutionRequest.class);
 
     new RootActivityClientInvoker(
-            rpc, NAMESPACE, "identity", CONVERTER, ExternalStorageRunner.create(storage(driver)))
+            rpc,
+            NAMESPACE,
+            "identity",
+            CONVERTER,
+            ExternalStorageRunner.create(storage(driver), NAMESPACE))
         .startActivity(
             new StartActivityInput(
                 "MyActivityType",
@@ -125,7 +129,7 @@ public class ActivityAndScheduleClientExternalStorageTest {
     ArgumentCaptor<CreateScheduleRequest> sent =
         ArgumentCaptor.forClass(CreateScheduleRequest.class);
 
-    scheduleInvoker(rpc, ExternalStorageRunner.create(storage(driver)))
+    scheduleInvoker(rpc, ExternalStorageRunner.create(storage(driver), NAMESPACE))
         .createSchedule(
             new CreateScheduleInput(
                 "sched-1",
@@ -166,7 +170,7 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleDescribeResolvesReferencesWhenStorageIsConfigured() {
     InMemoryDriver driver = new InMemoryDriver();
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver));
+    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver), NAMESPACE);
     GenericWorkflowClient rpc = mock(GenericWorkflowClient.class);
     when(rpc.describeSchedule(any())).thenReturn(describeResponseWithReferences(runner));
 
@@ -183,7 +187,8 @@ public class ActivityAndScheduleClientExternalStorageTest {
 
   @Test
   public void scheduleDescribeRejectsReferencesWhenStorageIsNotConfigured() {
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(new InMemoryDriver()));
+    ExternalStorageRunner runner =
+        ExternalStorageRunner.create(storage(new InMemoryDriver()), NAMESPACE);
     GenericWorkflowClient rpc = mock(GenericWorkflowClient.class);
     when(rpc.describeSchedule(any())).thenReturn(describeResponseWithReferences(runner));
 
@@ -204,7 +209,7 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleUpdateSendsUnchangedPayloadsBackWithoutStoringThemAgain() {
     InMemoryDriver driver = new InMemoryDriver();
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver));
+    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver), NAMESPACE);
     Payloads stored = storedActionPayloads(runner);
 
     NewWorkflowExecutionInfo sent =
@@ -221,7 +226,7 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleUpdateStoresOnlyThePayloadsThatChanged() {
     InMemoryDriver driver = new InMemoryDriver();
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver));
+    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver), NAMESPACE);
     Payloads stored = storedActionPayloads(runner);
 
     NewWorkflowExecutionInfo sent =

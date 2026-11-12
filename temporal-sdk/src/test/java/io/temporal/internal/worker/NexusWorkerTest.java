@@ -419,7 +419,8 @@ public class NexusWorkerTest {
                               ExternalStorage.newBuilder()
                                   .setDriver(driver)
                                   .setPayloadSizeThreshold(0)
-                                  .build()))
+                                  .build(),
+                              "default"))
                   .build(),
               handler,
               DefaultDataConverter.newDefaultInstance(),

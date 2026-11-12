@@ -166,7 +166,8 @@ public class ServiceWorkflowHistoryIteratorTest {
         ExternalStorage.newBuilder()
             .setDriver(TestStorageDriver.create())
             .setPayloadSizeThreshold(0)
-            .build());
+            .build(),
+        "default");
   }
 
   private static History historyWithInput(Payload payload) {
