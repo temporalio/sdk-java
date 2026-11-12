@@ -14,6 +14,7 @@ public final class LocalActivityResult {
   private final @Nullable RespondActivityTaskCompletedRequest executionCompleted;
   private final @Nullable ExecutionFailedResult executionFailed;
   private final @Nullable RespondActivityTaskCanceledRequest executionCanceled;
+  private final @Nullable Object copiedResult;
 
   /**
    * If present, it will cause an immediate WFT failure instead of providing LA result to the
@@ -23,7 +24,13 @@ public final class LocalActivityResult {
 
   static LocalActivityResult completed(ActivityTaskHandler.Result ahResult, int attempt) {
     return new LocalActivityResult(
-        ahResult.getActivityId(), attempt, ahResult.getTaskCompleted(), null, null, null);
+        ahResult.getActivityId(),
+        attempt,
+        ahResult.getTaskCompleted(),
+        null,
+        null,
+        null,
+        ahResult.getCopiedResult());
   }
 
   static LocalActivityResult failed(
@@ -60,12 +67,31 @@ public final class LocalActivityResult {
       @Nullable ExecutionFailedResult executionFailed,
       @Nullable RespondActivityTaskCanceledRequest executionCanceled,
       @Nullable ProcessingErrorResult processingError) {
+    this(
+        activityId,
+        lastAttempt,
+        executionCompleted,
+        executionFailed,
+        executionCanceled,
+        processingError,
+        null);
+  }
+
+  public LocalActivityResult(
+      @Nonnull String activityId,
+      int lastAttempt,
+      @Nullable RespondActivityTaskCompletedRequest executionCompleted,
+      @Nullable ExecutionFailedResult executionFailed,
+      @Nullable RespondActivityTaskCanceledRequest executionCanceled,
+      @Nullable ProcessingErrorResult processingError,
+      @Nullable Object copiedResult) {
     this.activityId = activityId;
     this.lastAttempt = lastAttempt;
     this.executionCompleted = executionCompleted;
     this.executionFailed = executionFailed;
     this.executionCanceled = executionCanceled;
     this.processingError = processingError;
+    this.copiedResult = copiedResult;
   }
 
   @Nonnull
@@ -80,6 +106,11 @@ public final class LocalActivityResult {
   @Nullable
   public RespondActivityTaskCompletedRequest getExecutionCompleted() {
     return executionCompleted;
+  }
+
+  @Nullable
+  public Object getCopiedResult() {
+    return copiedResult;
   }
 
   @Nullable

@@ -103,7 +103,8 @@ public final class ActivityTaskHandlerImpl implements ActivityTaskHandler {
             this.namespace,
             this.taskQueue,
             localActivity,
-            activityTask.getCompletionCallback());
+            activityTask.getCompletionCallback(),
+            localActivity ? activityTask.getLocalActivityArguments() : null);
     ActivityTaskExecutor activity = activities.get(activityType);
     if (activity != null) {
       return activity.execute(activityInfo, metricsScope);

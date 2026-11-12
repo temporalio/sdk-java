@@ -1347,7 +1347,8 @@ public final class WorkflowStateMachines {
 
   public Functions.Proc scheduleLocalActivityTask(
       ExecuteLocalActivityParameters parameters,
-      Functions.Proc2<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>
+      Functions.Proc2<
+              LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>
           callback) {
     checkEventLoopExecuting();
     String activityId = parameters.getActivityId();

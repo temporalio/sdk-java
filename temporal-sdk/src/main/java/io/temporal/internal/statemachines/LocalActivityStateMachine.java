@@ -362,11 +362,15 @@ final class LocalActivityStateMachine
     } else {
       Optional<Payloads> result =
           Optional.ofNullable(LocalActivityMarkerUtils.getResult(attributes));
-      callback.apply(result, null);
+      callback.apply(new LocalActivityCallback.Output(result, null), null);
     }
   }
 
   private void notifyResultFromResponse() {
-    callback.apply(executionSuccess, executionFailure);
+    callback.apply(
+        executionFailure == null
+            ? new LocalActivityCallback.Output(executionSuccess, executionResult.getCopiedResult())
+            : null,
+        executionFailure);
   }
 }
