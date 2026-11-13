@@ -500,6 +500,91 @@ public class GcsStorageDriverTest {
             .endsWith(", client_project_id=my-project]: not found"));
   }
 
+  @Test(timeout = 5000)
+  public void uploadStartFailuresFailTheStoreInsteadOfHanging() {
+    OutOfMemoryError error = new OutOfMemoryError("unable to create native thread");
+    for (boolean returnNull : new boolean[] {false, true}) {
+      TestToken token = new TestToken();
+      ControlledClient client =
+          new ControlledClient() {
+            @Override
+            public CompletableFuture<Void> putObjectIfAbsent(
+                String bucket, String name, byte[] data) {
+              if (returnNull) {
+                return null;
+              }
+              throw error;
+            }
+          };
+      client.holdExistenceChecks = true;
+      CompletableFuture<List<StorageDriverClaim>> store =
+          driver(client).store(storeContext(token), Collections.singletonList(payload("x")));
+      client.existenceChecks.get(0).complete(false);
+      GcsStorageException failure = failure(store);
+      assertTrue(failure.getMessage(), failure.getMessage().startsWith("upload failed [bucket="));
+      if (returnNull) {
+        assertTrue(
+            failure.getMessage(), failure.getMessage().endsWith("client returned a null future"));
+      } else {
+        assertSame(error, failure.getCause());
+      }
+      assertNull(token.callback);
+    }
+  }
+
+  @Test(timeout = 5000)
+  public void nullExistenceFutureFailsTheStore() {
+    InMemoryClient client =
+        new InMemoryClient() {
+          @Override
+          public CompletableFuture<Boolean> objectExists(String bucket, String name) {
+            return null;
+          }
+        };
+    GcsStorageException failure =
+        failure(driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("x"))));
+    assertTrue(failure.getMessage(), failure.getMessage().startsWith("existence check failed"));
+    assertEquals(0, client.putAttempts.get());
+  }
+
+  @Test
+  public void causesWithoutMessagesAreNamedInFailureMessages() {
+    InMemoryClient client = new InMemoryClient();
+    client.putError = new RuntimeException((String) null);
+    assertTrue(
+        failure(driver(client).store(STORE_CONTEXT, Collections.singletonList(payload("x"))))
+            .getMessage()
+            .endsWith("]: java.lang.RuntimeException"));
+  }
+
+  @Test
+  public void describeFailuresFailTheFutureAndEmptyBatchesSkipDescribe() {
+    RuntimeException cause = new IllegalStateException("describe failed");
+    AtomicInteger describeCalls = new AtomicInteger();
+    InMemoryClient client =
+        new InMemoryClient() {
+          @Override
+          public Map<String, String> describe() {
+            describeCalls.incrementAndGet();
+            throw cause;
+          }
+        };
+    GcsStorageDriver driver = driver(client);
+    assertEquals(
+        Collections.emptyList(), driver.store(STORE_CONTEXT, Collections.emptyList()).join());
+    assertEquals(
+        Collections.emptyList(), driver.retrieve(RETRIEVE_CONTEXT, Collections.emptyList()).join());
+    assertEquals(0, describeCalls.get());
+    CompletableFuture<?> store =
+        driver.store(STORE_CONTEXT, Collections.singletonList(payload("x")));
+    CompletableFuture<?> retrieve =
+        driver.retrieve(RETRIEVE_CONTEXT, Collections.singletonList(canonicalClaim()));
+    assertSame(cause, assertThrows(CompletionException.class, store::join).getCause());
+    assertSame(cause, assertThrows(CompletionException.class, retrieve::join).getCause());
+    assertEquals(0, client.existsAttempts.get());
+    assertEquals(0, client.getAttempts.get());
+  }
+
   @Test
   public void uploadFailureCancelsPendingUploads() {
     ControlledClient client = new ControlledClient();

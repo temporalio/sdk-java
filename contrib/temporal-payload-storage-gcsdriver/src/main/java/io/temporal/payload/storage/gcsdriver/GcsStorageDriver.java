@@ -66,6 +66,7 @@ public final class GcsStorageDriver implements StorageDriver {
   public CompletableFuture<List<StorageDriverClaim>> store(
       @Nonnull StorageDriverStoreContext context, @Nonnull List<Payload> payloads) {
     List<PreparedPayload> prepared = new ArrayList<>(payloads.size());
+    String describeSuffix;
     try {
       for (Payload payload : payloads) {
         int size = payload.getSerializedSize();
@@ -84,10 +85,10 @@ public final class GcsStorageDriver implements StorageDriver {
         String objectName = GcsStorageKey.forPayload(context.getTarget(), hash);
         prepared.add(new PreparedPayload(bucket, data, objectName, hash));
       }
+      describeSuffix = prepared.isEmpty() ? "" : describeSuffix();
     } catch (RuntimeException e) {
       return CompletableFutures.failedFuture(e);
     }
-    String describeSuffix = describeSuffix();
     return CompletableFutures.mapAsync(
         prepared,
         context.getCancellationToken(),
@@ -126,6 +127,10 @@ public final class GcsStorageDriver implements StorageDriver {
             result.complete(claim);
             return;
           }
+          if (result.isDone()) {
+            // The batch was cancelled or failed while the existence check was finishing.
+            return;
+          }
           CompletableFuture<StorageDriverClaim> upload =
               request(
                   () -> client.putObjectIfAbsent(bucket, payload.objectName, payload.data),
@@ -153,6 +158,7 @@ public final class GcsStorageDriver implements StorageDriver {
   public CompletableFuture<List<Payload>> retrieve(
       @Nonnull StorageDriverRetrieveContext context, @Nonnull List<StorageDriverClaim> claims) {
     List<Map<String, String>> validated = new ArrayList<>(claims.size());
+    String describeSuffix;
     try {
       for (StorageDriverClaim claim : claims) {
         Map<String, String> data = new HashMap<>(claim.getClaimData());
@@ -169,10 +175,10 @@ public final class GcsStorageDriver implements StorageDriver {
         }
         validated.add(data);
       }
+      describeSuffix = validated.isEmpty() ? "" : describeSuffix();
     } catch (RuntimeException e) {
       return CompletableFutures.failedFuture(e);
     }
-    String describeSuffix = describeSuffix();
     return CompletableFutures.mapAsync(
         validated,
         context.getCancellationToken(),
@@ -252,8 +258,13 @@ public final class GcsStorageDriver implements StorageDriver {
     CompletableFuture<I> request;
     try {
       request = start.get();
-    } catch (RuntimeException e) {
+    } catch (Throwable e) {
+      // Errors must fail the future too; otherwise a caller inside a callback would never finish.
       return CompletableFutures.failedFuture(withContext(failureMessage, e));
+    }
+    if (request == null) {
+      return CompletableFutures.failedFuture(
+          new GcsStorageException(failureMessage + ": client returned a null future"));
     }
     CompletableFuture<O> result =
         request.handle(
@@ -274,7 +285,8 @@ public final class GcsStorageDriver implements StorageDriver {
 
   private static GcsStorageException withContext(String message, Throwable error) {
     Throwable cause = CompletableFutures.unwrap(error);
-    return new GcsStorageException(message + ": " + cause.getMessage(), cause);
+    String causeMessage = cause.getMessage() != null ? cause.getMessage() : cause.toString();
+    return new GcsStorageException(message + ": " + causeMessage, cause);
   }
 
   private static final class PreparedPayload {

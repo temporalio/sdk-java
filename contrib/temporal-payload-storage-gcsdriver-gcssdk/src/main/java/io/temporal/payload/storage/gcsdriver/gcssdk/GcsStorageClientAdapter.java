@@ -17,7 +17,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -155,7 +154,8 @@ public final class GcsStorageClientAdapter implements GcsStorageDriverClient, Au
     try {
       // Wire cancellation before submission so even queued tasks can be cancelled safely.
       executor.execute(task);
-    } catch (RejectedExecutionException e) {
+    } catch (Throwable e) {
+      // Includes rejection after close() and errors such as failing to start a pool thread.
       result.completeExceptionally(e);
       task.cancel(true);
     }

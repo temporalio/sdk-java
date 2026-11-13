@@ -73,7 +73,7 @@ final class CompletableFutures {
       CompletableFuture<O> request;
       try {
         request = operation.apply(inputs.get(i));
-      } catch (RuntimeException e) {
+      } catch (Throwable e) {
         output.completeExceptionally(e);
         break;
       }

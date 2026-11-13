@@ -62,9 +62,11 @@ Java 21+, call `setExecutor(...)`. Avoid an executor that rejects tasks, because
 the store or retrieve. Avoid `CallerRunsPolicy`, because it runs the GCS call on the SDK's worker
 thread and cancellation then interrupts that thread.
 
-The SDK waits for each storage operation on the worker thread, so worker slots
-(`setMaxConcurrentActivityExecutionSize` and `setMaxConcurrentWorkflowTaskExecutionSize`) limit
-concurrent GCS calls and the payload memory they hold. Tune those rather than the thread pool.
+Worker slots (`setMaxConcurrentActivityExecutionSize` and
+`setMaxConcurrentWorkflowTaskExecutionSize`) only loosely limit concurrent GCS calls. Each store or
+retrieve sends one request per payload at the same time and holds all of those payloads in memory,
+and the SDK can process several batches per task. Local activities, Nexus operations, and clients
+also use the driver. Lower slots to reduce peak load and memory; raise the pool if calls queue.
 
 After the worker factory terminates, close the adapter, which shuts down its thread pool, then
 close the Google client. Shut down your own executor if you supplied one. Configure timeouts and

@@ -311,6 +311,15 @@ public class GcsStorageClientAdapterTest {
   }
 
   @Test
+  public void executorErrorsCompleteFutureExceptionally() throws Exception {
+    Executor failing = mock(Executor.class);
+    OutOfMemoryError original = new OutOfMemoryError("unable to create native thread");
+    doThrow(original).when(failing).execute(any(Runnable.class));
+    assertSame(original, failure(withExecutor(failing).getObject("bucket", "object")));
+    verifyNoInteractions(storage);
+  }
+
+  @Test
   public void queuedCallCanReuseSubmittingExecutorThread() throws Exception {
     byte[] data = {1, 2, 3};
     when(storage.readAllBytes(BlobId.of("bucket", "object"))).thenReturn(data);
