@@ -3,6 +3,8 @@ package io.temporal.internal.payload.storage;
 import com.google.common.base.Throwables;
 import com.google.protobuf.Message;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.enums.v1.EventType;
+import io.temporal.api.history.v1.HistoryEventOrBuilder;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.visitor.MessageVisitor;
@@ -11,6 +13,8 @@ import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -24,6 +28,26 @@ import javax.annotation.Nullable;
  * configure external storage.
  */
 public final class ExternalStorageRunner {
+  /**
+   * Events that echo the inputs of a command the workflow issued. Replay matches these events by
+   * identifiers only, so their payloads never need to be downloaded by the workflow worker. If the
+   * workflow worker ever needs to read one of these payloads, remove its event type from this set.
+   */
+  private static final Set<EventType> COMMAND_INPUT_EVENTS =
+      EnumSet.of(
+          EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED,
+          EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED,
+          EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED,
+          EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED);
+
+  /** Marks payloads inside {@link #COMMAND_INPUT_EVENTS} so that retrieval leaves them alone. */
+  private static final MessageVisitor<Boolean> SKIP_COMMAND_INPUTS =
+      (skip, message) ->
+          Boolean.TRUE.equals(skip)
+              || (message instanceof HistoryEventOrBuilder
+                  && COMMAND_INPUT_EVENTS.contains(
+                      ((HistoryEventOrBuilder) message).getEventType()));
+
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
 
@@ -92,7 +116,23 @@ public final class ExternalStorageRunner {
       T message,
       CancellationToken<CancellationException> cancellationToken,
       @Nullable StorageOperationMetrics metrics) {
-    return PayloadVisitors.visit(message, retrieveOptions(cancellationToken, metrics));
+    return PayloadVisitors.visit(message, retrieveOptions(null, cancellationToken, metrics));
+  }
+
+  /**
+   * Like {@link #retrieve}, for workflow history processed by the workflow worker. References in
+   * events that echo the workflow's own command inputs are left in place, because replay does not
+   * read them. The workflow's data converter does not download references, so code that reads these
+   * payloads would see the reference instead of the data.
+   */
+  public <T extends Message> T retrieveForReplay(
+      T message,
+      CancellationToken<CancellationException> cancellationToken,
+      @Nullable StorageOperationMetrics metrics) {
+    return getOrThrowIfCancelled(
+        PayloadVisitors.visit(
+            message, retrieveOptions(SKIP_COMMAND_INPUTS, cancellationToken, metrics)),
+        cancellationToken);
   }
 
   /**
@@ -157,12 +197,16 @@ public final class ExternalStorageRunner {
         .build();
   }
 
-  private PayloadVisitorOptions<Void> retrieveOptions(
+  private PayloadVisitorOptions<Boolean> retrieveOptions(
+      @Nullable MessageVisitor<Boolean> skipVisitor,
       CancellationToken<CancellationException> cancellationToken,
       @Nullable StorageOperationMetrics metrics) {
-    return PayloadVisitorOptions.<Void>newBuilder(
-            (context, payloads) ->
-                payloadTransformer.retrieve(payloads, cancellationToken, metrics))
+    return PayloadVisitorOptions.<Boolean>newBuilder(
+            (skip, payloads) ->
+                Boolean.TRUE.equals(skip)
+                    ? CompletableFuture.completedFuture(payloads)
+                    : payloadTransformer.retrieve(payloads, cancellationToken, metrics))
+        .setMessageVisitor(skipVisitor)
         .setConcurrency(payloadVisitConcurrency)
         .setSkipSearchAttributes(true)
         .build();

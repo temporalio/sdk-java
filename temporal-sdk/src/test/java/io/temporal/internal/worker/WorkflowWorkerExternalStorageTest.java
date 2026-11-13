@@ -1,5 +1,8 @@
 package io.temporal.internal.worker;
 
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityOptions;
+import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.internal.payload.storage.TestStorageDriver;
@@ -7,10 +10,14 @@ import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.testing.CloudTestExclusion.NeedsCloudAdaptation;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.workflow.QueryMethod;
+import io.temporal.workflow.SignalMethod;
 import io.temporal.workflow.Workflow;
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 import io.temporal.workflow.shared.TestWorkflows;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.UUID;
 import org.junit.Assert;
 import org.junit.Before;
@@ -26,6 +33,10 @@ public class WorkflowWorkerExternalStorageTest {
 
   private static final int THRESHOLD = 4096;
   private static final String CONTINUED_MARKER = "continued:";
+  private static final String ACTIVITY_ARG_MARKER = "activity-arg:";
+  private static final String ACTIVITY_RESULT_MARKER = "activity-result:";
+  private static final String CHILD_INPUT_MARKER = "child-input:";
+  private static final String SIGNAL_INPUT_MARKER = "signal-input:";
 
   private static final TestStorageDriver driver = TestStorageDriver.named("wf-happy");
 
@@ -35,7 +46,14 @@ public class WorkflowWorkerExternalStorageTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(ContinueAsNewWorkflowImpl.class, EchoWorkflowImpl.class)
+          .setWorkflowTypes(
+              ContinueAsNewWorkflowImpl.class,
+              EchoWorkflowImpl.class,
+              LargeActivityArgWorkflowImpl.class,
+              ParentWorkflowImpl.class,
+              LengthWorkflowImpl.class,
+              SignalTargetWorkflowImpl.class)
+          .setActivityImplementations(new TransformActivityImpl())
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder().setExternalStorage(storage).build())
           .build();
@@ -89,6 +107,87 @@ public class WorkflowWorkerExternalStorageTest {
     Assert.assertEquals("nothing under the threshold should be offloaded", 0, driver.stores.get());
   }
 
+  @Test
+  public void aLargeActivityArgumentIsDownloadedOnlyByTheActivityWorker() {
+    LargeActivityArgWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                LargeActivityArgWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .setWorkflowId("extstore-activity-arg-" + UUID.randomUUID())
+                    .build());
+
+    // The workflow returns the length of the large activity result, which it must download.
+    int expectedLength = ACTIVITY_RESULT_MARKER.length() + THRESHOLD * 2;
+    Assert.assertEquals("len:" + expectedLength, workflow.execute());
+    // A query on the closed workflow replays its full history.
+    Assert.assertEquals("len:" + expectedLength, workflow.lastResult());
+
+    Assert.assertEquals(
+        "only the activity worker should download the activity argument",
+        1,
+        downloads(ACTIVITY_ARG_MARKER));
+    Assert.assertTrue(
+        "the workflow worker must still download the activity result",
+        downloads(ACTIVITY_RESULT_MARKER) > 0);
+  }
+
+  @Test
+  public void largeChildAndSignalInputsAreDownloadedOnlyByTheirReceivers() {
+    WorkflowClient client = testWorkflowRule.getWorkflowClient();
+    String targetId = "extstore-signal-target-" + UUID.randomUUID();
+    SignalTargetWorkflow target =
+        client.newWorkflowStub(
+            SignalTargetWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .setWorkflowId(targetId)
+                .build());
+    WorkflowClient.start(target::waitForSignal);
+    ParentWorkflow parent =
+        client.newWorkflowStub(
+            ParentWorkflow.class,
+            WorkflowOptions.newBuilder()
+                .setTaskQueue(testWorkflowRule.getTaskQueue())
+                .setWorkflowId("extstore-parent-" + UUID.randomUUID())
+                .build());
+
+    String childResult = "len:" + large(CHILD_INPUT_MARKER).length();
+    Assert.assertEquals(childResult, parent.execute(targetId));
+    Assert.assertEquals(
+        "len:" + large(SIGNAL_INPUT_MARKER).length(),
+        client.newUntypedWorkflowStub(targetId).getResult(String.class));
+    // A query on the closed workflow replays its full history.
+    Assert.assertEquals(childResult, parent.lastResult());
+
+    Assert.assertEquals(
+        "only the child workflow should download its input", 1, downloads(CHILD_INPUT_MARKER));
+    Assert.assertEquals(
+        "only the signaled workflow should download the signal input",
+        1,
+        downloads(SIGNAL_INPUT_MARKER));
+  }
+
+  private static String large(String marker) {
+    StringBuilder large = new StringBuilder(marker);
+    for (int i = 0; i < THRESHOLD * 2; i++) {
+      large.append('x');
+    }
+    return large.toString();
+  }
+
+  /** How many times the stored payload containing {@code marker} was downloaded. */
+  private static int downloads(String marker) {
+    for (int i = 0; i < driver.storedData.size(); i++) {
+      if (driver.storedData.get(i).contains(marker)) {
+        return Collections.frequency(driver.retrievedKeys, "wf-happy-" + i);
+      }
+    }
+    throw new AssertionError("no payload containing " + marker + " was offloaded");
+  }
+
   public static class ContinueAsNewWorkflowImpl implements TestWorkflows.TestWorkflow1 {
     @Override
     public String execute(String input) {
@@ -114,6 +213,116 @@ public class WorkflowWorkerExternalStorageTest {
     @Override
     public String echo(String input) {
       return "echo: " + input;
+    }
+  }
+
+  @WorkflowInterface
+  public interface LargeActivityArgWorkflow {
+    @WorkflowMethod
+    String execute();
+
+    @QueryMethod
+    String lastResult();
+  }
+
+  public static class LargeActivityArgWorkflowImpl implements LargeActivityArgWorkflow {
+    private String lastResult;
+
+    @Override
+    public String execute() {
+      StringBuilder large = new StringBuilder(ACTIVITY_ARG_MARKER);
+      for (int i = 0; i < THRESHOLD * 2; i++) {
+        large.append('x');
+      }
+      TransformActivity activity =
+          Workflow.newActivityStub(
+              TransformActivity.class,
+              ActivityOptions.newBuilder().setStartToCloseTimeout(Duration.ofSeconds(10)).build());
+      String result = activity.transform(large.toString());
+      lastResult =
+          result.startsWith(ACTIVITY_RESULT_MARKER) ? "len:" + result.length() : "wrong result";
+      return lastResult;
+    }
+
+    @Override
+    public String lastResult() {
+      return lastResult;
+    }
+  }
+
+  @ActivityInterface
+  public interface TransformActivity {
+    String transform(String input);
+  }
+
+  public static class TransformActivityImpl implements TransformActivity {
+    @Override
+    public String transform(String input) {
+      return input.replace(ACTIVITY_ARG_MARKER, ACTIVITY_RESULT_MARKER);
+    }
+  }
+
+  @WorkflowInterface
+  public interface ParentWorkflow {
+    @WorkflowMethod
+    String execute(String signalTargetId);
+
+    @QueryMethod
+    String lastResult();
+  }
+
+  public static class ParentWorkflowImpl implements ParentWorkflow {
+    private String lastResult;
+
+    @Override
+    public String execute(String signalTargetId) {
+      lastResult =
+          Workflow.newChildWorkflowStub(LengthWorkflow.class).length(large(CHILD_INPUT_MARKER));
+      Workflow.newExternalWorkflowStub(SignalTargetWorkflow.class, signalTargetId)
+          .signal(large(SIGNAL_INPUT_MARKER));
+      return lastResult;
+    }
+
+    @Override
+    public String lastResult() {
+      return lastResult;
+    }
+  }
+
+  @WorkflowInterface
+  public interface LengthWorkflow {
+    @WorkflowMethod
+    String length(String input);
+  }
+
+  public static class LengthWorkflowImpl implements LengthWorkflow {
+    @Override
+    public String length(String input) {
+      return "len:" + input.length();
+    }
+  }
+
+  @WorkflowInterface
+  public interface SignalTargetWorkflow {
+    @WorkflowMethod
+    String waitForSignal();
+
+    @SignalMethod
+    void signal(String input);
+  }
+
+  public static class SignalTargetWorkflowImpl implements SignalTargetWorkflow {
+    private String input;
+
+    @Override
+    public String waitForSignal() {
+      Workflow.await(() -> input != null);
+      return "len:" + input.length();
+    }
+
+    @Override
+    public void signal(String input) {
+      this.input = input;
     }
   }
 }
