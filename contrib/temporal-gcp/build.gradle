@@ -1,0 +1,17 @@
+description = '''Temporal Java SDK Google Cloud Support Module'''
+
+dependencies {
+    // This module shouldn't carry temporal-sdk with it, especially for situations when users may
+    // be using a shaded artifact.
+    compileOnly project(':temporal-serviceclient')
+    compileOnly project(':temporal-sdk')
+    compileOnly "javax.annotation:javax.annotation-api:$annotationApiVersion"
+
+    api project(':temporal-opentelemetry')
+
+    testImplementation project(':temporal-sdk')
+    testImplementation project(':temporal-serviceclient')
+    testImplementation "junit:junit:${junitVersion}"
+
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}
