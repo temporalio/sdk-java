@@ -142,6 +142,11 @@ to docs, or any other relevant information.
 - Activity workers now report `activity_schedule_to_start_latency` once per activity task, measured up to the time the
   worker receives the task. Previously each task reported it twice, once with the activity type and workflow type tags,
   and measured it up to the server start time.
+- Spring Boot: closing the application context now waits for workers to finish in-flight tasks, bounded by
+  `spring.lifecycle.timeout-per-shutdown-phase`. Previously the root namespace workers were shut down without waiting,
+  so their pollers and task completions hit the already closed service stubs (`UNAVAILABLE: Channel shutdown invoked`),
+  and the non-root namespace workers were not shut down when their own context closed. A paused context, such as a
+  cached Spring TestContext one, keeps its workers running: a shut down worker factory cannot be started again.
 
 ## Previous releases
 
