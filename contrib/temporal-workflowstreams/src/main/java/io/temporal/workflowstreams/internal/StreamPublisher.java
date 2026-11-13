@@ -10,14 +10,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * Owns the client-side publish path: it buffers published values, batches them, and sends each
  * batch to the workflow via the injected signal function. It assigns the per-publisher dedup key (a
  * stable publisher ID plus a monotonic sequence advanced only on a confirmed send) so the workflow
- * can drop duplicates, and it retries a failed batch until the max retry duration elapses.
+ * can drop duplicates, and it retries a failed batch until the max retry duration elapses. Once a
+ * background flush exceeds that duration the background loop stops for good and the resulting
+ * {@link FlushTimeoutException} is deferred to the next {@link #flush} or {@link #close}.
  *
  * <p>The signal function is injected (rather than holding a client) so the publish path can be
  * exercised in isolation. Internal to the workflow streams module.
@@ -36,6 +41,8 @@ public final class StreamPublisher {
   private final long batchIntervalMs;
   private final int maxBatchSize;
   private final long maxRetryDurationMs;
+  // When null, the publisher creates a single-thread executor it owns and shuts down in close().
+  @Nullable private final ScheduledExecutorService userExecutor;
 
   private final Object stateLock = new Object();
   private List<PublishEntry> buffer = new ArrayList<>();
@@ -45,8 +52,16 @@ public final class StreamPublisher {
   private long pendingStartNanos;
   private boolean started;
   private boolean closed;
+  // Set when a background flush timed out: the loop is stopped for good, so no background send may
+  // run before flush()/close() surfaces the deferred error. Guarded by stateLock.
+  private boolean loopStopped;
   private FlushTimeoutException deferredError;
+  // The executor driving the flush loop once started; the owned one when no user executor was
+  // supplied. Guarded by stateLock.
   private ScheduledExecutorService scheduler;
+  // The periodic flush tick, tracked so it can be cancelled without shutting down a user-supplied
+  // executor. Guarded by stateLock.
+  private ScheduledFuture<?> flushTask;
 
   /** Serializes doFlush so concurrent callers send sequentially. */
   private final Object flushLock = new Object();
@@ -57,12 +72,31 @@ public final class StreamPublisher {
       Duration batchInterval,
       int maxBatchSize,
       Duration maxRetryDuration) {
+    this(signal, dataConverter, batchInterval, maxBatchSize, maxRetryDuration, null);
+  }
+
+  /**
+   * @param executor drives the background flush loop (the periodic ticks and the flushes triggered
+   *     by a full buffer or {@code forceFlush}). When non-null the caller owns its lifecycle and it
+   *     is never shut down by this publisher, so many publishers can share one executor; when null
+   *     a single-thread executor is created lazily, owned by this publisher, and shut down by
+   *     {@link #close}. Flushes block while signaling the workflow, so each in-flight flush
+   *     occupies an executor thread for the duration of the send.
+   */
+  public StreamPublisher(
+      SignalFunction signal,
+      DataConverter dataConverter,
+      Duration batchInterval,
+      int maxBatchSize,
+      Duration maxRetryDuration,
+      @Nullable ScheduledExecutorService executor) {
     this.signal = signal;
     this.dataConverter = dataConverter;
     this.publisherId = UUID.randomUUID().toString().replace("-", "").substring(0, 16);
     this.batchIntervalMs = batchInterval.toMillis();
     this.maxBatchSize = maxBatchSize;
     this.maxRetryDurationMs = maxRetryDuration.toMillis();
+    this.userExecutor = executor;
   }
 
   /**
@@ -73,6 +107,13 @@ public final class StreamPublisher {
    * publish} call itself instead of poisoning the buffer and silently wedging every later item
    * behind it in the background flush loop.
    *
+   * <p>After a background flush exceeds the max retry duration the background loop is stopped
+   * permanently — neither the periodic tick nor a {@code forceFlush}/max-batch-size trigger sends
+   * again. Items published afterwards stay buffered until {@link #flush} or {@link #close} drains
+   * them, and that call surfaces the deferred {@link FlushTimeoutException} first (flush) or after
+   * the final drain (close). This keeps a caller-owned executor untouched without letting more data
+   * ship before the failure is reported.
+   *
    * @throws RuntimeException if no configured payload converter accepts {@code value}
    */
   public void publish(String topic, Object value, boolean forceFlush) {
@@ -81,14 +122,19 @@ public final class StreamPublisher {
     ScheduledExecutorService toTrigger = null;
     synchronized (stateLock) {
       buffer.add(entry);
-      trigger = forceFlush || (maxBatchSize > 0 && buffer.size() >= maxBatchSize);
+      trigger = (forceFlush || (maxBatchSize > 0 && buffer.size() >= maxBatchSize)) && !loopStopped;
       if (!closed) {
         ensureStartedLocked();
         toTrigger = scheduler;
       }
     }
     if (trigger && toTrigger != null) {
-      toTrigger.execute(this::backgroundFlush);
+      try {
+        toTrigger.execute(this::backgroundFlush);
+      } catch (RejectedExecutionException e) {
+        // The executor stopped between reading it and submitting (close(), or a user executor
+        // shut down by its owner). The item stays buffered for flush()/close() to drain.
+      }
     }
   }
 
@@ -97,27 +143,54 @@ public final class StreamPublisher {
       return;
     }
     started = true;
-    scheduler =
-        Executors.newSingleThreadScheduledExecutor(
-            r -> {
-              Thread t = new Thread(r, "temporal-workflow-stream-publisher");
-              t.setDaemon(true);
-              return t;
-            });
-    scheduler.scheduleWithFixedDelay(
-        this::backgroundFlush, batchIntervalMs, batchIntervalMs, TimeUnit.MILLISECONDS);
+    if (userExecutor != null) {
+      scheduler = userExecutor;
+    } else {
+      scheduler =
+          Executors.newSingleThreadScheduledExecutor(
+              r -> {
+                Thread t = new Thread(r, "temporal-workflow-stream-publisher");
+                t.setDaemon(true);
+                return t;
+              });
+    }
+    try {
+      flushTask =
+          scheduler.scheduleWithFixedDelay(
+              this::backgroundFlush, batchIntervalMs, batchIntervalMs, TimeUnit.MILLISECONDS);
+    } catch (RejectedExecutionException e) {
+      // A user-supplied executor was already shut down. Don't fail the publish call with the
+      // executor's own exception: items stay buffered for flush()/close() to drain on the
+      // caller's thread, as they do after a flush timeout stops the loop.
+    }
   }
 
   private void backgroundFlush() {
+    synchronized (stateLock) {
+      if (loopStopped || closed) {
+        // The loop is stopped (a timed-out flush) or the publisher is closed. A task already
+        // queued at that point must not send: with a user-supplied executor nothing purges the
+        // queue, so this is the only thing keeping a flush from running after close() returned.
+        return;
+      }
+    }
     try {
       doFlush();
     } catch (FlushTimeoutException e) {
       // The pending batch was dropped and can't be recovered. Stash the error so
-      // flush/close surface it and stop the loop.
+      // flush/close surface it and stop the loop for good: with a user-supplied executor
+      // cancelling the periodic task is not enough, since publish() can still submit a
+      // triggered flush onto the still-live executor.
+      ScheduledFuture<?> toCancel;
       ScheduledExecutorService toStop;
       synchronized (stateLock) {
         deferredError = e;
-        toStop = scheduler;
+        loopStopped = true;
+        toCancel = flushTask;
+        toStop = ownedSchedulerLocked();
+      }
+      if (toCancel != null) {
+        toCancel.cancel(false);
       }
       if (toStop != null) {
         toStop.shutdown();
@@ -226,18 +299,24 @@ public final class StreamPublisher {
 
   /**
    * Stops the background flush loop and drains any remaining items, surfacing a deferred {@link
-   * FlushTimeoutException} from a prior background failure.
+   * FlushTimeoutException} from a prior background failure. A user-supplied executor is never shut
+   * down; only the periodic flush task is cancelled, leaving the executor free for its other work.
    */
   public void close() {
+    ScheduledFuture<?> toCancel;
     ScheduledExecutorService toStop;
     synchronized (stateLock) {
       if (closed) {
         return;
       }
       closed = true;
-      toStop = scheduler;
+      toCancel = flushTask;
+      toStop = ownedSchedulerLocked();
     }
 
+    if (toCancel != null) {
+      toCancel.cancel(false);
+    }
     if (toStop != null) {
       toStop.shutdownNow();
       try {
@@ -257,6 +336,11 @@ public final class StreamPublisher {
       doFlush();
     }
     throwDeferred();
+  }
+
+  /** Returns the executor to shut down on stop, or null when a user executor must be left alone. */
+  private ScheduledExecutorService ownedSchedulerLocked() {
+    return userExecutor == null ? scheduler : null;
   }
 
   private void throwDeferred() {
