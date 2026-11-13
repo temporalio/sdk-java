@@ -44,7 +44,6 @@ public class ManualActivityCompletionClientImplTest {
             ExternalStorage.newBuilder()
                 .setDriver(new FailingDriver())
                 .setPayloadSizeThreshold(0)
-                .setMaxConcurrentPayloadVisits(1)
                 .build());
   }
 

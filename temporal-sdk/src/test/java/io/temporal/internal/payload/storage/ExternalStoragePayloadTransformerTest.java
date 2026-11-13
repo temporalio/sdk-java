@@ -12,6 +12,7 @@ import static org.junit.Assert.fail;
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
+import io.temporal.internal.common.AsyncSemaphore;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
@@ -43,7 +44,7 @@ public class ExternalStoragePayloadTransformerTest {
     ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
     List<Payload> input = Arrays.asList(payload("a"), payload("b"));
 
-    List<Payload> stored = transformer.store(input, null, CancellationToken.none()).get();
+    List<Payload> stored = transformer.store(input, null, CancellationToken.none(), limits()).get();
 
     assertEquals(2, stored.size());
     assertNotNull(ExternalStorageReferences.tryParseReference(stored.get(0)));
@@ -52,7 +53,8 @@ public class ExternalStoragePayloadTransformerTest {
     assertEquals(
         input.get(0).getSerializedSize(), stored.get(0).getExternalPayloads(0).getSizeBytes());
 
-    List<Payload> retrieved = transformer.retrieve(stored, CancellationToken.none()).get();
+    List<Payload> retrieved =
+        transformer.retrieve(stored, CancellationToken.none(), limits()).get();
     assertEquals(input, retrieved);
     assertEquals(Collections.singletonList(2), driver.retrieveBatchSizes);
   }
@@ -71,6 +73,7 @@ public class ExternalStoragePayloadTransformerTest {
                     Arrays.asList(payload("a"), payload("b")),
                     null,
                     CancellationToken.none(),
+                    limits(),
                     metrics)
                 .get());
 
@@ -87,13 +90,15 @@ public class ExternalStoragePayloadTransformerTest {
     TestStorageDriver driver = TestStorageDriver.named("d1");
     ExternalStoragePayloadTransformer transformer = transformer(driver, 0);
     List<Payload> stored =
-        transformer.store(Arrays.asList(payload("a")), null, CancellationToken.none()).get();
+        transformer
+            .store(Arrays.asList(payload("a")), null, CancellationToken.none(), limits())
+            .get();
 
     driver.failRetrieves(1);
     StorageOperationMetrics metrics = new StorageOperationMetrics();
     assertThrows(
         ExecutionException.class,
-        () -> transformer.retrieve(stored, CancellationToken.none(), metrics).get());
+        () -> transformer.retrieve(stored, CancellationToken.none(), limits(), metrics).get());
 
     assertEquals(Collections.singletonList("d1"), metrics.getDriverNames());
     assertEquals(0, metrics.getPayloadCount());
@@ -107,7 +112,7 @@ public class ExternalStoragePayloadTransformerTest {
     StorageOperationMetrics metrics = new StorageOperationMetrics();
     List<Payload> input = Arrays.asList(payload("a"), payload("b"));
 
-    transformer.store(input, null, CancellationToken.none(), metrics).get();
+    transformer.store(input, null, CancellationToken.none(), limits(), metrics).get();
 
     assertEquals(2, metrics.getPayloadCount());
     assertEquals(
@@ -123,7 +128,9 @@ public class ExternalStoragePayloadTransformerTest {
     Payload large = payload(repeat("y", 200));
 
     List<Payload> stored =
-        transformer.store(Arrays.asList(small, large), null, CancellationToken.none()).get();
+        transformer
+            .store(Arrays.asList(small, large), null, CancellationToken.none(), limits())
+            .get();
 
     assertNull(ExternalStorageReferences.tryParseReference(stored.get(0)));
     assertEquals(small, stored.get(0));
@@ -144,7 +151,8 @@ public class ExternalStoragePayloadTransformerTest {
 
     List<Payload> stored =
         transformer
-            .store(Collections.singletonList(payload("a")), null, CancellationToken.none())
+            .store(
+                Collections.singletonList(payload("a")), null, CancellationToken.none(), limits())
             .get();
 
     assertEquals(payload("a"), stored.get(0));
@@ -169,11 +177,11 @@ public class ExternalStoragePayloadTransformerTest {
                 .build());
     List<Payload> input = Arrays.asList(payload("1-a"), payload("2-b"), payload("1-c"));
 
-    List<Payload> stored = transformer.store(input, null, CancellationToken.none()).get();
+    List<Payload> stored = transformer.store(input, null, CancellationToken.none(), limits()).get();
 
     assertEquals(Collections.singletonList(2), d1.storeBatchSizes);
     assertEquals(Collections.singletonList(1), d2.storeBatchSizes);
-    assertEquals(input, transformer.retrieve(stored, CancellationToken.none()).get());
+    assertEquals(input, transformer.retrieve(stored, CancellationToken.none(), limits()).get());
   }
 
   @Test
@@ -196,7 +204,7 @@ public class ExternalStoragePayloadTransformerTest {
         new StorageDriverWorkflowInfo("ns", "wf-id", "run-id", "MyWorkflow");
 
     transformer
-        .store(Collections.singletonList(payload("a")), target, CancellationToken.none())
+        .store(Collections.singletonList(payload("a")), target, CancellationToken.none(), limits())
         .get();
 
     assertNotNull(seen.get());
@@ -219,7 +227,7 @@ public class ExternalStoragePayloadTransformerTest {
     Throwable cause =
         causeOf(
             transformer.store(
-                Collections.singletonList(payload("a")), null, CancellationToken.none()));
+                Collections.singletonList(payload("a")), null, CancellationToken.none(), limits()));
     assertTrue(cause instanceof IllegalStateException);
     assertTrue(cause.getMessage().contains("returned 0 claims for 1 payloads"));
   }
@@ -239,7 +247,7 @@ public class ExternalStoragePayloadTransformerTest {
     Throwable cause =
         causeOf(
             transformer.store(
-                Collections.singletonList(payload("a")), null, CancellationToken.none()));
+                Collections.singletonList(payload("a")), null, CancellationToken.none(), limits()));
     assertTrue(cause instanceof IllegalStateException);
     assertTrue(cause.getMessage().contains("returned a null claim at index 0"));
   }
@@ -261,7 +269,8 @@ public class ExternalStoragePayloadTransformerTest {
 
     Throwable cause =
         causeOf(
-            transformer.retrieve(Collections.singletonList(reference), CancellationToken.none()));
+            transformer.retrieve(
+                Collections.singletonList(reference), CancellationToken.none(), limits()));
     assertTrue(cause instanceof IllegalStateException);
     assertTrue(cause.getMessage().contains("returned a null payload at index 0"));
   }
@@ -276,7 +285,8 @@ public class ExternalStoragePayloadTransformerTest {
 
     Throwable cause =
         causeOf(
-            transformer.retrieve(Collections.singletonList(reference), CancellationToken.none()));
+            transformer.retrieve(
+                Collections.singletonList(reference), CancellationToken.none(), limits()));
     assertTrue(cause instanceof IllegalStateException);
     assertTrue(cause.getMessage().contains("No storage driver registered with name 'ghost'"));
   }
@@ -296,7 +306,7 @@ public class ExternalStoragePayloadTransformerTest {
     Throwable cause =
         causeOf(
             transformer.store(
-                Collections.singletonList(payload("a")), null, CancellationToken.none()));
+                Collections.singletonList(payload("a")), null, CancellationToken.none(), limits()));
     assertTrue(cause instanceof IllegalStateException);
     assertTrue(cause.getMessage().contains("not registered"));
   }
@@ -331,7 +341,10 @@ public class ExternalStoragePayloadTransformerTest {
 
     CompletableFuture<List<Payload>> result =
         transformer.store(
-            Arrays.asList(payload("1-a"), payload("2-b")), null, CancellationToken.none());
+            Arrays.asList(payload("1-a"), payload("2-b")),
+            null,
+            CancellationToken.none(),
+            limits());
     assertFalse(result.isDone());
 
     failing.completeExceptionally(new RuntimeException("boom"));
@@ -357,7 +370,8 @@ public class ExternalStoragePayloadTransformerTest {
     CancelSource<CancellationException> caller = new CancelSource<>(CancellationException::new);
 
     CompletableFuture<List<Payload>> result =
-        transformer(slow, 0).store(Collections.singletonList(payload("a")), null, caller.token());
+        transformer(slow, 0)
+            .store(Collections.singletonList(payload("a")), null, caller.token(), limits());
     assertFalse(result.isDone());
 
     caller.cancel();
@@ -386,7 +400,8 @@ public class ExternalStoragePayloadTransformerTest {
             "d1", new StorageDriverClaim(Collections.singletonMap("key", "k")), 1L);
 
     CompletableFuture<List<Payload>> result =
-        transformer(slow, 0).retrieve(Collections.singletonList(reference), caller.token());
+        transformer(slow, 0)
+            .retrieve(Collections.singletonList(reference), caller.token(), limits());
     assertFalse(result.isDone());
 
     caller.cancel();
@@ -413,7 +428,7 @@ public class ExternalStoragePayloadTransformerTest {
                 .setPayloadSizeThreshold(0)
                 .build());
 
-    transformer.store(Collections.singletonList(payload("a")), null, caller.token());
+    transformer.store(Collections.singletonList(payload("a")), null, caller.token(), limits());
 
     assertSame(caller.token(), observed.get());
   }
@@ -488,5 +503,10 @@ public class ExternalStoragePayloadTransformerTest {
         StorageDriverRetrieveContext context, List<StorageDriverClaim> claims) {
       throw new UnsupportedOperationException();
     }
+  }
+
+  /** A fresh per-message limit, generous enough not to bound these tests. */
+  private static MessageStorageLimits limits() {
+    return new MessageStorageLimits(64, new AsyncSemaphore(64));
   }
 }

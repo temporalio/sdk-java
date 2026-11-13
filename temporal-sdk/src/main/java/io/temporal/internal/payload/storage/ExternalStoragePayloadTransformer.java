@@ -21,12 +21,17 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Transforms one payload list between inline payloads and external-storage references by routing
  * entries to storage drivers.
  */
 final class ExternalStoragePayloadTransformer {
+  private static final Logger log =
+      LoggerFactory.getLogger(ExternalStoragePayloadTransformer.class);
+
   private final Map<String, StorageDriver> driversByName;
   private final StorageDriverSelector selector;
   private final int payloadSizeThreshold;
@@ -52,14 +57,16 @@ final class ExternalStoragePayloadTransformer {
   CompletableFuture<List<Payload>> store(
       List<Payload> payloads,
       @Nullable StorageDriverTargetInfo target,
-      CancellationToken<CancellationException> cancellationToken) {
-    return store(payloads, target, cancellationToken, null);
+      CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits) {
+    return store(payloads, target, cancellationToken, limits, null);
   }
 
   CompletableFuture<List<Payload>> store(
       List<Payload> payloads,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits,
       @Nullable StorageOperationMetrics metrics) {
     StorageDriverSelectContext selectContext =
         new StorageDriverSelectContextImpl(target, cancellationToken);
@@ -72,7 +79,7 @@ final class ExternalStoragePayloadTransformer {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runStoreDrivers(batches, target, cancellationToken, metrics)
+    return runStoreDrivers(batches, target, cancellationToken, limits, metrics)
         .thenApply(referencePayloads -> applyPayloadReplacements(payloads, referencePayloads));
   }
 
@@ -103,19 +110,22 @@ final class ExternalStoragePayloadTransformer {
       Map<String, Batch<Payload>> batches,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits,
       @Nullable StorageOperationMetrics metrics) {
     return withDriverScope(
         cancellationToken,
         scope -> {
-          StorageDriverStoreContext context =
-              new StorageDriverStoreContextImpl(target, scope.token());
           for (Batch<Payload> batch : batches.values()) {
+            MessageStorageLimits.UsageTrackingLimiter<Payload> limiter =
+                limits.newLimiter(scope.token());
+            StorageDriverStoreContext context =
+                new StorageDriverStoreContextImpl(target, scope.token(), limiter);
             long startNanos = System.nanoTime();
-            CompletableFuture<List<StorageDriverClaim>> call =
+            CompletableFuture<List<StorageDriverClaim>> storeCall =
                 batch.driver.store(context, batch.values());
-            // Observes the call rather than wrapping it: the scope must keep the driver's own
-            // future so cancellation still reaches the driver.
-            call.whenComplete(
+            // Observes the call rather than wrapping it: cancelling a derived future does not
+            // cancel its source, so the scope must keep the driver's own future.
+            storeCall.whenComplete(
                 (claims, error) ->
                     recordBatch(
                         metrics,
@@ -123,10 +133,41 @@ final class ExternalStoragePayloadTransformer {
                         startNanos,
                         error == null ? batch.size() : 0,
                         error == null ? serializedSizeOf(batch.values()) : 0));
-            scope.attach(call).map(claims -> createReferencePayloads(batch, claims));
+            observeLimiterUse(storeCall, limiter, batch.driver.getName(), "store");
+            scope.attach(storeCall).map(claims -> createReferencePayloads(batch, claims));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
+  }
+
+  /**
+   * Warns when a successful call took no permit. Observes without chaining so cancellation still
+   * reaches the driver.
+   */
+  private static void observeLimiterUse(
+      CompletableFuture<?> call,
+      MessageStorageLimits.UsageTrackingLimiter<?> limiter,
+      String driverName,
+      String operation) {
+    call.whenComplete(
+        (result, error) -> {
+          if (error == null) {
+            warnIfLimiterUnused(limiter, driverName, operation);
+          }
+        });
+  }
+
+  /** Logs a warning naming the driver that skipped the limiter. */
+  private static void warnIfLimiterUnused(
+      MessageStorageLimits.UsageTrackingLimiter<?> limiter, String driverName, String operation) {
+    if (limiter.tookPermit()) {
+      return;
+    }
+    log.warn(
+        "Storage driver '{}' performed a {} without using the context limiter. "
+            + "Its operations are not limited.",
+        driverName,
+        operation);
   }
 
   /**
@@ -183,13 +224,16 @@ final class ExternalStoragePayloadTransformer {
   }
 
   CompletableFuture<List<Payload>> retrieve(
-      List<Payload> payloads, CancellationToken<CancellationException> cancellationToken) {
-    return retrieve(payloads, cancellationToken, null);
+      List<Payload> payloads,
+      CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits) {
+    return retrieve(payloads, cancellationToken, limits, null);
   }
 
   CompletableFuture<List<Payload>> retrieve(
       List<Payload> payloads,
       CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits,
       @Nullable StorageOperationMetrics metrics) {
     Map<String, Batch<StorageDriverClaim>> batches;
     try {
@@ -200,7 +244,7 @@ final class ExternalStoragePayloadTransformer {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runRetrieveDrivers(batches, cancellationToken, metrics)
+    return runRetrieveDrivers(batches, cancellationToken, limits, metrics)
         .thenApply(retrievedPayloads -> applyPayloadReplacements(payloads, retrievedPayloads));
   }
 
@@ -228,18 +272,22 @@ final class ExternalStoragePayloadTransformer {
   private CompletableFuture<List<IndexedValue<Payload>>> runRetrieveDrivers(
       Map<String, Batch<StorageDriverClaim>> batches,
       CancellationToken<CancellationException> cancellationToken,
+      MessageStorageLimits limits,
       @Nullable StorageOperationMetrics metrics) {
     return withDriverScope(
         cancellationToken,
         scope -> {
-          StorageDriverRetrieveContext context =
-              new StorageDriverRetrieveContextImpl(scope.token());
           for (Batch<StorageDriverClaim> batch : batches.values()) {
+            MessageStorageLimits.UsageTrackingLimiter<StorageDriverClaim> limiter =
+                limits.newLimiter(scope.token());
+            StorageDriverRetrieveContext context =
+                new StorageDriverRetrieveContextImpl(scope.token(), limiter);
             long startNanos = System.nanoTime();
-            CompletableFuture<List<Payload>> call = batch.driver.retrieve(context, batch.values());
-            // Observes the call rather than wrapping it: the scope must keep the driver's own
-            // future so cancellation still reaches the driver.
-            call.whenComplete(
+            CompletableFuture<List<Payload>> retrieveCall =
+                batch.driver.retrieve(context, batch.values());
+            // Observes the call rather than wrapping it: cancelling a derived future does not
+            // cancel its source, so the scope must keep the driver's own future.
+            retrieveCall.whenComplete(
                 (payloads, error) ->
                     recordBatch(
                         metrics,
@@ -249,7 +297,10 @@ final class ExternalStoragePayloadTransformer {
                         // measure what the driver actually returned.
                         error == null && payloads != null ? payloads.size() : 0,
                         error == null && payloads != null ? serializedSizeOf(payloads) : 0));
-            scope.attach(call).map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
+            observeLimiterUse(retrieveCall, limiter, batch.driver.getName(), "retrieve");
+            scope
+                .attach(retrieveCall)
+                .map(payloads -> mapPayloadsToOriginalPositions(batch, payloads));
           }
           return scope.awaitAll(ListUtils::flatten);
         });

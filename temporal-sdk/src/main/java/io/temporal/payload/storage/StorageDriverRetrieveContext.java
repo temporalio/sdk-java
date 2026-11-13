@@ -22,4 +22,13 @@ public interface StorageDriverRetrieveContext {
   default CancellationToken<CancellationException> getCancellationToken() {
     return CancellationToken.none();
   }
+
+  /**
+   * Limits the concurrent operations this driver performs. Wrap each operation in {@link
+   * StorageDriverLimiter#permit}.
+   */
+  @Nonnull
+  default StorageDriverLimiter<StorageDriverClaim> getLimiter() {
+    return StorageDriverLimiter.noop();
+  }
 }
