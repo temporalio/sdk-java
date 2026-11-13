@@ -34,6 +34,9 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- Added experimental Google Cloud Storage external payload storage through the optional
+  `temporal-payload-storage-gcsdriver` and `temporal-payload-storage-gcsdriver-gcssdk` modules,
+  with conditional creation, SHA-256 integrity verification, and cancellable executor-backed I/O.
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
   the configured client's payload codec. Only opted-in producers' output is encoded, while
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
