@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.temporal.api.common.v1.WorkflowExecution;
 import java.io.*;
+import java.util.Base64;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 
@@ -58,6 +59,19 @@ public class NexusOperationRef {
     } catch (IOException e) {
       throw Status.INTERNAL.withCause(e).withDescription(e.getMessage()).asRuntimeException();
     }
+  }
+
+  /**
+   * Encodes this reference for a Nexus callback header. The {@link #toBytes()} form is binary and
+   * not valid UTF-8 in general, so it is Base64 encoded.
+   */
+  public String toHeaderValue() {
+    return Base64.getEncoder().encodeToString(toBytes().toByteArray());
+  }
+
+  /** Decodes a reference encoded by {@link #toHeaderValue()}. */
+  public static NexusOperationRef fromHeaderValue(String headerValue) {
+    return fromBytes(Base64.getDecoder().decode(headerValue));
   }
 
   public static NexusOperationRef fromBytes(ByteString serialized) {

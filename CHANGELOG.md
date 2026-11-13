@@ -142,6 +142,9 @@ to docs, or any other relevant information.
 - Activity workers now report `activity_schedule_to_start_latency` once per activity task, measured up to the time the
   worker receives the task. Previously each task reported it twice, once with the activity type and workflow type tags,
   and measured it up to the server start time.
+- Test server no longer drops the completion of an async Nexus operation whose scheduled event ID is above 127.
+  Previously the operation reference in the callback header was corrupted for most such IDs, so the caller waited
+  until the operation's schedule-to-close timeout.
 
 ## Previous releases
 
