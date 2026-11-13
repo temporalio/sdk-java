@@ -133,7 +133,8 @@ public class TemporalOperationProcessorTest {
   public void rejects_badArity() {
     IllegalArgumentException e =
         assertInvalid(() -> TemporalOperationProcessor.process(new BadArity()));
-    Assert.assertTrue(e.getMessage(), e.getMessage().contains("TemporalNexusClient, I)"));
+    Assert.assertTrue(
+        e.getMessage(), e.getMessage().contains("must accept (TemporalNexusClient, I)"));
   }
 
   @Test

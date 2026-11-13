@@ -16,6 +16,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.CancelActivityExecutionInput;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
@@ -194,7 +195,11 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + input)
+                      .setId(
+                          "act-"
+                              + Nexus.getInfo().getOperation()
+                              + "-"
+                              + Nexus.getInfo().getEndpoint())
                       .setStartToCloseTimeout(Duration.ofSeconds(60))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -248,7 +253,11 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-override-" + input)
+                      .setId(
+                          "act-override-"
+                              + Nexus.getInfo().getOperation()
+                              + "-"
+                              + Nexus.getInfo().getEndpoint())
                       .setStartToCloseTimeout(Duration.ofSeconds(5))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
