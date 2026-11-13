@@ -22,6 +22,11 @@ import org.junit.Test;
 
 public class TemporalInterceptorMiddlewareTest {
 
+  @After
+  public void tearDown() {
+    CurrentNexusOperationContext.unset();
+  }
+
   @Test
   public void headersRemainAccessibleToInterceptorWithContextFreeHandler()
       throws OperationException {
@@ -56,11 +61,6 @@ public class TemporalInterceptorMiddlewareTest {
                 OperationStartDetails.newBuilder().setRequestId("request-id").build(),
                 "input")
             .getSyncResult());
-  }
-
-  @After
-  public void tearDown() {
-    CurrentNexusOperationContext.unset();
   }
 
   @Test
