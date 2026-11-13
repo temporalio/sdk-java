@@ -1,11 +1,13 @@
 package io.temporal.spring.boot.autoconfigure.template;
 
 import io.opentracing.Tracer;
+import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -42,6 +44,9 @@ public class NamespaceTemplate {
   private final @Nullable List<WorkflowClientPlugin> workflowClientPlugins;
   private final @Nullable List<ScheduleClientPlugin> scheduleClientPlugins;
   private final @Nullable List<WorkerPlugin> workerPlugins;
+  private final @Nullable List<NexusClientInterceptor> nexusClientInterceptors;
+  private final @Nullable List<TemporalOptionsCustomizer<NexusClientOptions.Builder>>
+      nexusClientCustomizers;
 
   private ClientTemplate clientTemplate;
   private WorkersTemplate workersTemplate;
@@ -65,7 +70,10 @@ public class NamespaceTemplate {
               workflowImplementationCustomizers,
       @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
       @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
-      @Nullable List<WorkerPlugin> workerPlugins) {
+      @Nullable List<WorkerPlugin> workerPlugins,
+      @Nullable List<NexusClientInterceptor> nexusClientInterceptors,
+      @Nullable
+          List<TemporalOptionsCustomizer<NexusClientOptions.Builder>> nexusClientCustomizers) {
     this.namespaceProperties = namespaceProperties;
     this.workflowServiceStubs = workflowServiceStubs;
     this.dataConverter = dataConverter;
@@ -83,6 +91,8 @@ public class NamespaceTemplate {
     this.workflowClientPlugins = workflowClientPlugins;
     this.scheduleClientPlugins = scheduleClientPlugins;
     this.workerPlugins = workerPlugins;
+    this.nexusClientInterceptors = nexusClientInterceptors;
+    this.nexusClientCustomizers = nexusClientCustomizers;
   }
 
   public ClientTemplate getClientTemplate() {
@@ -99,7 +109,9 @@ public class NamespaceTemplate {
               clientCustomizers,
               scheduleCustomizers,
               workflowClientPlugins,
-              scheduleClientPlugins);
+              scheduleClientPlugins,
+              nexusClientInterceptors,
+              nexusClientCustomizers);
     }
     return clientTemplate;
   }
