@@ -17,15 +17,24 @@ import io.temporal.api.nexus.v1.StartOperationRequest;
 import io.temporal.api.nexus.v1.StartOperationResponse;
 import io.temporal.api.workflowservice.v1.PollNexusTaskQueueResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.reporter.TestStatsReporter;
 import io.temporal.internal.worker.NexusTask;
 import io.temporal.internal.worker.NexusTaskHandler;
+import io.temporal.nexus.Nexus;
+import io.temporal.nexus.TemporalNexusClient;
+import io.temporal.nexus.TemporalOperation;
+import io.temporal.nexus.TemporalOperationResult;
 import io.temporal.workflow.shared.TestNexusServices;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -41,6 +50,13 @@ public class NexusTaskHandlerImplTest {
   public void setUp() {
     reporter = new TestStatsReporter();
     metricsScope = new RootScopeBuilder().reporter(reporter).reportEvery(Duration.ofMillis(10));
+  }
+
+  @After
+  public void tearDown() {
+    // Timed-out tasks currently skip context cleanup. Keep the timeout tests isolated until that
+    // separate production issue is fixed.
+    CurrentNexusOperationContext.unset();
   }
 
   @Test
@@ -157,6 +173,36 @@ public class NexusTaskHandlerImplTest {
     Assert.assertThrows(
         TimeoutException.class,
         () -> nexusTaskHandlerImpl.handle(new NexusTask(task, null, null), metricsScope));
+  }
+
+  @Test
+  public void requestTimeoutReachesContextFreeHandlerCancellationToken() {
+    ContextFreeCancellationService service = new ContextFreeCancellationService();
+    NexusTaskHandlerImpl handler =
+        new NexusTaskHandlerImpl(
+            mock(WorkflowClient.class),
+            NAMESPACE,
+            TASK_QUEUE,
+            dataConverter,
+            new WorkerInterceptor[] {});
+    handler.registerNexusServiceImplementations(new Object[] {service});
+    handler.start();
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .putHeader(Header.REQUEST_TIMEOUT, "100ms")
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setService("TestNexusService1")
+                            .setOperation("operation")
+                            .setPayload(dataConverter.toPayload("input").get())));
+
+    Assert.assertThrows(
+        TimeoutException.class,
+        () -> handler.handle(new NexusTask(task, null, null), metricsScope));
+    Assert.assertNotNull("handler should observe the request timeout", service.cancellation);
+    Assert.assertEquals("timeout", service.cancellation.getMessage());
   }
 
   @Test
@@ -341,6 +387,31 @@ public class NexusTaskHandlerImplTest {
     Assert.assertFalse(
         "failure response variant should not expose any success-path links",
         response.hasSyncSuccess() || response.hasAsyncSuccess());
+  }
+
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public static class ContextFreeCancellationService {
+    private CancellationException cancellation;
+
+    @TemporalOperation
+    public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
+      CancellationToken<CancellationException> token = Nexus.getInfo().getCancellationToken();
+      CountDownLatch cancelled = new CountDownLatch(1);
+      try (CancellationToken.Registration ignored = token.onCancel(cancelled::countDown)) {
+        if (!cancelled.await(5, TimeUnit.SECONDS)) {
+          throw new IllegalStateException("Handler did not observe invocation cancellation");
+        }
+        try {
+          token.throwIfCancellationRequested();
+        } catch (CancellationException e) {
+          cancellation = e;
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw Nexus.wrap(e);
+      }
+      return TemporalOperationResult.sync(input);
+    }
   }
 
   /**
