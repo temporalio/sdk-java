@@ -34,17 +34,16 @@ import java.lang.reflect.Type;
  * }
  * }</pre>
  *
- * <p>For synchronous operations, use {@link #getWorkflowClient()} directly and return a {@link
- * TemporalOperationResult#sync} result. For example, to send a signal:
+ * <p>For synchronous {@link TemporalOperation} methods, use {@link #getWorkflowClient()} directly
+ * and return the output value, or use {@code void} when there is no output. Explicit {@link
+ * TemporalOperationResult#sync} results are also supported. For example, to send a signal:
  *
  * <pre>{@code
  * @TemporalOperation
- * public TemporalOperationResult<Void> cancelOrder(
- *     TemporalNexusClient client, CancelOrderInput input) {
+ * public void cancelOrder(TemporalNexusClient client, CancelOrderInput input) {
  *   client.getWorkflowClient()
  *       .newUntypedWorkflowStub("order-" + input.getOrderId())
  *       .signal("requestCancellation", input);
- *   return TemporalOperationResult.sync(null);
  * }
  * }</pre>
  *

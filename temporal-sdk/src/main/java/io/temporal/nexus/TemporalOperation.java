@@ -19,7 +19,8 @@ import java.lang.annotation.*;
  * <ul>
  *   <li>be {@code public},
  *   <li>accept exactly two parameters: {@link TemporalNexusClient} and the operation input type,
- *   <li>return {@link TemporalOperationResult}.
+ *   <li>return the operation output type directly for synchronous completion, or {@link
+ *       TemporalOperationResult} for explicit synchronous or asynchronous completion.
  * </ul>
  *
  * <p>Workflow-run example:
@@ -38,6 +39,17 @@ import java.lang.annotation.*;
  *             .setWorkflowId("transfer-" + input.getTransferId())
  *             .build());
  *   }
+ * }
+ * }</pre>
+ *
+ * <p>A synchronous operation can return its output directly. The SDK wraps the returned value in
+ * {@link TemporalOperationResult#sync(Object)} internally. A {@code void} method is supported for
+ * an operation with no output.
+ *
+ * <pre>{@code
+ * @TemporalOperation
+ * public Greeting greet(TemporalNexusClient client, GreetingInput input) {
+ *   return new Greeting("Hello, " + input.getName());
  * }
  * }</pre>
  *
