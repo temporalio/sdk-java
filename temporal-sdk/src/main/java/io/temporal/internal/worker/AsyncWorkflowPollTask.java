@@ -41,6 +41,7 @@ public class AsyncWorkflowPollTask
   private final Context.CancellableContext grpcContext = Context.ROOT.withCancellation();
   private final AtomicBoolean shutdown = new AtomicBoolean(false);
   private final PollerTracker pollerTracker;
+  @Nullable private WorkflowPollerBalancer pollerBalancer;
 
   @Override
   public String toString() {
@@ -120,6 +121,38 @@ public class AsyncWorkflowPollTask
     }
   }
 
+  void setPollerBalancer(WorkflowPollerBalancer pollerBalancer) {
+    this.pollerBalancer = pollerBalancer;
+  }
+
+  @Override
+  public void awaitPollAdmission() throws InterruptedException {
+    if (pollerBalancer != null) {
+      pollerBalancer.awaitAdmission(stickyPoller);
+    }
+  }
+
+  @Override
+  public void onPollStarted() {
+    if (pollerBalancer != null) {
+      pollerBalancer.pollStarted(stickyPoller);
+    }
+  }
+
+  @Override
+  public void onPollFinished() {
+    if (pollerBalancer != null) {
+      pollerBalancer.pollFinished(stickyPoller);
+    }
+  }
+
+  @Override
+  public void onPollerTargetChanged(int target) {
+    if (stickyPoller && pollerBalancer != null) {
+      pollerBalancer.setStickyTarget(target);
+    }
+  }
+
   /**
    * Supplies the poller pool's current scaling target. Installed by AsyncPoller, which owns the
    * scale report handle; null until then, and for a pool that is not autoscaling.
@@ -180,6 +213,9 @@ public class AsyncWorkflowPollTask
     return response
         .thenApply(
             r -> {
+              if (stickyPoller && pollerBalancer != null && r != null) {
+                pollerBalancer.recordStickyBacklog(r.getBacklogCountHint());
+              }
               if (r == null || r.getTaskToken().isEmpty()) {
                 pollerMetricScope
                     .counter(MetricsType.WORKFLOW_TASK_QUEUE_POLL_EMPTY_COUNTER)
@@ -215,6 +251,9 @@ public class AsyncWorkflowPollTask
       throw new IllegalStateException("Cannot disable normal poll for sticky poller");
     }
     shutdown.set(true);
+    if (pollerBalancer != null) {
+      pollerBalancer.disableNormalPoll();
+    }
   }
 
   @Override
