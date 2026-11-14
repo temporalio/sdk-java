@@ -8,10 +8,11 @@ import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.NexusOperationFailure;
+import io.temporal.nexus.Nexus;
+import io.temporal.nexus.NexusOperationInfo;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -101,15 +102,15 @@ public class GenericHandlerDoubleStartTest {
   @ServiceImpl(service = TestNexusServiceDoubleStart.class)
   public class TestNexusServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> operation(
-        TemporalOperationStartContext context, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
       // First start should succeed but the workflow blocks indefinitely
+      NexusOperationInfo info = Nexus.getInfo();
       client.startWorkflow(
           BlockingWorkflow.class,
           BlockingWorkflow::execute,
           input,
           WorkflowOptions.newBuilder()
-              .setWorkflowId("double-start-first-" + context.getService())
+              .setWorkflowId("double-start-first-" + info.getService())
               .build());
       // Second start should throw
       return client.startWorkflow(
@@ -117,7 +118,7 @@ public class GenericHandlerDoubleStartTest {
           BlockingWorkflow::execute,
           input,
           WorkflowOptions.newBuilder()
-              .setWorkflowId("double-start-second-" + context.getService())
+              .setWorkflowId("double-start-second-" + info.getService())
               .build());
     }
   }

@@ -6,11 +6,11 @@ import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -140,21 +140,22 @@ public class TemporalOperationAnnotationTest {
   @ServiceImpl(service = SugarService.class)
   public static class SugarServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> start(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> start(TemporalNexusClient client, String input) {
       return client.startWorkflow(
           SugarTargetWorkflow.class,
           SugarTargetWorkflow::run,
           input,
-          WorkflowOptions.newBuilder().setWorkflowId("sugar-" + ctx.getRequestId()).build());
+          WorkflowOptions.newBuilder()
+              .setWorkflowId(
+                  "sugar-" + Nexus.getInfo().getOperation() + "-" + Nexus.getInfo().getEndpoint())
+              .build());
     }
   }
 
   @ServiceImpl(service = SyncSugarService.class)
   public static class SyncSugarServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> greet(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> greet(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync("sync:" + input);
     }
   }
@@ -162,19 +163,21 @@ public class TemporalOperationAnnotationTest {
   @ServiceImpl(service = MixedService.class)
   public static class MixedServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> workflowOp(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> workflowOp(TemporalNexusClient client, String input) {
       return client.startWorkflow(
           SugarTargetWorkflow.class,
           SugarTargetWorkflow::run,
           input,
-          WorkflowOptions.newBuilder().setWorkflowId("mixed-" + ctx.getRequestId()).build());
+          WorkflowOptions.newBuilder()
+              .setWorkflowId(
+                  "mixed-" + Nexus.getInfo().getOperation() + "-" + Nexus.getInfo().getEndpoint())
+              .build());
     }
 
     @OperationImpl
     public OperationHandler<String, String> legacyOp() {
       return new TemporalOperationHandler<String, String>(
-          (ctx, client, input) -> TemporalOperationResult.sync("legacy:" + input)) {};
+          (client, input) -> TemporalOperationResult.sync("legacy:" + input)) {};
     }
   }
 }

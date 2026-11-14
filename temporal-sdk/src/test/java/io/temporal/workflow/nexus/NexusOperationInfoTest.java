@@ -52,7 +52,7 @@ public class NexusOperationInfoTest {
     public OperationHandler<String, String> operation() {
       return OperationHandler.sync(
           (context, details, input) -> {
-            NexusOperationInfo info = Nexus.getOperationContext().getInfo();
+            NexusOperationInfo info = Nexus.getInfo();
             return info.getNamespace() + ":" + info.getTaskQueue() + ":" + info.getEndpoint();
           });
     }

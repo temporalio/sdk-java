@@ -4,6 +4,8 @@ import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
+import io.temporal.internal.concurrent.structured.CancelSource;
+import java.util.concurrent.CancellationException;
 
 public class TemporalInterceptorMiddleware implements OperationMiddleware {
   private final WorkerInterceptor[] interceptors;
@@ -24,6 +26,9 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
     }
 
     InternalNexusOperationContext temporalNexusContext = CurrentNexusOperationContext.get();
+    CancelSource<CancellationException> cancellationSource =
+        new CancelSource<>(() -> new CancellationException(context.getMethodCancellationReason()));
+    context.addMethodCancellationListener(cancellationSource::cancel);
     inboundCallsInterceptor.init(
         new RootNexusOperationOutboundCallsInterceptor(
             temporalNexusContext.getMetricsScope(),
@@ -31,7 +36,10 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
             new NexusInfoImpl(
                 temporalNexusContext.getNamespace(),
                 temporalNexusContext.getTaskQueue(),
-                temporalNexusContext.getEndpoint())));
+                temporalNexusContext.getEndpoint(),
+                context.getService(),
+                context.getOperation(),
+                cancellationSource.token())));
     return new OperationInterceptorConverter(inboundCallsInterceptor);
   }
 

@@ -6,6 +6,16 @@ import io.temporal.internal.sync.WorkflowInternal;
 /** This class contains methods exposing Temporal APIs for Nexus Operations */
 public final class Nexus {
   /**
+   * Get information about the current Nexus Operation.
+   *
+   * <p>This static method relies on a thread-local variable and works only in the original Nexus
+   * thread.
+   */
+  public static NexusOperationInfo getInfo() {
+    return getOperationContext().getInfo();
+  }
+
+  /**
    * Can be used to get information about a Nexus Operation. This static method relies on a
    * thread-local variable and works only in the original Nexus thread.
    */

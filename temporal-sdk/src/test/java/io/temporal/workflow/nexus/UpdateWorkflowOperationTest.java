@@ -229,7 +229,7 @@ public class UpdateWorkflowOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<UpdateRequest, String> update() {
       return TemporalOperationHandler.create(
-          (context, client, input) -> {
+          (client, input) -> {
             UpdateOptions.Builder<String> optionsBuilder =
                 UpdateOptions.newBuilder(String.class)
                     .setUpdateName("setValue")

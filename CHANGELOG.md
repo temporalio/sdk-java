@@ -20,6 +20,12 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### :boom: Breaking Changes
+- **Experimental**: Temporal operation start handlers, including `@TemporalOperation` methods, now
+  accept only `(TemporalNexusClient, input)`. Cancellation overrides now accept only their typed
+  input. `TemporalOperationStartContext` and `TemporalOperationCancelContext` have been removed.
+  Use `Nexus.getInfo()` for service, operation, and a read-only handler invocation cancellation token.
+  Request headers remain available to interceptors; request IDs, callbacks, and Nexus links are no longer exposed
+  through the Temporal handler context parameters.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.

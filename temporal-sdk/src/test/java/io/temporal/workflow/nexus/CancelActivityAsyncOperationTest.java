@@ -16,7 +16,7 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.CancelActivityExecutionInput;
-import io.temporal.nexus.TemporalOperationCancelContext;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
@@ -189,13 +189,17 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   HeartbeatingActivity.class,
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + context.getRequestId())
+                      .setId(
+                          "act-"
+                              + Nexus.getInfo().getOperation()
+                              + "-"
+                              + Nexus.getInfo().getEndpoint())
                       .setStartToCloseTimeout(Duration.ofSeconds(60))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -243,20 +247,23 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return new TemporalOperationHandler<String, String>(
-          (context, client, input) ->
+          (client, input) ->
               client.startActivity(
                   HeartbeatingActivity.class,
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-override-" + context.getRequestId())
+                      .setId(
+                          "act-override-"
+                              + Nexus.getInfo().getOperation()
+                              + "-"
+                              + Nexus.getInfo().getEndpoint())
                       .setStartToCloseTimeout(Duration.ofSeconds(5))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                       .build())) {
         @Override
-        protected void cancelActivityExecution(
-            TemporalOperationCancelContext ctx, CancelActivityExecutionInput input) {
+        protected void cancelActivityExecution(CancelActivityExecutionInput input) {
           customCancelInvoked.set(true);
           // Intentionally do NOT invoke default cancel; the activity will self-terminate via
           // startToCloseTimeout.
