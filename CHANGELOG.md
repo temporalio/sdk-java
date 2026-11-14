@@ -40,6 +40,9 @@ to docs, or any other relevant information.
   `WorkflowServiceStubsOptions.Builder.setPayloadLimits`.
 
 ### Added
+- `@TemporalOperation` methods can return their output directly for synchronous completion.
+  Existing methods returning `TemporalOperationResult`, including asynchronous results, remain
+  supported.
 - Tracing options and `ContextPropagator.encodeHeaders()` can opt into header processing using
   the configured client's payload codec. Only opted-in producers' output is encoded, while
   application-supplied wire-ready headers are unchanged. Receiving consumers use private decoded
