@@ -145,7 +145,7 @@ final class WorkflowWorker implements SuspendableWorker {
       boolean useAsyncPoller =
           pollerOptions.getPollerBehavior() instanceof PollerBehaviorAutoscaling;
       if (useAsyncPoller) {
-        List<AsyncPoller.PollTaskAsync<WorkflowTask>> pollers;
+        List<AsyncWorkflowPollTask> pollers;
         if (stickyTaskQueueName != null) {
           AsyncWorkflowPollTask normalPoller =
               new AsyncWorkflowPollTask(
@@ -194,6 +194,16 @@ final class WorkflowWorker implements SuspendableWorker {
                       service.getServerCapabilities(),
                       pollerTracker,
                       workerControlTaskQueue()));
+        }
+        if (stickyTaskQueueName != null) {
+          WorkflowPollerBalancer balancer =
+              new WorkflowPollerBalancer(
+                  slotSupplier.maximumSlots(),
+                  ((PollerBehaviorAutoscaling) pollerOptions.getPollerBehavior())
+                      .getInitialConcurrentTaskPollers());
+          for (AsyncWorkflowPollTask task : pollers) {
+            task.setPollerBalancer(balancer);
+          }
         }
         poller =
             new AsyncPoller<>(

@@ -111,6 +111,8 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
+- Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
+  target and use slot capacity to balance sticky and non-sticky admission, matching Core's policy.
 - Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
   leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
   by default in this release to preserve replay compatibility during SDK rollout.
