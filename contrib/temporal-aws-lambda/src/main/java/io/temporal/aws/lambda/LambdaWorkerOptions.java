@@ -1,6 +1,7 @@
 package io.temporal.aws.lambda;
 
 import io.temporal.activity.DynamicActivity;
+import io.temporal.aws.secretsmanager.SecretsManagerExtension;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
@@ -112,6 +113,8 @@ public final class LambdaWorkerOptions {
             LoadClientConfigProfileOptions.newBuilder()
                 .setConfigFilePath(resolveConfigFilePath(env, cwd))
                 .setEnvOverrides(env)
+                .setExtensions(
+                    Collections.singletonList(SecretsManagerExtension.getDefaultInstance()))
                 .build());
     return new Builder(profile, env);
   }
