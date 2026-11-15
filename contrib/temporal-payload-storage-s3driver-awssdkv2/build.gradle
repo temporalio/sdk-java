@@ -1,9 +1,5 @@
 description = '''Temporal Java SDK External Storage S3 Driver - AWS SDK v2 Client'''
 
-ext {
-    awsSdkVersion = '2.31.0'
-}
-
 dependencies {
     api project(':temporal-payload-storage-s3driver')
     api platform("software.amazon.awssdk:bom:$awsSdkVersion")
