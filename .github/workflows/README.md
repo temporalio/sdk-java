@@ -22,7 +22,8 @@ or an optional Slack or Microsoft Teams deployment integration.
 
 The workflow creates and verifies the GitHub release before publishing any
 Maven artifacts. Draft GitHub releases are the default and leave Maven
-unpublished. Release candidates are always bound to the full merge commit SHA.
+unpublished. Automatic releases use the full release commit SHA; manual releases
+use the full commit SHA of the selected ref when the run starts.
 RC versions use headings such as
 `## [1.41.0-RC1] - 2026-10-03` and are published as GitHub prereleases.
 
@@ -42,9 +43,11 @@ To run an existing release candidate manually, open the **Release** workflow,
 select **Run workflow** on `main` or a supported backport branch, enter the
 version without its leading `v`, and choose whether to hold the GitHub Release
 as a draft. The version must already have a versioned `CHANGELOG.md` section.
-The workflow finds the exact first-parent commit on the selected branch that
-introduced that section and runs it through the same validation, build,
-approval, and publication jobs as an automatic release. The manual draft
+The workflow builds the selected ref's commit, not the earlier commit that
+introduced the version heading. It runs through the same validation, build,
+approval, and publication jobs as an automatic release. An existing release tag
+must point to the selected commit; it is never moved. To finish an existing draft,
+select the same ref and commit used to create it. The manual draft
 selection overrides `DRAFT_RELEASE` for that run. Maven is published only after
 the GitHub release is public.
 
