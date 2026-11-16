@@ -23,6 +23,15 @@ public interface StorageDriverStoreContext {
   StorageDriverTargetInfo getTarget();
 
   /**
+   * Namespace of the client or worker performing the store, or {@code null} when it is not
+   * available. Defaults to {@code null}.
+   */
+  @Nullable
+  default String getNamespace() {
+    return null;
+  }
+
+  /**
    * Token cancelled when the SDK abandons this store operation. Defaults to a token that is never
    * cancelled.
    */

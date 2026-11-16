@@ -69,6 +69,10 @@ public class WorkflowWorkerExternalStorageTest {
     Assert.assertTrue("the continued run must have retrieved it", driver.retrieves.get() > 0);
     Assert.assertTrue(
         "the large continue-as-new input must be what was stored", driver.stored(CONTINUED_MARKER));
+    String namespace = testWorkflowRule.getWorkflowClient().getOptions().getNamespace();
+    Assert.assertTrue(
+        "every store must carry the worker's namespace",
+        driver.namespaces.stream().allMatch(namespace::equals));
   }
 
   @Test
