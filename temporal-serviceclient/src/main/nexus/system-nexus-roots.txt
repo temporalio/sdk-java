@@ -1,2 +1,0 @@
-temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionRequest
-temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionResponse
