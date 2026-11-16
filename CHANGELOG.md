@@ -25,8 +25,10 @@ to docs, or any other relevant information.
 
 ### Added
 - Experimental `ExternalStorage.Builder.setConcurrency` with `maxDriverOperations` (for one client or
-  worker) and `maxOperationsPerMessage` (for one message). Each client and each worker gets its own
-  `maxDriverOperations` limit. Drivers must wrap store and retrieve calls with `context.getLimiter()`.
+  worker, default 64) and `maxOperationsPerMessage` (for one message, default 8). Each client and each
+  worker gets its own `maxDriverOperations` limit. Drivers apply the limits by wrapping each store and
+  retrieve operation with `context.getLimiter()`. The S3 driver does this. Operations of a driver that
+  does not are not limited, and the SDK logs a warning.
 
 ## [1.41.0] - 2026-11-16
 
