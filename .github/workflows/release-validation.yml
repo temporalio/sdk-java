@@ -1,0 +1,49 @@
+name: Release validation
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+on:
+  pull_request:
+    branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
+    paths:
+      - CHANGELOG.md
+      - .github/scripts/release.sh
+      - .github/workflows/release-validation.yml
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    name: Resolve release candidate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Validate changelog transition
+        id: metadata
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: .github/scripts/release.sh candidate "$RUNNER_TEMP/release-notes.md"
+
+      - name: Summarize candidate
+        if: steps.metadata.outputs.release == 'true'
+        env:
+          RELEASE_COMMIT: ${{ steps.metadata.outputs.commit }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
+        run: |
+          {
+            echo "## Release candidate"
+            echo
+            echo "- Tag: \`$RELEASE_TAG\`"
+            echo "- Commit: \`$RELEASE_COMMIT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
