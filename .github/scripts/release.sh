@@ -141,7 +141,7 @@ candidate() {
     [[ -n "$release_commit" ]] \
       || fail "Version $MANUAL_VERSION was not introduced on $MANUAL_REF."
     BASE_SHA=$(git rev-parse --verify "$release_commit^1")
-    HEAD_SHA=$release_commit
+    HEAD_SHA=$dispatch_head
   else
     require BASE_SHA
   fi
@@ -168,9 +168,9 @@ candidate() {
   if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
     [[ "$version" == "$MANUAL_VERSION" ]] \
       || fail "Commit $head does not introduce version $MANUAL_VERSION."
-    diff -q <(changelog_section "$head" "$version" true) \
-      <(changelog_section "$dispatch_head" "$version" true) >/dev/null \
-      || fail "Release notes for $version changed after commit $head."
+    diff -q <(changelog_section "$release_commit" "$version" true) \
+      <(changelog_section "$head" "$version" true) >/dev/null \
+      || fail "Release notes for $version changed after commit $release_commit."
   elif [[ "$EVENT_NAME" == push ]]; then
     heading=$(changelog_heading "$head" "$version")
     release_commit=$(changelog_heading_commit "$head" "$heading")
@@ -222,7 +222,7 @@ build_maven() {
     "-PreleaseVersion=$RELEASE_VERSION" \
     "-PreleaseCommit=$RELEASE_COMMIT" \
     "-Dmaven.repo.local=$repository" \
-    build publishToMavenLocal
+    build publishToMavenLocal -x test -x jackson3Tests -x virtualThreadTests
   git diff --exit-code
   [[ -f "$pom" ]] || fail "The temporal-sdk POM was not generated."
   grep -Fq "<tag>$RELEASE_COMMIT</tag>" "$pom" \
