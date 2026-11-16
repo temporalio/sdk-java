@@ -38,13 +38,13 @@ changelog_version_tokens() {
 
 # Extracts one version's changelog section at a given commit.
 changelog_section() {
-  git show "$1:CHANGELOG.md" | awk -v heading="## [$2] - " -v include="${3:-false}" '
+  git show "$1:CHANGELOG.md" | awk -v heading="## [$2] - " -v include_heading="${3:-false}" '
     !seen && index($0, heading) == 1 {
       date = substr($0, length(heading) + 1)
       if (date !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) next
       seen = 1
       capture = 1
-      if (include == "true") lines[++count] = $0
+      if (include_heading == "true") lines[++count] = $0
       next
     }
     capture && /^## / { capture = 0 }
