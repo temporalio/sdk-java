@@ -6,6 +6,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.internal.activity.LocalActivityArguments;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.workflow.Functions;
 import io.temporal.workflow.Workflow;
@@ -36,6 +37,7 @@ public class ExecuteLocalActivityParameters {
   private @Nullable Functions.Proc onNewAttemptCallback;
   private final UserMetadata metadata;
   private final List<EventGroupMarker> eventGroupMarkers;
+  private final @Nullable LocalActivityArguments arguments;
 
   public ExecuteLocalActivityParameters(
       @Nonnull PollActivityTaskQueueResponse.Builder activityTaskBuilder,
@@ -45,7 +47,8 @@ public class ExecuteLocalActivityParameters {
       boolean doNotIncludeArgumentsIntoMarker,
       @Nonnull Duration localRetryThreshold,
       UserMetadata metadata,
-      List<EventGroupMarker> eventGroupMarkers) {
+      List<EventGroupMarker> eventGroupMarkers,
+      @Nullable LocalActivityArguments arguments) {
     this.activityTaskBuilder = Objects.requireNonNull(activityTaskBuilder, "activityTaskBuilder");
     this.scheduleToStartTimeout = scheduleToStartTimeout;
     this.originalScheduledTimestamp = originalScheduledTimestamp;
@@ -55,10 +58,16 @@ public class ExecuteLocalActivityParameters {
     this.onNewAttemptCallback = null;
     this.metadata = metadata;
     this.eventGroupMarkers = Objects.requireNonNull(eventGroupMarkers);
+    this.arguments = arguments;
   }
 
   public String getActivityId() {
     return activityTaskBuilder.getActivityId();
+  }
+
+  @Nullable
+  public LocalActivityArguments getArguments() {
+    return arguments;
   }
 
   public ActivityType getActivityType() {

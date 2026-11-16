@@ -4,6 +4,7 @@ import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.nio.charset.StandardCharsets;
+import javax.annotation.Nullable;
 
 /**
  * Builds the content-addressable S3 object key. The key format and percent-encoding rules are the
@@ -20,7 +21,12 @@ final class S3StorageKey {
 
   private S3StorageKey() {}
 
-  static String forPayload(StorageDriverTargetInfo target, String hashAlgorithm, String hexDigest) {
+  /** Uses {@code namespace} only when {@code target} carries no namespace of its own. */
+  static String forPayload(
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable String namespace,
+      String hashAlgorithm,
+      String hexDigest) {
     String digestSegment = "/d/" + hashAlgorithm + "/" + hexDigest;
     if (target instanceof StorageDriverWorkflowInfo) {
       StorageDriverWorkflowInfo wf = (StorageDriverWorkflowInfo) target;
@@ -48,10 +54,10 @@ final class S3StorageKey {
           + escapePathSegment(act.getRunId())
           + digestSegment;
     }
-    return KEY_VERSION + digestSegment;
+    return KEY_VERSION + "/ns/" + escapePathSegment(namespace) + digestSegment;
   }
 
-  static String escapePathSegment(String value) {
+  static String escapePathSegment(@Nullable String value) {
     if (value == null || value.isEmpty()) {
       return "null";
     }

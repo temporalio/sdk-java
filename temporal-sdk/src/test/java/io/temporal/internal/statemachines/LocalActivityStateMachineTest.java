@@ -85,7 +85,8 @@ public class LocalActivityStateMachineTest {
                 true,
                 null,
                 null,
-                Collections.emptyList());
+                Collections.emptyList(),
+                null);
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -97,7 +98,8 @@ public class LocalActivityStateMachineTest {
                 false,
                 null,
                 null,
-                Collections.emptyList());
+                Collections.emptyList(),
+                null);
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -109,19 +111,20 @@ public class LocalActivityStateMachineTest {
                 true,
                 null,
                 null,
-                Collections.emptyList());
+                Collections.emptyList(),
+                null);
 
         builder
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
 
         builder
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters2, c))
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters3, c))
-            .add((r) -> result = r.getT1());
+            .add((r) -> result = r.getT1().payloads);
       }
     }
     /*
@@ -292,9 +295,10 @@ public class LocalActivityStateMachineTest {
                 false,
                 null,
                 null,
-                Collections.emptyList());
+                Collections.emptyList(),
+                null);
         builder
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c))
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }
@@ -360,7 +364,8 @@ public class LocalActivityStateMachineTest {
                 false,
                 null,
                 null,
-                Collections.emptyList());
+                Collections.emptyList(),
+                null);
         // TODO: This is a workaround for the lack of support for child workflow in the test
         // framework.
         // The test framework has no support for state machines with multiple callbacks.
@@ -382,7 +387,7 @@ public class LocalActivityStateMachineTest {
                 (r, c) -> {
                   completionCallback.set(c);
                 })
-            .<Optional<Payloads>, LocalActivityCallback.LocalActivityFailedException>add2(
+            .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
                 (r, c) -> stateMachines.scheduleLocalActivityTask(parameters1, c));
       }
     }

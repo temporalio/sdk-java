@@ -10,6 +10,7 @@ import static org.mockito.Mockito.when;
 import com.uber.m3.tally.NoopScope;
 import io.temporal.activity.DynamicActivity;
 import io.temporal.api.common.v1.Header;
+import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
 import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.CodecDataConverterTest.PrefixPayloadCodec;
@@ -26,7 +27,9 @@ public class ActivityTaskExecutorsTest {
       for (boolean present : new boolean[] {false, true}) {
         ActivityInfoInternal info = mock(ActivityInfoInternal.class);
         when(info.getNamespace()).thenReturn("namespace");
-        when(info.getInput()).thenReturn(Optional.empty());
+        when(info.getInput())
+            .thenReturn(
+                new ActivityInput(PollActivityTaskQueueResponse.getDefaultInstance(), null));
         when(info.getHeader())
             .thenReturn(present ? Optional.of(Header.getDefaultInstance()) : Optional.empty());
         InternalActivityExecutionContext context = mock(InternalActivityExecutionContext.class);

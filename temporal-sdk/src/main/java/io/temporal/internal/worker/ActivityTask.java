@@ -1,6 +1,7 @@
 package io.temporal.internal.worker;
 
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponseOrBuilder;
+import io.temporal.internal.activity.LocalActivityArguments;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
 import javax.annotation.Nonnull;
@@ -10,19 +11,34 @@ public final class ActivityTask implements ScalingTask {
   private final @Nonnull PollActivityTaskQueueResponseOrBuilder response;
   private final @Nonnull SlotPermit permit;
   private final @Nonnull Functions.Proc completionCallback;
+  private final @Nullable LocalActivityArguments localActivityArguments;
 
   public ActivityTask(
       @Nonnull PollActivityTaskQueueResponseOrBuilder response,
       @Nonnull SlotPermit permit,
       @Nonnull Functions.Proc completionCallback) {
+    this(response, permit, completionCallback, null);
+  }
+
+  public ActivityTask(
+      @Nonnull PollActivityTaskQueueResponseOrBuilder response,
+      @Nonnull SlotPermit permit,
+      @Nonnull Functions.Proc completionCallback,
+      @Nullable LocalActivityArguments localActivityArguments) {
     this.response = response;
     this.permit = permit;
     this.completionCallback = completionCallback;
+    this.localActivityArguments = localActivityArguments;
   }
 
   @Nonnull
   public PollActivityTaskQueueResponseOrBuilder getResponse() {
     return response;
+  }
+
+  @Nullable
+  public LocalActivityArguments getLocalActivityArguments() {
+    return localActivityArguments;
   }
 
   /**

@@ -19,6 +19,7 @@ public interface ActivityTaskHandler {
     private final TaskFailedResult taskFailed;
     private final RespondActivityTaskCanceledRequest taskCanceled;
     private final boolean manualCompletion;
+    private final Object copiedResult;
 
     @Override
     public String toString() {
@@ -65,11 +66,22 @@ public interface ActivityTaskHandler {
         TaskFailedResult taskFailed,
         RespondActivityTaskCanceledRequest taskCanceled,
         boolean manualCompletion) {
+      this(activityId, taskCompleted, taskFailed, taskCanceled, manualCompletion, null);
+    }
+
+    public Result(
+        String activityId,
+        RespondActivityTaskCompletedRequest taskCompleted,
+        TaskFailedResult taskFailed,
+        RespondActivityTaskCanceledRequest taskCanceled,
+        boolean manualCompletion,
+        Object copiedResult) {
       this.activityId = activityId;
       this.taskCompleted = taskCompleted;
       this.taskFailed = taskFailed;
       this.taskCanceled = taskCanceled;
       this.manualCompletion = manualCompletion;
+      this.copiedResult = copiedResult;
     }
 
     public String getActivityId() {
@@ -78,6 +90,11 @@ public interface ActivityTaskHandler {
 
     public RespondActivityTaskCompletedRequest getTaskCompleted() {
       return taskCompleted;
+    }
+
+    /** A copied local activity result for live execution, or null if unavailable. */
+    public Object getCopiedResult() {
+      return copiedResult;
     }
 
     public TaskFailedResult getTaskFailed() {

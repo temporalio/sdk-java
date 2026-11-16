@@ -5,7 +5,7 @@ import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
 
-public final class EncodedValues implements Values {
+public class EncodedValues implements Values {
   private Optional<Payloads> payloads;
   private DataConverter converter;
   private final Object[] values;

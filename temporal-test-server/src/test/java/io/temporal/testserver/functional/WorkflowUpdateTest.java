@@ -5,6 +5,7 @@ import io.grpc.StatusRuntimeException;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.UpdateWorkflowExecutionLifecycleStage;
+import io.temporal.api.nexus.v1.PropagatedSerializationContext;
 import io.temporal.api.update.v1.*;
 import io.temporal.api.workflowservice.v1.PollWorkflowExecutionUpdateRequest;
 import io.temporal.api.workflowservice.v1.PollWorkflowExecutionUpdateResponse;
@@ -186,6 +187,51 @@ public class WorkflowUpdateTest {
     Assert.assertEquals(
         UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
         pollUpdateResponse.getStage());
+  }
+
+  @Test
+  public void updateWithNexusSerializationContext() {
+    TestWorkflows.WorkflowWithUpdate workflowStub =
+        testWorkflowRule.newWorkflowStub(TestWorkflows.WorkflowWithUpdate.class);
+    WorkflowExecution exec = WorkflowClient.start(workflowStub::execute);
+
+    UpdateWorkflowExecutionResponse response =
+        testWorkflowRule
+            .getWorkflowClient()
+            .getWorkflowServiceStubs()
+            .blockingStub()
+            .withDeadlineAfter(10, TimeUnit.SECONDS)
+            .updateWorkflowExecution(
+                UpdateWorkflowExecutionRequest.newBuilder()
+                    .setNamespace(testWorkflowRule.getWorkflowClient().getOptions().getNamespace())
+                    .setWorkflowExecution(exec)
+                    .setRequest(
+                        Request.newBuilder()
+                            .setMeta(Meta.newBuilder().setUpdateId("update-with-nexus-context"))
+                            .setInput(
+                                Input.newBuilder()
+                                    .setName("update")
+                                    .setArgs(
+                                        DefaultDataConverter.newDefaultInstance()
+                                            .toPayloads(TestWorkflows.UpdateType.FINISH_WORKFLOW)
+                                            .get()))
+                            .setPropagatedNexusSerializationContext(
+                                PropagatedSerializationContext.newBuilder()
+                                    .setEndpoint("endpoint")
+                                    .setService("service")
+                                    .setOperation("operation")))
+                    .setWaitPolicy(
+                        WaitPolicy.newBuilder()
+                            .setLifecycleStage(
+                                UpdateWorkflowExecutionLifecycleStage
+                                    .UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED))
+                    .build());
+
+    Assert.assertEquals(
+        UpdateWorkflowExecutionLifecycleStage.UPDATE_WORKFLOW_EXECUTION_LIFECYCLE_STAGE_COMPLETED,
+        response.getStage());
+    Assert.assertTrue(response.getOutcome().hasSuccess());
+    workflowStub.execute();
   }
 
   @Test

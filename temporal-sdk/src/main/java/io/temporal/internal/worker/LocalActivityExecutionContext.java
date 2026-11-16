@@ -5,6 +5,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.workflow.v1.PendingActivityInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.PollActivityTaskQueueResponse;
+import io.temporal.internal.activity.LocalActivityArguments;
 import io.temporal.internal.statemachines.ExecuteLocalActivityParameters;
 import io.temporal.worker.tuning.SlotPermit;
 import io.temporal.workflow.Functions;
@@ -56,6 +57,11 @@ class LocalActivityExecutionContext {
 
   public String getActivityId() {
     return executionParams.getActivityId();
+  }
+
+  @Nullable
+  public LocalActivityArguments getArguments() {
+    return executionParams.getArguments();
   }
 
   public int getCurrentAttempt() {

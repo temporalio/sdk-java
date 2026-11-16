@@ -46,6 +46,21 @@ public class S3StorageDriverTest {
     return () -> target;
   }
 
+  private static StorageDriverStoreContext storeContext(
+      StorageDriverTargetInfo target, String namespace) {
+    return new StorageDriverStoreContext() {
+      @Override
+      public StorageDriverTargetInfo getTarget() {
+        return target;
+      }
+
+      @Override
+      public String getNamespace() {
+        return namespace;
+      }
+    };
+  }
+
   private static final StorageDriverRetrieveContext RETRIEVE_CONTEXT =
       new StorageDriverRetrieveContext() {};
 
@@ -113,7 +128,7 @@ public class S3StorageDriverTest {
     assertEquals("test-bucket", claimData.get("bucket"));
     assertEquals("sha256", claimData.get("hash_algorithm"));
     assertFalse(claimData.get("hash_value").isEmpty());
-    assertEquals("v0/d/sha256/" + claimData.get("hash_value"), claimData.get("key"));
+    assertEquals("v0/ns/null/d/sha256/" + claimData.get("hash_value"), claimData.get("key"));
   }
 
   @Test
@@ -311,6 +326,7 @@ public class S3StorageDriverTest {
                 "order+123=abc",
                 "3f1d6c7a-8b2e-4f7a-9d0a-87a6f95e4d31",
                 "ChargeWorkflow"),
+            null,
             "sha256",
             workflowDigest));
 
@@ -324,12 +340,14 @@ public class S3StorageDriverTest {
                 "activity id+42",
                 "9e1d1fd9-2f8a-4c40-93e2-731f31b9268b",
                 "Capture/Charge"),
+            null,
             "sha256",
             activityDigest));
 
-    // Fallback full-key example.
+    // No-target full-key example.
     assertEquals(
-        "v0/d/sha256/" + fallbackDigest, S3StorageKey.forPayload(null, "sha256", fallbackDigest));
+        "v0/ns/payments%20prod/d/sha256/" + fallbackDigest,
+        S3StorageKey.forPayload(null, "payments prod", "sha256", fallbackDigest));
   }
 
   @Test
@@ -356,6 +374,38 @@ public class S3StorageDriverTest {
             .getClaimData()
             .get("key");
     assertNotEquals(wfKey, actKey);
+  }
+
+  @Test
+  public void storeWithoutTargetUsesContextNamespace() {
+    S3StorageDriver driver = driver(new InMemoryS3StorageDriverClient());
+
+    Map<String, String> claimData =
+        driver
+            .store(storeContext(null, "my ns"), Collections.singletonList(payload("p")))
+            .join()
+            .get(0)
+            .getClaimData();
+
+    assertEquals("v0/ns/my%20ns/d/sha256/" + claimData.get("hash_value"), claimData.get("key"));
+  }
+
+  @Test
+  public void storeTargetNamespaceOverridesContextNamespace() {
+    S3StorageDriver driver = driver(new InMemoryS3StorageDriverClient());
+
+    String key =
+        driver
+            .store(
+                storeContext(
+                    new StorageDriverWorkflowInfo("target-ns", "wf", "run", "WF"), "other"),
+                Collections.singletonList(payload("p")))
+            .join()
+            .get(0)
+            .getClaimData()
+            .get("key");
+
+    assertTrue(key, key.startsWith("v0/ns/target-ns/wt/"));
   }
 
   // --- Retrieve ---

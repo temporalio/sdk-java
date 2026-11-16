@@ -1930,6 +1930,15 @@
       "type": "io.temporal.api.history.v1.WorkflowTaskTimedOutEventAttributes"
     },
     {
+      "type": "io.temporal.api.nexus.v1.PropagatedSerializationContext",
+      "methods": [
+        {
+          "name": "newBuilder",
+          "parameterTypes": []
+        }
+      ]
+    },
+    {
       "type": "io.temporal.api.sdk.v1.UserMetadata"
     },
     {

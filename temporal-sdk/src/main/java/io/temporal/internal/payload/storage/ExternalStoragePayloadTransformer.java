@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -30,23 +31,26 @@ final class ExternalStoragePayloadTransformer {
   private final Map<String, StorageDriver> driversByName;
   private final StorageDriverSelector selector;
   private final int payloadSizeThreshold;
+  private final String namespace;
 
-  static ExternalStoragePayloadTransformer fromOptions(ExternalStorage options) {
+  static ExternalStoragePayloadTransformer fromOptions(ExternalStorage options, String namespace) {
     Map<String, StorageDriver> driversByName = new LinkedHashMap<>();
     for (StorageDriver driver : options.getDrivers()) {
       driversByName.put(driver.getName(), driver);
     }
     return new ExternalStoragePayloadTransformer(
-        driversByName, options.getDriverSelector(), options.getPayloadSizeThreshold());
+        driversByName, options.getDriverSelector(), options.getPayloadSizeThreshold(), namespace);
   }
 
   private ExternalStoragePayloadTransformer(
       Map<String, StorageDriver> driversByName,
       StorageDriverSelector selector,
-      int payloadSizeThreshold) {
+      int payloadSizeThreshold,
+      String namespace) {
     this.driversByName = driversByName;
     this.selector = selector;
     this.payloadSizeThreshold = payloadSizeThreshold;
+    this.namespace = Objects.requireNonNull(namespace, "namespace");
   }
 
   CompletableFuture<List<Payload>> store(
@@ -62,7 +66,7 @@ final class ExternalStoragePayloadTransformer {
       CancellationToken<CancellationException> cancellationToken,
       @Nullable StorageOperationMetrics metrics) {
     StorageDriverSelectContext selectContext =
-        new StorageDriverSelectContextImpl(target, cancellationToken);
+        new StorageDriverSelectContextImpl(target, namespace, cancellationToken);
     Map<String, Batch<Payload>> batches;
     try {
       batches = buildStoreBatches(payloads, selectContext);
@@ -108,7 +112,7 @@ final class ExternalStoragePayloadTransformer {
         cancellationToken,
         scope -> {
           StorageDriverStoreContext context =
-              new StorageDriverStoreContextImpl(target, scope.token());
+              new StorageDriverStoreContextImpl(target, namespace, scope.token());
           for (Batch<Payload> batch : batches.values()) {
             long startNanos = System.nanoTime();
             CompletableFuture<List<StorageDriverClaim>> call =

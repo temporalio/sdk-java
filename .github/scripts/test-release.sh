@@ -111,9 +111,18 @@ git -C "$repository" branch releases/1.41.x "$later"
     "$release_script" candidate "$temporary_directory/manual-notes"
 )
 grep -Fxq 'release=true' "$temporary_directory/manual-output"
-grep -Fxq "commit=$head" "$temporary_directory/manual-output"
+grep -Fxq "commit=$later" "$temporary_directory/manual-output"
 grep -Fxq 'draft_release=1' "$temporary_directory/manual-output"
 diff -q "$temporary_directory/notes" "$temporary_directory/manual-notes"
+git -C "$repository" tag v1.41.0 "$head"
+if (cd "$repository" && EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
+  MANUAL_DRAFT_RELEASE=true MANUAL_REF=main MANUAL_VERSION=1.41.0 \
+  "$release_script" candidate "$temporary_directory/conflicting-tag-notes" 2>/dev/null); then
+  echo "Manual releases must not replace a tag pointing to another commit." >&2
+  exit 1
+fi
+git -C "$repository" tag -d v1.41.0 >/dev/null
+git -C "$repository" tag v1.41.0 "$later"
 (
   cd "$repository"
   EVENT_NAME=workflow_dispatch HEAD_SHA="$later" \
@@ -122,6 +131,8 @@ diff -q "$temporary_directory/notes" "$temporary_directory/manual-notes"
     "$release_script" candidate "$temporary_directory/manual-public-notes"
 )
 grep -Fxq 'draft_release=0' "$temporary_directory/manual-public-output"
+grep -Fxq "commit=$later" "$temporary_directory/manual-public-output"
+git -C "$repository" tag -d v1.41.0 >/dev/null
 printf '# Changelog\n\n## [Unreleased]\n\n## [1.41.0] - 2026-10-04\n\n### Fixed\n- Fixed it.\n' \
   > "$repository/CHANGELOG.md"
 git -C "$repository" commit -qam rewrite
