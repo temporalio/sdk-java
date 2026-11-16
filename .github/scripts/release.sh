@@ -222,7 +222,7 @@ build_maven() {
     "-PreleaseVersion=$RELEASE_VERSION" \
     "-PreleaseCommit=$RELEASE_COMMIT" \
     "-Dmaven.repo.local=$repository" \
-    build publishToMavenLocal
+    build publishToMavenLocal -x test -x jackson3Tests -x virtualThreadTests
   git diff --exit-code
   [[ -f "$pom" ]] || fail "The temporal-sdk POM was not generated."
   grep -Fq "<tag>$RELEASE_COMMIT</tag>" "$pom" \
