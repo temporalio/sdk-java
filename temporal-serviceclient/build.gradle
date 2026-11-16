@@ -149,15 +149,19 @@ sourceSets {
 
 dependencies {
     payloadGeneratorsImplementation "com.google.protobuf:protobuf-java:$protoVersion"
+    testImplementation sourceSets.payloadGenerators.output
 }
 
 def generatedPayloadVisitorDir = layout.buildDirectory.dir('generated/payloadvisitor/java')
+// Protobuf envelope roots are independent of workflow-facing generated bindings.
+def systemNexusRoots = file('src/main/nexus/system-nexus-roots.txt')
 
 def generatePayloadVisitor = tasks.register('generatePayloadVisitor', JavaExec) {
     dependsOn 'compilePayloadGeneratorsJava', 'generateProto'
     classpath = sourceSets.payloadGenerators.runtimeClasspath
     mainClass = 'io.temporal.internal.payload.visitor.gen.PayloadVisitorGenerator'
-    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath
+    args apiDescriptorSet.get().asFile.absolutePath, generatedPayloadVisitorDir.get().asFile.absolutePath, systemNexusRoots.absolutePath
+    inputs.file(systemNexusRoots)
     inputs.file(apiDescriptorSet)
     inputs.files(sourceSets.payloadGenerators.runtimeClasspath)
     outputs.dir(generatedPayloadVisitorDir)

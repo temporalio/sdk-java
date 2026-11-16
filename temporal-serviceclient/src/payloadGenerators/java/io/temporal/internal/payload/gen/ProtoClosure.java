@@ -48,7 +48,27 @@ public final class ProtoClosure {
 
   /** Builds the closure and payload-reachability set from the given seed file descriptors. */
   public static ProtoClosure of(List<FileDescriptor> seeds) {
+    return of(seeds, java.util.Collections.emptyList());
+  }
+
+  /**
+   * Adds message roots and their reachable fields without requiring their files to be service
+   * seeds.
+   */
+  public static ProtoClosure of(List<FileDescriptor> seeds, List<Descriptor> roots) {
     List<Descriptor> all = collectMessages(fileClosure(seeds));
+    Set<String> seen = new HashSet<>();
+    for (Descriptor descriptor : all) seen.add(descriptor.getFullName());
+    Deque<Descriptor> queue = new ArrayDeque<>(roots);
+    while (!queue.isEmpty()) {
+      Descriptor descriptor = queue.remove();
+      if (!seen.add(descriptor.getFullName())) continue;
+      if (!descriptor.getOptions().getMapEntry()) all.add(descriptor);
+      for (FieldDescriptor field : descriptor.getFields()) {
+        if (field.getJavaType() == FieldDescriptor.JavaType.MESSAGE)
+          queue.add(field.getMessageType());
+      }
+    }
     return new ProtoClosure(all, computeReachability(all));
   }
 
