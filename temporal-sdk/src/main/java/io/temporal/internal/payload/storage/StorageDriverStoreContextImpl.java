@@ -10,12 +10,15 @@ import javax.annotation.Nullable;
 
 final class StorageDriverStoreContextImpl implements StorageDriverStoreContext {
   private final @Nullable StorageDriverTargetInfo target;
+  private final String namespace;
   private final CancellationToken<CancellationException> cancellationToken;
 
   StorageDriverStoreContextImpl(
       @Nullable StorageDriverTargetInfo target,
+      @Nonnull String namespace,
       CancellationToken<CancellationException> cancellationToken) {
     this.target = target;
+    this.namespace = Objects.requireNonNull(namespace, "namespace");
     this.cancellationToken = Objects.requireNonNull(cancellationToken, "cancellationToken");
   }
 
@@ -23,6 +26,12 @@ final class StorageDriverStoreContextImpl implements StorageDriverStoreContext {
   @Override
   public StorageDriverTargetInfo getTarget() {
     return target;
+  }
+
+  @Nonnull
+  @Override
+  public String getNamespace() {
+    return namespace;
   }
 
   @Nonnull

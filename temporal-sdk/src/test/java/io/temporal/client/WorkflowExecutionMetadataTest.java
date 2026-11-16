@@ -34,7 +34,7 @@ public class WorkflowExecutionMetadataTest {
             .setPayloadSizeThreshold(0)
             .build();
     DataConverter converter = DefaultDataConverter.newDefaultInstance();
-    ExternalStorageRunner storage = ExternalStorageRunner.create(config);
+    ExternalStorageRunner storage = ExternalStorageRunner.create(config, "default");
 
     Payloads.Builder value = converter.toPayloads("big-memo").get().toBuilder();
     storage.store(value, null, null, CancellationToken.none());

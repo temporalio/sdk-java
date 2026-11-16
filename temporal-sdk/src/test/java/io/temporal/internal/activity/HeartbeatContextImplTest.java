@@ -710,7 +710,8 @@ public class HeartbeatContextImplTest {
   private HeartbeatContextImpl createHeartbeatContextWithStorage(StorageDriver driver) {
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(100).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(100).build(),
+            "default");
     return new HeartbeatContextImpl(
         service,
         "test-namespace",
