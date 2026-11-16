@@ -208,10 +208,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           MANUAL_DRAFT_RELEASE: ${{ needs.candidate.outputs.draft_release }}
           PRERELEASE: ${{ needs.candidate.outputs.prerelease }}
-        run: >-
-          .github/scripts/release.sh publish-github
-          "release-inputs/release-notes-$RELEASE_COMMIT/release-notes.md"
-          "release-inputs/release-assets-$RELEASE_COMMIT"
+          WORKFLOW_COMMIT: ${{ github.workflow_sha }}
+        run: |
+          git show "$WORKFLOW_COMMIT:.github/scripts/release.sh" > "$RUNNER_TEMP/release.sh"
+          bash "$RUNNER_TEMP/release.sh" publish-github \
+            "release-inputs/release-notes-$RELEASE_COMMIT/release-notes.md" \
+            "release-inputs/release-assets-$RELEASE_COMMIT"
 
       - name: Set up Java
         if: steps.github_release.outputs.draft == 'false'

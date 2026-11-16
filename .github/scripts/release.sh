@@ -359,7 +359,8 @@ publish_github() {
   published_assets=$(mktemp -d)
   trap "rm -rf -- '$published_assets'" EXIT
   gh release download --repo "$GITHUB_REPOSITORY" "$RELEASE_TAG" --dir "$published_assets"
-  diff -qr "$assets" "$published_assets"
+  diff -qr "$assets" "$published_assets" \
+    || echo "::warning::Rebuilt native release assets differ from GitHub; keeping the existing release assets."
 
   if [[ "$requested_draft" == false && "$actual_draft" == true ]]; then
     gh release edit --repo "$GITHUB_REPOSITORY" "$RELEASE_TAG" --draft=false
