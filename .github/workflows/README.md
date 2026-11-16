@@ -43,13 +43,13 @@ To run an existing release candidate manually, open the **Release** workflow,
 select **Run workflow** on `main` or a supported backport branch, enter the
 version without its leading `v`, and choose whether to hold the GitHub Release
 as a draft. The version must already have a versioned `CHANGELOG.md` section.
-The workflow builds the selected ref's commit, not the earlier commit that
-introduced the version heading. It runs through the same validation, build,
-approval, and publication jobs as an automatic release. An existing release tag
-must point to the selected commit; it is never moved. To finish an existing draft,
-select the same ref and commit used to create it. The manual draft
-selection overrides `DRAFT_RELEASE` for that run. Maven is published only after
-the GitHub release is public.
+The release is built from the selected ref's commit when the run starts, using
+the same validation, build, approval, and publication steps as automatic releases.
+
+To publish an existing draft, select a ref that points to the draft's original
+commit. Existing release tags are never moved. The draft option overrides
+`DRAFT_RELEASE` for that run. Maven is published only after the GitHub release
+is public.
 
 Maintainers can check the release scripts locally with
 `.github/scripts/test-release.sh`.
