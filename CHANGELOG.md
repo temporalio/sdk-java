@@ -19,6 +19,8 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+## [1.41.1] - 2026-11-16
+
 ### Fixed
 - Fixed workflow updates hanging against the native time-skipping test server due to missing
   protobuf reflection metadata.
