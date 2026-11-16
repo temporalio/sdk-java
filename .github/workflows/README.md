@@ -2,16 +2,25 @@
 
 ## Releases
 
-[`release.yml`](release.yml) publishes a release from an exact commit after a
-release pull request is merged. Normal releases require two human decisions:
+[`release-validation.yml`](release-validation.yml) validates changelog changes
+on pull requests. It has no release build or publication jobs.
+
+[`release.yml`](release.yml) builds and publishes releases after a release pull
+request is merged, or when started manually. It does not run on pull requests.
+Normal releases require two human decisions:
 
 1. Review and merge a pull request that promotes the desired entries from the
    `CHANGELOG.md` `[Unreleased]` section into one new
    `## [X.Y.Z] - YYYY-MM-DD` section.
 2. Approve the `release-publication` GitHub environment after the workflow has
-   tested the Maven publications and built the native test server executables.
+   verified the local Maven artifacts and built the native test server executables.
    Approval must be given within 30 days or GitHub automatically fails the
    waiting job.
+
+The **Build and verify local Maven artifacts** job builds artifacts in a temporary
+Maven repository on the runner and verifies the generated POM. It does not run
+SDK tests or publish to Maven Central. SDK tests remain in the normal
+Continuous Integration workflow.
 
 The protected `publish` job depends on both validation paths, so GitHub does
 not request approval until they succeed. GitHub marks the job as **Waiting**

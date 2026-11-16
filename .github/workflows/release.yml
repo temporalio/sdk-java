@@ -5,9 +5,6 @@ defaults:
     shell: bash -euo pipefail {0}
 
 on:
-  pull_request:
-    branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
-    paths: [CHANGELOG.md]
   push:
     branches: [main, "releases/**", "v*.*.x", "*.*.x", "release_*_*_x"]
     paths: [CHANGELOG.md]
@@ -42,23 +39,21 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Validate changelog transition
         id: metadata
         env:
-          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.before }}
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          HEAD_SHA: ${{ github.sha }}
           MANUAL_DRAFT_RELEASE: ${{ inputs.draft_release }}
           MANUAL_REF: ${{ github.ref_name }}
           MANUAL_VERSION: ${{ inputs.version }}
         run: .github/scripts/release.sh candidate "$RUNNER_TEMP/release-notes.md"
 
       - name: Upload exact release notes
-        if: >-
-          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          steps.metadata.outputs.release == 'true'
+        if: steps.metadata.outputs.release == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: release-notes-${{ steps.metadata.outputs.commit }}
@@ -81,10 +76,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   build_maven:
-    name: Test and inspect Maven publications
-    if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.candidate.outputs.release == 'true'
+    name: Build and verify local Maven artifacts
+    if: needs.candidate.outputs.release == 'true'
     needs: candidate
     runs-on: ubuntu-latest
     timeout-minutes: 90
@@ -105,7 +98,7 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@ac396bf1a80af16236baf54bd7330ae21dc6ece5 # v6
 
-      - name: Test and inspect Maven publications
+      - name: Build and verify local Maven artifacts
         env:
           RELEASE_COMMIT: ${{ needs.candidate.outputs.commit }}
           RELEASE_VERSION: ${{ needs.candidate.outputs.version }}
@@ -115,9 +108,7 @@ jobs:
 
   build_native:
     name: Build native test server
-    if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.candidate.outputs.release == 'true'
+    if: needs.candidate.outputs.release == 'true'
     needs: candidate
     uses: ./.github/workflows/build-native-image.yml
     with:
@@ -127,9 +118,7 @@ jobs:
 
   package_native:
     name: Package native release assets
-    if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.candidate.outputs.release == 'true'
+    if: needs.candidate.outputs.release == 'true'
     needs: [candidate, build_native]
     runs-on: ubuntu-latest
     permissions:
@@ -164,9 +153,7 @@ jobs:
 
   publish:
     name: Publish ${{ needs.candidate.outputs.tag }}
-    if: >-
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-      needs.candidate.outputs.release == 'true'
+    if: needs.candidate.outputs.release == 'true'
     needs: [candidate, build_maven, package_native]
     runs-on: ubuntu-latest
     timeout-minutes: 150

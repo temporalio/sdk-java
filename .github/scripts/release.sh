@@ -211,7 +211,7 @@ candidate() {
   write_output prerelease "$([[ "$version" == *-RC* ]] && echo true || echo false)"
 }
 
-# Tests the project and verifies its primary local Maven publication.
+# Builds the project without running tests and verifies its primary local Maven publication.
 build_maven() {
   require RELEASE_COMMIT
   require RELEASE_VERSION
