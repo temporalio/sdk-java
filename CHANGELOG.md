@@ -24,6 +24,12 @@ to docs, or any other relevant information.
   `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
   `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- **Experimental**: Temporal operation start handlers, including `@TemporalOperation` methods, now
+  accept only `(TemporalNexusClient, input)`. Cancellation overrides now accept only their typed
+  input. `TemporalOperationStartContext` and `TemporalOperationCancelContext` have been removed.
+  Use `Nexus.getInfo()` for service, operation, and a read-only handler invocation cancellation token.
+  Request headers remain available to interceptors; request IDs, callbacks, and Nexus links are no longer exposed
+  through the Temporal handler context parameters.
 
 ### Added
 - Experimental Event Groups associate related workflow commands so their history events can be
@@ -50,12 +56,6 @@ to docs, or any other relevant information.
 ## [1.41.0] - 2026-11-16
 
 ### :boom: Breaking Changes
-- **Experimental**: Temporal operation start handlers, including `@TemporalOperation` methods, now
-  accept only `(TemporalNexusClient, input)`. Cancellation overrides now accept only their typed
-  input. `TemporalOperationStartContext` and `TemporalOperationCancelContext` have been removed.
-  Use `Nexus.getInfo()` for service, operation, and a read-only handler invocation cancellation token.
-  Request headers remain available to interceptors; request IDs, callbacks, and Nexus links are no longer exposed
-  through the Temporal handler context parameters.
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
