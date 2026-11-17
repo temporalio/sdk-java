@@ -19,6 +19,12 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- Removed `io.temporal:temporal-spring-ai` from the SDK BOM after publishing the relocation POM in 1.41.0 and 1.41.1.
+  Declare `io.temporal:spring-ai` with an explicit version for
+  [the standalone integration](https://github.com/temporalio/ai-integrations/tree/main/java/spring-ai).
+  Spring AI 1 / Spring Boot 3 applications should pin `io.temporal:temporal-spring-ai:1.40.x` until they migrate.
+
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
