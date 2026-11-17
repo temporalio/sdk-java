@@ -34,8 +34,8 @@ final class TemporalModelConverters {
   public static ExternalWorkflowInvocationHandler.ProbeResult captureWorkflowCall(
       Object method, Functions.Proc invocation, BiConsumer<String, Object[]> result) {
     ExternalWorkflowInvocationHandler.ProbeResult call =
-        ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.WORKFLOW);
-    result.accept(call.getName(), call.getArguments());
+        ExternalWorkflowInvocationHandler.probe(invocation, WorkflowMethodType.WORKFLOW);
+    result.accept(call.getMetadata().getName(), call.getArguments());
     return call;
   }
 
@@ -43,8 +43,8 @@ final class TemporalModelConverters {
   public static void captureSignalCall(
       Object method, Functions.Proc invocation, BiConsumer<String, Object[]> result) {
     ExternalWorkflowInvocationHandler.ProbeResult call =
-        ExternalWorkflowInvocationHandler.probe(method, invocation, WorkflowMethodType.SIGNAL);
-    result.accept(call.getName(), call.getArguments());
+        ExternalWorkflowInvocationHandler.probe(invocation, WorkflowMethodType.SIGNAL);
+    result.accept(call.getMetadata().getName(), call.getArguments());
   }
 
   /** Resolves a start operation's workflow ID from its bound workflow reference. */
@@ -69,13 +69,15 @@ final class TemporalModelConverters {
   /** Merges the original method annotation with explicit retry settings. */
   public static RetryOptions mergeMethodRetry(
       ExternalWorkflowInvocationHandler.ProbeResult call, RetryOptions explicit) {
-    return RetryOptions.merge(call.getMethod().getAnnotation(MethodRetry.class), explicit);
+    return RetryOptions.merge(
+        call.getMetadata().getWorkflowMethod().getAnnotation(MethodRetry.class), explicit);
   }
 
   /** Explicit schedules, including an empty string, override the method annotation. */
   public static String mergeCronSchedule(
       ExternalWorkflowInvocationHandler.ProbeResult call, String explicit) {
-    CronSchedule annotation = call.getMethod().getAnnotation(CronSchedule.class);
+    CronSchedule annotation =
+        call.getMetadata().getWorkflowMethod().getAnnotation(CronSchedule.class);
     return OptionsUtils.merge(annotation == null ? "" : annotation.value(), explicit, String.class);
   }
 

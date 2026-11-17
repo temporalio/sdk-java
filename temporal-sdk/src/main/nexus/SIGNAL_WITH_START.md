@@ -70,9 +70,10 @@ workflow result.
 The existing external invocation handler probes method names, arguments, result
 types, target execution, and the original annotated method using scoped
 thread locals. It sends no commands while probing and restores normal invocation
-behavior afterward, including on failure. Query/update methods and receiver
-lambdas are rejected. Both APIs take invocation arguments directly; options do
-not contain argument fields.
+behavior afterward, including on failure. The probe captures the original method
+metadata from the actual stub invocation, without inspecting serialized lambdas.
+Query/update methods, missing calls, and repeated calls are rejected. Both APIs
+take invocation arguments directly; options do not contain argument fields.
 Both forms support `Async.function`.
 
 Typed calls merge the workflow method's `@MethodRetry` and `@CronSchedule` with
