@@ -22,8 +22,6 @@ to docs, or any other relevant information.
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
-- Add internal converter scoping and external workflow method capture support for generated
-  workflow APIs.
 
 ## [1.41.1] - 2026-11-16
 
