@@ -74,13 +74,19 @@ public class TypedWorkflowMethodCaptureTest {
             method,
             () -> assertEquals(0, (int) method.apply("input")),
             WorkflowMethodType.WORKFLOW);
-    assertEquals("custom-workflow", call.getName());
+    assertEquals("custom-workflow", call.getMetadata().getName());
+    assertEquals(WorkflowMethodType.WORKFLOW, call.getMetadata().getType());
+    assertEquals(Target.class, call.getMetadata().getWorkflowInterface());
     assertArrayEquals(new Object[] {"input"}, call.getArguments());
-    assertEquals(int.class, call.getResultClass());
-    assertEquals(int.class, call.getResultType());
+    assertEquals(int.class, call.getMetadata().getWorkflowMethod().getReturnType());
+    assertEquals(int.class, call.getMetadata().getWorkflowMethod().getGenericReturnType());
     assertEquals("target", call.getStub().getExecution().getWorkflowId());
-    assertEquals(3, call.getMethod().getAnnotation(MethodRetry.class).maximumAttempts());
-    assertEquals("0 * * * *", call.getMethod().getAnnotation(CronSchedule.class).value());
+    assertEquals(
+        3,
+        call.getMetadata().getWorkflowMethod().getAnnotation(MethodRetry.class).maximumAttempts());
+    assertEquals(
+        "0 * * * *",
+        call.getMetadata().getWorkflowMethod().getAnnotation(CronSchedule.class).value());
     assertSame(ExternalWorkflowStub.fromTyped(target), call.getStub());
     call.getArguments()[0] = "changed";
     assertEquals("input", call.getArguments()[0]);
@@ -89,14 +95,17 @@ public class TypedWorkflowMethodCaptureTest {
     ProbeResult signalCall =
         ExternalWorkflowInvocationHandler.probe(
             signal, () -> signal.apply("value", 42), WorkflowMethodType.SIGNAL);
-    assertEquals("custom-signal", signalCall.getName());
+    assertEquals("custom-signal", signalCall.getMetadata().getName());
+    assertEquals(WorkflowMethodType.SIGNAL, signalCall.getMetadata().getType());
     assertArrayEquals(new Object[] {"value", 42}, signalCall.getArguments());
     GenericTarget generic = stub(GenericTarget.class, "generic");
     Functions.Func<List<String>> start = generic::start;
     ProbeResult genericCall =
         ExternalWorkflowInvocationHandler.probe(
             start, () -> start.apply(), WorkflowMethodType.WORKFLOW);
-    assertEquals("java.util.List<java.lang.String>", genericCall.getResultType().getTypeName());
+    assertEquals(
+        "java.util.List<java.lang.String>",
+        genericCall.getMetadata().getWorkflowMethod().getGenericReturnType().getTypeName());
     verifyNoInteractions(outbound);
     assertThrows(IllegalStateException.class, () -> target.start("outside probe"));
     assertSame(

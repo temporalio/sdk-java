@@ -14,7 +14,6 @@ import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
 import java.util.Objects;
 
 /** Dynamic implementation of a strongly typed external workflow interface. */
@@ -69,44 +68,26 @@ public class ExternalWorkflowInvocationHandler implements InvocationHandler {
   /** Metadata captured from a bound external workflow method. */
   public static final class ProbeResult {
     private final ExternalWorkflowStub stub;
-    private final String name;
     private final Object[] arguments;
-    private final Class<?> resultClass;
-    private final Type resultType;
-    private final Method method;
+    private final POJOWorkflowMethodMetadata metadata;
 
     private ProbeResult(
         ExternalWorkflowStub stub, POJOWorkflowMethodMetadata metadata, Object[] args) {
       this.stub = stub;
-      this.name = metadata.getName();
       this.arguments = args == null ? new Object[0] : args.clone();
-      this.method = metadata.getWorkflowMethod();
-      this.resultClass = method.getReturnType();
-      this.resultType = method.getGenericReturnType();
+      this.metadata = metadata;
     }
 
     public ExternalWorkflowStub getStub() {
       return stub;
     }
 
-    public String getName() {
-      return name;
-    }
-
     public Object[] getArguments() {
       return arguments.clone();
     }
 
-    public Class<?> getResultClass() {
-      return resultClass;
-    }
-
-    public Type getResultType() {
-      return resultType;
-    }
-
-    public Method getMethod() {
-      return method;
+    public POJOWorkflowMethodMetadata getMetadata() {
+      return metadata;
     }
   }
 
