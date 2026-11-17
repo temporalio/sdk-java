@@ -19,6 +19,16 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### Changed
+- Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
+  project-scoped custom roles, and caller rate limits.
+
+## [1.41.1] - 2026-11-16
+
+### Fixed
+- Fixed workflow updates hanging against the native time-skipping test server due to missing
+  protobuf reflection metadata.
+
 ## [1.41.0] - 2026-11-16
 
 ### :boom: Breaking Changes
