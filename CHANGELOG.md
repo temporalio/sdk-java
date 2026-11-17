@@ -19,6 +19,10 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### Fixed
+- Fixed activity worker termination waits returning before heartbeat shutdown initiated the final
+  poller shutdown, which could leave workflow-only workers reporting that shutdown was incomplete.
+
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
