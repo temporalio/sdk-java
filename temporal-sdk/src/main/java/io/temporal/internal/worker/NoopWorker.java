@@ -1,8 +1,8 @@
 package io.temporal.internal.worker;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Helper class that is used instead of null for non initialized worker. This eliminates needs for
@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 class NoopWorker implements SuspendableWorker {
 
-  private final AtomicBoolean shutdown = new AtomicBoolean();
+  private final CountDownLatch shutdown = new CountDownLatch(1);
 
   @Override
   public boolean start() {
@@ -19,12 +19,19 @@ class NoopWorker implements SuspendableWorker {
 
   @Override
   public CompletableFuture<Void> shutdown(ShutdownManager shutdownManager, boolean interruptTasks) {
-    shutdown.set(true);
+    shutdown.countDown();
     return CompletableFuture.completedFuture(null);
   }
 
   @Override
-  public void awaitTermination(long timeout, TimeUnit unit) {}
+  public void awaitTermination(long timeout, TimeUnit unit) {
+    try {
+      // Shutdown may be initiated by a continuation after another worker component terminates.
+      shutdown.await(timeout, unit);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
 
   @Override
   public void suspendPolling() {}
@@ -39,12 +46,12 @@ class NoopWorker implements SuspendableWorker {
 
   @Override
   public boolean isShutdown() {
-    return shutdown.get();
+    return shutdown.getCount() == 0;
   }
 
   @Override
   public boolean isTerminated() {
-    return shutdown.get();
+    return shutdown.getCount() == 0;
   }
 
   @Override

@@ -8,11 +8,9 @@ import io.temporal.worker.tuning.ActivitySlotInfo;
 import io.temporal.worker.tuning.SlotSupplier;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +27,6 @@ public class SyncActivityWorker implements SuspendableWorker {
   private final ActivityTaskHandlerImpl taskHandler;
   private final ActivityWorker worker;
   private final boolean allowActivityHeartbeatDuringShutdown;
-  private volatile CompletableFuture<Void> shutdownFuture;
 
   public SyncActivityWorker(
       WorkflowClient client,
@@ -111,13 +108,11 @@ public class SyncActivityWorker implements SuspendableWorker {
           shutdownHeartbeatExecutor(shutdownManager)
               .thenCompose(r -> worker.shutdown(shutdownManager, interruptTasks));
     }
-    this.shutdownFuture =
-        shutdownFuture.exceptionally(
-            e -> {
-              log.error("[BUG] Unexpected exception during shutdown", e);
-              return null;
-            });
-    return this.shutdownFuture;
+    return shutdownFuture.exceptionally(
+        e -> {
+          log.error("[BUG] Unexpected exception during shutdown", e);
+          return null;
+        });
   }
 
   private CompletableFuture<Void> shutdownHeartbeatExecutor(ShutdownManager shutdownManager) {
@@ -128,22 +123,6 @@ public class SyncActivityWorker implements SuspendableWorker {
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
     long timeoutMillis = unit.toMillis(timeout);
-    CompletableFuture<Void> shutdown = shutdownFuture;
-    if (shutdown != null) {
-      // Heartbeat termination can precede the continuation that shuts down an idle activity poller.
-      timeoutMillis =
-          ShutdownManager.runAndGetRemainingTimeoutMs(
-              timeoutMillis,
-              () -> {
-                try {
-                  shutdown.get(timeout, unit);
-                } catch (InterruptedException e) {
-                  Thread.currentThread().interrupt();
-                } catch (ExecutionException | TimeoutException e) {
-                  // Still await individual executors below using the remaining timeout.
-                }
-              });
-    }
     timeoutMillis = ShutdownManager.awaitTermination(worker, timeoutMillis);
     ShutdownManager.awaitTermination(heartbeatExecutor, timeoutMillis);
   }

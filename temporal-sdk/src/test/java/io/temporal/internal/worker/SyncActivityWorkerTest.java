@@ -18,12 +18,24 @@ import org.junit.Test;
 public class SyncActivityWorkerTest {
   @Test
   public void awaitTerminationWaitsForHeartbeatShutdownContinuation() throws Exception {
-    assertWaitsForHeartbeatShutdownContinuation(true);
+    assertWaitsForHeartbeatShutdownContinuation(true, false);
   }
 
   @Test
   public void gracefulAwaitTerminationWaitsForHeartbeatShutdownContinuation() throws Exception {
-    assertWaitsForHeartbeatShutdownContinuation(false);
+    assertWaitsForHeartbeatShutdownContinuation(false, false);
+  }
+
+  @Test
+  public void awaitTerminationBeforeShutdownWaitsForHeartbeatShutdownContinuation()
+      throws Exception {
+    assertWaitsForHeartbeatShutdownContinuation(true, true);
+  }
+
+  @Test
+  public void gracefulAwaitTerminationBeforeShutdownWaitsForHeartbeatShutdownContinuation()
+      throws Exception {
+    assertWaitsForHeartbeatShutdownContinuation(false, true);
   }
 
   @Test(timeout = 5_000)
@@ -79,14 +91,17 @@ public class SyncActivityWorkerTest {
     return worker;
   }
 
-  private static void assertWaitsForHeartbeatShutdownContinuation(boolean interruptTasks)
-      throws Exception {
+  private static void assertWaitsForHeartbeatShutdownContinuation(
+      boolean interruptTasks, boolean awaitBeforeShutdown) throws Exception {
     SyncActivityWorker worker = newIdleWorker();
     CompletableFuture<Boolean> awaitResult = new CompletableFuture<>();
     try (GatedShutdownManager manager = new GatedShutdownManager()) {
-      CompletableFuture<Void> shutdown = worker.shutdown(manager, interruptTasks);
-      assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
-      assertFalse(worker.isTerminated());
+      CompletableFuture<Void> shutdown = null;
+      if (!awaitBeforeShutdown) {
+        shutdown = worker.shutdown(manager, interruptTasks);
+        assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
+        assertFalse(worker.isTerminated());
+      }
       Thread waiter =
           new Thread(
               () -> {
@@ -106,6 +121,15 @@ public class SyncActivityWorkerTest {
                 assertTrue(
                     awaitResult.isDone() || waiter.getState() == Thread.State.TIMED_WAITING));
         assertFalse("awaitTermination returned before activity shutdown", awaitResult.isDone());
+        if (awaitBeforeShutdown) {
+          shutdown = worker.shutdown(manager, interruptTasks);
+          assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
+          // The heartbeat executor has stopped, but its shutdown continuation is still held.
+          Eventually.assertEventually(
+              Duration.ofSeconds(5),
+              () -> assertTrue(awaitResult.isDone() || isWaitingForIdlePoller(waiter)));
+          assertFalse("awaitTermination returned before activity shutdown", awaitResult.isDone());
+        }
       } finally {
         manager.continueShutdown.complete(null);
         waiter.join(5_000);
@@ -113,6 +137,19 @@ public class SyncActivityWorkerTest {
       assertTrue(awaitResult.get(5, TimeUnit.SECONDS));
       shutdown.get(5, TimeUnit.SECONDS);
     }
+  }
+
+  private static boolean isWaitingForIdlePoller(Thread waiter) {
+    if (waiter.getState() != Thread.State.TIMED_WAITING) {
+      return false;
+    }
+    for (StackTraceElement frame : waiter.getStackTrace()) {
+      if (frame.getClassName().equals(NoopWorker.class.getName())
+          && frame.getMethodName().equals("awaitTermination")) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static class GatedShutdownManager extends ShutdownManager {
