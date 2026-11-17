@@ -54,9 +54,12 @@ public class TemporalInterceptorMiddlewareTest {
                 return count;
               }));
     }
-    for (Future<Integer> f : misrouted) {
-      Assert.assertEquals(0, (int) f.get());
+    try {
+      for (Future<Integer> f : misrouted) {
+        Assert.assertEquals(0, (int) f.get());
+      }
+    } finally {
+      executor.shutdownNow();
     }
-    executor.shutdown();
   }
 }
