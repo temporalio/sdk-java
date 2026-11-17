@@ -6,14 +6,10 @@ import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.common.InternalUtils;
-import io.temporal.internal.common.JavaLambdaUtils;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
-import java.lang.invoke.MethodHandleInfo;
-import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Objects;
 
 /** Dynamic implementation of a strongly typed external workflow interface. */
@@ -23,22 +19,10 @@ public class ExternalWorkflowInvocationHandler implements InvocationHandler {
   private static final ThreadLocal<ProbeResult> probeResult = new ThreadLocal<>();
 
   /** Probes one invocation without starting a workflow or sending a signal. */
-  public static ProbeResult probe(
-      Object method, Functions.Proc invocation, WorkflowMethodType expected) {
+  public static ProbeResult probe(Functions.Proc invocation, WorkflowMethodType expected) {
     Objects.requireNonNull(invocation, "invocation");
     if (probeContext.get() != null) {
       throw new IllegalStateException("Already probing an external workflow invocation");
-    }
-    SerializedLambda reference =
-        JavaLambdaUtils.toSerializedLambda(Objects.requireNonNull(method, "method"));
-    Object target = JavaLambdaUtils.getTarget(reference);
-    if (reference == null
-        || reference.getImplMethodKind() != MethodHandleInfo.REF_invokeInterface
-        || target == null
-        || !Proxy.isProxyClass(target.getClass())
-        || !(Proxy.getInvocationHandler(target) instanceof ExternalWorkflowInvocationHandler)) {
-      throw new IllegalArgumentException(
-          "Expected a bound method from Workflow.newExternalWorkflowStub");
     }
     ProbeContext context = new ProbeContext(expected);
     probeContext.set(context);

@@ -71,9 +71,7 @@ public class TypedWorkflowMethodCaptureTest {
     Functions.Func1<String, Integer> method = target::start;
     ProbeResult call =
         ExternalWorkflowInvocationHandler.probe(
-            method,
-            () -> assertEquals(0, (int) method.apply("input")),
-            WorkflowMethodType.WORKFLOW);
+            () -> assertEquals(0, (int) method.apply("input")), WorkflowMethodType.WORKFLOW);
     assertEquals("custom-workflow", call.getMetadata().getName());
     assertEquals(WorkflowMethodType.WORKFLOW, call.getMetadata().getType());
     assertEquals(Target.class, call.getMetadata().getWorkflowInterface());
@@ -94,15 +92,14 @@ public class TypedWorkflowMethodCaptureTest {
     Functions.Proc2<String, Integer> signal = target::signal;
     ProbeResult signalCall =
         ExternalWorkflowInvocationHandler.probe(
-            signal, () -> signal.apply("value", 42), WorkflowMethodType.SIGNAL);
+            () -> signal.apply("value", 42), WorkflowMethodType.SIGNAL);
     assertEquals("custom-signal", signalCall.getMetadata().getName());
     assertEquals(WorkflowMethodType.SIGNAL, signalCall.getMetadata().getType());
     assertArrayEquals(new Object[] {"value", 42}, signalCall.getArguments());
     GenericTarget generic = stub(GenericTarget.class, "generic");
     Functions.Func<List<String>> start = generic::start;
     ProbeResult genericCall =
-        ExternalWorkflowInvocationHandler.probe(
-            start, () -> start.apply(), WorkflowMethodType.WORKFLOW);
+        ExternalWorkflowInvocationHandler.probe(() -> start.apply(), WorkflowMethodType.WORKFLOW);
     assertEquals(
         "java.util.List<java.lang.String>",
         genericCall.getMetadata().getWorkflowMethod().getGenericReturnType().getTypeName());
@@ -113,18 +110,16 @@ public class TypedWorkflowMethodCaptureTest {
   }
 
   @Test
-  public void rejectsMissingRepeatedWrongKindAndNonBoundInvocations() {
+  public void rejectsMissingRepeatedAndWrongKindInvocations() {
     Target target = stub(Target.class, "target");
     Functions.Func1<String, Integer> start = target::start;
     assertThrows(
         IllegalArgumentException.class,
-        () ->
-            ExternalWorkflowInvocationHandler.probe(start, () -> {}, WorkflowMethodType.WORKFLOW));
+        () -> ExternalWorkflowInvocationHandler.probe(() -> {}, WorkflowMethodType.WORKFLOW));
     assertThrows(
         IllegalArgumentException.class,
         () ->
             ExternalWorkflowInvocationHandler.probe(
-                start,
                 () -> {
                   start.apply("first");
                   start.apply("second");
@@ -134,29 +129,46 @@ public class TypedWorkflowMethodCaptureTest {
         IllegalArgumentException.class,
         () ->
             ExternalWorkflowInvocationHandler.probe(
-                start, () -> start.apply("input"), WorkflowMethodType.SIGNAL));
+                () -> start.apply("input"), WorkflowMethodType.SIGNAL));
     Functions.Proc2<String, Integer> signal = target::signal;
     assertThrows(
         IllegalArgumentException.class,
         () ->
             ExternalWorkflowInvocationHandler.probe(
-                signal, () -> signal.apply("value", 1), WorkflowMethodType.WORKFLOW));
+                () -> signal.apply("value", 1), WorkflowMethodType.WORKFLOW));
     Functions.Func<String> query = target::query;
     Functions.Func<String> update = target::update;
     assertThrows(
         IllegalArgumentException.class,
         () ->
             ExternalWorkflowInvocationHandler.probe(
-                query, () -> query.apply(), WorkflowMethodType.SIGNAL));
+                () -> query.apply(), WorkflowMethodType.SIGNAL));
     assertThrows(
         IllegalArgumentException.class,
         () ->
             ExternalWorkflowInvocationHandler.probe(
-                update, () -> update.apply(), WorkflowMethodType.SIGNAL));
-    Functions.Proc lambda = () -> target.start("input");
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> ExternalWorkflowInvocationHandler.probe(lambda, lambda, WorkflowMethodType.WORKFLOW));
+                () -> update.apply(), WorkflowMethodType.SIGNAL));
+    verifyNoInteractions(outbound);
+  }
+
+  @Test
+  public void capturesInvocationsWithoutInspectingTheirLambdaRepresentation() {
+    Target target = stub(Target.class, "target");
+    Functions.Proc invocation =
+        new Functions.Proc() {
+          @Override
+          public void apply() {
+            target.start("input");
+          }
+        };
+    ProbeResult call =
+        ExternalWorkflowInvocationHandler.probe(invocation, WorkflowMethodType.WORKFLOW);
+    assertEquals("custom-workflow", call.getMetadata().getName());
+    assertArrayEquals(new Object[] {"input"}, call.getArguments());
+    ProbeResult lambda =
+        ExternalWorkflowInvocationHandler.probe(
+            () -> target.start("lambda"), WorkflowMethodType.WORKFLOW);
+    assertArrayEquals(new Object[] {"lambda"}, lambda.getArguments());
     verifyNoInteractions(outbound);
   }
 
@@ -171,20 +183,18 @@ public class TypedWorkflowMethodCaptureTest {
             RuntimeException.class,
             () ->
                 ExternalWorkflowInvocationHandler.probe(
-                    method,
                     () -> {
                       throw failure;
                     },
                     WorkflowMethodType.WORKFLOW)));
     ProbeResult result =
         ExternalWorkflowInvocationHandler.probe(
-            method,
             () -> {
               assertThrows(
                   IllegalStateException.class,
                   () ->
                       ExternalWorkflowInvocationHandler.probe(
-                          method, () -> method.apply("nested"), WorkflowMethodType.WORKFLOW));
+                          () -> method.apply("nested"), WorkflowMethodType.WORKFLOW));
               method.apply("outer");
             },
             WorkflowMethodType.WORKFLOW);
@@ -214,7 +224,6 @@ public class TypedWorkflowMethodCaptureTest {
       Functions.Func1<String, Integer> method, String value, CyclicBarrier barrier) {
     ProbeResult result =
         ExternalWorkflowInvocationHandler.probe(
-            method,
             () -> {
               try {
                 barrier.await(5, TimeUnit.SECONDS);
