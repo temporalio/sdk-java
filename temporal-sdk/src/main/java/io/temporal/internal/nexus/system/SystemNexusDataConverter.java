@@ -10,7 +10,6 @@ import io.temporal.common.converter.RawValue;
 import io.temporal.internal.common.converter.TemporalTransferTypeDataConverter;
 import io.temporal.internal.payload.visitor.SystemNexusPayloads;
 import java.lang.reflect.Type;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -18,27 +17,15 @@ import javax.annotation.Nonnull;
 /** Keeps the server-readable envelope separate from the destination workflow's user converter. */
 public final class SystemNexusDataConverter implements DataConverter {
   public static final String ENDPOINT = "__temporal_system";
-  private static final ThreadLocal<DataConverter> USER_CONVERTER = new ThreadLocal<>();
   private final DataConverter userConverter;
 
   /** Returns the user converter active in the current synchronous transfer conversion scope. */
   public static DataConverter currentDataConverter() {
-    DataConverter converter = USER_CONVERTER.get();
-    if (converter == null)
-      throw new IllegalStateException("System Nexus user converter context is not active");
-    return converter;
+    return SystemNexusConverterContext.currentDataConverter();
   }
 
   static <T> T withDataConverter(DataConverter converter, Supplier<T> action) {
-    Objects.requireNonNull(converter, "converter");
-    DataConverter previous = USER_CONVERTER.get();
-    USER_CONVERTER.set(converter);
-    try {
-      return action.get();
-    } finally {
-      if (previous == null) USER_CONVERTER.remove();
-      else USER_CONVERTER.set(previous);
-    }
+    return SystemNexusConverterContext.withDataConverter(converter, action);
   }
 
   public SystemNexusDataConverter(DataConverter userConverter) {
