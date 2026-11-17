@@ -23,6 +23,10 @@ to docs, or any other relevant information.
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
 
+### Fixed
+- The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
+  as asynchronous.
+
 ## [1.41.1] - 2026-11-16
 
 ### Fixed
