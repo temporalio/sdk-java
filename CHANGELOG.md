@@ -30,6 +30,10 @@ to docs, or any other relevant information.
   viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
   `addEventGroups` on the command's options.
 
+### Changed
+- Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
+  project-scoped custom roles, and caller rate limits.
+
 ## [1.41.1] - 2026-11-16
 
 ### Fixed
