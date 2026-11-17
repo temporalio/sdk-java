@@ -242,7 +242,6 @@ public class SystemSignalWithStartIntegrationTest {
       String id = Workflow.getInfo().getWorkflowId() + "-target";
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
-              .setTaskQueue(Workflow.getInfo().getTaskQueue())
               .setCronSchedule("")
               .setIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)

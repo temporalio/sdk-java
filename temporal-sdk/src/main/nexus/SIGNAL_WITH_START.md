@@ -1,7 +1,8 @@
 # Signal with start inside workflows
 
 The generated workflow API atomically signals an external workflow, starting it
-when necessary. It requires a server supporting the system workflow service.
+when necessary. It requires a server supporting the system workflow service with
+`history.enableSignalWithStartFromWorkflow` enabled.
 
 ```java
 ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
@@ -97,3 +98,14 @@ valid and unknown versioning override shapes; unknown shapes are rejected.
 This operation serializes the request and deserializes a response with no user
 payloads. Future operations returning embedded payloads must use generic response
 models and propagate concrete result types from the API to transfer conversion.
+
+## Real-server tests
+
+The repository's dev-server profile enables the operation on its pinned server.
+Run the signal-with-start, codec-context, and replay tests with:
+
+```sh
+./gradlew --offline :temporal-sdk:test \
+  --tests 'io.temporal.workflow.nexus.SystemSignalWithStartIntegrationTest' \
+  -PtestServer=dev-server
+```
