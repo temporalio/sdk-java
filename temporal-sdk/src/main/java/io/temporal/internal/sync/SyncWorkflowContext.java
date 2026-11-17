@@ -77,7 +77,9 @@ import org.slf4j.LoggerFactory;
  * definition on the worker meets ReplayWorkflowContext which contains information from the
  * WorkflowTask
  */
-final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCallsInterceptor {
+final class SyncWorkflowContext
+    extends io.temporal.workflow.SystemNexusWorkflowOutboundInterceptor.Terminal
+    implements WorkflowContext, WorkflowOutboundCallsInterceptor {
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
 
   private final String namespace;
@@ -854,6 +856,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             (b) ->
                 dataConverterWithChildWorkflowContext.fromPayloads(0, b, resultClass, resultType));
     return new ChildWorkflowOutput<>(result, executionPromise);
+  }
+
+  @Override
+  protected <R> ExecuteNexusOperationOutput<R> executeSystemNexusOperation(
+      ExecuteNexusOperationInput<R> input) {
+    // Execute on this terminal directly, without re-entering the outbound interceptor chain.
+    return executeNexusOperation(input);
   }
 
   @Override

@@ -173,6 +173,14 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public ExecuteNexusOperationOutput<io.temporal.workflow.SignalWithStartWorkflowResponse>
+        executeSignalWithStartWorkflow(
+            ExecuteNexusOperationInput<io.temporal.workflow.SignalWithStartWorkflowResponse>
+                input) {
+      return next.executeSignalWithStartWorkflow(input);
+    }
+
+    @Override
     public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
         ExecuteNexusOperationInput<R> input) {
       if (!WorkflowUnsafe.isReplaying()) {

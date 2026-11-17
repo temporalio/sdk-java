@@ -33,6 +33,17 @@ stub supports further signals and cancellation. Use
 `Async.function(() -> Workflow.signalWithStartWorkflow(workflowType, args,
 signalName, signalArgs, options))` for a promise.
 
+Signal with start uses `executeSignalWithStartWorkflow`, not ordinary
+`executeNexusOperation` interception. `WorkflowOutboundCallsInterceptorBase`
+forwards the specific hook to the next interceptor. Direct implementations of
+`WorkflowOutboundCallsInterceptor` must implement that hook and call
+`next.executeSignalWithStartWorkflow(input)` to forward it, just like other
+outbound operations. The generated `SystemNexusWorkflowOutboundInterceptor.Base`
+provides typed forwarding, while its generated `Terminal` implements the typed
+hooks through `executeSystemNexusOperation`. `SyncWorkflowContext` supplies that
+terminal transport without re-entering the interceptor chain. Adding operations
+does not require handwritten forwarding or terminal methods.
+
 The typed overload checks workflow and signal arguments against their interface:
 
 ```java

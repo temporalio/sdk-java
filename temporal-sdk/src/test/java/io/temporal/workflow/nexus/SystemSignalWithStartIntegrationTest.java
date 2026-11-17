@@ -11,6 +11,11 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.common.interceptors.WorkerInterceptorBase;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowInboundCallsInterceptorBase;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
+import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptorBase;
 import io.temporal.internal.payload.visitor.SystemNexusPayloads;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
@@ -19,6 +24,8 @@ import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.WorkflowReplayer;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
+import io.temporal.testing.internal.TracingWorkerInterceptor;
+import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.workflow.*;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -36,6 +43,40 @@ public class SystemSignalWithStartIntegrationTest {
   public SDKTestWorkflowRule rule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(CallerImpl.class, ConcurrentCallerImpl.class, TargetImpl.class)
+          .setWorkerFactoryOptions(
+              WorkerFactoryOptions.newBuilder()
+                  .setWorkerInterceptors(
+                      new WorkerInterceptorBase() {
+                        @Override
+                        public WorkflowInboundCallsInterceptor interceptWorkflow(
+                            WorkflowInboundCallsInterceptor next) {
+                          return new WorkflowInboundCallsInterceptorBase(next) {
+                            @Override
+                            public void init(WorkflowOutboundCallsInterceptor outbound) {
+                              super.init(
+                                  new WorkflowOutboundCallsInterceptorBase(outbound) {
+                                    @Override
+                                    public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
+                                        ExecuteNexusOperationInput<R> input) {
+                                      throw new AssertionError(
+                                          "System operations must bypass ordinary Nexus interception");
+                                    }
+                                  });
+                            }
+                          };
+                        }
+                      },
+                      new TracingWorkerInterceptor(
+                          new TracingWorkerInterceptor.FilteredTrace() {
+                            @Override
+                            public boolean add(String event) {
+                              assertFalse(
+                                  "Direct implementations must also bypass ordinary Nexus hooks",
+                                  event.startsWith("executeNexusOperation "));
+                              return super.add(event);
+                            }
+                          }))
+                  .build())
           .setWorkflowClientOptions(
               WorkflowClientOptions.newBuilder()
                   .setDataConverter(
