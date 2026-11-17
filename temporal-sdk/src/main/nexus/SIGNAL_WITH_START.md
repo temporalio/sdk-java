@@ -17,8 +17,10 @@ ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
 Import `Workflow`, `SignalWithStartWorkflowOptions`, and `ExternalWorkflowStub`
 from `io.temporal.workflow`. The generated options builder contains the API's
 options, including timeouts, retry policy, memo, conflict policy, and flattened
-static summary/details setters. Task queue is a required option. The workflow ID
-can be omitted for typed calls and is required for name-based calls before
+static summary/details setters. Task queue defaults to the calling workflow's
+task queue at invocation; an explicit task queue overrides it. Options can be
+built outside a workflow and reused without capturing workflow context. The
+workflow ID can be omitted for typed calls and is required for name-based calls before
 dispatch. Only the workflow and signal references or
 names and their inputs are direct parameters. Every overload requires a non-null
 options object. The request

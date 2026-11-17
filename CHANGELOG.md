@@ -29,6 +29,9 @@ to docs, or any other relevant information.
 - Experimental Event Groups associate related workflow commands so their history events can be
   viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
   `addEventGroups` on the command's options.
+- Add workflow-side signal-with-start through generated System Nexus APIs, with typed method
+  references, options builders, and outbound interceptor hooks. Requires a server supporting the
+  system workflow service. Task queue defaults to the calling workflow's task queue at invocation.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,

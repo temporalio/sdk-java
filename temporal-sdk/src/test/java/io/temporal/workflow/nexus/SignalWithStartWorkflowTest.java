@@ -18,7 +18,8 @@ public class SignalWithStartWorkflowTest {
   @Rule
   public SDKTestWorkflowRule rule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(CallerImpl.class, IdentityCallerImpl.class)
+          .setWorkflowTypes(
+              CallerImpl.class, IdentityCallerImpl.class, QueueDefaultsCallerImpl.class)
           .setWorkerFactoryOptions(
               WorkerFactoryOptions.newBuilder()
                   .setWorkerInterceptors(
@@ -46,7 +47,11 @@ public class SignalWithStartWorkflowTest {
                                           Workflow.getInfo().getNamespace(),
                                           request.getNamespace());
                                       assertEquals("notify", request.getSignal());
-                                      assertEquals("queue", request.getTaskQueue());
+                                      assertEquals(
+                                          request.getId().endsWith("queue-defaults")
+                                              ? Workflow.getInfo().getTaskQueue()
+                                              : "queue",
+                                          request.getTaskQueue());
                                       if (request.getId().startsWith("typed")) {
                                         assertEquals(
                                             java.time.Duration.ofSeconds(7),
@@ -120,24 +125,49 @@ public class SignalWithStartWorkflowTest {
         () ->
             Workflow.signalWithStartWorkflow(
                 "Target", new Object[0], "notify", new Object[0], null));
-    SignalWithStartWorkflowOptions withoutId =
-        SignalWithStartWorkflowOptions.newBuilder().setTaskQueue("queue").build();
+    SignalWithStartWorkflowOptions withoutId = SignalWithStartWorkflowOptions.newBuilder().build();
     assertNull(withoutId.getId());
-    assertEquals(
-        "id",
-        assertThrows(
-                NullPointerException.class,
-                () ->
-                    Workflow.signalWithStartWorkflow(
-                        "Target", new Object[0], "notify", new Object[0], withoutId))
-            .getMessage());
-    assertThrows(
-        NullPointerException.class,
-        () -> SignalWithStartWorkflowOptions.newBuilder().setId("id").build());
+    assertNull(withoutId.getTaskQueue());
     SignalWithStartWorkflowOptions options =
         SignalWithStartWorkflowOptions.newBuilder().setId("id").setTaskQueue("queue").build();
     assertEquals("id", options.getId());
     assertEquals("queue", options.toBuilder().setId("copy").build().getTaskQueue());
+  }
+
+  @Test
+  public void taskQueueDefaultsAtInvocationForTypedAndNameBasedCalls() {
+    assertEquals(
+        java.util.Arrays.asList("queue-defaults", "typed-queue-defaults"),
+        rule.newWorkflowStubTimeoutOptions(QueueDefaultsCaller.class).run());
+    assertEquals(2, scheduledOperations.get());
+  }
+
+  @WorkflowInterface
+  public interface QueueDefaultsCaller {
+    @WorkflowMethod
+    java.util.List<String> run();
+  }
+
+  public static class QueueDefaultsCallerImpl implements QueueDefaultsCaller {
+    @Override
+    public java.util.List<String> run() {
+      SignalWithStartWorkflowOptions options = SignalWithStartWorkflowOptions.newBuilder().build();
+      ExternalWorkflowStub untyped =
+          Workflow.signalWithStartWorkflow(
+              "Target",
+              new Object[0],
+              "notify",
+              new Object[0],
+              options.toBuilder().setId("queue-defaults").build());
+      EmptyTarget target =
+          Workflow.newExternalWorkflowStub(EmptyTarget.class, "typed-queue-defaults");
+      ExternalWorkflowStub typed =
+          Workflow.signalWithStartWorkflow(target::start, target::signalValue, options);
+      assertNull(options.getId());
+      assertNull(options.getTaskQueue());
+      return java.util.Arrays.asList(
+          untyped.getExecution().getWorkflowId(), typed.getExecution().getWorkflowId());
+    }
   }
 
   @WorkflowInterface
@@ -268,6 +298,18 @@ public class SignalWithStartWorkflowTest {
   public static class CallerImpl implements Caller {
     @Override
     public String run() {
+      assertEquals(
+          "id",
+          assertThrows(
+                  NullPointerException.class,
+                  () ->
+                      Workflow.signalWithStartWorkflow(
+                          "Target",
+                          new Object[0],
+                          "notify",
+                          new Object[0],
+                          SignalWithStartWorkflowOptions.newBuilder().build()))
+              .getMessage());
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
               .setId("sync")

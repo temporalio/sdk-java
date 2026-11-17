@@ -8,7 +8,8 @@ eventually consume these definitions from the API repo instead. Protobuf
 descriptors from
 `temporal-serviceclient:generateProto` validate the mappings during generation.
 
-Regenerate with nex-gen 0.2.9 built with its `advanced` feature:
+Regenerate with nexgen 0.2.12 from temporalio/nexgen#245, built with its
+`advanced` feature, and `google-java-format` 1.24.0 on `PATH`:
 
 ```sh
 ./gradlew :temporal-sdk:generateNexusSystemApi \
@@ -18,13 +19,14 @@ Regenerate with nex-gen 0.2.9 built with its `advanced` feature:
 
 Generated Java and `system-nexus-roots.txt` are checked in under
 `src/main/generated/io/temporal/workflow`, an isolated main Java source root.
-The generator uses `--package-name io.temporal.workflow` and the WIT annotation
-`@nexus.operations-class java="WorkflowOperations"`. `Workflow` extends this
+The generator uses `--targets workflow`, `--package-name io.temporal.workflow`,
+and the WIT annotation `@nexus.operations-class java="WorkflowOperations"`.
+`Workflow` extends this
 generated base once; additional operations require no handwritten facade methods.
 Generated operations take only function references/names and their inputs as
 parameters. All other fields live in a mandatory generated options object.
-Its builder validates required values, except merged fields resolved at
-invocation. Typed calls derive an omitted workflow ID from the workflow
+Its builder validates required caller values; defaults and merged fields resolve
+at invocation. Typed calls derive an omitted workflow ID from the workflow
 reference; name-based calls require an explicit ID before dispatch.
 All generated API types are available from the workflow package.
 Typed overloads take bound methods followed directly by arguments. SDK-owned
@@ -42,16 +44,16 @@ The manifest derives from operation input/output protobuf transfer types. The se
 payload visitor generator consumes it, including payload-free response roots,
 without depending on compiled SDK classes.
 
-Regeneration passes `--format` to nex-gen, which uses google-java-format 1.24.0
-to match the SDK's Spotless configuration. Nex-gen downloads and caches its
-standalone JAR on first use; for offline regeneration, set
-`NEXGEN_JAVA_FORMAT_JAR` to a local all-dependencies JAR. A JDK must be on `PATH`.
+Regeneration passes `--format` to nexgen, which invokes the installed
+`google-java-format` command. Version 1.24.0 matches the SDK's Spotless
+configuration. Nexgen does not download the formatter. Normal SDK builds use
+the checked-in output and do not require either tool.
 
 `TemporalModelConverters` is package-private in `io.temporal.workflow`, alongside
 the generated classes, and contains SDK-owned conversion helpers. The nexgen
 sample support file contains its own copies of these implementations. The emitted
 `NexgenRuntime` contains only payload-sequence decoding. Converter scoping lives
-in `SystemNexusDataConverter`; generated transfer converters obtain the active
+in `SystemNexusConverterContext`; generated transfer converters obtain the active
 converter through `TemporalModelConverters.currentDataConverter()` and fail
 when no scope is active, matching Python. Protobuf field access is generated
 directly. Nex-gen assembles the required runtime helpers from Rust strings.

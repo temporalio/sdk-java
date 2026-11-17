@@ -35,6 +35,8 @@ interface model {
   ///   java-to="failureToProto"
   ///   python="BaseException"
   ///   typescript="Error"
+  ///   typescript-from="errorFromFailure"
+  ///   typescript-to="errorToFailure"
   ///   go="error"
   ///   dotnet="System.Exception"
   ///   dotnet-from="ProtoExtensions.FromFailureProto"
@@ -50,7 +52,7 @@ interface model {
   type workflow-result = placeholder;
 
   /// Receiver/context argument for workflow callable method forms.
-  /// @nexus.type python="typing.Any" typescript="any" go="go.temporal.io/sdk/workflow:workflow.Context" dotnet="object"
+  /// @nexus.type python="typing.Any" typescript="any" go="go.temporal.io/sdk/internal:internal.Context" dotnet="object"
   type callable-prefix = placeholder;
 
   /// @nexus.function-args
@@ -108,7 +110,7 @@ interface model {
   ///   dotnet-call-extractor="TemporalFunctionNames.ExtractCall"
   ///   java-call-extractor="captureSignalCall"
   ///   typescript-value-type="common.SignalDefinition<any[]>"
-  ///   typescript-args-type="Value extends common.SignalDefinition<infer Args extends any[], any> ? Args : never"
+  ///   typescript-args-type="Value extends common.SignalDefinition<infer Args, any> ? Args : never"
   ///   typescript-import="@temporalio/common"
   /// @nexus.add-rpc-compatible-with "string"
   type signal-function = placeholder;
@@ -120,7 +122,7 @@ interface model {
   ///   java-to="retryPolicyToProto"
   ///   python="temporalio.common.RetryPolicy"
   ///   typescript="common.RetryPolicy"
-  ///   go="go.temporal.io/sdk/temporal.RetryPolicy"
+  ///   go="go.temporal.io/sdk/internal.RetryPolicy"
   ///   dotnet="Temporalio.Common.RetryPolicy"
   ///   dotnet-from="ProtoExtensions.FromRetryPolicyProto"
   ///   typescript-import="@temporalio/common"
@@ -157,8 +159,8 @@ interface model {
   ///   java-from="headerFromProto"
   ///   java-to="headerToProto"
   ///   python="collections.abc.Mapping[str, typing.Any]"
-  ///   typescript="common.Headers"
-  ///   go="map[string]any"
+  ///   typescript="Record<string, unknown>"
+  ///   go="map[string]*go.temporal.io/api/common/v1:common.Payload"
   ///   dotnet="IReadOnlyDictionary<string, object?>"
   ///   dotnet-from="ProtoExtensions.FromHeaderProto"
   ///   dotnet-to="ProtoExtensions.ToHeaderProto"
@@ -172,7 +174,7 @@ interface model {
   ///   java-to="searchAttributesToProto"
   ///   python="temporalio.common.TypedSearchAttributes"
   ///   typescript="common.TypedSearchAttributes"
-  ///   go="go.temporal.io/sdk/temporal.SearchAttributes"
+  ///   go="go.temporal.io/sdk/internal.SearchAttributes"
   ///   dotnet="Temporalio.Common.SearchAttributeCollection"
   ///   dotnet-from="ProtoExtensions.FromSearchAttributesProto"
   ///   typescript-import="@temporalio/common"
@@ -185,7 +187,7 @@ interface model {
   ///   java-to="priorityToProto"
   ///   python="temporalio.common.Priority"
   ///   typescript="common.Priority"
-  ///   go="go.temporal.io/sdk/temporal.Priority"
+  ///   go="go.temporal.io/sdk/internal.Priority"
   ///   dotnet="Temporalio.Common.Priority"
   ///   dotnet-from="ProtoExtensions.FromPriorityProto"
   ///   typescript-import="@temporalio/common"
@@ -198,7 +200,7 @@ interface model {
   ///   java-to="versioningOverrideToProto"
   ///   python="temporalio.common.VersioningOverride"
   ///   typescript="common.VersioningOverride"
-  ///   go="go.temporal.io/sdk/client.VersioningOverride"
+  ///   go="go.temporal.io/sdk/internal.VersioningOverride"
   ///   dotnet="Temporalio.Common.VersioningOverride"
   ///   dotnet-from="ProtoExtensions.FromVersioningOverrideProto"
   ///   typescript-import="@temporalio/common"
