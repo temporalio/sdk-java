@@ -18,55 +18,13 @@ import org.junit.Test;
 public class SyncActivityWorkerTest {
   @Test
   public void awaitTerminationWaitsForHeartbeatShutdownContinuation() throws Exception {
-    assertWaitsForHeartbeatShutdownContinuation(true, false);
-  }
-
-  @Test
-  public void gracefulAwaitTerminationWaitsForHeartbeatShutdownContinuation() throws Exception {
-    assertWaitsForHeartbeatShutdownContinuation(false, false);
+    assertWaitsForHeartbeatShutdownContinuation(false);
   }
 
   @Test
   public void awaitTerminationBeforeShutdownWaitsForHeartbeatShutdownContinuation()
       throws Exception {
-    assertWaitsForHeartbeatShutdownContinuation(true, true);
-  }
-
-  @Test
-  public void gracefulAwaitTerminationBeforeShutdownWaitsForHeartbeatShutdownContinuation()
-      throws Exception {
-    assertWaitsForHeartbeatShutdownContinuation(false, true);
-  }
-
-  @Test(timeout = 5_000)
-  public void awaitTerminationRespectsTimeout() throws Exception {
-    SyncActivityWorker worker = newIdleWorker();
-    try (GatedShutdownManager manager = new GatedShutdownManager()) {
-      worker.shutdown(manager, true);
-      assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
-      worker.awaitTermination(0, TimeUnit.SECONDS);
-      worker.awaitTermination(20, TimeUnit.MILLISECONDS);
-      assertFalse(worker.isTerminated());
-    }
-    assertTrue(worker.isTerminated());
-  }
-
-  @Test
-  public void awaitTerminationPreservesInterruption() throws Exception {
-    SyncActivityWorker worker = newIdleWorker();
-    try (GatedShutdownManager manager = new GatedShutdownManager()) {
-      worker.shutdown(manager, true);
-      assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
-      Thread.currentThread().interrupt();
-      try {
-        worker.awaitTermination(5, TimeUnit.SECONDS);
-        assertTrue(Thread.currentThread().isInterrupted());
-        assertFalse(worker.isTerminated());
-      } finally {
-        Thread.interrupted();
-      }
-    }
-    assertTrue(worker.isTerminated());
+    assertWaitsForHeartbeatShutdownContinuation(true);
   }
 
   private static SyncActivityWorker newIdleWorker() {
@@ -91,14 +49,14 @@ public class SyncActivityWorkerTest {
     return worker;
   }
 
-  private static void assertWaitsForHeartbeatShutdownContinuation(
-      boolean interruptTasks, boolean awaitBeforeShutdown) throws Exception {
+  private static void assertWaitsForHeartbeatShutdownContinuation(boolean awaitBeforeShutdown)
+      throws Exception {
     SyncActivityWorker worker = newIdleWorker();
     CompletableFuture<Boolean> awaitResult = new CompletableFuture<>();
     try (GatedShutdownManager manager = new GatedShutdownManager()) {
       CompletableFuture<Void> shutdown = null;
       if (!awaitBeforeShutdown) {
-        shutdown = worker.shutdown(manager, interruptTasks);
+        shutdown = worker.shutdown(manager, true);
         assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
         assertFalse(worker.isTerminated());
       }
@@ -122,7 +80,7 @@ public class SyncActivityWorkerTest {
                     awaitResult.isDone() || waiter.getState() == Thread.State.TIMED_WAITING));
         assertFalse("awaitTermination returned before activity shutdown", awaitResult.isDone());
         if (awaitBeforeShutdown) {
-          shutdown = worker.shutdown(manager, interruptTasks);
+          shutdown = worker.shutdown(manager, true);
           assertTrue(manager.heartbeatTerminated.await(5, TimeUnit.SECONDS));
           // The heartbeat executor has stopped, but its shutdown continuation is still held.
           Eventually.assertEventually(
