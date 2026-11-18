@@ -105,4 +105,14 @@ public interface ChildWorkflowStub {
    * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
    */
   void signal(String signalName, Object... args);
+
+  /**
+   * Synchronously signals a workflow by invoking its signal handler, with options.
+   *
+   * @param signalName name of the signal handler. Usually it is a method name.
+   * @param options options of the signal command.
+   * @param args signal method arguments.
+   * @throws SignalExternalWorkflowException if there is failure to signal the workflow.
+   */
+  void signalWithOptions(String signalName, SignalChildWorkflowOptions options, Object... args);
 }

@@ -458,6 +458,12 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public int getVersion(
+        String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public void continueAsNew(ContinueAsNewInput input) {
       throw new UnsupportedOperationException("not implemented");
     }
@@ -498,7 +504,18 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    public void upsertTypedSearchAttributes(
+        UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
     public void upsertMemo(Map<String, Object> memo) {
+      throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    public void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
       throw new UnsupportedOperationException("not implemented");
     }
 
