@@ -128,7 +128,8 @@ public final class ContinueAsNewOptions {
     }
 
     /**
-     * Event Groups to associate with the continue-as-new command. Calls accumulate.
+     * Event Groups to associate with the continue-as-new command, in addition to those in scope.
+     * Calls accumulate.
      *
      * @see EventGroup
      */

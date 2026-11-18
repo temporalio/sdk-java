@@ -465,6 +465,13 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     long originalScheduledTime = System.currentTimeMillis();
     CompletablePromise<LocalActivityCallback.Output> localActivityResult =
         WorkflowInternal.newCompletablePromise();
+
+    // Retries and backoff timers are issued from callback threads, which don't inherit
+    // the active EG scope from this thread. Capture the current scope (merging in direct
+    // assignments passed to this LA), and reuse it for the backoff timers and later attempts.
+    EventGroupScope eventGroupScope =
+        EventGroupScope.current().withExplicitGroups(input.getOptions().getEventGroups());
+
     executeLocalActivityOverLocalRetryThreshold(
         input.getActivityName(),
         input.getActivityId(),
@@ -475,6 +482,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         originalScheduledTime,
         1,
         null,
+        eventGroupScope,
         localActivityResult);
 
     // Avoid passing the input to the output handle as it causes the input to be retained for the
@@ -512,6 +520,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       long originalScheduledTime,
       int attempt,
       @Nullable Failure previousExecutionFailure,
+      EventGroupScope eventGroupScope,
       CompletablePromise<LocalActivityCallback.Output> result) {
     CompletablePromise<LocalActivityCallback.Output> localExecutionResult =
         executeLocalActivityLocally(
@@ -523,7 +532,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             arguments,
             originalScheduledTime,
             attempt,
-            previousExecutionFailure);
+            previousExecutionFailure,
+            eventGroupScope);
 
     localExecutionResult.handle(
         (r, e) -> {
@@ -535,11 +545,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                   (LocalActivityCallback.LocalActivityFailedException) e;
               @Nullable Duration backoff = laException.getBackoff();
               if (backoff != null) {
-                WorkflowInternal.newTimer(
-                        backoff,
-                        TimerOptions.newBuilder()
-                            .addEventGroups(options.getEventGroups().toArray(new EventGroup[0]))
-                            .build())
+                eventGroupScope
+                    .run(() -> WorkflowInternal.newTimer(backoff))
                     .thenApply(
                         unused -> {
                           executeLocalActivityOverLocalRetryThreshold(
@@ -553,6 +560,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
                               laException.getLastAttempt() + 1,
                               // Carry the attempt failure, not the local ActivityFailure wrapper.
                               laException.getFailure().getCause(),
+                              eventGroupScope,
                               result);
                           return null;
                         });
@@ -583,7 +591,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       @Nullable LocalActivityArguments arguments,
       long originalScheduledTime,
       int attempt,
-      @Nullable Failure previousExecutionFailure) {
+      @Nullable Failure previousExecutionFailure,
+      EventGroupScope eventGroupScope) {
 
     LocalActivityCallbackImpl callback = new LocalActivityCallbackImpl();
     ExecuteLocalActivityParameters params =
@@ -596,7 +605,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
             arguments,
             attempt,
             originalScheduledTime,
-            previousExecutionFailure);
+            previousExecutionFailure,
+            eventGroupScope);
     Functions.Proc cancellationCallback = replayContext.scheduleLocalActivityTask(params, callback);
     CancellationScope.current()
         .getCancellationRequest()
@@ -700,7 +710,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
       @Nullable LocalActivityArguments arguments,
       int attempt,
       long originalScheduledTime,
-      @Nullable Failure previousExecutionFailure) {
+      @Nullable Failure previousExecutionFailure,
+      EventGroupScope eventGroupScope) {
     options = LocalActivityOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     PollActivityTaskQueueResponse.Builder activityTask =
@@ -758,7 +769,10 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
         options.isDoNotIncludeArgumentsIntoMarker(),
         localRetryThreshold,
         userMetadata,
-        eventGroupMarkers(options.getEventGroups()),
+        eventGroupScope.toMarkers(
+            // Direct assignments have already been applied to the eventGroupScope, hence
+            // emptyList() here
+            Collections.emptyList(), dataConverterWithCurrentWorkflowContext),
         arguments);
   }
 
@@ -1835,7 +1849,8 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
   }
 
   private List<EventGroupMarker> eventGroupMarkers(List<EventGroup> directGroups) {
-    return EventGroupImpl.toMarkers(directGroups, dataConverterWithCurrentWorkflowContext);
+    return EventGroupScope.current()
+        .toMarkers(directGroups, dataConverterWithCurrentWorkflowContext);
   }
 
   /** Simple wrapper over a failure just to allow completing the CompletablePromise as a failure */

@@ -27,8 +27,9 @@ to docs, or any other relevant information.
 
 ### Added
 - Experimental Event Groups associate related workflow commands so their history events can be
-  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
-  `addEventGroups` on the command's options.
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it either by running
+  commands inside `EventGroup.run` or by calling `addEventGroups` on the command's options. Signal
+  and update handlers receive an implicit group for the signal event or update that invoked them.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,

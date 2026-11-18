@@ -55,7 +55,8 @@ public final class SignalExternalWorkflowOptions {
     }
 
     /**
-     * Event Groups to associate with the signal command. Calls accumulate.
+     * Event Groups to associate with the signal command, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */
