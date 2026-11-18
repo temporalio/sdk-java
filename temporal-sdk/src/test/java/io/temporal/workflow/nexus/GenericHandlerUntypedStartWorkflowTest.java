@@ -66,7 +66,7 @@ public class GenericHandlerUntypedStartWorkflowTest {
   public class TestNexusServiceImpl {
     @TemporalOperation
     public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
-      NexusOperationInfo info = Nexus.getInfo();
+      NexusOperationInfo info = Nexus.getOperationContext().getInfo();
       return client.startWorkflow(
           "func1",
           String.class,

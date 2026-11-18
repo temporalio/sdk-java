@@ -112,6 +112,6 @@ public class TemporalInterceptorMiddlewareTest {
         new TemporalInterceptorMiddleware(new WorkerInterceptor[0]);
     middleware.intercept(
         operationContext, OperationHandler.sync((context, details, input) -> input));
-    return Nexus.getInfo().getCancellationToken();
+    return Nexus.getOperationContext().getInfo().getCancellationToken();
   }
 }

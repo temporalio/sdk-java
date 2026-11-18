@@ -165,9 +165,9 @@ public class ActivityOperationLinkingTest {
                 ActivityClient.newInstance(
                     Nexus.getOperationContext().getWorkflowClient().getWorkflowServiceStubs(),
                     ActivityClientOptions.newBuilder()
-                        .setNamespace(Nexus.getInfo().getNamespace())
+                        .setNamespace(Nexus.getOperationContext().getInfo().getNamespace())
                         .build());
-            String taskQueue = Nexus.getInfo().getTaskQueue();
+            String taskQueue = Nexus.getOperationContext().getInfo().getTaskQueue();
 
             ActivityHandle<String> first =
                 activityClient.start(

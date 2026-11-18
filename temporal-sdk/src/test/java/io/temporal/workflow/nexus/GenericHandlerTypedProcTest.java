@@ -70,7 +70,7 @@ public class GenericHandlerTypedProcTest {
     @TemporalOperation
     public TemporalOperationResult<Void> operation(TemporalNexusClient client, Integer input) {
 
-      NexusOperationInfo info = Nexus.getInfo();
+      NexusOperationInfo info = Nexus.getOperationContext().getInfo();
       String prefix = "generic-handler-test-proc" + input + "-";
       String workflowId = prefix + info.getService() + "-" + info.getOperation();
       WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();

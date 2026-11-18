@@ -16,7 +16,8 @@ import java.lang.reflect.Type;
  *
  * <p>Passed to {@link TemporalOperation}-annotated methods (and {@link
  * TemporalOperationHandler.StartHandler} implementations) alongside the operation input. Access
- * information about the current invocation through {@link Nexus#getInfo()}.
+ * information about the current invocation through {@link NexusOperationContext#getInfo()
+ * Nexus.getOperationContext().getInfo()}.
  *
  * <p>Example usage to start a workflow from an operation:
  *

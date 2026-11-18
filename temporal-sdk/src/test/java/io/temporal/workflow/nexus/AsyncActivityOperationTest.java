@@ -100,7 +100,7 @@ public class AsyncActivityOperationTest {
                   TestActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + Nexus.getInfo().getRequestId())
+                      .setId("act-" + Nexus.getOperationContext().getInfo().getRequestId())
                       .setStartToCloseTimeout(Duration.ofSeconds(10))
                       .build()));
     }

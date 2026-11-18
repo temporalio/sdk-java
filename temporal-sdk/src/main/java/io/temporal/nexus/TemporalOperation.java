@@ -41,8 +41,9 @@ import java.lang.annotation.*;
  * }
  * }</pre>
  *
- * <p>Access information about the current invocation through {@link Nexus#getInfo()}, including its
- * cancellation token and {@linkplain NexusOperationInfo#getRequestId() start request ID}.
+ * <p>Access information about the current invocation through {@link NexusOperationContext#getInfo()
+ * Nexus.getOperationContext().getInfo()}, including its cancellation token and {@linkplain
+ * NexusOperationInfo#getRequestId() start request ID}.
  *
  * <p>For custom cancel, or any other handler composition, use {@link OperationImpl} with a {@link
  * TemporalOperationHandler} subclass that overrides {@link

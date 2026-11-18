@@ -201,11 +201,11 @@ public class GenericHandlerSignalDeduplicationTest {
               "CountSignalsWorkflow",
               WorkflowOptions.newBuilder()
                   .setWorkflowId(targetId)
-                  .setTaskQueue(Nexus.getInfo().getTaskQueue())
+                  .setTaskQueue(Nexus.getOperationContext().getInfo().getTaskQueue())
                   .build())
           .signalWithStart("mySignal", new Object[] {targetId}, new Object[] {});
 
-      retryRequestIds.add(Nexus.getInfo().getRequestId());
+      retryRequestIds.add(Nexus.getOperationContext().getInfo().getRequestId());
       if (retryRequestIds.size() == 1) {
         throw new HandlerException(
             HandlerException.ErrorType.INTERNAL,

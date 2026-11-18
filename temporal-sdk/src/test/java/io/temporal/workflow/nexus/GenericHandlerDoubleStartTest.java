@@ -104,7 +104,7 @@ public class GenericHandlerDoubleStartTest {
     @TemporalOperation
     public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
       // First start should succeed but the workflow blocks indefinitely
-      NexusOperationInfo info = Nexus.getInfo();
+      NexusOperationInfo info = Nexus.getOperationContext().getInfo();
       client.startWorkflow(
           BlockingWorkflow.class,
           BlockingWorkflow::execute,

@@ -162,7 +162,7 @@ public class NexusTaskHandlerImplTest {
   public static class RequestIdService {
     @TemporalOperation
     public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
-      return TemporalOperationResult.sync(Nexus.getInfo().getRequestId());
+      return TemporalOperationResult.sync(Nexus.getOperationContext().getInfo().getRequestId());
     }
   }
 
@@ -440,7 +440,8 @@ public class NexusTaskHandlerImplTest {
 
     @TemporalOperation
     public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
-      CancellationToken<CancellationException> token = Nexus.getInfo().getCancellationToken();
+      CancellationToken<CancellationException> token =
+          Nexus.getOperationContext().getInfo().getCancellationToken();
       CountDownLatch cancelled = new CountDownLatch(1);
       try (CancellationToken.Registration ignored = token.onCancel(cancelled::countDown)) {
         if (!cancelled.await(5, TimeUnit.SECONDS)) {

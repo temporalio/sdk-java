@@ -130,7 +130,7 @@ public class GenericHandlerCancelTest extends BaseNexusTest {
   public class TestNexusServiceImpl {
     @TemporalOperation
     public TemporalOperationResult<Void> operation(TemporalNexusClient client, String input) {
-      NexusOperationInfo info = Nexus.getInfo();
+      NexusOperationInfo info = Nexus.getOperationContext().getInfo();
       return client.startWorkflow(
           WaitForCancelWorkflowInterface.class,
           WaitForCancelWorkflowInterface::execute,

@@ -22,7 +22,7 @@ import io.temporal.internal.nexus.OperationTokenUtil;
  * {@link #cancelActivityExecution} to change how the corresponding cancellation is handled. The
  * {@link #start} and {@link #cancel} methods should not be overridden — they contain the core
  * dispatch logic. Operation information is available to both start and cancel handlers through
- * {@link Nexus#getInfo()}.
+ * {@link NexusOperationContext#getInfo() Nexus.getOperationContext().getInfo()}.
  *
  * <p>Custom-cancel example:
  *

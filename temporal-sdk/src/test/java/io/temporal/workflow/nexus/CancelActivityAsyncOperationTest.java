@@ -199,7 +199,7 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-" + Nexus.getInfo().getRequestId())
+                      .setId("act-" + Nexus.getOperationContext().getInfo().getRequestId())
                       .setStartToCloseTimeout(Duration.ofSeconds(60))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -253,14 +253,14 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId("act-override-" + Nexus.getInfo().getRequestId())
+                      .setId("act-override-" + Nexus.getOperationContext().getInfo().getRequestId())
                       .setStartToCloseTimeout(Duration.ofSeconds(5))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                       .build())) {
         @Override
         protected void cancelActivityExecution(CancelActivityExecutionInput input) {
-          customCancelInfo.set(Nexus.getInfo());
+          customCancelInfo.set(Nexus.getOperationContext().getInfo());
           // Intentionally do NOT invoke default cancel; the activity will self-terminate via
           // startToCloseTimeout.
         }

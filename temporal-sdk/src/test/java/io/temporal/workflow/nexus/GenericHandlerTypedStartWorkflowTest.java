@@ -71,7 +71,7 @@ public class GenericHandlerTypedStartWorkflowTest {
     @TemporalOperation
     public TemporalOperationResult<String> operation(TemporalNexusClient client, Integer input) {
       String prefix = "generic-handler-test-func" + input + "-";
-      NexusOperationInfo info = Nexus.getInfo();
+      NexusOperationInfo info = Nexus.getOperationContext().getInfo();
 
       String workflowId = prefix + info.getService() + "-" + info.getOperation();
       WorkflowOptions options = WorkflowOptions.newBuilder().setWorkflowId(workflowId).build();
