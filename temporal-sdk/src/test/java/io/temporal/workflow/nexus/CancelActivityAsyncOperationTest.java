@@ -17,6 +17,7 @@ import io.temporal.failure.CanceledFailure;
 import io.temporal.failure.NexusOperationFailure;
 import io.temporal.nexus.CancelActivityExecutionInput;
 import io.temporal.nexus.Nexus;
+import io.temporal.nexus.NexusOperationInfo;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
@@ -24,6 +25,7 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -35,7 +37,7 @@ import org.junit.experimental.categories.Category;
 public class CancelActivityAsyncOperationTest extends BaseNexusTest {
 
   static final AtomicBoolean cancelled = new AtomicBoolean(false);
-  static final AtomicBoolean customCancelInvoked = new AtomicBoolean(false);
+  static final AtomicReference<NexusOperationInfo> customCancelInfo = new AtomicReference<>();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
@@ -54,7 +56,7 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
   @Before
   public void resetState() {
     cancelled.set(false);
-    customCancelInvoked.set(false);
+    customCancelInfo.set(null);
   }
 
   @Test(timeout = 60_000)
@@ -92,7 +94,9 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
       // Acceptable.
     }
     // The overriding handler should have been called.
-    Assert.assertTrue("override should have been invoked", customCancelInvoked.get());
+    NexusOperationInfo info = customCancelInfo.get();
+    Assert.assertNotNull("override should have been invoked", info);
+    Assert.assertNull("cancel handler should have no start request ID", info.getRequestId());
     // Default cancel was not invoked: activity ran until startToCloseTimeout fired
     // (no ActivityCompletionException raised on the worker).
     Assert.assertFalse("default cancel should not have been invoked", cancelled.get());
@@ -195,11 +199,7 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId(
-                          "act-"
-                              + Nexus.getInfo().getOperation()
-                              + "-"
-                              + Nexus.getInfo().getEndpoint())
+                      .setId("act-" + Nexus.getInfo().getRequestId())
                       .setStartToCloseTimeout(Duration.ofSeconds(60))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
@@ -253,18 +253,14 @@ public class CancelActivityAsyncOperationTest extends BaseNexusTest {
                   HeartbeatingActivity::process,
                   input,
                   StartActivityOptions.newBuilder()
-                      .setId(
-                          "act-override-"
-                              + Nexus.getInfo().getOperation()
-                              + "-"
-                              + Nexus.getInfo().getEndpoint())
+                      .setId("act-override-" + Nexus.getInfo().getRequestId())
                       .setStartToCloseTimeout(Duration.ofSeconds(5))
                       .setHeartbeatTimeout(Duration.ofSeconds(2))
                       .setRetryOptions(RetryOptions.newBuilder().setMaximumAttempts(1).build())
                       .build())) {
         @Override
         protected void cancelActivityExecution(CancelActivityExecutionInput input) {
-          customCancelInvoked.set(true);
+          customCancelInfo.set(Nexus.getInfo());
           // Intentionally do NOT invoke default cancel; the activity will self-terminate via
           // startToCloseTimeout.
         }

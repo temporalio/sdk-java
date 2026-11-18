@@ -122,6 +122,51 @@ public class NexusTaskHandlerImplTest {
   }
 
   @Test
+  public void startRequestIdReachesContextFreeHandler() throws TimeoutException {
+    NexusTaskHandlerImpl handler =
+        new NexusTaskHandlerImpl(
+            mock(WorkflowClient.class),
+            NAMESPACE,
+            TASK_QUEUE,
+            dataConverter,
+            new WorkerInterceptor[] {});
+    handler.registerNexusServiceImplementations(new Object[] {new RequestIdService()});
+    handler.start();
+
+    Assert.assertEquals("opaque/id-1", requestIdSeenByHandler(handler, "opaque/id-1"));
+    Assert.assertEquals("opaque/id-2", requestIdSeenByHandler(handler, "opaque/id-2"));
+    Assert.assertNull(requestIdSeenByHandler(handler, ""));
+  }
+
+  private String requestIdSeenByHandler(NexusTaskHandlerImpl handler, String requestId)
+      throws TimeoutException {
+    PollNexusTaskQueueResponse.Builder task =
+        PollNexusTaskQueueResponse.newBuilder()
+            .setRequest(
+                Request.newBuilder()
+                    .setStartOperation(
+                        StartOperationRequest.newBuilder()
+                            .setService("TestNexusService1")
+                            .setOperation("operation")
+                            .setRequestId(requestId)
+                            .setPayload(dataConverter.toPayload("input").get())));
+    NexusTaskHandler.Result result = handler.handle(new NexusTask(task, null, null), metricsScope);
+    Assert.assertNull(result.getHandlerException());
+    StartOperationResponse response = result.getResponse().getStartOperation();
+    Assert.assertTrue("expected a successful start response", response.hasSyncSuccess());
+    return dataConverter.fromPayload(
+        response.getSyncSuccess().getPayload(), String.class, String.class);
+  }
+
+  @ServiceImpl(service = TestNexusServices.TestNexusService1.class)
+  public static class RequestIdService {
+    @TemporalOperation
+    public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
+      return TemporalOperationResult.sync(Nexus.getInfo().getRequestId());
+    }
+  }
+
+  @Test
   public void nexusOperationContextExposesWorkerWorkflowClient() throws TimeoutException {
     WorkflowClient client = mock(WorkflowClient.class);
     ClientContextNexusService service = new ClientContextNexusService(client);

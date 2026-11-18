@@ -18,8 +18,9 @@ import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -35,13 +36,13 @@ import org.junit.experimental.categories.Category;
 public class GenericHandlerSignalDeduplicationTest {
   private static final String ONE_SIGNAL_MESSAGE =
       "Only one signal can be sent per Nexus operation invocation.";
-  private final AtomicInteger retryAttempts = new AtomicInteger();
+  private final List<String> retryRequestIds = new CopyOnWriteArrayList<>();
 
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
           .setWorkflowTypes(CallerWorkflowImpl.class, CountSignalsWorkflowImpl.class)
-          .setNexusServiceImplementation(new TestNexusServiceImpl(retryAttempts))
+          .setNexusServiceImplementation(new TestNexusServiceImpl(retryRequestIds))
           .build();
 
   @Test
@@ -73,7 +74,9 @@ public class GenericHandlerSignalDeduplicationTest {
     Assert.assertEquals("signaled-" + targetId, newCaller().execute("signalRetry", targetId));
 
     Assert.assertEquals(
-        "handler should fail once and then be redelivered once", 2, retryAttempts.get());
+        "handler should fail once and then be redelivered once", 2, retryRequestIds.size());
+    Assert.assertNotNull("the handler should receive a request ID", retryRequestIds.get(0));
+    Assert.assertEquals(retryRequestIds.get(0), retryRequestIds.get(1));
 
     CountSignalsWorkflow target =
         testWorkflowRule.getWorkflowClient().newWorkflowStub(CountSignalsWorkflow.class, targetId);
@@ -162,10 +165,10 @@ public class GenericHandlerSignalDeduplicationTest {
 
   @ServiceImpl(service = TestNexusService.class)
   public static class TestNexusServiceImpl {
-    private final AtomicInteger retryAttempts;
+    private final List<String> retryRequestIds;
 
-    public TestNexusServiceImpl(AtomicInteger retryAttempts) {
-      this.retryAttempts = retryAttempts;
+    public TestNexusServiceImpl(List<String> retryRequestIds) {
+      this.retryRequestIds = retryRequestIds;
     }
 
     @TemporalOperation
@@ -202,7 +205,8 @@ public class GenericHandlerSignalDeduplicationTest {
                   .build())
           .signalWithStart("mySignal", new Object[] {targetId}, new Object[] {});
 
-      if (retryAttempts.incrementAndGet() == 1) {
+      retryRequestIds.add(Nexus.getInfo().getRequestId());
+      if (retryRequestIds.size() == 1) {
         throw new HandlerException(
             HandlerException.ErrorType.INTERNAL,
             "force handler redelivery after signalling",

@@ -2,6 +2,7 @@ package io.temporal.nexus;
 
 import io.temporal.common.CancellationToken;
 import java.util.concurrent.CancellationException;
+import javax.annotation.Nullable;
 
 /**
  * Temporal information about the Nexus Operation. Use {@link Nexus#getInfo()} from a Nexus
@@ -33,6 +34,17 @@ public interface NexusOperationInfo {
    * @return Operation name for the current Nexus request.
    */
   String getOperation();
+
+  /**
+   * Returns the ID of the current Nexus start request, or {@code null} when no ID is available (for
+   * example, in a cancel handler).
+   *
+   * <p>Retries of the same start request carry the same ID. Treat the ID as an opaque string.
+   */
+  @Nullable
+  default String getRequestId() {
+    return null;
+  }
 
   /**
    * Returns a read-only token for observing cancellation of the current handler invocation. This is

@@ -1,5 +1,6 @@
 package io.temporal.internal.nexus;
 
+import com.google.common.base.Strings;
 import io.nexusrpc.OperationException;
 import io.nexusrpc.handler.*;
 import io.temporal.common.interceptors.NexusOperationInboundCallsInterceptor;
@@ -39,6 +40,7 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
                 temporalNexusContext.getEndpoint(),
                 context.getService(),
                 context.getOperation(),
+                Strings.emptyToNull(temporalNexusContext.getRequestId()),
                 cancellationSource.token())));
     return new OperationInterceptorConverter(inboundCallsInterceptor);
   }

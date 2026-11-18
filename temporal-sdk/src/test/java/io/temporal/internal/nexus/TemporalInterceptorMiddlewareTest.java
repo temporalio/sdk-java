@@ -16,11 +16,20 @@ import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 public class TemporalInterceptorMiddlewareTest {
+
+  @Before
+  public void setUp() {
+    CurrentNexusOperationContext.set(
+        new InternalNexusOperationContext(
+            "namespace", "taskQueue", "endpoint", null, mock(WorkflowClient.class)));
+  }
 
   @After
   public void tearDown() {
@@ -36,16 +45,16 @@ public class TemporalInterceptorMiddlewareTest {
             .setOperation("operation")
             .putHeader("test-header", "test-value")
             .build();
+    AtomicReference<String> interceptedHeader = new AtomicReference<>();
     WorkerInterceptor interceptor =
         new WorkerInterceptorBase() {
           @Override
           public NexusOperationInboundCallsInterceptor interceptNexusOperation(
               OperationContext context, NexusOperationInboundCallsInterceptor next) {
-            Assert.assertEquals("test-value", context.getHeaders().get("test-header"));
+            interceptedHeader.set(context.getHeaders().get("test-header"));
             return next;
           }
         };
-    initializeTemporalContext();
     OperationHandler<Object, Object> handler =
         new TemporalInterceptorMiddleware(new WorkerInterceptor[] {interceptor})
             .intercept(
@@ -53,28 +62,22 @@ public class TemporalInterceptorMiddlewareTest {
                 TemporalOperationHandler.create(
                     (client, input) -> TemporalOperationResult.sync(input)));
 
-    Assert.assertEquals(
-        "input",
+    Object result =
         handler
             .start(
                 operationContext,
                 OperationStartDetails.newBuilder().setRequestId("request-id").build(),
                 "input")
-            .getSyncResult());
+            .getSyncResult();
+    Assert.assertEquals("input", result);
+    Assert.assertEquals(
+        "worker interceptor should see the request header", "test-value", interceptedHeader.get());
   }
 
   @Test
   public void methodCancellationReachesNexusOperationInfo() {
     OperationMethodCanceller canceller = new OperationMethodCanceller();
-    OperationContext operationContext =
-        OperationContext.newBuilder()
-            .setService("service")
-            .setOperation("operation")
-            .setMethodCanceller(canceller)
-            .build();
-    installOperationContext(operationContext);
-
-    CancellationToken<CancellationException> token = Nexus.getInfo().getCancellationToken();
+    CancellationToken<CancellationException> token = interceptAndGetCancellationToken(canceller);
     Assert.assertFalse(token.isCancellationRequested());
 
     canceller.cancel("test reason");
@@ -89,15 +92,7 @@ public class TemporalInterceptorMiddlewareTest {
   public void cancellationBeforeInterceptionReachesNexusOperationInfo() {
     OperationMethodCanceller canceller = new OperationMethodCanceller();
     canceller.cancel("early reason");
-    OperationContext operationContext =
-        OperationContext.newBuilder()
-            .setService("service")
-            .setOperation("operation")
-            .setMethodCanceller(canceller)
-            .build();
-    installOperationContext(operationContext);
-
-    CancellationToken<CancellationException> token = Nexus.getInfo().getCancellationToken();
+    CancellationToken<CancellationException> token = interceptAndGetCancellationToken(canceller);
 
     Assert.assertTrue(token.isCancellationRequested());
     CancellationException exception =
@@ -105,19 +100,18 @@ public class TemporalInterceptorMiddlewareTest {
     Assert.assertEquals("early reason", exception.getMessage());
   }
 
-  private static void installOperationContext(OperationContext operationContext) {
-    initializeTemporalContext();
+  private static CancellationToken<CancellationException> interceptAndGetCancellationToken(
+      OperationMethodCanceller canceller) {
+    OperationContext operationContext =
+        OperationContext.newBuilder()
+            .setService("service")
+            .setOperation("operation")
+            .setMethodCanceller(canceller)
+            .build();
     TemporalInterceptorMiddleware middleware =
         new TemporalInterceptorMiddleware(new WorkerInterceptor[0]);
     middleware.intercept(
         operationContext, OperationHandler.sync((context, details, input) -> input));
-  }
-
-  private static void initializeTemporalContext() {
-    InternalNexusOperationContext temporalContext =
-        new InternalNexusOperationContext(
-            "namespace", "taskQueue", "endpoint", null, mock(WorkflowClient.class));
-    temporalContext.setRequestId("request-id");
-    CurrentNexusOperationContext.set(temporalContext);
+    return Nexus.getInfo().getCancellationToken();
   }
 }

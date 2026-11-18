@@ -27,9 +27,10 @@ to docs, or any other relevant information.
 - **Experimental**: Temporal operation start handlers, including `@TemporalOperation` methods, now
   accept only `(TemporalNexusClient, input)`. Cancellation overrides now accept only their typed
   input. `TemporalOperationStartContext` and `TemporalOperationCancelContext` have been removed.
-  Use `Nexus.getInfo()` for service, operation, and a read-only handler invocation cancellation token.
-  Request headers remain available to interceptors; request IDs, callbacks, and Nexus links are no longer exposed
-  through the Temporal handler context parameters.
+  Use `Nexus.getInfo()` for service, operation, a read-only handler invocation cancellation token,
+  and the start request ID (`getRequestId()`, which returns `null` in cancel handlers).
+  Request headers remain available to interceptors. Callbacks and Nexus links are no longer exposed
+  to Temporal operation handlers.
 
 ### Added
 - Experimental Event Groups associate related workflow commands so their history events can be

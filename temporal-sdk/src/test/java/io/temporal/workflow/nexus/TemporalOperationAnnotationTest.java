@@ -146,8 +146,7 @@ public class TemporalOperationAnnotationTest {
           SugarTargetWorkflow::run,
           input,
           WorkflowOptions.newBuilder()
-              .setWorkflowId(
-                  "sugar-" + Nexus.getInfo().getOperation() + "-" + Nexus.getInfo().getEndpoint())
+              .setWorkflowId("sugar-" + Nexus.getInfo().getRequestId())
               .build());
     }
   }
@@ -169,8 +168,7 @@ public class TemporalOperationAnnotationTest {
           SugarTargetWorkflow::run,
           input,
           WorkflowOptions.newBuilder()
-              .setWorkflowId(
-                  "mixed-" + Nexus.getInfo().getOperation() + "-" + Nexus.getInfo().getEndpoint())
+              .setWorkflowId("mixed-" + Nexus.getInfo().getRequestId())
               .build());
     }
 
