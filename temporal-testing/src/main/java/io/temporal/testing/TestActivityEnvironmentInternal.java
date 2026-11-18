@@ -269,7 +269,9 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     mockServer.awaitTermination(5, TimeUnit.SECONDS);
   }
 
-  private class TestActivityExecutor implements WorkflowOutboundCallsInterceptor {
+  private class TestActivityExecutor
+      extends io.temporal.workflow.SystemNexusWorkflowOutboundInterceptor.Terminal
+      implements WorkflowOutboundCallsInterceptor {
 
     @Override
     public <T> ActivityOutput<T> executeActivity(ActivityInput<T> i) {
@@ -365,6 +367,21 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     @Override
     public <R> ChildWorkflowOutput<R> executeChildWorkflow(ChildWorkflowInput<R> input) {
       throw new UnsupportedOperationException("not implemented");
+    }
+
+    @Override
+    protected Map<String, io.temporal.api.common.v1.Payload> propagateSystemNexusHeaders(
+        Map<String, io.temporal.api.common.v1.Payload> headers,
+        io.temporal.payload.context.SerializationContext context) {
+      throw new UnsupportedOperationException(
+          "Workflow operations are not available in activities");
+    }
+
+    @Override
+    protected <R> ExecuteNexusOperationOutput<R> executeSystemNexusOperation(
+        ExecuteNexusOperationInput<R> input) {
+      throw new UnsupportedOperationException(
+          "Workflow operations are not available in activities");
     }
 
     @Override

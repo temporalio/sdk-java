@@ -112,6 +112,8 @@ public final class SdkJavaTestServerProfile {
         "--dynamic-config-value",
         "history.enableRequestIdRefLinks=true",
         "--dynamic-config-value",
+        "history.enableSignalWithStartFromWorkflow=true",
+        "--dynamic-config-value",
         "frontend.WorkerHeartbeatsEnabled=true",
         "--dynamic-config-value",
         "frontend.ListWorkersEnabled=true",

@@ -51,6 +51,7 @@ import io.temporal.internal.statemachines.*;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.*;
@@ -77,7 +78,9 @@ import org.slf4j.LoggerFactory;
  * definition on the worker meets ReplayWorkflowContext which contains information from the
  * WorkflowTask
  */
-final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCallsInterceptor {
+final class SyncWorkflowContext
+    extends io.temporal.workflow.SystemNexusWorkflowOutboundInterceptor.Terminal
+    implements WorkflowContext, WorkflowOutboundCallsInterceptor {
   private static final Logger log = LoggerFactory.getLogger(SyncWorkflowContext.class);
 
   private final String namespace;
@@ -856,6 +859,25 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     return new ChildWorkflowOutput<>(result, executionPromise);
   }
 
+  @Nullable
+  @Override
+  protected Map<String, Payload> propagateSystemNexusHeaders(
+      @Nullable Map<String, Payload> headers, @Nullable SerializationContext context) {
+    io.temporal.api.common.v1.Header propagated =
+        toHeaderGrpc(
+            new Header(headers == null ? Collections.emptyMap() : headers),
+            HeaderUtils.fromContextPropagators(contextPropagators),
+            context == null ? headerCodec : HeaderUtils.withContext(headerCodec, context));
+    return headers == null && propagated.getFieldsCount() == 0 ? null : propagated.getFieldsMap();
+  }
+
+  @Override
+  protected <R> ExecuteNexusOperationOutput<R> executeSystemNexusOperation(
+      ExecuteNexusOperationInput<R> input) {
+    // Execute on this terminal directly, without re-entering the outbound interceptor chain.
+    return executeNexusOperation(input);
+  }
+
   @Override
   public <R> ExecuteNexusOperationOutput<R> executeNexusOperation(
       ExecuteNexusOperationInput<R> input) {
@@ -878,10 +900,24 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
     // contextualized by the endpoint, service and operation instead. The same converter decodes the
     // result and converts failures, so each operation keeps the converter selected for it even when
     // several operations are in flight at once.
-    DataConverter nexusDataConverter =
-        dataConverter.withContext(
-            new NexusSerializationContext(
-                input.getEndpoint(), input.getService(), input.getOperation()));
+    final DataConverter nexusDataConverter;
+    final DataConverter userMetadataDataConverter;
+    if (io.temporal.internal.nexus.system.SystemNexusDataConverter.ENDPOINT.equals(
+        input.getEndpoint())) {
+      io.temporal.payload.context.SerializationContext context =
+          io.temporal.workflow.internal.SystemNexusOperations.serializationContext(
+              input.getService(), input.getOperation(), input.getArg());
+      userMetadataDataConverter =
+          context == null ? dataConverter : dataConverter.withContext(context);
+      nexusDataConverter =
+          new io.temporal.internal.nexus.system.SystemNexusDataConverter(userMetadataDataConverter);
+    } else {
+      nexusDataConverter =
+          dataConverter.withContext(
+              new NexusSerializationContext(
+                  input.getEndpoint(), input.getService(), input.getOperation()));
+      userMetadataDataConverter = nexusDataConverter;
+    }
 
     Optional<Payload> payload = nexusDataConverter.toPayload(input.getArg());
 
@@ -902,7 +938,7 @@ final class SyncWorkflowContext implements WorkflowContext, WorkflowOutboundCall
 
     @Nullable
     UserMetadata userMetadata =
-        makeUserMetaData(input.getOptions().getSummary(), null, nexusDataConverter);
+        makeUserMetaData(input.getOptions().getSummary(), null, userMetadataDataConverter);
 
     StartNexusOperationParameters parameters =
         new StartNexusOperationParameters(

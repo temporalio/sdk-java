@@ -53,7 +53,7 @@ import org.slf4j.Logger;
  *
  * @see io.temporal.workflow
  */
-public final class Workflow {
+public final class Workflow extends WorkflowOperations {
   public static final int DEFAULT_VERSION = WorkflowInternal.DEFAULT_VERSION;
 
   /**
