@@ -112,7 +112,9 @@ to docs, or any other relevant information.
 
 ### Fixed
 - Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
-  target and use slot capacity to balance sticky and non-sticky admission, matching Core's policy.
+  target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
+  advertised maximum, additional polls of one queue type wait until the other has an active poll.
+  Unlike Core, Java does not use workflow cache size as a fallback slot bound.
 - Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
   leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
   by default in this release to preserve replay compatibility during SDK rollout.

@@ -109,6 +109,50 @@ public class WorkflowPollerBalancerTest {
   }
 
   @Test(timeout = 10000)
+  public void unknownCapacityWaitsForOtherQueuesFirstPoll() throws Exception {
+    for (boolean sticky : new boolean[] {true, false}) {
+      WorkflowPollerBalancer balancer = new WorkflowPollerBalancer(Optional.empty(), 3);
+      balancer.pollStarted(sticky);
+      if (sticky) {
+        balancer.recordStickyBacklog(10);
+      }
+      balancer.awaitAdmission(!sticky);
+      assertUnblockedBy(balancer, sticky, () -> balancer.pollStarted(!sticky));
+    }
+  }
+
+  @Test(timeout = 10000)
+  public void unknownCapacityRechecksWhenOtherQueueLosesItsLastPoll() throws Exception {
+    for (boolean sticky : new boolean[] {true, false}) {
+      WorkflowPollerBalancer balancer = new WorkflowPollerBalancer(Optional.empty(), 3);
+      balancer.pollStarted(sticky);
+      balancer.pollStarted(!sticky);
+      balancer.awaitAdmission(sticky);
+      balancer.pollFinished(!sticky);
+      assertBlocked(balancer, sticky);
+      balancer.awaitAdmission(!sticky);
+    }
+  }
+
+  @Test(timeout = 10000)
+  public void unknownCapacityDoesNotImposeAFixedPoolSizeOnceBothQueuesHavePolls() throws Exception {
+    WorkflowPollerBalancer balancer = new WorkflowPollerBalancer(Optional.empty(), 5);
+    for (int i = 0; i < 3; i++) {
+      balancer.pollStarted(true);
+      balancer.pollStarted(false);
+    }
+    balancer.awaitAdmission(true);
+    balancer.awaitAdmission(false);
+  }
+
+  @Test(timeout = 10000)
+  public void unknownCapacityStillAllowsStickyDrain() throws Exception {
+    WorkflowPollerBalancer balancer = new WorkflowPollerBalancer(Optional.empty(), 3);
+    balancer.pollStarted(true);
+    assertUnblockedBy(balancer, true, balancer::disableNormalPoll);
+  }
+
+  @Test(timeout = 10000)
   public void disablingNormalPollingReleasesCapacityForStickyDrain() throws Exception {
     WorkflowPollerBalancer balancer = balancer(2, 3, 1, 0);
     assertUnblockedBy(balancer, true, balancer::disableNormalPoll);
