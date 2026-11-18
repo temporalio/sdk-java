@@ -17,6 +17,7 @@ dependencies {
     api project(':temporal-opentelemetry')
 
     implementation project(':temporal-envconfig')
+    implementation project(':temporal-aws-secrets-manager')
     api "io.opentelemetry:opentelemetry-api"
     implementation "io.opentelemetry.contrib:opentelemetry-aws-xray:$otelVersion"
     implementation "org.slf4j:slf4j-api:$slf4jVersion"
@@ -24,6 +25,8 @@ dependencies {
     testImplementation project(':temporal-sdk')
     testImplementation "io.opentelemetry:opentelemetry-sdk"
     testImplementation "junit:junit:${junitVersion}"
+    testImplementation platform("software.amazon.awssdk:bom:$awsSdkVersion")
+    testImplementation "software.amazon.awssdk:secretsmanager"
 
     testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
 }

@@ -7,6 +7,7 @@ import io.temporal.client.WorkflowClientOptions;
 import io.temporal.common.VersioningBehavior;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.EncodedValues;
+import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import io.temporal.worker.WorkerDeploymentOptions;
 import io.temporal.worker.WorkerFactoryOptions;
 import io.temporal.worker.WorkerOptions;
@@ -308,6 +309,26 @@ public class LambdaWorkerOptionsTest {
                 WorkflowImplementationOptions.getDefaultInstance(), null));
     assertThrows(
         NullPointerException.class, () -> options.registerDynamicActivityImplementation(null));
+  }
+
+  @Test
+  public void secretsManagerPluginIsAddedWhenSecretIdsAreConfigured() throws IOException {
+    Map<String, String> env = baseEnv();
+    env.put("TEMPORAL_EXT_AWS_SECRETS_MANAGER_API_KEY_ID", "temporal/api-key");
+    WorkflowServiceStubsPlugin[] plugins =
+        LambdaWorkerOptions.newBuilderFromEnvironment(env)
+            .getWorkflowServiceStubsOptionsBuilder()
+            .build()
+            .getPlugins();
+    assertEquals(1, plugins.length);
+    assertEquals("io.temporal.aws.secretsmanager", plugins[0].getName());
+
+    WorkflowServiceStubsPlugin[] noPlugins =
+        LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv())
+            .getWorkflowServiceStubsOptionsBuilder()
+            .build()
+            .getPlugins();
+    assertTrue(noPlugins == null || noPlugins.length == 0);
   }
 
   private Map<String, String> baseEnv() {

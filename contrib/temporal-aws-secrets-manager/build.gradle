@@ -1,0 +1,23 @@
+description = '''Temporal Java SDK AWS Secrets Manager Client Config Extension'''
+
+dependencies {
+    // This module shouldn't carry temporal-sdk with it, especially for situations when users may
+    // be using a shaded artifact.
+    compileOnly project(':temporal-sdk')
+
+    api project(':temporal-envconfig')
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "org.slf4j:slf4j-api:$slf4jVersion"
+
+    // Optional: only needed to fetch secrets directly from Secrets Manager, when the AWS
+    // Parameters and Secrets Lambda Extension isn't available. Users add it themselves.
+    compileOnly platform("software.amazon.awssdk:bom:$awsSdkVersion")
+    compileOnly "software.amazon.awssdk:secretsmanager"
+
+    testImplementation project(':temporal-sdk')
+    testImplementation platform("software.amazon.awssdk:bom:$awsSdkVersion")
+    testImplementation "software.amazon.awssdk:secretsmanager"
+    testImplementation "junit:junit:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testRuntimeOnly group: 'ch.qos.logback', name: 'logback-classic', version: "${logbackVersion}"
+}

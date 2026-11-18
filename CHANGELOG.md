@@ -29,6 +29,10 @@ to docs, or any other relevant information.
 - Experimental Event Groups associate related workflow commands so their history events can be
   viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
   `addEventGroups` on the command's options.
+- Added the experimental `temporal-aws-secrets-manager` module, a `temporal-envconfig` extension that loads the client
+  API key and mTLS material from AWS Secrets Manager secret IDs.
+- `temporal-aws-lambda` now loads Temporal client credentials from AWS Secrets Manager when secret IDs are configured
+  with `TEMPORAL_EXT_AWS_SECRETS_MANAGER_*` environment variables or in the TOML config.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,

@@ -4,6 +4,8 @@ import static org.junit.Assert.*;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.uber.m3.tally.NoopScope;
+import com.uber.m3.tally.Scope;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.MeterBuilder;
 import io.opentelemetry.api.metrics.MeterProvider;
@@ -17,6 +19,8 @@ import io.opentelemetry.sdk.trace.IdGenerator;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.opentelemetry.OpenTelemetryPlugin;
 import io.temporal.opentelemetry.TimedShutdownHook;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.io.Closeable;
 import java.time.Duration;
@@ -26,6 +30,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import javax.annotation.Nonnull;
 import org.junit.Test;
 
 public class OtelLambdaWorkerConfigurationHelperTest {
@@ -127,6 +134,55 @@ public class OtelLambdaWorkerConfigurationHelperTest {
     assertEquals(1, options.getWorkflowClientOptionsBuilder().build().getInterceptors().length);
     assertEquals(
         1, options.getWorkerFactoryOptionsBuilder().build().getWorkerInterceptors().length);
+  }
+
+  @Test
+  public void pluginComesBeforeExistingPluginsSoTheySeeItsMetricsScope() throws Exception {
+    LambdaWorkerOptions.Builder options = LambdaWorkerOptions.newBuilderFromEnvironment(baseEnv());
+    // Stands in for a plugin that reports to the metrics scope while configuring the stubs, like
+    // the AWS Secrets Manager extension's plugin from the envconfig profile
+    AtomicReference<Scope> seenScope = new AtomicReference<>();
+    WorkflowServiceStubsPlugin existing =
+        new WorkflowServiceStubsPlugin() {
+          @Nonnull
+          @Override
+          public String getName() {
+            return "test.existing";
+          }
+
+          @Override
+          public void configureServiceStubs(@Nonnull WorkflowServiceStubsOptions.Builder builder) {
+            seenScope.set(builder.build().getMetricsScope());
+          }
+
+          @Nonnull
+          @Override
+          public WorkflowServiceStubs connectServiceClient(
+              @Nonnull WorkflowServiceStubsOptions options,
+              @Nonnull Supplier<WorkflowServiceStubs> next) {
+            return next.get();
+          }
+        };
+    options.getWorkflowServiceStubsOptionsBuilder().setPlugins(existing);
+
+    OtelLambdaWorkerConfigurationHelper.configure(
+        options, builder -> builder.setOpenTelemetry(OpenTelemetry.noop()).setFlushHook(() -> {}));
+
+    WorkflowServiceStubsPlugin[] plugins =
+        options.getWorkflowServiceStubsOptionsBuilder().build().getPlugins();
+    assertEquals(2, plugins.length);
+    assertTrue(plugins[0] instanceof OpenTelemetryPlugin);
+    assertSame(existing, plugins[1]);
+
+    // Configure in plugin order, as WorkflowServiceStubs.newServiceStubs does
+    WorkflowServiceStubsOptions.Builder stubsOptions =
+        WorkflowServiceStubsOptions.newBuilder(
+            options.getWorkflowServiceStubsOptionsBuilder().build());
+    for (WorkflowServiceStubsPlugin plugin : plugins) {
+      plugin.configureServiceStubs(stubsOptions);
+    }
+    assertNotNull(seenScope.get());
+    assertFalse(seenScope.get() instanceof NoopScope);
   }
 
   @Test

@@ -46,6 +46,9 @@ ext {
 
     jsonPathVersion = '2.9.0' // compileOnly
 
+    // api in temporal-payload-storage-s3driver-awssdkv2, compileOnly in temporal-aws-secrets-manager
+    awsSdkVersion = '2.31.0'
+
     cronUtilsVersion = '9.2.1' // for test server only
 
     // This is the version of Spring Boot we use to _build the SDK_. This has to be in the

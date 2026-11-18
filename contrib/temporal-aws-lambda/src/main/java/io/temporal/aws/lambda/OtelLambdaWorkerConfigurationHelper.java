@@ -8,7 +8,6 @@ import io.temporal.opentelemetry.OpenTelemetryWorker;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import io.temporal.serviceclient.WorkflowServiceStubsPlugin;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -53,6 +52,11 @@ public final class OtelLambdaWorkerConfigurationHelper {
    * <p>By default this method creates an OpenTelemetry SDK with OTLP trace and metric exporters and
    * AWS X-Ray-compatible trace ID generation. If {@link Builder#setOpenTelemetry(OpenTelemetry)} is
    * used, the provided instance is used instead and exporters are not created.
+   *
+   * <p>The OpenTelemetry plugin is added before any service stubs plugins already in the options,
+   * so that its metrics scope is set before they run. For example, the AWS Secrets Manager
+   * extension's plugin fetches TLS secrets while the service stubs are configured, and reports
+   * those fetches to the metrics scope set at that point.
    */
   public static void configure(
       @Nonnull LambdaWorkerOptions.Builder options, @Nonnull Consumer<Builder> configure) {
@@ -213,7 +217,7 @@ public final class OtelLambdaWorkerConfigurationHelper {
       Objects.requireNonNull(options, "options");
       applyLambdaDefaults();
       OpenTelemetryPlugin plugin = delegate.build();
-      appendServiceStubsPlugin(options.getWorkflowServiceStubsOptionsBuilder(), plugin);
+      prependServiceStubsPlugin(options.getWorkflowServiceStubsOptionsBuilder(), plugin);
       options.addShutdownHook(plugin.newFlushHook());
     }
 
@@ -254,15 +258,20 @@ public final class OtelLambdaWorkerConfigurationHelper {
         IdGenerator idGenerator);
   }
 
-  private static void appendServiceStubsPlugin(
+  /**
+   * Adds the plugin before the existing ones. Plugins configure the service stubs in order, so its
+   * metrics scope is set before the others run, for example before the AWS Secrets Manager
+   * extension's plugin reports its TLS secret fetches.
+   */
+  private static void prependServiceStubsPlugin(
       WorkflowServiceStubsOptions.Builder options, WorkflowServiceStubsPlugin plugin) {
     WorkflowServiceStubsPlugin[] existing = options.build().getPlugins();
     int existingLength = existing == null ? 0 : existing.length;
-    WorkflowServiceStubsPlugin[] plugins =
-        existingLength == 0
-            ? new WorkflowServiceStubsPlugin[1]
-            : Arrays.copyOf(existing, existingLength + 1);
-    plugins[existingLength] = Objects.requireNonNull(plugin, "plugin");
+    WorkflowServiceStubsPlugin[] plugins = new WorkflowServiceStubsPlugin[existingLength + 1];
+    plugins[0] = Objects.requireNonNull(plugin, "plugin");
+    if (existingLength > 0) {
+      System.arraycopy(existing, 0, plugins, 1, existingLength);
+    }
     options.setPlugins(plugins);
   }
 }

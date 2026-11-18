@@ -10,6 +10,7 @@ dependencies {
         api project(':temporal-opentelemetry')
         api project(':temporal-opentracing')
         api project(':temporal-aws-lambda')
+        api project(':temporal-aws-secrets-manager')
         api project(':temporal-gcp-cloud-run-opentelemetry')
         api project(':temporal-gcp-cloud-run-id')
         api project(':temporal-remote-data-encoder')
