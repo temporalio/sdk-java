@@ -13,6 +13,7 @@ import io.temporal.failure.TimeoutFailure;
 import io.temporal.internal.common.OptionsUtils;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -59,6 +60,7 @@ public final class ChildWorkflowOptions {
 
     private String staticSummary;
     private String staticDetails;
+    private List<EventGroup> eventGroups;
     private Priority priority;
     private VersioningOverride versioningOverride;
 
@@ -87,6 +89,9 @@ public final class ChildWorkflowOptions {
       this.versioningIntent = options.getVersioningIntent();
       this.staticSummary = options.getStaticSummary();
       this.staticDetails = options.getStaticDetails();
+      if (!options.eventGroups.isEmpty()) {
+        this.eventGroups = new ArrayList<>(options.eventGroups);
+      }
       this.priority = options.getPriority();
       this.versioningOverride = options.getVersioningOverride();
     }
@@ -330,6 +335,34 @@ public final class ChildWorkflowOptions {
     }
 
     /**
+     * Event Groups to associate with the commands that start and cancel this child workflow. Calls
+     * accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(EventGroup... eventGroups) {
+      if (eventGroups.length == 0) return this;
+      if (this.eventGroups == null) {
+        this.eventGroups = new ArrayList<>(eventGroups.length);
+      }
+      for (EventGroup group : eventGroups) {
+        this.eventGroups.add(java.util.Objects.requireNonNull(group, "eventGroups"));
+      }
+      return this;
+    }
+
+    /**
+     * Associates the given Event Groups, in addition to any already added. Calls accumulate.
+     *
+     * @see EventGroup
+     */
+    @Experimental
+    public Builder addEventGroups(List<EventGroup> eventGroups) {
+      return addEventGroups(eventGroups.toArray(new EventGroup[0]));
+    }
+
+    /**
      * Optional priority settings that control relative ordering of task processing when tasks are
      * backed up in a queue.
      */
@@ -436,6 +469,13 @@ public final class ChildWorkflowOptions {
           (override.getStaticSummary() == null) ? this.staticSummary : override.getStaticSummary();
       this.staticDetails =
           (override.getStaticDetails() == null) ? this.staticDetails : override.getStaticDetails();
+      if (!override.eventGroups.isEmpty()) {
+        if (this.eventGroups == null) {
+          this.eventGroups = new ArrayList<>(override.eventGroups);
+        } else {
+          this.eventGroups.addAll(override.eventGroups);
+        }
+      }
       this.priority = (override.getPriority() == null) ? this.priority : override.getPriority();
       this.versioningOverride =
           (override.getVersioningOverride() == null)
@@ -464,6 +504,7 @@ public final class ChildWorkflowOptions {
           versioningIntent,
           staticSummary,
           staticDetails,
+          eventGroups,
           priority,
           versioningOverride);
     }
@@ -493,6 +534,7 @@ public final class ChildWorkflowOptions {
               : versioningIntent,
           staticSummary,
           staticDetails,
+          eventGroups,
           priority,
           versioningOverride);
     }
@@ -519,6 +561,7 @@ public final class ChildWorkflowOptions {
 
   private final String staticSummary;
   private final String staticDetails;
+  private final List<EventGroup> eventGroups;
   private final Priority priority;
   private final VersioningOverride versioningOverride;
 
@@ -541,6 +584,7 @@ public final class ChildWorkflowOptions {
       @SuppressWarnings("deprecation") VersioningIntent versioningIntent,
       String staticSummary,
       String staticDetails,
+      List<EventGroup> eventGroups,
       Priority priority,
       VersioningOverride versioningOverride) {
     this.namespace = namespace;
@@ -561,6 +605,10 @@ public final class ChildWorkflowOptions {
     this.versioningIntent = versioningIntent;
     this.staticSummary = staticSummary;
     this.staticDetails = staticDetails;
+    this.eventGroups =
+        eventGroups == null || eventGroups.isEmpty()
+            ? Collections.emptyList()
+            : Collections.unmodifiableList(new ArrayList<>(eventGroups));
     this.priority = priority;
     this.versioningOverride = versioningOverride;
   }
@@ -653,6 +701,14 @@ public final class ChildWorkflowOptions {
     return staticDetails;
   }
 
+  /**
+   * @see Builder#addEventGroups(EventGroup...)
+   */
+  @Experimental
+  public List<EventGroup> getEventGroups() {
+    return eventGroups;
+  }
+
   public Priority getPriority() {
     return priority;
   }
@@ -694,6 +750,7 @@ public final class ChildWorkflowOptions {
         && versioningIntent == that.versioningIntent
         && Objects.equal(staticSummary, that.staticSummary)
         && Objects.equal(staticDetails, that.staticDetails)
+        && Objects.equal(eventGroups, that.eventGroups)
         && Objects.equal(priority, that.priority)
         && Objects.equal(versioningOverride, that.versioningOverride);
   }
@@ -719,6 +776,7 @@ public final class ChildWorkflowOptions {
         versioningIntent,
         staticSummary,
         staticDetails,
+        eventGroups,
         priority,
         versioningOverride);
   }
@@ -766,6 +824,8 @@ public final class ChildWorkflowOptions {
         + staticSummary
         + ", staticDetails="
         + staticDetails
+        + ", eventGroups="
+        + eventGroups
         + ", priority="
         + priority
         + ", versioningOverride="

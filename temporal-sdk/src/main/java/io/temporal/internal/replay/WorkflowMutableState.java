@@ -1,16 +1,16 @@
 package io.temporal.internal.replay;
 
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Memo;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.history.v1.WorkflowExecutionStartedEventAttributes;
+import io.temporal.internal.statemachines.ContinueAsNewWorkflowParameters;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 class WorkflowMutableState {
   private boolean cancelRequested;
-  private ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewOnCompletion;
+  private ContinueAsNewWorkflowParameters continueAsNewOnCompletion;
   private boolean workflowMethodCompleted;
   private Throwable workflowTaskFailureThrowable;
   private SearchAttributes.Builder searchAttributes;
@@ -35,11 +35,12 @@ class WorkflowMutableState {
     cancelRequested = true;
   }
 
-  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion() {
+  @Nullable
+  ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion() {
     return continueAsNewOnCompletion;
   }
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes parameters) {
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters) {
     this.continueAsNewOnCompletion = parameters;
   }
 
