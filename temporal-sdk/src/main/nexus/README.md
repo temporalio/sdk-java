@@ -49,8 +49,9 @@ Regeneration passes `--format` to nexgen, which invokes the installed
 configuration. Nexgen does not download the formatter. Normal SDK builds use
 the checked-in output and do not require either tool.
 
-`TemporalModelConverters` is package-private in `io.temporal.workflow`, alongside
-the generated classes, and contains SDK-owned conversion helpers. The nexgen
+`TemporalModelConverters` lives in `io.temporal.internal.nexus.system` and
+contains SDK-owned conversion and output-transform helpers. Generated dispatch
+and service helpers live in `io.temporal.workflow.internal`. The nexgen
 sample support file contains its own copies of these implementations. The emitted
 `NexgenRuntime` contains only payload-sequence decoding. Converter scoping lives
 in `SystemNexusConverterContext`; generated transfer converters obtain the active

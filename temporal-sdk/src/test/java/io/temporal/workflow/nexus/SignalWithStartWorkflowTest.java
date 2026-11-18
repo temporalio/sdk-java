@@ -48,36 +48,38 @@ public class SignalWithStartWorkflowTest {
                                           request.getNamespace());
                                       assertEquals("notify", request.getSignal());
                                       assertEquals(
-                                          request.getId().endsWith("queue-defaults")
+                                          request.getWorkflowId().endsWith("queue-defaults")
                                               ? Workflow.getInfo().getTaskQueue()
                                               : "queue",
                                           request.getTaskQueue());
-                                      if (request.getId().startsWith("typed")) {
+                                      if (request.getWorkflowId().startsWith("typed")) {
                                         assertEquals(
                                             java.time.Duration.ofSeconds(7),
-                                            request.getRetryPolicy().getInitialInterval());
+                                            request.getRetryOptions().getInitialInterval());
                                         assertEquals(
-                                            request.getId().equals("typed-overrides") ? 9 : 3,
-                                            request.getRetryPolicy().getMaximumAttempts());
+                                            request.getWorkflowId().equals("typed-overrides")
+                                                ? 9
+                                                : 3,
+                                            request.getRetryOptions().getMaximumAttempts());
                                         assertEquals(
-                                            request.getId().equals("typed-overrides")
+                                            request.getWorkflowId().equals("typed-overrides")
                                                 ? ""
                                                 : "0 * * * *",
                                             request.getCronSchedule());
                                       } else {
-                                        assertNull(request.getRetryPolicy());
+                                        assertNull(request.getRetryOptions());
                                         assertNull(request.getCronSchedule());
                                       }
                                       assertEquals(
                                           io.temporal.api.enums.v1.WorkflowIdReusePolicy
                                               .WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE,
-                                          request.getIdReusePolicy());
-                                      if (request.getId().contains("defaults")) {
+                                          request.getWorkflowIdReusePolicy());
+                                      if (request.getWorkflowId().contains("defaults")) {
                                         assertTrue(request.getArgs().isEmpty());
                                         assertTrue(request.getSignalArgs().isEmpty());
                                       } else {
                                         assertEquals("input", request.getArgs().get(0));
-                                        if (request.getId().equals("arity6")) {
+                                        if (request.getWorkflowId().equals("arity6")) {
                                           assertEquals(
                                               java.util.Arrays.asList(
                                                   "input",
@@ -94,7 +96,7 @@ public class SignalWithStartWorkflowTest {
                                             request.getUserMetadata().getStaticSummary());
                                         assertEquals(
                                             java.time.Duration.ofMinutes(3),
-                                            request.getRunTimeout());
+                                            request.getWorkflowRunTimeout());
                                       }
                                       return new ExecuteNexusOperationOutput<>(
                                           Workflow.newPromise(
@@ -126,12 +128,15 @@ public class SignalWithStartWorkflowTest {
             Workflow.signalWithStartWorkflow(
                 "Target", new Object[0], "notify", new Object[0], null));
     SignalWithStartWorkflowOptions withoutId = SignalWithStartWorkflowOptions.newBuilder().build();
-    assertNull(withoutId.getId());
+    assertNull(withoutId.getWorkflowId());
     assertNull(withoutId.getTaskQueue());
     SignalWithStartWorkflowOptions options =
-        SignalWithStartWorkflowOptions.newBuilder().setId("id").setTaskQueue("queue").build();
-    assertEquals("id", options.getId());
-    assertEquals("queue", options.toBuilder().setId("copy").build().getTaskQueue());
+        SignalWithStartWorkflowOptions.newBuilder()
+            .setWorkflowId("id")
+            .setTaskQueue("queue")
+            .build();
+    assertEquals("id", options.getWorkflowId());
+    assertEquals("queue", options.toBuilder().setWorkflowId("copy").build().getTaskQueue());
   }
 
   @Test
@@ -158,12 +163,12 @@ public class SignalWithStartWorkflowTest {
               new Object[0],
               "notify",
               new Object[0],
-              options.toBuilder().setId("queue-defaults").build());
+              options.toBuilder().setWorkflowId("queue-defaults").build());
       EmptyTarget target =
           Workflow.newExternalWorkflowStub(EmptyTarget.class, "typed-queue-defaults");
       ExternalWorkflowStub typed =
           Workflow.signalWithStartWorkflow(target::start, target::signalValue, options);
-      assertNull(options.getId());
+      assertNull(options.getWorkflowId());
       assertNull(options.getTaskQueue());
       return java.util.Arrays.asList(
           untyped.getExecution().getWorkflowId(), typed.getExecution().getWorkflowId());
@@ -236,7 +241,7 @@ public class SignalWithStartWorkflowTest {
           SignalWithStartWorkflowOptions.newBuilder()
               .setTaskQueue("queue")
               .setStaticSummary("summary")
-              .setRunTimeout(java.time.Duration.ofMinutes(3))
+              .setWorkflowRunTimeout(java.time.Duration.ofMinutes(3))
               .build();
       TypedTarget first = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed-identity-a");
       TypedTarget second = Workflow.newExternalWorkflowStub(TypedTarget.class, "typed-identity-b");
@@ -253,7 +258,7 @@ public class SignalWithStartWorkflowTest {
       ExternalWorkflowStub b =
           Workflow.signalWithStartWorkflow(
               second::start, "input", signal::signalValue, "signal", options);
-      assertNull(options.getId());
+      assertNull(options.getWorkflowId());
       assertThrows(
           IllegalArgumentException.class,
           () ->
@@ -262,7 +267,7 @@ public class SignalWithStartWorkflowTest {
                   "input",
                   signal::signalValue,
                   "signal",
-                  options.toBuilder().setId("different-id").build()));
+                  options.toBuilder().setWorkflowId("different-id").build()));
       assertThrows(
           IllegalArgumentException.class,
           () ->
@@ -271,7 +276,7 @@ public class SignalWithStartWorkflowTest {
                   "input",
                   signal::signalValue,
                   "signal",
-                  options.toBuilder().setId("").build()));
+                  options.toBuilder().setWorkflowId("").build()));
       TypedTarget pinned =
           Workflow.newExternalWorkflowStub(
               TypedTarget.class,
@@ -299,7 +304,7 @@ public class SignalWithStartWorkflowTest {
     @Override
     public String run() {
       assertEquals(
-          "id",
+          "workflowId",
           assertThrows(
                   NullPointerException.class,
                   () ->
@@ -312,10 +317,10 @@ public class SignalWithStartWorkflowTest {
               .getMessage());
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
-              .setId("sync")
+              .setWorkflowId("sync")
               .setTaskQueue("queue")
               .setStaticSummary("summary")
-              .setRunTimeout(java.time.Duration.ofMinutes(3))
+              .setWorkflowRunTimeout(java.time.Duration.ofMinutes(3))
               .build();
       ExternalWorkflowStub sync =
           Workflow.signalWithStartWorkflow(
@@ -327,7 +332,7 @@ public class SignalWithStartWorkflowTest {
               "notify",
               new Object[0],
               SignalWithStartWorkflowOptions.newBuilder()
-                  .setId("defaults")
+                  .setWorkflowId("defaults")
                   .setTaskQueue("queue")
                   .build());
       SignalWithStartWorkflowOptions typedOptions = options;
@@ -338,7 +343,7 @@ public class SignalWithStartWorkflowTest {
               "input",
               target::signalValue,
               "signal",
-              typedOptions.toBuilder().setId("typed").build());
+              typedOptions.toBuilder().setWorkflowId("typed").build());
       ExternalWorkflowStub typedOverrides =
           Workflow.signalWithStartWorkflow(
               Workflow.newExternalWorkflowStub(TypedTarget.class, "typed-overrides")::start,
@@ -346,8 +351,8 @@ public class SignalWithStartWorkflowTest {
               target::signalValue,
               "signal",
               typedOptions.toBuilder()
-                  .setId("typed-overrides")
-                  .setRetryPolicy(
+                  .setWorkflowId("typed-overrides")
+                  .setRetryOptions(
                       io.temporal.common.RetryOptions.newBuilder().setMaximumAttempts(9).build())
                   .setCronSchedule("")
                   .build());
@@ -372,7 +377,7 @@ public class SignalWithStartWorkflowTest {
               java.util.Collections.singletonMap("key", 4),
               six::signalValue,
               "signal",
-              typedOptions.toBuilder().setId("arity6").build());
+              typedOptions.toBuilder().setWorkflowId("arity6").build());
       return sync.getExecution().getWorkflowId()
           + ":"
           + sync.getExecution().getRunId()

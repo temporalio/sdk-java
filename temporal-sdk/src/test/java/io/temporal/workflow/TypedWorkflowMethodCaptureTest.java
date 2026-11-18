@@ -9,6 +9,7 @@ import io.temporal.common.MethodRetry;
 import io.temporal.common.RetryOptions;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.WorkflowMethodType;
+import io.temporal.internal.nexus.system.TemporalModelConverters;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler.ProbeResult;
 import io.temporal.internal.sync.StubMarker;

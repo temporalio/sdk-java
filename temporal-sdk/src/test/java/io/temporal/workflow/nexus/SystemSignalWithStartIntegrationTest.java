@@ -238,7 +238,7 @@ public class SystemSignalWithStartIntegrationTest {
                       SignalWithStartWorkflowOptions.newBuilder()
                           .setTaskQueue(Workflow.getInfo().getTaskQueue())
                           .setCronSchedule("")
-                          .setIdConflictPolicy(
+                          .setWorkflowIdConflictPolicy(
                               WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
                           .setMemo(Collections.singletonMap("memo", "memo-value"))
                           .setStaticSummary("summary")
@@ -252,7 +252,7 @@ public class SystemSignalWithStartIntegrationTest {
                       new Object[] {"ignored"},
                       "notifySignal",
                       new Object[] {"second"},
-                      options.toBuilder().setId(id).build());
+                      options.toBuilder().setWorkflowId(id).build());
                 }));
       }
       Promise.allOf(calls).get();
@@ -358,7 +358,7 @@ public class SystemSignalWithStartIntegrationTest {
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()
               .setCronSchedule("")
-              .setIdConflictPolicy(
+              .setWorkflowIdConflictPolicy(
                   WorkflowIdConflictPolicy.WORKFLOW_ID_CONFLICT_POLICY_USE_EXISTING)
               .build();
       Target target = Workflow.newExternalWorkflowStub(Target.class, id);
@@ -371,7 +371,7 @@ public class SystemSignalWithStartIntegrationTest {
           new Object[] {"ignored"},
           "notifySignal",
           new Object[] {"second"},
-          options.toBuilder().setId(id).build());
+          options.toBuilder().setWorkflowId(id).build());
       return id;
     }
   }

@@ -3,7 +3,7 @@ package io.temporal.workflow;
 
 /** Shared conversion helpers used by these generated models. */
 @SuppressWarnings({"unchecked", "rawtypes"})
-public final class NexgenRuntime {
+final class NexgenRuntime {
   private NexgenRuntime() {}
 
   public static <T> java.util.List<T> decodeSequence(

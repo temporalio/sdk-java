@@ -6,6 +6,7 @@ import io.temporal.common.VersioningOverride;
 import io.temporal.common.WorkerDeploymentVersion;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
+import io.temporal.internal.nexus.system.TemporalModelConverters;
 import org.junit.Test;
 
 public class TemporalModelConvertersTest {

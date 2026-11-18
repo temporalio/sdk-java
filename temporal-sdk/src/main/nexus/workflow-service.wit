@@ -42,6 +42,7 @@ interface workflow-service {
     /// @nexus.proto-field "workflow_type"
     workflow: workflow-function,
     /// @nexus.doc "Unique identifier for the workflow execution. Must be nonempty." java="Workflow ID. Typed calls derive it from the workflow reference when omitted; an explicit ID must match. Required for name-based calls."
+    /// @nexus.name java="workflowId"
     /// @nexus.proto-field "workflow_id"
     /// @nexus.merge-from-function function="workflow" java="mergeWorkflowIdForStart"
     id: string,
@@ -62,15 +63,15 @@ interface workflow-service {
     signal: signal-function,
     /// @nexus.doc "Total workflow execution timeout, including retries and continue-as-new. Defaults to unlimited."
     /// @nexus.proto-field "workflow_execution_timeout"
-    /// @nexus.name go="WorkflowExecutionTimeout"
+    /// @nexus.name go="WorkflowExecutionTimeout" java="workflowExecutionTimeout"
     execution-timeout: option<duration>,
     /// @nexus.doc "Timeout of a single workflow run. Defaults to the workflow execution timeout."
     /// @nexus.proto-field "workflow_run_timeout"
-    /// @nexus.name go="WorkflowRunTimeout"
+    /// @nexus.name go="WorkflowRunTimeout" java="workflowRunTimeout"
     run-timeout: option<duration>,
     /// @nexus.doc "Timeout of a single workflow task. Defaults to 10 seconds."
     /// @nexus.proto-field "workflow_task_timeout"
-    /// @nexus.name go="WorkflowTaskTimeout"
+    /// @nexus.name go="WorkflowTaskTimeout" java="workflowTaskTimeout"
     task-timeout: option<duration>,
     /// @nexus.omit
     identity: placeholder,
@@ -84,13 +85,14 @@ interface workflow-service {
     ///   typescript="common.WorkflowIdReusePolicy.ALLOW_DUPLICATE"
     ///   go="enums.WORKFLOW_ID_REUSE_POLICY_ALLOW_DUPLICATE"
     ///   dotnet="Temporalio.Api.Enums.V1.WorkflowIdReusePolicy.AllowDuplicate"
-    /// @nexus.name go="WorkflowIDReusePolicy"
+    /// @nexus.name go="WorkflowIDReusePolicy" java="workflowIdReusePolicy"
     id-reuse-policy: workflow-id-reuse-policy,
     /// @nexus.doc "Behavior when a workflow is currently running with the same ID. Set to use-existing for idempotent deduplication on workflow ID. Cannot be set if id-reuse-policy is terminate-if-running. Defaults to use-existing."
     /// @nexus.proto-field "workflow_id_conflict_policy"
-    /// @nexus.name go="WorkflowIDConflictPolicy"
+    /// @nexus.name go="WorkflowIDConflictPolicy" java="workflowIdConflictPolicy"
     id-conflict-policy: option<workflow-id-conflict-policy>,
     /// @nexus.doc "Retry policy for the workflow."
+    /// @nexus.name java="retryOptions"
     /// @nexus.merge-from-function function="workflow" java="mergeMethodRetry"
     retry-policy: option<retry-policy>,
     /// @nexus.doc "Cron schedule for recurring workflow executions. See https://docs.temporal.io/cron-job."
@@ -99,7 +101,7 @@ interface workflow-service {
     /// @nexus.doc "Memo for the workflow."
     memo: option<memo>,
     /// @nexus.doc "Typed search attributes for the workflow."
-    /// @nexus.name go="TypedSearchAttributes"
+    /// @nexus.name go="TypedSearchAttributes" java="typedSearchAttributes"
     search-attributes: option<search-attributes>,
     /// @nexus.doc "Priority of the workflow execution."
     priority: option<priority>,
@@ -146,7 +148,7 @@ interface workflow-service {
   ///   go-returns="A workflow.Execution with details about the signaled workflow."
   /// @nexus.output-transform
   ///   java-type="io.temporal.workflow.ExternalWorkflowStub"
-  ///   java="io.temporal.workflow.Workflow.newUntypedExternalWorkflowStub(io.temporal.api.common.v1.WorkflowExecution.newBuilder().setWorkflowId(request.getId()).setRunId(result.getRunId() == null ? \"\" : result.getRunId()).build())"
+  ///   java="signalWithStartWorkflowHandle(request.getWorkflowId(), result.getRunId())"
   ///   python-type="temporalio.workflow.ExternalWorkflowHandle[WorkflowResult]"
   ///   python="temporalio.workflow.get_external_workflow_handle(request.id, run_id=result.run_id)"
   ///   typescript-type="ExternalWorkflowHandle"

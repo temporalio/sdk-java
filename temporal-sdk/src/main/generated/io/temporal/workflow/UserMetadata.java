@@ -5,17 +5,7 @@ package io.temporal.workflow;
 @io.temporal.common.converter.TransferTypeConvertible(UserMetadata.Converter.class)
 @SuppressWarnings({"unchecked", "rawtypes"})
 public final class UserMetadata {
-  /**
-   * Single-line fixed summary for the workflow execution that may appear in UI and CLI. This can be
-   * in single-line Temporal Markdown format.
-   */
   private final Object staticSummary;
-
-  /**
-   * General fixed details for the workflow execution that may appear in UI and CLI. This can be in
-   * Temporal Markdown format and can span multiple lines. This value is fixed on the workflow
-   * execution and cannot be updated.
-   */
   private final Object staticDetails;
 
   @com.fasterxml.jackson.annotation.JsonCreator
@@ -26,10 +16,23 @@ public final class UserMetadata {
     this.staticDetails = staticDetails;
   }
 
+  /**
+   * Single-line fixed summary for the workflow execution that may appear in UI and CLI. This can be
+   * in single-line Temporal Markdown format.
+   *
+   * @return the staticSummary
+   */
   public Object getStaticSummary() {
     return staticSummary;
   }
 
+  /**
+   * General fixed details for the workflow execution that may appear in UI and CLI. This can be in
+   * Temporal Markdown format and can span multiple lines. This value is fixed on the workflow
+   * execution and cannot be updated.
+   *
+   * @return the staticDetails
+   */
   public Object getStaticDetails() {
     return staticDetails;
   }
@@ -47,6 +50,9 @@ public final class UserMetadata {
   }
 
   public static final class Builder {
+    private Object staticSummary = null;
+    private Object staticDetails = null;
+
     private Builder() {}
 
     private Builder(UserMetadata value) {
@@ -55,15 +61,26 @@ public final class UserMetadata {
       this.staticDetails = value.staticDetails;
     }
 
-    private Object staticSummary = null;
-
+    /**
+     * Single-line fixed summary for the workflow execution that may appear in UI and CLI. This can
+     * be in single-line Temporal Markdown format.
+     *
+     * @param value the staticSummary
+     * @return this builder
+     */
     public Builder setStaticSummary(Object value) {
       this.staticSummary = value;
       return this;
     }
 
-    private Object staticDetails = null;
-
+    /**
+     * General fixed details for the workflow execution that may appear in UI and CLI. This can be
+     * in Temporal Markdown format and can span multiple lines. This value is fixed on the workflow
+     * execution and cannot be updated.
+     *
+     * @param value the staticDetails
+     * @return this builder
+     */
     public Builder setStaticDetails(Object value) {
       this.staticDetails = value;
       return this;
@@ -108,7 +125,8 @@ public final class UserMetadata {
     public Object toTransferType(UserMetadata value) {
       return value == null
           ? null
-          : value.toProto(io.temporal.workflow.TemporalModelConverters.currentDataConverter());
+          : value.toProto(
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter());
     }
 
     public UserMetadata fromTransferType(Object value, java.lang.reflect.Type valueType) {
@@ -116,7 +134,7 @@ public final class UserMetadata {
           ? null
           : fromProto(
               (io.temporal.api.sdk.v1.UserMetadata) value,
-              io.temporal.workflow.TemporalModelConverters.currentDataConverter(),
+              io.temporal.internal.nexus.system.TemporalModelConverters.currentDataConverter(),
               valueType);
     }
   }

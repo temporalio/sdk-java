@@ -9,9 +9,9 @@ ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
     "TargetWorkflow", new Object[] {input},
     "notify", new Object[] {signal},
     SignalWithStartWorkflowOptions.newBuilder()
-        .setId("target")
+        .setWorkflowId("target")
         .setTaskQueue("target-queue")
-        .setRunTimeout(timeout)
+        .setWorkflowRunTimeout(timeout)
         .build());
 ```
 
@@ -51,7 +51,7 @@ ExternalWorkflowStub external = Workflow.signalWithStartWorkflow(
     target::run, input,
     target::notifySignal, signal,
     SignalWithStartWorkflowOptions.newBuilder()
-        .setTaskQueue("target-queue").setRunTimeout(timeout).build());
+        .setTaskQueue("target-queue").setWorkflowRunTimeout(timeout).build());
 ```
 
 Create `target` with `Workflow.newExternalWorkflowStub(TargetWorkflow.class, "target")`.

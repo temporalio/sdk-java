@@ -1,4 +1,4 @@
-package io.temporal.workflow;
+package io.temporal.internal.nexus.system;
 
 import io.temporal.api.common.v1.*;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -9,16 +9,16 @@ import io.temporal.common.VersioningOverride;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.metadata.WorkflowMethodType;
 import io.temporal.internal.common.*;
-import io.temporal.internal.nexus.system.SystemNexusDataConverter;
 import io.temporal.internal.sync.ExternalWorkflowInvocationHandler;
 import io.temporal.payload.context.WorkflowSerializationContext;
+import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
 /** SDK-owned model conversion hooks used by the generated system Nexus bindings. */
-final class TemporalModelConverters {
+public final class TemporalModelConverters {
   private TemporalModelConverters() {}
 
   /** Returns the user converter active during system Nexus transfer conversion. */
@@ -28,6 +28,16 @@ final class TemporalModelConverters {
 
   public static String workflowNamespace() {
     return Workflow.getInfo().getNamespace();
+  }
+
+  /** Returns a handle bound to the execution reported by signal with start. */
+  public static ExternalWorkflowStub signalWithStartWorkflowHandle(
+      String workflowId, String runId) {
+    return Workflow.newUntypedExternalWorkflowStub(
+        WorkflowExecution.newBuilder()
+            .setWorkflowId(workflowId)
+            .setRunId(runId == null ? "" : runId)
+            .build());
   }
 
   /** Captures one typed workflow invocation without starting a child workflow. */
@@ -83,7 +93,7 @@ final class TemporalModelConverters {
 
   public static WorkflowSerializationContext signalWithStartWorkflowSerializationContext(
       SignalWithStartWorkflowRequest request) {
-    return new WorkflowSerializationContext(request.getNamespace(), request.getId());
+    return new WorkflowSerializationContext(request.getNamespace(), request.getWorkflowId());
   }
 
   public static RuntimeException failureFromProto(

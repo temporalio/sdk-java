@@ -13,6 +13,7 @@ import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.workflow.*;
+import io.temporal.workflow.internal.SystemNexusOperations;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -25,7 +26,7 @@ public class SystemNexusDataConverterTest {
   private static SignalWithStartWorkflowRequest request(String id) {
     return SignalWithStartWorkflowRequest.newBuilder()
         .setNamespace("destination")
-        .setId(id)
+        .setWorkflowId(id)
         .setWorkflow("Target")
         .setTaskQueue("queue")
         .setSignal("notify")
@@ -216,7 +217,7 @@ public class SystemNexusDataConverterTest {
                 secondPayload,
                 SignalWithStartWorkflowRequest.class,
                 SignalWithStartWorkflowRequest.class)
-            .getId());
+            .getWorkflowId());
     assertEquals(
         "first",
         firstConverter
@@ -224,7 +225,7 @@ public class SystemNexusDataConverterTest {
                 firstPayload,
                 SignalWithStartWorkflowRequest.class,
                 SignalWithStartWorkflowRequest.class)
-            .getId());
+            .getWorkflowId());
     assertThrows(IllegalStateException.class, SystemNexusDataConverter::currentDataConverter);
   }
 
