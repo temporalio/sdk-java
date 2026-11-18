@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import com.google.protobuf.ByteString;
 import io.temporal.api.common.v1.Payload;
+import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.WorkflowIdConflictPolicy;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
@@ -51,20 +52,23 @@ public class SystemSignalWithStartIntegrationTest {
   private static final TestContextPropagator LEGACY = new TestContextPropagator("legacy", false);
   private static final TestContextPropagator ENCODED = new TestContextPropagator("encoded", true);
 
-  @Parameterized.Parameters(name = "externalStorage={0}")
-  public static Object[] storageModes() {
-    return new Object[] {false, true};
+  @Parameterized.Parameters(name = "externalStorage={0}, batchCodec={1}")
+  public static Object[][] storageAndCodecModes() {
+    return new Object[][] {{false, false}, {true, false}, {false, true}, {true, true}};
   }
 
   private final boolean externalStorageEnabled;
+  private final boolean batchCodecEnabled;
   private final TestStorageDriver storageDriver = TestStorageDriver.named("signal-with-start");
   private final ExternalStorage storage =
       ExternalStorage.newBuilder().setDriver(storageDriver).setPayloadSizeThreshold(0).build();
 
   @Rule public final SDKTestWorkflowRule rule;
 
-  public SystemSignalWithStartIntegrationTest(boolean externalStorageEnabled) {
+  public SystemSignalWithStartIntegrationTest(
+      boolean externalStorageEnabled, boolean batchCodecEnabled) {
     this.externalStorageEnabled = externalStorageEnabled;
+    this.batchCodecEnabled = batchCodecEnabled;
     rule =
         SDKTestWorkflowRule.newBuilder()
             .setWorkflowTypes(CallerImpl.class, ConcurrentCallerImpl.class, TargetImpl.class)
@@ -139,7 +143,8 @@ public class SystemSignalWithStartIntegrationTest {
                     .setDataConverter(
                         new CodecDataConverter(
                             DefaultDataConverter.STANDARD_INSTANCE,
-                            Collections.singletonList(new DestinationCodec(null))))
+                            Collections.singletonList(
+                                new DestinationCodec(null, batchCodecEnabled))))
                     .build())
             .build();
   }
@@ -190,7 +195,8 @@ public class SystemSignalWithStartIntegrationTest {
       assertTrue(targets.contains(request.getWorkflowId()));
       String expected = request.getNamespace() + "/" + request.getWorkflowId();
       List<Payload> embedded = embeddedPayloads(request);
-      assertEquals(5, embedded.size());
+      assertEquals(batchCodecEnabled ? 5 : 7, embedded.size());
+      assertEquals(batchCodecEnabled ? 1 : 3, request.getInput().getPayloadsCount());
       assertEquals(3, request.getHeader().getFieldsCount());
       if (externalStorageEnabled) {
         List<Payload> offloaded = new ArrayList<>(embedded);
@@ -218,7 +224,9 @@ public class SystemSignalWithStartIntegrationTest {
       Payload encoded = request.getHeader().getFieldsOrThrow("encoded");
       assertEquals(expected, encoded.getMetadataOrThrow(DestinationCodec.KEY).toStringUtf8());
       Payload decoded =
-          new DestinationCodec(expected).decode(Collections.singletonList(encoded)).get(0);
+          new DestinationCodec(expected, batchCodecEnabled)
+              .decode(Collections.singletonList(encoded))
+              .get(0);
       assertEquals(
           "encoded-context",
           DefaultDataConverter.STANDARD_INSTANCE.fromPayload(decoded, String.class, String.class));
@@ -297,10 +305,16 @@ public class SystemSignalWithStartIntegrationTest {
                           .build();
                   Target target = Workflow.newExternalWorkflowStub(Target.class, id);
                   Workflow.signalWithStartWorkflow(
-                      target::run, "start", target::notifySignal, "first", options);
+                      target::run,
+                      "start",
+                      (String) null,
+                      "extra",
+                      target::notifySignal,
+                      "first",
+                      options);
                   Workflow.signalWithStartWorkflow(
                       "SystemSignalTarget",
-                      new Object[] {"ignored"},
+                      new Object[] {"ignored", null, "extra"},
                       "notifySignal",
                       new Object[] {"second"},
                       options.toBuilder().setWorkflowId(id).build());
@@ -368,10 +382,13 @@ public class SystemSignalWithStartIntegrationTest {
 
   private static final class DestinationCodec implements PayloadCodec {
     static final String KEY = "test-destination";
+    private static final ByteString BATCH_ENCODING = ByteString.copyFromUtf8("test/batch");
     private final String destination;
+    private final boolean packBatches;
 
-    DestinationCodec(String destination) {
+    DestinationCodec(String destination, boolean packBatches) {
       this.destination = destination;
+      this.packBatches = packBatches;
     }
 
     @Nonnull
@@ -379,29 +396,46 @@ public class SystemSignalWithStartIntegrationTest {
     public PayloadCodec withContext(@Nonnull SerializationContext context) {
       if (!(context instanceof WorkflowSerializationContext)) return this;
       WorkflowSerializationContext workflow = (WorkflowSerializationContext) context;
-      return new DestinationCodec(workflow.getNamespace() + "/" + workflow.getWorkflowId());
+      return new DestinationCodec(
+          workflow.getNamespace() + "/" + workflow.getWorkflowId(), packBatches);
     }
 
     @Nonnull
     @Override
     public List<Payload> encode(@Nonnull List<Payload> payloads) {
-      return payloads.stream()
-          .map(
-              payload -> {
-                rejectEnvelope(payload);
-                assertFalse("Payload encoded twice", payload.containsMetadata(KEY));
-                return destination == null
-                    ? payload
-                    : payload.toBuilder()
-                        .putMetadata(KEY, ByteString.copyFromUtf8(destination))
-                        .build();
-              })
-          .collect(Collectors.toList());
+      List<Payload> encoded =
+          payloads.stream()
+              .map(
+                  payload -> {
+                    rejectEnvelope(payload);
+                    assertFalse("Payload encoded twice", payload.containsMetadata(KEY));
+                    return destination == null
+                        ? payload
+                        : payload.toBuilder()
+                            .putMetadata(KEY, ByteString.copyFromUtf8(destination))
+                            .build();
+                  })
+              .collect(Collectors.toList());
+      if (!packBatches || encoded.size() <= 1) return encoded;
+      Payload.Builder batch =
+          Payload.newBuilder()
+              .putMetadata("encoding", BATCH_ENCODING)
+              .setData(Payloads.newBuilder().addAllPayloads(encoded).build().toByteString());
+      if (destination != null) batch.putMetadata(KEY, ByteString.copyFromUtf8(destination));
+      return Collections.singletonList(batch.build());
     }
 
     @Nonnull
     @Override
     public List<Payload> decode(@Nonnull List<Payload> payloads) {
+      if (payloads.size() == 1
+          && BATCH_ENCODING.equals(payloads.get(0).getMetadataMap().get("encoding"))) {
+        try {
+          payloads = Payloads.parseFrom(payloads.get(0).getData()).getPayloadsList();
+        } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+          throw new IllegalArgumentException("Invalid batch payload", e);
+        }
+      }
       return payloads.stream()
           .map(
               payload -> {
@@ -430,7 +464,7 @@ public class SystemSignalWithStartIntegrationTest {
     @WorkflowMethod(name = "SystemSignalTarget")
     @io.temporal.common.MethodRetry(initialIntervalSeconds = 1, maximumAttempts = 3)
     @io.temporal.common.CronSchedule("0 * * * *")
-    String run(String initial);
+    String run(String initial, String nullable, String extra);
 
     @SignalMethod
     void notifySignal(String value);
@@ -440,7 +474,9 @@ public class SystemSignalWithStartIntegrationTest {
     private final java.util.List<String> signals = new java.util.ArrayList<>();
 
     @Override
-    public String run(String initial) {
+    public String run(String initial, String nullable, String extra) {
+      assertNull(nullable);
+      assertEquals("extra", extra);
       assertEquals("legacy-context", LEGACY.getCurrentContext());
       assertEquals("encoded-context", ENCODED.getCurrentContext());
       Workflow.await(() -> signals.size() == 2);
@@ -475,11 +511,11 @@ public class SystemSignalWithStartIntegrationTest {
       Target target = Workflow.newExternalWorkflowStub(Target.class, id);
       ExternalWorkflowStub external =
           Workflow.signalWithStartWorkflow(
-              target::run, "start", target::notifySignal, "first", options);
+              target::run, "start", (String) null, "extra", target::notifySignal, "first", options);
       assertEquals(id, external.getExecution().getWorkflowId());
       Workflow.signalWithStartWorkflow(
           "SystemSignalTarget",
-          new Object[] {"ignored"},
+          new Object[] {"ignored", null, "extra"},
           "notifySignal",
           new Object[] {"second"},
           options.toBuilder().setWorkflowId(id).build());

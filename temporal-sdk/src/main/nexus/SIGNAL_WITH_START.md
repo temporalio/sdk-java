@@ -113,7 +113,10 @@ failures; the outer system envelope remains server-readable.
 `SystemSignalWithStartIntegrationTest` verifies this converter selection against a
 supporting server with a signing codec, overlapping calls to distinct destination
 workflows, payload inspection in history, and replay. Both scenarios run with
-external storage disabled and enabled at a zero-byte offload threshold. The
+external storage disabled and enabled at a zero-byte offload threshold, with
+both ordinary and batch-packing codecs. The batch codec packs three workflow
+arguments, including a null, into one payload. The receiving workflow decodes
+them using its declared argument types and arity. The
 storage cases verify nested references in history, inline system envelopes,
 retrieval during workflow execution, and destination codec metadata after
 retrieval. Replaying both caller and target histories also exercises retrieval
@@ -121,7 +124,11 @@ of stored workflow and signal inputs. Converter unit tests cover valid and
 unknown versioning override shapes; unknown shapes are rejected.
 
 This operation serializes the request and deserializes a response with no user
-payloads. Future operations returning embedded payloads must use generic response
+payloads. Generated request-model decoding of argument sequences is explicitly
+unsupported: the shared Temporal `payloads` binding delegates to a support helper
+that throws `UnsupportedOperationException`, rather than partially decoding an
+unknown-length batch. This does not affect server-side workflow argument decoding.
+Future operations returning embedded payloads must use generic response
 models and propagate concrete result types from the API to transfer conversion.
 
 ## Real-server tests

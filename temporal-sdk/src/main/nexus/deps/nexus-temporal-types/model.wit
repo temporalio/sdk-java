@@ -20,6 +20,7 @@ interface model {
   ///   typescript-import="@temporalio/proto"
   /// @nexus.type
   ///   java="java.util.List<Object>"
+  ///   java-from="payloadsFromProto"
   ///   go="[]any"
   ///   dotnet="IReadOnlyCollection<object?>"
   ///   dotnet-from="ProtoExtensions.FromPayloads"

@@ -14,6 +14,7 @@ import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.workflow.*;
 import io.temporal.workflow.internal.SystemNexusOperations;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -91,15 +92,22 @@ public class SystemNexusDataConverterTest {
     assertEquals(
         "target",
         wire.getMemo().getFieldsOrThrow("memo").getMetadataOrThrow("test-context").toStringUtf8());
-    SignalWithStartWorkflowRequest decoded =
-        converter.fromPayload(
-            encoded, SignalWithStartWorkflowRequest.class, SignalWithStartWorkflowRequest.class);
-    assertEquals(request.getArgs(), decoded.getArgs());
-    assertEquals(request.getSignalArgs(), decoded.getSignalArgs());
-    assertEquals(request.getMemo(), decoded.getMemo());
-    assertEquals(request.getHeaders(), decoded.getHeaders());
+    assertArrayEquals(
+        request.getArgs().toArray(),
+        user.fromPayloads(
+            Optional.of(wire.getInput()),
+            new Class<?>[] {String.class, Integer.class},
+            new Type[] {String.class, Integer.class}));
+    assertEquals(
+        "signal",
+        user.fromPayloads(0, Optional.of(wire.getSignalInput()), String.class, String.class));
+    assertEquals(
+        "value",
+        user.fromPayload(wire.getMemo().getFieldsOrThrow("memo"), String.class, String.class));
     assertEquals(request.getHeaders().get("trace"), wire.getHeader().getFieldsOrThrow("trace"));
-    assertEquals("summary", decoded.getUserMetadata().getStaticSummary());
+    assertEquals(
+        "summary",
+        user.fromPayload(wire.getUserMetadata().getSummary(), String.class, String.class));
   }
 
   @Test
@@ -119,13 +127,29 @@ public class SystemNexusDataConverterTest {
     verify(user).toPayload("value");
     verify(user, never()).toPayload(request);
     verify(user, never()).toPayload(isA(com.google.protobuf.Message.class));
-    SignalWithStartWorkflowRequest decoded =
-        converter.fromPayload(
-            encoded, SignalWithStartWorkflowRequest.class, SignalWithStartWorkflowRequest.class);
-    assertEquals(request.getArgs(), decoded.getArgs());
-    assertEquals(request.getSignalArgs(), decoded.getSignalArgs());
-    assertEquals(request.getMemo(), decoded.getMemo());
-    assertEquals(request.getHeaders(), decoded.getHeaders());
+    assertEquals(2, wire.getInput().getPayloadsCount());
+    assertEquals(1, wire.getSignalInput().getPayloadsCount());
+    assertEquals(request.getHeaders().get("trace"), wire.getHeader().getFieldsOrThrow("trace"));
+  }
+
+  @Test
+  public void requestPayloadSequenceDecodingIsExplicitlyUnsupported() {
+    SystemNexusDataConverter converter =
+        new SystemNexusDataConverter(DefaultDataConverter.STANDARD_INSTANCE);
+    Payload encoded = converter.toPayload(request("target")).get();
+    DataConverterException failure =
+        assertThrows(
+            DataConverterException.class,
+            () ->
+                converter.fromPayload(
+                    encoded,
+                    SignalWithStartWorkflowRequest.class,
+                    SignalWithStartWorkflowRequest.class));
+    assertTrue(failure.getCause() instanceof UnsupportedOperationException);
+    assertEquals(
+        "Decoding payload sequences is not implemented for workflow-side bindings",
+        failure.getCause().getMessage());
+    assertThrows(IllegalStateException.class, SystemNexusDataConverter::currentDataConverter);
   }
 
   @Test
@@ -188,7 +212,7 @@ public class SystemNexusDataConverterTest {
   }
 
   @Test
-  public void operationsRetainIndependentDestinationConverters() {
+  public void operationsEncodeUsingIndependentDestinationConverters() {
     SignalWithStartWorkflowRequest first = request("first");
     SignalWithStartWorkflowRequest second = request("second");
     DataConverter base =
@@ -205,22 +229,24 @@ public class SystemNexusDataConverterTest {
                 SystemNexusOperations.serializationContext(SERVICE, OPERATION, second)));
     Payload firstPayload = firstConverter.toPayload(first).get();
     Payload secondPayload = secondConverter.toPayload(second).get();
-    assertEquals(
-        "second",
-        secondConverter
-            .fromPayload(
-                secondPayload,
-                SignalWithStartWorkflowRequest.class,
-                SignalWithStartWorkflowRequest.class)
-            .getWorkflowId());
+    SignalWithStartWorkflowExecutionRequest firstWire =
+        firstConverter.fromPayload(
+            firstPayload,
+            SignalWithStartWorkflowExecutionRequest.class,
+            SignalWithStartWorkflowExecutionRequest.class);
+    SignalWithStartWorkflowExecutionRequest secondWire =
+        secondConverter.fromPayload(
+            secondPayload,
+            SignalWithStartWorkflowExecutionRequest.class,
+            SignalWithStartWorkflowExecutionRequest.class);
+    assertEquals("first", firstWire.getWorkflowId());
+    assertEquals("second", secondWire.getWorkflowId());
     assertEquals(
         "first",
-        firstConverter
-            .fromPayload(
-                firstPayload,
-                SignalWithStartWorkflowRequest.class,
-                SignalWithStartWorkflowRequest.class)
-            .getWorkflowId());
+        firstWire.getInput().getPayloads(0).getMetadataOrThrow("test-context").toStringUtf8());
+    assertEquals(
+        "second",
+        secondWire.getInput().getPayloads(0).getMetadataOrThrow("test-context").toStringUtf8());
     assertThrows(IllegalStateException.class, SystemNexusDataConverter::currentDataConverter);
   }
 

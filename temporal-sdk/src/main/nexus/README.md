@@ -52,12 +52,15 @@ the checked-in output and do not require either tool.
 `TemporalModelConverters` lives in `io.temporal.internal.nexus.system` and
 contains SDK-owned conversion and output-transform helpers. Generated dispatch
 and service helpers live in `io.temporal.workflow.internal`. The nexgen
-sample support file contains its own copies of these implementations. The emitted
-`NexgenRuntime` contains only payload-sequence decoding. Converter scoping lives
+sample support file contains its own copies of these implementations.
+The shared Temporal payload-sequence binding uses the support helper
+`payloadsFromProto`, which explicitly rejects inbound conversion without known
+argument types and arity. Outbound batch encoding is unchanged.
+Converter scoping lives
 in `SystemNexusConverterContext`; generated transfer converters obtain the active
 converter through `TemporalModelConverters.currentDataConverter()` and fail
 when no scope is active, matching Python. Protobuf field access is generated
-directly. Nex-gen assembles the required runtime helpers from Rust strings.
+directly.
 Normal Java SDK builds do not require Rust or nex-gen.
 
 The SDK wraps any configured `DataConverter` in `SystemNexusDataConverter` for

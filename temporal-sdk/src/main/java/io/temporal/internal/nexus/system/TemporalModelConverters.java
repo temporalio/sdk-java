@@ -14,6 +14,7 @@ import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.workflow.*;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
@@ -28,6 +29,12 @@ public final class TemporalModelConverters {
 
   public static String workflowNamespace() {
     return Workflow.getInfo().getNamespace();
+  }
+
+  /** Workflow-side bindings encode arguments but do not decode unknown-arity payload sequences. */
+  public static List<Object> payloadsFromProto(DataConverter converter, Payloads value) {
+    throw new UnsupportedOperationException(
+        "Decoding payload sequences is not implemented for workflow-side bindings");
   }
 
   /** Returns a handle bound to the execution reported by signal with start. */

@@ -713,10 +713,8 @@ public final class SignalWithStartWorkflowRequest {
             converter, proto.getWorkflowType()));
     if (proto.hasInput())
       builder.setArgs(
-          (java.util.List<Object>)
-              (Object)
-                  io.temporal.workflow.NexgenRuntime.decodeSequence(
-                      proto.getInput(), converter, Object.class, Object.class));
+          io.temporal.internal.nexus.system.TemporalModelConverters.payloadsFromProto(
+              converter, proto.getInput()));
     builder.setWorkflowId(proto.getWorkflowId());
     builder.setTaskQueue(
         io.temporal.internal.nexus.system.TemporalModelConverters.taskQueueFromProto(
@@ -724,10 +722,8 @@ public final class SignalWithStartWorkflowRequest {
     builder.setSignal(proto.getSignalName());
     if (proto.hasSignalInput())
       builder.setSignalArgs(
-          (java.util.List<Object>)
-              (Object)
-                  io.temporal.workflow.NexgenRuntime.decodeSequence(
-                      proto.getSignalInput(), converter, Object.class, Object.class));
+          io.temporal.internal.nexus.system.TemporalModelConverters.payloadsFromProto(
+              converter, proto.getSignalInput()));
     if (proto.hasWorkflowExecutionTimeout())
       builder.setWorkflowExecutionTimeout(
           io.temporal.internal.nexus.system.TemporalModelConverters.durationFromProto(
