@@ -44,6 +44,14 @@ hooks through `executeSystemNexusOperation`. `SyncWorkflowContext` supplies that
 terminal transport without re-entering the interceptor chain. Adding operations
 does not require handwritten forwarding or terminal methods.
 
+Like the Go bindings, WIT selects the embedded header field with
+`@nexus.context-propagation`. The generated Java terminal merges configured
+context propagators after typed interception, using the destination workflow's
+serialization context. Only producers opting into `encodeHeaders()` use the
+header codec. Interceptor-supplied wire-ready payloads and legacy propagator
+headers are preserved without another codec layer. These are workflow payload
+headers, separate from Nexus transport headers.
+
 The typed overload checks workflow and signal arguments against their interface:
 
 ```java

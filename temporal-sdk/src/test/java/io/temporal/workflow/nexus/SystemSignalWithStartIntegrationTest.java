@@ -11,6 +11,7 @@ import io.temporal.api.workflowservice.v1.SignalWithStartWorkflowExecutionReques
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowStub;
 import io.temporal.common.CancellationToken;
+import io.temporal.common.context.ContextPropagator;
 import io.temporal.common.converter.CodecDataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.interceptors.WorkerInterceptorBase;
@@ -47,6 +48,9 @@ import org.junit.runners.Parameterized;
 @Category(RequiresCloudProvisioning.class)
 @RunWith(Parameterized.class)
 public class SystemSignalWithStartIntegrationTest {
+  private static final TestContextPropagator LEGACY = new TestContextPropagator("legacy", false);
+  private static final TestContextPropagator ENCODED = new TestContextPropagator("encoded", true);
+
   @Parameterized.Parameters(name = "externalStorage={0}")
   public static Object[] storageModes() {
     return new Object[] {false, true};
@@ -77,6 +81,35 @@ public class SystemSignalWithStartIntegrationTest {
                                 super.init(
                                     new WorkflowOutboundCallsInterceptorBase(outbound) {
                                       @Override
+                                      public ExecuteNexusOperationOutput<
+                                              SignalWithStartWorkflowResponse>
+                                          executeSignalWithStartWorkflow(
+                                              ExecuteNexusOperationInput<
+                                                      SignalWithStartWorkflowResponse>
+                                                  input) {
+                                        SignalWithStartWorkflowRequest request =
+                                            (SignalWithStartWorkflowRequest) input.getArg();
+                                        Map<String, Payload> headers = new HashMap<>();
+                                        if (request.getHeaders() != null)
+                                          headers.putAll(request.getHeaders());
+                                        headers.put(
+                                            "manual",
+                                            DefaultDataConverter.STANDARD_INSTANCE
+                                                .toPayload("manual-header")
+                                                .get());
+                                        return super.executeSignalWithStartWorkflow(
+                                            new ExecuteNexusOperationInput<>(
+                                                input.getEndpoint(),
+                                                input.getService(),
+                                                input.getOperation(),
+                                                input.getResultClass(),
+                                                input.getResultType(),
+                                                request.toBuilder().setHeaders(headers).build(),
+                                                input.getOptions(),
+                                                input.getHeaders()));
+                                      }
+
+                                      @Override
                                       public <R>
                                           ExecuteNexusOperationOutput<R> executeNexusOperation(
                                               ExecuteNexusOperationInput<R> input) {
@@ -101,6 +134,7 @@ public class SystemSignalWithStartIntegrationTest {
                     .build())
             .setWorkflowClientOptions(
                 WorkflowClientOptions.newBuilder()
+                    .setContextPropagators(Arrays.asList(LEGACY, ENCODED))
                     .setExternalStorage(externalStorageEnabled ? storage : null)
                     .setDataConverter(
                         new CodecDataConverter(
@@ -157,8 +191,11 @@ public class SystemSignalWithStartIntegrationTest {
       String expected = request.getNamespace() + "/" + request.getWorkflowId();
       List<Payload> embedded = embeddedPayloads(request);
       assertEquals(5, embedded.size());
+      assertEquals(3, request.getHeader().getFieldsCount());
       if (externalStorageEnabled) {
-        for (Payload payload : embedded) {
+        List<Payload> offloaded = new ArrayList<>(embedded);
+        offloaded.addAll(request.getHeader().getFieldsMap().values());
+        for (Payload payload : offloaded) {
           assertEquals(
               ExternalStorageReference.getDescriptor().getFullName(),
               payload.getMetadataOrThrow("messageType").toStringUtf8());
@@ -172,6 +209,19 @@ public class SystemSignalWithStartIntegrationTest {
       for (Payload payload : embedded) {
         assertEquals(expected, payload.getMetadataOrThrow(DestinationCodec.KEY).toStringUtf8());
       }
+      assertEquals(
+          DefaultDataConverter.STANDARD_INSTANCE.toPayload("manual-header").get(),
+          request.getHeader().getFieldsOrThrow("manual"));
+      assertEquals(
+          DefaultDataConverter.STANDARD_INSTANCE.toPayload("legacy-context").get(),
+          request.getHeader().getFieldsOrThrow("legacy"));
+      Payload encoded = request.getHeader().getFieldsOrThrow("encoded");
+      assertEquals(expected, encoded.getMetadataOrThrow(DestinationCodec.KEY).toStringUtf8());
+      Payload decoded =
+          new DestinationCodec(expected).decode(Collections.singletonList(encoded)).get(0);
+      assertEquals(
+          "encoded-context",
+          DefaultDataConverter.STANDARD_INSTANCE.fromPayload(decoded, String.class, String.class));
     }
     assertEquals(4, scheduled);
     WorkflowReplayer.replayWorkflowExecution(rule.getExecutionHistory(callerId), rule.getWorker());
@@ -234,6 +284,7 @@ public class SystemSignalWithStartIntegrationTest {
         calls.add(
             Async.procedure(
                 () -> {
+                  installCallerContext();
                   SignalWithStartWorkflowOptions options =
                       SignalWithStartWorkflowOptions.newBuilder()
                           .setTaskQueue(Workflow.getInfo().getTaskQueue())
@@ -257,6 +308,61 @@ public class SystemSignalWithStartIntegrationTest {
       }
       Promise.allOf(calls).get();
       return targets;
+    }
+  }
+
+  private static void installCallerContext() {
+    LEGACY.setCurrentContext("legacy-context");
+    ENCODED.setCurrentContext("encoded-context");
+  }
+
+  private static final class TestContextPropagator implements ContextPropagator {
+    private final String name;
+    private final boolean encoded;
+    private final ThreadLocal<String> current = new ThreadLocal<>();
+
+    private TestContextPropagator(String name, boolean encoded) {
+      this.name = name;
+      this.encoded = encoded;
+    }
+
+    @Override
+    public String getName() {
+      return name;
+    }
+
+    @Override
+    public boolean encodeHeaders() {
+      return encoded;
+    }
+
+    @Override
+    public Map<String, Payload> serializeContext(Object context) {
+      return context == null
+          ? Collections.emptyMap()
+          : Collections.singletonMap(
+              name, DefaultDataConverter.STANDARD_INSTANCE.toPayload(context).get());
+    }
+
+    @Override
+    public Object deserializeContext(Map<String, Payload> context) {
+      Payload payload = context.get(name);
+      if (payload == null) return null;
+      assertFalse(
+          "Propagator must receive its decoded header",
+          payload.containsMetadata(DestinationCodec.KEY));
+      return DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
+          payload, String.class, String.class);
+    }
+
+    @Override
+    public Object getCurrentContext() {
+      return current.get();
+    }
+
+    @Override
+    public void setCurrentContext(Object context) {
+      current.set((String) context);
     }
   }
 
@@ -335,12 +441,16 @@ public class SystemSignalWithStartIntegrationTest {
 
     @Override
     public String run(String initial) {
+      assertEquals("legacy-context", LEGACY.getCurrentContext());
+      assertEquals("encoded-context", ENCODED.getCurrentContext());
       Workflow.await(() -> signals.size() == 2);
       return initial + ":" + String.join(":", signals);
     }
 
     @Override
     public void notifySignal(String value) {
+      assertEquals("legacy-context", LEGACY.getCurrentContext());
+      assertEquals("encoded-context", ENCODED.getCurrentContext());
       signals.add(value);
     }
   }
@@ -354,6 +464,7 @@ public class SystemSignalWithStartIntegrationTest {
   public static class CallerImpl implements Caller {
     @Override
     public String run() {
+      installCallerContext();
       String id = Workflow.getInfo().getWorkflowId() + "-target";
       SignalWithStartWorkflowOptions options =
           SignalWithStartWorkflowOptions.newBuilder()

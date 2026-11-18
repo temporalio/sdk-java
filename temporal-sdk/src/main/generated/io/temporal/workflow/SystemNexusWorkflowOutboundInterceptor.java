@@ -29,6 +29,7 @@ public interface SystemNexusWorkflowOutboundInterceptor {
   }
 
   /** Executes typed hooks through the terminal transport, never through the interceptor chain. */
+  @SuppressWarnings({"unchecked", "rawtypes"})
   abstract class Terminal implements SystemNexusWorkflowOutboundInterceptor {
     protected abstract <R>
         io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
@@ -40,6 +41,12 @@ public interface SystemNexusWorkflowOutboundInterceptor {
                         R>
                     input);
 
+    /** Merges workflow context into wire-ready headers using SDK-owned codec policy. */
+    protected abstract java.util.Map<String, io.temporal.api.common.v1.Payload>
+        propagateSystemNexusHeaders(
+            java.util.Map<String, io.temporal.api.common.v1.Payload> headers,
+            io.temporal.payload.context.SerializationContext context);
+
     @Override
     public io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
                 .ExecuteNexusOperationOutput<
@@ -49,6 +56,27 @@ public interface SystemNexusWorkflowOutboundInterceptor {
                         .ExecuteNexusOperationInput<
                     io.temporal.workflow.SignalWithStartWorkflowResponse>
                 input) {
+      io.temporal.workflow.SignalWithStartWorkflowRequest request =
+          (io.temporal.workflow.SignalWithStartWorkflowRequest) input.getArg();
+      request =
+          request.toBuilder()
+              .setHeaders(
+                  propagateSystemNexusHeaders(
+                      request.getHeaders(),
+                      io.temporal.workflow.internal.SystemNexusOperations.serializationContext(
+                          input.getService(), input.getOperation(), request)))
+              .build();
+      input =
+          new io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor
+              .ExecuteNexusOperationInput<>(
+              input.getEndpoint(),
+              input.getService(),
+              input.getOperation(),
+              input.getResultClass(),
+              input.getResultType(),
+              request,
+              input.getOptions(),
+              input.getHeaders());
       return executeSystemNexusOperation(input);
     }
   }

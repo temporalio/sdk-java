@@ -154,31 +154,13 @@ public final class TemporalModelConverters {
     return result;
   }
 
+  /** Copies wire-ready payloads; producer-specific encoding happens before model conversion. */
   public static Header headerToProto(DataConverter converter, Map<String, Payload> value) {
-    Header.Builder builder = Header.newBuilder();
-    value.forEach(
-        (key, payload) ->
-            builder.putFields(
-                key,
-                converter.toPayload(new io.temporal.common.converter.RawValue(payload)).get()));
-    return builder.build();
+    return Header.newBuilder().putAllFields(value).build();
   }
 
   public static Map<String, Payload> headerFromProto(DataConverter converter, Header value) {
-    Map<String, Payload> result = new LinkedHashMap<>();
-    value
-        .getFieldsMap()
-        .forEach(
-            (key, payload) ->
-                result.put(
-                    key,
-                    converter
-                        .fromPayload(
-                            payload,
-                            io.temporal.common.converter.RawValue.class,
-                            io.temporal.common.converter.RawValue.class)
-                        .getPayload()));
-    return result;
+    return new LinkedHashMap<>(value.getFieldsMap());
   }
 
   public static io.temporal.api.common.v1.SearchAttributes searchAttributesToProto(

@@ -51,6 +51,7 @@ import io.temporal.internal.statemachines.*;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.ActivitySerializationContext;
 import io.temporal.payload.context.NexusSerializationContext;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
 import io.temporal.worker.WorkflowImplementationOptions;
 import io.temporal.workflow.*;
@@ -856,6 +857,18 @@ final class SyncWorkflowContext
             (b) ->
                 dataConverterWithChildWorkflowContext.fromPayloads(0, b, resultClass, resultType));
     return new ChildWorkflowOutput<>(result, executionPromise);
+  }
+
+  @Nullable
+  @Override
+  protected Map<String, Payload> propagateSystemNexusHeaders(
+      @Nullable Map<String, Payload> headers, @Nullable SerializationContext context) {
+    io.temporal.api.common.v1.Header propagated =
+        toHeaderGrpc(
+            new Header(headers == null ? Collections.emptyMap() : headers),
+            HeaderUtils.fromContextPropagators(contextPropagators),
+            context == null ? headerCodec : HeaderUtils.withContext(headerCodec, context));
+    return headers == null && propagated.getFieldsCount() == 0 ? null : propagated.getFieldsMap();
   }
 
   @Override

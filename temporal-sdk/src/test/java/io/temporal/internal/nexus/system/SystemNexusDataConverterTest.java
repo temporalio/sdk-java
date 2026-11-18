@@ -98,12 +98,7 @@ public class SystemNexusDataConverterTest {
     assertEquals(request.getSignalArgs(), decoded.getSignalArgs());
     assertEquals(request.getMemo(), decoded.getMemo());
     assertEquals(request.getHeaders(), decoded.getHeaders());
-    assertEquals(
-        "target",
-        wire.getHeader()
-            .getFieldsOrThrow("trace")
-            .getMetadataOrThrow("test-context")
-            .toStringUtf8());
+    assertEquals(request.getHeaders().get("trace"), wire.getHeader().getFieldsOrThrow("trace"));
     assertEquals("summary", decoded.getUserMetadata().getStaticSummary());
   }
 

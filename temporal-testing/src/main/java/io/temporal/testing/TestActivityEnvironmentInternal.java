@@ -370,6 +370,14 @@ public final class TestActivityEnvironmentInternal implements TestActivityEnviro
     }
 
     @Override
+    protected Map<String, io.temporal.api.common.v1.Payload> propagateSystemNexusHeaders(
+        Map<String, io.temporal.api.common.v1.Payload> headers,
+        io.temporal.payload.context.SerializationContext context) {
+      throw new UnsupportedOperationException(
+          "Workflow operations are not available in activities");
+    }
+
+    @Override
     protected <R> ExecuteNexusOperationOutput<R> executeSystemNexusOperation(
         ExecuteNexusOperationInput<R> input) {
       throw new UnsupportedOperationException(
