@@ -20,6 +20,7 @@ import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.VersionPreference;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -57,6 +58,7 @@ public class VersionStateMachineTest {
                         DEFAULT_VERSION,
                         12,
                         (min, max) -> VersionPreference.of(preferredVersion),
+                        Collections.emptyList(),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
@@ -92,7 +94,12 @@ public class VersionStateMachineTest {
             .<Integer, RuntimeException>add2(
                 (v, c) ->
                     stateMachines.getVersion(
-                        "id1", DEFAULT_VERSION, maxSupported, (min, max) -> null, c))
+                        "id1",
+                        DEFAULT_VERSION,
+                        maxSupported,
+                        (min, max) -> null,
+                        Collections.emptyList(),
+                        c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
     }
@@ -125,6 +132,7 @@ public class VersionStateMachineTest {
                           providerCalls.incrementAndGet();
                           return VersionPreference.of(3);
                         },
+                        Collections.emptyList(),
                         c))
             .<Integer, RuntimeException>add2(
                 (v, c) ->
@@ -136,6 +144,7 @@ public class VersionStateMachineTest {
                           providerCalls.incrementAndGet();
                           return VersionPreference.of(4);
                         },
+                        Collections.emptyList(),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
@@ -161,7 +170,12 @@ public class VersionStateMachineTest {
         builder.<Integer, RuntimeException>add2(
             (v, c) ->
                 stateMachines.getVersion(
-                    "id1", DEFAULT_VERSION, 1, (min, max) -> VersionPreference.of(2), c));
+                    "id1",
+                    DEFAULT_VERSION,
+                    1,
+                    (min, max) -> VersionPreference.of(2),
+                    Collections.emptyList(),
+                    c));
       }
     }
 
@@ -201,6 +215,7 @@ public class VersionStateMachineTest {
                         DEFAULT_VERSION,
                         1,
                         (min, max) -> VersionPreference.of(2).clampToSupportedRange(),
+                        Collections.emptyList(),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
@@ -234,6 +249,7 @@ public class VersionStateMachineTest {
                           providerCalls.incrementAndGet();
                           return VersionPreference.of(4);
                         },
+                        Collections.emptyList(),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v.getT1())));
       }
@@ -596,6 +612,7 @@ public class VersionStateMachineTest {
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       null,
+                      Collections.emptyList(),
                       c);
                 })
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
@@ -709,6 +726,7 @@ public class VersionStateMachineTest {
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       null,
+                      Collections.emptyList(),
                       c);
                 })
             .<HistoryEvent>add1(
@@ -718,6 +736,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
@@ -850,6 +869,7 @@ public class VersionStateMachineTest {
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       null,
+                      Collections.emptyList(),
                       c);
                 })
             .<HistoryEvent>add1(
@@ -859,6 +879,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .<Integer, RuntimeException>add2(
                 (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))
@@ -960,6 +981,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(v)));
       }
@@ -1059,6 +1081,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .<HistoryEvent>add1(
                 (v, c) ->
@@ -1067,6 +1090,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             /*.<Integer>add(
             (v, c) -> stateMachines.getVersion("id1", maxSupported - 3, maxSupported + 10, c))*/
@@ -1170,6 +1194,7 @@ public class VersionStateMachineTest {
                       .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                       .build(),
                   null,
+                  Collections.emptyList(),
                   c);
               stateMachines.completeWorkflow(converter.toPayloads(v));
             });
@@ -1230,6 +1255,7 @@ public class VersionStateMachineTest {
                             .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add(
                 (v) -> {
@@ -1302,6 +1328,7 @@ public class VersionStateMachineTest {
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       null,
+                      Collections.emptyList(),
                       c);
                 })
             .<Integer, RuntimeException>add2(
@@ -1404,6 +1431,7 @@ public class VersionStateMachineTest {
                                     Duration.newBuilder().setSeconds(100).build())
                                 .build(),
                             null,
+                            Collections.emptyList(),
                             ignore -> {})))
             .add((v) -> cancelTimerProc.get().apply())
             .<Integer, RuntimeException>add2(
@@ -1417,6 +1445,7 @@ public class VersionStateMachineTest {
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       null,
+                      Collections.emptyList(),
                       c);
                 })
             .add((v) -> stateMachines.completeWorkflow(converter.toPayloads(null)));
@@ -1490,6 +1519,7 @@ public class VersionStateMachineTest {
                           .setStartToFireTimeout(Duration.newBuilder().setSeconds(100).build())
                           .build(),
                       null,
+                      Collections.emptyList(),
                       c);
                 })
             .<Integer, RuntimeException>add2(

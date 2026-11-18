@@ -17,6 +17,7 @@ import io.temporal.api.history.v1.WorkflowExecutionSignaledEventAttributes;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.AfterClass;
@@ -70,7 +71,10 @@ public class SideEffectStateMachineTest {
             .<Optional<Payloads>>add1(
                 (v, c) ->
                     stateMachines.sideEffect(
-                        () -> converter.toPayloads("m1Arg1", "m1Arg2"), null, c))
+                        () -> converter.toPayloads("m1Arg1", "m1Arg2"),
+                        null,
+                        Collections.emptyList(),
+                        c))
             .<Optional<Payloads>>add1((r, c) -> result = r);
       }
 
@@ -81,7 +85,8 @@ public class SideEffectStateMachineTest {
         builder
             .<Optional<Payloads>>add1(
                 (r, c) -> {
-                  stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), null, c);
+                  stateMachines.sideEffect(
+                      () -> converter.toPayloads("m2Arg1"), null, Collections.emptyList(), c);
                 })
             .add((r) -> stateMachines.completeWorkflow(Optional.empty()));
       }

@@ -413,8 +413,16 @@ public class ServiceStubsOptions {
 
   @Override
   public String toString() {
-    return "ServiceStubsOptions{"
-        + "channel="
+    return "ServiceStubsOptions{" + toStringFields() + '}';
+  }
+
+  /**
+   * Renders the fields declared on this class as a comma separated list, without the enclosing type
+   * name or braces. Subclasses use this to include inherited fields in their own {@link
+   * #toString()} instead of dropping them.
+   */
+  String toStringFields() {
+    return "channel="
         + channel
         + ", target='"
         + target
@@ -423,6 +431,8 @@ public class ServiceStubsOptions {
         + channelInitializer
         + ", enableHttps="
         + enableHttps
+        + ", apiKeyProvided="
+        + apiKeyProvided
         + ", sslContext="
         + sslContext
         + ", healthCheckAttemptTimeout="
@@ -445,8 +455,10 @@ public class ServiceStubsOptions {
         + connectionBackoffResetFrequency
         + ", grpcReconnectFrequency="
         + grpcReconnectFrequency
-        + ", headers="
-        + headers
+        // Only the header names are rendered. Values are omitted because they routinely carry
+        // credentials, for example an Authorization header set through setHeaders.
+        + ", headerNames="
+        + (headers == null ? null : headers.keys())
         + ", grpcMetadataProviders="
         + grpcMetadataProviders
         + ", grpcClientInterceptors="
@@ -454,8 +466,7 @@ public class ServiceStubsOptions {
         + ", metricsScope="
         + metricsScope
         + ", grpcCompression="
-        + grpcCompression
-        + '}';
+        + grpcCompression;
   }
 
   public static class Builder<T extends Builder<T>> {

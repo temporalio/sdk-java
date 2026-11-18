@@ -1,7 +1,6 @@
 package io.temporal.internal.statemachines;
 
 import io.temporal.api.command.v1.Command;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.workflow.Functions;
@@ -12,22 +11,21 @@ final class ContinueAsNewWorkflowStateMachine
         ContinueAsNewWorkflowStateMachine.ExplicitEvent,
         ContinueAsNewWorkflowStateMachine> {
 
-  private final ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes;
+  private final ContinueAsNewWorkflowParameters parameters;
 
   public static void newInstance(
-      ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
+      ContinueAsNewWorkflowParameters parameters,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    new ContinueAsNewWorkflowStateMachine(
-        continueAsNewWorkflowAttributes, commandSink, stateMachineSink);
+    new ContinueAsNewWorkflowStateMachine(parameters, commandSink, stateMachineSink);
   }
 
   private ContinueAsNewWorkflowStateMachine(
-      ContinueAsNewWorkflowExecutionCommandAttributes continueAsNewWorkflowAttributes,
+      ContinueAsNewWorkflowParameters parameters,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
-    this.continueAsNewWorkflowAttributes = continueAsNewWorkflowAttributes;
+    this.parameters = parameters;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
 
@@ -67,7 +65,8 @@ final class ContinueAsNewWorkflowStateMachine
     addCommand(
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_CONTINUE_AS_NEW_WORKFLOW_EXECUTION)
-            .setContinueAsNewWorkflowExecutionCommandAttributes(continueAsNewWorkflowAttributes)
+            .setContinueAsNewWorkflowExecutionCommandAttributes(parameters.getAttributes())
+            .addAllEventGroupMarkers(parameters.getEventGroupMarkers())
             .build());
   }
 }

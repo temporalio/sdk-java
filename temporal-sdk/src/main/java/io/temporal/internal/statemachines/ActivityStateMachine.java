@@ -15,8 +15,10 @@ import io.temporal.api.history.v1.ActivityTaskCanceledEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskCompletedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskFailedEventAttributes;
 import io.temporal.api.history.v1.ActivityTaskTimedOutEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
+import java.util.List;
 import java.util.Optional;
 import javax.annotation.Nonnull;
 
@@ -36,6 +38,7 @@ final class ActivityStateMachine
   private final ActivityType activityType;
   private final ActivityCancellationType cancellationType;
   private UserMetadata userMetadata;
+  private final List<EventGroupMarker> eventGroupMarkers;
 
   private final Functions.Proc2<Optional<Payloads>, FailureResult> completionCallback;
 
@@ -248,6 +251,7 @@ final class ActivityStateMachine
     this.activityType = scheduleAttr.getActivityType();
     this.cancellationType = parameters.getCancellationType();
     this.userMetadata = parameters.getMetadata();
+    this.eventGroupMarkers = parameters.getEventGroupMarkers();
     this.completionCallback = completionCallback;
     explicitEvent(ExplicitEvent.SCHEDULE);
   }
@@ -256,7 +260,8 @@ final class ActivityStateMachine
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_SCHEDULE_ACTIVITY_TASK)
-            .setScheduleActivityTaskCommandAttributes(parameters.getAttributes());
+            .setScheduleActivityTaskCommandAttributes(parameters.getAttributes())
+            .addAllEventGroupMarkers(eventGroupMarkers);
     if (userMetadata != null) {
       command.setUserMetadata(userMetadata);
       userMetadata = null;
@@ -442,6 +447,7 @@ final class ActivityStateMachine
             .setRequestCancelActivityTaskCommandAttributes(
                 RequestCancelActivityTaskCommandAttributes.newBuilder()
                     .setScheduledEventId(getInitialCommandEventId()))
+            .addAllEventGroupMarkers(eventGroupMarkers)
             .build());
   }
 

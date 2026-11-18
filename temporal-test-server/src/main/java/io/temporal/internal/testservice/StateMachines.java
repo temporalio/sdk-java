@@ -27,6 +27,7 @@ import io.temporal.api.nexus.v1.*;
 import io.temporal.api.nexus.v1.Link;
 import io.temporal.api.protocol.v1.Message;
 import io.temporal.api.query.v1.WorkflowQueryResult;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.taskqueue.v1.StickyExecutionAttributes;
 import io.temporal.api.taskqueue.v1.TaskQueue;
@@ -252,7 +253,6 @@ class StateMachines {
   static final class ActivityTaskData {
 
     StartWorkflowExecutionRequest startWorkflowExecutionRequest;
-    final UserMetadata metadata;
     ActivityTaskScheduledEventAttributes scheduledEvent;
     ActivityTask activityTask;
 
@@ -269,12 +269,9 @@ class StateMachines {
     Timestamp lastAttemptCompleteTime;
 
     ActivityTaskData(
-        TestWorkflowStore store,
-        StartWorkflowExecutionRequest startWorkflowExecutionRequest,
-        UserMetadata metadata) {
+        TestWorkflowStore store, StartWorkflowExecutionRequest startWorkflowExecutionRequest) {
       this.store = store;
       this.startWorkflowExecutionRequest = startWorkflowExecutionRequest;
-      this.metadata = metadata;
     }
 
     @Override
@@ -311,7 +308,6 @@ class StateMachines {
   }
 
   static final class NexusOperationData {
-    final UserMetadata metadata;
     // Timeout for an individual Start or Cancel Operation request.
     final Duration requestTimeout = Durations.fromSeconds(10);
 
@@ -332,9 +328,8 @@ class StateMachines {
     Timestamp nextAttemptScheduleTime;
     String identity;
 
-    public NexusOperationData(Endpoint endpoint, UserMetadata metadata) {
+    public NexusOperationData(Endpoint endpoint) {
       this.endpoint = endpoint;
-      this.metadata = metadata;
     }
 
     public int getAttempt() {
@@ -395,21 +390,15 @@ class StateMachines {
     final TestWorkflowService service;
     final String workflowId;
     final String workflowType;
-    final UserMetadata metadata;
     StartChildWorkflowExecutionInitiatedEventAttributes initiatedEvent;
     long initiatedEventId;
     long startedEventId;
     WorkflowExecution execution;
 
-    public ChildWorkflowData(
-        TestWorkflowService service,
-        String workflowId,
-        String workflowType,
-        UserMetadata metadata) {
+    public ChildWorkflowData(TestWorkflowService service, String workflowId, String workflowType) {
       this.service = service;
       this.workflowId = workflowId;
       this.workflowType = workflowType;
-      this.metadata = metadata;
     }
 
     @Override
@@ -430,13 +419,8 @@ class StateMachines {
   }
 
   static final class TimerData {
-    final UserMetadata metadata;
     TimerStartedEventAttributes startedEvent;
     public long startedEventId;
-
-    public TimerData(UserMetadata metadata) {
-      this.metadata = metadata;
-    }
 
     @Override
     public String toString() {
@@ -536,10 +520,8 @@ class StateMachines {
   }
 
   public static StateMachine<ActivityTaskData> newActivityStateMachine(
-      TestWorkflowStore store,
-      StartWorkflowExecutionRequest workflowStartedEvent,
-      UserMetadata metadata) {
-    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent, metadata))
+      TestWorkflowStore store, StartWorkflowExecutionRequest workflowStartedEvent) {
+    return new StateMachine<>(new ActivityTaskData(store, workflowStartedEvent))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleActivityTask)
         .add(INITIATED, START, STARTED, StateMachines::startActivityTask)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutActivityTask)
@@ -576,8 +558,8 @@ class StateMachines {
   }
 
   public static StateMachine<ChildWorkflowData> newChildWorkflowStateMachine(
-      TestWorkflowService service, String workflowId, String workflowType, UserMetadata metadata) {
-    return new StateMachine<>(new ChildWorkflowData(service, workflowId, workflowType, metadata))
+      TestWorkflowService service, String workflowId, String workflowType) {
+    return new StateMachine<>(new ChildWorkflowData(service, workflowId, workflowType))
         .add(NONE, INITIATE, INITIATED, StateMachines::initiateChildWorkflow)
         .add(INITIATED, START, STARTED, StateMachines::childWorkflowStarted)
         .add(INITIATED, FAIL, FAILED, StateMachines::startChildWorkflowFailed)
@@ -599,9 +581,8 @@ class StateMachines {
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::completeUpdate);
   }
 
-  public static StateMachine<NexusOperationData> newNexusOperation(
-      Endpoint endpoint, UserMetadata metadata) {
-    return new StateMachine<>(new NexusOperationData(endpoint, metadata))
+  public static StateMachine<NexusOperationData> newNexusOperation(Endpoint endpoint) {
+    return new StateMachine<>(new NexusOperationData(endpoint))
         .add(NONE, INITIATE, INITIATED, StateMachines::scheduleNexusOperation)
         .add(INITIATED, START, STARTED, StateMachines::startNexusOperation)
         .add(INITIATED, TIME_OUT, TIMED_OUT, StateMachines::timeoutNexusOperation)
@@ -624,8 +605,8 @@ class StateMachines {
         .add(STARTED, CANCEL, CANCELED, StateMachines::reportNexusOperationCancellation);
   }
 
-  public static StateMachine<TimerData> newTimerStateMachine(UserMetadata metadata) {
-    return new StateMachine<>(new TimerData(metadata))
+  public static StateMachine<TimerData> newTimerStateMachine() {
+    return new StateMachine<>(new TimerData())
         .add(NONE, START, STARTED, StateMachines::startTimer)
         .add(STARTED, COMPLETE, COMPLETED, StateMachines::fireTimer)
         .add(STARTED, CANCEL, CANCELED, StateMachines::cancelTimer);
@@ -650,8 +631,9 @@ class StateMachines {
   private static void scheduleNexusOperation(
       RequestContext ctx,
       NexusOperationData data,
-      ScheduleNexusOperationCommandAttributes attr,
+      CommandRequest<ScheduleNexusOperationCommandAttributes> request,
       long workflowTaskCompletedId) {
+    ScheduleNexusOperationCommandAttributes attr = request.attributes;
     // Cap scheduleToCloseTimeout to workflow run timeout.
     com.google.protobuf.Duration workflowRunTimeoutProto =
         ctx.getWorkflowMutableState().getStartRequest().getWorkflowRunTimeout();
@@ -714,9 +696,10 @@ class StateMachines {
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_NEXUS_OPERATION_SCHEDULED)
-            .setNexusOperationScheduledEventAttributes(a);
-    if (data.metadata != null) {
-      event.setUserMetadata(data.metadata);
+            .setNexusOperationScheduledEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers);
+    if (request.userMetadata != null) {
+      event.setUserMetadata(request.userMetadata);
     }
 
     long scheduledEventId = ctx.addEvent(event.build());
@@ -979,7 +962,7 @@ class StateMachines {
   private static void requestCancelNexusOperation(
       RequestContext ctx,
       NexusOperationData data,
-      RequestCancelNexusOperationCommandAttributes attr,
+      CommandRequest<RequestCancelNexusOperationCommandAttributes> request,
       long workflowTaskCompletedId) {
     long cancelRequestedEventId =
         ctx.addEvent(
@@ -989,6 +972,7 @@ class StateMachines {
                     NexusOperationCancelRequestedEventAttributes.newBuilder()
                         .setScheduledEventId(data.scheduledEventId)
                         .setWorkflowTaskCompletedEventId(workflowTaskCompletedId))
+                .addAllEventGroupMarkers(request.eventGroupMarkers)
                 .build());
 
     NexusTaskToken taskToken =
@@ -1175,8 +1159,9 @@ class StateMachines {
   private static void initiateChildWorkflow(
       RequestContext ctx,
       ChildWorkflowData data,
-      StartChildWorkflowExecutionCommandAttributes d,
+      CommandRequest<StartChildWorkflowExecutionCommandAttributes> request,
       long workflowTaskCompletedEventId) {
+    StartChildWorkflowExecutionCommandAttributes d = request.attributes;
     @SuppressWarnings("deprecation") // Control is still used by some SDKs
     StartChildWorkflowExecutionInitiatedEventAttributes.Builder a =
         StartChildWorkflowExecutionInitiatedEventAttributes.newBuilder()
@@ -1210,6 +1195,7 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED)
             .setStartChildWorkflowExecutionInitiatedEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers)
             .build();
     long initiatedEventId = ctx.addEvent(event);
     ctx.onCommit(
@@ -1228,8 +1214,8 @@ class StateMachines {
                   .setWorkflowIdReusePolicy(d.getWorkflowIdReusePolicy())
                   .setWorkflowType(d.getWorkflowType())
                   .setCronSchedule(d.getCronSchedule());
-          if (data.metadata != null) {
-            startChild.setUserMetadata(data.metadata);
+          if (request.userMetadata != null) {
+            startChild.setUserMetadata(request.userMetadata);
           }
           if (d.hasHeader()) {
             startChild.setHeader(d.getHeader());
@@ -1427,8 +1413,9 @@ class StateMachines {
   private static void continueAsNewWorkflow(
       RequestContext ctx,
       WorkflowData data,
-      ContinueAsNewWorkflowExecutionCommandAttributes d,
+      CommandRequest<ContinueAsNewWorkflowExecutionCommandAttributes> request,
       long workflowTaskCompletedEventId) {
+    ContinueAsNewWorkflowExecutionCommandAttributes d = request.attributes;
     StartWorkflowExecutionRequest sr = ctx.getWorkflowMutableState().getStartRequest();
     WorkflowExecutionContinuedAsNewEventAttributes.Builder a =
         WorkflowExecutionContinuedAsNewEventAttributes.newBuilder();
@@ -1475,6 +1462,7 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_WORKFLOW_EXECUTION_CONTINUED_AS_NEW)
             .setWorkflowExecutionContinuedAsNewEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers)
             .build();
     ctx.addEvent(event);
   }
@@ -1565,8 +1553,9 @@ class StateMachines {
   private static void scheduleActivityTask(
       RequestContext ctx,
       ActivityTaskData data,
-      ScheduleActivityTaskCommandAttributes d,
+      CommandRequest<ScheduleActivityTaskCommandAttributes> request,
       long workflowTaskCompletedEventId) {
+    ScheduleActivityTaskCommandAttributes d = request.attributes;
     RetryPolicy retryPolicy = ensureDefaultFieldsForActivityRetryPolicy(d.getRetryPolicy());
     Duration expirationInterval = d.getScheduleToCloseTimeout();
     Timestamp expirationTime = Timestamps.add(data.store.currentTime(), expirationInterval);
@@ -1593,9 +1582,10 @@ class StateMachines {
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_SCHEDULED)
-            .setActivityTaskScheduledEventAttributes(a);
-    if (data.metadata != null) {
-      event.setUserMetadata(data.metadata);
+            .setActivityTaskScheduledEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers);
+    if (request.userMetadata != null) {
+      event.setUserMetadata(request.userMetadata);
     }
     long scheduledEventId = ctx.addEvent(event.build());
 
@@ -1640,16 +1630,17 @@ class StateMachines {
   private static void requestActivityCancellation(
       RequestContext ctx,
       ActivityTaskData data,
-      RequestCancelActivityTaskCommandAttributes d,
+      CommandRequest<RequestCancelActivityTaskCommandAttributes> request,
       long workflowTaskCompletedEventId) {
     ActivityTaskCancelRequestedEventAttributes.Builder a =
         ActivityTaskCancelRequestedEventAttributes.newBuilder()
-            .setScheduledEventId(d.getScheduledEventId())
+            .setScheduledEventId(request.attributes.getScheduledEventId())
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_ACTIVITY_TASK_CANCEL_REQUESTED)
             .setActivityTaskCancelRequestedEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers)
             .build();
     ctx.addEvent(event);
   }
@@ -2387,8 +2378,9 @@ class StateMachines {
   private static void startTimer(
       RequestContext ctx,
       TimerData data,
-      StartTimerCommandAttributes d,
+      CommandRequest<StartTimerCommandAttributes> request,
       long workflowTaskCompletedEventId) {
+    StartTimerCommandAttributes d = request.attributes;
     TimerStartedEventAttributes.Builder a =
         TimerStartedEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
@@ -2397,9 +2389,10 @@ class StateMachines {
     HistoryEvent.Builder event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_TIMER_STARTED)
-            .setTimerStartedEventAttributes(a);
-    if (data.metadata != null) {
-      event.setUserMetadata(data.metadata);
+            .setTimerStartedEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers);
+    if (request.userMetadata != null) {
+      event.setUserMetadata(request.userMetadata);
     }
     long startedEventId = ctx.addEvent(event.build());
     ctx.onCommit(
@@ -2425,17 +2418,18 @@ class StateMachines {
   private static void cancelTimer(
       RequestContext ctx,
       TimerData data,
-      CancelTimerCommandAttributes d,
+      CommandRequest<CancelTimerCommandAttributes> request,
       long workflowTaskCompletedEventId) {
     TimerCanceledEventAttributes.Builder a =
         TimerCanceledEventAttributes.newBuilder()
             .setWorkflowTaskCompletedEventId(workflowTaskCompletedEventId)
-            .setTimerId(d.getTimerId())
+            .setTimerId(request.attributes.getTimerId())
             .setStartedEventId(data.startedEventId);
     HistoryEvent event =
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_TIMER_CANCELED)
             .setTimerCanceledEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers)
             .build();
     ctx.addEvent(event);
   }
@@ -2443,8 +2437,9 @@ class StateMachines {
   private static void initiateExternalSignal(
       RequestContext ctx,
       SignalExternalData data,
-      SignalExternalWorkflowExecutionCommandAttributes d,
+      CommandRequest<SignalExternalWorkflowExecutionCommandAttributes> request,
       long workflowTaskCompletedEventId) {
+    SignalExternalWorkflowExecutionCommandAttributes d = request.attributes;
     @SuppressWarnings("deprecation") // Control is still used by some SDKs
     SignalExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
         SignalExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
@@ -2460,6 +2455,7 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_SIGNAL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED)
             .setSignalExternalWorkflowExecutionInitiatedEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers)
             .build();
     long initiatedEventId = ctx.addEvent(event);
     ctx.onCommit(
@@ -2514,8 +2510,9 @@ class StateMachines {
   private static void initiateExternalCancellation(
       RequestContext ctx,
       CancelExternalData data,
-      RequestCancelExternalWorkflowExecutionCommandAttributes d,
+      CommandRequest<RequestCancelExternalWorkflowExecutionCommandAttributes> request,
       long workflowTaskCompletedEventId) {
+    RequestCancelExternalWorkflowExecutionCommandAttributes d = request.attributes;
     @SuppressWarnings("deprecation") // Control is still used by some SDKs
     RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.Builder a =
         RequestCancelExternalWorkflowExecutionInitiatedEventAttributes.newBuilder()
@@ -2533,6 +2530,7 @@ class StateMachines {
         HistoryEvent.newBuilder()
             .setEventType(EventType.EVENT_TYPE_REQUEST_CANCEL_EXTERNAL_WORKFLOW_EXECUTION_INITIATED)
             .setRequestCancelExternalWorkflowExecutionInitiatedEventAttributes(a)
+            .addAllEventGroupMarkers(request.eventGroupMarkers)
             .build();
     long initiatedEventId = ctx.addEvent(event);
     ctx.onCommit(
@@ -2645,5 +2643,29 @@ class StateMachines {
       result.setFairnessWeight(child.getFairnessWeight());
     }
     return result.build();
+  }
+
+  /**
+   * A command received from the workflow, as the actions it triggers need it. The server records
+   * the markers and the user metadata of a command only on the event that directly corresponds to
+   * that command, so they travel with the command instead of being kept in the data of the entity
+   * the command acts on.
+   */
+  static final class CommandRequest<A> {
+    final A attributes;
+    // null if the command doesn't carry any.
+    final UserMetadata userMetadata;
+    final List<EventGroupMarker> eventGroupMarkers;
+
+    CommandRequest(
+        A attributes, UserMetadata userMetadata, List<EventGroupMarker> eventGroupMarkers) {
+      this.attributes = attributes;
+      this.userMetadata = userMetadata;
+      this.eventGroupMarkers = eventGroupMarkers;
+    }
+
+    <B> CommandRequest<B> withAttributes(B attributes) {
+      return new CommandRequest<>(attributes, userMetadata, eventGroupMarkers);
+    }
   }
 }

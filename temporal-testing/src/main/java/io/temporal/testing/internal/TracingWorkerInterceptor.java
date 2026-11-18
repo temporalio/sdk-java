@@ -319,6 +319,15 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public int getVersion(
+        String changeId, int minSupported, int maxSupported, GetVersionOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("getVersion");
+      }
+      return next.getVersion(changeId, minSupported, maxSupported, options);
+    }
+
+    @Override
     public void continueAsNew(ContinueAsNewInput input) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("continueAsNew");
@@ -429,11 +438,28 @@ public class TracingWorkerInterceptor implements WorkerInterceptor {
     }
 
     @Override
+    public void upsertTypedSearchAttributes(
+        UpsertSearchAttributesOptions options, SearchAttributeUpdate<?>... searchAttributeUpdates) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("upsertTypedSearchAttributes");
+      }
+      next.upsertTypedSearchAttributes(options, searchAttributeUpdates);
+    }
+
+    @Override
     public void upsertMemo(Map<String, Object> memo) {
       if (!WorkflowUnsafe.isReplaying()) {
         trace.add("upsertMemo");
       }
       next.upsertMemo(memo);
+    }
+
+    @Override
+    public void upsertMemo(Map<String, Object> memo, UpsertMemoOptions options) {
+      if (!WorkflowUnsafe.isReplaying()) {
+        trace.add("upsertMemo");
+      }
+      next.upsertMemo(memo, options);
     }
 
     @Override

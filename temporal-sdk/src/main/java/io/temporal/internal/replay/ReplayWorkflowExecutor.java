@@ -3,7 +3,6 @@ package io.temporal.internal.replay;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Timestamps;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.history.v1.HistoryEvent;
 import io.temporal.api.history.v1.WorkflowExecutionCancelRequestedEventAttributes;
@@ -18,6 +17,7 @@ import io.temporal.internal.common.UpdateMessage;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.nexus.PropagatedNexusSerializationContext;
+import io.temporal.internal.statemachines.ContinueAsNewWorkflowParameters;
 import io.temporal.internal.statemachines.WorkflowStateMachines;
 import io.temporal.internal.sync.SignalHandlerInfo;
 import io.temporal.internal.sync.UpdateHandlerInfo;
@@ -132,9 +132,8 @@ final class ReplayWorkflowExecutor {
     } else if (failure != null) {
       workflowStateMachines.failWorkflow(failure.getFailure());
     } else {
-      ContinueAsNewWorkflowExecutionCommandAttributes attributes =
-          context.getContinueAsNewOnCompletion();
-      if (attributes != null) {
+      ContinueAsNewWorkflowParameters continueAsNew = context.getContinueAsNewOnCompletion();
+      if (continueAsNew != null) {
         // TODO Refactoring idea
         //  Instead of carrying attributes over like this, SyncWorkflowContext should call
         //  workflowStateMachines.continueAsNewWorkflow directly.
@@ -145,7 +144,7 @@ final class ReplayWorkflowExecutor {
         //  so no new commands are generated after the call.
         //  This way attributes will need to be carried over in the mutable state and the flow
         //  generally will be aligned with the flow of other commands.
-        workflowStateMachines.continueAsNewWorkflow(attributes);
+        workflowStateMachines.continueAsNewWorkflow(continueAsNew);
       } else {
         Optional<Payloads> workflowOutput = workflow.getOutput();
         workflowStateMachines.completeWorkflow(workflowOutput);

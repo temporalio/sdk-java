@@ -2,6 +2,7 @@ package io.temporal.serviceclient;
 
 import static org.junit.Assert.*;
 
+import io.grpc.Metadata;
 import org.junit.Test;
 
 public class ServiceStubsOptionsTest {
@@ -176,5 +177,95 @@ public class ServiceStubsOptionsTest {
         WorkflowServiceStubsOptions.newBuilder(options).validateAndBuildWithDefaults();
 
     assertEquals(GrpcCompression.NONE, copied.getGrpcCompression());
+  }
+
+  @Test
+  public void testWorkflowServiceStubsOptionsToStringIncludesInheritedFields() {
+    WorkflowServiceStubsOptions options =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .validateAndBuildWithDefaults();
+
+    String rendered = options.toString();
+
+    assertTrue(rendered.startsWith("WorkflowServiceStubsOptions{"));
+    // Inherited fields used to be dropped entirely.
+    assertTrue(rendered, rendered.contains("target='localhost:7233'"));
+    assertTrue(rendered, rendered.contains("enableHttps="));
+    assertTrue(rendered, rendered.contains("rpcTimeout="));
+    assertTrue(rendered, rendered.contains("grpcCompression="));
+    // Fields declared on the subclass are still present.
+    assertTrue(rendered, rendered.contains("disableHealthCheck="));
+    assertTrue(rendered, rendered.contains("rpcLongPollTimeout="));
+    // Inherited fields are inlined, not nested inside a second wrapper.
+    assertFalse(rendered, rendered.contains("{ServiceStubsOptions{"));
+  }
+
+  @Test
+  public void testOperatorServiceStubsOptionsToString() {
+    OperatorServiceStubsOptions options =
+        OperatorServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .validateAndBuildWithDefaults();
+
+    String rendered = options.toString();
+
+    assertTrue(rendered.startsWith("OperatorServiceStubsOptions{"));
+    assertTrue(rendered, rendered.contains("target='localhost:7233'"));
+    assertTrue(rendered, rendered.contains("rpcTimeout="));
+  }
+
+  @Test
+  public void testCloudServiceStubsOptionsToStringIncludesVersion() {
+    CloudServiceStubsOptions options =
+        CloudServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .setVersion("v1")
+            .validateAndBuildWithDefaults();
+
+    String rendered = options.toString();
+
+    assertTrue(rendered.startsWith("CloudServiceStubsOptions{"));
+    assertTrue(rendered, rendered.contains("target='localhost:7233'"));
+    assertTrue(rendered, rendered.contains("version='v1'"));
+  }
+
+  @Test
+  public void testToStringDoesNotLeakApiKey() {
+    WorkflowServiceStubsOptions options =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .addApiKey(() -> "super-secret-api-key")
+            .validateAndBuildWithDefaults();
+
+    String rendered = options.toString();
+
+    assertFalse(rendered, rendered.contains("super-secret-api-key"));
+    // The fact that an API key was configured is still useful when debugging.
+    assertTrue(rendered, rendered.contains("apiKeyProvided=true"));
+  }
+
+  @Test
+  public void testToStringRendersHeaderNamesWithoutValues() {
+    Metadata headers = new Metadata();
+    headers.put(
+        Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER),
+        "Bearer super-secret-token");
+    headers.put(Metadata.Key.of("x-custom", Metadata.ASCII_STRING_MARSHALLER), "plain-value");
+
+    WorkflowServiceStubsOptions options =
+        WorkflowServiceStubsOptions.newBuilder()
+            .setTarget("localhost:7233")
+            .setHeaders(headers)
+            .validateAndBuildWithDefaults();
+
+    String rendered = options.toString();
+
+    // Metadata.toString renders values in the clear, so it must not be embedded directly.
+    assertFalse(rendered, rendered.contains("super-secret-token"));
+    assertFalse(rendered, rendered.contains("plain-value"));
+    // Header names are still reported, which is what makes the output useful for debugging.
+    assertTrue(rendered, rendered.contains("authorization"));
+    assertTrue(rendered, rendered.contains("x-custom"));
   }
 }

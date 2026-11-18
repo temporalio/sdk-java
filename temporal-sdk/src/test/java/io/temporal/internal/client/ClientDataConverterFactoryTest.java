@@ -21,7 +21,8 @@ public class ClientDataConverterFactoryTest {
     TestStorageDriver driver = TestStorageDriver.create();
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            "default");
     DataConverter converter =
         ClientDataConverterFactory.forClient(DefaultDataConverter.newDefaultInstance(), runner);
 
@@ -46,7 +47,8 @@ public class ClientDataConverterFactoryTest {
     TestStorageDriver driver = TestStorageDriver.create();
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            "default");
     DataConverter scoped =
         new ClientDataConverterFactory(
                 "test-namespace", DefaultDataConverter.newDefaultInstance(), runner)
@@ -71,7 +73,8 @@ public class ClientDataConverterFactoryTest {
     TestStorageDriver driver = TestStorageDriver.create();
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
-            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build());
+            ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
+            "default");
     DataConverter configured = DefaultDataConverter.newDefaultInstance();
     Payload reference =
         ClientDataConverterFactory.forClient(configured, runner)

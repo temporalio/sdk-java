@@ -57,7 +57,8 @@ public class ManualActivityCompletionClientFactoryStorageTargetTest {
                     .setDriver(driver)
                     .setPayloadSizeThreshold(0)
                     .setMaxConcurrentPayloadVisits(1)
-                    .build()));
+                    .build(),
+                NAMESPACE));
   }
 
   @Test

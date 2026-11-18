@@ -3,7 +3,10 @@ package io.temporal.internal.statemachines;
 import io.temporal.api.command.v1.Command;
 import io.temporal.api.command.v1.RecordMarkerCommandAttributes;
 import io.temporal.api.enums.v1.CommandType;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
+import java.util.Collections;
+import java.util.List;
 import javax.annotation.Nullable;
 
 class StateMachineCommandUtils {
@@ -12,10 +15,18 @@ class StateMachineCommandUtils {
 
   public static Command createRecordMarker(
       RecordMarkerCommandAttributes attributes, @Nullable UserMetadata metadata) {
+    return createRecordMarker(attributes, metadata, Collections.emptyList());
+  }
+
+  public static Command createRecordMarker(
+      RecordMarkerCommandAttributes attributes,
+      @Nullable UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers) {
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-            .setRecordMarkerCommandAttributes(attributes);
+            .setRecordMarkerCommandAttributes(attributes)
+            .addAllEventGroupMarkers(eventGroupMarkers);
     if (metadata != null) {
       command.setUserMetadata(metadata);
     }

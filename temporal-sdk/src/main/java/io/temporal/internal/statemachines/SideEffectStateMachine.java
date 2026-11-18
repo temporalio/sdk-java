@@ -6,9 +6,11 @@ import io.temporal.api.common.v1.Payloads;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.MarkerRecordedEventAttributes;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.workflow.Functions;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -35,6 +37,7 @@ final class SideEffectStateMachine
   static final String SIDE_EFFECT_MARKER_NAME = "SideEffect";
 
   private UserMetadata metadata;
+  private final List<EventGroupMarker> eventGroupMarkers;
   private final Functions.Proc1<Optional<Payloads>> callback;
   private final Functions.Func<Optional<Payloads>> func;
   private final Functions.Func<Boolean> replaying;
@@ -75,22 +78,26 @@ final class SideEffectStateMachine
    * Creates new SideEffect Marker
    *
    * @param metadata user metadata to attach to the side effect marker.
+   * @param eventGroupMarkers event group markers to attach to the side effect marker.
    * @param func used to produce side effect value. null if replaying.
    * @param callback returns side effect value or failure
    * @param commandSink callback to send commands to
    */
   public static void newInstance(
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Func<Boolean> replaying,
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
       Functions.Proc1<CancellableCommand> commandSink,
       Functions.Proc1<StateMachine> stateMachineSink) {
-    new SideEffectStateMachine(metadata, replaying, func, callback, commandSink, stateMachineSink);
+    new SideEffectStateMachine(
+        metadata, eventGroupMarkers, replaying, func, callback, commandSink, stateMachineSink);
   }
 
   private SideEffectStateMachine(
       UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Func<Boolean> replaying,
       Functions.Func<Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback,
@@ -98,6 +105,7 @@ final class SideEffectStateMachine
       Functions.Proc1<StateMachine> stateMachineSink) {
     super(STATE_MACHINE_DEFINITION, commandSink, stateMachineSink);
     this.metadata = metadata;
+    this.eventGroupMarkers = eventGroupMarkers;
     this.replaying = replaying;
     this.func = func;
     this.callback = callback;
@@ -131,7 +139,8 @@ final class SideEffectStateMachine
     Command.Builder command =
         Command.newBuilder()
             .setCommandType(CommandType.COMMAND_TYPE_RECORD_MARKER)
-            .setRecordMarkerCommandAttributes(markerAttributes);
+            .setRecordMarkerCommandAttributes(markerAttributes)
+            .addAllEventGroupMarkers(eventGroupMarkers);
 
     if (metadata != null) {
       command.setUserMetadata(metadata);

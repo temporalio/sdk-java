@@ -20,6 +20,40 @@ to docs, or any other relevant information.
 ## [Unreleased]
 
 ### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` has new `getVersion(..., GetVersionOptions)`,
+  `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
+  `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
+  `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+
+### Added
+- Experimental Event Groups associate related workflow commands so their history events can be
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
+  `addEventGroups` on the command's options.
+
+### Changed
+- Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
+  project-scoped custom roles, and caller rate limits.
+
+### Fixed
+- Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
+  target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
+  advertised maximum, additional polls of one queue type wait until the other has an active poll.
+  Unlike Core, Java does not use workflow cache size as a fallback slot bound.
+- `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
+  includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
+  credentials set through `setHeaders` no longer appear in logs.
+- The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
+  as asynchronous.
+
+## [1.41.1] - 2026-11-16
+
+### Fixed
+- Fixed workflow updates hanging against the native time-skipping test server due to missing
+  protobuf reflection metadata.
+
+## [1.41.0] - 2026-11-16
+
+### :boom: Breaking Changes
 - `WorkflowOutboundCallsInterceptor` has new `sleep(Duration, TimerOptions)` and
   `await(Duration, TimerOptions, String, Supplier)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
@@ -88,8 +122,13 @@ to docs, or any other relevant information.
   `ActivityCompletionClient.withContext(NexusSerializationContext)`.
 - **Experimental**: `ActivityClient` and `ScheduleClient` now support external storage when configured with
   `ActivityClientOptions.Builder.setExternalStorage` or `ScheduleClientOptions.Builder.setExternalStorage`.
+- **Experimental**: `StorageDriverStoreContext` and `StorageDriverSelectContext` now have `getNamespace()`, returning
+  the namespace of the client or worker performing the store.
 
 ### Changed
+- **Experimental**: The S3 storage driver now writes payloads stored without a workflow or activity target under
+  `v0/ns/{namespace}/d/sha256/{hash}`, using the namespace of the storing client or worker (`null` when it is
+  unknown), instead of `v0/d/sha256/{hash}`. Existing objects remain retrievable.
 - **Experimental**: `signal` and `signalWithStart` called from a `@TemporalOperation` handler now reuse the
   operation's request ID, so a retried Nexus task no longer delivers the same signal twice. Signals sent from other
   Nexus operation handlers keep an independent request ID per call and are not deduplicated.
@@ -111,10 +150,6 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
-- Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
-  target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
-  advertised maximum, additional polls of one queue type wait until the other has an active poll.
-  Unlike Core, Java does not use workflow cache size as a fallback slot bound.
 - Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
   leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
   by default in this release to preserve replay compatibility during SDK rollout.
