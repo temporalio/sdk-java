@@ -35,6 +35,9 @@ to docs, or any other relevant information.
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
+  includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
+  credentials set through `setHeaders` no longer appear in logs.
 - The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
   as asynchronous.
 
