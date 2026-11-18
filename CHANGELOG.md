@@ -19,6 +19,17 @@ to docs, or any other relevant information.
 
 ## [Unreleased]
 
+### :boom: Breaking Changes
+- `WorkflowOutboundCallsInterceptor` has new `getVersion(..., GetVersionOptions)`,
+  `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
+  `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
+  `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+
+### Added
+- Experimental Event Groups associate related workflow commands so their history events can be
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
+  `addEventGroups` on the command's options.
+
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.

@@ -13,6 +13,7 @@ import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.history.v1.*;
 import io.temporal.workflow.NexusOperationCancellationType;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.AfterClass;
@@ -66,13 +67,17 @@ public class CancelNexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         NexusOperationStateMachineTest.DelayedCallback2<Optional<Payload>, Failure>
             delayedCallback = new NexusOperationStateMachineTest.DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) -> stateMachines.startNexusOperation(startParams, c, delayedCallback::run))
-            .add((v) -> stateMachines.requestCancelNexusOperation(cancelAttributes, (r, f) -> {}))
+            .add(
+                (v) ->
+                    stateMachines.requestCancelNexusOperation(
+                        cancelAttributes, Collections.emptyList(), (r, f) -> {}))
             .<Optional<Payload>, Failure>add2((pair, c) -> delayedCallback.set(c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }
@@ -157,13 +162,17 @@ public class CancelNexusOperationStateMachineTest {
             new StartNexusOperationParameters(
                 newScheduleNexusOperationCommandAttributesBuilder(),
                 NexusOperationCancellationType.WAIT_COMPLETED,
-                null);
+                null,
+                Collections.emptyList());
         NexusOperationStateMachineTest.DelayedCallback2<Optional<Payload>, Failure>
             delayedCallback = new NexusOperationStateMachineTest.DelayedCallback2();
         builder
             .<Optional<String>, Failure>add2(
                 (v, c) -> stateMachines.startNexusOperation(startParams, c, delayedCallback::run))
-            .add((v) -> stateMachines.requestCancelNexusOperation(cancelAttributes, (r, f) -> {}))
+            .add(
+                (v) ->
+                    stateMachines.requestCancelNexusOperation(
+                        cancelAttributes, Collections.emptyList(), (r, f) -> {}))
             .<Optional<Payload>, Failure>add2((pair, c) -> delayedCallback.set(c))
             .add((pair) -> stateMachines.failWorkflow(pair.getT2()));
       }

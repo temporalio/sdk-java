@@ -23,6 +23,7 @@ import io.temporal.internal.worker.LocalActivityResult;
 import io.temporal.workflow.ChildWorkflowCancellationType;
 import io.temporal.workflow.Functions;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -84,6 +85,7 @@ public class LocalActivityStateMachineTest {
                 true,
                 null,
                 null,
+                Collections.emptyList(),
                 null);
         ExecuteLocalActivityParameters parameters2 =
             new ExecuteLocalActivityParameters(
@@ -96,6 +98,7 @@ public class LocalActivityStateMachineTest {
                 false,
                 null,
                 null,
+                Collections.emptyList(),
                 null);
         ExecuteLocalActivityParameters parameters3 =
             new ExecuteLocalActivityParameters(
@@ -108,6 +111,7 @@ public class LocalActivityStateMachineTest {
                 true,
                 null,
                 null,
+                Collections.emptyList(),
                 null);
 
         builder
@@ -291,6 +295,7 @@ public class LocalActivityStateMachineTest {
                 false,
                 null,
                 null,
+                Collections.emptyList(),
                 null);
         builder
             .<LocalActivityCallback.Output, LocalActivityCallback.LocalActivityFailedException>add2(
@@ -346,7 +351,8 @@ public class LocalActivityStateMachineTest {
             new StartChildWorkflowExecutionParameters(
                 StartChildWorkflowExecutionCommandAttributes.newBuilder(),
                 ChildWorkflowCancellationType.WAIT_CANCELLATION_REQUESTED,
-                null);
+                null,
+                Collections.emptyList());
         ExecuteLocalActivityParameters parameters1 =
             new ExecuteLocalActivityParameters(
                 PollActivityTaskQueueResponse.newBuilder()
@@ -358,6 +364,7 @@ public class LocalActivityStateMachineTest {
                 false,
                 null,
                 null,
+                Collections.emptyList(),
                 null);
         // TODO: This is a workaround for the lack of support for child workflow in the test
         // framework.

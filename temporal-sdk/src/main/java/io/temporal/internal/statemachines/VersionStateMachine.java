@@ -12,10 +12,12 @@ import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.enums.v1.CommandType;
 import io.temporal.api.enums.v1.EventType;
 import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.internal.history.VersionMarkerUtils;
 import io.temporal.worker.NonDeterministicException;
 import io.temporal.worker.VersionPreference;
 import io.temporal.workflow.Functions;
+import java.util.List;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import javax.annotation.Nullable;
@@ -142,12 +144,15 @@ final class VersionStateMachine {
     @Nullable
     private final BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider;
 
+    private final List<EventGroupMarker> eventGroupMarkers;
+
     InvocationStateMachine(
         int minSupported,
         int maxSupported,
         boolean waitForMarkerRecordedReplaying,
         Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
         @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
+        List<EventGroupMarker> eventGroupMarkers,
         Functions.Proc2<Integer, RuntimeException> callback) {
       super(STATE_MACHINE_DEFINITION, VersionStateMachine.this.commandSink, stateMachineSink);
       this.minSupported = minSupported;
@@ -155,6 +160,7 @@ final class VersionStateMachine {
       this.waitForMarkerRecordedReplaying = waitForMarkerRecordedReplaying;
       this.upsertSearchAttributeCallback = upsertSearchAttributeCallback;
       this.preferredVersionProvider = preferredVersionProvider;
+      this.eventGroupMarkers = Objects.requireNonNull(eventGroupMarkers);
       this.resultCallback = Objects.requireNonNull(callback);
     }
 
@@ -254,11 +260,13 @@ final class VersionStateMachine {
         writeVersionChangeSA = sa != null;
         RecordMarkerCommandAttributes markerAttributes =
             VersionMarkerUtils.createMarkerAttributes(changeId, version, writeVersionChangeSA);
-        Command markerCommand = StateMachineCommandUtils.createRecordMarker(markerAttributes, null);
+        Command markerCommand =
+            StateMachineCommandUtils.createRecordMarker(markerAttributes, null, eventGroupMarkers);
         addCommand(markerCommand);
         if (writeVersionChangeSA) {
           hasWrittenVersionChangeSA = true;
-          UpsertSearchAttributesStateMachine.newInstance(sa, commandSink, stateMachineSink);
+          UpsertSearchAttributesStateMachine.newInstance(
+              sa, eventGroupMarkers, commandSink, stateMachineSink);
         }
         return State.MARKER_COMMAND_CREATED;
       }
@@ -322,7 +330,10 @@ final class VersionStateMachine {
           hasWrittenVersionChangeSA = true;
           if (writeVersionChangeSA) {
             UpsertSearchAttributesStateMachine.newInstance(
-                SearchAttributes.newBuilder().build(), commandSink, stateMachineSink);
+                SearchAttributes.newBuilder().build(),
+                eventGroupMarkers,
+                commandSink,
+                stateMachineSink);
           }
         }
         return State.MARKER_COMMAND_CREATED_REPLAYING;
@@ -444,6 +455,7 @@ final class VersionStateMachine {
       boolean waitForMarkerRecordedReplaying,
       Functions.Func1<Integer, SearchAttributes> upsertSearchAttributeCallback,
       @Nullable BiFunction<Integer, Integer, VersionPreference> preferredVersionProvider,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback) {
     InvocationStateMachine ism =
         new InvocationStateMachine(
@@ -452,6 +464,7 @@ final class VersionStateMachine {
             waitForMarkerRecordedReplaying,
             upsertSearchAttributeCallback,
             preferredVersionProvider,
+            eventGroupMarkers,
             callback);
     ism.explicitEvent(ExplicitEvent.CHECK_EXECUTION_STATE);
     ism.explicitEvent(ExplicitEvent.SCHEDULE);

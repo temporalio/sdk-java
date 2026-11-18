@@ -1,10 +1,10 @@
 package io.temporal.internal.replay;
 
 import com.uber.m3.tally.Scope;
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.command.v1.SignalExternalWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.*;
 import io.temporal.api.failure.v1.Failure;
+import io.temporal.api.sdk.v1.EventGroupMarker;
 import io.temporal.api.sdk.v1.UserMetadata;
 import io.temporal.api.workflowservice.v1.PollWorkflowTaskQueueResponse;
 import io.temporal.common.RetryOptions;
@@ -182,6 +182,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
    */
   Functions.Proc1<Exception> signalExternalWorkflowExecution(
       SignalExternalWorkflowExecutionCommandAttributes.Builder attributes,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, Failure> callback);
 
   /**
@@ -194,6 +195,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void requestCancelExternalWorkflowExecution(
       WorkflowExecution execution,
       @Nullable String reason,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Void, RuntimeException> callback);
 
   /**
@@ -213,7 +215,10 @@ public interface ReplayWorkflowContext extends ReplayAware {
    *     to cancel timer.
    */
   Functions.Proc1<RuntimeException> newTimer(
-      Duration delay, UserMetadata metadata, Functions.Proc1<RuntimeException> callback);
+      Duration delay,
+      UserMetadata metadata,
+      List<EventGroupMarker> eventGroupMarkers,
+      Functions.Proc1<RuntimeException> callback);
 
   /**
    * Executes the provided function once, records its result into the workflow history. The recorded
@@ -233,6 +238,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void sideEffect(
       Func<Optional<Payloads>> func,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc1<Optional<Payloads>> callback);
 
   /**
@@ -265,6 +271,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void mutableSideEffect(
       String id,
       UserMetadata userMetadata,
+      List<EventGroupMarker> eventGroupMarkers,
       Func1<Optional<Payloads>, Optional<Payloads>> func,
       Functions.Proc1<Optional<Payloads>> callback);
 
@@ -288,6 +295,7 @@ public interface ReplayWorkflowContext extends ReplayAware {
       String changeId,
       int minSupported,
       int maxSupported,
+      List<EventGroupMarker> eventGroupMarkers,
       Functions.Proc2<Integer, RuntimeException> callback);
 
   /** Replay safe random. */
@@ -386,12 +394,14 @@ public interface ReplayWorkflowContext extends ReplayAware {
   void setWorkflowMethodCompleted();
 
   /**
-   * When these attributes are present upon completion of the workflow code the ContinueAsNew
-   * command is emitted instead of the workflow completion.
+   * When present upon completion of the workflow code the ContinueAsNew command is emitted instead
+   * of the workflow completion. The markers are captured here, with the attributes, because the
+   * command is created later, after the workflow thread has exited.
    */
-  ContinueAsNewWorkflowExecutionCommandAttributes getContinueAsNewOnCompletion();
+  @Nullable
+  ContinueAsNewWorkflowParameters getContinueAsNewOnCompletion();
 
-  void continueAsNewOnCompletion(ContinueAsNewWorkflowExecutionCommandAttributes attributes);
+  void continueAsNewOnCompletion(ContinueAsNewWorkflowParameters parameters);
 
   Throwable getWorkflowTaskFailure();
 
@@ -418,10 +428,11 @@ public interface ReplayWorkflowContext extends ReplayAware {
   SearchAttributes getSearchAttributes();
 
   /** Updates or inserts search attributes used to index workflows. */
-  void upsertSearchAttributes(@Nonnull SearchAttributes searchAttributes);
+  void upsertSearchAttributes(
+      @Nonnull SearchAttributes searchAttributes, List<EventGroupMarker> eventGroupMarkers);
 
   /** Updates or inserts memos. */
-  void upsertMemo(@Nonnull Memo memo);
+  void upsertMemo(@Nonnull Memo memo, List<EventGroupMarker> eventGroupMarkers);
 
   /**
    * @return true if this flag may currently be used.

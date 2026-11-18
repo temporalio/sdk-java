@@ -8,7 +8,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import io.temporal.api.command.v1.ContinueAsNewWorkflowExecutionCommandAttributes;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.common.v1.SearchAttributes;
 import io.temporal.api.common.v1.WorkflowExecution;
@@ -23,6 +22,7 @@ import io.temporal.internal.common.SdkFlag;
 import io.temporal.internal.common.SearchAttributesUtil;
 import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.replay.ReplayWorkflowContext;
+import io.temporal.internal.statemachines.ContinueAsNewWorkflowParameters;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.context.WorkflowSerializationContext;
@@ -115,9 +115,9 @@ public class SyncWorkflowContextTest {
     Map<String, Object> attr = new HashMap<>();
     attr.put("CustomKeywordField", "keyword");
     SearchAttributes serializedAttr = SearchAttributesUtil.encode(attr);
-
     context.upsertSearchAttributes(attr);
-    verify(mockReplayWorkflowContext, times(1)).upsertSearchAttributes(serializedAttr);
+    verify(mockReplayWorkflowContext, times(1))
+        .upsertSearchAttributes(serializedAttr, Collections.emptyList());
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -154,7 +154,7 @@ public class SyncWorkflowContextTest {
 
       ArgumentCaptor<UserMetadata> metadata = ArgumentCaptor.forClass(UserMetadata.class);
       verify(mockReplayWorkflowContext)
-          .newTimer(eq(Duration.ofHours(1)), metadata.capture(), any());
+          .newTimer(eq(Duration.ofHours(1)), metadata.capture(), any(), any());
       assertEquals(
           "await-summary",
           DefaultDataConverter.STANDARD_INSTANCE.fromPayload(
@@ -186,10 +186,10 @@ public class SyncWorkflowContextTest {
 
       runner.runUntilAllBlocked(DeterministicRunner.DEFAULT_DEADLOCK_DETECTION_TIMEOUT_MS);
 
-      ArgumentCaptor<ContinueAsNewWorkflowExecutionCommandAttributes> attributes =
-          ArgumentCaptor.forClass(ContinueAsNewWorkflowExecutionCommandAttributes.class);
-      verify(mockReplayWorkflowContext).continueAsNewOnCompletion(attributes.capture());
-      assertEquals(7, attributes.getValue().getBackoffStartInterval().getSeconds());
+      ArgumentCaptor<ContinueAsNewWorkflowParameters> parameters =
+          ArgumentCaptor.forClass(ContinueAsNewWorkflowParameters.class);
+      verify(mockReplayWorkflowContext).continueAsNewOnCompletion(parameters.capture());
+      assertEquals(7, parameters.getValue().getAttributes().getBackoffStartInterval().getSeconds());
     } finally {
 
       runner.close();
