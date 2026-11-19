@@ -18,8 +18,7 @@ import java.lang.annotation.*;
  *
  * <ul>
  *   <li>be {@code public},
- *   <li>accept exactly three parameters: {@link TemporalOperationStartContext}, {@link
- *       TemporalNexusClient}, and the operation input type,
+ *   <li>accept exactly two parameters: {@link TemporalNexusClient} and the operation input type,
  *   <li>return {@link TemporalOperationResult}.
  * </ul>
  *
@@ -30,7 +29,7 @@ import java.lang.annotation.*;
  * public class TransferServiceImpl {
  *   @TemporalOperation
  *   public TemporalOperationResult<TransferResult> transfer(
- *       TemporalOperationStartContext ctx, TemporalNexusClient client, TransferInput input) {
+ *       TemporalNexusClient client, TransferInput input) {
  *     return client.startWorkflow(
  *         TransferWorkflow.class,
  *         TransferWorkflow::transfer,
@@ -41,6 +40,10 @@ import java.lang.annotation.*;
  *   }
  * }
  * }</pre>
+ *
+ * <p>Access information about the current invocation through {@link NexusOperationContext#getInfo()
+ * Nexus.getOperationContext().getInfo()}, including its cancellation token and {@linkplain
+ * NexusOperationInfo#getRequestId() start request ID}.
  *
  * <p>For custom cancel, or any other handler composition, use {@link OperationImpl} with a {@link
  * TemporalOperationHandler} subclass that overrides {@link
