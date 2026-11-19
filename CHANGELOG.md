@@ -24,17 +24,33 @@ to docs, or any other relevant information.
   `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
   `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- **Experimental**: Temporal operation start handlers, including `@TemporalOperation` methods, now
+  accept only `(TemporalNexusClient, input)`. Cancellation overrides now accept only their typed
+  input. `TemporalOperationStartContext` and `TemporalOperationCancelContext` have been removed.
+  Use `Nexus.getOperationContext().getInfo()` for service, operation, a read-only handler
+  invocation cancellation token, and the start request ID (`getRequestId()`, which returns `null`
+  in cancel handlers).
+  Request headers remain available to interceptors. Callbacks and Nexus links are no longer exposed
+  to Temporal operation handlers.
 
 ### Added
 - Experimental Event Groups associate related workflow commands so their history events can be
   viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
   `addEventGroups` on the command's options.
+- `@TemporalOperation` methods can return their output directly for synchronous completion.
+  Existing methods returning `TemporalOperationResult`, including asynchronous results, remain
+  supported.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
+  includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
+  credentials set through `setHeaders` no longer appear in logs.
+- The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
+  as asynchronous.
 - Concurrent Nexus operations on the same worker no longer risk being executed by another
   operation's handler. The shared Nexus interceptor middleware kept each request's root
   interceptor in an instance field, which a concurrent request could overwrite.

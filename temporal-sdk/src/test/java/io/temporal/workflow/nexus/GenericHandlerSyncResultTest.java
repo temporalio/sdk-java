@@ -6,7 +6,6 @@ import io.nexusrpc.handler.ServiceImpl;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
@@ -61,8 +60,7 @@ public class GenericHandlerSyncResultTest {
   @ServiceImpl(service = TestNexusSyncService.class)
   public class TestNexusServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> operation(
-        TemporalOperationStartContext context, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> operation(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync("sync-" + input);
     }
   }

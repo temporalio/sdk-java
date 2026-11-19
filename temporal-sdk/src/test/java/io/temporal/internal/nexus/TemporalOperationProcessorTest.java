@@ -9,7 +9,6 @@ import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -54,6 +53,68 @@ public class TemporalOperationProcessorTest {
   }
 
   @Test
+  public void directReturns_registerAndWrapResults() throws Exception {
+    DirectReturn handler = new DirectReturn();
+    TemporalOperationProcessor.process(handler);
+    TemporalOperationResult<Object> result = invoke(handler, String.class, "direct");
+    Assert.assertTrue(result.isSync());
+    Assert.assertEquals("direct", result.getSyncResult());
+  }
+
+  @Test
+  public void directReturns_wrapNullAsSuccessfulSyncResult() throws Exception {
+    TemporalOperationResult<Object> result = invoke(new DirectReturn(), String.class, null);
+    Assert.assertNotNull(result);
+    Assert.assertTrue(result.isSync());
+    Assert.assertNull(result.getSyncResult());
+  }
+
+  @Test
+  public void directReturns_preserveCompositeGenericValidation() {
+    TemporalOperationProcessor.process(new DirectComposite());
+    IllegalArgumentException e =
+        assertInvalid(() -> TemporalOperationProcessor.process(new DirectCompositeBadOutput()));
+    Assert.assertTrue(e.getMessage(), e.getMessage().contains("output type mismatch"));
+  }
+
+  @Test
+  public void directReturns_supportPrimitiveAndVoidResults() throws Exception {
+    DirectPrimitive primitive = new DirectPrimitive();
+    TemporalOperationProcessor.process(primitive);
+    Assert.assertEquals(42, invoke(primitive, Integer.class, 42).getSyncResult());
+
+    DirectVoid noOutput = new DirectVoid();
+    TemporalOperationProcessor.process(noOutput);
+    TemporalOperationResult<Object> result = invoke(noOutput, Void.class, null);
+    Assert.assertTrue(result.isSync());
+    Assert.assertNull(result.getSyncResult());
+    Assert.assertTrue(noOutput.invoked);
+  }
+
+  @Test
+  public void directReturns_propagateOperationExceptionUnwrapped() throws Exception {
+    DirectFailure handler = new DirectFailure();
+    TemporalOperationProcessor.process(handler);
+    io.nexusrpc.OperationException thrown =
+        Assert.assertThrows(
+            io.nexusrpc.OperationException.class, () -> invoke(handler, String.class, "input"));
+    Assert.assertSame(handler.failure, thrown);
+  }
+
+  @Test
+  public void wrappedReturns_preserveSyncAndAsyncResults() throws Exception {
+    for (TemporalOperationResult<String> expected :
+        java.util.Arrays.asList(
+            TemporalOperationResult.sync("wrapped"),
+            TemporalOperationResult.<String>sync(null),
+            TemporalOperationResult.<String>async("token"))) {
+      WrappedReturn handler = new WrappedReturn(expected);
+      TemporalOperationProcessor.process(handler);
+      Assert.assertSame(expected, invoke(handler, String.class, "input"));
+    }
+  }
+
+  @Test
   public void rejects_compositeGenericInputMismatch() {
     IllegalArgumentException e =
         assertInvalid(() -> TemporalOperationProcessor.process(new CompositeBadInput()));
@@ -95,12 +156,11 @@ public class TemporalOperationProcessorTest {
     // read constructor-injected dependencies (workflow client, config, etc.) off `this`.
     StatefulHandler instance = new StatefulHandler("injected");
     java.lang.reflect.Method m =
-        StatefulHandler.class.getMethod(
-            "op", TemporalOperationStartContext.class, TemporalNexusClient.class, String.class);
+        StatefulHandler.class.getMethod("op", TemporalNexusClient.class, String.class);
     java.lang.invoke.MethodHandle handle =
         java.lang.invoke.MethodHandles.lookup().unreflect(m).bindTo(instance);
     TemporalOperationResult<Object> result =
-        TemporalOperationProcessor.invokeStartHandler(handle, null, null, "input");
+        TemporalOperationProcessor.invokeStartHandler(handle, null, "input");
     Assert.assertEquals("injected:input", result.getSyncResult());
   }
 
@@ -111,14 +171,14 @@ public class TemporalOperationProcessorTest {
     // dispatch path.
     ThrowingHandler instance = new ThrowingHandler();
     java.lang.reflect.Method m =
-        ThrowingHandler.class.getMethod(
-            "op", TemporalOperationStartContext.class, TemporalNexusClient.class, String.class);
+        ThrowingHandler.class.getMethod("op", TemporalNexusClient.class, String.class);
     java.lang.invoke.MethodHandle handle =
         java.lang.invoke.MethodHandles.lookup().unreflect(m).bindTo(instance);
     IllegalStateException thrown =
         Assert.assertThrows(
             IllegalStateException.class,
-            () -> TemporalOperationProcessor.invokeStartHandler(handle, null, null, "in"));
+            () -> TemporalOperationProcessor.invokeStartHandler(handle, null, "in"));
+    Assert.assertSame(instance.failure, thrown);
     Assert.assertEquals("user-thrown", thrown.getMessage());
     // First user frame is at the top — no reflective wrapper class in between.
     Assert.assertEquals(ThrowingHandler.class.getName(), thrown.getStackTrace()[0].getClassName());
@@ -128,8 +188,7 @@ public class TemporalOperationProcessorTest {
   public void rejects_badReturnType() {
     IllegalArgumentException e =
         assertInvalid(() -> TemporalOperationProcessor.process(new BadReturnType()));
-    Assert.assertTrue(
-        e.getMessage(), e.getMessage().contains("must return TemporalOperationResult"));
+    Assert.assertTrue(e.getMessage(), e.getMessage().contains("output type mismatch"));
   }
 
   @Test
@@ -137,9 +196,7 @@ public class TemporalOperationProcessorTest {
     IllegalArgumentException e =
         assertInvalid(() -> TemporalOperationProcessor.process(new BadArity()));
     Assert.assertTrue(
-        e.getMessage(),
-        e.getMessage()
-            .contains("must accept (TemporalOperationStartContext, TemporalNexusClient, I)"));
+        e.getMessage(), e.getMessage().contains("must accept (TemporalNexusClient, I)"));
   }
 
   @Test
@@ -178,13 +235,20 @@ public class TemporalOperationProcessorTest {
     return (IllegalArgumentException) wrapper.getCause();
   }
 
+  private static TemporalOperationResult<Object> invoke(
+      Object instance, Class<?> inputType, Object input) throws Exception {
+    java.lang.reflect.Method method =
+        instance.getClass().getMethod("op", TemporalNexusClient.class, inputType);
+    return TemporalOperationProcessor.invokeStartHandler(
+        java.lang.invoke.MethodHandles.lookup().unreflect(method).bindTo(instance), null, input);
+  }
+
   // ----- Fixtures -----
 
   @ServiceImpl(service = SingleOpService.class)
   public static class ValidSugar {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -192,15 +256,91 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class BadReturnType {
     @TemporalOperation
-    public String op(TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public Integer op(TemporalNexusClient client, String input) {
+      return 42;
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
+  public static class DirectReturn {
+    @TemporalOperation
+    public String op(TemporalNexusClient client, String input) {
       return input;
+    }
+  }
+
+  @ServiceImpl(service = CompositeGenericService.class)
+  public static class DirectComposite {
+    @TemporalOperation
+    public java.util.List<String> compose(
+        TemporalNexusClient client, java.util.Map<String, Integer> input) {
+      return java.util.Collections.emptyList();
+    }
+  }
+
+  @ServiceImpl(service = CompositeGenericService.class)
+  public static class DirectCompositeBadOutput {
+    @TemporalOperation
+    public java.util.List<Integer> compose(
+        TemporalNexusClient client, java.util.Map<String, Integer> input) {
+      return java.util.Collections.emptyList();
+    }
+  }
+
+  @Service
+  public interface PrimitiveService {
+    @Operation
+    Integer op(Integer input);
+  }
+
+  @ServiceImpl(service = PrimitiveService.class)
+  public static class DirectPrimitive {
+    @TemporalOperation
+    public int op(TemporalNexusClient client, Integer input) {
+      return input;
+    }
+  }
+
+  @ServiceImpl(service = VoidIoService.class)
+  public static class DirectVoid {
+    boolean invoked;
+
+    @TemporalOperation
+    public void op(TemporalNexusClient client, Void input) {
+      invoked = true;
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
+  public static class WrappedReturn {
+    private final TemporalOperationResult<String> result;
+
+    WrappedReturn(TemporalOperationResult<String> result) {
+      this.result = result;
+    }
+
+    @TemporalOperation
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
+      return result;
+    }
+  }
+
+  @ServiceImpl(service = SingleOpService.class)
+  public static class DirectFailure {
+    final io.nexusrpc.OperationException failure =
+        io.nexusrpc.OperationException.failed(new IllegalArgumentException("direct failure"));
+
+    @TemporalOperation
+    public String op(TemporalNexusClient client, String input)
+        throws io.nexusrpc.OperationException {
+      throw failure;
     }
   }
 
   @ServiceImpl(service = SingleOpService.class)
   public static class BadArity {
     @TemporalOperation
-    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -209,9 +349,7 @@ public class TemporalOperationProcessorTest {
   public static class CompositeOk {
     @TemporalOperation
     public TemporalOperationResult<java.util.List<String>> compose(
-        TemporalOperationStartContext ctx,
-        TemporalNexusClient client,
-        java.util.Map<String, Integer> input) {
+        TemporalNexusClient client, java.util.Map<String, Integer> input) {
       return TemporalOperationResult.sync(java.util.Collections.emptyList());
     }
   }
@@ -221,9 +359,7 @@ public class TemporalOperationProcessorTest {
     // Map value type is String instead of Integer.
     @TemporalOperation
     public TemporalOperationResult<java.util.List<String>> compose(
-        TemporalOperationStartContext ctx,
-        TemporalNexusClient client,
-        java.util.Map<String, String> input) {
+        TemporalNexusClient client, java.util.Map<String, String> input) {
       return TemporalOperationResult.sync(java.util.Collections.emptyList());
     }
   }
@@ -233,9 +369,7 @@ public class TemporalOperationProcessorTest {
     // Result list element type is Integer instead of String.
     @TemporalOperation
     public TemporalOperationResult<java.util.List<Integer>> compose(
-        TemporalOperationStartContext ctx,
-        TemporalNexusClient client,
-        java.util.Map<String, Integer> input) {
+        TemporalNexusClient client, java.util.Map<String, Integer> input) {
       return TemporalOperationResult.sync(java.util.Collections.emptyList());
     }
   }
@@ -244,8 +378,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class RawReturnType {
     @TemporalOperation
-    public TemporalOperationResult op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -253,8 +386,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class NonPublicMethod {
     @TemporalOperation
-    TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -262,8 +394,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class StaticMethod {
     @TemporalOperation
-    public static TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public static TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(input);
     }
   }
@@ -277,26 +408,25 @@ public class TemporalOperationProcessorTest {
     }
 
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync(prefix + ":" + input);
     }
   }
 
   @ServiceImpl(service = SingleOpService.class)
   public static class ThrowingHandler {
+    final IllegalStateException failure = new IllegalStateException("user-thrown");
+
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
-      throw new IllegalStateException("user-thrown");
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input) {
+      throw failure;
     }
   }
 
   @ServiceImpl(service = VoidIoService.class)
   public static class VoidIo {
     @TemporalOperation
-    public TemporalOperationResult<Void> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, Void input) {
+    public TemporalOperationResult<Void> op(TemporalNexusClient client, Void input) {
       return TemporalOperationResult.sync(null);
     }
   }
@@ -304,8 +434,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class DeclaresCheckedException {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input)
         throws java.io.IOException {
       return TemporalOperationResult.sync(input);
     }
@@ -314,8 +443,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class DeclaresRuntimeException {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input)
         throws IllegalStateException {
       return TemporalOperationResult.sync(input);
     }
@@ -324,8 +452,7 @@ public class TemporalOperationProcessorTest {
   @ServiceImpl(service = SingleOpService.class)
   public static class DeclaresNexusrpcCheckedExceptions {
     @TemporalOperation
-    public TemporalOperationResult<String> op(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input)
+    public TemporalOperationResult<String> op(TemporalNexusClient client, String input)
         throws io.nexusrpc.OperationException, io.nexusrpc.handler.HandlerException {
       return TemporalOperationResult.sync(input);
     }
@@ -337,7 +464,7 @@ public class TemporalOperationProcessorTest {
     @OperationImpl
     public OperationHandler<String, String> op() {
       return new TemporalOperationHandler<String, String>(
-          (ctx, client, input) -> TemporalOperationResult.sync(input)) {};
+          (client, input) -> TemporalOperationResult.sync(input)) {};
     }
   }
 }
