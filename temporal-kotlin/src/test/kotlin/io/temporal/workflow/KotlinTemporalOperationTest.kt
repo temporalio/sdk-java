@@ -12,7 +12,6 @@ import io.temporal.common.converter.KotlinObjectMapperFactory
 import io.temporal.nexus.TemporalNexusClient
 import io.temporal.nexus.TemporalOperation
 import io.temporal.nexus.TemporalOperationResult
-import io.temporal.nexus.TemporalOperationStartContext
 import io.temporal.testing.internal.SDKTestWorkflowRule
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -43,7 +42,6 @@ class KotlinTemporalOperationTest {
   class KotlinSugarServiceImpl {
     @TemporalOperation
     fun greet(
-      ctx: TemporalOperationStartContext,
       client: TemporalNexusClient,
       input: String
     ): TemporalOperationResult<String> {

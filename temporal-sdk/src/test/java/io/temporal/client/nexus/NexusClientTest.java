@@ -390,7 +390,7 @@ public class NexusClientTest {
     @OperationImpl
     public OperationHandler<String, String> operation() {
       return TemporalOperationHandler.create(
-          (context, client, activityId) ->
+          (client, activityId) ->
               client.startActivity(
                   LinkingActivity.class,
                   LinkingActivity::execute,

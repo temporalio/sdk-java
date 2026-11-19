@@ -88,6 +88,7 @@ public class UpdateProtocolStateMachineTest {
                                 ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                             .build(),
                         null,
+                        Collections.emptyList(),
                         c))
             .add(
                 (r) -> {
@@ -252,7 +253,11 @@ public class UpdateProtocolStateMachineTest {
                 (v, c) -> {
                   message.getCallbacks().accept();
                   stateMachines.mutableSideEffect(
-                      "id1", null, (p) -> converter.toPayloads("result1"), c);
+                      "id1",
+                      null,
+                      Collections.emptyList(),
+                      (p) -> converter.toPayloads("result1"),
+                      c);
                 })
             .add(
                 (r) -> {
@@ -448,6 +453,7 @@ public class UpdateProtocolStateMachineTest {
                             ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                         .build(),
                     null,
+                    Collections.emptyList(),
                     c));
       }
 
@@ -472,6 +478,7 @@ public class UpdateProtocolStateMachineTest {
                             ProtobufTimeUtils.toProtoDuration(Duration.ofHours(1)))
                         .build(),
                     null,
+                    Collections.emptyList(),
                     c));
       }
     }
@@ -675,7 +682,11 @@ public class UpdateProtocolStateMachineTest {
                 (v, c) -> {
                   message.getCallbacks().accept();
                   stateMachines.mutableSideEffect(
-                      "id1", null, (p) -> converter.toPayloads("result1"), c);
+                      "id1",
+                      null,
+                      Collections.emptyList(),
+                      (p) -> converter.toPayloads("result1"),
+                      c);
                 })
             .add(
                 (r) -> {
@@ -908,7 +919,8 @@ public class UpdateProtocolStateMachineTest {
             "signal1", signalEvent.getWorkflowExecutionSignaledEventAttributes().getSignalName());
         builder.<Optional<Payloads>>add1(
             (r, c) -> {
-              stateMachines.sideEffect(() -> converter.toPayloads("m2Arg1"), null, c);
+              stateMachines.sideEffect(
+                  () -> converter.toPayloads("m2Arg1"), null, Collections.emptyList(), c);
             });
       }
 
