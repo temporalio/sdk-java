@@ -199,4 +199,22 @@ public final class MetricsType {
       TEMPORAL_METRICS_PREFIX + "resource_slots_mem_pid_output";
   public static final String RESOURCE_CPU_PID =
       TEMPORAL_METRICS_PREFIX + "resource_slots_cpu_pid_output";
+
+  //
+  // Payload cache
+  //
+  // Tagged with namespace & task_queue
+  @Experimental
+  public static final String PAYLOAD_CACHE_LOOKUP_HIT_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "payload_cache_lookup_hit";
+
+  // Tagged with namespace & task_queue
+  @Experimental
+  public static final String PAYLOAD_CACHE_LOOKUP_HIT_BYTES_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "payload_cache_lookup_hit_bytes";
+
+  // Tagged with namespace, task_queue & reason (declined or error)
+  @Experimental
+  public static final String PAYLOAD_CACHE_REJECTION_COUNTER =
+      TEMPORAL_METRICS_PREFIX + "payload_cache_rejection";
 }

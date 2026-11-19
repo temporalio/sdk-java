@@ -47,6 +47,7 @@ import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -420,7 +421,8 @@ public class NexusWorkerTest {
                                   .setDriver(driver)
                                   .setPayloadSizeThreshold(0)
                                   .build(),
-                              "default"))
+                              "default",
+                              PayloadCache.disabled()))
                   .build(),
               handler,
               DefaultDataConverter.newDefaultInstance(),

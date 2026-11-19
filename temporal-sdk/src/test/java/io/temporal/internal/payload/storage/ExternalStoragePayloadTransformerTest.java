@@ -14,6 +14,7 @@ import io.temporal.api.common.v1.Payload;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -141,7 +142,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriverSelector((context, payload) -> null)
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
 
     List<Payload> stored =
         transformer
@@ -168,7 +170,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriverSelector(selector)
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     List<Payload> input = Arrays.asList(payload("1-a"), payload("2-b"), payload("1-c"));
 
     List<Payload> stored = transformer.store(input, null, CancellationToken.none()).get();
@@ -194,7 +197,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriverSelector(selector)
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     StorageDriverTargetInfo target =
         new StorageDriverWorkflowInfo("ns", "wf-id", "run-id", "MyWorkflow");
 
@@ -233,7 +237,8 @@ public class ExternalStoragePayloadTransformerTest {
                     })
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "my-namespace");
+            "my-namespace",
+            PayloadCache.disabled());
 
     transformer
         .store(Collections.singletonList(payload("a")), null, CancellationToken.none())
@@ -333,7 +338,8 @@ public class ExternalStoragePayloadTransformerTest {
                 .setDriverSelector((context, payload) -> stranger)
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
 
     Throwable cause =
         causeOf(
@@ -370,7 +376,8 @@ public class ExternalStoragePayloadTransformerTest {
                         byPrefix.get(payload.getData().toStringUtf8().substring(0, 1)))
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
 
     CompletableFuture<List<Payload>> result =
         transformer.store(
@@ -455,7 +462,8 @@ public class ExternalStoragePayloadTransformerTest {
                     })
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
 
     transformer.store(Collections.singletonList(payload("a")), null, caller.token());
 
@@ -466,7 +474,8 @@ public class ExternalStoragePayloadTransformerTest {
       StorageDriver driver, int threshold) {
     return ExternalStoragePayloadTransformer.fromOptions(
         ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build(),
-        "default");
+        "default",
+        PayloadCache.disabled());
   }
 
   private static Payload payload(String data) {

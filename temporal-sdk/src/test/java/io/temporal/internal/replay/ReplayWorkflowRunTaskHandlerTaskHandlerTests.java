@@ -37,6 +37,7 @@ import io.temporal.internal.worker.WorkflowExecutorCache;
 import io.temporal.internal.worker.WorkflowRunLockManager;
 import io.temporal.internal.worker.WorkflowTaskHandler;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testUtils.HistoryUtils;
@@ -227,7 +228,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
@@ -292,7 +294,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
@@ -343,7 +346,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
     ExternalStorageRunner externalStorage =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();
@@ -394,7 +398,8 @@ public class ReplayWorkflowRunTaskHandlerTaskHandlerTests {
                 .setDriver(TestStorageDriver.create())
                 .setPayloadSizeThreshold(0)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     PollWorkflowTaskQueueResponse fullTask = HistoryUtils.generateWorkflowTaskWithInitialHistory();
     HistoryEvent startedEvent = fullTask.getHistory().getEvents(0);
     Payload input = Payload.newBuilder().setData(ByteString.copyFromUtf8("input")).build();

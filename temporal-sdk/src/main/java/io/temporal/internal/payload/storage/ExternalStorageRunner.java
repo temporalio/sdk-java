@@ -9,6 +9,7 @@ import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.concurrent.CancellationException;
@@ -30,10 +31,13 @@ public final class ExternalStorageRunner {
   /**
    * @param namespace namespace of the client or worker that will use this runner, exposed to
    *     drivers and selectors on store.
+   * @param payloadCache cache for stored and retrieved payloads, or {@link PayloadCache#disabled()}
+   *     to turn caching off.
    */
-  public static ExternalStorageRunner create(ExternalStorage options, String namespace) {
+  public static ExternalStorageRunner create(
+      ExternalStorage options, String namespace, PayloadCache payloadCache) {
     return new ExternalStorageRunner(
-        ExternalStoragePayloadTransformer.fromOptions(options, namespace),
+        ExternalStoragePayloadTransformer.fromOptions(options, namespace, payloadCache),
         options.getMaxConcurrentPayloadVisits());
   }
 

@@ -120,7 +120,8 @@ final class WorkflowClientInternalImpl implements WorkflowClient, WorkflowClient
     ExternalStorageRunner externalStorageRunner =
         externalStorage == null
             ? null
-            : ExternalStorageRunner.create(externalStorage, options.getNamespace());
+            : ExternalStorageRunner.create(
+                externalStorage, options.getNamespace(), options.getPayloadCache());
     this.externalStorageRunner = externalStorageRunner;
     this.genericClient = new GenericWorkflowClientImpl(workflowServiceStubs, metricsScope);
     this.interceptors = options.getInterceptors();

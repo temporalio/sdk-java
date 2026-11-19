@@ -32,6 +32,7 @@ import io.temporal.common.interceptors.WorkflowClientCallsInterceptor.WorkflowSt
 import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -268,7 +269,8 @@ public class RootWorkflowClientInvokerStorageTargetTest {
         new WorkerFactoryRegistry(),
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            NAMESPACE));
+            NAMESPACE,
+            PayloadCache.disabled()));
   }
 
   private static final class CapturingDriver implements StorageDriver {

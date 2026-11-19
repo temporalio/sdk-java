@@ -6,10 +6,12 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ActivityClientInterceptor;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Options for {@link ActivityClient} configuration. */
@@ -50,6 +52,7 @@ public final class ActivityClientOptions {
     private List<ContextPropagator> contextPropagators;
     private List<ActivityClientInterceptor> interceptors;
     private ExternalStorage externalStorage;
+    private PayloadCache payloadCache;
 
     private Builder() {}
 
@@ -63,6 +66,7 @@ public final class ActivityClientOptions {
       contextPropagators = options.contextPropagators;
       interceptors = options.interceptors;
       externalStorage = options.externalStorage;
+      payloadCache = options.payloadCache;
     }
 
     /** Set the namespace this client will operate on. */
@@ -118,6 +122,18 @@ public final class ActivityClientOptions {
       return this;
     }
 
+    /**
+     * Cache for payloads that external storage uploads and downloads. Used only when external
+     * storage is set. Calls made through this client report no cache metrics.
+     *
+     * <p>Pass {@link PayloadCache#disabled()} to turn caching off explicitly. Defaults to off.
+     */
+    @Experimental
+    public Builder setPayloadCache(@Nullable PayloadCache payloadCache) {
+      this.payloadCache = payloadCache;
+      return this;
+    }
+
     public ActivityClientOptions build() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new ActivityClientOptions(
@@ -126,7 +142,8 @@ public final class ActivityClientOptions {
           name,
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
           interceptors == null ? EMPTY_INTERCEPTORS : interceptors,
-          externalStorage);
+          externalStorage,
+          payloadCache == null ? PayloadCache.disabled() : payloadCache);
     }
   }
 
@@ -136,6 +153,7 @@ public final class ActivityClientOptions {
   private final List<ContextPropagator> contextPropagators;
   private final List<ActivityClientInterceptor> interceptors;
   private final @Nullable ExternalStorage externalStorage;
+  private final @Nonnull PayloadCache payloadCache;
 
   private ActivityClientOptions(
       String namespace,
@@ -143,13 +161,15 @@ public final class ActivityClientOptions {
       String identity,
       List<ContextPropagator> contextPropagators,
       List<ActivityClientInterceptor> interceptors,
-      @Nullable ExternalStorage externalStorage) {
+      @Nullable ExternalStorage externalStorage,
+      @Nonnull PayloadCache payloadCache) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.contextPropagators = contextPropagators;
     this.interceptors = interceptors;
     this.externalStorage = externalStorage;
+    this.payloadCache = payloadCache;
   }
 
   /**
@@ -204,6 +224,15 @@ public final class ActivityClientOptions {
     return externalStorage;
   }
 
+  /**
+   * Cache for external storage payloads, or {@link PayloadCache#disabled()} when caching is off.
+   */
+  @Experimental
+  @Nonnull
+  public PayloadCache getPayloadCache() {
+    return payloadCache;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
@@ -214,13 +243,20 @@ public final class ActivityClientOptions {
         && Objects.equals(identity, that.identity)
         && Objects.equals(contextPropagators, that.contextPropagators)
         && Objects.equals(interceptors, that.interceptors)
-        && Objects.equals(externalStorage, that.externalStorage);
+        && Objects.equals(externalStorage, that.externalStorage)
+        && Objects.equals(payloadCache, that.payloadCache);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        namespace, dataConverter, identity, contextPropagators, interceptors, externalStorage);
+        namespace,
+        dataConverter,
+        identity,
+        contextPropagators,
+        interceptors,
+        externalStorage,
+        payloadCache);
   }
 
   @Override
@@ -240,6 +276,8 @@ public final class ActivityClientOptions {
         + interceptors
         + ", externalStorage="
         + externalStorage
+        + ", payloadCache="
+        + payloadCache
         + '}';
   }
 }

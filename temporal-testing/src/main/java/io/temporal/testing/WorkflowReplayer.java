@@ -28,6 +28,8 @@ public final class WorkflowReplayer {
   /**
    * Replays workflow from a resource that contains a json serialized history.
    *
+   * <p>The replay uses the payload cache of {@code worker}'s client, if one is configured.
+   *
    * @param resourceName name of the resource.
    * @param worker worker existing worker with the correct task queue and registered
    *     implementations.
@@ -147,6 +149,8 @@ public final class WorkflowReplayer {
   /**
    * Replays workflow from a resource that contains a json serialized history.
    *
+   * <p>The replay uses the payload cache of {@code worker}'s client, if one is configured.
+   *
    * @param history object that contains the workflow ids and the events.
    * @param worker existing worker with registered workflow implementations.
    * @throws Exception if replay failed for any reason.
@@ -183,6 +187,8 @@ public final class WorkflowReplayer {
 
   /**
    * Replays workflows provided by an iterable using an already-initialized worker.
+   *
+   * <p>The replay uses the payload cache of {@code worker}'s client, if one is configured.
    *
    * @param histories The histories to be replayed
    * @param failFast If true, throws upon the first error encountered (if any) during replay. If

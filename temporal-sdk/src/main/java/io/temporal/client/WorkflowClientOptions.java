@@ -8,12 +8,14 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Options for WorkflowClient configuration. */
@@ -56,6 +58,7 @@ public final class WorkflowClientOptions {
     private Duration workerHeartbeatInterval;
     private boolean disableWorkerEnvironmentInfo;
     private ExternalStorage externalStorage;
+    private PayloadCache payloadCache;
 
     private Builder() {}
 
@@ -74,6 +77,7 @@ public final class WorkflowClientOptions {
       workerHeartbeatInterval = options.workerHeartbeatInterval;
       disableWorkerEnvironmentInfo = options.disableWorkerEnvironmentInfo;
       externalStorage = options.externalStorage;
+      payloadCache = options.payloadCache;
     }
 
     public Builder setNamespace(String namespace) {
@@ -102,6 +106,22 @@ public final class WorkflowClientOptions {
     @Experimental
     public Builder setExternalStorage(@Nullable ExternalStorage externalStorage) {
       this.externalStorage = externalStorage;
+      return this;
+    }
+
+    /**
+     * Cache for payloads that external storage uploads and downloads. Used only when external
+     * storage is set.
+     *
+     * <p>Workers built from this client share this cache and report its metrics for their own task
+     * handling. Calls made through this client report no cache metrics. That includes calls made
+     * from Activities and Nexus handlers through the client they are given.
+     *
+     * <p>Pass {@link PayloadCache#disabled()} to turn caching off explicitly. Defaults to off.
+     */
+    @Experimental
+    public Builder setPayloadCache(@Nullable PayloadCache payloadCache) {
+      this.payloadCache = payloadCache;
       return this;
     }
 
@@ -215,7 +235,8 @@ public final class WorkflowClientOptions {
           plugins == null ? EMPTY_PLUGINS : plugins,
           resolveHeartbeatInterval(workerHeartbeatInterval),
           disableWorkerEnvironmentInfo,
-          externalStorage);
+          externalStorage,
+          resolvePayloadCache(payloadCache));
     }
 
     /**
@@ -244,7 +265,12 @@ public final class WorkflowClientOptions {
           plugins == null ? EMPTY_PLUGINS : plugins,
           resolveHeartbeatInterval(workerHeartbeatInterval),
           disableWorkerEnvironmentInfo,
-          externalStorage);
+          externalStorage,
+          resolvePayloadCache(payloadCache));
+    }
+
+    private static PayloadCache resolvePayloadCache(@Nullable PayloadCache payloadCache) {
+      return payloadCache == null ? PayloadCache.disabled() : payloadCache;
     }
 
     private static Duration resolveHeartbeatInterval(Duration raw) {
@@ -291,6 +317,8 @@ public final class WorkflowClientOptions {
 
   private final @Nullable ExternalStorage externalStorage;
 
+  private final @Nonnull PayloadCache payloadCache;
+
   private WorkflowClientOptions(
       String namespace,
       DataConverter dataConverter,
@@ -302,7 +330,8 @@ public final class WorkflowClientOptions {
       WorkflowClientPlugin[] plugins,
       Duration workerHeartbeatInterval,
       boolean disableWorkerEnvironmentInfo,
-      @Nullable ExternalStorage externalStorage) {
+      @Nullable ExternalStorage externalStorage,
+      @Nonnull PayloadCache payloadCache) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.interceptors = interceptors;
@@ -314,6 +343,7 @@ public final class WorkflowClientOptions {
     this.workerHeartbeatInterval = workerHeartbeatInterval;
     this.disableWorkerEnvironmentInfo = disableWorkerEnvironmentInfo;
     this.externalStorage = externalStorage;
+    this.payloadCache = payloadCache;
   }
 
   /**
@@ -334,6 +364,15 @@ public final class WorkflowClientOptions {
   @Nullable
   public ExternalStorage getExternalStorage() {
     return externalStorage;
+  }
+
+  /**
+   * Cache for external storage payloads, or {@link PayloadCache#disabled()} when caching is off.
+   */
+  @Experimental
+  @Nonnull
+  public PayloadCache getPayloadCache() {
+    return payloadCache;
   }
 
   public WorkflowClientInterceptor[] getInterceptors() {
@@ -421,6 +460,8 @@ public final class WorkflowClientOptions {
         + disableWorkerEnvironmentInfo
         + ", externalStorage="
         + externalStorage
+        + ", payloadCache="
+        + payloadCache
         + '}';
   }
 
@@ -440,7 +481,8 @@ public final class WorkflowClientOptions {
         && com.google.common.base.Objects.equal(
             workerHeartbeatInterval, that.workerHeartbeatInterval)
         && disableWorkerEnvironmentInfo == that.disableWorkerEnvironmentInfo
-        && com.google.common.base.Objects.equal(externalStorage, that.externalStorage);
+        && com.google.common.base.Objects.equal(externalStorage, that.externalStorage)
+        && com.google.common.base.Objects.equal(payloadCache, that.payloadCache);
   }
 
   @Override
@@ -456,6 +498,7 @@ public final class WorkflowClientOptions {
         Arrays.hashCode(plugins),
         workerHeartbeatInterval,
         disableWorkerEnvironmentInfo,
-        externalStorage);
+        externalStorage,
+        payloadCache);
   }
 }

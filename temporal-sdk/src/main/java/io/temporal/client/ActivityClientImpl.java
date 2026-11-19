@@ -39,7 +39,8 @@ class ActivityClientImpl implements ActivityClient, ActivityClientInternal {
     ExternalStorageRunner externalStorage =
         options.getExternalStorage() == null
             ? null
-            : ExternalStorageRunner.create(options.getExternalStorage(), options.getNamespace());
+            : ExternalStorageRunner.create(
+                options.getExternalStorage(), options.getNamespace(), options.getPayloadCache());
     DataConverter internalDataConverter =
         ClientDataConverterFactory.forClient(options.getDataConverter());
     this.stubs = stubs;

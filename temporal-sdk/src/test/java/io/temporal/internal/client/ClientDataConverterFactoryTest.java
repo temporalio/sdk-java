@@ -12,6 +12,7 @@ import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredExceptio
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import org.junit.Test;
 
@@ -22,7 +23,8 @@ public class ClientDataConverterFactoryTest {
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     DataConverter converter =
         ClientDataConverterFactory.forClient(DefaultDataConverter.newDefaultInstance(), runner);
 
@@ -48,7 +50,8 @@ public class ClientDataConverterFactoryTest {
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     DataConverter scoped =
         new ClientDataConverterFactory(
                 "test-namespace", DefaultDataConverter.newDefaultInstance(), runner)
@@ -74,7 +77,8 @@ public class ClientDataConverterFactoryTest {
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(0).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     DataConverter configured = DefaultDataConverter.newDefaultInstance();
     Payload reference =
         ClientDataConverterFactory.forClient(configured, runner)

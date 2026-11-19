@@ -1121,6 +1121,7 @@ final class TemporalNexusClientImpl implements TemporalNexusClient {
                             .setDataConverter(client.getOptions().getDataConverter())
                             .setIdentity(client.getOptions().getIdentity())
                             .setExternalStorage(client.getOptions().getExternalStorage())
+                            .setPayloadCache(client.getOptions().getPayloadCache())
                             .build());
                 ActivityClientCallsInterceptor.StartActivityOutput out =
                     ((ActivityClientInternal) activityClient).getInvoker().startActivity(input);

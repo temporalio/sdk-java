@@ -12,6 +12,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageDataConverter;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -34,7 +35,8 @@ public class WorkflowExecutionMetadataTest {
             .setPayloadSizeThreshold(0)
             .build();
     DataConverter converter = DefaultDataConverter.newDefaultInstance();
-    ExternalStorageRunner storage = ExternalStorageRunner.create(config, "default");
+    ExternalStorageRunner storage =
+        ExternalStorageRunner.create(config, "default", PayloadCache.disabled());
 
     Payloads.Builder value = converter.toPayloads("big-memo").get().toBuilder();
     storage.store(value, null, null, CancellationToken.none());
