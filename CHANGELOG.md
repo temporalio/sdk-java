@@ -37,6 +37,9 @@ to docs, or any other relevant information.
 - Experimental Event Groups associate related workflow commands so their history events can be
   viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
   `addEventGroups` on the command's options.
+- `@TemporalOperation` methods can return their output directly for synchronous completion.
+  Existing methods returning `TemporalOperationResult`, including asynchronous results, remain
+  supported.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
