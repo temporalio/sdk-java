@@ -34,6 +34,11 @@ to docs, or any other relevant information.
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
   project-scoped custom roles, and caller rate limits.
 
+### Fixed
+- Concurrent Nexus operations on the same worker no longer risk being executed by another
+  operation's handler. The shared Nexus interceptor middleware kept each request's root
+  interceptor in an instance field, which a concurrent request could overwrite.
+
 ## [1.41.1] - 2026-11-16
 
 ### Fixed
@@ -139,9 +144,6 @@ to docs, or any other relevant information.
   specific to the Temporal CLI dev server implementation and may no longer be valid if that implementation changes.
 
 ### Fixed
-- Concurrent Nexus operations on the same worker no longer risk being executed by another
-  operation's handler. The shared Nexus interceptor middleware kept each request's root
-  interceptor in an instance field, which a concurrent request could overwrite.
 - Skipped `Workflow.mutableSideEffect` calls made with the new recovery flag enabled no longer
   leave invalid marker commands after cache eviction or a worker restart. The flag remains disabled
   by default in this release to preserve replay compatibility during SDK rollout.
