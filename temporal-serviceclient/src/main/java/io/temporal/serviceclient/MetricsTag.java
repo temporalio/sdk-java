@@ -64,12 +64,13 @@ public class MetricsTag {
   }
 
   private static Map<String, String> tags(String namespace) {
-    return new ImmutableMap.Builder<String, String>(9)
+    return new ImmutableMap.Builder<String, String>(11)
         .put(NAMESPACE, namespace)
         .put(ACTIVITY_TYPE, DEFAULT_VALUE)
         .put(OPERATION_NAME, DEFAULT_VALUE)
         .put(SIGNAL_NAME, DEFAULT_VALUE)
         .put(QUERY_TYPE, DEFAULT_VALUE)
+        .put(UPDATE_NAME, DEFAULT_VALUE)
         .put(TASK_QUEUE, DEFAULT_VALUE)
         .put(STATUS_CODE, DEFAULT_VALUE)
         .put(EXCEPTION, DEFAULT_VALUE)
