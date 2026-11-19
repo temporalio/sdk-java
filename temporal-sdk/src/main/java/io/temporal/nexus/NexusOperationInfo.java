@@ -53,6 +53,8 @@ public interface NexusOperationInfo {
    * <p>When cancellation is requested, {@link CancellationToken#throwIfCancellationRequested()}
    * throws a {@link CancellationException} whose message contains the invocation cancellation
    * reason.
+   *
+   * <p>Cancellation callbacks may run on the Nexus timeout thread and must return promptly.
    */
   CancellationToken<CancellationException> getCancellationToken();
 }
