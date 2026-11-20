@@ -52,6 +52,9 @@ to docs, or any other relevant information.
   credentials set through `setHeaders` no longer appear in logs.
 - The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
   as asynchronous.
+- Concurrent Nexus operations on the same worker no longer risk being executed by another
+  operation's handler. The shared Nexus interceptor middleware kept each request's root
+  interceptor in an instance field, which a concurrent request could overwrite.
 
 ## [1.41.1] - 2026-11-16
 

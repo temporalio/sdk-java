@@ -10,7 +10,6 @@ import java.util.concurrent.CancellationException;
 
 public class TemporalInterceptorMiddleware implements OperationMiddleware {
   private final WorkerInterceptor[] interceptors;
-  RootNexusOperationInboundCallsInterceptor rootInboundCallsInterceptor;
 
   public TemporalInterceptorMiddleware(WorkerInterceptor[] interceptors) {
     this.interceptors = interceptors;
@@ -19,7 +18,8 @@ public class TemporalInterceptorMiddleware implements OperationMiddleware {
   @Override
   public OperationHandler<Object, Object> intercept(
       OperationContext context, OperationHandler<Object, Object> operationHandler) {
-    rootInboundCallsInterceptor = new RootNexusOperationInboundCallsInterceptor(operationHandler);
+    RootNexusOperationInboundCallsInterceptor rootInboundCallsInterceptor =
+        new RootNexusOperationInboundCallsInterceptor(operationHandler);
     NexusOperationInboundCallsInterceptor inboundCallsInterceptor = rootInboundCallsInterceptor;
     for (WorkerInterceptor interceptor : interceptors) {
       inboundCallsInterceptor =
