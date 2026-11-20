@@ -10,6 +10,7 @@ import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.enums.v1.WorkerStatus;
 import io.temporal.api.worker.v1.EnvironmentInfo;
 import io.temporal.api.worker.v1.PluginInfo;
+import io.temporal.api.worker.v1.StorageDriverInfo;
 import io.temporal.api.worker.v1.WorkerHeartbeat;
 import io.temporal.api.worker.v1.WorkerHostInfo;
 import io.temporal.api.worker.v1.WorkerPollerInfo;
@@ -30,6 +31,8 @@ import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
 import io.temporal.internal.worker.TaskCounter;
+import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.StorageDriver;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.Version;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -42,6 +45,7 @@ import java.net.InetAddress;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -52,6 +56,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -67,6 +72,7 @@ public final class Worker {
   private final String taskQueue;
   private final String workerInstanceKey = UUID.randomUUID().toString();
   private final List<WorkerPlugin> plugins;
+  private final List<StorageDriverInfo> storageDrivers;
   private final WorkflowServiceStubs service;
   private final String namespace;
   private final String identity;
@@ -135,6 +141,7 @@ public final class Worker {
             .setDataConverter(clientInternal.getInternalDataConverter())
             .build();
     this.cache = cache;
+    this.storageDrivers = storageDriverInfos(clientOptions.getExternalStorage());
     ExternalStorageRunner externalStorageRunner = clientInternal.getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     String namespace = clientOptions.getNamespace();
@@ -782,9 +789,24 @@ public final class Worker {
             .distinct()
             .forEach(name -> hb.addPlugins(PluginInfo.newBuilder().setName(name).build()));
 
+        hb.addAllDrivers(storageDrivers);
+
         return hb.build();
       }
     };
+  }
+
+  // Several drivers can share an implementation, so each type is reported once.
+  private static List<StorageDriverInfo> storageDriverInfos(
+      @Nullable ExternalStorage externalStorage) {
+    if (externalStorage == null) {
+      return Collections.emptyList();
+    }
+    return externalStorage.getDrivers().stream()
+        .map(StorageDriver::getType)
+        .distinct()
+        .map(type -> StorageDriverInfo.newBuilder().setType(type).build())
+        .collect(Collectors.toList());
   }
 
   boolean requestCancelActivity(byte[] taskToken) {
