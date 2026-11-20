@@ -46,8 +46,10 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
@@ -85,6 +87,7 @@ final class WorkflowWorker implements SuspendableWorker {
   private final NamespaceCapabilities namespaceCapabilities;
 
   private PollTaskExecutor<WorkflowTask> pollTaskExecutor;
+  private volatile CompletableFuture<Void> shutdownFuture = CompletableFuture.completedFuture(null);
 
   // TODO this ideally should be volatile or final (and NoopWorker should go away)
   //  Currently the implementation looks safe without volatile, but it's brittle.
@@ -264,30 +267,46 @@ final class WorkflowWorker implements SuspendableWorker {
                             stickyQueueBalancer, options.getDrainStickyTaskQueueTimeout())
                         : CompletableFuture.completedFuture(null))
             .thenCompose(ignore -> poller.shutdown(shutdownManager, interruptTasks));
-    return pollerShutdown
-        .thenCompose(
-            ignore ->
-                !interruptTasks
-                    ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
-                        slotSupplier, supplierName)
-                    : CompletableFuture.completedFuture(null))
-        .thenCompose(
-            ignore ->
-                pollTaskExecutor != null
-                    ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
-                    : CompletableFuture.completedFuture(null))
-        .exceptionally(
-            e -> {
-              log.error("Unexpected exception during shutdown", e);
-              return null;
-            });
+    CompletableFuture<Void> result =
+        pollerShutdown
+            .thenCompose(
+                ignore ->
+                    !interruptTasks
+                        ? shutdownManager.waitForSupplierPermitsReleasedUnlimited(
+                            slotSupplier, supplierName)
+                        : CompletableFuture.completedFuture(null))
+            .thenCompose(
+                ignore ->
+                    pollTaskExecutor != null
+                        ? pollTaskExecutor.shutdown(shutdownManager, interruptTasks)
+                        : CompletableFuture.completedFuture(null))
+            .exceptionally(
+                e -> {
+                  log.error("Unexpected exception during shutdown", e);
+                  return null;
+                });
+    shutdownFuture = result;
+    return result;
   }
 
   @Override
   public void awaitTermination(long timeout, TimeUnit unit) {
-    long timeoutMillis = ShutdownManager.awaitTermination(poller, unit.toMillis(timeout));
-    // relies on the fact that the pollTaskExecutor is the last one to be shutdown, no need to
-    // wait separately for intermediate steps
+    long timeoutMillis = unit.toMillis(timeout);
+    long shutdownTimeoutMillis = timeoutMillis;
+    CompletableFuture<Void> currentShutdownFuture = shutdownFuture;
+    timeoutMillis =
+        ShutdownManager.runAndGetRemainingTimeoutMs(
+            shutdownTimeoutMillis,
+            () -> {
+              try {
+                currentShutdownFuture.get(shutdownTimeoutMillis, TimeUnit.MILLISECONDS);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              } catch (ExecutionException | TimeoutException e) {
+                // Shutdown failures are logged by shutdown(), and a timeout is expected here.
+              }
+            });
+    timeoutMillis = ShutdownManager.awaitTermination(poller, timeoutMillis);
     ShutdownManager.awaitTermination(pollTaskExecutor, timeoutMillis);
   }
 

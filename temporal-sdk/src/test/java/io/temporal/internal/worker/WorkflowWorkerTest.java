@@ -68,6 +68,7 @@ import io.temporal.worker.tuning.FixedSizeSlotSupplier;
 import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import io.temporal.worker.tuning.SlotSupplier;
 import io.temporal.worker.tuning.WorkflowSlotInfo;
+import java.lang.reflect.Field;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -91,6 +92,62 @@ public class WorkflowWorkerTest {
   private static final String WORKFLOW_ID = "test-workflow-id";
   private static final String RUN_ID = "test-run-id";
   private static final String WORKFLOW_TYPE = "test-workflow-type";
+
+  @Test
+  public void awaitTerminationWaitsForStagedShutdown() throws Exception {
+    WorkflowServiceStubs service = mock(WorkflowServiceStubs.class);
+    WorkflowRunLockManager runLockManager = new WorkflowRunLockManager();
+    Scope metricsScope = new NoopScope();
+    WorkflowWorker worker =
+        new WorkflowWorker(
+            service,
+            "default",
+            "task_queue",
+            null,
+            SingleWorkerOptions.newBuilder()
+                .setIdentity("test_identity")
+                .setBuildId("test_build_id")
+                .setWorkerInstanceKey("test_worker_instance_key")
+                .setMetricsScope(metricsScope)
+                .build(),
+            runLockManager,
+            new WorkflowExecutorCache(10, runLockManager, metricsScope),
+            mock(WorkflowTaskHandler.class),
+            mock(EagerActivityDispatcher.class),
+            3,
+            new FixedSizeSlotSupplier<>(10),
+            new NamespaceCapabilities());
+
+    SuspendableWorker poller = mock(SuspendableWorker.class);
+    CompletableFuture<Void> pollerShutdown = new CompletableFuture<>();
+    when(poller.shutdown(any(ShutdownManager.class), eq(true))).thenReturn(pollerShutdown);
+    Field pollerField = WorkflowWorker.class.getDeclaredField("poller");
+    pollerField.setAccessible(true);
+    pollerField.set(worker, poller);
+
+    ShutdownManager shutdownManager = new ShutdownManager();
+    worker.shutdown(shutdownManager, true);
+    CountDownLatch awaitStarted = new CountDownLatch(1);
+    CompletableFuture<Void> await =
+        CompletableFuture.runAsync(
+            () -> {
+              awaitStarted.countDown();
+              worker.awaitTermination(5, TimeUnit.SECONDS);
+            });
+    assertTrue(awaitStarted.await(5, TimeUnit.SECONDS));
+    try {
+      await.get(100, TimeUnit.MILLISECONDS);
+      fail("awaitTermination returned before staged shutdown completed");
+    } catch (TimeoutException expected) {
+      // Expected until the first shutdown stage completes.
+    }
+    verify(poller, never()).awaitTermination(anyLong(), any(TimeUnit.class));
+
+    pollerShutdown.complete(null);
+    await.get(5, TimeUnit.SECONDS);
+    verify(poller).awaitTermination(anyLong(), eq(TimeUnit.MILLISECONDS));
+    shutdownManager.close();
+  }
 
   @Test
   public void concurrentPollRequestLockTest() throws Exception {
