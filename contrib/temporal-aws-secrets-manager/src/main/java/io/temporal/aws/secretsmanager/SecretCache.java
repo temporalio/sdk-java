@@ -25,7 +25,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -163,6 +162,9 @@ final class SecretCache {
     /** Last failed fetch since the last successful fetch, or null if none. */
     Long failedAt;
 
+    /** Why the last fetch failed, set and cleared along with failedAt. */
+    @Nullable SecretFetchException lastFailure;
+
     CacheEntry(List<SecretRef> refs, Parser<T> parser) {
       this.refs = refs;
       this.parser = parser;
@@ -286,11 +288,18 @@ final class SecretCache {
 
   /**
    * Returns an entry's current value without waiting, and starts refreshing it in the background if
-   * it's due. The entry must already have a value.
+   * it's due.
    *
-   * <p>The value is refreshed at most every {@code minRefreshIntervalNanos}, and is kept if
-   * refreshing it fails, even past the max staleness.
+   * <p>The value is refreshed at most every {@code minRefreshIntervalNanos}. If refreshing fails,
+   * the current value keeps being returned until it's older than the max staleness, and then null
+   * is returned until a refresh succeeds.
+   *
+   * <p>Since callers don't wait for a refresh, a value older than the max staleness is still
+   * returned until a refresh has actually been tried and failed. Otherwise callers would get no
+   * value while a healthy refresh is in progress, e.g. when the value was due for refresh right at
+   * the max staleness, or wasn't looked up at all for longer than that.
    */
+  @Nullable
   <T> T getNow(CacheEntry<T> entry, long minRefreshIntervalNanos, Telemetry tel) {
     long start;
     boolean canUseStale;
@@ -298,8 +307,15 @@ final class SecretCache {
     CompletableFuture<T> fetch = null;
     synchronized (entry) {
       start = now.getAsLong();
-      value = entry.value;
       canUseStale = entry.versionIds != null && start - entry.fetchedAt < maxStalenessNanos;
+      // No value, or it's older than the max staleness and a refresh tried since then failed
+      long expiresAt = entry.fetchedAt + maxStalenessNanos;
+      boolean removed =
+          entry.versionIds == null
+              || (start - expiresAt >= 0
+                  && entry.failedAt != null
+                  && entry.failedAt - expiresAt >= 0);
+      value = removed ? null : entry.value;
       if (entry.inFlight == null
           && start - entry.fetchedAt >= Math.max(refreshIntervalNanos, minRefreshIntervalNanos)
           && (entry.failedAt == null
@@ -314,6 +330,14 @@ final class SecretCache {
     return value;
   }
 
+  /** Why the entry's last fetch failed, or null if it didn't. */
+  @Nullable
+  String lastFailure(CacheEntry<?> entry) {
+    synchronized (entry) {
+      return entry.lastFailure != null ? entry.lastFailure.getMessage() : null;
+    }
+  }
+
   private <T> void startFetch(
       CacheEntry<T> entry,
       CompletableFuture<T> fetch,
@@ -322,14 +346,19 @@ final class SecretCache {
       Telemetry tel) {
     try {
       executor.execute(() -> refresh(entry, fetch, start, canUseStale, tel));
-    } catch (RejectedExecutionException e) {
+    } catch (Throwable e) {
+      // Usually a RejectedExecutionException, or an OutOfMemoryError if a thread can't be created.
       // Fail this fetch, including for callers already waiting on it, so that the next caller
-      // starts a new one
+      // starts a new one instead of the entry never being refreshed again. Errors are still
+      // rethrown once the cache is consistent.
       synchronized (entry) {
         entry.inFlight = null;
       }
       fetch.completeExceptionally(
           new SecretFetchException("failed starting AWS Secrets Manager secret fetch", "other", e));
+      if (e instanceof Error) {
+        throw (Error) e;
+      }
     }
   }
 
@@ -343,6 +372,7 @@ final class SecretCache {
     T value = null;
     List<String> versionIds = null;
     SecretFetchException failure = null;
+    Error error = null;
     try {
       List<Fetcher.SecretValue> secrets = fetchAll(entry);
       value = parse(entry, secrets);
@@ -352,11 +382,14 @@ final class SecretCache {
       }
     } catch (SecretFetchException e) {
       failure = e;
-    } catch (RuntimeException e) {
-      // Shouldn't happen, but don't leave the fetch pending
+    } catch (Throwable e) {
+      // Shouldn't happen, but don't leave the fetch pending. E.g. a LinkageError from a mismatched
+      // AWS SDK version. Errors are still rethrown below once the fetch is complete.
       failure = new SecretFetchException(e.toString(), "other", e);
+      if (e instanceof Error) {
+        error = (Error) e;
+      }
     }
-    long latencyNanos = now.getAsLong() - start;
 
     List<String> prevVersionIds;
     long prevFetchedAt;
@@ -367,11 +400,13 @@ final class SecretCache {
       prevFailed = entry.failedAt != null;
       if (failure != null) {
         entry.failedAt = start;
+        entry.lastFailure = failure;
       } else {
         entry.value = value;
         entry.versionIds = versionIds;
         entry.fetchedAt = start;
         entry.failedAt = null;
+        entry.lastFailure = null;
       }
       entry.inFlight = null;
     }
@@ -379,6 +414,7 @@ final class SecretCache {
     // Record telemetry outside the lock, and complete the fetch last so that the fetch's metrics
     // and logs are recorded by the time waiters return
     try {
+      long latencyNanos = now.getAsLong() - start;
       if (failure != null) {
         recordFailure(entry, failure, latencyNanos, start - prevFetchedAt, canUseStale, tel);
       } else {
@@ -392,6 +428,9 @@ final class SecretCache {
       } else {
         fetch.complete(value);
       }
+    }
+    if (error != null) {
+      throw error;
     }
   }
 

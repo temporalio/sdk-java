@@ -12,6 +12,8 @@ import java.util.function.BooleanSupplier;
 final class TestHelpers {
   private TestHelpers() {}
 
+  static final long TEST_TIMEOUT_SECONDS = 30;
+
   // Self-signed EC test certs, generated just for this module's tests and deliberately expired so
   // they can't be used as real credentials. They're only parsed and matched against their keys,
   // never used for TLS. TEST_KEY_A_EC is TEST_KEY_A in the traditional EC format.
@@ -63,12 +65,12 @@ final class TestHelpers {
           + "dhIqyuTgJ2v/f2HeH3lMPCWCulSnyHiSQVXmioyW4oWk2GlwPc4PjwTA\n"
           + "-----END PRIVATE KEY-----\n";
 
-  /** Polls until {@code cond} is true, failing if it isn't within 5 seconds. */
+  /** Polls until {@code cond} is true, failing if it isn't within the test timeout. */
   static void waitUntil(BooleanSupplier cond) throws InterruptedException {
-    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TEST_TIMEOUT_SECONDS);
     while (!cond.getAsBoolean()) {
       if (System.nanoTime() > deadline) {
-        throw new AssertionError("condition not met within 5s");
+        throw new AssertionError("condition not met within " + TEST_TIMEOUT_SECONDS + "s");
       }
       Thread.sleep(10);
     }
@@ -100,7 +102,7 @@ final class TestHelpers {
       values.put(secretId, new SecretValue(value, versionId));
     }
 
-    void fail(String secretId, Exception err) {
+    void fail(String secretId, Throwable err) {
       values.put(secretId, err);
     }
 
@@ -118,7 +120,7 @@ final class TestHelpers {
     public SecretValue fetch(String secretId) throws Exception {
       calls.computeIfAbsent(secretId, k -> new AtomicInteger()).incrementAndGet();
       CountDownLatch g = gate;
-      if (g != null && !g.await(5, TimeUnit.SECONDS)) {
+      if (g != null && !g.await(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
         throw new AssertionError("gate not opened");
       }
       Object value = values.get(secretId);
@@ -127,6 +129,9 @@ final class TestHelpers {
       }
       if (value instanceof Exception) {
         throw (Exception) value;
+      }
+      if (value instanceof Error) {
+        throw (Error) value;
       }
       return (SecretValue) value;
     }

@@ -77,9 +77,10 @@ interface Fetcher {
   /** Whether something accepts connections on the given port. */
   static boolean probe(String host, int port) {
     // Probing a local port is either accepted or refused almost immediately, so the timeout only
-    // bounds pathological cases
+    // bounds pathological cases. It's generous since it costs nothing otherwise, and avoids
+    // missing the extension if the process is slow to run the connect, e.g. when busy at startup.
     try (Socket socket = new Socket()) {
-      socket.connect(new InetSocketAddress(host, port), 100);
+      socket.connect(new InetSocketAddress(host, port), 1000);
       return true;
     } catch (IOException e) {
       return false;

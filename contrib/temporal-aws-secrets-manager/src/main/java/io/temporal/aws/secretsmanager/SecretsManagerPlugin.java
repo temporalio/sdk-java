@@ -15,10 +15,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Fetches the configured secrets when service stubs are created, and applies them to the stubs'
@@ -26,6 +30,8 @@ import javax.annotation.Nullable;
  */
 final class SecretsManagerPlugin implements WorkflowServiceStubsPlugin {
   static final String NAME = "io.temporal.aws.secretsmanager";
+
+  private static final Logger log = LoggerFactory.getLogger(SecretsManagerPlugin.class);
 
   final SecretCache.SecretIds ids;
   final SecretCache cache;
@@ -49,6 +55,9 @@ final class SecretsManagerPlugin implements WorkflowServiceStubsPlugin {
    * #configureServiceStubs} installs the API key supplier.
    */
   private volatile Telemetry telemetry = new Telemetry(null);
+
+  /** Whether the API key is currently not sent, so that changes are only logged once. */
+  private final AtomicBoolean apiKeyRemoved = new AtomicBoolean();
 
   SecretsManagerPlugin(
       SecretCache.SecretIds ids, SecretCache cache, @Nullable ClientConfigTLS profileTls) {
@@ -79,8 +88,14 @@ final class SecretsManagerPlugin implements WorkflowServiceStubsPlugin {
         }
       }
       // Called for each request, so a refreshed API key is used without waiting for the refresh.
-      // Like an API key from envconfig, this enables TLS unless it's explicitly configured.
-      builder.addApiKey(() -> cache.getNow(apiKey, minRefreshIntervalNanos, telemetry));
+      // If the key is older than the max staleness and refreshing it fails, an empty key is sent
+      // instead of using the stale key indefinitely, so calls fail until a refresh succeeds. Like
+      // an API key from envconfig, this enables TLS unless it's explicitly configured.
+      builder.addApiKey(
+          () -> {
+            String key = apiKey(apiKey);
+            return key != null ? key : "";
+          });
     }
 
     if (ids.hasTls()) {
@@ -107,6 +122,37 @@ final class SecretsManagerPlugin implements WorkflowServiceStubsPlugin {
       cache.get(cache.apiKey, tel);
     }
     return next.get();
+  }
+
+  @Nullable
+  private String apiKey(SecretCache.CacheEntry<String> entry) {
+    String key;
+    RuntimeException error = null;
+    try {
+      key = cache.getNow(entry, minRefreshIntervalNanos, telemetry);
+    } catch (RuntimeException e) {
+      // A bug, but still treated as having no usable key rather than failing the call some other
+      // way
+      key = null;
+      error = e;
+    }
+    boolean removed = key == null;
+    if (apiKeyRemoved.compareAndSet(!removed, removed) && removed) {
+      try {
+        if (error != null) {
+          log.error("Unexpected error getting client API key from AWS Secrets Manager", error);
+        } else {
+          log.warn(
+              "Removed client API key, no AWS Secrets Manager value within max staleness "
+                  + "(max_staleness={}, error={})",
+              Duration.ofNanos(cache.maxStalenessNanos),
+              cache.lastFailure(entry));
+        }
+      } catch (RuntimeException ignored) {
+        // A failing logger shouldn't fail the call
+      }
+    }
+    return key;
   }
 
   /**

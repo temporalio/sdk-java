@@ -29,6 +29,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -436,6 +438,56 @@ public class SecretsManagerExtensionTest {
 
     secrets.put("id", "key2");
     waitUntil(() -> "Bearer key2".equals(authorization(options)));
+  }
+
+  @Test
+  public void apiKeyIsRemovedPastMaxStaleness() throws Exception {
+    FakeSecrets secrets = new FakeSecrets().put("id", "key1");
+    ClientConfigProfile profile =
+        load(
+            API_KEY_PROFILE,
+            Collections.emptyMap(),
+            extension(secrets).setRefreshInterval(Duration.ZERO));
+    SecretsManagerPlugin plugin = plugin(profile);
+    plugin.minRefreshIntervalNanos = TimeUnit.MILLISECONDS.toNanos(20);
+    AtomicLong clock = new AtomicLong();
+    plugin.cache.now = clock::get;
+    WorkflowServiceStubsOptions options = configure(profile);
+    assertEquals("Bearer key1", authorization(options));
+
+    // Kept while refreshing, then an empty key is sent once the refresh fails
+    secrets.put("id", new RuntimeException("down"));
+    clock.addAndGet(plugin.cache.maxStalenessNanos);
+    assertEquals("Bearer key1", authorization(options));
+    waitUntil(() -> "Bearer ".equals(authorization(options)));
+
+    // A successful refresh sends the key again
+    secrets.put("id", "key2");
+    clock.addAndGet(SecretCache.FAILED_REFRESH_RETRY_INTERVAL_NANOS);
+    waitUntil(() -> "Bearer key2".equals(authorization(options)));
+  }
+
+  @Test
+  public void apiKeyIsRemovedOnUnexpectedError() throws Exception {
+    ClientConfigProfile profile =
+        load(
+            API_KEY_PROFILE,
+            Collections.emptyMap(),
+            extension(new FakeSecrets().put("id", "key1")));
+    SecretsManagerPlugin plugin = plugin(profile);
+    WorkflowServiceStubsOptions options = configure(profile);
+    assertEquals("Bearer key1", authorization(options));
+
+    // Not a fetch failure, so a bug in the cache
+    LongSupplier now = plugin.cache.now;
+    plugin.cache.now =
+        () -> {
+          throw new IllegalStateException("bug");
+        };
+    assertEquals("Bearer ", authorization(options));
+
+    plugin.cache.now = now;
+    assertEquals("Bearer key1", authorization(options));
   }
 
   @Test

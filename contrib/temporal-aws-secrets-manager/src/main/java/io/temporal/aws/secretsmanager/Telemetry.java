@@ -103,7 +103,11 @@ class Telemetry {
     try {
       fn.run();
     } catch (RuntimeException e) {
-      log.warn("Failed recording AWS Secrets Manager metric", e);
+      try {
+        log.warn("Failed recording AWS Secrets Manager metric", e);
+      } catch (RuntimeException ignored) {
+        // The logger itself is failing, so there's nowhere to report this
+      }
     }
   }
 }
