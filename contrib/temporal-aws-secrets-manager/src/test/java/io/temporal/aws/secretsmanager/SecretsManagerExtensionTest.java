@@ -280,12 +280,22 @@ public class SecretsManagerExtensionTest {
                     Collections.emptyMap(),
                     extension(secrets)
                         .setRefreshInterval(Duration.ofMinutes(1))
-                        .setMaxStaleness(Duration.ZERO)))
+                        .setMaxStaleness(Duration.ofHours(1))))
             .cache;
     assertEquals(TimeUnit.MINUTES.toNanos(1), cache.refreshIntervalNanos);
-    assertEquals(TimeUnit.HOURS.toNanos(24), cache.maxStalenessNanos);
+    assertEquals(TimeUnit.HOURS.toNanos(1), cache.maxStalenessNanos);
 
-    // Max staleness is at least the refresh interval
+    // Max staleness is at least the refresh interval, including when it's 0
+    cache =
+        plugin(
+                load(
+                    API_KEY_PROFILE,
+                    Collections.emptyMap(),
+                    extension(secrets)
+                        .setRefreshInterval(Duration.ofMinutes(1))
+                        .setMaxStaleness(Duration.ZERO)))
+            .cache;
+    assertEquals(TimeUnit.MINUTES.toNanos(1), cache.maxStalenessNanos);
     cache =
         plugin(
                 load(
@@ -306,6 +316,17 @@ public class SecretsManagerExtensionTest {
                     Collections.emptyMap(),
                     extension(secrets).setRefreshInterval(Duration.ofSeconds(-1))));
     assertTrue(e.getMessage(), e.getMessage().endsWith("refreshInterval must not be negative"));
+    e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                load(
+                    API_KEY_PROFILE,
+                    Collections.emptyMap(),
+                    extension(secrets)
+                        .setRefreshInterval(Duration.ofMinutes(1))
+                        .setMaxStaleness(Duration.ofSeconds(-1))));
+    assertTrue(e.getMessage(), e.getMessage().endsWith("maxStaleness must not be negative"));
 
     // From SECRETS_MANAGER_TTL in the process env
     assertEquals(0, ttlCache(secrets, "0").refreshIntervalNanos);
