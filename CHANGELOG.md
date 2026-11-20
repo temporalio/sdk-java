@@ -41,6 +41,8 @@ to docs, or any other relevant information.
 - `@TemporalOperation` methods can return their output directly for synchronous completion.
   Existing methods returning `TemporalOperationResult`, including asynchronous results, remain
   supported.
+- **Experimental**: Worker heartbeats now report the types of the external storage drivers configured
+  on the worker's client, listing each type once.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
