@@ -111,8 +111,8 @@ jobs:
         with:
           report_paths: "**/build/test-results/test/TEST-*.xml"
 
-  unit_test_cloud:
-    name: Unit test with cloud
+  cloud_test:
+    name: Cloud tests
     # Eight forks run about 1,428 eligible tests; the previous runner timed out before completion.
     runs-on: ubuntu-latest-16-cores
     timeout-minutes: 35
@@ -275,6 +275,7 @@ jobs:
     needs:
       - unit_test_edge
       - unit_test_jdk8
+      - cloud_test
       - code_format
       - features-test
     runs-on: ubuntu-latest
