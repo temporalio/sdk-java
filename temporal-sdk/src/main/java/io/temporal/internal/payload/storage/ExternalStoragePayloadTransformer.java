@@ -5,6 +5,7 @@ import io.temporal.common.CancellationToken;
 import io.temporal.internal.common.ListUtils;
 import io.temporal.internal.concurrent.structured.TaskScope;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverClaim;
 import io.temporal.payload.storage.StorageDriverRetrieveContext;
@@ -14,10 +15,12 @@ import io.temporal.payload.storage.StorageDriverStoreContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -32,25 +35,41 @@ final class ExternalStoragePayloadTransformer {
   private final StorageDriverSelector selector;
   private final int payloadSizeThreshold;
   private final String namespace;
+  private final PayloadCache payloadCache;
 
-  static ExternalStoragePayloadTransformer fromOptions(ExternalStorage options, String namespace) {
+  /**
+   * @param payloadCache cache for stored and retrieved payloads, or {@link PayloadCache#disabled()}
+   *     to turn caching off.
+   */
+  static ExternalStoragePayloadTransformer fromOptions(
+      ExternalStorage options, String namespace, PayloadCache payloadCache) {
     Map<String, StorageDriver> driversByName = new LinkedHashMap<>();
     for (StorageDriver driver : options.getDrivers()) {
       driversByName.put(driver.getName(), driver);
     }
     return new ExternalStoragePayloadTransformer(
-        driversByName, options.getDriverSelector(), options.getPayloadSizeThreshold(), namespace);
+        driversByName,
+        options.getDriverSelector(),
+        options.getPayloadSizeThreshold(),
+        namespace,
+        payloadCache);
   }
 
   private ExternalStoragePayloadTransformer(
       Map<String, StorageDriver> driversByName,
       StorageDriverSelector selector,
       int payloadSizeThreshold,
-      String namespace) {
+      String namespace,
+      PayloadCache payloadCache) {
     this.driversByName = driversByName;
     this.selector = selector;
     this.payloadSizeThreshold = payloadSizeThreshold;
     this.namespace = Objects.requireNonNull(namespace, "namespace");
+    this.payloadCache = Objects.requireNonNull(payloadCache, "payloadCache");
+  }
+
+  private boolean isCachingEnabled() {
+    return payloadCache != PayloadCache.disabled();
   }
 
   CompletableFuture<List<Payload>> store(
@@ -76,8 +95,12 @@ final class ExternalStoragePayloadTransformer {
     if (batches.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runStoreDrivers(batches, target, cancellationToken, metrics)
-        .thenApply(referencePayloads -> applyPayloadReplacements(payloads, referencePayloads));
+    String[] cacheKeys = new String[payloads.size()];
+    return runStoreDrivers(batches, target, cancellationToken, metrics, cacheKeys)
+        .thenCompose(
+            referencePayloads ->
+                writeToCache(cacheKeys, payloads)
+                    .thenApply(ignored -> applyPayloadReplacements(payloads, referencePayloads)));
   }
 
   private Map<String, Batch<Payload>> buildStoreBatches(
@@ -107,7 +130,8 @@ final class ExternalStoragePayloadTransformer {
       Map<String, Batch<Payload>> batches,
       @Nullable StorageDriverTargetInfo target,
       CancellationToken<CancellationException> cancellationToken,
-      @Nullable StorageOperationMetrics metrics) {
+      @Nullable StorageOperationMetrics metrics,
+      String[] cacheKeys) {
     return withDriverScope(
         cancellationToken,
         scope -> {
@@ -127,7 +151,7 @@ final class ExternalStoragePayloadTransformer {
                         startNanos,
                         error == null ? batch.size() : 0,
                         error == null ? serializedSizeOf(batch.values()) : 0));
-            scope.attach(call).map(claims -> createReferencePayloads(batch, claims));
+            scope.attach(call).map(claims -> createReferencePayloads(batch, claims, cacheKeys));
           }
           return scope.awaitAll(ListUtils::flatten);
         });
@@ -159,8 +183,12 @@ final class ExternalStoragePayloadTransformer {
         });
   }
 
-  private static List<IndexedValue<Payload>> createReferencePayloads(
-      Batch<Payload> batch, List<StorageDriverClaim> claims) {
+  /**
+   * Also records in {@code cacheKeys}, at each payload's original position, the key to cache that
+   * payload under when caching is enabled.
+   */
+  private List<IndexedValue<Payload>> createReferencePayloads(
+      Batch<Payload> batch, List<StorageDriverClaim> claims, String[] cacheKeys) {
     if (claims == null || claims.size() != batch.size()) {
       throw new IllegalStateException(
           String.format(
@@ -177,6 +205,10 @@ final class ExternalStoragePayloadTransformer {
                 batch.driver.getName(), batchIndex));
       }
       IndexedValue<Payload> indexedPayload = batch.get(batchIndex);
+      if (isCachingEnabled()) {
+        cacheKeys[indexedPayload.originalIndex] =
+            PayloadCacheKeys.forClaim(batch.driver.getName(), claim);
+      }
       replacements.add(
           new IndexedValue<>(
               indexedPayload.originalIndex,
@@ -195,21 +227,50 @@ final class ExternalStoragePayloadTransformer {
       List<Payload> payloads,
       CancellationToken<CancellationException> cancellationToken,
       @Nullable StorageOperationMetrics metrics) {
-    Map<String, Batch<StorageDriverClaim>> batches;
+    List<RetrieveItem> items;
     try {
-      batches = buildRetrieveBatches(payloads);
+      items = parseRetrieveItems(payloads);
     } catch (RuntimeException e) {
       return failedFuture(e);
     }
-    if (batches.isEmpty()) {
+    if (items.isEmpty()) {
       return CompletableFuture.completedFuture(payloads);
     }
-    return runRetrieveDrivers(batches, cancellationToken, metrics)
-        .thenApply(retrievedPayloads -> applyPayloadReplacements(payloads, retrievedPayloads));
+    if (!isCachingEnabled()) {
+      return runRetrieveDrivers(buildRetrieveBatches(items), cancellationToken, metrics)
+          .thenApply(retrievedPayloads -> applyPayloadReplacements(payloads, retrievedPayloads));
+    }
+    return readFromCache(items)
+        .thenCompose(
+            cachedPayloads -> {
+              List<IndexedValue<Payload>> hits = new ArrayList<>();
+              List<RetrieveItem> misses = new ArrayList<>();
+              for (int i = 0; i < items.size(); i++) {
+                RetrieveItem item = items.get(i);
+                Optional<Payload> cached = cachedPayloads.get(i);
+                if (cached.isPresent()) {
+                  hits.add(new IndexedValue<>(item.originalIndex, cached.get()));
+                } else {
+                  misses.add(item);
+                }
+              }
+              List<Payload> withHits = applyPayloadReplacements(payloads, hits);
+              if (misses.isEmpty()) {
+                return CompletableFuture.completedFuture(withHits);
+              }
+              return runRetrieveDrivers(buildRetrieveBatches(misses), cancellationToken, metrics)
+                  .thenCompose(
+                      retrievedPayloads ->
+                          writeToCache(misses, retrievedPayloads)
+                              .thenApply(
+                                  ignored ->
+                                      applyPayloadReplacements(withHits, retrievedPayloads)));
+            });
   }
 
-  private Map<String, Batch<StorageDriverClaim>> buildRetrieveBatches(List<Payload> payloads) {
-    Map<String, Batch<StorageDriverClaim>> batches = new LinkedHashMap<>();
+  /** Parses every reference in {@code payloads}, failing on an unregistered driver name. */
+  private List<RetrieveItem> parseRetrieveItems(List<Payload> payloads) {
+    List<RetrieveItem> items = new ArrayList<>();
     for (int i = 0; i < payloads.size(); i++) {
       Payload payload = payloads.get(i);
       ExternalStorageReferences.ParsedReference reference =
@@ -222,11 +283,94 @@ final class ExternalStoragePayloadTransformer {
         throw new IllegalStateException(
             "No storage driver registered with name '" + reference.driverName + "'");
       }
+      String cacheKey =
+          isCachingEnabled()
+              ? PayloadCacheKeys.forClaim(reference.driverName, reference.claim)
+              : null;
+      items.add(new RetrieveItem(i, driver, reference.claim, cacheKey));
+    }
+    return items;
+  }
+
+  private static Map<String, Batch<StorageDriverClaim>> buildRetrieveBatches(
+      List<RetrieveItem> items) {
+    Map<String, Batch<StorageDriverClaim>> batches = new LinkedHashMap<>();
+    for (RetrieveItem item : items) {
       batches
-          .computeIfAbsent(reference.driverName, name -> new Batch<>(driver))
-          .add(i, reference.claim);
+          .computeIfAbsent(item.driver.getName(), name -> new Batch<>(item.driver))
+          .add(item.originalIndex, item.claim);
     }
     return batches;
+  }
+
+  /** Completes with one lookup result per item, in order. A failed lookup is a miss. */
+  private CompletableFuture<List<Optional<Payload>>> readFromCache(List<RetrieveItem> items) {
+    List<CompletableFuture<Optional<Payload>>> lookups = new ArrayList<>(items.size());
+    for (RetrieveItem item : items) {
+      lookups.add(getFromCache(item.cacheKey));
+    }
+    return CompletableFuture.allOf(lookups.toArray(new CompletableFuture<?>[0]))
+        .thenApply(
+            ignored -> {
+              List<Optional<Payload>> results = new ArrayList<>(lookups.size());
+              for (CompletableFuture<Optional<Payload>> lookup : lookups) {
+                results.add(lookup.join());
+              }
+              return results;
+            });
+  }
+
+  private CompletableFuture<Void> writeToCache(String[] cacheKeys, List<Payload> payloads) {
+    List<CompletableFuture<Void>> writes = new ArrayList<>();
+    for (int i = 0; i < cacheKeys.length; i++) {
+      if (cacheKeys[i] != null) {
+        writes.add(setInCache(cacheKeys[i], payloads.get(i)));
+      }
+    }
+    return CompletableFuture.allOf(writes.toArray(new CompletableFuture<?>[0]));
+  }
+
+  private CompletableFuture<Void> writeToCache(
+      List<RetrieveItem> items, List<IndexedValue<Payload>> retrievedPayloads) {
+    Map<Integer, String> cacheKeysByOriginalIndex = new HashMap<>();
+    for (RetrieveItem item : items) {
+      cacheKeysByOriginalIndex.put(item.originalIndex, item.cacheKey);
+    }
+    List<CompletableFuture<Void>> writes = new ArrayList<>(retrievedPayloads.size());
+    for (IndexedValue<Payload> retrieved : retrievedPayloads) {
+      writes.add(
+          setInCache(cacheKeysByOriginalIndex.get(retrieved.originalIndex), retrieved.value));
+    }
+    return CompletableFuture.allOf(writes.toArray(new CompletableFuture<?>[0]));
+  }
+
+  /** Never fails: a cache that throws or fails is treated as a miss. */
+  private CompletableFuture<Optional<Payload>> getFromCache(String cacheKey) {
+    CompletableFuture<Optional<Payload>> lookup;
+    try {
+      lookup = payloadCache.get(cacheKey);
+    } catch (RuntimeException e) {
+      return CompletableFuture.completedFuture(Optional.empty());
+    }
+    if (lookup == null) {
+      return CompletableFuture.completedFuture(Optional.empty());
+    }
+    return lookup.handle(
+        (payload, error) -> error == null && payload != null ? payload : Optional.empty());
+  }
+
+  /** Never fails: a cache that throws or fails is ignored. */
+  private CompletableFuture<Void> setInCache(String cacheKey, Payload payload) {
+    CompletableFuture<Boolean> write;
+    try {
+      write = payloadCache.set(cacheKey, payload);
+    } catch (RuntimeException e) {
+      return CompletableFuture.completedFuture(null);
+    }
+    if (write == null) {
+      return CompletableFuture.completedFuture(null);
+    }
+    return write.handle((accepted, error) -> null);
   }
 
   private CompletableFuture<List<IndexedValue<Payload>>> runRetrieveDrivers(
@@ -328,6 +472,26 @@ final class ExternalStoragePayloadTransformer {
     IndexedValue(int originalIndex, T value) {
       this.originalIndex = originalIndex;
       this.value = value;
+    }
+  }
+
+  private static final class RetrieveItem {
+    final int originalIndex;
+    final StorageDriver driver;
+    final StorageDriverClaim claim;
+
+    /** Null when caching is off. */
+    final @Nullable String cacheKey;
+
+    RetrieveItem(
+        int originalIndex,
+        StorageDriver driver,
+        StorageDriverClaim claim,
+        @Nullable String cacheKey) {
+      this.originalIndex = originalIndex;
+      this.driver = driver;
+      this.claim = claim;
+      this.cacheKey = cacheKey;
     }
   }
 

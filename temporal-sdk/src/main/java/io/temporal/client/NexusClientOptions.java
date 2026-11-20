@@ -6,9 +6,11 @@ import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.internal.client.NexusClientResolvedOptions;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /**
@@ -40,18 +42,21 @@ public class NexusClientOptions {
   private final DataConverter dataConverter;
   private final String identity;
   private final @Nullable ExternalStorage externalStorage;
+  private final @Nonnull PayloadCache payloadCache;
 
   private NexusClientOptions(
       String namespace,
       List<NexusClientInterceptor> interceptors,
       DataConverter dataConverter,
       String identity,
-      @Nullable ExternalStorage externalStorage) {
+      @Nullable ExternalStorage externalStorage,
+      @Nonnull PayloadCache payloadCache) {
     this.namespace = namespace;
     this.interceptors = interceptors;
     this.dataConverter = dataConverter;
     this.identity = identity;
     this.externalStorage = externalStorage;
+    this.payloadCache = payloadCache;
   }
 
   /** Get the namespace this client will operate on. */
@@ -76,6 +81,14 @@ public class NexusClientOptions {
   @Nullable
   public ExternalStorage getExternalStorage() {
     return externalStorage;
+  }
+
+  /**
+   * Cache for external storage payloads, or {@link PayloadCache#disabled()} when caching is off.
+   */
+  @Nonnull
+  public PayloadCache getPayloadCache() {
+    return payloadCache;
   }
 
   /**
@@ -128,6 +141,7 @@ public class NexusClientOptions {
     private DataConverter dataConverter = GlobalDataConverter.get();
     private String identity;
     private ExternalStorage externalStorage;
+    private PayloadCache payloadCache;
 
     private Builder() {}
 
@@ -140,6 +154,7 @@ public class NexusClientOptions {
       dataConverter = options.dataConverter;
       identity = options.identity;
       externalStorage = options.externalStorage;
+      payloadCache = options.payloadCache;
     }
 
     /** Set the namespace this client will operate on. */
@@ -188,6 +203,17 @@ public class NexusClientOptions {
       return this;
     }
 
+    /**
+     * Cache for payloads that external storage uploads and downloads. Used only when external
+     * storage is set. Calls made through this client report no cache metrics.
+     *
+     * <p>Pass {@link PayloadCache#disabled()} to turn caching off explicitly. Defaults to off.
+     */
+    public NexusClientOptions.Builder setPayloadCache(@Nullable PayloadCache payloadCache) {
+      this.payloadCache = payloadCache;
+      return this;
+    }
+
     public NexusClientOptions build() {
       String resolvedIdentity =
           identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
@@ -196,7 +222,8 @@ public class NexusClientOptions {
           interceptors,
           dataConverter,
           resolvedIdentity,
-          externalStorage);
+          externalStorage,
+          payloadCache == null ? PayloadCache.disabled() : payloadCache);
     }
   }
 }

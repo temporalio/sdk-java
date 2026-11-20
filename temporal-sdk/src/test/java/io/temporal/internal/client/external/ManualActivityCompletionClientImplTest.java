@@ -16,6 +16,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -46,7 +47,8 @@ public class ManualActivityCompletionClientImplTest {
                 .setPayloadSizeThreshold(0)
                 .setMaxConcurrentPayloadVisits(1)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
   }
 
   @Test

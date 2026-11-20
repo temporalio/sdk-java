@@ -17,6 +17,7 @@ import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import java.lang.reflect.Type;
@@ -203,7 +204,8 @@ public class ExternalStorageDataConverterTest {
   private static ExternalStorageRunner runner(StorageDriver driver, int threshold) {
     return ExternalStorageRunner.create(
         ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(threshold).build(),
-        "default");
+        "default",
+        PayloadCache.disabled());
   }
 
   /** Obscures payload bytes so plaintext reaching a driver is detectable. */
@@ -244,7 +246,8 @@ public class ExternalStorageDataConverterTest {
                     .setDriver(TestStorageDriver.create())
                     .setPayloadSizeThreshold(0)
                     .build(),
-                "default"));
+                "default",
+                PayloadCache.disabled()));
     return configured.toPayload(value).get();
   }
 

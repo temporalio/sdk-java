@@ -25,6 +25,7 @@ import io.temporal.common.CancellationToken;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
@@ -281,7 +282,8 @@ public class ExternalStorageRunnerTest {
                 .setDriver(driver)
                 .setPayloadSizeThreshold(threshold)
                 .build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     return new ExternalStorageRunner(payloadTransformer, 4);
   }
 

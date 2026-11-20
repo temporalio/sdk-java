@@ -41,6 +41,9 @@ to docs, or any other relevant information.
 - `@TemporalOperation` methods can return their output directly for synchronous completion.
   Existing methods returning `TemporalOperationResult`, including asynchronous results, remain
   supported.
+- **Experimental**: Opt-in payload caching for External Storage is now available. To enable it,
+  call `setPayloadCache` on your client options with a cache (e.g. `InMemoryPayloadCache`) or
+  `PayloadCache.disabled()` to disable caching.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,

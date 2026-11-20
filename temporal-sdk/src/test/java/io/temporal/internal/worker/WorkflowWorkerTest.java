@@ -57,6 +57,7 @@ import io.temporal.internal.replay.ReplayWorkflow;
 import io.temporal.internal.replay.ReplayWorkflowFactory;
 import io.temporal.internal.replay.ReplayWorkflowTaskHandler;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.payload.storage.StorageDriverWorkflowInfo;
 import io.temporal.serviceclient.MetricsTag;
@@ -1015,7 +1016,8 @@ public class WorkflowWorkerTest {
                                 .setDriver(driver)
                                 .setPayloadSizeThreshold(0)
                                 .build(),
-                            "default"))
+                            "default",
+                            PayloadCache.disabled()))
                 .setStorageCancellation(storageCancellation)
                 .build(),
             runLockManager,
@@ -1127,7 +1129,8 @@ public class WorkflowWorkerTest {
                               .setDriver(driver)
                               .setPayloadSizeThreshold(0)
                               .build(),
-                          "default"))
+                          "default",
+                          PayloadCache.disabled()))
                   .setStorageCancellation(storageCancellation.token())
                   .build(),
               runLockManager,

@@ -32,6 +32,7 @@ import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -711,7 +712,8 @@ public class HeartbeatContextImplTest {
     ExternalStorageRunner runner =
         ExternalStorageRunner.create(
             ExternalStorage.newBuilder().setDriver(driver).setPayloadSizeThreshold(100).build(),
-            "default");
+            "default",
+            PayloadCache.disabled());
     return new HeartbeatContextImpl(
         service,
         "test-namespace",

@@ -6,10 +6,12 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.GlobalDataConverter;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import java.lang.management.ManagementFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 /** Options for ScheduleClient configuration. */
@@ -52,6 +54,7 @@ public final class ScheduleClientOptions {
     private List<ScheduleClientInterceptor> interceptors;
     private ScheduleClientPlugin[] plugins;
     private ExternalStorage externalStorage;
+    private PayloadCache payloadCache;
 
     private Builder() {}
 
@@ -66,6 +69,7 @@ public final class ScheduleClientOptions {
       interceptors = options.interceptors;
       plugins = options.plugins;
       externalStorage = options.externalStorage;
+      payloadCache = options.payloadCache;
     }
 
     /** Set the namespace this client will operate on. */
@@ -132,6 +136,18 @@ public final class ScheduleClientOptions {
       return this;
     }
 
+    /**
+     * Cache for payloads that external storage uploads and downloads. Used only when external
+     * storage is set. Calls made through this client report no cache metrics.
+     *
+     * <p>Pass {@link PayloadCache#disabled()} to turn caching off explicitly. Defaults to off.
+     */
+    @Experimental
+    public Builder setPayloadCache(@Nullable PayloadCache payloadCache) {
+      this.payloadCache = payloadCache;
+      return this;
+    }
+
     public ScheduleClientOptions build() {
       String name = identity == null ? ManagementFactory.getRuntimeMXBean().getName() : identity;
       return new ScheduleClientOptions(
@@ -141,7 +157,8 @@ public final class ScheduleClientOptions {
           contextPropagators == null ? EMPTY_CONTEXT_PROPAGATORS : contextPropagators,
           interceptors == null ? EMPTY_INTERCEPTORS : interceptors,
           plugins == null ? EMPTY_PLUGINS : plugins,
-          externalStorage);
+          externalStorage,
+          payloadCache == null ? PayloadCache.disabled() : payloadCache);
     }
   }
 
@@ -152,6 +169,7 @@ public final class ScheduleClientOptions {
   private final List<ScheduleClientInterceptor> interceptors;
   private final ScheduleClientPlugin[] plugins;
   private final @Nullable ExternalStorage externalStorage;
+  private final @Nonnull PayloadCache payloadCache;
 
   private ScheduleClientOptions(
       String namespace,
@@ -160,7 +178,8 @@ public final class ScheduleClientOptions {
       List<ContextPropagator> contextPropagators,
       List<ScheduleClientInterceptor> interceptors,
       ScheduleClientPlugin[] plugins,
-      @Nullable ExternalStorage externalStorage) {
+      @Nullable ExternalStorage externalStorage,
+      @Nonnull PayloadCache payloadCache) {
     this.namespace = namespace;
     this.dataConverter = dataConverter;
     this.identity = identity;
@@ -168,6 +187,7 @@ public final class ScheduleClientOptions {
     this.interceptors = interceptors;
     this.plugins = plugins;
     this.externalStorage = externalStorage;
+    this.payloadCache = payloadCache;
   }
 
   /**
@@ -230,5 +250,14 @@ public final class ScheduleClientOptions {
   @Nullable
   public ExternalStorage getExternalStorage() {
     return externalStorage;
+  }
+
+  /**
+   * Cache for external storage payloads, or {@link PayloadCache#disabled()} when caching is off.
+   */
+  @Experimental
+  @Nonnull
+  public PayloadCache getPayloadCache() {
+    return payloadCache;
   }
 }

@@ -53,7 +53,9 @@ public class NexusClientImpl implements NexusClient {
                 : ClientDataConverterFactory.forClient(
                     clientOptions.getDataConverter(),
                     ExternalStorageRunner.create(
-                        clientOptions.getExternalStorage(), clientOptions.getNamespace())));
+                        clientOptions.getExternalStorage(),
+                        clientOptions.getNamespace(),
+                        clientOptions.getPayloadCache())));
     workflowServiceStubs =
         new NamespaceInjectWorkflowServiceStubs(workflowServiceStubs, options.getNamespace());
     this.workflowServiceStubs = workflowServiceStubs;

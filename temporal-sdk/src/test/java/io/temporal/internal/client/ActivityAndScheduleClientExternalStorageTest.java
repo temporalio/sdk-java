@@ -44,6 +44,7 @@ import io.temporal.internal.client.external.GenericWorkflowClient;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverActivityInfo;
 import io.temporal.payload.storage.StorageDriverClaim;
@@ -97,7 +98,7 @@ public class ActivityAndScheduleClientExternalStorageTest {
             NAMESPACE,
             "identity",
             CONVERTER,
-            ExternalStorageRunner.create(storage(driver), NAMESPACE))
+            ExternalStorageRunner.create(storage(driver), NAMESPACE, PayloadCache.disabled()))
         .startActivity(
             new StartActivityInput(
                 "MyActivityType",
@@ -129,7 +130,8 @@ public class ActivityAndScheduleClientExternalStorageTest {
     ArgumentCaptor<CreateScheduleRequest> sent =
         ArgumentCaptor.forClass(CreateScheduleRequest.class);
 
-    scheduleInvoker(rpc, ExternalStorageRunner.create(storage(driver), NAMESPACE))
+    scheduleInvoker(
+            rpc, ExternalStorageRunner.create(storage(driver), NAMESPACE, PayloadCache.disabled()))
         .createSchedule(
             new CreateScheduleInput(
                 "sched-1",
@@ -170,7 +172,8 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleDescribeResolvesReferencesWhenStorageIsConfigured() {
     InMemoryDriver driver = new InMemoryDriver();
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver), NAMESPACE);
+    ExternalStorageRunner runner =
+        ExternalStorageRunner.create(storage(driver), NAMESPACE, PayloadCache.disabled());
     GenericWorkflowClient rpc = mock(GenericWorkflowClient.class);
     when(rpc.describeSchedule(any())).thenReturn(describeResponseWithReferences(runner));
 
@@ -188,7 +191,8 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleDescribeRejectsReferencesWhenStorageIsNotConfigured() {
     ExternalStorageRunner runner =
-        ExternalStorageRunner.create(storage(new InMemoryDriver()), NAMESPACE);
+        ExternalStorageRunner.create(
+            storage(new InMemoryDriver()), NAMESPACE, PayloadCache.disabled());
     GenericWorkflowClient rpc = mock(GenericWorkflowClient.class);
     when(rpc.describeSchedule(any())).thenReturn(describeResponseWithReferences(runner));
 
@@ -209,7 +213,8 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleUpdateSendsUnchangedPayloadsBackWithoutStoringThemAgain() {
     InMemoryDriver driver = new InMemoryDriver();
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver), NAMESPACE);
+    ExternalStorageRunner runner =
+        ExternalStorageRunner.create(storage(driver), NAMESPACE, PayloadCache.disabled());
     Payloads stored = storedActionPayloads(runner);
 
     NewWorkflowExecutionInfo sent =
@@ -226,7 +231,8 @@ public class ActivityAndScheduleClientExternalStorageTest {
   @Test
   public void scheduleUpdateStoresOnlyThePayloadsThatChanged() {
     InMemoryDriver driver = new InMemoryDriver();
-    ExternalStorageRunner runner = ExternalStorageRunner.create(storage(driver), NAMESPACE);
+    ExternalStorageRunner runner =
+        ExternalStorageRunner.create(storage(driver), NAMESPACE, PayloadCache.disabled());
     Payloads stored = storedActionPayloads(runner);
 
     NewWorkflowExecutionInfo sent =

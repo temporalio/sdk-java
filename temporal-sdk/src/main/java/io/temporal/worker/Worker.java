@@ -26,6 +26,7 @@ import io.temporal.failure.TemporalFailure;
 import io.temporal.internal.client.WorkflowClientInternal;
 import io.temporal.internal.logging.PrefixedMdc;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
+import io.temporal.internal.payload.storage.PayloadCacheMetrics;
 import io.temporal.internal.sync.WorkflowInternal;
 import io.temporal.internal.sync.WorkflowThreadExecutor;
 import io.temporal.internal.worker.*;
@@ -135,7 +136,6 @@ public final class Worker {
             .setDataConverter(clientInternal.getInternalDataConverter())
             .build();
     this.cache = cache;
-    ExternalStorageRunner externalStorageRunner = clientInternal.getExternalStorageRunner();
     factoryOptions = WorkerFactoryOptions.newBuilder(factoryOptions).validateAndBuildWithDefaults();
     String namespace = clientOptions.getNamespace();
     this.namespace = namespace;
@@ -144,6 +144,13 @@ public final class Worker {
     Map<String, String> tags =
         new ImmutableMap.Builder<String, String>(1).put(MetricsTag.TASK_QUEUE, taskQueue).build();
     Scope taggedScope = metricsScope.tagged(tags);
+    ExternalStorageRunner externalStorageRunner =
+        clientOptions.getExternalStorage() == null
+            ? null
+            : ExternalStorageRunner.create(
+                clientOptions.getExternalStorage(),
+                namespace,
+                PayloadCacheMetrics.wrap(clientOptions.getPayloadCache(), taggedScope));
 
     // Poller types the user left at their default are auto-enrolled into poller autoscaling at
     // start() when the namespace advertises the PollerAutoscalingAutoEnroll capability. Eligibility
@@ -881,6 +888,8 @@ public final class Worker {
    * This method shouldn't be a part of normal production usage. It's intended for testing and
    * debugging only.
    *
+   * <p>The replay uses the payload cache of this worker's client, if one is configured.
+   *
    * @param history workflow execution history to replay
    * @throws Exception if replay failed for any reason
    */
@@ -906,6 +915,8 @@ public final class Worker {
    * history. <br>
    * This method shouldn't be a part of normal production usage. It's intended for testing and
    * debugging only.
+   *
+   * <p>The replay uses the payload cache of this worker's client, if one is configured.
    *
    * @param history workflow execution history to replay
    * @throws Exception if replay failed for any reason
@@ -938,6 +949,8 @@ public final class Worker {
    * worker. This method is useful to troubleshoot workflows by running them in a debugger. To work
    * the workflow implementation type must be registered with this worker. There is no need to call
    * {@link #start()} to be able to call this method.
+   *
+   * <p>The replay uses the payload cache of this worker's client, if one is configured.
    *
    * @param jsonSerializedHistory workflow execution history in JSON format to replay
    * @throws Exception if replay failed for any reason

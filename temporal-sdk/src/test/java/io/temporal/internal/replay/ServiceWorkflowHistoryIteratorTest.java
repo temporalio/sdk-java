@@ -14,6 +14,7 @@ import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredExceptio
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.payload.storage.TestStorageDriver;
 import io.temporal.payload.storage.ExternalStorage;
+import io.temporal.payload.storage.PayloadCache;
 import io.temporal.testUtils.HistoryUtils;
 import java.nio.charset.Charset;
 import java.util.NoSuchElementException;
@@ -167,7 +168,8 @@ public class ServiceWorkflowHistoryIteratorTest {
             .setDriver(TestStorageDriver.create())
             .setPayloadSizeThreshold(0)
             .build(),
-        "default");
+        "default",
+        PayloadCache.disabled());
   }
 
   private static History historyWithInput(Payload payload) {
