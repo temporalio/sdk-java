@@ -104,10 +104,13 @@ class UpdateDispatcher {
     boolean threadDestroyed = false;
     try {
       Object result =
-          inboundCallsInterceptor
-              .executeUpdate(
-                  new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
-              .getResult();
+          EventGroupScope.runInInboundUpdateScope(
+              updateId,
+              () ->
+                  inboundCallsInterceptor
+                      .executeUpdate(
+                          new WorkflowInboundCallsInterceptor.UpdateInput(updateName, header, args))
+                      .getResult());
       return resultDataConverter.toPayloads(result);
     } catch (DestroyWorkflowThreadError e) {
       threadDestroyed = true;
