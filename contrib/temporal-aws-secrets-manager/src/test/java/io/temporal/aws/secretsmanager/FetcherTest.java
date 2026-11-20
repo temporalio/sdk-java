@@ -118,6 +118,23 @@ public class FetcherTest {
   }
 
   @Test
+  public void lambdaExtensionParseErrorsDoNotIncludeTheBody() {
+    String[] bodies = {
+      // Truncated
+      "{\"SecretString\":\"FAKE-SECRET\",\"VersionId\":\"v",
+      // Unquoted, which Jackson quotes in its message
+      "{\"SecretString\": FAKE-SECRET}",
+    };
+    for (String body : bodies) {
+      Exception e = assertThrows(Exception.class, () -> LambdaExtensionFetcher.parseResponse(body));
+      assertEquals("invalid_response", Telemetry.classifyFailure(e));
+      for (Throwable t = e; t != null; t = t.getCause()) {
+        assertFalse(body + ": " + t, String.valueOf(t.getMessage()).contains("FAKE-SECRET"));
+      }
+    }
+  }
+
+  @Test
   public void lambdaExtensionFetcherConnectionRefused() throws Exception {
     int closedPort;
     try (ServerSocket socket = new ServerSocket(0, 0, InetAddress.getLoopbackAddress())) {
