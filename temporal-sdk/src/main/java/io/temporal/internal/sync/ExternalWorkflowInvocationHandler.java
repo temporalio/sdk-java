@@ -4,13 +4,76 @@ import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.common.interceptors.WorkflowOutboundCallsInterceptor;
 import io.temporal.common.metadata.POJOWorkflowInterfaceMetadata;
 import io.temporal.common.metadata.POJOWorkflowMethodMetadata;
+import io.temporal.common.metadata.WorkflowMethodType;
+import io.temporal.internal.common.InternalUtils;
 import io.temporal.workflow.ExternalWorkflowStub;
 import io.temporal.workflow.Functions;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Objects;
 
-/** Dynamic implementation of a strongly typed child workflow interface. */
-class ExternalWorkflowInvocationHandler implements InvocationHandler {
+/** Dynamic implementation of a strongly typed external workflow interface. */
+public class ExternalWorkflowInvocationHandler implements InvocationHandler {
+
+  private static final ThreadLocal<ProbeContext> probeContext = new ThreadLocal<>();
+  private static final ThreadLocal<ProbeResult> probeResult = new ThreadLocal<>();
+
+  /** Probes one invocation without starting a workflow or sending a signal. */
+  public static ProbeResult probe(Functions.Proc invocation, WorkflowMethodType expected) {
+    Objects.requireNonNull(invocation, "invocation");
+    if (probeContext.get() != null) {
+      throw new IllegalStateException("Already probing an external workflow invocation");
+    }
+    ProbeContext context = new ProbeContext(expected);
+    probeContext.set(context);
+    try {
+      invocation.apply();
+      ProbeResult result = probeResult.get();
+      if (context.invocations != 1 || result == null) {
+        throw new IllegalArgumentException(
+            "Expected exactly one external workflow " + expected + " invocation");
+      }
+      return result;
+    } finally {
+      probeResult.remove();
+      probeContext.remove();
+    }
+  }
+
+  private static final class ProbeContext {
+    private final WorkflowMethodType expected;
+    private int invocations;
+
+    private ProbeContext(WorkflowMethodType expected) {
+      this.expected = Objects.requireNonNull(expected, "expected");
+    }
+  }
+
+  /** Metadata captured from a bound external workflow method. */
+  public static final class ProbeResult {
+    private final ExternalWorkflowStub stub;
+    private final Object[] arguments;
+    private final POJOWorkflowMethodMetadata metadata;
+
+    private ProbeResult(
+        ExternalWorkflowStub stub, POJOWorkflowMethodMetadata metadata, Object[] args) {
+      this.stub = stub;
+      this.arguments = args == null ? new Object[0] : args.clone();
+      this.metadata = metadata;
+    }
+
+    public ExternalWorkflowStub getStub() {
+      return stub;
+    }
+
+    public Object[] getArguments() {
+      return arguments.clone();
+    }
+
+    public POJOWorkflowMethodMetadata getMetadata() {
+      return metadata;
+    }
+  }
 
   private final ExternalWorkflowStub stub;
   private final POJOWorkflowInterfaceMetadata workflowMetadata;
@@ -40,6 +103,15 @@ class ExternalWorkflowInvocationHandler implements InvocationHandler {
       return stub;
     }
     POJOWorkflowMethodMetadata methodMetadata = workflowMetadata.getMethodMetadata(method);
+    ProbeContext context = probeContext.get();
+    if (context != null) {
+      if (++context.invocations != 1 || methodMetadata.getType() != context.expected) {
+        throw new IllegalArgumentException(
+            "Expected exactly one external workflow " + context.expected + " invocation");
+      }
+      probeResult.set(new ProbeResult(stub, methodMetadata, args));
+      return InternalUtils.getValueOrDefault(null, method.getReturnType());
+    }
     switch (methodMetadata.getType()) {
       case QUERY:
         throw new UnsupportedOperationException(

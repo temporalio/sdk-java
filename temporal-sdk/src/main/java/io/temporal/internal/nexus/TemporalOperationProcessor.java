@@ -13,7 +13,6 @@ import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Method;
@@ -62,7 +61,7 @@ public final class TemporalOperationProcessor {
       }
 
       TemporalOperationHandler.StartHandler<Object, Object> startHandler =
-          (ctx, client, input) -> invokeStartHandler(handle, ctx, client, input);
+          (client, input) -> invokeStartHandler(handle, client, input);
 
       return new TemporalOperationHandler<Object, Object>(startHandler) {};
     }
@@ -78,22 +77,12 @@ public final class TemporalOperationProcessor {
           "@TemporalOperation method " + method.getName() + " must not be static");
     }
     Class<?>[] paramTypes = method.getParameterTypes();
-    if (paramTypes.length != 3
-        || !TemporalOperationStartContext.class.equals(paramTypes[0])
-        || !TemporalNexusClient.class.equals(paramTypes[1])) {
+    if (paramTypes.length != 2 || !TemporalNexusClient.class.equals(paramTypes[0])) {
       throw new IllegalArgumentException(
           "@TemporalOperation method "
               + method.getName()
-              + " must accept (TemporalOperationStartContext, TemporalNexusClient, I); got "
+              + " must accept (TemporalNexusClient, I); got "
               + describeSignature(method));
-    }
-    if (!TemporalOperationResult.class.equals(method.getReturnType())) {
-      throw new IllegalArgumentException(
-          "@TemporalOperation method "
-              + method.getName()
-              + " must return TemporalOperationResult<?>; got "
-              + method.getGenericReturnType().getTypeName()
-              + ". Use @OperationImpl for custom handler shapes.");
     }
     for (Class<?> declared : method.getExceptionTypes()) {
       if (!RuntimeException.class.isAssignableFrom(declared)
@@ -112,7 +101,7 @@ public final class TemporalOperationProcessor {
 
   private static void validateTypes(Method method, OperationDefinition operationDefinition) {
     Type expectedInputType = operationDefinition.getInputType();
-    Type declaredInputType = method.getGenericParameterTypes()[2];
+    Type declaredInputType = method.getGenericParameterTypes()[1];
     if (!typesMatch(declaredInputType, expectedInputType)) {
       throw new IllegalArgumentException(
           "@TemporalOperation method "
@@ -122,35 +111,38 @@ public final class TemporalOperationProcessor {
               + " but got "
               + declaredInputType.getTypeName());
     }
-    Type returnType = method.getGenericReturnType();
-    if (!(returnType instanceof ParameterizedType)) {
-      throw new IllegalArgumentException(
-          "@TemporalOperation method "
-              + method.getName()
-              + " must use parameterized TemporalOperationResult<R>, not the raw type.");
+    Type resultType = method.getGenericReturnType();
+    if (method.getReturnType() == TemporalOperationResult.class) {
+      if (!(resultType instanceof ParameterizedType)) {
+        throw new IllegalArgumentException(
+            "@TemporalOperation method "
+                + method.getName()
+                + " must use parameterized TemporalOperationResult<R>, not the raw type.");
+      }
+      resultType = ((ParameterizedType) resultType).getActualTypeArguments()[0];
     }
-    Type resultTypeArg = ((ParameterizedType) returnType).getActualTypeArguments()[0];
-    if (!typesMatch(resultTypeArg, operationDefinition.getOutputType())) {
+    if (!typesMatch(resultType, operationDefinition.getOutputType())) {
       throw new IllegalArgumentException(
           "@TemporalOperation method "
               + method.getName()
               + " output type mismatch: expected "
               + operationDefinition.getOutputType().getTypeName()
               + " but got "
-              + resultTypeArg.getTypeName());
+              + resultType.getTypeName());
     }
   }
 
   // Package-private for testing.
   @SuppressWarnings("unchecked")
   static TemporalOperationResult<Object> invokeStartHandler(
-      MethodHandle handle,
-      TemporalOperationStartContext ctx,
-      TemporalNexusClient client,
-      Object input)
-      throws OperationException {
+      MethodHandle handle, TemporalNexusClient client, Object input) throws OperationException {
     try {
-      return (TemporalOperationResult<Object>) handle.invoke(ctx, client, input);
+      Object result = handle.invoke(client, input);
+      // Use the declared return type so null direct results are wrapped, while existing wrapped
+      // handlers retain their behavior (including asynchronous results).
+      return TemporalOperationResult.class.equals(handle.type().returnType())
+          ? (TemporalOperationResult<Object>) result
+          : TemporalOperationResult.sync(result);
     } catch (RuntimeException | Error | OperationException e) {
       // HandlerException is a RuntimeException and falls into the RuntimeException arm.
       throw e;
