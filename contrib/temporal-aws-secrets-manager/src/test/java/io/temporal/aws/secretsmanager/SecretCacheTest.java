@@ -126,6 +126,22 @@ public class SecretCacheTest {
   }
 
   @Test
+  public void errorIsRecordedAsFailedFetch() {
+    // E.g. from a mismatched AWS SDK version
+    fetcher.fail("key", new NoSuchMethodError("mismatched"));
+    SecretCache cache = newApiKeyCache(REFRESH);
+    SecretFetchException e =
+        assertThrows(SecretFetchException.class, () -> cache.get(cache.apiKey, tel));
+    assertTrue(e.getCause() instanceof NoSuchMethodError);
+    assertEquals("other", e.reason);
+
+    // Not left in flight, so the next lookup fetches again
+    assertNull(inFlight(cache));
+    fetcher.set("key", "v1", "ver1");
+    assertEquals("v1", cache.get(cache.apiKey, tel));
+  }
+
+  @Test
   public void failureWithoutPreviousValueThrows() {
     fetcher.fail(
         "key",
@@ -161,8 +177,8 @@ public class SecretCacheTest {
       Future<String> b = pool.submit(() -> cache.get(cache.apiKey, tel));
       waitUntil(() -> fetcher.calls("key") == 1);
       fetcher.gate.countDown();
-      assertEquals("v1", a.get(5, TimeUnit.SECONDS));
-      assertEquals("v1", b.get(5, TimeUnit.SECONDS));
+      assertEquals("v1", a.get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+      assertEquals("v1", b.get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS));
       assertEquals(1, fetcher.calls("key"));
     } finally {
       pool.shutdownNow();
@@ -184,7 +200,7 @@ public class SecretCacheTest {
       waitUntil(() -> fetcher.calls("key") == 2);
       assertEquals("v1", cache.get(cache.apiKey, tel));
       fetcher.gate.countDown();
-      assertEquals("v2", refreshing.get(5, TimeUnit.SECONDS));
+      assertEquals("v2", refreshing.get(TEST_TIMEOUT_SECONDS, TimeUnit.SECONDS));
     } finally {
       pool.shutdownNow();
     }
@@ -257,17 +273,35 @@ public class SecretCacheTest {
     waitUntil(() -> "v2".equals(cache.getNow(cache.apiKey, min, tel)));
     assertEquals(2, fetcher.calls("key"));
 
-    // A failed refresh keeps the current value, even past max staleness, and isn't retried until
-    // the retry interval has passed
+    // A failed refresh keeps the current value until max staleness, and isn't retried until the
+    // retry interval has passed
     fetcher.fail("key", new Exception("down"));
-    clock.addAndGet(MAX_STALENESS);
+    clock.addAndGet(min);
     assertEquals("v2", cache.getNow(cache.apiKey, min, tel));
     waitUntil(() -> cache.apiKey.failedAt != null && inFlight(cache) == null);
     assertEquals("v2", cache.getNow(cache.apiKey, min, tel));
     assertEquals(3, fetcher.calls("key"));
-    clock.addAndGet(RETRY);
-    cache.getNow(cache.apiKey, min, tel);
+
+    // Past max staleness, the value is kept until a refresh started after then fails, and then
+    // there's no value until a refresh succeeds
+    clock.addAndGet(MAX_STALENESS);
+    assertEquals("v2", cache.getNow(cache.apiKey, min, tel));
     waitUntil(() -> fetcher.calls("key") == 4 && inFlight(cache) == null);
+    assertNull(cache.getNow(cache.apiKey, min, tel));
+    assertEquals(
+        "failed fetching AWS Secrets Manager secret \"key\": down",
+        cache.lastFailure(cache.apiKey));
+    fetcher.set("key", "v3", "ver3");
+    clock.addAndGet(RETRY);
+    assertNull(cache.getNow(cache.apiKey, min, tel));
+    waitUntil(() -> "v3".equals(cache.getNow(cache.apiKey, min, tel)));
+    assertNull(cache.lastFailure(cache.apiKey));
+
+    // A value that wasn't looked up for longer than the max staleness is kept while it's refreshed
+    fetcher.set("key", "v4", "ver4");
+    clock.addAndGet(MAX_STALENESS);
+    assertEquals("v3", cache.getNow(cache.apiKey, min, tel));
+    waitUntil(() -> "v4".equals(cache.getNow(cache.apiKey, min, tel)));
   }
 
   @Test
