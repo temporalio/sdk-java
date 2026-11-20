@@ -68,7 +68,9 @@ final class LambdaExtensionFetcher implements Fetcher {
       // Same shape as the GetSecretValue response, with SecretBinary base64
       out = MAPPER.readTree(body);
     } catch (IOException e) {
-      throw invalid(e.getMessage(), e);
+      // The parse error isn't included, since Jackson's messages can quote parts of the body, and
+      // with it the secret
+      throw invalid("invalid JSON", null);
     }
     if (out == null || !out.isObject()) {
       throw invalid("not an object", null);
