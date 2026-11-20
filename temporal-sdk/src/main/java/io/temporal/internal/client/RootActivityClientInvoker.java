@@ -174,12 +174,16 @@ public class RootActivityClientInvoker implements ActivityClientCallsInterceptor
       request.setStartDelay(ProtobufTimeUtils.toProtoDuration(options.getStartDelay()));
     }
 
+    PayloadCodec contextHeaderCodec = HeaderUtils.withContext(headerCodec, serializationContext);
     io.temporal.api.common.v1.Header.Builder grpcHeader =
-        HeaderUtils.toHeaderGrpc(
-            input.getHeader(), null, HeaderUtils.withContext(headerCodec, serializationContext))
-            .toBuilder();
+        HeaderUtils.toHeaderGrpc(input.getHeader(), null, contextHeaderCodec).toBuilder();
     if (externalStorage != null && grpcHeader.getFieldsCount() > 0) {
-      externalStorage.store(grpcHeader, storageTarget, null, CancellationToken.none());
+      externalStorage.storeHeader(
+          grpcHeader,
+          HeaderUtils.codecKeys(input.getHeader(), null),
+          contextHeaderCodec,
+          storageTarget,
+          CancellationToken.none());
     }
     request.setHeader(grpcHeader);
 

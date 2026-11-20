@@ -282,7 +282,7 @@ public class ExternalStorageRunnerTest {
                 .setPayloadSizeThreshold(threshold)
                 .build(),
             "default");
-    return new ExternalStorageRunner(payloadTransformer, 4);
+    return new ExternalStorageRunner(payloadTransformer, 4, false);
   }
 
   private static Payload payload(String data) {

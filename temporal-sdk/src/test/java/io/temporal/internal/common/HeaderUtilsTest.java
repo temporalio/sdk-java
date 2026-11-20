@@ -26,12 +26,30 @@ import io.temporal.payload.context.WorkflowSerializationContext;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
 import org.junit.Test;
 
 public class HeaderUtilsTest {
+  @Test
+  public void codecKeysNameTheOptedInEntriesThatReachTheWire() {
+    Payload value = DefaultDataConverter.STANDARD_INSTANCE.toPayload("value").get();
+    Header header = Header.empty();
+    header.putAll(Collections.singletonMap("opted-in", value), true);
+    header.putAll(Collections.singletonMap("overridden-by-plain", value), true);
+    header.putAll(Collections.singletonMap("overridden-by-opted-in", value), false);
+    header.getValues().put("plain", value);
+    Header overrides = Header.empty();
+    overrides.putAll(Collections.singletonMap("overridden-by-plain", value), false);
+    overrides.putAll(Collections.singletonMap("overridden-by-opted-in", value), true);
+
+    assertEquals(
+        new HashSet<>(Arrays.asList("opted-in", "overridden-by-opted-in")),
+        HeaderUtils.codecKeys(header, overrides));
+  }
+
   @Test
   public void producerOptInPreservesWireReadyHeadersAndPrivateViews() {
     Payload serialized =

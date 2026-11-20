@@ -119,19 +119,27 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
         }
       }
 
-      CurrentNexusOperationContext.set(
+      InternalNexusOperationContext nexusContext =
           new InternalNexusOperationContext(
-              namespace, taskQueue, request.getEndpoint(), metricsScope, client));
+              namespace, taskQueue, request.getEndpoint(), metricsScope, client);
+      // Scopes the converter used for the operation's input, result and failures. The worker
+      // retrieves the request's references with the same context before the handler runs.
+      nexusContext.setSerializationContext(NexusSerializationContexts.forRequest(request));
+      CurrentNexusOperationContext.set(nexusContext);
 
       switch (request.getVariantCase()) {
         case START_OPERATION:
           StartOperationResponse startResponse =
               handleStartOperation(ctx, request.getStartOperation());
-          return new Result(Response.newBuilder().setStartOperation(startResponse).build());
+          return new Result(
+              Response.newBuilder().setStartOperation(startResponse).build(),
+              currentSerializationContext());
         case CANCEL_OPERATION:
           CancelOperationResponse cancelResponse =
               handleCancelledOperation(ctx, request.getCancelOperation());
-          return new Result(Response.newBuilder().setCancelOperation(cancelResponse).build());
+          return new Result(
+              Response.newBuilder().setCancelOperation(cancelResponse).build(),
+              currentSerializationContext());
         default:
           throw new HandlerException(
               HandlerException.ErrorType.NOT_IMPLEMENTED,
@@ -157,22 +165,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
       }
       CurrentNexusOperationContext.unset();
     }
-  }
-
-  /**
-   * Records the serialization context for the operation this task is for, so that the data
-   * converter used for its input, result and failures is scoped to the endpoint, service and
-   * operation the request names.
-   *
-   * <p>Note that servers before 1.30.0 do not report the endpoint the task was addressed to, so the
-   * context is scoped by an empty endpoint there and does not agree with the caller's. Nexus
-   * serialization context on the handler side requires server 1.30.0 or later.
-   */
-  private void setSerializationContext(String service, String operation) {
-    InternalNexusOperationContext nexusContext = CurrentNexusOperationContext.get();
-    String endpoint = nexusContext.getEndpoint();
-    nexusContext.setSerializationContext(
-        new NexusSerializationContext(endpoint, service, operation));
   }
 
   /**
@@ -214,7 +206,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private CancelOperationResponse handleCancelledOperation(
       OperationContext.Builder ctx, CancelOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
-    setSerializationContext(task.getService(), task.getOperation());
 
     @SuppressWarnings("deprecation") // getOperationId kept to support old server for a while
     OperationCancelDetails operationCancelDetails =
@@ -323,7 +314,6 @@ public class NexusTaskHandlerImpl implements NexusTaskHandler {
   private StartOperationResponse handleStartOperation(
       OperationContext.Builder ctx, StartOperationRequest task) {
     ctx.setService(task.getService()).setOperation(task.getOperation());
-    setSerializationContext(task.getService(), task.getOperation());
 
     OperationStartDetails.Builder operationStartDetails =
         OperationStartDetails.newBuilder()

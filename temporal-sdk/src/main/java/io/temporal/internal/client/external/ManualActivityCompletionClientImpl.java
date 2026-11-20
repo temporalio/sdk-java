@@ -17,6 +17,7 @@ import io.temporal.common.CancellationToken;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.internal.client.ActivityClientHelper;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.OptionsUtils;
 import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
@@ -91,7 +92,12 @@ class ManualActivityCompletionClientImpl implements ManualActivityCompletionClie
       return request;
     }
     Message.Builder builder = request.toBuilder();
-    externalStorage.store(builder, storageTarget, null, CancellationToken.none());
+    externalStorage.store(
+        builder,
+        storageTarget,
+        null,
+        HeaderUtils.resolveHeaderCodec(dataConverterWithActivityExecutionContext),
+        CancellationToken.none());
     @SuppressWarnings("unchecked")
     T stored = (T) builder.build();
     return stored;

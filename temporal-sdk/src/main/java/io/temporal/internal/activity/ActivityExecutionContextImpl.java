@@ -173,7 +173,7 @@ class ActivityExecutionContextImpl implements InternalActivityExecutionContext {
           manualCompletionClientFactory.getClient(
               info.getTaskToken(),
               metricsScope,
-              HeartbeatContextImpl.heartbeatContext(info.getNamespace(), info),
+              ActivitySerializationContexts.result(info.getNamespace(), info),
               HeartbeatContextImpl.storageTargetForActivity(info.getNamespace(), info)),
           completionHandle);
     } finally {

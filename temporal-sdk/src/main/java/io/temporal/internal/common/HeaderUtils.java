@@ -12,8 +12,10 @@ import io.temporal.payload.codec.PayloadCodecProvider;
 import io.temporal.payload.context.SerializationContext;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
@@ -30,22 +32,42 @@ public class HeaderUtils {
       @Nullable io.temporal.common.interceptors.Header overrides,
       @Nullable PayloadCodec codec) {
     Header.Builder result = Header.newBuilder();
+    for (io.temporal.common.interceptors.Header source :
+        new io.temporal.common.interceptors.Header[] {header, overrides}) {
+      if (source != null) {
+        result.putAllFields(source.getValues());
+      }
+    }
     Header.Builder selected = Header.newBuilder();
+    for (String key : codecKeys(header, overrides)) {
+      selected.putFields(key, result.getFieldsOrThrow(key));
+    }
+    result.putAllFields(encode(selected.build(), codec).getFieldsMap());
+    return result.build();
+  }
+
+  /**
+   * Returns the keys whose payloads {@link #toHeaderGrpc} encodes with the codec: those whose
+   * producer opted in, with an entry in {@code overrides} replacing the same key in {@code header}.
+   */
+  public static Set<String> codecKeys(
+      io.temporal.common.interceptors.Header header,
+      @Nullable io.temporal.common.interceptors.Header overrides) {
+    Set<String> keys = new HashSet<>();
     for (io.temporal.common.interceptors.Header source :
         new io.temporal.common.interceptors.Header[] {header, overrides}) {
       if (source == null) {
         continue;
       }
-      for (Map.Entry<String, Payload> entry : source.getValues().entrySet()) {
-        result.putFields(entry.getKey(), entry.getValue());
-        selected.removeFields(entry.getKey());
-        if (source.shouldEncode(entry.getKey())) {
-          selected.putFields(entry.getKey(), entry.getValue());
+      for (String key : source.getValues().keySet()) {
+        if (source.shouldEncode(key)) {
+          keys.add(key);
+        } else {
+          keys.remove(key);
         }
       }
     }
-    result.putAllFields(encode(selected.build(), codec).getFieldsMap());
-    return result.build();
+    return keys;
   }
 
   public static io.temporal.common.interceptors.Header fromContextPropagators(

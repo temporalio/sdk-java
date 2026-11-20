@@ -81,7 +81,14 @@ public class WorkflowClientRequestFactoryTest {
             .build();
     return factory
         .newStartWorkflowExecutionRequest(
-            "workflow-id", "workflow-type", Header.empty(), options, null, null, null)
+            "workflow-id",
+            "workflow-type",
+            Header.empty(),
+            factory.propagatedHeader(options),
+            options,
+            null,
+            null,
+            null)
         .build();
   }
 
