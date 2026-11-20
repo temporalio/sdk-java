@@ -52,6 +52,8 @@ to docs, or any other relevant information.
   credentials set through `setHeaders` no longer appear in logs.
 - The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
   as asynchronous.
+- Activity worker termination waits returning before heartbeat shutdown initiated the final poller shutdown, which could
+  leave workflow-only workers reporting that shutdown was incomplete.
 
 ## [1.41.1] - 2026-11-16
 
