@@ -2,6 +2,8 @@ package io.temporal.spring.boot.autoconfigure.template;
 
 import com.google.common.base.Preconditions;
 import io.opentracing.Tracer;
+import io.temporal.client.NexusClient;
+import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
@@ -9,6 +11,7 @@ import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -19,12 +22,14 @@ import javax.annotation.Nullable;
 
 public class ClientTemplate {
   private final @Nonnull WorkflowClientOptionsTemplate optionsTemplate;
+  private final @Nonnull NexusClientOptionsTemplate nexusOptionsTemplate;
   private final @Nullable WorkflowServiceStubs workflowServiceStubs;
   // if not null, we work with an environment with defined test server
   private final @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment;
 
   private WorkflowClient workflowClient;
   private ScheduleClient scheduleClient;
+  private NexusClient nexusClient;
 
   public ClientTemplate(
       @Nonnull String namespace,
@@ -37,7 +42,10 @@ public class ClientTemplate {
       @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
       @Nullable List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers,
       @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
-      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins) {
+      @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
+      @Nullable List<NexusClientInterceptor> nexusClientInterceptors,
+      @Nullable
+          List<TemporalOptionsCustomizer<NexusClientOptions.Builder>> nexusClientCustomizers) {
     this.optionsTemplate =
         new WorkflowClientOptionsTemplate(
             namespace,
@@ -49,37 +57,11 @@ public class ClientTemplate {
             scheduleCustomizers,
             workflowClientPlugins,
             scheduleClientPlugins);
+    this.nexusOptionsTemplate =
+        new NexusClientOptionsTemplate(
+            namespace, dataConverter, nexusClientInterceptors, nexusClientCustomizers);
     this.workflowServiceStubs = workflowServiceStubs;
     this.testWorkflowEnvironment = testWorkflowEnvironment;
-  }
-
-  /**
-   * @deprecated Use constructor with plugins parameters
-   */
-  @Deprecated
-  public ClientTemplate(
-      @Nonnull String namespace,
-      @Nullable DataConverter dataConverter,
-      @Nullable List<WorkflowClientInterceptor> workflowClientInterceptors,
-      @Nullable List<ScheduleClientInterceptor> scheduleClientInterceptors,
-      @Nullable Tracer tracer,
-      @Nullable WorkflowServiceStubs workflowServiceStubs,
-      @Nullable TestWorkflowEnvironmentAdapter testWorkflowEnvironment,
-      @Nullable List<TemporalOptionsCustomizer<WorkflowClientOptions.Builder>> clientCustomizers,
-      @Nullable
-          List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizers) {
-    this(
-        namespace,
-        dataConverter,
-        workflowClientInterceptors,
-        scheduleClientInterceptors,
-        tracer,
-        workflowServiceStubs,
-        testWorkflowEnvironment,
-        clientCustomizers,
-        scheduleCustomizers,
-        null,
-        null);
   }
 
   public WorkflowClient getWorkflowClient() {
@@ -94,6 +76,20 @@ public class ClientTemplate {
       this.scheduleClient = createScheduleClient();
     }
     return scheduleClient;
+  }
+
+  public NexusClient getNexusClient() {
+    if (nexusClient == null) {
+      WorkflowServiceStubs serviceStubs =
+          testWorkflowEnvironment != null
+              ? testWorkflowEnvironment.getWorkflowClient().getWorkflowServiceStubs()
+              : workflowServiceStubs;
+      Preconditions.checkState(
+          serviceStubs != null, "ClientTemplate was created without workflowServiceStubs");
+      this.nexusClient =
+          NexusClient.newInstance(serviceStubs, nexusOptionsTemplate.createNexusClientOptions());
+    }
+    return nexusClient;
   }
 
   private WorkflowClient createWorkflowClient() {

@@ -1,6 +1,8 @@
 package io.temporal.spring.boot.autoconfigure;
 
 import io.opentracing.Tracer;
+import io.temporal.client.NexusClient;
+import io.temporal.client.NexusClientOptions;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
 import io.temporal.client.WorkflowClientPlugin;
@@ -8,6 +10,7 @@ import io.temporal.client.schedules.ScheduleClient;
 import io.temporal.client.schedules.ScheduleClientOptions;
 import io.temporal.client.schedules.ScheduleClientPlugin;
 import io.temporal.common.converter.DataConverter;
+import io.temporal.common.interceptors.NexusClientInterceptor;
 import io.temporal.common.interceptors.ScheduleClientInterceptor;
 import io.temporal.common.interceptors.WorkerInterceptor;
 import io.temporal.common.interceptors.WorkflowClientInterceptor;
@@ -93,7 +96,11 @@ public class RootNamespaceAutoConfiguration {
               workflowImplementationCustomizerMap,
       @Autowired(required = false) @Nullable List<WorkflowClientPlugin> workflowClientPlugins,
       @Autowired(required = false) @Nullable List<ScheduleClientPlugin> scheduleClientPlugins,
-      @Autowired(required = false) @Nullable List<WorkerPlugin> workerPlugins) {
+      @Autowired(required = false) @Nullable List<WorkerPlugin> workerPlugins,
+      @Autowired(required = false) @Nullable List<NexusClientInterceptor> nexusClientInterceptors,
+      @Autowired(required = false) @Nullable
+          Map<String, TemporalOptionsCustomizer<NexusClientOptions.Builder>>
+              nexusClientCustomizerMap) {
     DataConverter chosenDataConverter =
         AutoConfigurationUtils.chooseDataConverter(dataConverters, mainDataConverter, properties);
     List<WorkflowClientInterceptor> chosenClientInterceptors =
@@ -119,6 +126,9 @@ public class RootNamespaceAutoConfiguration {
     List<TemporalOptionsCustomizer<ScheduleClientOptions.Builder>> scheduleCustomizer =
         AutoConfigurationUtils.chooseTemporalCustomizerBeans(
             beanFactory, scheduleCustomizerMap, ScheduleClientOptions.Builder.class, properties);
+    List<TemporalOptionsCustomizer<NexusClientOptions.Builder>> nexusClientCustomizers =
+        AutoConfigurationUtils.chooseTemporalCustomizerBeans(
+            beanFactory, nexusClientCustomizerMap, NexusClientOptions.Builder.class, properties);
     List<TemporalOptionsCustomizer<WorkflowImplementationOptions.Builder>>
         workflowImplementationCustomizer =
             AutoConfigurationUtils.chooseTemporalCustomizerBeans(
@@ -166,7 +176,9 @@ public class RootNamespaceAutoConfiguration {
         workflowImplementationCustomizer,
         filteredClientPlugins,
         filteredSchedulePlugins,
-        filteredWorkerPlugins);
+        filteredWorkerPlugins,
+        nexusClientInterceptors,
+        nexusClientCustomizers);
   }
 
   /** Client */
@@ -187,6 +199,12 @@ public class RootNamespaceAutoConfiguration {
   @Bean(name = "temporalScheduleClient")
   public ScheduleClient scheduleClient(ClientTemplate clientTemplate) {
     return clientTemplate.getScheduleClient();
+  }
+
+  @Primary
+  @Bean(name = "temporalNexusClient")
+  public NexusClient nexusClient(ClientTemplate clientTemplate) {
+    return clientTemplate.getNexusClient();
   }
 
   /** Workers */
