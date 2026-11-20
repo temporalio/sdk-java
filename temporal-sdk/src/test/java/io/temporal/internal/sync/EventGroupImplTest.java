@@ -40,6 +40,7 @@ public class EventGroupImplTest {
     assertEquals("c-id", markers.get(0).getLabel().getId());
   }
 
+
   @Test
   public void emptyIdIsRejected() {
     assertThrows(IllegalArgumentException.class, () -> WorkflowInternal.newEventGroup("", null));
@@ -137,5 +138,13 @@ public class EventGroupImplTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> EventGroupScope.EMPTY.toMarkers(Collections.singletonList(foreign), CONVERTER));
+  }
+  
+  @Test
+  public void runOutsideAWorkflowIsRejected() {
+    EventGroup group = WorkflowInternal.newEventGroup("aaa", null);
+    IllegalStateException thrown =
+        assertThrows(IllegalStateException.class, () -> group.run(() -> {}));
+    assertEquals("Cannot be called by non workflow thread", thrown.getMessage());
   }
 }

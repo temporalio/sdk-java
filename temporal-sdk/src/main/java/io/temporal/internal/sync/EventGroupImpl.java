@@ -45,6 +45,9 @@ final class EventGroupImpl implements EventGroup {
 
   @Override
   public <R> R run(Functions.Func<R> func) {
+    if (!WorkflowInternal.isWorkflowThread()) {
+      throw new IllegalStateException("Cannot be called by non workflow thread");
+    }
     return EventGroupScope.current().withExplicitGroups(Collections.singletonList(this)).run(func);
   }
 

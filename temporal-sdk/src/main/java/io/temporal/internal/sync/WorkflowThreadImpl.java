@@ -94,11 +94,7 @@ class WorkflowThreadImpl implements WorkflowThread {
         // initialYield blocks thread until the first runUntilBlocked is called.
         // Otherwise, r starts executing without control of the sync.
         threadContext.initialYield();
-        eventGroupScope.run(
-            () -> {
-              cancellationScope.run();
-              return null;
-            });
+        eventGroupScope.run(cancellationScope::run);
       } catch (DestroyWorkflowThreadError e) {
         if (!threadContext.isDestroyRequested()) {
           threadContext.setUnhandledException(e);

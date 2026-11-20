@@ -70,6 +70,15 @@ final class EventGroupScope {
     return new EventGroupScope(merged, implicitGroup);
   }
 
+  /** Run the procedure with this scope as the current one. */
+  void run(Functions.Proc proc) {
+    run(
+        () -> {
+          proc.apply();
+          return null;
+        });
+  }
+
   /** Run the function with this scope as the current one. */
   <R> R run(Functions.Func<R> func) {
     EventGroupScope previous = current();
