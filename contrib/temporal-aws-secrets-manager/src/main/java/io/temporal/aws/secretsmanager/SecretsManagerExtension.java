@@ -104,9 +104,9 @@ public final class SecretsManagerExtension implements ClientConfigExtension {
     }
 
     Duration refresh = refreshInterval();
-    Duration staleness = maxStaleness;
-    if (staleness == null || staleness.isZero() || staleness.isNegative()) {
-      staleness = DEFAULT_MAX_STALENESS;
+    Duration staleness = maxStaleness != null ? maxStaleness : DEFAULT_MAX_STALENESS;
+    if (staleness.isNegative()) {
+      throw new IllegalArgumentException("maxStaleness must not be negative");
     }
     if (staleness.compareTo(refresh) < 0) {
       staleness = refresh;
