@@ -17,18 +17,21 @@ import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.common.converter.DataConverter;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.MetricsUtils;
 import io.temporal.internal.common.NexusUtil;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
 import io.temporal.internal.logging.LoggerTag;
 import io.temporal.internal.logging.PrefixedMdc;
+import io.temporal.internal.nexus.NexusSerializationContexts;
 import io.temporal.internal.payload.limits.PayloadErrorLimits;
 import io.temporal.internal.payload.limits.PayloadLimitViolation;
 import io.temporal.internal.payload.limits.PayloadLimitViolationException;
 import io.temporal.internal.payload.storage.ExternalStorageNotConfiguredException;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.context.NexusSerializationContext;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -45,6 +48,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -564,7 +568,7 @@ final class NexusWorker implements SuspendableWorker {
                 .setNamespace(namespace)
                 .setResponse(taskResponse);
         if (useExternalStorage) {
-          storeOutbound(requestBuilder);
+          storeOutbound(requestBuilder, response.getSerializationContext());
         }
         RespondNexusTaskCompletedRequest request = requestBuilder.build();
 
@@ -601,7 +605,7 @@ final class NexusWorker implements SuspendableWorker {
                 NexusUtil.handlerErrorToNexusError(handlerException, dataConverterWithContext));
           }
           if (useExternalStorage) {
-            storeOutbound(request);
+            storeOutbound(request, serializationContext);
           }
           RespondNexusTaskFailedRequest failedRequest = request.build();
           grpcRetryer.retry(
@@ -699,18 +703,29 @@ final class NexusWorker implements SuspendableWorker {
         return task;
       }
       return new NexusTask(
-          externalStorageRunner.retrieve(built, storageCancellation.token()),
+          externalStorageRunner.retrieve(
+              built,
+              // The context the handler scopes its converter to once it runs.
+              codec(NexusSerializationContexts.forRequest(built.getRequest())),
+              storageCancellation.token()),
           task.getPermit(),
           task.getCompletionCallback());
     }
 
-    private void storeOutbound(Message.Builder builder) {
+    private @Nullable PayloadCodec codec(@Nullable NexusSerializationContext context) {
+      PayloadCodec codec = HeaderUtils.resolveHeaderCodec(dataConverter);
+      return context != null ? HeaderUtils.withContext(codec, context) : codec;
+    }
+
+    private void storeOutbound(
+        Message.Builder builder, @Nullable NexusSerializationContext serializationContext) {
       ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
       if (externalStorageRunner == null) {
         return;
       }
       try {
-        externalStorageRunner.store(builder, null, null, storageCancellation.token());
+        externalStorageRunner.store(
+            builder, null, null, codec(serializationContext), storageCancellation.token());
       } catch (CancellationException e) {
         // A shutdown cancellation is not a task failure. Let it reach handle(), which abandons the
         // task rather than telling the server the handler failed.

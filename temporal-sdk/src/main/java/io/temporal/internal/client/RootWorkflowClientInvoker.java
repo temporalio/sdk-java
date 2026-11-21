@@ -115,11 +115,12 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
 
   private Header workflowHeader(
       io.temporal.common.interceptors.Header header, WorkflowExecution execution) {
-    return HeaderUtils.toHeaderGrpc(
-        header,
-        null,
-        HeaderUtils.withContext(
-            headerCodec, new WorkflowSerializationContext(namespace, execution.getWorkflowId())));
+    return HeaderUtils.toHeaderGrpc(header, null, workflowHeaderCodec(execution.getWorkflowId()));
+  }
+
+  private @Nullable PayloadCodec workflowHeaderCodec(String workflowId) {
+    return HeaderUtils.withContext(
+        headerCodec, new WorkflowSerializationContext(namespace, workflowId));
   }
 
   private DataConverter workflowConverter(
@@ -153,22 +154,28 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
         : workflowConverter;
   }
 
+  /**
+   * @param codecKeys the fields the workflow's header codec encoded, from {@link
+   *     HeaderUtils#codecKeys}
+   */
   private void storeHeader(
       Header.Builder header,
+      Set<String> codecKeys,
       String workflowId,
       @Nullable String runId,
       @Nullable String workflowType) {
     if (externalStorage == null || header.getFieldsCount() == 0) {
       return;
     }
-    externalStorage.store(
+    externalStorage.storeHeader(
         header,
+        codecKeys,
+        workflowHeaderCodec(workflowId),
         new StorageDriverWorkflowInfo(
             namespace,
             Strings.emptyToNull(workflowId),
             Strings.emptyToNull(runId),
             Strings.emptyToNull(workflowType)),
-        null,
         CancellationToken.none());
   }
 
@@ -259,6 +266,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     inputArgs.ifPresent(request::setInput);
     storeHeader(
         request.getHeaderBuilder(),
+        HeaderUtils.codecKeys(input.getHeader(), null),
         input.getWorkflowExecution().getWorkflowId(),
         input.getWorkflowExecution().getRunId(),
         null);
@@ -461,11 +469,14 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
             workflowStartInput.getOptions().getStaticDetails(),
             dataConverterWithWorkflowContext);
 
+    io.temporal.common.interceptors.Header propagatedHeader =
+        requestsHelper.propagatedHeader(workflowStartInput.getOptions());
     StartWorkflowExecutionRequest.Builder startRequest =
         requestsHelper.newStartWorkflowExecutionRequest(
             workflowStartInput.getWorkflowId(),
             workflowStartInput.getWorkflowType(),
             workflowStartInput.getHeader(),
+            propagatedHeader,
             workflowStartInput.getOptions(),
             workflowInput.orElse(null),
             memo,
@@ -475,6 +486,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     }
     storeHeader(
         startRequest.getHeaderBuilder(),
+        HeaderUtils.codecKeys(workflowStartInput.getHeader(), propagatedHeader),
         workflowStartInput.getWorkflowId(),
         null,
         workflowStartInput.getWorkflowType());
@@ -545,6 +557,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     inputArgs.ifPresent(query::setQueryArgs);
     storeHeader(
         query.getHeaderBuilder(),
+        HeaderUtils.codecKeys(input.getHeader(), null),
         input.getWorkflowExecution().getWorkflowId(),
         input.getWorkflowExecution().getRunId(),
         null);
@@ -645,6 +658,7 @@ public class RootWorkflowClientInvoker implements WorkflowClientCallsInterceptor
     inputArgs.ifPresent(updateInput::setArgs);
     storeHeader(
         updateInput.getHeaderBuilder(),
+        HeaderUtils.codecKeys(input.getHeader(), null),
         input.getWorkflowExecution().getWorkflowId(),
         input.getWorkflowExecution().getRunId(),
         null);

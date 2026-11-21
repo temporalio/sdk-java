@@ -1,5 +1,6 @@
 package io.temporal.internal.payload.storage;
 
+import static io.temporal.payload.storage.ExternalStorageTestUtils.encodingReferences;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -191,9 +192,78 @@ public class ExternalStorageDataConverterTest {
             new Type[] {String.class, String.class, String.class}));
   }
 
+  @Test
+  public void withEncodingOnReferencesAreEncodedAndRoundTrip() {
+    EnvelopeCodec codec = new EnvelopeCodec();
+    TestStorageDriver driver = TestStorageDriver.create();
+
+    Optional<Payloads> stored = encodingCodecBacked(driver, codec).toPayloads("a");
+
+    Payload reference = stored.get().getPayloads(0);
+    assertTrue(ExternalStorageReferences.isMarked(reference));
+    assertFalse(ExternalStorageReferences.isReference(reference));
+    assertEquals(1, reference.getExternalPayloadsCount());
+    assertEquals(1, codec.referenceEncodes.get());
+    // Written with encoding on and read with it off, which is how a rollout meets old readers.
+    assertEquals(
+        "a", codecBacked(driver, codec).fromPayloads(0, stored, String.class, String.class));
+    assertEquals(1, codec.markedDecodes.get());
+  }
+
+  @Test
+  public void withEncodingOffReferencesStayPlain() {
+    EnvelopeCodec codec = new EnvelopeCodec();
+    DataConverter converter = codecBacked(TestStorageDriver.create(), codec);
+
+    Optional<Payloads> stored = converter.toPayloads("a");
+
+    assertTrue(ExternalStorageReferences.isReference(stored.get().getPayloads(0)));
+    assertFalse(ExternalStorageReferences.isMarked(stored.get().getPayloads(0)));
+    assertEquals(0, codec.referenceEncodes.get());
+    assertEquals("a", converter.fromPayloads(0, stored, String.class, String.class));
+  }
+
+  @Test
+  public void failureDetailsRoundTripAsEncodedReferences() {
+    EnvelopeCodec codec = new EnvelopeCodec();
+    DataConverter converter = encodingCodecBacked(TestStorageDriver.create(), codec);
+
+    Failure failure =
+        converter.exceptionToFailure(
+            ApplicationFailure.newFailure("boom", "TestType", "detail-value"));
+
+    assertTrue(codec.referenceEncodes.get() > 0);
+    RuntimeException restored = converter.failureToException(failure);
+    assertEquals("detail-value", ((ApplicationFailure) restored).getDetails().get(0, String.class));
+  }
+
+  @Test
+  public void withoutStorageAnEncodedReferenceRaisesTheNotConfiguredError() {
+    EnvelopeCodec codec = new EnvelopeCodec();
+    Payload reference =
+        encodingCodecBacked(TestStorageDriver.create(), codec).toPayload("offloaded").get();
+    DataConverter unconfigured =
+        new ExternalStorageDataConverter(
+            new CodecDataConverter(plain, Collections.singletonList(codec)), null);
+
+    assertThrows(
+        ExternalStorageNotConfiguredException.class,
+        () -> unconfigured.fromPayload(reference, String.class, String.class));
+    assertEquals("the codec should not be asked to decode it", 0, codec.markedDecodes.get());
+  }
+
   private DataConverter codecBacked(StorageDriver driver, PayloadCodec codec) {
+    return codecBacked(codec, ExternalStorage.newBuilder().setDriver(driver));
+  }
+
+  private DataConverter encodingCodecBacked(StorageDriver driver, PayloadCodec codec) {
+    return codecBacked(codec, encodingReferences(ExternalStorage.newBuilder().setDriver(driver)));
+  }
+
+  private DataConverter codecBacked(PayloadCodec codec, ExternalStorage.Builder storage) {
     return new ExternalStorageDataConverter(
-        new CodecDataConverter(plain, Collections.singletonList(codec)), runner(driver, 0));
+        new CodecDataConverter(plain, Collections.singletonList(codec)),
+        ExternalStorageRunner.create(storage.setPayloadSizeThreshold(0).build(), "default"));
   }
 
   private DataConverter resolving(StorageDriver driver, int threshold) {

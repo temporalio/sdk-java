@@ -125,7 +125,7 @@ public final class ExternalStorageDataConverter implements DataConverter, Payloa
 
   private Payloads retrieveAll(Payloads payloads) {
     for (Payload payload : payloads.getPayloadsList()) {
-      if (ExternalStorageReferences.isReference(payload)) {
+      if (ExternalStorageReferences.isAnyReference(payload)) {
         return retrieveMessage(payloads);
       }
     }
@@ -133,7 +133,7 @@ public final class ExternalStorageDataConverter implements DataConverter, Payloa
   }
 
   private Payload retrieve(Payload payload) {
-    if (!ExternalStorageReferences.isReference(payload)) {
+    if (!ExternalStorageReferences.isAnyReference(payload)) {
       return payload;
     }
     return retrieveMessage(Payloads.newBuilder().addPayloads(payload).build()).getPayloads(0);
@@ -144,7 +144,8 @@ public final class ExternalStorageDataConverter implements DataConverter, Payloa
       return payloads;
     }
     Payloads.Builder builder = payloads.toBuilder();
-    externalStorage.store(builder, storageTarget, null, CancellationToken.none());
+    externalStorage.store(
+        builder, storageTarget, null, getPayloadCodec(), CancellationToken.none());
     return builder.build();
   }
 
@@ -152,7 +153,7 @@ public final class ExternalStorageDataConverter implements DataConverter, Payloa
     if (externalStorage == null) {
       throw new ExternalStorageNotConfiguredException();
     }
-    return externalStorage.retrieve(message, CancellationToken.none());
+    return externalStorage.retrieve(message, getPayloadCodec(), CancellationToken.none());
   }
 
   private Failure storeMessage(Failure failure) {
@@ -160,7 +161,8 @@ public final class ExternalStorageDataConverter implements DataConverter, Payloa
       return failure;
     }
     Failure.Builder builder = failure.toBuilder();
-    externalStorage.store(builder, storageTarget, null, CancellationToken.none());
+    externalStorage.store(
+        builder, storageTarget, null, getPayloadCodec(), CancellationToken.none());
     return builder.build();
   }
 }

@@ -31,10 +31,15 @@ public interface NexusTaskHandler {
     @Nullable private final NexusSerializationContext serializationContext;
 
     public Result(@Nonnull Response response) {
+      this(response, null);
+    }
+
+    public Result(
+        @Nonnull Response response, @Nullable NexusSerializationContext serializationContext) {
       Objects.requireNonNull(response);
       this.response = response;
+      this.serializationContext = serializationContext;
       handlerException = null;
-      serializationContext = null;
     }
 
     public Result(@Nonnull HandlerException handlerException) {
@@ -51,8 +56,8 @@ public interface NexusTaskHandler {
     }
 
     /**
-     * Serialization context to encode {@link #getHandlerException()} with, or null to encode it
-     * without one.
+     * Serialization context that {@link #getResponse()} was encoded with, or to encode {@link
+     * #getHandlerException()} with. Null means no context.
      */
     @Nullable
     public NexusSerializationContext getSerializationContext() {

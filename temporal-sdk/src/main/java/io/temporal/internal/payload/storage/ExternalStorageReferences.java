@@ -13,6 +13,10 @@ final class ExternalStorageReferences {
   private static final String ENCODING_PROTOBUF_JSON = "json/protobuf";
   private static final String REFERENCE_MESSAGE_TYPE =
       ExternalStorageReference.getDescriptor().getFullName();
+  // A reference encoded by the payload codec can't be recognized by its encoding any more, so this
+  // metadata, which codecs pass through, marks it.
+  private static final String MARKER_KEY = "__temporal_external_storage_reference";
+  private static final ByteString MARKER_VALUE = ByteString.copyFromUtf8("true");
 
   private static final JsonFormat.Printer PRINTER = JsonFormat.printer();
   private static final JsonFormat.Parser PARSER = JsonFormat.parser().ignoringUnknownFields();
@@ -76,6 +80,20 @@ final class ExternalStorageReferences {
     ExternalStorageReference reference = builder.build();
     return new ParsedReference(
         reference.getDriverName(), new StorageDriverClaim(reference.getClaimDataMap()));
+  }
+
+  /** True if {@code payload} is marked as a reference, whether or not the codec encoded it. */
+  static boolean isMarked(Payload payload) {
+    return MARKER_VALUE.equals(payload.getMetadataMap().get(MARKER_KEY));
+  }
+
+  /** True if {@code payload} is a reference, plain or marked. */
+  static boolean isAnyReference(Payload payload) {
+    return isReference(payload) || isMarked(payload);
+  }
+
+  static Payload mark(Payload payload) {
+    return payload.toBuilder().putMetadata(MARKER_KEY, MARKER_VALUE).build();
   }
 
   /** True if {@code payload} has an external storage reference encoding and message type. */
