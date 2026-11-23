@@ -48,6 +48,12 @@ The `check` command accepts the following arguments:
   `:` for Nix), or prefixed with an `@` symbol saying it's a file with entries one per line, or just as separate
   arguments. They are all combined to one large classpath when running.
 
+Set `TEMPORAL_WORKFLOWCHECK_CONFIG` to the path of a `.properties` file to load it without
+adding a `--config` argument. The file is loaded after the default rules and before any
+`--config` files. An unset or empty variable is ignored.
+
+    TEMPORAL_WORKFLOWCHECK_CONFIG=workflowcheck.properties java -jar path/to/temporal-workflowcheck-<version>-all.jar check path/to/my.jar
+
 ### Running in a Gradle project
 
 See the [Gradle sample](samples/gradle).
