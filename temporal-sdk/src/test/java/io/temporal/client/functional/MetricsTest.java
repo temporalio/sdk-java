@@ -21,7 +21,9 @@ import io.temporal.serviceclient.MetricsType;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -42,7 +44,10 @@ public class MetricsTest {
   @Rule
   public final SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(QuicklyCompletingWorkflowImpl.class, MultiScenarioWorkflowImpl.class)
+          .setWorkflowTypes(
+              QuicklyCompletingWorkflowImpl.class,
+              MultiScenarioWorkflowImpl.class,
+              UpdatableWorkflowImpl.class)
           .setActivityImplementations(runCallbackActivity, new StandaloneMetricsActivityImpl())
           .setMetricsScope(
               new RootScopeBuilder()
@@ -294,6 +299,43 @@ public class MetricsTest {
         io.temporal.worker.MetricsType.WORKFLOW_COMPLETED_COUNTER);
   }
 
+  @Test
+  public void testLongRequestMetricsHaveConsistentTagKeysForUpdates() throws Exception {
+    UpdatableWorkflow workflow =
+        testWorkflowRule
+            .getWorkflowClient()
+            .newWorkflowStub(
+                UpdatableWorkflow.class,
+                WorkflowOptions.newBuilder()
+                    .setTaskQueue(testWorkflowRule.getTaskQueue())
+                    .validateBuildWithDefaults());
+    WorkflowClient.start(workflow::execute);
+    assertEquals("updated", workflow.finish());
+    assertEquals("done", WorkflowStub.fromTyped(workflow).getResult(String.class));
+
+    assertEventually(
+        Duration.ofSeconds(2),
+        () -> {
+          Set<Set<String>> tagKeySets = new HashSet<>();
+          boolean sawUpdate = false;
+          for (Meter meter : registry.getMeters()) {
+            if (MetricsType.TEMPORAL_LONG_REQUEST_LATENCY.equals(meter.getId().getName())) {
+              tagKeySets.add(
+                  meter.getId().getTags().stream().map(Tag::getKey).collect(Collectors.toSet()));
+              sawUpdate |=
+                  "finish".equals(meter.getId().getTag(MetricsTag.UPDATE_NAME))
+                      && "UpdateWorkflowExecution"
+                          .equals(meter.getId().getTag(MetricsTag.OPERATION_NAME));
+            }
+          }
+          assertTrue("no long request latency for the update was reported", sawUpdate);
+          assertEquals(
+              "all temporal_long_request_latency series must share the same tag keys",
+              1,
+              tagKeySets.size());
+        });
+  }
+
   private void assertSingleMeterCountForMultiScenario(String metric) {
     assertEventually(
         Duration.ofSeconds(2),
@@ -343,6 +385,31 @@ public class MetricsTest {
     @Override
     public String execute() {
       return "done";
+    }
+  }
+
+  @WorkflowInterface
+  public interface UpdatableWorkflow {
+    @WorkflowMethod
+    String execute();
+
+    @UpdateMethod
+    String finish();
+  }
+
+  public static class UpdatableWorkflowImpl implements UpdatableWorkflow {
+    private boolean finished;
+
+    @Override
+    public String execute() {
+      Workflow.await(() -> finished);
+      return "done";
+    }
+
+    @Override
+    public String finish() {
+      finished = true;
+      return "updated";
     }
   }
 
