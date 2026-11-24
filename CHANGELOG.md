@@ -49,6 +49,10 @@ to docs, or any other relevant information.
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
+  target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
+  advertised maximum, additional polls of one queue type wait until the other has an active poll.
+  Unlike Core, Java does not use workflow cache size as a fallback slot bound.
 - `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
   includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
   credentials set through `setHeaders` no longer appear in logs.
