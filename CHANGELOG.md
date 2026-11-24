@@ -35,6 +35,8 @@ to docs, or any other relevant information.
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- Graceful worker factory shutdown keeps the shared worker-command poller available while
+  activities drain and lets supported servers complete its outstanding poll.
 - `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
   includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
   credentials set through `setHeaders` no longer appear in logs.

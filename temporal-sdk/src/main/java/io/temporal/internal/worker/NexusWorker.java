@@ -12,6 +12,7 @@ import com.uber.m3.util.ImmutableMap;
 import io.grpc.StatusRuntimeException;
 import io.nexusrpc.OperationState;
 import io.nexusrpc.handler.HandlerException;
+import io.temporal.api.enums.v1.TaskQueueType;
 import io.temporal.api.failure.v1.Failure;
 import io.temporal.api.nexus.v1.*;
 import io.temporal.api.workflowservice.v1.*;
@@ -204,8 +205,28 @@ final class NexusWorker implements SuspendableWorker {
       storageCancellation.cancel();
     }
     String supplierName = this + "#executorSlots";
-    return poller
-        .shutdown(shutdownManager, interruptTasks)
+    CompletableFuture<Void> pollerShutdown = poller.shutdown(shutdownManager, interruptTasks);
+    if (workerCommandsTaskQueue
+        && !interruptTasks
+        && namespaceCapabilities.isGracefulPollShutdown()) {
+      // Poller shutdown closes admission immediately. Wake any suspended poller so it can exit.
+      poller.resumePolling();
+      ShutdownWorkerRequest request =
+          ShutdownWorkerRequest.newBuilder()
+              .setNamespace(namespace)
+              .setIdentity(options.getIdentity())
+              .setWorkerInstanceKey(options.getWorkerInstanceKey())
+              .setTaskQueue(taskQueue)
+              .setReason("graceful shutdown")
+              .addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_NEXUS)
+              .build();
+      pollerShutdown =
+          CompletableFuture.allOf(
+              pollerShutdown,
+              shutdownManager.waitOnWorkerShutdownRequest(
+                  service.futureStub().shutdownWorker(request)));
+    }
+    return pollerShutdown
         .thenCompose(
             ignore ->
                 !interruptTasks
