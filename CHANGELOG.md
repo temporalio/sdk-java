@@ -43,6 +43,9 @@ to docs, or any other relevant information.
   supported.
 - **Experimental**: Worker heartbeats now report the types of the external storage drivers configured
   on the worker's client, listing each type once.
+- **Experimental**: External storage in clients, activity workers, and Nexus workers can now read references that
+  were encoded with the configured payload codec and marked with `__temporal_external_storage_reference` metadata.
+
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,

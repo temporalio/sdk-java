@@ -2,15 +2,18 @@ package io.temporal.internal.payload.storage;
 
 import com.google.common.base.Throwables;
 import com.google.protobuf.Message;
+import io.temporal.api.common.v1.Header;
 import io.temporal.api.common.v1.Payload;
 import io.temporal.api.sdk.v1.ExternalStorageReference;
 import io.temporal.common.CancellationToken;
 import io.temporal.internal.payload.visitor.MessageVisitor;
 import io.temporal.internal.payload.visitor.PayloadVisitorOptions;
 import io.temporal.internal.payload.visitor.PayloadVisitors;
+import io.temporal.payload.codec.PayloadCodec;
 import io.temporal.payload.storage.ExternalStorage;
 import io.temporal.payload.storage.StorageDriver;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -26,6 +29,7 @@ import javax.annotation.Nullable;
 public final class ExternalStorageRunner {
   private final ExternalStoragePayloadTransformer payloadTransformer;
   private final int payloadVisitConcurrency;
+  private final boolean encodeReferences;
 
   /**
    * @param namespace namespace of the client or worker that will use this runner, exposed to
@@ -34,21 +38,77 @@ public final class ExternalStorageRunner {
   public static ExternalStorageRunner create(ExternalStorage options, String namespace) {
     return new ExternalStorageRunner(
         ExternalStoragePayloadTransformer.fromOptions(options, namespace),
-        options.getMaxConcurrentPayloadVisits());
+        options.getMaxConcurrentPayloadVisits(),
+        options.isEncodeReferences());
   }
 
   ExternalStorageRunner(
-      ExternalStoragePayloadTransformer payloadTransformer, int payloadVisitConcurrency) {
+      ExternalStoragePayloadTransformer payloadTransformer,
+      int payloadVisitConcurrency,
+      boolean encodeReferences) {
     this.payloadTransformer = payloadTransformer;
     this.payloadVisitConcurrency = payloadVisitConcurrency;
+    this.encodeReferences = encodeReferences;
   }
 
+  /** Stores the payloads of {@code builder}, leaving the references that replace them plain. */
   public void store(
       Message.Builder builder,
       @Nullable StorageDriverTargetInfo target,
       @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
       CancellationToken<CancellationException> cancellationToken) {
     store(builder, target, targetVisitor, cancellationToken, null);
+  }
+
+  /**
+   * Stores the payloads of {@code builder}, then encodes the references that replace them with
+   * {@code codec}.
+   *
+   * @param codec the codec that encoded the payloads of {@code builder}, or null if there is none
+   */
+  public void store(
+      Message.Builder builder,
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
+      @Nullable PayloadCodec codec,
+      CancellationToken<CancellationException> cancellationToken) {
+    getOrThrowIfCancelled(
+        storeAsync(builder, target, targetVisitor, codec, cancellationToken), cancellationToken);
+  }
+
+  /**
+   * Same as {@link #store(Message.Builder, StorageDriverTargetInfo, MessageVisitor, PayloadCodec,
+   * CancellationToken)}, without waiting.
+   */
+  public CompletableFuture<Void> storeAsync(
+      Message.Builder builder,
+      @Nullable StorageDriverTargetInfo target,
+      @Nullable MessageVisitor<StorageDriverTargetInfo> targetVisitor,
+      @Nullable PayloadCodec codec,
+      CancellationToken<CancellationException> cancellationToken) {
+    CompletableFuture<Void> stored =
+        storeAsync(builder, target, targetVisitor, cancellationToken, null);
+    return encodeReferences
+        ? stored.thenCompose(v -> ExternalStorageReferenceCodec.encode(builder, codec))
+        : stored;
+  }
+
+  /**
+   * Stores the payloads of {@code header}, then encodes the references that replace the fields
+   * named by {@code codecKeys} with {@code codec}.
+   *
+   * @param codecKeys the fields that {@code codec} encoded, because their producer opted in
+   */
+  public void storeHeader(
+      Header.Builder header,
+      Set<String> codecKeys,
+      @Nullable PayloadCodec codec,
+      @Nullable StorageDriverTargetInfo target,
+      CancellationToken<CancellationException> cancellationToken) {
+    store(header, target, null, cancellationToken);
+    if (encodeReferences) {
+      ExternalStorageReferenceCodec.encode(header, codecKeys, codec);
+    }
   }
 
   public void store(
@@ -79,9 +139,33 @@ public final class ExternalStorageRunner {
         builder, storeOptions(target, targetVisitor, cancellationToken, metrics));
   }
 
+  /**
+   * Retrieves the plain references in {@code message}, leaving any reference encoded with the
+   * payload codec in place.
+   */
   public <T extends Message> T retrieve(
       T message, CancellationToken<CancellationException> cancellationToken) {
     return retrieve(message, cancellationToken, null);
+  }
+
+  /**
+   * Decodes the references in {@code message} that were encoded with the payload codec, then
+   * retrieves every reference.
+   *
+   * @param codec the codec to decode the payloads of {@code message} with, or null if there is none
+   */
+  public <T extends Message> T retrieve(
+      T message,
+      @Nullable PayloadCodec codec,
+      CancellationToken<CancellationException> cancellationToken) {
+    Message.Builder builder = message.toBuilder();
+    if (!getOrThrowIfCancelled(
+        ExternalStorageReferenceCodec.decode(builder, codec), cancellationToken)) {
+      return message;
+    }
+    @SuppressWarnings("unchecked")
+    T decoded = (T) builder.build();
+    return retrieve(decoded, cancellationToken);
   }
 
   public <T extends Message> T retrieve(
@@ -101,14 +185,15 @@ public final class ExternalStorageRunner {
 
   /**
    * Throws {@link ExternalStorageNotConfiguredException} if {@code message} contains any reference
-   * payload. Used at inbound task boundaries when external storage is not configured.
+   * payload, encoded or not. Used at inbound task boundaries when external storage is not
+   * configured.
    */
   public static void throwIfContainsReference(Message message) {
     PayloadVisitorOptions<Void> options =
         PayloadVisitorOptions.<Void>newBuilder(
                 (context, payloads) -> {
                   for (Payload payload : payloads) {
-                    if (ExternalStorageReferences.isReference(payload)) {
+                    if (ExternalStorageReferences.isAnyReference(payload)) {
                       throw new ExternalStorageNotConfiguredException();
                     }
                   }

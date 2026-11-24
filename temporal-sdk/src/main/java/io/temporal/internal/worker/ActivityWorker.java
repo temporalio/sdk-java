@@ -9,12 +9,15 @@ import com.uber.m3.tally.Scope;
 import com.uber.m3.tally.Stopwatch;
 import com.uber.m3.util.Duration;
 import com.uber.m3.util.ImmutableMap;
+import io.temporal.activity.ActivityInfo;
 import io.temporal.api.command.v1.ScheduleActivityTaskCommandAttributesOrBuilder;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.workflowservice.v1.*;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.internal.activity.ActivityPollResponseToInfo;
+import io.temporal.internal.activity.ActivitySerializationContexts;
 import io.temporal.internal.common.FailureUtils;
+import io.temporal.internal.common.HeaderUtils;
 import io.temporal.internal.common.MetricsUtils;
 import io.temporal.internal.common.ProtobufTimeUtils;
 import io.temporal.internal.concurrent.structured.CancelSource;
@@ -27,6 +30,8 @@ import io.temporal.internal.payload.storage.ActivityStorageTargets;
 import io.temporal.internal.payload.storage.ExternalStorageRunner;
 import io.temporal.internal.retryer.GrpcRetryer;
 import io.temporal.internal.worker.ActivityTaskHandler.Result;
+import io.temporal.payload.codec.PayloadCodec;
+import io.temporal.payload.context.SerializationContext;
 import io.temporal.payload.storage.StorageDriverTargetInfo;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.WorkflowServiceStubs;
@@ -410,7 +415,7 @@ final class ActivityWorker implements SuspendableWorker {
       }
 
       try {
-        sendReply(taskToken, result, metricsScope, activityStorageTarget(pollResponse));
+        sendReply(taskToken, result, metricsScope, pollResponse);
       } catch (ExternalStorageTaskFailure e) {
         sendStorageFailure(taskToken, metricsScope, e.getCause());
         return result;
@@ -461,7 +466,7 @@ final class ActivityWorker implements SuspendableWorker {
         ByteString taskToken,
         ActivityTaskHandler.Result response,
         Scope metricsScope,
-        @Nullable StorageDriverTargetInfo storageTarget) {
+        PollActivityTaskQueueResponseOrBuilder pollResponse) {
       RespondActivityTaskCompletedRequest taskCompleted = response.getTaskCompleted();
       if (taskCompleted != null) {
         RespondActivityTaskCompletedRequest.Builder completedBuilder =
@@ -470,7 +475,7 @@ final class ActivityWorker implements SuspendableWorker {
                 .setIdentity(options.getIdentity())
                 .setNamespace(namespace)
                 .setWorkerVersion(options.workerVersionStamp());
-        storeOutboundPayloads(completedBuilder, storageTarget);
+        storeOutboundPayloads(completedBuilder, pollResponse);
         RespondActivityTaskCompletedRequest request = completedBuilder.build();
 
         grpcRetryer.retry(
@@ -492,7 +497,7 @@ final class ActivityWorker implements SuspendableWorker {
                   .setIdentity(options.getIdentity())
                   .setNamespace(namespace)
                   .setWorkerVersion(options.workerVersionStamp());
-          storeOutboundPayloads(failedBuilder, storageTarget);
+          storeOutboundPayloads(failedBuilder, pollResponse);
           RespondActivityTaskFailedRequest request = failedBuilder.build();
 
           grpcRetryer.retry(
@@ -511,7 +516,7 @@ final class ActivityWorker implements SuspendableWorker {
                     .setIdentity(options.getIdentity())
                     .setNamespace(namespace)
                     .setWorkerVersion(options.workerVersionStamp());
-            storeOutboundPayloads(canceledBuilder, storageTarget);
+            storeOutboundPayloads(canceledBuilder, pollResponse);
             RespondActivityTaskCanceledRequest request = canceledBuilder.build();
 
             grpcRetryer.retry(
@@ -541,20 +546,39 @@ final class ActivityWorker implements SuspendableWorker {
         ExternalStorageRunner.throwIfContainsReference(built);
         return task;
       }
+      ActivityInfo info = activityInfo(built);
+      // Heartbeat details were written with the result context and the rest of the task with the
+      // activity context. Both are in one message, so the details go first.
+      PollActivityTaskQueueResponse.Builder builder = built.toBuilder();
+      if (built.hasHeartbeatDetails()) {
+        builder.setHeartbeatDetails(
+            externalStorageRunner.retrieve(
+                built.getHeartbeatDetails(),
+                codec(ActivitySerializationContexts.result(namespace, info)),
+                storageCancellation.token()));
+      }
       return new ActivityTask(
-          externalStorageRunner.retrieve(built, storageCancellation.token()),
+          externalStorageRunner.retrieve(
+              builder.build(),
+              codec(ActivitySerializationContexts.activity(namespace, info)),
+              storageCancellation.token()),
           task.getPermit(),
           task.getCompletionCallback());
     }
 
     private void storeOutboundPayloads(
-        Message.Builder builder, @Nullable StorageDriverTargetInfo target) {
+        Message.Builder builder, PollActivityTaskQueueResponseOrBuilder pollResponse) {
       ExternalStorageRunner externalStorageRunner = options.getExternalStorageRunner();
       if (externalStorageRunner == null) {
         return;
       }
       try {
-        externalStorageRunner.store(builder, target, null, storageCancellation.token());
+        externalStorageRunner.store(
+            builder,
+            storageTargetForActivityTask(namespace, pollResponse),
+            null,
+            codec(ActivitySerializationContexts.result(namespace, activityInfo(pollResponse))),
+            storageCancellation.token());
       } catch (Throwable e) {
         throw new ExternalStorageTaskFailure("External storage store failed", e);
       }
@@ -601,13 +625,15 @@ final class ActivityWorker implements SuspendableWorker {
       return request;
     }
 
+    private ActivityInfo activityInfo(PollActivityTaskQueueResponseOrBuilder pollResponse) {
+      return ActivityPollResponseToInfo.toActivityInfoImpl(
+          pollResponse, namespace, taskQueue, false);
+    }
+
     @Nullable
-    private StorageDriverTargetInfo activityStorageTarget(
-        PollActivityTaskQueueResponseOrBuilder pollResponse) {
-      if (options.getExternalStorageRunner() == null) {
-        return null;
-      }
-      return storageTargetForActivityTask(namespace, pollResponse);
+    private PayloadCodec codec(SerializationContext context) {
+      return HeaderUtils.withContext(
+          HeaderUtils.resolveHeaderCodec(options.getDataConverter()), context);
     }
 
     private void logExceptionDuringResultReporting(

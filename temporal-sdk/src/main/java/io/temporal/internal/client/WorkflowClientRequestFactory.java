@@ -52,6 +52,7 @@ final class WorkflowClientRequestFactory {
       @Nonnull String workflowId,
       @Nonnull String workflowTypeName,
       @Nonnull io.temporal.common.interceptors.Header header,
+      @Nonnull io.temporal.common.interceptors.Header propagatedHeader,
       @Nonnull WorkflowOptions options,
       @Nullable Payloads inputArgs,
       @Nullable Memo memo,
@@ -153,13 +154,19 @@ final class WorkflowClientRequestFactory {
     Header grpcHeader =
         toHeaderGrpc(
             header,
-            HeaderUtils.fromContextPropagators(
-                MoreObjects.firstNonNull(options.getContextPropagators(), contextPropagators)),
+            propagatedHeader,
             HeaderUtils.withContext(
                 headerCodec, new WorkflowSerializationContext(namespace, workflowId)));
     request.setHeader(grpcHeader);
 
     return request;
+  }
+
+  /** Serializes the context of the propagators that {@code options} or the client configure. */
+  @Nonnull
+  io.temporal.common.interceptors.Header propagatedHeader(@Nonnull WorkflowOptions options) {
+    return HeaderUtils.fromContextPropagators(
+        MoreObjects.firstNonNull(options.getContextPropagators(), contextPropagators));
   }
 
   @Nonnull

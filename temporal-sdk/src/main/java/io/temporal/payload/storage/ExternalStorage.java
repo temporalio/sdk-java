@@ -1,5 +1,6 @@
 package io.temporal.payload.storage;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import io.temporal.common.Experimental;
 import java.util.ArrayList;
@@ -25,16 +26,19 @@ public final class ExternalStorage {
   private final @Nonnull StorageDriverSelector driverSelector;
   private final int payloadSizeThreshold;
   private final int maxConcurrentPayloadVisits;
+  private final boolean encodeReferences;
 
   private ExternalStorage(
       @Nonnull List<StorageDriver> drivers,
       @Nonnull StorageDriverSelector driverSelector,
       int payloadSizeThreshold,
-      int maxConcurrentPayloadVisits) {
+      int maxConcurrentPayloadVisits,
+      boolean encodeReferences) {
     this.drivers = Collections.unmodifiableList(new ArrayList<>(drivers));
     this.driverSelector = driverSelector;
     this.payloadSizeThreshold = payloadSizeThreshold;
     this.maxConcurrentPayloadVisits = maxConcurrentPayloadVisits;
+    this.encodeReferences = encodeReferences;
   }
 
   @Nonnull
@@ -63,11 +67,21 @@ public final class ExternalStorage {
     return maxConcurrentPayloadVisits;
   }
 
+  /**
+   * For internal use only, and may be removed at any time. Whether the references that replace
+   * stored payloads are encoded with the payload codec.
+   */
+  public boolean isEncodeReferences() {
+    return encodeReferences;
+  }
+
   public static final class Builder {
     private List<StorageDriver> drivers = Collections.emptyList();
     private StorageDriverSelector driverSelector;
     private int payloadSizeThreshold = ExternalStorage.DEFAULT_PAYLOAD_SIZE_THRESHOLD;
     private int maxConcurrentPayloadVisits = ExternalStorage.DEFAULT_MAX_CONCURRENT_PAYLOAD_VISITS;
+    // Off until readers that decode encoded references have had a release to roll out.
+    private boolean encodeReferences = false;
 
     private Builder() {}
 
@@ -106,6 +120,13 @@ public final class ExternalStorage {
       return this;
     }
 
+    /** For internal use only. Encodes references with the payload codec after storing. */
+    @VisibleForTesting
+    Builder setEncodeReferences(boolean encodeReferences) {
+      this.encodeReferences = encodeReferences;
+      return this;
+    }
+
     public ExternalStorage build() {
       Preconditions.checkState(!drivers.isEmpty(), "At least one driver must be provided");
       Preconditions.checkState(
@@ -127,7 +148,7 @@ public final class ExternalStorage {
         selector = (context, payload) -> driver;
       }
       return new ExternalStorage(
-          drivers, selector, payloadSizeThreshold, maxConcurrentPayloadVisits);
+          drivers, selector, payloadSizeThreshold, maxConcurrentPayloadVisits, encodeReferences);
     }
   }
 }

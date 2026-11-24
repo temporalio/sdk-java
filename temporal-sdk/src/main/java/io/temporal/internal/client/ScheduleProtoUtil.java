@@ -187,16 +187,23 @@ public class ScheduleProtoUtil {
         workflowRequest.setUserMetadata(userMetadata);
       }
 
+      io.temporal.common.interceptors.Header propagatedHeader =
+          HeaderUtils.fromContextPropagators(
+              MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators));
+      PayloadCodec workflowHeaderCodec =
+          HeaderUtils.withContext(
+              headerCodec, new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId()));
       Header grpcHeader =
-          toHeaderGrpc(
-              startWorkflowAction.getHeader(),
-              HeaderUtils.fromContextPropagators(
-                  MoreObjects.firstNonNull(wfOptions.getContextPropagators(), contextPropagators)),
-              HeaderUtils.withContext(
-                  headerCodec,
-                  new WorkflowSerializationContext(namespace, wfOptions.getWorkflowId())));
+          toHeaderGrpc(startWorkflowAction.getHeader(), propagatedHeader, workflowHeaderCodec);
       if (externalStorage != null) {
-        grpcHeader = storeHeader(externalStorage, grpcHeader, describedAction, storageTarget);
+        grpcHeader =
+            storeHeader(
+                externalStorage,
+                grpcHeader,
+                HeaderUtils.codecKeys(startWorkflowAction.getHeader(), propagatedHeader),
+                workflowHeaderCodec,
+                describedAction,
+                storageTarget);
       }
       workflowRequest.setHeader(grpcHeader);
 
@@ -537,6 +544,8 @@ public class ScheduleProtoUtil {
   private static Header storeHeader(
       ExternalStorageRunner externalStorage,
       Header header,
+      Set<String> codecKeys,
+      @Nullable PayloadCodec codec,
       @Nullable io.temporal.client.schedules.ScheduleAction describedAction,
       @Nullable StorageDriverWorkflowInfo storageTarget) {
     Map<String, Payload> described =
@@ -551,7 +560,8 @@ public class ScheduleProtoUtil {
             (key, value) ->
                 (value.equals(described.get(key)) ? unchanged : toStore).putFields(key, value));
     if (toStore.getFieldsCount() > 0) {
-      externalStorage.store(toStore, storageTarget, null, CancellationToken.none());
+      externalStorage.storeHeader(
+          toStore, codecKeys, codec, storageTarget, CancellationToken.none());
     }
     return toStore.putAllFields(unchanged.getFieldsMap()).build();
   }

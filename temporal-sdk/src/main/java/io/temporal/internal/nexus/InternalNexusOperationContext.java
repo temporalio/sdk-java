@@ -115,16 +115,16 @@ public class InternalNexusOperationContext {
   }
 
   /**
-   * Sets the serialization context describing the operation this task is for. Called by the task
-   * handler once the request variant has been inspected and the service and operation are known.
+   * Sets the serialization context describing the operation this task is for, or {@code null} if
+   * the request names no operation.
    */
-  public void setSerializationContext(NexusSerializationContext serializationContext) {
+  public void setSerializationContext(@Nullable NexusSerializationContext serializationContext) {
     this.serializationContext = serializationContext;
   }
 
   /**
-   * Serialization context for the operation this task is for, or {@code null} if the service and
-   * operation are not known yet.
+   * Serialization context for the operation this task is for, or {@code null} if the request names
+   * no operation.
    */
   public @Nullable NexusSerializationContext getSerializationContext() {
     return serializationContext;
