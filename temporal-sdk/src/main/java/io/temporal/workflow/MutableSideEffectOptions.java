@@ -52,7 +52,8 @@ public class MutableSideEffectOptions {
     }
 
     /**
-     * Event Groups to associate with the marker recorded by this call. Calls accumulate.
+     * Event Groups to associate with the marker recorded by this call, in addition to those in
+     * scope. Calls accumulate.
      *
      * @see EventGroup
      */

@@ -113,7 +113,8 @@ public final class NexusOperationOptions {
     }
 
     /**
-     * Event Groups to associate with this Nexus operation. Calls accumulate.
+     * Event Groups to associate with this Nexus operation, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */

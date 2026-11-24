@@ -52,7 +52,8 @@ public class SideEffectOptions {
     }
 
     /**
-     * Event Groups to associate with this side effect. Calls accumulate.
+     * Event Groups to associate with this side effect, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */

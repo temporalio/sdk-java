@@ -7,12 +7,8 @@ import io.temporal.common.converter.DataConverter;
 import io.temporal.common.converter.DefaultDataConverter;
 import io.temporal.common.converter.RawValue;
 import io.temporal.workflow.EventGroup;
-import java.util.ArrayList;
-import java.util.Collection;
+import io.temporal.workflow.Functions;
 import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -38,6 +34,30 @@ final class EventGroupImpl implements EventGroup {
     return label;
   }
 
+  @Override
+  public void run(Functions.Proc proc) {
+    run(
+        () -> {
+          proc.apply();
+          return null;
+        });
+  }
+
+  @Override
+  public <R> R run(Functions.Func<R> func) {
+    if (!WorkflowInternal.isWorkflowThread()) {
+      throw new IllegalStateException("Cannot be called by non workflow thread");
+    }
+    return EventGroupScope.current().withExplicitGroups(Collections.singletonList(this)).run(func);
+  }
+
+  /**
+   * Encoded per call. A group may be declared statically and shared by workflows whose data
+   * converters differ, for instance through a context-aware payload codec, so a cached marker could
+   * carry a label encoded for another workflow.
+   *
+   * @param dataConverter converter used to encode the label, including any payload codec
+   */
   EventGroupMarker toMarker(DataConverter dataConverter) {
     EventGroupMarker.Label.Builder labelMarker = EventGroupMarker.Label.newBuilder().setId(id);
     if (label != null) {
@@ -55,25 +75,5 @@ final class EventGroupImpl implements EventGroup {
   @Override
   public String toString() {
     return "EventGroup{" + "id='" + id + '\'' + ", label='" + label + '\'' + '}';
-  }
-
-  static List<EventGroupMarker> toMarkers(
-      Collection<EventGroup> groups, DataConverter dataConverter) {
-    if (groups.isEmpty()) {
-      return Collections.emptyList();
-    }
-    Map<String, EventGroupImpl> byId = new LinkedHashMap<>();
-    for (EventGroup group : groups) {
-      Preconditions.checkArgument(
-          group instanceof EventGroupImpl,
-          "Event groups must be created with Workflow.newEventGroup, got %s",
-          group);
-      byId.putIfAbsent(group.getId(), (EventGroupImpl) group);
-    }
-    List<EventGroupMarker> markers = new ArrayList<>(byId.size());
-    for (EventGroupImpl group : byId.values()) {
-      markers.add(group.toMarker(dataConverter));
-    }
-    return markers;
   }
 }

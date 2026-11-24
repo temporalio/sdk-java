@@ -1,22 +1,28 @@
 package io.temporal.workflow.nexus;
 
 import io.nexusrpc.Operation;
+import io.nexusrpc.OperationException;
 import io.nexusrpc.Service;
 import io.nexusrpc.handler.OperationHandler;
 import io.nexusrpc.handler.OperationImpl;
 import io.nexusrpc.handler.ServiceImpl;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowOptions;
+import io.temporal.failure.ApplicationFailure;
+import io.temporal.failure.NexusOperationFailure;
+import io.temporal.nexus.Nexus;
 import io.temporal.nexus.TemporalNexusClient;
 import io.temporal.nexus.TemporalOperation;
 import io.temporal.nexus.TemporalOperationHandler;
 import io.temporal.nexus.TemporalOperationResult;
-import io.temporal.nexus.TemporalOperationStartContext;
 import io.temporal.testing.CloudTestExclusion.RequiresCloudProvisioning;
 import io.temporal.testing.CloudTestExclusionNote;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import io.temporal.workflow.shared.TestWorkflows;
 import java.time.Duration;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,9 +36,16 @@ public class TemporalOperationAnnotationTest {
   @Rule
   public SDKTestWorkflowRule testWorkflowRule =
       SDKTestWorkflowRule.newBuilder()
-          .setWorkflowTypes(SugarCaller.class, MixedCaller.class, SugarTargetWorkflowImpl.class)
+          .setWorkflowTypes(
+              SugarCaller.class,
+              MixedCaller.class,
+              SugarTargetWorkflowImpl.class,
+              DirectCaller.class)
           .setNexusServiceImplementation(
-              new SugarServiceImpl(), new SyncSugarServiceImpl(), new MixedServiceImpl())
+              new SugarServiceImpl(),
+              new SyncSugarServiceImpl(),
+              new MixedServiceImpl(),
+              new DirectServiceImpl())
           .build();
 
   @Test
@@ -56,7 +69,64 @@ public class TemporalOperationAnnotationTest {
     Assert.assertEquals("workflow:mixed-input|legacy:legacy-input", stub.execute("mixed-input"));
   }
 
+  @Test
+  public void directReturn_serializesDeclaredOutput() {
+    DirectCallerWorkflow stub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(DirectCallerWorkflow.class);
+    List<Greeting> result = stub.execute("hi");
+    Assert.assertEquals(1, result.size());
+    Assert.assertEquals("direct:hi", result.get(0).message);
+  }
+
+  @Test
+  public void directReturn_nullOutputReachesCaller() {
+    DirectCallerWorkflow stub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(DirectCallerWorkflow.class);
+    Assert.assertNull(stub.execute("null-output"));
+  }
+
+  @Test
+  public void directReturn_propagatesOperationFailure() {
+    DirectCallerWorkflow stub =
+        testWorkflowRule.newWorkflowStubTimeoutOptions(DirectCallerWorkflow.class);
+    WorkflowFailedException failure =
+        Assert.assertThrows(WorkflowFailedException.class, () -> stub.execute("fail"));
+    Assert.assertTrue(failure.getCause() instanceof NexusOperationFailure);
+    Throwable operationError = failure.getCause().getCause();
+    Assert.assertTrue(operationError instanceof ApplicationFailure);
+    Assert.assertEquals("OperationError", ((ApplicationFailure) operationError).getType());
+    Throwable cause = operationError.getCause();
+    Assert.assertTrue(cause instanceof ApplicationFailure);
+    Assert.assertEquals(
+        IllegalArgumentException.class.getName(), ((ApplicationFailure) cause).getType());
+    Assert.assertEquals("direct failure", ((ApplicationFailure) cause).getOriginalMessage());
+  }
+
   // ----- Caller workflows -----
+
+  @WorkflowInterface
+  public interface DirectCallerWorkflow {
+    @WorkflowMethod
+    List<Greeting> execute(String input);
+  }
+
+  public static class DirectCaller implements DirectCallerWorkflow {
+    @Override
+    public List<Greeting> execute(String input) {
+      return Workflow.newNexusServiceStub(DirectService.class, defaultServiceOptions())
+          .greet(input);
+    }
+  }
+
+  public static class Greeting {
+    public String message;
+
+    public Greeting() {}
+
+    public Greeting(String message) {
+      this.message = message;
+    }
+  }
 
   @WorkflowInterface
   public interface SyncCallerWorkflow {
@@ -117,6 +187,27 @@ public class TemporalOperationAnnotationTest {
   // ----- Nexus services -----
 
   @Service
+  public interface DirectService {
+    @Operation
+    List<Greeting> greet(String input);
+  }
+
+  @ServiceImpl(service = DirectService.class)
+  public static class DirectServiceImpl {
+    @TemporalOperation
+    public List<Greeting> greet(TemporalNexusClient client, String input)
+        throws OperationException {
+      if ("fail".equals(input)) {
+        throw OperationException.failed(new IllegalArgumentException("direct failure"));
+      }
+      if ("null-output".equals(input)) {
+        return null;
+      }
+      return Collections.singletonList(new Greeting("direct:" + input));
+    }
+  }
+
+  @Service
   public interface SugarService {
     @Operation
     String start(String input);
@@ -140,21 +231,21 @@ public class TemporalOperationAnnotationTest {
   @ServiceImpl(service = SugarService.class)
   public static class SugarServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> start(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> start(TemporalNexusClient client, String input) {
       return client.startWorkflow(
           SugarTargetWorkflow.class,
           SugarTargetWorkflow::run,
           input,
-          WorkflowOptions.newBuilder().setWorkflowId("sugar-" + ctx.getRequestId()).build());
+          WorkflowOptions.newBuilder()
+              .setWorkflowId("sugar-" + Nexus.getOperationContext().getInfo().getRequestId())
+              .build());
     }
   }
 
   @ServiceImpl(service = SyncSugarService.class)
   public static class SyncSugarServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> greet(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> greet(TemporalNexusClient client, String input) {
       return TemporalOperationResult.sync("sync:" + input);
     }
   }
@@ -162,19 +253,20 @@ public class TemporalOperationAnnotationTest {
   @ServiceImpl(service = MixedService.class)
   public static class MixedServiceImpl {
     @TemporalOperation
-    public TemporalOperationResult<String> workflowOp(
-        TemporalOperationStartContext ctx, TemporalNexusClient client, String input) {
+    public TemporalOperationResult<String> workflowOp(TemporalNexusClient client, String input) {
       return client.startWorkflow(
           SugarTargetWorkflow.class,
           SugarTargetWorkflow::run,
           input,
-          WorkflowOptions.newBuilder().setWorkflowId("mixed-" + ctx.getRequestId()).build());
+          WorkflowOptions.newBuilder()
+              .setWorkflowId("mixed-" + Nexus.getOperationContext().getInfo().getRequestId())
+              .build());
     }
 
     @OperationImpl
     public OperationHandler<String, String> legacyOp() {
       return new TemporalOperationHandler<String, String>(
-          (ctx, client, input) -> TemporalOperationResult.sync("legacy:" + input)) {};
+          (client, input) -> TemporalOperationResult.sync("legacy:" + input)) {};
     }
   }
 }

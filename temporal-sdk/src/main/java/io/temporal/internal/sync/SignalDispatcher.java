@@ -96,8 +96,13 @@ class SignalDispatcher {
     boolean threadDestroyed = false;
     runningSignalHandlers.put(eventId, new SignalHandlerInfo(eventId, signalName, policy));
     try {
-      inboundCallsInterceptor.handleSignal(
-          new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId, header));
+      EventGroupScope.runInInboundEventScope(
+          eventId,
+          () -> {
+            inboundCallsInterceptor.handleSignal(
+                new WorkflowInboundCallsInterceptor.SignalInput(signalName, args, eventId, header));
+            return null;
+          });
     } catch (DestroyWorkflowThreadError e) {
       threadDestroyed = true;
       throw e;
@@ -131,9 +136,14 @@ class SignalDispatcher {
       WorkflowOutboundCallsInterceptor.RegisterDynamicSignalHandlerInput input) {
     dynamicSignalHandler = input.getHandler();
     for (SignalData signalData : signalBuffer) {
-      dynamicSignalHandler.handle(
-          signalData.getSignalName(),
-          new EncodedValues(signalData.getPayload(), dataConverterWithWorkflowContext));
+      EventGroupScope.runInInboundEventScope(
+          signalData.getEventId(),
+          () -> {
+            dynamicSignalHandler.handle(
+                signalData.getSignalName(),
+                new EncodedValues(signalData.getPayload(), dataConverterWithWorkflowContext));
+            return null;
+          });
     }
   }
 

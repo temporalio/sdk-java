@@ -24,11 +24,25 @@ to docs, or any other relevant information.
   `upsertTypedSearchAttributes(UpsertSearchAttributesOptions, ...)`, and
   `upsertMemo(Map, UpsertMemoOptions)` methods. Implementations that don't extend
   `WorkflowOutboundCallsInterceptorBase` need to add them, and Base subclasses override them to see calls with options.
+- **Experimental**: Temporal operation start handlers, including `@TemporalOperation` methods, now
+  accept only `(TemporalNexusClient, input)`. Cancellation overrides now accept only their typed
+  input. `TemporalOperationStartContext` and `TemporalOperationCancelContext` have been removed.
+  Use `Nexus.getOperationContext().getInfo()` for service, operation, a read-only handler
+  invocation cancellation token, and the start request ID (`getRequestId()`, which returns `null`
+  in cancel handlers).
+  Request headers remain available to interceptors. Callbacks and Nexus links are no longer exposed
+  to Temporal operation handlers.
 
 ### Added
 - Experimental Event Groups associate related workflow commands so their history events can be
-  viewed together. Create a group with `Workflow.newEventGroup` and attach it by calling
-  `addEventGroups` on the command's options.
+  viewed together. Create a group with `Workflow.newEventGroup` and attach it either by running
+  commands inside `EventGroup.run` or by calling `addEventGroups` on the command's options. Signal
+  and update handlers receive an implicit group for the signal event or update that invoked them.
+- `@TemporalOperation` methods can return their output directly for synchronous completion.
+  Existing methods returning `TemporalOperationResult`, including asynchronous results, remain
+  supported.
+- **Experimental**: Worker heartbeats now report the types of the external storage drivers configured
+  on the worker's client, listing each type once.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
@@ -37,11 +51,17 @@ to docs, or any other relevant information.
 ### Fixed
 - Graceful worker factory shutdown keeps the shared worker-command poller available while
   activities drain and lets supported servers complete its outstanding poll.
+- Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
+  target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
+  advertised maximum, additional polls of one queue type wait until the other has an active poll.
+  Unlike Core, Java does not use workflow cache size as a fallback slot bound.
 - `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
   includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
   credentials set through `setHeaders` no longer appear in logs.
 - The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
   as asynchronous.
+- Client request metrics (`temporal_long_request_latency` etc.) now always carry the `update_name` tag (default
+  `none`), fixing Prometheus tag-key conflicts when Workflow Updates are used (#3210).
 
 ## [1.41.1] - 2026-11-16
 
