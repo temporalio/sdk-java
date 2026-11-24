@@ -9,6 +9,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.Proxy;
 import java.net.SocketTimeoutException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -40,7 +41,7 @@ final class LambdaExtensionFetcher implements Fetcher {
 
   @Override
   public SecretValue fetch(String secretId) throws Exception {
-    URL url = new URL(endpoint + urlEncode(secretId));
+    URL url = URI.create(endpoint + urlEncode(secretId)).toURL();
     // No proxy, so that proxy settings never apply to requests to the local extension
     HttpURLConnection conn = (HttpURLConnection) url.openConnection(Proxy.NO_PROXY);
     conn.setConnectTimeout((int) FETCH_TIMEOUT_MILLIS);
