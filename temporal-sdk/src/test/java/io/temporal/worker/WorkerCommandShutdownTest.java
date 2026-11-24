@@ -38,13 +38,15 @@ public class WorkerCommandShutdownTest {
   }
 
   @Test(timeout = 20_000)
-  public void shutdownDrainsActivitiesBeforeCompletingCommandPoll() throws Exception {
+  public void shutdownDrainsActivitiesAndDoesNotSuppressReplacementCommandPoll() throws Exception {
     AtomicBoolean activityDispatched = new AtomicBoolean();
     CompletableFuture<Void> activityStarted = new CompletableFuture<>();
     CompletableFuture<Void> finishActivity = new CompletableFuture<>();
     CompletableFuture<Void> activityShutdownRequested = new CompletableFuture<>();
     CompletableFuture<PollNexusTaskQueueRequest> firstPollStarted = new CompletableFuture<>();
     CompletableFuture<PollNexusTaskQueueRequest> secondPollStarted = new CompletableFuture<>();
+    CompletableFuture<PollNexusTaskQueueRequest> replacementPollStarted = new CompletableFuture<>();
+    CompletableFuture<Void> replacementPollSuppressed = new CompletableFuture<>();
     CompletableFuture<Void> pollCancelled = new CompletableFuture<>();
     CompletableFuture<Void> completeFirstPoll = new CompletableFuture<>();
     CompletableFuture<Void> completeSecondPoll = new CompletableFuture<>();
@@ -113,7 +115,21 @@ public class WorkerCommandShutdownTest {
           public void pollNexusTaskQueue(
               PollNexusTaskQueueRequest request,
               StreamObserver<PollNexusTaskQueueResponse> response) {
-            boolean first = pollCount.incrementAndGet() == 1;
+            int pollNumber = pollCount.incrementAndGet();
+            if (pollNumber > 2) {
+              ShutdownWorkerRequest shutdown = shutdownRequested.getNow(null);
+              // Matching returns an empty response for late polls with a shut-down instance key.
+              if (shutdown != null
+                  && shutdown.getWorkerInstanceKey().equals(request.getWorkerInstanceKey())) {
+                replacementPollSuppressed.complete(null);
+                response.onNext(PollNexusTaskQueueResponse.getDefaultInstance());
+                response.onCompleted();
+              } else {
+                replacementPollStarted.complete(request);
+              }
+              return;
+            }
+            boolean first = pollNumber == 1;
             ((ServerCallStreamObserver<?>) response)
                 .setOnCancelHandler(() -> pollCancelled.complete(null));
             (first ? completeFirstPoll : completeSecondPoll)
@@ -141,7 +157,9 @@ public class WorkerCommandShutdownTest {
     WorkflowServiceStubs stubs =
         WorkflowServiceStubs.newServiceStubs(
             WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
-    WorkerFactory factory = WorkerFactory.newInstance(WorkflowClient.newInstance(stubs));
+    WorkflowClient client = WorkflowClient.newInstance(stubs);
+    WorkerFactory factory = WorkerFactory.newInstance(client);
+    WorkerFactory replacementFactory = WorkerFactory.newInstance(client);
     try {
       Worker worker =
           factory.newWorker(
@@ -189,10 +207,22 @@ public class WorkerCommandShutdownTest {
       assertTrue("Factory did not terminate", factory.isTerminated());
       assertFalse("Factory shutdown interrupted the command poll", pollCancelled.isDone());
       assertEquals(2, pollCount.get());
+
+      replacementFactory.start();
+      CompletableFuture.anyOf(replacementPollStarted, replacementPollSuppressed)
+          .get(5, TimeUnit.SECONDS);
+      assertFalse(
+          "Factory shutdown suppressed the replacement poll", replacementPollSuppressed.isDone());
+      assertEquals(
+          poll.getTaskQueue(), replacementPollStarted.get(5, TimeUnit.SECONDS).getTaskQueue());
     } finally {
       finishActivity.complete(null);
       if (!factory.isShutdown()) {
         factory.shutdownNow();
+      }
+      if (replacementFactory.isStarted()) {
+        replacementFactory.shutdownNow();
+        replacementFactory.awaitTermination(5, TimeUnit.SECONDS);
       }
       stubs.shutdownNow();
       server.shutdownNow();
