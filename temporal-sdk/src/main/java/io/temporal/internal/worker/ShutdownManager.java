@@ -127,26 +127,32 @@ public class ShutdownManager implements Closeable {
    */
   public CompletableFuture<Void> waitOnWorkerShutdownRequest(
       ListenableFuture<ShutdownWorkerResponse> shutdownRequest) {
-    CompletableFuture<Void> future = new CompletableFuture<>();
+    return waitOnWorkerShutdownRequestResult(shutdownRequest).thenApply(ignored -> null);
+  }
+
+  /** Reports whether the best-effort shutdown request succeeded. */
+  CompletableFuture<Boolean> waitOnWorkerShutdownRequestResult(
+      ListenableFuture<ShutdownWorkerResponse> shutdownRequest) {
+    CompletableFuture<Boolean> future = new CompletableFuture<>();
     shutdownRequest.addListener(
         () -> {
+          boolean succeeded = false;
           try {
             shutdownRequest.get();
+            succeeded = true;
           } catch (Exception e) {
-            if (e instanceof ExecutionException) {
-              e = (Exception) e.getCause();
-            }
-            if (e instanceof StatusRuntimeException) {
+            Throwable cause = e instanceof ExecutionException ? e.getCause() : e;
+            if (cause instanceof StatusRuntimeException) {
               // If the server does not support shutdown, ignore the exception
               if (Status.Code.UNIMPLEMENTED.equals(
-                      ((StatusRuntimeException) e).getStatus().getCode())
-                  || isChannelShutdownException((StatusRuntimeException) e)) {
+                      ((StatusRuntimeException) cause).getStatus().getCode())
+                  || isChannelShutdownException((StatusRuntimeException) cause)) {
                 return;
               }
             }
-            log.warn("failed to call shutdown worker", e);
+            log.warn("failed to call shutdown worker", cause);
           } finally {
-            future.complete(null);
+            future.complete(succeeded);
           }
         },
         this::executeOrRunDirect);

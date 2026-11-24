@@ -220,11 +220,13 @@ final class NexusWorker implements SuspendableWorker {
               .setReason("graceful shutdown")
               .addTaskQueueTypes(TaskQueueType.TASK_QUEUE_TYPE_NEXUS)
               .build();
+      CompletableFuture<Void> gracefulPollerShutdown = pollerShutdown;
       pollerShutdown =
-          CompletableFuture.allOf(
-              pollerShutdown,
-              shutdownManager.waitOnWorkerShutdownRequest(
-                  service.futureStub().shutdownWorker(request)));
+          shutdownManager
+              .waitOnWorkerShutdownRequestResult(service.futureStub().shutdownWorker(request))
+              .thenCompose(
+                  succeeded ->
+                      succeeded ? gracefulPollerShutdown : poller.shutdown(shutdownManager, true));
     }
     return pollerShutdown
         .thenCompose(

@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.protobuf.ByteString;
+import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import io.temporal.activity.ActivityInterface;
@@ -22,6 +23,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -53,30 +55,7 @@ public class WorkerCommandShutdownTest {
     CompletableFuture<ShutdownWorkerRequest> shutdownRequested = new CompletableFuture<>();
     AtomicInteger pollCount = new AtomicInteger();
     WorkflowServiceGrpc.WorkflowServiceImplBase service =
-        new WorkflowServiceGrpc.WorkflowServiceImplBase() {
-          @Override
-          public void getSystemInfo(
-              GetSystemInfoRequest request, StreamObserver<GetSystemInfoResponse> response) {
-            response.onNext(GetSystemInfoResponse.getDefaultInstance());
-            response.onCompleted();
-          }
-
-          @Override
-          public void describeNamespace(
-              DescribeNamespaceRequest request,
-              StreamObserver<DescribeNamespaceResponse> response) {
-            response.onNext(
-                DescribeNamespaceResponse.newBuilder()
-                    .setNamespaceInfo(
-                        NamespaceInfo.newBuilder()
-                            .setCapabilities(
-                                NamespaceInfo.Capabilities.newBuilder()
-                                    .setWorkerCommands(true)
-                                    .setWorkerPollCompleteOnShutdown(true)))
-                    .build());
-            response.onCompleted();
-          }
-
+        new WorkerCommandService() {
           @Override
           public void pollActivityTaskQueue(
               PollActivityTaskQueueRequest request,
@@ -226,6 +205,74 @@ public class WorkerCommandShutdownTest {
       }
       stubs.shutdownNow();
       server.shutdownNow();
+    }
+  }
+
+  @Test(timeout = 15_000)
+  public void shutdownInterruptsCommandPollWhenShutdownRpcFails() throws Exception {
+    CountDownLatch pollStarted = new CountDownLatch(1);
+    CountDownLatch pollCancelled = new CountDownLatch(1);
+    WorkerCommandService service =
+        new WorkerCommandService() {
+          @Override
+          public void pollNexusTaskQueue(
+              PollNexusTaskQueueRequest request,
+              StreamObserver<PollNexusTaskQueueResponse> response) {
+            ((ServerCallStreamObserver<?>) response).setOnCancelHandler(pollCancelled::countDown);
+            pollStarted.countDown();
+          }
+
+          @Override
+          public void shutdownWorker(
+              ShutdownWorkerRequest request, StreamObserver<ShutdownWorkerResponse> response) {
+            response.onError(Status.INTERNAL.asRuntimeException());
+          }
+        };
+    InProcessGRPCServer server = new InProcessGRPCServer(Collections.singletonList(service));
+    WorkflowServiceStubs stubs =
+        WorkflowServiceStubs.newServiceStubs(
+            WorkflowServiceStubsOptions.newBuilder().setChannel(server.getChannel()).build());
+    WorkerFactory factory = WorkerFactory.newInstance(WorkflowClient.newInstance(stubs));
+    try {
+      factory.start();
+      assertTrue("Command poll did not start", pollStarted.await(5, TimeUnit.SECONDS));
+
+      factory.shutdown();
+      assertTrue(
+          "Failed shutdown RPC did not cancel the poll", pollCancelled.await(5, TimeUnit.SECONDS));
+      factory.awaitTermination(5, TimeUnit.SECONDS);
+      assertTrue("Factory did not terminate", factory.isTerminated());
+    } finally {
+      if (!factory.isShutdown()) {
+        factory.shutdownNow();
+      }
+      stubs.shutdownNow();
+      server.shutdownNow();
+    }
+  }
+
+  private abstract static class WorkerCommandService
+      extends WorkflowServiceGrpc.WorkflowServiceImplBase {
+    @Override
+    public void getSystemInfo(
+        GetSystemInfoRequest request, StreamObserver<GetSystemInfoResponse> response) {
+      response.onNext(GetSystemInfoResponse.getDefaultInstance());
+      response.onCompleted();
+    }
+
+    @Override
+    public void describeNamespace(
+        DescribeNamespaceRequest request, StreamObserver<DescribeNamespaceResponse> response) {
+      response.onNext(
+          DescribeNamespaceResponse.newBuilder()
+              .setNamespaceInfo(
+                  NamespaceInfo.newBuilder()
+                      .setCapabilities(
+                          NamespaceInfo.Capabilities.newBuilder()
+                              .setWorkerCommands(true)
+                              .setWorkerPollCompleteOnShutdown(true)))
+              .build());
+      response.onCompleted();
     }
   }
 }
