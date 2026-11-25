@@ -71,6 +71,8 @@ public class MetricsTag {
         .put(SIGNAL_NAME, DEFAULT_VALUE)
         .put(QUERY_TYPE, DEFAULT_VALUE)
         .put(UPDATE_NAME, DEFAULT_VALUE)
+        .put(NEXUS_SERVICE, DEFAULT_VALUE)
+        .put(NEXUS_OPERATION, DEFAULT_VALUE)
         .put(TASK_QUEUE, DEFAULT_VALUE)
         .put(STATUS_CODE, DEFAULT_VALUE)
         .put(EXCEPTION, DEFAULT_VALUE)
