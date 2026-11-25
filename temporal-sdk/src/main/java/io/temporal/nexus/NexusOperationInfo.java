@@ -55,6 +55,8 @@ public interface NexusOperationInfo {
    * reason.
    *
    * <p>Cancellation callbacks may run on the Nexus timeout thread and must return promptly.
+   *
+   * <p>The SDK's default JSON converter omits the live token when serializing this info.
    */
   CancellationToken<CancellationException> getCancellationToken();
 }
