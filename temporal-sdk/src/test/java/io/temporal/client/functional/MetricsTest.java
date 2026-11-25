@@ -2,9 +2,12 @@ package io.temporal.client.functional;
 
 import static io.temporal.testUtils.Eventually.assertEventually;
 import static junit.framework.TestCase.*;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assume.assumeTrue;
 
 import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
+import io.grpc.StatusRuntimeException;
 import io.micrometer.core.instrument.*;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.temporal.activity.ActivityInterface;
@@ -12,15 +15,20 @@ import io.temporal.activity.ActivityMethod;
 import io.temporal.activity.LocalActivityOptions;
 import io.temporal.api.common.v1.WorkflowExecution;
 import io.temporal.api.enums.v1.WorkflowTaskFailedCause;
+import io.temporal.api.workflowservice.v1.GetSystemInfoRequest;
+import io.temporal.api.workflowservice.v1.RespondNexusTaskCompletedRequest;
 import io.temporal.client.*;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.failure.CanceledFailure;
 import io.temporal.serviceclient.MetricsTag;
 import io.temporal.serviceclient.MetricsType;
+import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflow.*;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -146,6 +154,51 @@ public class MetricsTest {
           assertIntCounter(1, registry.counter(MetricsType.TEMPORAL_REQUEST, startRequestTags));
           assertIntCounter(
               1, registry.counter(MetricsType.TEMPORAL_LONG_REQUEST, longPollRequestTags));
+        });
+  }
+
+  @Test
+  public void testNexusResponseMetricsHaveConsistentTagKeys() {
+    WorkflowServiceStubs service = testWorkflowRule.getWorkflowServiceStubs();
+    service.blockingStub().getSystemInfo(GetSystemInfoRequest.getDefaultInstance());
+
+    Map<String, String> nexusTags = new HashMap<>(MetricsTag.defaultTags(MetricsTag.DEFAULT_VALUE));
+    nexusTags.put(MetricsTag.NEXUS_SERVICE, "TestNexusService");
+    nexusTags.put(MetricsTag.NEXUS_OPERATION, "testOperation");
+    Scope nexusScope = service.getOptions().getMetricsScope().tagged(nexusTags);
+    // The test server rejects the empty task token, and the interceptor records the RPC.
+    assertThrows(
+        StatusRuntimeException.class,
+        () ->
+            service
+                .blockingStub()
+                .withOption(MetricsTag.METRICS_TAGS_CALL_OPTIONS_KEY, nexusScope)
+                .respondNexusTaskCompleted(RespondNexusTaskCompletedRequest.getDefaultInstance()));
+
+    assertEventually(
+        Duration.ofSeconds(2),
+        () -> {
+          for (String metric :
+              new String[] {MetricsType.TEMPORAL_REQUEST, MetricsType.TEMPORAL_REQUEST_LATENCY}) {
+            Meter ordinary =
+                registry.find(metric).tag(MetricsTag.OPERATION_NAME, "GetSystemInfo").meter();
+            Meter nexus =
+                registry
+                    .find(metric)
+                    .tag(MetricsTag.OPERATION_NAME, "RespondNexusTaskCompleted")
+                    .meter();
+            assertNotNull(ordinary);
+            assertNotNull(nexus);
+            assertEquals(
+                ordinary.getId().getTags().stream().map(Tag::getKey).collect(Collectors.toSet()),
+                nexus.getId().getTags().stream().map(Tag::getKey).collect(Collectors.toSet()));
+            assertEquals(
+                MetricsTag.DEFAULT_VALUE, ordinary.getId().getTag(MetricsTag.NEXUS_SERVICE));
+            assertEquals(
+                MetricsTag.DEFAULT_VALUE, ordinary.getId().getTag(MetricsTag.NEXUS_OPERATION));
+            assertEquals("TestNexusService", nexus.getId().getTag(MetricsTag.NEXUS_SERVICE));
+            assertEquals("testOperation", nexus.getId().getTag(MetricsTag.NEXUS_OPERATION));
+          }
         });
   }
 
