@@ -33,6 +33,21 @@ public final class Handler implements RequestHandler<Object, Void> {
 
 Connection options are loaded with `temporal-envconfig` when the handler is constructed during Lambda cold start. The Lambda worker checks `TEMPORAL_CONFIG_FILE` first, then `$LAMBDA_TASK_ROOT/temporal.toml`, then `./temporal.toml`, then falls back to the envconfig defaults and Temporal environment variables. The `configure` callback, passed as the second parameter to `LambdaWorker.define`, also runs during handler construction, so non-invocation configuration is prepared once and reused.
 
+### Credentials from AWS Secrets Manager
+
+To keep credentials out of environment variables and the Lambda package, store them in AWS Secrets Manager and configure only the secret IDs (names or ARNs). The [`temporal-aws-secrets-manager`](../temporal-aws-secrets-manager) envconfig extension is always enabled, so no code changes are needed:
+
+| Environment variable | TOML (under `profile.<profile>.ext.aws_secrets_manager`) |
+|---|---|
+| `TEMPORAL_EXT_AWS_SECRETS_MANAGER_API_KEY_ID` | `api_key_id` |
+| `TEMPORAL_EXT_AWS_SECRETS_MANAGER_TLS_CLIENT_CERT_ID` | `tls.client_cert_id` |
+| `TEMPORAL_EXT_AWS_SECRETS_MANAGER_TLS_CLIENT_KEY_ID` | `tls.client_key_id` |
+| `TEMPORAL_EXT_AWS_SECRETS_MANAGER_TLS_SERVER_CA_CERT_ID` | `tls.server_ca_cert_id` |
+
+Secrets are fetched through the [AWS Parameters and Secrets Lambda Extension](https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets_lambda.html) if the function has it. Otherwise they are fetched directly with the AWS SDK for Java 2.x, an optional dependency that you add yourself: add `software.amazon.awssdk:secretsmanager` to your function's dependencies. Either way they are cached across warm invocations. The Lambda execution role needs `secretsmanager:GetSecretValue` on the configured secrets. Client keys must be PKCS#8, as for envconfig. See the [`temporal-aws-secrets-manager` README](../temporal-aws-secrets-manager) for the full set of options, validation rules, caching behavior, and observability metrics.
+
+When secret IDs are configured, the extension adds a plugin to the service stubs options. To add your own service stubs plugins, keep the existing ones rather than replacing them with `setPlugins`.
+
 Use the per-invocation configuration overload when final options depend on the Lambda `Context` or on resources opened for one invocation. The cold-start `configure` callback passed as the second parameter to `LambdaWorker.define` still runs once; the invocation callback runs before Temporal service stubs, client, and worker are created:
 
 ```java

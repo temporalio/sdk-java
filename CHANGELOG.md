@@ -43,6 +43,10 @@ to docs, or any other relevant information.
   supported.
 - **Experimental**: Worker heartbeats now report the types of the external storage drivers configured
   on the worker's client, listing each type once.
+- Added the experimental `temporal-aws-secrets-manager` module, a `temporal-envconfig` extension that loads the client
+  API key and mTLS material from AWS Secrets Manager secret IDs.
+- `temporal-aws-lambda` now loads Temporal client credentials from AWS Secrets Manager when secret IDs are configured
+  with `TEMPORAL_EXT_AWS_SECRETS_MANAGER_*` environment variables or in the TOML config.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,
