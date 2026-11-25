@@ -20,6 +20,7 @@ import io.temporal.worker.tuning.FixedSizeSlotSupplier;
 import io.temporal.worker.tuning.NexusSlotInfo;
 import io.temporal.worker.tuning.PollerBehaviorSimpleMaximum;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
@@ -56,7 +57,8 @@ public final class WorkerCommandTaskHandler implements NexusTaskHandler {
         SingleWorkerOptions.newBuilder()
             .setIdentity(identity)
             .setBuildId(Version.LIBRARY_VERSION)
-            .setWorkerInstanceKey(workerGroupingKey)
+            // Factories sharing the command queue must shut down their pollers independently.
+            .setWorkerInstanceKey(UUID.randomUUID().toString())
             .setDataConverter(dataConverter)
             .setMetricsScope(metricsScope)
             .setPollerOptions(

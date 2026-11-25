@@ -472,13 +472,24 @@ public final class WorkerFactory {
         shutdownFutures.add(futureHolder[0]);
       }
     }
-    if (workerCommandWorker != null) {
-      // TODO: Should be able to pass `interruptUserTasks` here when
-      // https://github.com/temporalio/api/pull/784 is in
+    boolean drainBeforeStoppingCommands =
+        workerCommandWorker != null
+            && !interruptUserTasks
+            && namespaceCapabilities.isGracefulPollShutdown();
+    if (workerCommandWorker != null && !drainBeforeStoppingCommands) {
       shutdownFutures.add(workerCommandWorker.shutdown(shutdownManager, true));
     }
 
-    CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]))
+    CompletableFuture<Void> workersShutdown =
+        CompletableFuture.allOf(shutdownFutures.toArray(new CompletableFuture[0]));
+    if (drainBeforeStoppingCommands) {
+      // Keep processing worker commands until the regular workers finish draining.
+      workersShutdown =
+          workersShutdown.thenCompose(
+              ignored -> workerCommandWorker.shutdown(shutdownManager, false));
+    }
+
+    workersShutdown
         .thenApply(
             r -> {
               // Unregister workers from heartbeat manager only after full shutdown,

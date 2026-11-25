@@ -53,6 +53,8 @@ to docs, or any other relevant information.
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- Graceful worker factory shutdown keeps the shared worker-command poller available while
+  activities drain and lets supported servers complete its outstanding poll.
 - Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
   target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
   advertised maximum, additional polls of one queue type wait until the other has an active poll.
