@@ -39,7 +39,8 @@ public final class UpsertMemoOptions {
     }
 
     /**
-     * Event Groups to associate with the memo update. Calls accumulate.
+     * Event Groups to associate with the memo update, in addition to those in scope. Calls
+     * accumulate.
      *
      * @see EventGroup
      */

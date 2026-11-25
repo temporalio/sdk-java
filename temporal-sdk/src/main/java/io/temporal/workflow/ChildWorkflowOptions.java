@@ -335,8 +335,8 @@ public final class ChildWorkflowOptions {
     }
 
     /**
-     * Event Groups to associate with the commands that start and cancel this child workflow. Calls
-     * accumulate.
+     * Event Groups to associate with the commands that start and cancel this child workflow, in
+     * addition to those in scope. Calls accumulate.
      *
      * @see EventGroup
      */
