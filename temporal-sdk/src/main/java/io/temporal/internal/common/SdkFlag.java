@@ -66,6 +66,16 @@ public enum SdkFlag {
    * Bug: https://github.com/temporalio/sdk-java/issues/3163
    */
   MUTABLE_SIDE_EFFECT_REPLAY_RECOVERY(7),
+  /*
+   * Removes buffered signals before delivering them to a registered handler.
+   *
+   * Introduced: 1.41.0
+   *
+   * Enabled: (pending)
+   *
+   * Bug: https://github.com/temporalio/sdk-java/issues/3189
+   */
+  CONSUME_BUFFERED_SIGNALS(8),
   UNKNOWN(Integer.MAX_VALUE);
 
   private final int value;
