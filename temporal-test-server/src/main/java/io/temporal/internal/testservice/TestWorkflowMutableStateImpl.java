@@ -2227,7 +2227,11 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
           try {
             // TODO this lock is getting releases somewhere on the activity completion.
             // We should rework it on passing the lockHandle downstream and using it for the release
-            update(ctx1 -> ctx1.addActivityTask(data.activityTask));
+            update(
+                ctx1 -> {
+                  data.activityTask.getTask().setCurrentAttemptScheduledTime(ctx1.currentTime());
+                  ctx1.addActivityTask(data.activityTask);
+                });
           } catch (StatusRuntimeException e) {
             // NOT_FOUND is expected as timers are not removed
             if (e.getStatus().getCode() != Status.Code.NOT_FOUND) {

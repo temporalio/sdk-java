@@ -49,6 +49,7 @@ to docs, or any other relevant information.
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- The in-memory test server now reports the scheduled time of activity retries after their backoff.
 - Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
   target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
   advertised maximum, additional polls of one queue type wait until the other has an active poll.

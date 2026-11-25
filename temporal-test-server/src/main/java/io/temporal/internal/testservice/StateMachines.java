@@ -2255,7 +2255,6 @@ class StateMachines {
             data.retryState = nextAttempt;
             data.lastAttemptCompleteTime = ctx.currentTime();
             task.setAttempt(nextAttempt.getAttempt());
-            task.setCurrentAttemptScheduledTime(ctx.currentTime());
           });
     } else {
       data.nextBackoffInterval = Durations.ZERO;
