@@ -64,6 +64,8 @@ to docs, or any other relevant information.
   as asynchronous.
 - Client request metrics (`temporal_long_request_latency` etc.) now always carry the `update_name` tag (default
   `none`), fixing Prometheus tag-key conflicts when Workflow Updates are used (#3210).
+- The default JSON converter omits the live cancellation token from `NexusOperationInfo`,
+  avoiding an extra cancellation callback each time an application serializes the info.
 
 ## [1.41.1] - 2026-11-16
 

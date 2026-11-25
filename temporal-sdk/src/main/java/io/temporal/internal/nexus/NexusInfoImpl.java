@@ -1,5 +1,6 @@
 package io.temporal.internal.nexus;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.temporal.common.CancellationToken;
 import io.temporal.nexus.NexusOperationInfo;
 import java.util.concurrent.CancellationException;
@@ -62,6 +63,7 @@ class NexusInfoImpl implements NexusOperationInfo {
   }
 
   @Override
+  @JsonIgnore
   public CancellationToken<CancellationException> getCancellationToken() {
     return cancellationToken;
   }
