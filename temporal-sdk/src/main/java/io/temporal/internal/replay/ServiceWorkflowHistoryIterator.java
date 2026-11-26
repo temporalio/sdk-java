@@ -90,7 +90,8 @@ class ServiceWorkflowHistoryIterator implements WorkflowHistoryIterator {
       if (externalStorageRunner == null) {
         ExternalStorageRunner.throwIfContainsReference(history);
       } else {
-        history = externalStorageRunner.retrieve(history, storageCancellation, downloadMetrics);
+        history =
+            externalStorageRunner.retrieveForReplay(history, storageCancellation, downloadMetrics);
       }
       current = history.getEventsList().iterator();
       nextPageToken = response.getNextPageToken();

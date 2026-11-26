@@ -196,7 +196,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
       return workflowTask;
     }
     return externalStorageRunner
-        .retrieve(workflowTask.build(), options.getStorageCancellation(), downloadMetrics)
+        .retrieveForReplay(workflowTask.build(), options.getStorageCancellation(), downloadMetrics)
         .toBuilder();
   }
 
@@ -435,7 +435,7 @@ public final class ReplayWorkflowTaskHandler implements WorkflowTaskHandler {
         ExternalStorageRunner.throwIfContainsReference(getHistoryResponse);
       } else {
         getHistoryResponse =
-            externalStorageRunner.retrieve(
+            externalStorageRunner.retrieveForReplay(
                 getHistoryResponse, options.getStorageCancellation(), downloadMetrics);
       }
       workflowTask
