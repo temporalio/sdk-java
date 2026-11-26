@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 public final class Async {
 
   /**
-   * Invokes zero argument function asynchronously.
+   * Invokes a zero-argument function asynchronously.
    *
    * @param function Function to execute asynchronously
    * @return promise that contains function result or failure
@@ -20,7 +20,7 @@ public final class Async {
   }
 
   /**
-   * Invokes one argument function asynchronously.
+   * Invokes a one-argument function asynchronously.
    *
    * @param function Function to execute asynchronously
    * @param arg1 first function argument
