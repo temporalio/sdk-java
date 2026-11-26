@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.Assert;
@@ -58,6 +59,25 @@ public class ScheduleTest {
       }
       testWorkflowRule.sleep(Duration.ofSeconds(1));
     }
+  }
+
+  private List<ScheduleListDescription> listMatchingSchedulesEventually(
+      Supplier<Stream<ScheduleListDescription>> listSchedules,
+      String idPrefix,
+      int expectedCount,
+      long visibilityDeadlineNanos) {
+    return Eventually.assertEventually(
+        Duration.ofNanos(Math.max(0, visibilityDeadlineNanos - System.nanoTime())),
+        () -> {
+          try (Stream<ScheduleListDescription> schedules = listSchedules.get()) {
+            List<ScheduleListDescription> matching =
+                schedules
+                    .filter(schedule -> schedule.getScheduleId().startsWith(idPrefix))
+                    .collect(Collectors.toList());
+            Assert.assertEquals(expectedCount, matching.size());
+            return matching;
+          }
+        });
   }
 
   private Schedule.Builder createTestSchedule() {
@@ -552,6 +572,8 @@ public class ScheduleTest {
       "Cloud CI does not provision the custom search attribute used by this test.")
   @Category(RequiresCloudProvisioning.class)
   public void listSchedules() {
+    // Share one visibility retry budget across all listings within the test's 10-second timeout.
+    long visibilityDeadlineNanos = System.nanoTime() + Duration.ofSeconds(5).toNanos();
     ScheduleClient client = createScheduleClient();
     // Create the schedule
     ScheduleOptions.Builder optionsBuilder =
@@ -568,15 +590,9 @@ public class ScheduleTest {
     String scheduleIdPrefix = UUID.randomUUID().toString();
     String scheduleId = scheduleIdPrefix + "/" + UUID.randomUUID();
     ScheduleHandle handle = client.createSchedule(scheduleId, schedule, options);
-    // Add delay for schedules to appear
-    testWorkflowRule.sleep(Duration.ofSeconds(2));
-    // List all schedules and filter
-    Stream<ScheduleListDescription> scheduleStream = client.listSchedules();
     List<ScheduleListDescription> listedSchedules =
-        scheduleStream
-            .filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix))
-            .collect(Collectors.toList());
-    Assert.assertEquals(1, listedSchedules.size());
+        listMatchingSchedulesEventually(
+            client::listSchedules, scheduleIdPrefix, 1, visibilityDeadlineNanos);
     // Verify the schedule description
     ScheduleListDescription listDescription = listedSchedules.get(0);
     Assert.assertEquals("memoval2", listDescription.getMemo("memokey2", String.class));
@@ -607,25 +623,19 @@ public class ScheduleTest {
     optionsBuilder = optionsBuilder.setTypedSearchAttributes(null);
     client.createSchedule(scheduleIdPrefix + UUID.randomUUID(), schedule, optionsBuilder.build());
     client.createSchedule(scheduleIdPrefix + UUID.randomUUID(), schedule, optionsBuilder.build());
-    // Add delay for schedules to appear
-    testWorkflowRule.sleep(Duration.ofSeconds(2));
-    // List all schedules and filter
-    scheduleStream = client.listSchedules(10);
-    long listedSchedulesCount =
-        scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
-    Assert.assertEquals(3, listedSchedulesCount);
+    listMatchingSchedulesEventually(
+        () -> client.listSchedules(10), scheduleIdPrefix, 3, visibilityDeadlineNanos);
     // List all schedules with a null filter
-    scheduleStream = client.listSchedules(null, 10);
-    listedSchedulesCount =
-        scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
-    Assert.assertEquals(3, listedSchedulesCount);
+    listMatchingSchedulesEventually(
+        () -> client.listSchedules(null, 10), scheduleIdPrefix, 3, visibilityDeadlineNanos);
     // List schedules with a query
-    scheduleStream = client.listSchedules("CustomKeywordField = 'keyword'", null);
-    listedSchedulesCount =
-        scheduleStream.filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix)).count();
-    Assert.assertEquals(1, listedSchedulesCount);
+    listMatchingSchedulesEventually(
+        () -> client.listSchedules("CustomKeywordField = 'keyword'", null),
+        scheduleIdPrefix,
+        1,
+        visibilityDeadlineNanos);
     // Cleanup all schedules
-    scheduleStream = client.listSchedules(null, null);
+    Stream<ScheduleListDescription> scheduleStream = client.listSchedules(null, null);
     scheduleStream
         .filter(s -> s.getScheduleId().startsWith(scheduleIdPrefix))
         .forEach(
@@ -635,45 +645,52 @@ public class ScheduleTest {
   }
 
   @Test
+  public void listSchedulesPreservesResultsThroughInterceptor() {
+    long visibilityDeadlineNanos = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+    ScheduleClient client =
+        createScheduleClient(
+            new TracingScheduleInterceptor(new TracingScheduleInterceptor.FilteredTrace()));
+    String scheduleId = UUID.randomUUID().toString();
+    ScheduleHandle handle =
+        client.createSchedule(
+            scheduleId, createTestSchedule().build(), ScheduleOptions.newBuilder().build());
+    try {
+      List<ScheduleListDescription> schedules =
+          listMatchingSchedulesEventually(
+              client::listSchedules, scheduleId, 1, visibilityDeadlineNanos);
+      Assert.assertEquals(scheduleId, schedules.get(0).getScheduleId());
+    } finally {
+      handle.delete();
+    }
+  }
+
+  @Test
   public void testInterceptors() {
     TracingScheduleInterceptor.FilteredTrace ft = new TracingScheduleInterceptor.FilteredTrace();
     String scheduleId = UUID.randomUUID().toString();
     TracingScheduleInterceptor interceptor = new TracingScheduleInterceptor(ft);
-    interceptor.setExpected(
-        "createSchedule: " + scheduleId,
-        "listSchedules",
-        "describeSchedule: " + scheduleId,
-        "pauseSchedule: " + scheduleId,
-        "unpauseSchedule: " + scheduleId,
-        "triggerSchedule: " + scheduleId,
-        "backfillSchedule: " + scheduleId,
-        "describeSchedule: " + scheduleId, // Updating a schedule implicitly calls describe.
-        "updateSchedule: " + scheduleId,
-        "deleteSchedule: " + scheduleId);
+    List<String> expectedTrace =
+        Arrays.asList(
+            "createSchedule: " + scheduleId,
+            "listSchedules",
+            "describeSchedule: " + scheduleId,
+            "pauseSchedule: " + scheduleId,
+            "unpauseSchedule: " + scheduleId,
+            "triggerSchedule: " + scheduleId,
+            "backfillSchedule: " + scheduleId,
+            "describeSchedule: " + scheduleId, // Updating a schedule implicitly calls describe.
+            "updateSchedule: " + scheduleId,
+            "deleteSchedule: " + scheduleId);
     ScheduleClient client = createScheduleClient(interceptor);
     ScheduleHandle handle =
         client.createSchedule(
             scheduleId, createTestSchedule().build(), ScheduleOptions.newBuilder().build());
     try {
-      // Wait for the eventually consistent schedule list without recording extra interceptor calls.
-      ScheduleClient visibilityClient = createScheduleClient();
-      Eventually.assertEventually(
-          Duration.ofSeconds(30),
-          () -> {
-            long matchingSchedules =
-                visibilityClient
-                    .listSchedules()
-                    .filter(s -> s.getScheduleId().equals(scheduleId))
-                    .count();
-            Assert.assertEquals(1, matchingSchedules);
-          });
-      // List all schedules and filter.
-      Stream<ScheduleListDescription> scheduleStream = client.listSchedules();
-      List<ScheduleListDescription> listedSchedules =
-          scheduleStream
-              .filter(s -> s.getScheduleId().equals(scheduleId))
-              .collect(Collectors.toList());
-      Assert.assertEquals(1, listedSchedules.size());
+      // Consume the lazy stream to exercise listing without depending on schedule visibility.
+      // The listSchedules test checks the contents of the eventually consistent listing.
+      try (Stream<ScheduleListDescription> scheduleStream = client.listSchedules()) {
+        scheduleStream.forEach(description -> {});
+      }
       // Verify the schedule description
       handle.describe();
       handle.pause();
@@ -684,7 +701,7 @@ public class ScheduleTest {
     } finally {
       handle.delete();
     }
-    interceptor.assertExpected();
+    Assert.assertEquals(expectedTrace, ft.getImpl());
   }
 
   public static class QuickWorkflowImpl implements TestWorkflows.TestWorkflow1 {
