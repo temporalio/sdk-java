@@ -1835,7 +1835,7 @@ class TestWorkflowMutableStateImpl implements TestWorkflowMutableState {
       }
 
       String serializedRef = cb.getNexus().getHeaderOrThrow("operation-reference");
-      NexusOperationRef ref = NexusOperationRef.fromBytes(serializedRef.getBytes());
+      NexusOperationRef ref = NexusOperationRef.fromHeaderValue(serializedRef);
 
       io.temporal.api.nexus.v1.Link startLink =
           workflowEventToNexusLink(
