@@ -47,6 +47,7 @@ to docs, or any other relevant information.
   API key and mTLS material from AWS Secrets Manager secret IDs.
 - `temporal-aws-lambda` now loads Temporal client credentials from AWS Secrets Manager when secret IDs are configured
   with `TEMPORAL_EXT_AWS_SECRETS_MANAGER_*` environment variables or in the TOML config.
+- `workflowcheck check` can load a rules file from `TEMPORAL_WORKFLOWCHECK_CONFIG`.
 
 ### Changed
 - Updated Cloud API bindings to v0.27.0, including opt-in user group memberships, projects,

@@ -37,7 +37,9 @@ public class Main {
           "Analyze Temporal workflows for common mistakes.\n"
               + "\n"
               + "Usage:\n"
-              + "  workflowcheck check <classpath...> [--config <config-file>] [--no-default-config] [--show-valid]");
+              + "  workflowcheck check <classpath...> [--config <config-file>] [--no-default-config] [--show-valid]\n"
+              + "\n"
+              + "Set TEMPORAL_WORKFLOWCHECK_CONFIG to load a configuration file before any --config files.");
       return 0;
     }
     // Args list that removes options as encountered
@@ -48,6 +50,10 @@ public class Main {
     if (!argsList.remove("--no-default-config")) {
       configProps.add(Config.defaultProperties());
     }
+    String environmentConfig = System.getenv("TEMPORAL_WORKFLOWCHECK_CONFIG");
+    if (environmentConfig != null && !environmentConfig.isEmpty()) {
+      configProps.add(loadProperties(environmentConfig));
+    }
     while (true) {
       int configIndex = argsList.indexOf("--config");
       if (configIndex == -1) {
@@ -57,11 +63,7 @@ public class Main {
         return 1;
       }
       argsList.remove(configIndex);
-      Properties props = new Properties();
-      try (FileInputStream is = new FileInputStream(argsList.remove(configIndex))) {
-        props.load(is);
-      }
-      configProps.add(props);
+      configProps.add(loadProperties(argsList.remove(configIndex)));
     }
 
     // Whether we should also show valid
@@ -112,6 +114,14 @@ public class Main {
       }
     }
     return anyInvalidImpls ? 1 : 0;
+  }
+
+  private static Properties loadProperties(String path) throws IOException {
+    Properties props = new Properties();
+    try (FileInputStream is = new FileInputStream(path)) {
+      props.load(is);
+    }
+    return props;
   }
 
   private static int prebuildConfig(String[] args) {
