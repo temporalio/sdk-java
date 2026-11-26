@@ -61,6 +61,9 @@ interface TestWorkflowMutableState {
 
   void childWorkflowCanceled(String workflowId, ChildWorkflowExecutionCanceledEventAttributes a);
 
+  void childWorkflowTerminated(
+      String workflowId, ChildWorkflowExecutionTerminatedEventAttributes a);
+
   @Nullable
   PollWorkflowTaskQueueResponse startWorkflow(
       boolean continuedAsNew,
