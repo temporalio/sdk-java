@@ -62,6 +62,9 @@ to docs, or any other relevant information.
   credentials set through `setHeaders` no longer appear in logs.
 - The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
   as asynchronous.
+- Concurrent Nexus operations on the same worker no longer risk being executed by another
+  operation's handler. The shared Nexus interceptor middleware kept each request's root
+  interceptor in an instance field, which a concurrent request could overwrite.
 - Client request metrics (`temporal_long_request_latency` etc.) now always carry the `update_name` tag (default
   `none`), fixing Prometheus tag-key conflicts when Workflow Updates are used (#3210).
 
