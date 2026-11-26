@@ -43,6 +43,10 @@ to docs, or any other relevant information.
   supported.
 - **Experimental**: Worker heartbeats now report the types of the external storage drivers configured
   on the worker's client, listing each type once.
+- Added the experimental `temporal-aws-secrets-manager` module, a `temporal-envconfig` extension that loads the client
+  API key and mTLS material from AWS Secrets Manager secret IDs.
+- `temporal-aws-lambda` now loads Temporal client credentials from AWS Secrets Manager when secret IDs are configured
+  with `TEMPORAL_EXT_AWS_SECRETS_MANAGER_*` environment variables or in the TOML config.
 - `workflowcheck check` can load a rules file from `TEMPORAL_WORKFLOWCHECK_CONFIG`.
 
 ### Changed
@@ -50,11 +54,17 @@ to docs, or any other relevant information.
   project-scoped custom roles, and caller rate limits.
 
 ### Fixed
+- Autoscaling workflow pollers now prioritize meaningful sticky backlog up to the sticky pool's
+  target and use advertised slot capacity to balance sticky and non-sticky admission. Without an
+  advertised maximum, additional polls of one queue type wait until the other has an active poll.
+  Unlike Core, Java does not use workflow cache size as a fallback slot bound.
 - `toString()` of `WorkflowServiceStubsOptions`, `OperatorServiceStubsOptions` and `CloudServiceStubsOptions` now
   includes the fields inherited from `ServiceStubsOptions`. gRPC headers are rendered by name only, so values such as
   credentials set through `setHeaders` no longer appear in logs.
 - The JavaDoc of `WorkflowClient.startUpdate` and `WorkflowClient.startUpdateWithStart` no longer describes these calls
   as asynchronous.
+- Client request metrics (`temporal_long_request_latency` etc.) now always carry the `update_name` tag (default
+  `none`), fixing Prometheus tag-key conflicts when Workflow Updates are used (#3210).
 
 ## [1.41.1] - 2026-11-16
 

@@ -9,6 +9,11 @@ import javax.annotation.Nullable;
  *
  * <p>If the server does not support autoscaling, then the number of pollers will stay at the
  * initial number of pollers.
+ *
+ * <p>Sticky and non-sticky workflow queues scale independently while sharing execution slots.
+ * Admission prioritizes a meaningful sticky backlog while the sticky pool is below its target,
+ * without blocking the first poll of either queue type. If the slot supplier does not advertise a
+ * maximum, additional polls of one queue type wait until the other has an active poll.
  */
 public final class PollerBehaviorAutoscaling implements PollerBehavior {
   private final int minConcurrentTaskPollers;
