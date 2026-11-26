@@ -9,6 +9,12 @@ import io.temporal.testing.internal.SDKTestWorkflowRule;
 import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflow;
 import io.temporal.workflowstreams.SubscribeTestWorkflows.SubscribeHostWorkflowImpl;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -201,6 +207,57 @@ public class SubscribeTest {
       subscription.close();
       Assert.assertFalse(subscription.hasNext());
     }
+    stub.signal("finish");
+    stub.getResult(Void.class);
+  }
+
+  /**
+   * Two clients share one user-supplied publish executor. Neither calls flush: the background flush
+   * loop running on the shared executor must deliver both items, and closing both clients must
+   * leave the executor — which the caller owns — running.
+   */
+  @Test
+  public void testUserPublishExecutorSharedAcrossClients() throws Exception {
+    WorkflowStub stub = startHostWorkflow();
+    ScheduledExecutorService publishExecutor =
+        Executors.newSingleThreadScheduledExecutor(
+            r -> {
+              Thread t = new Thread(r, "user-publish-executor");
+              t.setDaemon(true);
+              return t;
+            });
+    WorkflowStreamClientOptions options =
+        WorkflowStreamClientOptions.newBuilder()
+            .setBatchInterval(Duration.ofMillis(100))
+            .setPublishExecutor(publishExecutor)
+            .build();
+    String workflowId = stub.getExecution().getWorkflowId();
+    try (WorkflowStreamClient clientA =
+            WorkflowStreamClient.newInstance(
+                testWorkflowRule.getWorkflowClient(), workflowId, options);
+        WorkflowStreamClient clientB =
+            WorkflowStreamClient.newInstance(
+                testWorkflowRule.getWorkflowClient(), workflowId, options)) {
+      clientA.topic("evt").publish("a", false);
+      clientB.topic("evt").publish("b", false);
+
+      // The two batches may arrive in either order; both must arrive.
+      try (WorkflowStreamSubscription subscription = clientA.subscribe(FAST_POLL)) {
+        List<String> values = new ArrayList<>();
+        values.add(decode(subscription.next()));
+        values.add(decode(subscription.next()));
+        Assert.assertEquals(2, values.size());
+        Assert.assertTrue(values.contains("a"));
+        Assert.assertTrue(values.contains("b"));
+      }
+    }
+
+    Assert.assertFalse(publishExecutor.isShutdown());
+    CountDownLatch ran = new CountDownLatch(1);
+    publishExecutor.execute(ran::countDown);
+    Assert.assertTrue(ran.await(10, TimeUnit.SECONDS));
+    publishExecutor.shutdownNow();
+
     stub.signal("finish");
     stub.getResult(Void.class);
   }
