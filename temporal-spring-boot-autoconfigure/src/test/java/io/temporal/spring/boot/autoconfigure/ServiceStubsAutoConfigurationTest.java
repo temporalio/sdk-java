@@ -58,6 +58,31 @@ class ServiceStubsAutoConfigurationTest {
   }
 
   @Test
+  void serviceStubsIsLoadedForRemoteEnvWithPKCS8ConfigurationPassedAsStringWithEscapedNewlines() {
+    // Environment variables can't carry real line breaks, so PEM content is often supplied with
+    // each line break written as the two characters backslash and 'n'.
+    String crtChain =
+        IOUtils.toString(ClassLoader.getSystemResourceAsStream("pkcs8-crt-chain.pem"))
+            .trim()
+            .replace("\r\n", "\n")
+            .replace("\n", "\\n");
+    String crtKey =
+        IOUtils.toString(ClassLoader.getSystemResourceAsStream("pkcs8-pk.pem"))
+            .trim()
+            .replace("\r\n", "\n")
+            .replace("\n", "\\n");
+    assertThat(crtChain).doesNotContain("\n").contains("\\n");
+    assertThat(crtKey).doesNotContain("\n").contains("\\n");
+
+    contextRunner
+        .withPropertyValues(
+            "spring.temporal.connection.target=" + LOCAL_TEMPORAL_HOST,
+            "spring.temporal.connection.mtls.key=" + crtKey,
+            "spring.temporal.connection.mtls.cert-chain=" + crtChain)
+        .run(context -> assertThatServiceStubsIsLoaded(context));
+  }
+
+  @Test
   void serviceStubsIsLoadedForRemoteEnvWithPKCS12Configuration() throws URISyntaxException {
     String keyFile = ClassLoader.getSystemResource("pkcs12-key.pfx").toURI().getPath();
 
