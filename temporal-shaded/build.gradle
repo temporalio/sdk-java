@@ -69,6 +69,7 @@ configurations.shadow {
 
 shadowJar {
     configurations = [project.configurations.shadow]
+    exclude 'META-INF/io.netty.versions.properties'
 
     relocate 'gogoproto', 'io.temporal.shaded.gogoproto' // protobuf
     relocate 'com.google.rpc', 'io.temporal.shaded.com.google.rpc' // StatusUtils
