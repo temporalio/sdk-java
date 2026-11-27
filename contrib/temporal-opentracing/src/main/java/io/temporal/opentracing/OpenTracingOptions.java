@@ -1,6 +1,5 @@
 package io.temporal.opentracing;
 
-import com.google.common.base.MoreObjects;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import io.temporal.opentracing.internal.ActionTypeAndNameSpanBuilderProvider;
@@ -10,8 +9,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class OpenTracingOptions {
-  private static final OpenTracingOptions DEFAULT_INSTANCE =
-      OpenTracingOptions.newBuilder().build();
+  private static final class DefaultInstanceHolder {
+    static final OpenTracingOptions DEFAULT_INSTANCE = OpenTracingOptions.newBuilder().build();
+  }
 
   private final Tracer tracer;
   private final SpanBuilderProvider spanBuilderProvider;
@@ -20,7 +20,7 @@ public class OpenTracingOptions {
   private final boolean encodeHeaders;
 
   public static OpenTracingOptions getDefaultInstance() {
-    return DEFAULT_INSTANCE;
+    return DefaultInstanceHolder.DEFAULT_INSTANCE;
   }
 
   private OpenTracingOptions(
@@ -132,7 +132,7 @@ public class OpenTracingOptions {
 
     public OpenTracingOptions build() {
       return new OpenTracingOptions(
-          MoreObjects.firstNonNull(tracer, GlobalTracer.get()),
+          tracer != null ? tracer : GlobalTracer.get(),
           spanBuilderProvider,
           spanContextCodec,
           isErrorPredicate,
